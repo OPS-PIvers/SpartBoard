@@ -3054,11 +3054,28 @@ service cloud.firestore {
         // - Students can create and update only their own record (for heartbeats/disconnects)
         // - Only teacher and admins can delete records
         allow read: if request.auth != null;
+        // Payload must match the client's exact write shape (LiveStudent /
+        // hooks/useLiveSession.ts `newStudent`) — without this, any caller
+        // who learns a sessionId (the parent `sessions` read is a broad,
+        // tracked MEDIUM) could spray unbounded arbitrary-shape docs into a
+        // teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
         allow create: if request.auth != null &&
-          request.auth.uid == studentId;
+          request.auth.uid == studentId &&
+          request.resource.data.keys().hasOnly(['pin', 'status', 'joinedAt', 'lastActive']) &&
+          request.resource.data.pin is string &&
+          request.resource.data.pin.size() > 0 &&
+          request.resource.data.pin.size() <= 10 &&
+          request.resource.data.status in ['active', 'frozen', 'disconnected'] &&
+          request.resource.data.joinedAt is int &&
+          request.resource.data.lastActive is int;
+        // The real client only ever updates `status` (toggleFreezeStudent,
+        // leaveSession, endSession's disconnect sweep) — restrict to that so
+        // an update can't be used to rewrite pin/timestamps post-create.
         allow update: if request.auth != null &&
           (request.auth.uid == userId || isAdmin() ||
-           request.auth.uid == studentId);
+           request.auth.uid == studentId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          request.resource.data.status in ['active', 'frozen', 'disconnected'];
         allow delete: if request.auth != null &&
           (request.auth.uid == userId || isAdmin());
       }
