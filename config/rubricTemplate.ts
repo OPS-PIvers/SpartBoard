@@ -1,8 +1,8 @@
 // Rubric CSV import template (RubricBuilderPanel help dialog).
 
-// Paste the template Google Sheet's /copy link here once it exists
-// (https://docs.google.com/spreadsheets/d/<ID>/copy); empty hides the button.
-export const RUBRIC_TEMPLATE_SHEET_URL = '';
+// Template Google Sheet /copy link; empty hides the Sheets button in the import dialog.
+export const RUBRIC_TEMPLATE_SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1dyHDoclmkY582_cV_7wQgxtt9sO3h1qzfyKNxpowLeY/copy';
 
 export const RUBRIC_TEMPLATE_CSV = [
   'Criterion,Description,Level 1 Label,Level 1 Points,Level 1 Description,Level 2 Label,Level 2 Points,Level 2 Description,Level 3 Label,Level 3 Points,Level 3 Description,Level 4 Label,Level 4 Points,Level 4 Description',
