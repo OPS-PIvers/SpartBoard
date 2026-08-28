@@ -195,94 +195,208 @@ export const GuidedLearningResults: React.FC<Props> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 flex-shrink-0">
+      <div
+        className="flex items-center border-b border-white/10 flex-shrink-0"
+        style={{
+          gap: 'min(8px, 2cqmin)',
+          padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)',
+        }}
+      >
         <button
           onClick={onClose}
-          className="text-slate-400 hover:text-white transition-colors"
+          className="text-slate-300 hover:text-white transition-colors"
           aria-label="Back"
         >
-          <X className="w-4 h-4" />
+          <X
+            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+          />
         </button>
-        <BarChart2 className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-        <span className="text-white font-semibold text-sm flex-1 truncate">
+        <BarChart2
+          className="text-indigo-400 flex-shrink-0"
+          style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+        />
+        <span
+          className="text-white font-semibold flex-1 truncate"
+          style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+        >
           Results: {set.title}
         </span>
         <button
           onClick={handleExport}
           disabled={responses.length === 0}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white text-xs rounded-lg transition-colors"
+          className="flex items-center bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white rounded-lg transition-colors"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+            fontSize: 'min(12px, 4.5cqmin)',
+          }}
         >
-          <Download className="w-3 h-3" />
+          <Download
+            style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+          />
           CSV
         </button>
       </div>
 
       {responsesLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+          <Loader2
+            className="text-slate-300 animate-spin"
+            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+          />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <div
+          className="flex-1 overflow-y-auto flex flex-col"
+          style={{
+            padding: 'min(12px, 2.5cqmin)',
+            gap: 'min(16px, 3.5cqmin)',
+          }}
+        >
           {/* Summary cards */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/5 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold text-white">
+          <div className="grid grid-cols-3" style={{ gap: 'min(8px, 2cqmin)' }}>
+            <div
+              className="bg-white/5 rounded-xl text-center"
+              style={{ padding: 'min(12px, 2.5cqmin)' }}
+            >
+              <div
+                className="font-bold text-white"
+                style={{ fontSize: 'min(24px, 12cqmin)' }}
+              >
                 {responses.length}
               </div>
-              <div className="text-slate-300 text-xs mt-0.5 flex items-center justify-center gap-1">
-                <Users className="w-3 h-3" /> Total
+              <div
+                className="text-slate-300 flex items-center justify-center"
+                style={{
+                  fontSize: 'min(12px, 4.5cqmin)',
+                  marginTop: 'min(2px, 0.5cqmin)',
+                  gap: 'min(4px, 1cqmin)',
+                }}
+              >
+                <Users
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />{' '}
+                Total
               </div>
             </div>
-            <div className="bg-white/5 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold text-emerald-400">
+            <div
+              className="bg-white/5 rounded-xl text-center"
+              style={{ padding: 'min(12px, 2.5cqmin)' }}
+            >
+              <div
+                className="font-bold text-emerald-400"
+                style={{ fontSize: 'min(24px, 12cqmin)' }}
+              >
                 {completedResponsesCount}
               </div>
-              <div className="text-slate-300 text-xs mt-0.5 flex items-center justify-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Done
+              <div
+                className="text-slate-300 flex items-center justify-center"
+                style={{
+                  fontSize: 'min(12px, 4.5cqmin)',
+                  marginTop: 'min(2px, 0.5cqmin)',
+                  gap: 'min(4px, 1cqmin)',
+                }}
+              >
+                <CheckCircle2
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />{' '}
+                Done
               </div>
             </div>
-            <div className="bg-white/5 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold text-indigo-400">
+            <div
+              className="bg-white/5 rounded-xl text-center"
+              style={{ padding: 'min(12px, 2.5cqmin)' }}
+            >
+              <div
+                className="font-bold text-indigo-400"
+                style={{ fontSize: 'min(24px, 12cqmin)' }}
+              >
                 {avgScore !== null ? `${avgScore}%` : '—'}
               </div>
-              <div className="text-slate-300 text-xs mt-0.5">Avg Score</div>
+              <div
+                className="text-slate-300"
+                style={{
+                  fontSize: 'min(12px, 4.5cqmin)',
+                  marginTop: 'min(2px, 0.5cqmin)',
+                }}
+              >
+                Avg Score
+              </div>
             </div>
           </div>
 
           {/* Per-question breakdown */}
           {questionSteps.length > 0 && (
             <div>
-              <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <h3
+                className="text-slate-300 font-semibold uppercase tracking-wider"
+                style={{
+                  fontSize: 'min(11px, 4cqmin)',
+                  marginBottom: 'min(8px, 2cqmin)',
+                }}
+              >
                 Question Results
               </h3>
-              <div className="space-y-2">
+              <div
+                className="flex flex-col"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
                 {questionStats.map(({ step, correct, total, pct }, idx) => (
-                  <div key={step.id} className="bg-white/5 rounded-xl p-3">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <p className="text-white text-xs font-medium flex-1">
+                  <div
+                    key={step.id}
+                    className="bg-white/5 rounded-xl"
+                    style={{ padding: 'min(12px, 2.5cqmin)' }}
+                  >
+                    <div
+                      className="flex items-start justify-between"
+                      style={{
+                        gap: 'min(8px, 2cqmin)',
+                        marginBottom: 'min(8px, 2cqmin)',
+                      }}
+                    >
+                      <p
+                        className="text-white font-medium flex-1"
+                        style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                      >
                         Q{idx + 1}: {step.question?.text}
                       </p>
                       <span
-                        className={`shrink-0 text-xs font-bold ${
+                        className={`shrink-0 font-bold ${
                           pct === null
                             ? 'text-slate-300'
                             : pct >= 70
                               ? 'text-emerald-400'
                               : 'text-amber-400'
                         }`}
+                        style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                       >
                         {pct !== null ? `${pct}%` : '—'}
                       </span>
                     </div>
                     {pct !== null && (
-                      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="bg-slate-700 rounded-full overflow-hidden"
+                        style={{ height: 'min(6px, 1.5cqmin)' }}
+                      >
                         <div
                           className={`h-full rounded-full ${pct >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
                     )}
-                    <p className="text-slate-300 text-xs mt-1">
+                    <p
+                      className="text-slate-300"
+                      style={{
+                        fontSize: 'min(12px, 4.5cqmin)',
+                        marginTop: 'min(4px, 1cqmin)',
+                      }}
+                    >
                       {correct} / {total} correct
                     </p>
                   </div>
@@ -294,10 +408,19 @@ export const GuidedLearningResults: React.FC<Props> = ({
           {/* Student list */}
           {responses.length > 0 && (
             <div>
-              <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+              <h3
+                className="text-slate-300 font-semibold uppercase tracking-wider"
+                style={{
+                  fontSize: 'min(11px, 4cqmin)',
+                  marginBottom: 'min(8px, 2cqmin)',
+                }}
+              >
                 Responses
               </h3>
-              <div className="space-y-1.5">
+              <div
+                className="flex flex-col"
+                style={{ gap: 'min(6px, 1.5cqmin)' }}
+              >
                 {responseStats.map(({ response: r, qCorrect, qAnswered }) => {
                   const classLinkName = formatStudentName(
                     byStudentUid.get(r.studentAnonymousId)
@@ -307,18 +430,33 @@ export const GuidedLearningResults: React.FC<Props> = ({
                   return (
                     <div
                       key={r.studentAnonymousId}
-                      className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2"
+                      className="flex items-center justify-between bg-white/5 rounded-lg"
+                      style={{
+                        padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
+                      }}
                     >
                       <div>
-                        <span className="text-white text-xs font-medium">
+                        <span
+                          className="text-white font-medium"
+                          style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                        >
                           {label}
                         </span>
-                        <span className="text-slate-300 text-xs ml-2">
+                        <span
+                          className="text-slate-300"
+                          style={{
+                            fontSize: 'min(12px, 4.5cqmin)',
+                            marginLeft: 'min(8px, 2cqmin)',
+                          }}
+                        >
                           {r.completedAt ? 'Completed' : 'In progress'}
                         </span>
                       </div>
                       {questionSteps.length > 0 && (
-                        <span className="text-slate-300 text-xs">
+                        <span
+                          className="text-slate-300"
+                          style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                        >
                           {qCorrect}/{qAnswered} correct
                         </span>
                       )}
@@ -330,7 +468,13 @@ export const GuidedLearningResults: React.FC<Props> = ({
           )}
 
           {responses.length === 0 && (
-            <div className="text-center text-slate-300 text-sm py-8">
+            <div
+              className="text-center text-slate-300"
+              style={{
+                fontSize: 'min(14px, 5.5cqmin)',
+                padding: 'min(32px, 7cqmin) 0',
+              }}
+            >
               No responses yet. Share the assignment link with students.
             </div>
           )}

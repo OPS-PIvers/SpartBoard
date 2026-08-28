@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-28_
-_Last action: 2026-08-27 — MEDIUM "Three widgets' loading state uses a full-widget opaque `bg-slate-50` root" resolved: dropped `bg-slate-50` from the loading-state root in `BlendingBoard/Widget.tsx`, `CarRiderPro/Widget.tsx`, and `First5/Widget.tsx`, restoring the transparent glass shell. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. PR opened to dev-paul.
+_Last action: 2026-08-28 — MEDIUM `GuidedLearningResults` front-face view (zero container-query units) resolved: converted all Tailwind text/icon/spacing utilities to `cqmin`-scaled inline styles throughout the header, summary cards, per-question breakdown, and student list, matching the `GuidedLearningPlayer`/`VideoActivityWidget/components/Results.tsx` conversion pattern. Also swapped the header back-button and loading spinner from `text-slate-400` to `text-slate-300` per CLAUDE.md's muted-text-on-dark-surfaces rule. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, `vitest run tests/components/widgets/GuidedLearningResults.test.tsx` 4/4 pass. PR opened to dev-paul.
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM `GuidedLearningResults` front-face view has zero container-query units
-
-- **Detected:** 2026-08-24
-- **File:** `components/widgets/GuidedLearning/components/GuidedLearningResults.tsx` (341 lines, 0 `cqmin`, 34 hardcoded utilities)
-- **Detail:** Rendered inline at `GuidedLearning/Widget.tsx:822`, directly inside `WidgetLayout content` — no `createPortal`, root is `<div className="h-full flex flex-col">`, so `cqmin` would resolve correctly against the widget. `guided-learning` is `skipScaling: true` (`WidgetRegistry.ts:937-942`, base 720×520). Every size is a Tailwind class: `text-2xl` on the three summary numbers (`:229,237,245` — the primary content of the view), `text-sm` (`:207,333`), `text-xs` (×12), icons `w-4 h-4`/`w-3 h-3`/`w-6 h-6` (`:204,206,215,222`), spacing `px-3 py-2`/`p-3`/`gap-2`/`mb-2`/`mt-0.5`. Sibling GL views are converted (`GuidedLearningPlayer`, and `VideoActivityWidget/components/Results.tsx` = 30 `cqmin` / 0 hardcoded), so this file was simply missed. Not covered by the Completed 2026-04-14 group item, which listed only `GuidedLearning/Widget.tsx`.
-- **Fix:** Convert throughout per the skill table. The three summary numbers are hero-tier: `text-2xl` → `style={{ fontSize: 'min(24px, 12cqmin)' }}`; `text-sm` → `min(14px, 5.5cqmin)`; `text-xs` → `min(12px, 4.5cqmin)`; icons → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`. Follow the QRWidget pattern of merging into existing `style` objects rather than adding a second one.
 
 ### MEDIUM `GuidedLearningAIGenerator` in-widget overlay has zero container-query units
 
@@ -371,6 +364,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### MEDIUM `GuidedLearningResults` front-face view has zero container-query units
+
+- **Detected:** 2026-08-24
+- **Completed:** 2026-08-28
+- **File:** `components/widgets/GuidedLearning/components/GuidedLearningResults.tsx` (341 lines, 0 `cqmin`, 34 hardcoded utilities)
+- **Detail:** Rendered inline at `GuidedLearning/Widget.tsx:822`, directly inside `WidgetLayout content` — no `createPortal`, root is `<div className="h-full flex flex-col">`, so `cqmin` would resolve correctly against the widget. `guided-learning` is `skipScaling: true` (`WidgetRegistry.ts:937-942`, base 720×520). Every size is a Tailwind class: `text-2xl` on the three summary numbers (`:229,237,245` — the primary content of the view), `text-sm` (`:207,333`), `text-xs` (×12), icons `w-4 h-4`/`w-3 h-3`/`w-6 h-6` (`:204,206,215,222`), spacing `px-3 py-2`/`p-3`/`gap-2`/`mb-2`/`mt-0.5`. Sibling GL views are converted (`GuidedLearningPlayer`, and `VideoActivityWidget/components/Results.tsx` = 30 `cqmin` / 0 hardcoded), so this file was simply missed. Not covered by the Completed 2026-04-14 group item, which listed only `GuidedLearning/Widget.tsx`.
+- **Resolution:** Converted every hardcoded Tailwind text/icon/spacing utility to a `cqmin`-scaled inline style, matching the `GuidedLearningPlayer`/`VideoActivityWidget/components/Results.tsx` pattern: the three summary numbers → `min(24px, 12cqmin)`, section labels/body text → `min(11-12px, 4-4.5cqmin)`, icons → `min(12-16px, 3-4cqmin)`, and all `px-*`/`py-*`/`gap-*`/`mb-*`/`mt-*` spacing → `min(Npx, Ncqmin)` padding/gap/margin styles. `space-y-*` utilities were replaced with `flex flex-col` + a `gap` style so the vertical rhythm scales too. Incidentally normalized two `text-slate-400` uses (back button, loading spinner) to `text-slate-300` per CLAUDE.md's muted-text-on-dark-surfaces rule. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, `vitest run tests/components/widgets/GuidedLearningResults.test.tsx` 4/4 pass.
 
 ### MEDIUM Three widgets' loading state uses a full-widget opaque `bg-slate-50` root, masking the glass shell
 
