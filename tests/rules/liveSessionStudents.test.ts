@@ -6,16 +6,22 @@
 //     be EXACTLY {pin, status, joinedAt, lastActive} — pin a non-empty string
 //     capped at 10 chars (MAX_PIN_LENGTH in useLiveSession.ts), status one of
 //     the three LiveStudent enum values, joinedAt/lastActive ints.
-//   - update: only the teacher/admin/owning-student, and only ever the
-//     `status` field — the real client (toggleFreezeStudent, leaveSession,
-//     endSession's disconnect sweep) never touches any other field.
+//   - update: teacher/admin/owning-student may flip `status` only
+//     (toggleFreezeStudent, leaveSession, endSession's disconnect sweep);
+//     the owning student may ALSO overwrite the full valid shape (matching
+//     create's constraints) — joinSession's rejoin path (persisted
+//     anonymous auth across a refresh) `setDoc`s the full record over an
+//     existing doc, which Firestore evaluates as an update, not a create.
 //
 // Regression coverage: before this rule tightened, `create` had no schema
 // check at all, so any authenticated user who learned a live sessionId
 // (broad `sessions` read/list is a tracked, deliberately-unfixed MEDIUM —
 // see docs/scheduled-tasks/firestore-rules.md) could spray unbounded
 // arbitrary-shape docs into a teacher's roster; `update` was equally
-// unconstrained for the same three actors.
+// unconstrained for the same three actors. A first attempt at this fix
+// restricted ALL updates to `status`-only, which broke the rejoin path
+// above — caught by automated review before merge, fixed by widening the
+// owning-student branch to also accept the full valid shape.
 //
 // Requires a running Firestore emulator. Invoke via: pnpm run test:rules
 
@@ -245,10 +251,40 @@ describe('live session students — update', () => {
     );
   });
 
-  it('rejects the owning student rewriting their own pin via update', async () => {
-    await assertFails(
-      updateDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
+  it('allows the owning student to rejoin by overwriting the full doc (setDoc over an existing record)', async () => {
+    // joinSession's rejoin path (persisted anonymous auth across a page
+    // refresh) calls setDoc with the full {pin, status, joinedAt,
+    // lastActive} shape against a doc that already exists — Firestore
+    // evaluates that as an update, not a create, so the rule must permit
+    // this exact shape for the owning student, not just a status-only diff.
+    await assertSucceeds(
+      setDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
         pin: '9999',
+        status: 'active',
+        joinedAt: 3000,
+        lastActive: 3000,
+      })
+    );
+  });
+
+  it('rejects the owning student rejoining with an invalid shape (oversized pin)', async () => {
+    await assertFails(
+      setDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
+        pin: 'x'.repeat(500),
+        status: 'active',
+        joinedAt: 3000,
+        lastActive: 3000,
+      })
+    );
+  });
+
+  it('rejects a non-owning actor (teacher) from using the full-shape rejoin path', async () => {
+    await assertFails(
+      setDoc(studentRef(asTeacher(), STUDENT_UID), {
+        pin: '9999',
+        status: 'active',
+        joinedAt: 3000,
+        lastActive: 3000,
       })
     );
   });
