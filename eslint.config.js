@@ -190,11 +190,12 @@ export default tseslint.config(
     // directory (found in `MathToolInstance/`, whose sibling `MathTools/`
     // already used the `@/` alias for the same module) or into QuizWidget's
     // own sibling `monitor/`/`present/` subdirectories (a two-way escape
-    // between those two — see PR #2612 for how the two patterns ended up in
-    // one block instead of two). `'../WidgetLayout'` from inside a widget
-    // subfolder (a root-level shared file, not a sibling feature directory)
-    // is an intentionally-preserved gray zone (D4-E2) and is NOT matched by
-    // this pattern.
+    // between those two). Both patterns share this single block because ESLint
+    // flat config replaces — rather than merges — a rule's value when two
+    // matching config objects set the same key. `'../WidgetLayout'` from inside
+    // a widget subfolder (a root-level shared file, not a sibling feature
+    // directory) is an intentionally-preserved gray zone (D4-E2) and is NOT
+    // matched by this pattern.
     files: ['components/widgets/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
