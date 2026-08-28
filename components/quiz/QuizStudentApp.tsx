@@ -3569,7 +3569,11 @@ const PublishedScoreReview: React.FC<{
                 </p>
               )}
               {awaitingGrade && (
-                <p className={`mt-2 text-sm font-semibold ${prepText}`}>
+                <p
+                  className={`mt-2 text-sm font-semibold ${
+                    light ? 'text-amber-700' : 'text-amber-300'
+                  }`}
+                >
                   Provisional — your written response is still being graded, so
                   this score will change.
                 </p>
@@ -3751,7 +3755,9 @@ export const CollapsibleRubric: React.FC<{
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${headingCls}`}
+        className={`flex w-full items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors ${
+          open ? 'rounded-t-xl' : 'rounded-xl'
+        } ${light ? 'hover:bg-slate-100' : 'hover:bg-slate-700/60'} ${headingCls}`}
         aria-expanded={open}
       >
         {open ? (
@@ -3945,7 +3951,11 @@ export const WrittenAnswerReview: React.FC<{
               light ? 'border-slate-200' : 'border-slate-700/60'
             }`}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span
+              className={`text-[10px] font-bold uppercase tracking-wider ${
+                light ? 'text-slate-500' : 'text-slate-300'
+              }`}
+            >
               Score
             </span>
             <span
@@ -3960,11 +3970,19 @@ export const WrittenAnswerReview: React.FC<{
       )}
       {!hasGrade &&
         (showingLiveAnswer ? (
-          <p className="text-[11px] text-slate-500 italic">
+          <p
+            className={`text-[11px] italic ${
+              light ? 'text-slate-500' : 'text-slate-300'
+            }`}
+          >
             Showing your latest response — not yet graded by your teacher.
           </p>
         ) : (
-          <p className="text-[11px] text-slate-500 italic">
+          <p
+            className={`text-[11px] italic ${
+              light ? 'text-slate-500' : 'text-slate-300'
+            }`}
+          >
             Not yet graded by your teacher.
           </p>
         ))}

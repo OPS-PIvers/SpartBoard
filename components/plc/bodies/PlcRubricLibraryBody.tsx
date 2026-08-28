@@ -378,7 +378,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
                         title: entry.title,
                         defaultValue: 'Unshare {{title}}',
                       })}
-                      className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-red-primary/10 hover:text-brand-red-primary transition-colors disabled:opacity-40"
+                      className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
                     >
                       <Trash2 className="w-4 h-4" aria-hidden="true" />
                     </button>

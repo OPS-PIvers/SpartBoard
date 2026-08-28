@@ -118,7 +118,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
       className="rounded-lg border border-slate-200 bg-slate-50/70"
     >
       <header className="px-3 py-2.5 border-b border-slate-200">
-        <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
           Rubric
         </h4>
         <p className="text-sm font-semibold text-slate-900 leading-snug mt-0.5">
@@ -238,8 +238,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
         )}
         {allScored && derivedPoints > maxPoints && (
           <p className="text-xs text-amber-700 font-semibold mt-1">
-            Rubric total exceeds the question max — points capped at {maxPoints}
-            .
+            {`Rubric total exceeds the question max — points capped at ${maxPoints}.`}
           </p>
         )}
       </footer>

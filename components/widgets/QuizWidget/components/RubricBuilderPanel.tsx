@@ -352,7 +352,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           ref={focusCloseButton}
           onClick={onClose}
           aria-label="Close rubric builder"
-          className="p-1 text-slate-500 hover:text-slate-900 rounded"
+          className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
         >
           <X className="w-4 h-4" />
         </button>
@@ -426,7 +426,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               onClick={() => void handleImport()}
               disabled={importing || !importCode.trim()}
               aria-label="Import shared rubric"
-              className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
             >
               {importing ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -486,7 +486,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 }
                 disabled={ci === 0}
                 aria-label={`Move criterion ${ci + 1} up`}
-                className="p-1 text-slate-500 hover:text-slate-900 disabled:opacity-30"
+                className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <ArrowUp className="w-4 h-4" />
               </button>
@@ -499,7 +499,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 }
                 disabled={ci === draft.criteria.length - 1}
                 aria-label={`Move criterion ${ci + 1} down`}
-                className="p-1 text-slate-500 hover:text-slate-900 disabled:opacity-30"
+                className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <ArrowDown className="w-4 h-4" />
               </button>
@@ -512,7 +512,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 }
                 disabled={draft.criteria.length <= MIN_CRITERIA}
                 aria-label={`Remove criterion ${ci + 1}`}
-                className="p-1 text-slate-500 hover:text-red-500 disabled:opacity-30"
+                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -562,7 +562,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   }
                   disabled={c.levels.length <= MIN_LEVELS}
                   aria-label={`Remove criterion ${ci + 1} level ${li + 1}`}
-                  className="p-1 text-slate-500 hover:text-red-500 disabled:opacity-30"
+                  className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -581,7 +581,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                     ],
                   })
                 }
-                className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary"
+                className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Level
@@ -597,7 +597,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               criteria: [...prev.criteria, newCriterion()],
             }))
           }
-          className="flex items-center justify-center gap-1.5 w-full py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 rounded-lg text-slate-600 font-bold text-xs"
+          className="flex items-center justify-center gap-1.5 w-full py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 hover:text-brand-blue-primary rounded-lg text-slate-600 font-bold text-xs transition-all"
         >
           <Plus className="w-3.5 h-3.5" />
           Add Criterion
@@ -606,7 +606,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         <div className="flex gap-2">
           <button
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
           >
             <Upload className="w-3.5 h-3.5" />
             Import CSV
@@ -625,7 +625,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           />
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Export CSV
@@ -633,7 +633,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           <button
             onClick={() => void handleShare()}
             disabled={!canShare || sharing}
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
           >
             {sharing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -665,7 +665,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
             <button
               onClick={() => void handleCopyShareUrl()}
               aria-label="Copy rubric share link"
-              className="p-1 text-slate-500 hover:text-slate-900 rounded"
+              className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
             >
               {copied ? (
                 <Check className="w-4 h-4 text-emerald-600" />
@@ -720,14 +720,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           <button
             onClick={() => void handleSaveToLibrary()}
             disabled={errors.length > 0}
-            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40"
+            className="flex-1 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
           >
             Save to library
           </button>
           <button
             onClick={handleAttach}
             disabled={errors.length > 0}
-            className="flex-1 px-3 py-2 bg-brand-blue-primary text-white rounded-lg text-xs font-bold disabled:opacity-40"
+            className="flex-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
           >
             Attach to question
           </button>
@@ -735,7 +735,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         {existingSnapshot && (
           <button
             onClick={onDetach}
-            className="w-full px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-lg"
+            className="w-full px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
           >
             Detach rubric
           </button>
