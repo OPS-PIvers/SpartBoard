@@ -67,7 +67,7 @@ describe('useLiveSession — joinSession input validation', () => {
       firestore.getDocs as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce({
       empty: false,
-      docs: [{ id: 'teacher-uid-1' }],
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
     });
 
     const { result } = renderHook(() =>
@@ -85,7 +85,7 @@ describe('useLiveSession — joinSession input validation', () => {
       firestore.getDocs as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce({
       empty: false,
-      docs: [{ id: 'teacher-uid-1' }],
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
     });
 
     const { result } = renderHook(() =>
@@ -102,7 +102,7 @@ describe('useLiveSession — joinSession input validation', () => {
     (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({
         empty: false,
-        docs: [{ id: 'teacher-uid-1' }],
+        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
       })
       .mockResolvedValueOnce({
         docs: [
@@ -125,7 +125,7 @@ describe('useLiveSession — joinSession input validation', () => {
     (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({
         empty: false,
-        docs: [{ id: 'teacher-uid-1' }],
+        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
       })
       .mockResolvedValueOnce({
         docs: [
@@ -153,7 +153,7 @@ describe('useLiveSession — joinSession input validation', () => {
     (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({
         empty: false,
-        docs: [{ id: 'teacher-uid-1' }],
+        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
       })
       .mockResolvedValueOnce({ docs: [] });
     (
@@ -180,7 +180,7 @@ describe('useLiveSession — joinSession input validation', () => {
     (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({
         empty: false,
-        docs: [{ id: 'teacher-uid-1' }],
+        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
       })
       .mockResolvedValueOnce({ docs: [] });
     const setDocMock = firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
@@ -197,6 +197,117 @@ describe('useLiveSession — joinSession input validation', () => {
     const writtenStudent = setDocMock.mock.calls[0][1] as { pin: string };
     expect(writtenStudent.pin).toBe('1234567890');
     expect(writtenStudent.pin.length).toBe(10);
+  });
+
+  it('throws "Session not found" when every code match is a stale, inactive session', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: false }) }],
+    });
+
+    const { result } = renderHook(() =>
+      useLiveSession(undefined, 'student', 'ABC123')
+    );
+    await expect(result.current.joinSession('1234', 'ABC123')).rejects.toThrow(
+      'Session not found'
+    );
+  });
+
+  it('skips a stale inactive session and joins the active one sharing the same code', async () => {
+    (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          { id: 'ended-teacher', data: () => ({ isActive: false }) },
+          { id: 'live-teacher', data: () => ({ isActive: true }) },
+        ],
+      })
+      .mockResolvedValueOnce({ docs: [] });
+    (
+      firestore.setDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() =>
+      useLiveSession(undefined, 'student', 'ABC123')
+    );
+    let teacherId = '';
+    await act(async () => {
+      teacherId = await result.current.joinSession('1234', 'ABC123');
+    });
+    expect(teacherId).toBe('live-teacher');
+  });
+});
+
+describe('useLiveSession — startSession join-code collision avoidance', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(() => vi.fn());
+    (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (
+      firestore.collection as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({});
+    (firestore.query as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (firestore.where as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (firestore.setDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+  });
+
+  it('probes for an active session already using the candidate code, and retries on collision', async () => {
+    const getDocsMock = firestore.getDocs as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    // 1) clearing old students for this teacher (unrelated to code allocation)
+    // 2) first candidate collides with another teacher's active session
+    // 3) second candidate is free
+    getDocsMock
+      .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({
+        docs: [{ id: 'other-teacher', data: () => ({ isActive: true }) }],
+      })
+      .mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+
+    let session: { code: string } | undefined;
+    await act(async () => {
+      session = await result.current.startSession('widget-1', 'clock');
+    });
+
+    // A collision-checking implementation probes Firestore for the
+    // candidate code (in addition to the unrelated student-clearing
+    // query) before ever writing the session document.
+    expect(getDocsMock).toHaveBeenCalledTimes(3);
+    expect(session?.code).toBeTruthy();
+  });
+
+  it('accepts the first candidate outright when no active session shares it', async () => {
+    const getDocsMock = firestore.getDocs as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    getDocsMock
+      .mockResolvedValueOnce({ docs: [] }) // clear old students
+      .mockResolvedValueOnce({ docs: [] }); // no collision
+
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+
+    await act(async () => {
+      await result.current.startSession('widget-1', 'clock');
+    });
+
+    expect(getDocsMock).toHaveBeenCalledTimes(2);
   });
 });
 
