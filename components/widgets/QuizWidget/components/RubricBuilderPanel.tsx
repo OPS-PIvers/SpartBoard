@@ -206,6 +206,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const asideRef = useRef<HTMLElement>(null);
   const [panelWidth, setPanelWidth] = useState<number>(readStoredPanelWidth);
   const [showCsvHelp, setShowCsvHelp] = useState(false);
+  const [csvDragOver, setCsvDragOver] = useState(false);
 
   // Clamp against the containing block (the editor modal body), not the DOM
   // parent — the panel may stretch across both editor panes.
@@ -872,7 +873,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
             role="dialog"
             aria-modal="true"
             aria-label="CSV import format"
-            className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-full"
+            className="w-full max-w-md bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-full"
           >
             <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
               <h4 className="font-bold text-slate-900 text-sm">
@@ -887,79 +888,60 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </header>
-            <div className="p-4 space-y-3 overflow-y-auto text-xs text-slate-700">
-              <p>
-                The first row must be column headers. Each following row is one
-                criterion with 2–6 levels. Points must be whole numbers.
-              </p>
-              <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider">
-                    <tr>
-                      <th className="px-2 py-1.5">Criterion</th>
-                      <th className="px-2 py-1.5">Description</th>
-                      <th className="px-2 py-1.5 whitespace-nowrap">
-                        Level 1 Label
-                      </th>
-                      <th className="px-2 py-1.5 whitespace-nowrap">
-                        Level 1 Points
-                      </th>
-                      <th className="px-2 py-1.5 whitespace-nowrap">
-                        Level 1 Description
-                      </th>
-                      <th className="px-2 py-1.5">…</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    <tr>
-                      <td className="px-2 py-1.5 font-semibold">Ideas</td>
-                      <td className="px-2 py-1.5">Depth of ideas</td>
-                      <td className="px-2 py-1.5">Beginning</td>
-                      <td className="px-2 py-1.5 font-mono">1</td>
-                      <td className="px-2 py-1.5">Ideas are unclear</td>
-                      <td className="px-2 py-1.5">…</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-slate-600">
-                Description columns are optional. Repeat the Label / Points /
-                Description trio for each level (Level 2, Level 3, …).
-                {RUBRIC_TEMPLATE_SHEET_URL
-                  ? ' Copy the template sheet, fill it in, then download it as CSV (File → Download → Comma Separated Values).'
-                  : ' Download the template, fill it in with a spreadsheet app, and save it as CSV.'}
-              </p>
-            </div>
-            <footer className="flex flex-wrap gap-2 px-4 py-3 border-t border-slate-200">
-              {RUBRIC_TEMPLATE_SHEET_URL && (
-                <a
-                  href={RUBRIC_TEMPLATE_SHEET_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {RUBRIC_TEMPLATE_SHEET_URL && (
+                  <a
+                    href={RUBRIC_TEMPLATE_SHEET_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Open template in Sheets
+                  </a>
+                )}
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Open template in Google Sheets
-                </a>
-              )}
-              <button
-                onClick={handleDownloadTemplate}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Download template CSV
-              </button>
+                  <Download className="w-3.5 h-3.5" />
+                  Download template CSV
+                </button>
+              </div>
               <button
                 onClick={() => {
                   setShowCsvHelp(false);
                   fileRef.current?.click();
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors ml-auto"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setCsvDragOver(true);
+                }}
+                onDragLeave={() => setCsvDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setCsvDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) {
+                    setShowCsvHelp(false);
+                    void handleImportFile(file);
+                  }
+                }}
+                className={`w-full flex flex-col items-center justify-center gap-1.5 py-8 border-2 border-dashed rounded-xl text-xs font-bold transition-colors ${
+                  csvDragOver
+                    ? 'border-brand-blue-primary bg-brand-blue-primary/5 text-brand-blue-primary'
+                    : 'border-slate-300 hover:border-brand-blue-primary/50 hover:bg-slate-50 text-slate-600'
+                }`}
               >
-                <Upload className="w-3.5 h-3.5" />
-                Choose file…
+                <Upload className="w-5 h-5" />
+                Drop a CSV here, or click to choose a file
               </button>
-            </footer>
+              <p className="text-[11px] text-slate-600 text-center">
+                One row per criterion, 2–6 levels — the template shows the
+                format.
+              </p>
+            </div>
           </div>
         </div>
       )}
