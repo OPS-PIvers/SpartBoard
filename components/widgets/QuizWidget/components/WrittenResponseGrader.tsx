@@ -43,6 +43,7 @@ import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { sumRubricScorePoints } from '@/utils/rubricPoints';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -64,14 +65,6 @@ interface WrittenResponseGraderProps {
   teacherUid: string;
   onClose: () => void;
 }
-
-const sumRubricPoints = (
-  scores: WrittenAnswerRubricScore[] | undefined
-): number =>
-  (scores ?? []).reduce(
-    (total, s) => total + (Number.isFinite(s.points) ? s.points : 0),
-    0
-  );
 
 const clampPoints = (points: number, maxPoints: number): number =>
   Math.max(0, Math.min(points, maxPoints));
@@ -176,7 +169,10 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       rubricCriteriaCount > 0 &&
       savedGrade?.rubricScores?.length === rubricCriteriaCount
         ? String(
-            clampPoints(sumRubricPoints(savedGrade.rubricScores), maxPoints)
+            clampPoints(
+              sumRubricScorePoints(savedGrade.rubricScores),
+              maxPoints
+            )
           )
         : '';
   }
@@ -316,7 +312,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         setSaveError('Enter a numeric score.');
         return;
       }
-      parsed = clampPoints(sumRubricPoints(draftRubricScores), maxPoints);
+      parsed = clampPoints(sumRubricScorePoints(draftRubricScores), maxPoints);
     } else {
       parsed = Number(trimmed);
       if (!Number.isFinite(parsed)) {

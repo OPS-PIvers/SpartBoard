@@ -9,7 +9,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { MessageSquarePlus, X } from 'lucide-react';
 import { Rubric, RubricCriterion, RubricLevel } from '@/types';
 import type { WrittenAnswerRubricScore } from '@/types';
-import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { rubricMaxPoints, sumRubricScorePoints } from '@/utils/rubricPoints';
 
 interface RubricScoringPanelProps {
   rubric: Rubric;
@@ -17,9 +17,6 @@ interface RubricScoringPanelProps {
   initialScores?: WrittenAnswerRubricScore[];
   onChange: (scores: WrittenAnswerRubricScore[], derivedPoints: number) => void;
 }
-
-const sumPoints = (scores: WrittenAnswerRubricScore[]): number =>
-  scores.reduce((t, s) => t + (Number.isFinite(s.points) ? s.points : 0), 0);
 
 export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
   rubric,
@@ -59,7 +56,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
         .map((c) => next.get(c.id))
         .filter((s): s is WrittenAnswerRubricScore => !!s);
       setScores(ordered);
-      onChange(ordered, sumPoints(ordered));
+      onChange(ordered, sumRubricScorePoints(ordered));
     },
     [rubric.criteria, onChange]
   );
@@ -108,7 +105,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
 
   const rubricMax = useMemo(() => rubricMaxPoints(rubric), [rubric]);
 
-  const derivedPoints = sumPoints(scores);
+  const derivedPoints = sumRubricScorePoints(scores);
   const scoredCount = rubric.criteria.filter((c) =>
     byCriterion.has(c.id)
   ).length;
