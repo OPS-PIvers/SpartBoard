@@ -1845,6 +1845,141 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
   });
 });
 
+describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', () => {
+  // The rewrite must spread the prior entry (preserving sibling fields the
+  // write does not own — future artifacts[]/takeIndex, server-written data)
+  // while re-owning speedBonus and isCorrect so stale values can't ride along.
+  let responseCallback: ((snap: unknown) => void) | null = null;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    responseCallback = null;
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { exists: () => false }
+    );
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'student-uid-1',
+    };
+    // Two student listeners arm after join: session doc first, response doc
+    // second — capture the response-doc callback so tests can seed answers.
+    let snapshotCallIndex = 0;
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(
+      (_target: unknown, onNext: (snap: unknown) => void) => {
+        if (snapshotCallIndex === 1) responseCallback = onNext;
+        snapshotCallIndex += 1;
+        return vi.fn();
+      }
+    );
+    (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (
+      firestore.collection as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({});
+    (firestore.query as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (firestore.where as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (firestore.setDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+    (firestore.addDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+    (
+      firestore.updateDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(undefined);
+  });
+
+  async function joinAndSeedPrior(priorEntry: Record<string, unknown>) {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('sess-1', { status: 'active' })],
+    });
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', '1234');
+    });
+    expect(responseCallback).not.toBeNull();
+    act(() => {
+      responseCallback?.({
+        exists: () => true,
+        id: 'student-uid-1',
+        data: () => ({
+          studentUid: 'student-uid-1',
+          status: 'in-progress',
+          answers: [priorEntry],
+        }),
+      });
+    });
+    return result;
+  }
+
+  it('preserves unowned sibling fields and strips stale speedBonus/isCorrect on rewrite', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'old answer',
+      answeredAt: 100,
+      status: 'submitted',
+      speedBonus: 25,
+      isCorrect: true,
+      // Fields this write does not own — must survive the rewrite.
+      takeIndex: 0,
+      artifacts: [{ id: 'art-1', slot: 0, kind: 'audio' }],
+    });
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'new answer');
+    });
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+    };
+    expect(payload.answers).toHaveLength(1);
+    const written = payload.answers[0];
+    expect(written.answer).toBe('new answer');
+    expect(written.status).toBe('submitted');
+    expect(written.takeIndex).toBe(0);
+    expect(written.artifacts).toEqual([
+      { id: 'art-1', slot: 0, kind: 'audio' },
+    ]);
+    expect(written).not.toHaveProperty('speedBonus');
+    expect(written).not.toHaveProperty('isCorrect');
+  });
+
+  it('writes only the freshly-earned speedBonus, clamped to [0, 50]', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'old answer',
+      answeredAt: 100,
+      status: 'submitted',
+      speedBonus: 25,
+    });
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'new answer', 80);
+    });
+
+    const payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+    };
+    expect(payload.answers[0].speedBonus).toBe(50);
+  });
+});
+
 // ─── Teacher hook ─────────────────────────────────────────────────────────────
 
 const DELETE_FIELD_SENTINEL = Symbol('__deleteField__');

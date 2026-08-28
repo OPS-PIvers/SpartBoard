@@ -2383,15 +2383,25 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         return;
       }
 
+      // Spread the prior entry so sibling fields this write does not own
+      // (future artifacts/takeIndex, server-written data) survive the
+      // filter-then-append rewrite below, then explicitly re-own every
+      // field this write DOES own. `speedBonus` is per-call — delete it
+      // so the spread can't resurrect a stale bonus onto a new answer.
+      // Same for legacy `isCorrect`: recomputed teacher-side, and a
+      // stale value must not ride along under a changed answer.
       const newAnswer: QuizResponseAnswer = {
+        ...priorEntry,
         questionId,
         answer,
         answeredAt: Date.now(),
         status: opts?.isDraft ? 'draft' : 'submitted',
-        ...(speedBonus != null && speedBonus > 0
-          ? { speedBonus: Math.min(50, Math.max(0, speedBonus)) }
-          : {}),
       };
+      delete newAnswer.speedBonus;
+      delete newAnswer.isCorrect;
+      if (speedBonus != null && speedBonus > 0) {
+        newAnswer.speedBonus = Math.min(50, Math.max(0, speedBonus));
+      }
 
       const updated = [
         ...existingAnswers.filter((a) => a.questionId !== questionId),
