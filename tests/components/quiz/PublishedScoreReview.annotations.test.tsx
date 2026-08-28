@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { WrittenAnswerReview } from '@/components/quiz/QuizStudentApp';
-import type { WrittenAnswerGrade } from '@/types';
+import type { Rubric, WrittenAnswerGrade } from '@/types';
 
 describe('WrittenAnswerReview', () => {
   it('renders nothing when showResponse is false', () => {
@@ -106,5 +106,94 @@ describe('WrittenAnswerReview', () => {
       />
     );
     expect(screen.getByText(/no response/i)).toBeInTheDocument();
+  });
+
+  describe('rubric snapshot (M12 Phase 3-H)', () => {
+    const rubric: Rubric = {
+      id: 'r1',
+      title: 'Essay Rubric',
+      criteria: [
+        {
+          id: 'c1',
+          name: 'Thesis',
+          levels: [
+            { id: 'l1-low', label: 'Weak', points: 1 },
+            { id: 'l1-high', label: 'Strong', points: 3 },
+          ],
+        },
+        {
+          id: 'c2',
+          name: 'Evidence',
+          levels: [
+            { id: 'l2-low', label: 'Weak', points: 1 },
+            { id: 'l2-high', label: 'Strong', points: 3 },
+          ],
+        },
+      ],
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    it('renders the selected level + points per criterion when fully scored', () => {
+      const grade: WrittenAnswerGrade = {
+        pointsAwarded: 6,
+        gradedBy: 't',
+        gradedAt: 0,
+        rubricScores: [
+          { criterionId: 'c1', levelId: 'l1-high', points: 3 },
+          { criterionId: 'c2', levelId: 'l2-high', points: 3 },
+        ],
+      };
+      render(
+        <WrittenAnswerReview
+          studentAnswer="<p>essay text</p>"
+          grade={grade}
+          showResponse={true}
+          maxPoints={6}
+          rubricSnapshot={rubric}
+        />
+      );
+      expect(screen.getByText('Thesis')).toBeInTheDocument();
+      expect(screen.getByText('Evidence')).toBeInTheDocument();
+      expect(screen.getAllByText(/Strong — 3 pts/)).toHaveLength(2);
+    });
+
+    it('marks an unscored criterion as provisional in a partial rubric grade', () => {
+      const grade: WrittenAnswerGrade = {
+        pointsAwarded: 3,
+        gradedBy: 't',
+        gradedAt: 0,
+        rubricScores: [{ criterionId: 'c1', levelId: 'l1-high', points: 3 }],
+      };
+      render(
+        <WrittenAnswerReview
+          studentAnswer="<p>essay text</p>"
+          grade={grade}
+          showResponse={true}
+          maxPoints={6}
+          rubricSnapshot={rubric}
+        />
+      );
+      expect(screen.getByText(/Strong — 3 pts/)).toBeInTheDocument();
+      expect(screen.getByText('not yet scored')).toBeInTheDocument();
+    });
+
+    it('does not render a rubric section when the grade has no rubricScores', () => {
+      const grade: WrittenAnswerGrade = {
+        pointsAwarded: 4,
+        gradedBy: 't',
+        gradedAt: 0,
+      };
+      render(
+        <WrittenAnswerReview
+          studentAnswer="<p>essay text</p>"
+          grade={grade}
+          showResponse={true}
+          maxPoints={5}
+          rubricSnapshot={rubric}
+        />
+      );
+      expect(screen.queryByText('Thesis')).not.toBeInTheDocument();
+    });
   });
 });

@@ -548,6 +548,51 @@ describe('toPublicQuestion', () => {
     expect(pub.id).toBe('q4');
     expect(pub.type).toBe('FIB');
   });
+
+  it('carries rubricSnapshot onto the public payload for short/essay questions (M12 3-H)', () => {
+    const q: QuizQuestion = {
+      id: 'q5',
+      timeLimit: 0,
+      text: 'Explain your reasoning',
+      type: 'essay',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      points: 6,
+      rubricSnapshot: {
+        id: 'r1',
+        title: 'Essay Rubric',
+        criteria: [
+          {
+            id: 'c1',
+            name: 'Thesis',
+            levels: [
+              { id: 'l1', label: 'Weak', points: 1 },
+              { id: 'l2', label: 'Strong', points: 3 },
+            ],
+          },
+        ],
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    };
+    const pub = toPublicQuestion(q);
+    expect(pub.rubricSnapshot).toEqual(q.rubricSnapshot);
+    // Never leaks correctAnswer alongside the rubric.
+    expect(pub).not.toHaveProperty('correctAnswer');
+  });
+
+  it('omits rubricSnapshot when the question has none', () => {
+    const q: QuizQuestion = {
+      id: 'q6',
+      timeLimit: 0,
+      text: 'Short answer',
+      type: 'short',
+      correctAnswer: '',
+      incorrectAnswers: [],
+    };
+    const pub = toPublicQuestion(q);
+    expect(pub).not.toHaveProperty('rubricSnapshot');
+  });
 });
 
 // ─── Draft-write defensive predicates ─────────────────────────────────────────
