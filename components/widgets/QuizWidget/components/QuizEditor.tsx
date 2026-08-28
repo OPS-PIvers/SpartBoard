@@ -424,7 +424,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const typeMeta = QUESTION_TYPES.find((t) => t.value === q.type);
 
   return (
-    <div className="flex flex-col h-full relative">
+    // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
+    <div className="flex flex-col h-full">
       <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
         <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
           Question {selectedIndex + 1} of {questions.length}

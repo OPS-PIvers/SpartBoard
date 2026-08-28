@@ -8,6 +8,7 @@ import {
   Check,
   Copy,
   Download,
+  ExternalLink,
   Loader2,
   Plus,
   Share2,
@@ -16,6 +17,10 @@ import {
   X,
 } from 'lucide-react';
 import type { Rubric, RubricCriterion, RubricLevel } from '@/types';
+import {
+  RUBRIC_TEMPLATE_CSV,
+  RUBRIC_TEMPLATE_SHEET_URL,
+} from '@/config/rubricTemplate';
 import { useDialog } from '@/context/useDialog';
 import { useRubrics } from '@/hooks/useRubrics';
 import { parseRubricCsv, rubricToCsv } from '@/utils/rubricCsv';
@@ -38,6 +43,35 @@ const inputClass =
 const MIN_LEVELS = 2;
 const MAX_LEVELS = 6;
 const MIN_CRITERIA = 1;
+
+const PANEL_WIDTH_KEY = 'spartboard_rubric_builder_width';
+const DEFAULT_PANEL_WIDTH = 640;
+const MIN_PANEL_WIDTH = 400;
+const MAX_PANEL_FRACTION = 0.85;
+
+const readStoredPanelWidth = (): number => {
+  try {
+    const v = parseInt(localStorage.getItem(PANEL_WIDTH_KEY) ?? '', 10);
+    if (Number.isFinite(v) && v >= MIN_PANEL_WIDTH) return v;
+  } catch {
+    // localStorage unavailable — fall through to the default.
+  }
+  return DEFAULT_PANEL_WIDTH;
+};
+
+const storePanelWidth = (w: number) => {
+  try {
+    localStorage.setItem(PANEL_WIDTH_KEY, String(w));
+  } catch {
+    // Best-effort persistence only.
+  }
+};
+
+const autoGrow = (el: HTMLTextAreaElement | null) => {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+};
 
 // Order-stable projection of the meaningful fields, used to detect unsaved
 // edits without false-positiving on key insertion order.
@@ -169,6 +203,65 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const didAutoFocus = useRef(false);
+  const asideRef = useRef<HTMLElement>(null);
+  const [panelWidth, setPanelWidth] = useState<number>(readStoredPanelWidth);
+  const [showCsvHelp, setShowCsvHelp] = useState(false);
+
+  // Clamp against the containing block (the editor modal body), not the DOM
+  // parent — the panel may stretch across both editor panes.
+  const clampPanelWidth = useCallback((w: number): number => {
+    const boundsWidth =
+      asideRef.current?.offsetParent?.getBoundingClientRect().width ?? 0;
+    const max = boundsWidth
+      ? Math.max(MIN_PANEL_WIDTH, Math.round(boundsWidth * MAX_PANEL_FRACTION))
+      : Number.MAX_SAFE_INTEGER;
+    return Math.min(max, Math.max(MIN_PANEL_WIDTH, Math.round(w)));
+  }, []);
+
+  const handleResizeStart = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const bounds = asideRef.current?.offsetParent;
+      if (!bounds) return;
+      const rect = bounds.getBoundingClientRect();
+      let latest = panelWidth;
+      const onMove = (ev: PointerEvent) => {
+        latest = clampPanelWidth(rect.right - ev.clientX);
+        setPanelWidth(latest);
+      };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        storePanelWidth(latest);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [clampPanelWidth, panelWidth]
+  );
+
+  const nudgePanelWidth = useCallback(
+    (delta: number) => {
+      setPanelWidth((prev) => {
+        const next = clampPanelWidth(prev + delta);
+        storePanelWidth(next);
+        return next;
+      });
+    },
+    [clampPanelWidth]
+  );
+
+  const handleDownloadTemplate = () => {
+    const blob = new Blob([RUBRIC_TEMPLATE_CSV], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rubric-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Move focus into the panel once on open.
   const focusCloseButton = useCallback((el: HTMLButtonElement | null) => {
@@ -337,7 +430,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
 
   return (
     <aside
-      className="absolute inset-y-0 right-0 w-full max-w-md bg-white border-l border-slate-200 shadow-xl z-20 flex flex-col"
+      ref={asideRef}
+      className="absolute inset-y-0 right-0 max-w-full bg-white border-l border-slate-200 shadow-xl z-20 flex flex-col"
+      style={{ width: panelWidth }}
       aria-label="Rubric builder"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -346,6 +441,23 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         }
       }}
     >
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize rubric builder"
+        tabIndex={0}
+        onPointerDown={handleResizeStart}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            nudgePanelWidth(32);
+          } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            nudgePanelWidth(-32);
+          }
+        }}
+        className="absolute inset-y-0 left-0 w-1.5 cursor-col-resize hover:bg-brand-blue-primary/30 focus:outline-none focus:bg-brand-blue-primary/40 z-30 touch-none"
+      />
       <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 text-sm">Rubric</h3>
         <button
@@ -519,16 +631,18 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
             </div>
 
             {c.levels.map((l, li) => (
-              <div key={l.id} className="flex items-center gap-2">
-                <input
-                  type="text"
+              <div key={l.id} className="flex items-start gap-2">
+                <textarea
+                  rows={1}
+                  ref={autoGrow}
                   value={l.label}
-                  onChange={(e) =>
-                    patchLevel(c.id, l.id, { label: e.target.value })
-                  }
+                  onChange={(e) => {
+                    patchLevel(c.id, l.id, { label: e.target.value });
+                    autoGrow(e.target);
+                  }}
                   placeholder="Level label"
                   aria-label={`Criterion ${ci + 1} level ${li + 1} label`}
-                  className={inputClass}
+                  className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
                 />
                 <input
                   type="number"
@@ -542,17 +656,19 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   aria-label={`Criterion ${ci + 1} level ${li + 1} points`}
                   className={`${inputClass} w-20`}
                 />
-                <input
-                  type="text"
+                <textarea
+                  rows={1}
+                  ref={autoGrow}
                   value={l.description ?? ''}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     patchLevel(c.id, l.id, {
                       description: e.target.value || undefined,
-                    })
-                  }
+                    });
+                    autoGrow(e.target);
+                  }}
                   placeholder="Description"
                   aria-label={`Criterion ${ci + 1} level ${li + 1} description`}
-                  className={inputClass}
+                  className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
                 />
                 <button
                   onClick={() =>
@@ -605,7 +721,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
 
         <div className="flex gap-2">
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={() => setShowCsvHelp(true)}
             className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
           >
             <Upload className="w-3.5 h-3.5" />
@@ -741,6 +857,112 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           </button>
         )}
       </footer>
+
+      {showCsvHelp && (
+        <div
+          className="absolute inset-0 z-40 bg-slate-900/40 flex items-center justify-center p-4"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setShowCsvHelp(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="CSV import format"
+            className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col max-h-full"
+          >
+            <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+              <h4 className="font-bold text-slate-900 text-sm">
+                Import rubric from CSV
+              </h4>
+              <button
+                autoFocus
+                onClick={() => setShowCsvHelp(false)}
+                aria-label="Close CSV import help"
+                className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </header>
+            <div className="p-4 space-y-3 overflow-y-auto text-xs text-slate-700">
+              <p>
+                The first row must be column headers. Each following row is one
+                criterion with 2–6 levels. Points must be whole numbers.
+              </p>
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="px-2 py-1.5">Criterion</th>
+                      <th className="px-2 py-1.5">Description</th>
+                      <th className="px-2 py-1.5 whitespace-nowrap">
+                        Level 1 Label
+                      </th>
+                      <th className="px-2 py-1.5 whitespace-nowrap">
+                        Level 1 Points
+                      </th>
+                      <th className="px-2 py-1.5 whitespace-nowrap">
+                        Level 1 Description
+                      </th>
+                      <th className="px-2 py-1.5">…</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="px-2 py-1.5 font-semibold">Ideas</td>
+                      <td className="px-2 py-1.5">Depth of ideas</td>
+                      <td className="px-2 py-1.5">Beginning</td>
+                      <td className="px-2 py-1.5 font-mono">1</td>
+                      <td className="px-2 py-1.5">Ideas are unclear</td>
+                      <td className="px-2 py-1.5">…</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-slate-600">
+                Description columns are optional. Repeat the Label / Points /
+                Description trio for each level (Level 2, Level 3, …).
+                {RUBRIC_TEMPLATE_SHEET_URL
+                  ? ' Copy the template sheet, fill it in, then download it as CSV (File → Download → Comma Separated Values).'
+                  : ' Download the template, fill it in with a spreadsheet app, and save it as CSV.'}
+              </p>
+            </div>
+            <footer className="flex flex-wrap gap-2 px-4 py-3 border-t border-slate-200">
+              {RUBRIC_TEMPLATE_SHEET_URL && (
+                <a
+                  href={RUBRIC_TEMPLATE_SHEET_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open template in Google Sheets
+                </a>
+              )}
+              <button
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download template CSV
+              </button>
+              <button
+                onClick={() => {
+                  setShowCsvHelp(false);
+                  fileRef.current?.click();
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors ml-auto"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Choose file…
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };
