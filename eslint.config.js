@@ -184,28 +184,17 @@ export default tseslint.config(
     },
   },
   {
-    // D4 (Import Path Convention) enforcement: a file under any
-    // components/widgets/<WidgetDir>/ directory must not reach across into
-    // the SIBLING `components/widgets/math-tools/` shared tool-implementation
-    // directory, or (within QuizWidget specifically) into the sibling
-    // `monitor/`/`present/` subdirectories, via a relative import — use the
-    // `@/components/widgets/...` alias instead. This is the same recurring
-    // cross-subdirectory-relative-import bug class already guarded for
-    // `components/plc/**` above; found here in `MathToolInstance/` (which
-    // used '../math-tools/...') while its sibling `MathTools/` already used
-    // the canonical alias for the identical module, and again in
-    // `QuizWidget/components/{monitor,present}/` (a two-way escape between
-    // those two subdirectories, run 69 — a single review PR earlier had
-    // added the `monitor|present` restriction as a SEPARATE config object
-    // scoped to `components/widgets/QuizWidget/components/**`; in ESLint
-    // flat config, when two config objects both match a file and set the
-    // same rule key, the later object's value wholly replaces the earlier
-    // one rather than merging, so that separate block silently dropped this
-    // block's `math-tools` restriction for any file under
-    // `QuizWidget/components/**` — folded into one block instead). `'../WidgetLayout'`
-    // from inside a widget subfolder (a root-level shared file, not a
-    // sibling feature directory) is an intentionally-preserved gray zone
-    // (D4-E2) and is NOT matched by this pattern.
+    // D4 (Import Path Convention) enforcement: applies repo-wide to every
+    // components/widgets/<WidgetDir>/ directory. Blocks a relative import
+    // that escapes into the SIBLING `components/widgets/math-tools/` shared
+    // directory (found in `MathToolInstance/`, whose sibling `MathTools/`
+    // already used the `@/` alias for the same module) or into QuizWidget's
+    // own sibling `monitor/`/`present/` subdirectories (a two-way escape
+    // between those two — see PR #2612 for how the two patterns ended up in
+    // one block instead of two). `'../WidgetLayout'` from inside a widget
+    // subfolder (a root-level shared file, not a sibling feature directory)
+    // is an intentionally-preserved gray zone (D4-E2) and is NOT matched by
+    // this pattern.
     files: ['components/widgets/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
