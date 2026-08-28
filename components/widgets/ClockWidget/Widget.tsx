@@ -20,9 +20,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     glow = false,
   } = widget.config as ClockConfig;
 
-  // With seconds hidden, nothing on screen changes between minute boundaries,
-  // so ticking every second is wasted work on an always-on classroom display.
-  // Align to the next minute boundary, then tick once a minute.
+  // Seconds hidden: tick once a minute (aligned to the boundary) instead of every second.
   useEffect(() => {
     if (showSeconds) {
       const timer = setInterval(() => setTime(new Date()), 1000);
