@@ -205,6 +205,91 @@ describe('WrittenResponseGrader — rubric scoring', () => {
     ]);
   });
 
+  it('keeps a manual points override when a criterion note is edited', () => {
+    render(
+      <WrittenResponseGrader
+        quiz={quizWith(true)}
+        responses={[responseFor('uid-a')]}
+        teacherUid="teacher-1"
+        onSaveGrade={vi.fn().mockResolvedValue(undefined)}
+        onClose={vi.fn()}
+      />
+    );
+    const pts = screen.getByLabelText(/points awarded/i);
+    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    expect(pts).toHaveValue(7);
+    fireEvent.change(pts, { target: { value: '5' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: /Add note for Thesis/ })
+    );
+    fireEvent.change(screen.getByLabelText('Note for Thesis'), {
+      target: { value: 'Clear claim' },
+    });
+    expect(pts).toHaveValue(5);
+  });
+
+  it('re-fills the points field on a level change the teacher has not overridden', () => {
+    render(
+      <WrittenResponseGrader
+        quiz={quizWith(true)}
+        responses={[responseFor('uid-a')]}
+        teacherUid="teacher-1"
+        onSaveGrade={vi.fn().mockResolvedValue(undefined)}
+        onClose={vi.fn()}
+      />
+    );
+    const pts = screen.getByLabelText(/points awarded/i);
+    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    expect(pts).toHaveValue(7);
+    fireEvent.click(screen.getByRole('radio', { name: /Below/ }));
+    expect(pts).toHaveValue(5);
+  });
+
+  it('keeps a manual points override when a level changes', () => {
+    render(
+      <WrittenResponseGrader
+        quiz={quizWith(true)}
+        responses={[responseFor('uid-a')]}
+        teacherUid="teacher-1"
+        onSaveGrade={vi.fn().mockResolvedValue(undefined)}
+        onClose={vi.fn()}
+      />
+    );
+    const pts = screen.getByLabelText(/points awarded/i);
+    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
+    fireEvent.change(pts, { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Below/ }));
+    expect(pts).toHaveValue(2);
+  });
+
+  it('saves a partial selection with its running total when points are empty', async () => {
+    const onSaveGrade = vi
+      .fn<(rk: string, qid: string, g: WrittenAnswerGrade) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    render(
+      <WrittenResponseGrader
+        quiz={quizWith(true)}
+        responses={[responseFor('uid-a')]}
+        teacherUid="teacher-1"
+        onSaveGrade={onSaveGrade}
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
+    const pts = screen.getByLabelText(/points awarded/i);
+    expect(pts).toHaveValue(null);
+    expect(screen.getByText(/1 of 2 criteria scored/)).toBeInTheDocument();
+    await saveGrade();
+    const [, , grade] = onSaveGrade.mock.calls[0];
+    expect(grade.pointsAwarded).toBe(3);
+    expect(grade.rubricScores).toEqual([
+      { criterionId: 'c1', levelId: 'c1l2', points: 3 },
+    ]);
+  });
+
   it('hydrates saved rubric scores into the panel', () => {
     render(
       <WrittenResponseGrader

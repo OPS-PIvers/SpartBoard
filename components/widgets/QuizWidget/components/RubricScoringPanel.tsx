@@ -37,6 +37,13 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
         (initialScores ?? []).filter((s) => s.note).map((s) => s.criterionId)
       )
   );
+  // Raw note text per criterion; trimmed only on commit so whitespace survives.
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>(() => {
+    const seed: Record<string, string> = {};
+    for (const s of initialScores ?? [])
+      if (s.note) seed[s.criterionId] = s.note;
+    return seed;
+  });
 
   const byCriterion = useMemo(() => {
     const m = new Map<string, WrittenAnswerRubricScore>();
@@ -73,6 +80,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
 
   const setNote = useCallback(
     (criterionId: string, note: string) => {
+      setNoteDrafts((prev) => ({ ...prev, [criterionId]: note }));
       const existing = byCriterion.get(criterionId);
       if (!existing) return;
       const next = new Map(byCriterion);
@@ -81,7 +89,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
         criterionId: existing.criterionId,
         levelId: existing.levelId,
         points: existing.points,
-        ...(trimmed ? { note } : {}),
+        ...(trimmed ? { note: trimmed } : {}),
       });
       commit(next);
     },
@@ -211,7 +219,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
               {selected && noteOpen && (
                 <textarea
                   aria-label={`Note for ${criterion.name}`}
-                  value={selected.note ?? ''}
+                  value={noteDrafts[criterion.id] ?? selected.note ?? ''}
                   onChange={(e) => setNote(criterion.id, e.target.value)}
                   rows={2}
                   placeholder="Note for this criterion…"

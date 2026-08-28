@@ -132,6 +132,31 @@ describe('RubricScoringPanel', () => {
     );
   });
 
+  it('keeps raw note whitespace in the textarea and trims only on commit', () => {
+    const onChange =
+      vi.fn<(s: WrittenAnswerRubricScore[], derived: number) => void>();
+    render(
+      <RubricScoringPanel rubric={rubric} maxPoints={10} onChange={onChange} />
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /Exceeds/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Add note for Thesis/ })
+    );
+    const note = screen.getByLabelText('Note for Thesis');
+    fireEvent.change(note, { target: { value: '  ' } });
+    expect(note).toHaveValue('  ');
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ criterionId: 'c1', levelId: 'c1l3', points: 4 }],
+      4
+    );
+    fireEvent.change(note, { target: { value: '  Strong claim ' } });
+    expect(note).toHaveValue('  Strong claim ');
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ criterionId: 'c1', levelId: 'c1l3', points: 4, note: 'Strong claim' }],
+      4
+    );
+  });
+
   it('flags a partial selection until every criterion is scored', () => {
     render(
       <RubricScoringPanel rubric={rubric} maxPoints={10} onChange={vi.fn()} />

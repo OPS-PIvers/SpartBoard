@@ -11,12 +11,19 @@
  *
  * Phase 3 adds rubric scoring: when the question carries a
  * `rubricSnapshot`, `RubricScoringPanel` mounts in the right rail and
- * auto-fills the points field once every criterion has a selected level.
- * A partial selection still saves its `rubricScores` — the response just
- * stays awaiting-grade downstream.
+ * auto-fills the points field once every criterion has a selected level —
+ * never overwriting a total the teacher typed by hand. A partial selection
+ * saves its `rubricScores` plus the running total, and the response stays
+ * awaiting-grade downstream.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -57,6 +64,17 @@ interface WrittenResponseGraderProps {
   teacherUid: string;
   onClose: () => void;
 }
+
+const sumRubricPoints = (
+  scores: WrittenAnswerRubricScore[] | undefined
+): number =>
+  (scores ?? []).reduce(
+    (total, s) => total + (Number.isFinite(s.points) ? s.points : 0),
+    0
+  );
+
+const clampPoints = (points: number, maxPoints: number): number =>
+  Math.max(0, Math.min(points, maxPoints));
 
 export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   quiz,
@@ -138,7 +156,12 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     WrittenAnswerRubricScore[]
   >([]);
   const [hydrationKey, setHydrationKey] = useState<string>('');
+  // The last rubric total we auto-filled, so a manual override is recognizable.
+  const lastAutoFilledPointsRef = useRef<string>('');
+  const pointsInputRef = useRef<string>('');
+  pointsInputRef.current = pointsInput;
 
+  const rubricCriteriaCount = question?.rubricSnapshot?.criteria.length ?? 0;
   const targetKey = `${responseKey ?? ''}::${question?.id ?? ''}`;
   if (targetKey !== hydrationKey) {
     setHydrationKey(targetKey);
@@ -148,17 +171,31 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     setDraftRubricScores(savedGrade?.rubricScores ?? []);
     setActiveAnnotationId(null);
     setSaveError(null);
+    // A saved score matching its complete rubric total reads as auto-filled.
+    lastAutoFilledPointsRef.current =
+      rubricCriteriaCount > 0 &&
+      savedGrade?.rubricScores?.length === rubricCriteriaCount
+        ? String(
+            clampPoints(sumRubricPoints(savedGrade.rubricScores), maxPoints)
+          )
+        : '';
   }
 
   // Auto-fill points only once every criterion has a level (decisions 2 + 8).
   // A partial selection persists its scores and leaves the slot provisional.
-  const rubricCriteriaCount = question?.rubricSnapshot?.criteria.length ?? 0;
   const handleRubricScoresChange = useCallback(
     (scores: WrittenAnswerRubricScore[], derivedPoints: number) => {
       setDraftRubricScores(scores);
-      if (rubricCriteriaCount > 0 && scores.length === rubricCriteriaCount) {
-        setPointsInput(String(Math.min(derivedPoints, maxPoints)));
-      }
+      if (rubricCriteriaCount === 0 || scores.length !== rubricCriteriaCount)
+        return;
+      const next = String(clampPoints(derivedPoints, maxPoints));
+      const lastAutoFilled = lastAutoFilledPointsRef.current;
+      // Re-fires that don't change the total (note keystrokes) are no-ops.
+      if (next === lastAutoFilled) return;
+      const current = pointsInputRef.current;
+      if (current !== '' && current !== lastAutoFilled) return;
+      lastAutoFilledPointsRef.current = next;
+      setPointsInput(next);
     },
     [rubricCriteriaCount, maxPoints]
   );
@@ -268,18 +305,28 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       return;
     }
     const trimmed = pointsInput.trim();
+    // Decision 8: a partial rubric banks its running sum, no typed total needed.
+    const isPartialRubric =
+      rubricCriteriaCount > 0 &&
+      draftRubricScores.length > 0 &&
+      draftRubricScores.length < rubricCriteriaCount;
+    let parsed: number;
     if (trimmed === '') {
-      setSaveError('Enter a numeric score.');
-      return;
-    }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) {
-      setSaveError('Enter a numeric score.');
-      return;
-    }
-    if (parsed < 0 || parsed > maxPoints) {
-      setSaveError(`Score must be between 0 and ${maxPoints}.`);
-      return;
+      if (!isPartialRubric) {
+        setSaveError('Enter a numeric score.');
+        return;
+      }
+      parsed = clampPoints(sumRubricPoints(draftRubricScores), maxPoints);
+    } else {
+      parsed = Number(trimmed);
+      if (!Number.isFinite(parsed)) {
+        setSaveError('Enter a numeric score.');
+        return;
+      }
+      if (parsed < 0 || parsed > maxPoints) {
+        setSaveError(`Score must be between 0 and ${maxPoints}.`);
+        return;
+      }
     }
     // Snapshot the student's answer the first time we save annotations,
     // and keep that snapshot frozen forever after. This is what makes
@@ -342,6 +389,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     comment,
     draftAnnotations,
     draftRubricScores,
+    rubricCriteriaCount,
     savedGrade,
     teacherUid,
     onSaveGrade,
