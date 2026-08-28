@@ -226,6 +226,21 @@ describe('isWrittenAnswerAwaitingGrade', () => {
     );
   });
 
+  it('strips nested markup to a fixpoint rather than in one pass', () => {
+    expect(isWrittenAnswerAwaitingGrade(undefined, '<<p>>', undefined)).toBe(
+      false
+    );
+    expect(
+      isWrittenAnswerAwaitingGrade(undefined, '<<p>p<br>></p>', undefined)
+    ).toBe(false);
+  });
+
+  it('keeps prose containing a bare less-than sign', () => {
+    expect(
+      isWrittenAnswerAwaitingGrade(undefined, '<p>5 < 7 is true</p>', undefined)
+    ).toBe(true);
+  });
+
   it('flags a real ungraded answer', () => {
     expect(
       isWrittenAnswerAwaitingGrade(undefined, '<p>Real text</p>', undefined)

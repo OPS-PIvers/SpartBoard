@@ -416,12 +416,15 @@ function isPartialRubricGrade(
  * response across whole-class grading loops.
  */
 function hasSubmittedContent(studentAnswer: string): boolean {
-  return (
-    (studentAnswer ?? '')
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/gi, ' ')
-      .trim().length > 0
-  );
+  let stripped = studentAnswer ?? '';
+  // `[^<>]` (not `[^>]`) so a bare `<` in prose can't swallow the rest of the
+  // answer, looped to a fixpoint so nested markup like `<<p>>` fully strips.
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped.replace(/<[^<>]*>/g, '');
+  } while (stripped !== previous);
+  return stripped.replace(/&nbsp;/gi, ' ').trim().length > 0;
 }
 
 /**
