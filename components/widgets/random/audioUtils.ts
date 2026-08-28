@@ -1,23 +1,6 @@
-// Singleton-like Audio Manager to prevent performance issues
-let audioCtx: AudioContext | null = null;
-
-// Add type definition for webkitAudioContext
-interface CustomWindow extends Window {
-  webkitAudioContext: typeof AudioContext;
-}
-
-export const getAudioCtx = () => {
-  if (typeof window === 'undefined') return null; // Guard against SSR/non-browser env
-  if (!audioCtx) {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as unknown as CustomWindow).webkitAudioContext;
-    if (AudioContextClass) {
-      audioCtx = new AudioContextClass();
-    }
-  }
-  return audioCtx;
-};
+import { getAudioCtx } from '@/utils/timeToolAudio';
+// Delegates to the app-wide shared AudioContext singleton (avoids per-widget-type contexts).
+export { getAudioCtx };
 
 export const playTick = (freq = 150, volume = 0.1) => {
   try {

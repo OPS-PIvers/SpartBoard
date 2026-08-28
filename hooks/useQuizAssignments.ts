@@ -51,9 +51,12 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
 } from '@/types';
+import { projectSessionStimuli } from '@/utils/quizStimuli';
+import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
@@ -146,6 +149,8 @@ export interface AssignmentQuizRef {
   title: string;
   driveFileId: string;
   questions: QuizQuestion[];
+  /** Stimuli referenced by `questions[].stimulusIds`; projected onto the session doc. */
+  stimuli?: QuizStimulus[];
 }
 
 export interface UseQuizAssignmentsResult {
@@ -722,6 +727,12 @@ export const useQuizAssignments = (
 
       const mode = settings.sessionMode;
       const opts = settings.sessionOptions;
+      // Dedupe once so totalQuestions and publicQuestions can't drift apart.
+      const sessionQuestions = dedupeQuestionsById(quiz.questions);
+      const sessionStimuli = projectSessionStimuli({
+        questions: sessionQuestions,
+        stimuli: quiz.stimuli,
+      });
       const sessionStatus: QuizSession['status'] =
         initialStatus === 'paused'
           ? 'paused'
@@ -743,8 +754,11 @@ export const useQuizAssignments = (
         startedAt: mode === 'student' ? now : null,
         endedAt: null,
         code,
-        totalQuestions: quiz.questions.length,
-        publicQuestions: quiz.questions.map(toPublicQuestion),
+        totalQuestions: sessionQuestions.length,
+        publicQuestions: sessionQuestions.map(toPublicQuestion),
+        // Stimuli referenced by at least one question, labels stripped.
+        // Omitted entirely for stimulus-free quizzes.
+        ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
         // Phase 1 toggles
         tabWarningsEnabled: opts.tabWarningsEnabled ?? true,
         blockCopyPaste: opts.blockCopyPaste ?? false,
@@ -1413,6 +1427,9 @@ export const useQuizAssignments = (
           uid: userId,
           title: quizData.title,
           questions: quizData.questions,
+          ...(quizData.stimuli && quizData.stimuli.length > 0
+            ? { stimuli: quizData.stimuli }
+            : {}),
           // Plumb the PLC id through so downstream notification routing
           // can scope stale-content alerts to the right inbox. Not
           // consumed today; the field is reserved for future use.
@@ -1432,6 +1449,9 @@ export const useQuizAssignments = (
       const payload: Omit<SharedQuizAssignment, 'id'> = {
         title: quizData.title,
         questions: quizData.questions,
+        ...(quizData.stimuli && quizData.stimuli.length > 0
+          ? { stimuli: quizData.stimuli }
+          : {}),
         createdAt: quizData.createdAt,
         updatedAt: quizData.updatedAt,
         assignmentSettings: {
@@ -1495,6 +1515,7 @@ export const useQuizAssignments = (
 
       let initialQuestions = shared.questions;
       let initialTitle = shared.title;
+      let initialStimuli = shared.stimuli;
       let canonicalVersion: number | undefined = undefined;
       if (effectiveMode === 'sync' && shared.syncGroupId) {
         // Fail the sync import outright if the canonical doc is
@@ -1509,6 +1530,7 @@ export const useQuizAssignments = (
         const canonical = await pullSyncedQuizContent(shared.syncGroupId);
         initialTitle = canonical.title;
         initialQuestions = canonical.questions;
+        initialStimuli = canonical.stimuli;
         canonicalVersion = canonical.version;
       }
 
@@ -1517,6 +1539,9 @@ export const useQuizAssignments = (
         id: crypto.randomUUID(),
         title: initialTitle,
         questions: initialQuestions,
+        ...(initialStimuli && initialStimuli.length > 0
+          ? { stimuli: initialStimuli }
+          : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -1664,6 +1689,7 @@ export const useQuizAssignments = (
             title: newQuiz.title,
             driveFileId: savedMeta.driveFileId,
             questions: newQuiz.questions,
+            ...(newQuiz.stimuli ? { stimuli: newQuiz.stimuli } : {}),
           },
           importedSettings,
           {
@@ -1773,7 +1799,13 @@ export const useQuizAssignments = (
       // content. This MUST match the shuffle/strip logic used at session
       // create time (toPublicQuestion) so the student-side rendering path
       // doesn't have to special-case post-sync state.
-      const publicQuestions = canonical.questions.map(toPublicQuestion);
+      // Dedupe once so totalQuestions and publicQuestions can't drift apart.
+      const canonicalQuestions = dedupeQuestionsById(canonical.questions);
+      const publicQuestions = canonicalQuestions.map(toPublicQuestion);
+      const canonicalStimuli = projectSessionStimuli({
+        questions: canonicalQuestions,
+        stimuli: canonical.stimuli,
+      });
 
       // Tag any pre-existing responses with the OLD `syncedVersion` so
       // the results UI can render "Answered before v{N+1} update" chips.
@@ -1839,7 +1871,11 @@ export const useQuizAssignments = (
       });
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
         publicQuestions,
-        totalQuestions: canonical.questions.length,
+        totalQuestions: canonicalQuestions.length,
+        // Keep the session's stimuli in lockstep with the rebuilt
+        // publicQuestions; deleteField clears stale entries when the
+        // canonical edit removed the last stimulus.
+        stimuli: canonicalStimuli.length > 0 ? canonicalStimuli : deleteField(),
       });
       // 2 writes already used (assignment + session); fill the rest.
       const firstChunkSize = Math.min(
@@ -1989,7 +2025,10 @@ export const useQuizAssignments = (
       // straightforward and we can slice it across the 500-write cap.
       interface ResponseUpdate {
         ref: ReturnType<typeof doc>;
-        patch: { score: number; answers: QuizResponseAnswer[] };
+        patch: {
+          score: number | ReturnType<typeof deleteField>;
+          answers: QuizResponseAnswer[];
+        };
       }
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
@@ -1997,6 +2036,12 @@ export const useQuizAssignments = (
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;
         let pointsMax = 0;
+        // Set when any answered slot is still owed a teacher grade (ungraded
+        // written response, or a rubric with criteria left unscored). Such a
+        // response gets its `answers` refreshed but NO published `score` —
+        // the ungraded slot counts as 0 here, so publishing now would show
+        // the student a grade the teacher hasn't finished awarding.
+        let awaitingGrade = false;
         // Track which question ids have already been scored so a duplicate
         // answer (arrayUnion race writing the same questionId twice into
         // `answers`) can't inflate pointsEarned and pointsMax. Each
@@ -2028,6 +2073,7 @@ export const useQuizAssignments = (
               ? data.grading?.[q.id]
               : undefined;
           const result = gradeAnswer(q, a.answer, manualGrade);
+          if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (!scoredQuestionIds.has(a.questionId)) {
             scoredQuestionIds.add(a.questionId);
             pointsEarned += result.pointsEarned;
@@ -2060,7 +2106,13 @@ export const useQuizAssignments = (
           pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
         updates.push({
           ref: d.ref,
-          patch: { score, answers: gradedAnswers },
+          // `deleteField()` rather than an omitted key so a stale score from
+          // an earlier publish can't linger on a response that has since
+          // become awaiting-grade; the student sees "being prepared" instead.
+          patch: {
+            score: awaitingGrade ? deleteField() : score,
+            answers: gradedAnswers,
+          },
         });
       }
 

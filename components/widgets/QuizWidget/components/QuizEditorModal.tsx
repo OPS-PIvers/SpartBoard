@@ -17,6 +17,8 @@ import {
   QuizBehaviorSettings,
   QuizData,
   QuizQuestion,
+  QuizStimulus,
+  Rubric,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
@@ -26,8 +28,10 @@ import {
   QuizEditorContextPane,
   QuizEditorDetailPane,
 } from './QuizEditor';
+import { StimulusManagerPanel } from './StimulusManagerPanel';
 import { useQuizEditorState } from './useQuizEditorState';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
+import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
 
 interface QuizEditorModalProps {
   isOpen: boolean;
@@ -50,6 +54,42 @@ interface QuizEditorModalProps {
   behavior?: QuizBehaviorSettings;
 }
 
+const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const sa = a[i];
+    const sb = b[i];
+    if (
+      sa.id !== sb.id ||
+      sa.type !== sb.type ||
+      sa.url !== sb.url ||
+      (sa.driveFileId ?? '') !== (sb.driveFileId ?? '') ||
+      sa.label !== sb.label ||
+      (sa.playLimit ?? 0) !== (sb.playLimit ?? 0)
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
+// Order-stable projection of a rubric snapshot's meaningful fields, so a
+// rubric edit that leaves `points` unchanged still reads as dirty.
+const rubricSnapshotKey = (rubric: Rubric | undefined): string =>
+  rubric
+    ? JSON.stringify([
+        rubric.id,
+        rubric.title,
+        rubric.description ?? '',
+        rubric.criteria.map((c) => [
+          c.id,
+          c.name,
+          c.description ?? '',
+          c.levels.map((l) => [l.id, l.label, l.points, l.description ?? '']),
+        ]),
+      ])
+    : '';
+
 const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -65,7 +105,11 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.allowPartialCredit === true) !== (qb.allowPartialCredit === true) ||
       qa.incorrectAnswers.length !== qb.incorrectAnswers.length ||
       (qa.placeholder ?? '') !== (qb.placeholder ?? '') ||
-      (qa.maxWords ?? 0) !== (qb.maxWords ?? 0)
+      (qa.maxWords ?? 0) !== (qb.maxWords ?? 0) ||
+      (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
+      (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
+      rubricSnapshotKey(qa.rubricSnapshot) !==
+        rubricSnapshotKey(qb.rubricSnapshot)
     ) {
       return false;
     }
@@ -131,6 +175,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const {
     title,
     questions,
+    stimuli,
     saving,
     setSaving,
     setError,
@@ -138,12 +183,13 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     showAiPrompt,
     originalTitle,
     originalQuestions,
+    originalStimuli,
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
-  const [editorTab, setEditorTab] = useState<'questions' | 'settings'>(
-    'questions'
-  );
+  const [editorTab, setEditorTab] = useState<
+    'questions' | 'stimuli' | 'settings'
+  >('questions');
   const [behavior, setBehavior] = useState<QuizBehaviorSettings>(
     () => behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR
   );
@@ -172,12 +218,17 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         questions === originalQuestions ||
         questionsEqual(questions, originalQuestions)
       ) ||
+      !(
+        stimuli === originalStimuli || stimuliEqual(stimuli, originalStimuli)
+      ) ||
       !quizBehaviorSettingsEqual(behavior, originalBehavior),
     [
       title,
       originalTitle,
       questions,
       originalQuestions,
+      stimuli,
+      originalStimuli,
       behavior,
       originalBehavior,
     ]
@@ -214,11 +265,15 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     setSaving(true);
     setError(null);
     try {
+      // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
+      // live, but a save must never persist a dangling pointer.
+      const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);
       await onSave(
         {
           ...quiz,
           title: title.trim(),
-          questions,
+          questions: cleanQuestions,
+          ...(stimuli.length > 0 ? { stimuli } : { stimuli: undefined }),
           updatedAt: Date.now(),
         },
         behavior
@@ -274,7 +329,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         <div className="flex flex-col h-full">
           {/* Questions / Settings segmented tab toggle */}
           <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-            {(['questions', 'settings'] as const).map((tab) => (
+            {(['questions', 'stimuli', 'settings'] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -298,6 +353,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               folderId={folderId}
               onFolderChange={onFolderChange}
             />
+          ) : editorTab === 'stimuli' ? (
+            <StimulusManagerPanel state={editorState} />
           ) : (
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
               <QuizBehaviorSettingsPanel
@@ -311,6 +368,14 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       detailPane={
         editorTab === 'questions' ? (
           <QuizEditorDetailPane state={editorState} aiEnabled={aiEnabled} />
+        ) : editorTab === 'stimuli' ? (
+          <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
+            <p>
+              Stimuli save with the quiz. Students see them beside the questions
+              you assign them to — doc-shaped stimuli open in a side panel,
+              media renders above the question.
+            </p>
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
             <p>

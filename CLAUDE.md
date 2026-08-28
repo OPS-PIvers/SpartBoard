@@ -118,7 +118,7 @@ See [docs/LINTING_SETUP.md](docs/LINTING_SETUP.md) for detailed linting and CI/C
 
 ## Environment Configuration
 
-The app requires Firebase configuration and a Gemini API key:
+The app requires Firebase configuration:
 
 1. Create `.env.local` in the root directory
 2. Add Firebase config:
@@ -130,11 +130,7 @@ The app requires Firebase configuration and a Gemini API key:
    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
    VITE_FIREBASE_APP_ID=your_app_id
    ```
-3. Add Gemini API key for AI features:
-   ```env
-   VITE_GEMINI_API_KEY=your_api_key_here
-   ```
-4. The Vite config exposes these as environment variables
+3. The Vite config exposes these as environment variables
 
 **Security Note:** Never commit `.env.local` to git. It's in `.gitignore`.
 

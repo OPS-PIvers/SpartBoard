@@ -41,6 +41,10 @@ import {
   Check,
   Unlock as UnlockIcon,
   ShieldAlert,
+  Hand,
+  ChevronDown,
+  ChevronRight,
+  ListChecks,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -51,6 +55,7 @@ import { logError } from '@/utils/logError';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
+  isWrittenAnswerAwaitingGrade,
   SessionEndedError,
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
@@ -59,9 +64,16 @@ import {
   shuffleQuestionForStudent,
 } from '@/utils/quizShuffle';
 import {
+  resolveStimuli,
+  splitStimuliForLayout,
+  stimulusPlayKey,
+} from '@/utils/quizStimuli';
+import { CollapsibleStimuli, StimulusRenderer } from './QuizStimulusView';
+import {
   QuizSession,
   QuizPublicQuestion,
   WrittenAnswerGrade,
+  Rubric,
   isWrittenQuestionType,
   isAnswerSubmitted,
 } from '@/types';
@@ -316,6 +328,9 @@ const QuizJoinFlow: React.FC<{
     submitAnswer,
     completeQuiz,
     reportTabSwitch,
+    setHandRaised,
+    recordStimulusPlay,
+    reportStimulusError,
     warningCount,
   } = useQuizSessionStudent();
 
@@ -911,7 +926,11 @@ const QuizJoinFlow: React.FC<{
         onAnswer={handleAnswer}
         onComplete={handleComplete}
         reportTabSwitch={reportTabSwitch}
+        onSetHandRaised={setHandRaised}
+        handRaised={!!myResponse?.handRaisedAt}
         warningCount={warningCount}
+        onRecordStimulusPlay={recordStimulusPlay}
+        onReportStimulusError={reportStimulusError}
       />
     );
   }
@@ -1002,7 +1021,11 @@ const ActiveQuiz: React.FC<{
   ) => Promise<void>;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
+  onSetHandRaised: (raised: boolean) => Promise<void>;
+  handRaised: boolean;
   warningCount: number;
+  onRecordStimulusPlay: (playKey: string) => Promise<void>;
+  onReportStimulusError: (stimulusId: string) => Promise<void>;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -1011,10 +1034,26 @@ const ActiveQuiz: React.FC<{
   onAnswer,
   onComplete,
   reportTabSwitch,
+  onSetHandRaised,
+  handRaised,
   warningCount,
+  onRecordStimulusPlay,
+  onReportStimulusError,
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
+  const [handBusy, setHandBusy] = useState(false);
+  const handleToggleHand = async () => {
+    if (handBusy) return;
+    setHandBusy(true);
+    try {
+      await onSetHandRaised(!handRaised);
+    } catch (err) {
+      console.error('[ActiveQuiz] hand toggle failed:', err);
+    } finally {
+      setHandBusy(false);
+    }
+  };
   // Show the "Your teacher unlocked your attempt" modal whenever the
   // student's response carries `unlocked: true` and they haven't yet
   // dismissed the prompt in this ActiveQuiz instance. The student keeps
@@ -1247,6 +1286,38 @@ const ActiveQuiz: React.FC<{
     if (!answerOptionShuffleEnabled) return baseQuestion;
     return shuffleQuestionForStudent(baseQuestion, studentShuffleSeed);
   }, [baseQuestion, answerOptionShuffleEnabled, studentShuffleSeed]);
+
+  // ─── Stimuli for the current question ───────────────────────────────────────
+  // Resolved against the session's projected stimuli array. Renderers are
+  // keyed by STIMULUS id (not question id) so a stimulus shared across
+  // consecutive questions doesn't remount/restart when the student advances
+  // within its set.
+  const currentStimuli = useMemo(
+    () => resolveStimuli(currentQuestion?.stimulusIds, session.stimuli),
+    [currentQuestion?.stimulusIds, session.stimuli]
+  );
+  const { docShaped: docStimuli, inline: inlineStimuli } = useMemo(
+    () => splitStimuliForLayout(currentStimuli),
+    [currentStimuli]
+  );
+  const handleStimulusPlayCompleted = useCallback(
+    (stimulusId: string) => {
+      void onRecordStimulusPlay(stimulusPlayKey(attemptIndex, stimulusId));
+    },
+    [onRecordStimulusPlay, attemptIndex]
+  );
+  const handleStimulusLoadError = useCallback(
+    (stimulusId: string) => {
+      void onReportStimulusError(stimulusId);
+    },
+    [onReportStimulusError]
+  );
+  const stimulusPlays = myResponse?.stimulusPlays;
+  const playsUsedFor = useCallback(
+    (stimulusId: string) =>
+      stimulusPlays?.[stimulusPlayKey(attemptIndex, stimulusId)] ?? 0,
+    [stimulusPlays, attemptIndex]
+  );
 
   // Drafts don't count: a debounced autosave of a written-response in
   // progress must not flip `submitted` true and shouldn't trigger
@@ -2220,388 +2291,441 @@ const ActiveQuiz: React.FC<{
       </div>
 
       <div
-        {...clipboardGuards}
-        className={`flex flex-col p-6 mx-auto w-full ${
-          // Per-type width caps. Tuned for the personal-device viewport
-          // a student actually uses (laptop / Chromebook / tablet), not
-          // a projector:
-          //   essay     → max-w-7xl  ~1280px. Long-form writing benefits
-          //                from elbow room more than line-length
-          //                discipline; the editor wraps its own prose.
-          //   short     → max-w-5xl  ~1024px. Paragraph-length answers
-          //                still want room without becoming sprawling.
-          //   MC/FIB/   → max-w-2xl   ~672px. Short answer options and
-          //   Matching/   structured inputs read worse when stretched
-          //   Ordering    across a widescreen — keep them compact.
-          currentQuestion.type === 'essay'
-            ? 'max-w-7xl'
-            : currentQuestion.type === 'short'
-              ? 'max-w-5xl'
-              : 'max-w-2xl'
-        }`}
+        className={
+          docStimuli.length > 0
+            ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
+            : 'contents'
+        }
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            {isStudentPaced &&
-              localIndex > 0 &&
-              myResponse?.status !== 'completed' && (
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  aria-label="Previous question"
-                  className={`p-1 -ml-1 rounded transition-colors ${backBtnCls}`}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              )}
-            <span className="text-xs text-slate-500">
-              {currentIndex + 1} / {session.totalQuestions}
+        {/* Doc-shaped stimuli: resizable left panel on wide screens,
+            stacked (height-capped, scrollable) above the question on
+            narrow ones. One DOM node for both breakpoints so crossing a
+            breakpoint never remounts a viewer mid-read. */}
+        {docStimuli.length > 0 && (
+          <div className="shrink-0 w-full lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:[resize:horizontal] lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3">
+            {docStimuli.map((s) => (
+              <div key={s.id} className="flex-1 min-h-[280px] flex flex-col">
+                <StimulusRenderer
+                  stimulus={s}
+                  light={light}
+                  onLoadError={handleStimulusLoadError}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div
+          {...clipboardGuards}
+          className={`flex flex-col p-6 w-full min-w-0 ${
+            docStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'
+          } ${
+            // Per-type width caps. Tuned for the personal-device viewport
+            // a student actually uses (laptop / Chromebook / tablet), not
+            // a projector:
+            //   essay     → max-w-7xl  ~1280px. Long-form writing benefits
+            //                from elbow room more than line-length
+            //                discipline; the editor wraps its own prose.
+            //   short     → max-w-5xl  ~1024px. Paragraph-length answers
+            //                still want room without becoming sprawling.
+            //   MC/FIB/   → max-w-2xl   ~672px. Short answer options and
+            //   Matching/   structured inputs read worse when stretched
+            //   Ordering    across a widescreen — keep them compact.
+            currentQuestion.type === 'essay'
+              ? 'max-w-7xl'
+              : currentQuestion.type === 'short'
+                ? 'max-w-5xl'
+                : 'max-w-2xl'
+          }`}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              {isStudentPaced &&
+                localIndex > 0 &&
+                myResponse?.status !== 'completed' && (
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    aria-label="Previous question"
+                    className={`p-1 -ml-1 rounded transition-colors ${backBtnCls}`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
+              <span className="text-xs text-slate-500">
+                {currentIndex + 1} / {session.totalQuestions}
+              </span>
+            </div>
+            {timeLeft !== null && !submitted && (
+              <div
+                className={`flex items-center gap-1.5 text-sm font-bold ${
+                  timeLeft <= 5
+                    ? light
+                      ? 'text-red-500'
+                      : 'text-red-400'
+                    : light
+                      ? 'text-amber-600'
+                      : 'text-amber-400'
+                }`}
+              >
+                <Timer className="w-4 h-4" />
+                {timeLeft}s
+              </div>
+            )}
+            <span
+              className={`text-xs px-2 py-0.5 rounded font-medium ${typeBadgeCls}`}
+            >
+              {currentQuestion.type === 'MC'
+                ? 'Multiple Choice'
+                : currentQuestion.type === 'FIB'
+                  ? 'Fill in the Blank'
+                  : currentQuestion.type === 'Matching'
+                    ? 'Matching'
+                    : currentQuestion.type === 'Ordering'
+                      ? 'Ordering'
+                      : currentQuestion.type === 'short'
+                        ? 'Short Answer'
+                        : 'Essay'}
             </span>
           </div>
-          {timeLeft !== null && !submitted && (
-            <div
-              className={`flex items-center gap-1.5 text-sm font-bold ${
-                timeLeft <= 5
-                  ? light
-                    ? 'text-red-500'
-                    : 'text-red-400'
-                  : light
-                    ? 'text-amber-600'
-                    : 'text-amber-400'
-              }`}
-            >
-              <Timer className="w-4 h-4" />
-              {timeLeft}s
+
+          {/* Inline stimuli (image / video / youtube / audio) above the question */}
+          {inlineStimuli.length > 0 && (
+            <div className="flex flex-col gap-3 mb-6">
+              {inlineStimuli.map((s) => (
+                <StimulusRenderer
+                  key={s.id}
+                  stimulus={s}
+                  light={light}
+                  playsUsed={playsUsedFor(s.id)}
+                  onPlayCompleted={handleStimulusPlayCompleted}
+                  onLoadError={handleStimulusLoadError}
+                />
+              ))}
             </div>
           )}
-          <span
-            className={`text-xs px-2 py-0.5 rounded font-medium ${typeBadgeCls}`}
+
+          {/* Question */}
+          <h2
+            className={`text-xl font-bold mb-8 leading-snug break-words ${headingText}`}
           >
-            {currentQuestion.type === 'MC'
-              ? 'Multiple Choice'
-              : currentQuestion.type === 'FIB'
-                ? 'Fill in the Blank'
-                : currentQuestion.type === 'Matching'
-                  ? 'Matching'
-                  : currentQuestion.type === 'Ordering'
-                    ? 'Ordering'
-                    : currentQuestion.type === 'short'
-                      ? 'Short Answer'
-                      : 'Essay'}
-          </span>
-        </div>
+            {currentQuestion.text}
+          </h2>
 
-        {/* Question */}
-        <h2
-          className={`text-xl font-bold mb-8 leading-snug break-words ${headingText}`}
-        >
-          {currentQuestion.text}
-        </h2>
-
-        {/* Answer area */}
-        {currentQuestion.type === 'MC' && (
-          <div className="space-y-3 flex-1">
-            {options.map((opt) => {
-              // Self-paced revisits stay editable, so the highlight tracks
-              // the live cache value. When locked, fall back to the
-              // post-submit `selectedAnswer` indicator; timer auto-submit
-              // never sets selectedAnswer, so degrade to liveAnswer so the
-              // student can still see which option was submitted from
-              // their cached pick.
-              const isLocked = submitted && !isStudentPaced;
-              const lockedRef = selectedAnswer ?? liveAnswer;
-              const isSelected = isLocked
-                ? lockedRef === opt
-                : liveAnswer === opt;
-              let cls =
-                'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
-              if (!isLocked) {
-                cls += isSelected ? mcSelectedCls : mcUnselectedCls;
-              } else {
-                cls += isSelected
-                  ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                  : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-default';
-              }
-              return (
-                <button
-                  key={opt}
-                  onClick={() => !isLocked && setCacheForCurrent(opt)}
-                  disabled={isLocked || submitting}
-                  className={cls}
-                >
-                  {opt}
-                </button>
-              );
-            })}
-
-            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
-              {isStudentPaced ? (
-                submitted && currentIndex >= session.totalQuestions - 1 ? (
-                  <SuccessPill light={light}>Quiz complete!</SuccessPill>
-                ) : submitted &&
-                  autoSubmitTriggeredFor === currentQuestion.id ? (
-                  // Timeout-auto-submit fallback: timer expired without an
-                  // answer; give the student a way to advance. Only fires for
-                  // questions the timer actually ran out on, not back-nav
-                  // revisits (which keep the editable NEXT button below).
-                  <button
-                    onClick={handleNext}
-                    className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                  >
-                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <>
-                    {saveError && <SaveErrorBanner message={saveError} />}
-                    <button
-                      onClick={() =>
-                        submittableAnswer &&
-                        void handleSubmitAndAdvance(submittableAnswer)
-                      }
-                      disabled={!submittableAnswer || submitting}
-                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                    >
-                      {submitting ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : currentIndex >= session.totalQuestions - 1 ? (
-                        <>
-                          {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
-                          <CheckCircle2 className="w-5 h-5" />
-                        </>
-                      ) : (
-                        <>
-                          {saveError ? 'Retry' : 'NEXT'}{' '}
-                          <ArrowRight className="w-5 h-5" />
-                        </>
-                      )}
-                    </button>
-                  </>
-                )
-              ) : !submitted ? (
-                <button
-                  onClick={() =>
-                    submittableAnswer && void handleSubmit(submittableAnswer)
-                  }
-                  disabled={!submittableAnswer || submitting}
-                  className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    'Submit Answer'
-                  )}
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <AnswerFeedbackBanner
-                    feedback={answerFeedback}
-                    revealedAnswer={revealedAnswer}
-                    speedBonus={speedBonusEarned}
-                    streakCount={streakCount}
-                    streakEnabled={session.streakBonusEnabled}
-                  />
-                  <SuccessPill light={light}>
-                    {currentIndex < session.totalQuestions - 1
-                      ? 'Waiting for teacher…'
-                      : 'Quiz complete!'}
-                  </SuccessPill>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {currentQuestion.type === 'FIB' && (
-          <div className="space-y-4 flex-1">
-            <input
-              type="text"
-              value={liveAnswer ?? ''}
-              onChange={(e) => setCacheForCurrent(e.target.value)}
-              disabled={submitted && !isStudentPaced}
-              placeholder="Type your answer…"
-              className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-none focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter') return;
-                const trimmed = (submittableAnswer ?? '').trim();
-                if (!trimmed) return;
-                if (isStudentPaced) {
-                  void handleSubmitAndAdvance(trimmed);
-                } else if (!submitted) {
-                  void handleSubmit(trimmed);
+          {/* Answer area */}
+          {currentQuestion.type === 'MC' && (
+            <div className="space-y-3 flex-1">
+              {options.map((opt) => {
+                // Self-paced revisits stay editable, so the highlight tracks
+                // the live cache value. When locked, fall back to the
+                // post-submit `selectedAnswer` indicator; timer auto-submit
+                // never sets selectedAnswer, so degrade to liveAnswer so the
+                // student can still see which option was submitted from
+                // their cached pick.
+                const isLocked = submitted && !isStudentPaced;
+                const lockedRef = selectedAnswer ?? liveAnswer;
+                const isSelected = isLocked
+                  ? lockedRef === opt
+                  : liveAnswer === opt;
+                let cls =
+                  'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
+                if (!isLocked) {
+                  cls += isSelected ? mcSelectedCls : mcUnselectedCls;
+                } else {
+                  cls += isSelected
+                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
+                    : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-default';
                 }
-              }}
-            />
-            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
-              {isStudentPaced ? (
-                submitted && currentIndex >= session.totalQuestions - 1 ? (
-                  <SuccessPill light={light}>Quiz complete!</SuccessPill>
-                ) : submitted &&
-                  autoSubmitTriggeredFor === currentQuestion.id ? (
+                return (
                   <button
-                    onClick={handleNext}
-                    className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    key={opt}
+                    onClick={() => !isLocked && setCacheForCurrent(opt)}
+                    disabled={isLocked || submitting}
+                    className={cls}
                   >
-                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                    {opt}
+                  </button>
+                );
+              })}
+
+              <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
+                {isStudentPaced ? (
+                  submitted && currentIndex >= session.totalQuestions - 1 ? (
+                    <SuccessPill light={light}>Quiz complete!</SuccessPill>
+                  ) : submitted &&
+                    autoSubmitTriggeredFor === currentQuestion.id ? (
+                    // Timeout-auto-submit fallback: timer expired without an
+                    // answer; give the student a way to advance. Only fires for
+                    // questions the timer actually ran out on, not back-nav
+                    // revisits (which keep the editable NEXT button below).
+                    <button
+                      onClick={handleNext}
+                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                    </button>
+                  ) : (
+                    <>
+                      {saveError && <SaveErrorBanner message={saveError} />}
+                      <button
+                        onClick={() =>
+                          submittableAnswer &&
+                          void handleSubmitAndAdvance(submittableAnswer)
+                        }
+                        disabled={!submittableAnswer || submitting}
+                        className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      >
+                        {submitting ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : currentIndex >= session.totalQuestions - 1 ? (
+                          <>
+                            {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                            <CheckCircle2 className="w-5 h-5" />
+                          </>
+                        ) : (
+                          <>
+                            {saveError ? 'Retry' : 'NEXT'}{' '}
+                            <ArrowRight className="w-5 h-5" />
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )
+                ) : !submitted ? (
+                  <button
+                    onClick={() =>
+                      submittableAnswer && void handleSubmit(submittableAnswer)
+                    }
+                    disabled={!submittableAnswer || submitting}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {submitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      'Submit Answer'
+                    )}
                   </button>
                 ) : (
-                  <>
-                    {saveError && <SaveErrorBanner message={saveError} />}
-                    <button
-                      onClick={() =>
-                        (submittableAnswer ?? '').trim() &&
-                        void handleSubmitAndAdvance(
-                          (submittableAnswer ?? '').trim()
-                        )
-                      }
-                      disabled={!(submittableAnswer ?? '').trim() || submitting}
-                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                    >
-                      {submitting ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : currentIndex >= session.totalQuestions - 1 ? (
-                        <>
-                          {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
-                          <CheckCircle2 className="w-5 h-5" />
-                        </>
-                      ) : (
-                        <>
-                          {saveError ? 'Retry' : 'NEXT'}{' '}
-                          <ArrowRight className="w-5 h-5" />
-                        </>
-                      )}
-                    </button>
-                  </>
-                )
-              ) : !submitted ? (
-                <button
-                  onClick={() =>
-                    (submittableAnswer ?? '').trim() &&
-                    void handleSubmit((submittableAnswer ?? '').trim())
-                  }
-                  disabled={!(submittableAnswer ?? '').trim() || submitting}
-                  className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    'Submit Answer'
-                  )}
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <AnswerFeedbackBanner
-                    feedback={answerFeedback}
-                    revealedAnswer={revealedAnswer}
-                    speedBonus={speedBonusEarned}
-                    streakCount={streakCount}
-                    streakEnabled={session.streakBonusEnabled}
-                  />
-                  <SuccessPill light={light}>
-                    {currentIndex < session.totalQuestions - 1
-                      ? 'Waiting for teacher…'
-                      : 'Quiz complete!'}
-                  </SuccessPill>
-                </div>
-              )}
+                  <div className="space-y-3">
+                    <AnswerFeedbackBanner
+                      feedback={answerFeedback}
+                      revealedAnswer={revealedAnswer}
+                      speedBonus={speedBonusEarned}
+                      streakCount={streakCount}
+                      streakEnabled={session.streakBonusEnabled}
+                    />
+                    <SuccessPill light={light}>
+                      {currentIndex < session.totalQuestions - 1
+                        ? 'Waiting for teacher…'
+                        : 'Quiz complete!'}
+                    </SuccessPill>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {(currentQuestion.type === 'Matching' ||
-          currentQuestion.type === 'Ordering') && (
-          <StructuredQuestionInput
-            key={currentQuestion.id}
-            question={currentQuestion}
-            submitted={submitted}
-            isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
-            savedAnswer={liveAnswer}
-            onSubmit={(answer) => void handleSubmit(answer)}
-            onSubmitAndAdvance={(answer) => void handleSubmitAndAdvance(answer)}
-            onAnswerChange={(answer) => {
-              // The input remounts per question (keyed by id) and its mount
-              // effect re-emits the seeded answer. Skip the write when the
-              // emitted value already matches the cached value: a back-nav
-              // remount would otherwise mark the question touched (freezing
-              // out the seed-from-server refresh) and churn the autosave /
-              // pollute the history log for a no-op overwrite. Genuine
-              // placements differ from the cache and fall through.
-              if (
-                currentAnswerRef.current.qid === currentQid &&
-                currentAnswerRef.current.value === answer
-              )
-                return;
-              // Push the live placement into the cache; the autosave
-              // effect picks it up and debounces the Firestore write.
-              setCacheForCurrent(answer);
-            }}
-            submitting={submitting}
-            isStudentPaced={isStudentPaced}
-            isLastQuestion={currentIndex >= session.totalQuestions - 1}
-            onNext={handleNext}
-            saveError={saveError}
-          />
-        )}
-
-        {(currentQuestion.type === 'short' ||
-          currentQuestion.type === 'essay') && (
-          <div className="space-y-4">
-            <React.Suspense
-              fallback={
-                <div
-                  className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
-                >
-                  <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-                </div>
-              }
-            >
-              <WrittenResponseEditor
-                // The editor seeds its `innerHTML` once on mount (caret
-                // preservation), so we encode a "recovered text needs
-                // injecting" boolean in the questionKey. A page refresh
-                // mid-essay first mounts with value='' (cache empty,
-                // saved null); when the Firestore snapshot arrives the
-                // seed-from-server block recovery-seeds the cache, the key
-                // flips from `…:init` → `…:seeded`, and the editor
-                // remounts with the recovered text. Without this, the
-                // student stares at a blank editor while React state
-                // already holds the recovered value.
-                //
-                // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
-                // rather than general cache presence: a student's own first
-                // keystroke also populates `answerCache`, and keying on that
-                // remounted the editor mid-type, stealing focus and the caret.
-                questionKey={`${currentQuestion.id}:${
-                  seededQuestionsRef.current.has(currentQuestion.id)
-                    ? 'seeded'
-                    : 'init'
-                }`}
+          {currentQuestion.type === 'FIB' && (
+            <div className="space-y-4 flex-1">
+              <input
+                type="text"
                 value={liveAnswer ?? ''}
-                onChange={(html) => setCacheForCurrent(html)}
-                placeholder={currentQuestion.placeholder}
-                maxWords={currentQuestion.maxWords}
+                onChange={(e) => setCacheForCurrent(e.target.value)}
                 disabled={submitted && !isStudentPaced}
-                isEssay={currentQuestion.type === 'essay'}
-                blockClipboard={blockCopyPaste}
-                light={light}
+                placeholder="Type your answer…"
+                className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-none focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  const trimmed = (submittableAnswer ?? '').trim();
+                  if (!trimmed) return;
+                  if (isStudentPaced) {
+                    void handleSubmitAndAdvance(trimmed);
+                  } else if (!submitted) {
+                    void handleSubmit(trimmed);
+                  }
+                }}
               />
-            </React.Suspense>
+              <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
+                {isStudentPaced ? (
+                  submitted && currentIndex >= session.totalQuestions - 1 ? (
+                    <SuccessPill light={light}>Quiz complete!</SuccessPill>
+                  ) : submitted &&
+                    autoSubmitTriggeredFor === currentQuestion.id ? (
+                    <button
+                      onClick={handleNext}
+                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                    </button>
+                  ) : (
+                    <>
+                      {saveError && <SaveErrorBanner message={saveError} />}
+                      <button
+                        onClick={() =>
+                          (submittableAnswer ?? '').trim() &&
+                          void handleSubmitAndAdvance(
+                            (submittableAnswer ?? '').trim()
+                          )
+                        }
+                        disabled={
+                          !(submittableAnswer ?? '').trim() || submitting
+                        }
+                        className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      >
+                        {submitting ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : currentIndex >= session.totalQuestions - 1 ? (
+                          <>
+                            {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                            <CheckCircle2 className="w-5 h-5" />
+                          </>
+                        ) : (
+                          <>
+                            {saveError ? 'Retry' : 'NEXT'}{' '}
+                            <ArrowRight className="w-5 h-5" />
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )
+                ) : !submitted ? (
+                  <button
+                    onClick={() =>
+                      (submittableAnswer ?? '').trim() &&
+                      void handleSubmit((submittableAnswer ?? '').trim())
+                    }
+                    disabled={!(submittableAnswer ?? '').trim() || submitting}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {submitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      'Submit Answer'
+                    )}
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <AnswerFeedbackBanner
+                      feedback={answerFeedback}
+                      revealedAnswer={revealedAnswer}
+                      speedBonus={speedBonusEarned}
+                      streakCount={streakCount}
+                      streakEnabled={session.streakBonusEnabled}
+                    />
+                    <SuccessPill light={light}>
+                      {currentIndex < session.totalQuestions - 1
+                        ? 'Waiting for teacher…'
+                        : 'Quiz complete!'}
+                    </SuccessPill>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-            {/*
+          {(currentQuestion.type === 'Matching' ||
+            currentQuestion.type === 'Ordering') && (
+            <StructuredQuestionInput
+              key={currentQuestion.id}
+              question={currentQuestion}
+              submitted={submitted}
+              isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
+              savedAnswer={liveAnswer}
+              onSubmit={(answer) => void handleSubmit(answer)}
+              onSubmitAndAdvance={(answer) =>
+                void handleSubmitAndAdvance(answer)
+              }
+              onAnswerChange={(answer) => {
+                // The input remounts per question (keyed by id) and its mount
+                // effect re-emits the seeded answer. Skip the write when the
+                // emitted value already matches the cached value: a back-nav
+                // remount would otherwise mark the question touched (freezing
+                // out the seed-from-server refresh) and churn the autosave /
+                // pollute the history log for a no-op overwrite. Genuine
+                // placements differ from the cache and fall through.
+                if (
+                  currentAnswerRef.current.qid === currentQid &&
+                  currentAnswerRef.current.value === answer
+                )
+                  return;
+                // Push the live placement into the cache; the autosave
+                // effect picks it up and debounces the Firestore write.
+                setCacheForCurrent(answer);
+              }}
+              submitting={submitting}
+              isStudentPaced={isStudentPaced}
+              isLastQuestion={currentIndex >= session.totalQuestions - 1}
+              onNext={handleNext}
+              saveError={saveError}
+            />
+          )}
+
+          {(currentQuestion.type === 'short' ||
+            currentQuestion.type === 'essay') && (
+            <div className="space-y-4">
+              {currentQuestion.rubricSnapshot && (
+                <CollapsibleRubric
+                  rubric={currentQuestion.rubricSnapshot}
+                  light={light}
+                />
+              )}
+              <React.Suspense
+                fallback={
+                  <div
+                    className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                  >
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                  </div>
+                }
+              >
+                <WrittenResponseEditor
+                  // The editor seeds its `innerHTML` once on mount (caret
+                  // preservation), so we encode a "recovered text needs
+                  // injecting" boolean in the questionKey. A page refresh
+                  // mid-essay first mounts with value='' (cache empty,
+                  // saved null); when the Firestore snapshot arrives the
+                  // seed-from-server block recovery-seeds the cache, the key
+                  // flips from `…:init` → `…:seeded`, and the editor
+                  // remounts with the recovered text. Without this, the
+                  // student stares at a blank editor while React state
+                  // already holds the recovered value.
+                  //
+                  // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
+                  // rather than general cache presence: a student's own first
+                  // keystroke also populates `answerCache`, and keying on that
+                  // remounted the editor mid-type, stealing focus and the caret.
+                  questionKey={`${currentQuestion.id}:${
+                    seededQuestionsRef.current.has(currentQuestion.id)
+                      ? 'seeded'
+                      : 'init'
+                  }`}
+                  value={liveAnswer ?? ''}
+                  onChange={(html) => setCacheForCurrent(html)}
+                  placeholder={currentQuestion.placeholder}
+                  maxWords={currentQuestion.maxWords}
+                  disabled={submitted && !isStudentPaced}
+                  isEssay={currentQuestion.type === 'essay'}
+                  blockClipboard={blockCopyPaste}
+                  light={light}
+                />
+              </React.Suspense>
+
+              {/*
               Sticky CTA: the editor can grow up to ~70vh tall, so without
               `sticky bottom-0` the Submit button rides below the fold and
               students miss it.
             */}
-            <div
-              className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
-            >
-              {isStudentPaced ? (
-                submitted && currentIndex >= session.totalQuestions - 1 ? (
-                  <QuizCompleteCard />
-                ) : (
-                  <>
-                    {saveError && <SaveErrorBanner message={saveError} />}
-                    {/* Written NEXT stays enabled (only `submitting` gates it)
+              <div
+                className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
+              >
+                {isStudentPaced ? (
+                  submitted && currentIndex >= session.totalQuestions - 1 ? (
+                    <QuizCompleteCard />
+                  ) : (
+                    <>
+                      {saveError && <SaveErrorBanner message={saveError} />}
+                      {/* Written NEXT stays enabled (only `submitting` gates it)
                         so a student can advance past a blank essay; gating it
                         on the cache like MC/FIB would trap anyone who wants to
                         skip. When the cache HAS a value (typed, seeded, or a
@@ -2609,60 +2733,78 @@ const ActiveQuiz: React.FC<{
                         (`submittableAnswer === null`) we advance WITHOUT writing
                         so a fast tap can't clobber a not-yet-loaded saved essay
                         with a blank (see handleSubmitAndAdvance `skipWrite`). */}
-                    <button
-                      onClick={() =>
-                        void handleSubmitAndAdvance(
-                          submittableAnswer ?? '',
-                          submittableAnswer === null
-                        )
-                      }
-                      disabled={submitting}
-                      className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                    >
-                      {submitting ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : currentIndex >= session.totalQuestions - 1 ? (
-                        <>
-                          {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
-                          <CheckCircle2 className="w-5 h-5" />
-                        </>
-                      ) : (
-                        <>
-                          {saveError ? 'Retry' : 'NEXT'}{' '}
-                          <ArrowRight className="w-5 h-5" />
-                        </>
-                      )}
-                    </button>
-                  </>
-                )
-              ) : !submitted ? (
-                // Teacher-paced has no self-advance, so (unlike self-paced) we
-                // can safely gate Submit on the cache: disabled while the
-                // editor is unseeded (`submittableAnswer === null`) — never
-                // typed, or the saved answer hasn't echoed yet — so a fast tap
-                // can't write a blank over a not-yet-loaded saved essay. A
-                // deliberate clear (cache holds '') is non-null, so it stays
-                // enabled. The button re-enables once the student types or the
-                // saved answer loads and seeds the cache.
-                <button
-                  onClick={() => void handleSubmit(submittableAnswer ?? '')}
-                  disabled={submitting || submittableAnswer === null}
-                  className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    'Submit Response'
-                  )}
-                </button>
-              ) : (
-                <WrittenSubmittedCard
-                  isWaiting={currentIndex < session.totalQuestions - 1}
-                />
-              )}
+                      <button
+                        onClick={() =>
+                          void handleSubmitAndAdvance(
+                            submittableAnswer ?? '',
+                            submittableAnswer === null
+                          )
+                        }
+                        disabled={submitting}
+                        className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      >
+                        {submitting ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : currentIndex >= session.totalQuestions - 1 ? (
+                          <>
+                            {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                            <CheckCircle2 className="w-5 h-5" />
+                          </>
+                        ) : (
+                          <>
+                            {saveError ? 'Retry' : 'NEXT'}{' '}
+                            <ArrowRight className="w-5 h-5" />
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )
+                ) : !submitted ? (
+                  // Teacher-paced has no self-advance, so (unlike self-paced) we
+                  // can safely gate Submit on the cache: disabled while the
+                  // editor is unseeded (`submittableAnswer === null`) — never
+                  // typed, or the saved answer hasn't echoed yet — so a fast tap
+                  // can't write a blank over a not-yet-loaded saved essay. A
+                  // deliberate clear (cache holds '') is non-null, so it stays
+                  // enabled. The button re-enables once the student types or the
+                  // saved answer loads and seeds the cache.
+                  <button
+                    onClick={() => void handleSubmit(submittableAnswer ?? '')}
+                    disabled={submitting || submittableAnswer === null}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {submitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      'Submit Response'
+                    )}
+                  </button>
+                ) : (
+                  <WrittenSubmittedCard
+                    isWaiting={currentIndex < session.totalQuestions - 1}
+                  />
+                )}
+              </div>
             </div>
+          )}
+
+          {/* Raise hand */}
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => void handleToggleHand()}
+              disabled={handBusy}
+              aria-pressed={handRaised}
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
+                handRaised
+                  ? 'bg-brand-red-primary border-brand-red-primary text-white'
+                  : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
+              }`}
+            >
+              <Hand className="w-4 h-4" aria-hidden />
+              {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -3239,6 +3381,25 @@ const PublishedScoreReview: React.FC<{
   const correctCount = myResponse.answers.filter(
     (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
+  // A written answer with no grade entry is still owed a teacher grade, so any
+  // score shown here is provisional (M12 decision 8 / RR-06). Detected from the
+  // student's own response — no answer key is exposed to this view.
+  const writtenQuestionsById = new Map(
+    publicQuestions
+      .filter((q) => isWrittenQuestionType(q.type))
+      .map((q) => [q.id, q] as const)
+  );
+  const awaitingGrade = myResponse.answers.some((a) => {
+    const q = writtenQuestionsById.get(a.questionId);
+    return (
+      q !== undefined &&
+      isWrittenAnswerAwaitingGrade(
+        q,
+        a.answer ?? '',
+        myResponse.grading?.[a.questionId]
+      )
+    );
+  });
 
   // Watermark overlay — rendered above content via fixed positioning, below
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
@@ -3407,10 +3568,22 @@ const PublishedScoreReview: React.FC<{
                   {correctCount} of {autoGradedCount} fully correct
                 </p>
               )}
+              {awaitingGrade && (
+                <p
+                  className={`mt-2 text-sm font-semibold ${
+                    light ? 'text-amber-700' : 'text-amber-300'
+                  }`}
+                >
+                  Provisional — your written response is still being graded, so
+                  this score will change.
+                </p>
+              )}
             </>
           ) : (
             <p className={`text-sm ${prepText}`}>
-              Your score is being prepared. Check back soon.
+              {awaitingGrade
+                ? 'Your written response is still being graded. Check back soon.'
+                : 'Your score is being prepared. Check back soon.'}
             </p>
           )}
         </section>
@@ -3477,6 +3650,17 @@ const PublishedScoreReview: React.FC<{
                         <XIcon className={`h-5 w-5 shrink-0 ${xIconCls}`} />
                       )}
                     </header>
+                    {(q.stimulusIds?.length ?? 0) > 0 && (
+                      <div className="ml-7 mb-2">
+                        <CollapsibleStimuli
+                          stimuli={resolveStimuli(
+                            q.stimulusIds,
+                            session.stimuli
+                          )}
+                          light={light}
+                        />
+                      </div>
+                    )}
                     <div className="ml-7 space-y-1.5">
                       {isWritten ? (
                         <WrittenAnswerReview
@@ -3484,6 +3668,7 @@ const PublishedScoreReview: React.FC<{
                           grade={writtenGrade}
                           showResponse={showResponses}
                           maxPoints={q.points ?? 1}
+                          rubricSnapshot={q.rubricSnapshot}
                           light={light}
                         />
                       ) : (
@@ -3547,14 +3732,160 @@ const PublishedScoreReview: React.FC<{
  * the question hasn't been graded yet — useful for self-paced quizzes
  * where the teacher publishes scores in chunks.
  */
+/**
+ * Collapsible rubric preview shown while a student is answering a written
+ * question — criteria, levels, points, and descriptors. Contains no answer
+ * key, so it's safe on the student-safe `QuizPublicQuestion` payload.
+ */
+export const CollapsibleRubric: React.FC<{
+  rubric: Rubric;
+  light?: boolean;
+}> = ({ rubric, light = false }) => {
+  const [open, setOpen] = useState(false);
+  const cardCls = light
+    ? 'border-slate-200 bg-slate-50'
+    : 'border-slate-700 bg-slate-800/60';
+  const headingCls = light ? 'text-slate-900' : 'text-slate-100';
+  const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
+  if (!Array.isArray(rubric?.criteria) || rubric.criteria.length === 0) {
+    return null;
+  }
+  return (
+    <div className={`rounded-xl border ${cardCls}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors ${
+          open ? 'rounded-t-xl' : 'rounded-xl'
+        } ${light ? 'hover:bg-slate-100' : 'hover:bg-slate-700/60'} ${headingCls}`}
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+        )}
+        <ListChecks className="w-3.5 h-3.5" aria-hidden />
+        {rubric.title || 'Scoring rubric'}
+      </button>
+      {open && (
+        <div className="space-y-3 px-3 pb-3">
+          {rubric.criteria.map((criterion) => (
+            <div key={criterion.id}>
+              <p className={`text-xs font-semibold ${headingCls}`}>
+                {criterion.name}
+              </p>
+              {criterion.description && (
+                <p className={`text-xs ${bodyCls} mb-1`}>
+                  {criterion.description}
+                </p>
+              )}
+              <ul className="space-y-1">
+                {[...criterion.levels]
+                  .sort((a, b) => b.points - a.points)
+                  .map((level) => (
+                    <li
+                      key={level.id}
+                      className={`flex items-baseline gap-2 text-xs ${bodyCls}`}
+                    >
+                      <span className={`font-bold ${headingCls}`}>
+                        {level.label} ({level.points} pt
+                        {level.points === 1 ? '' : 's'})
+                      </span>
+                      {level.description && <span>{level.description}</span>}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Scored rubric shown in published results — the level + points a student
+ * earned per criterion, provisional-marked while any criterion is unscored.
+ */
+const ScoredRubricDisplay: React.FC<{
+  rubric: Rubric;
+  scores: import('@/types').WrittenAnswerRubricScore[];
+  light?: boolean;
+}> = ({ rubric, scores, light = false }) => {
+  const headingCls = light ? 'text-slate-900' : 'text-slate-100';
+  const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
+  const labelCls = light ? 'text-slate-500' : 'text-slate-300';
+  if (!Array.isArray(rubric?.criteria) || rubric.criteria.length === 0) {
+    return null;
+  }
+  const scoresByCriterion = new Map(scores.map((s) => [s.criterionId, s]));
+  const criterionIds = new Set(rubric.criteria.map((c) => c.id));
+  const staleSnapshot =
+    scores.length > 0 && !scores.some((s) => criterionIds.has(s.criterionId));
+  if (staleSnapshot) {
+    return (
+      <div className="space-y-1.5">
+        <p
+          className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
+        >
+          Rubric
+        </p>
+        <p className={`text-xs italic ${bodyCls}`}>
+          Scored with an earlier version of this rubric.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <p
+        className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
+      >
+        Rubric
+      </p>
+      {rubric.criteria.map((criterion) => {
+        const score = scoresByCriterion.get(criterion.id);
+        const level = score
+          ? criterion.levels.find((l) => l.id === score.levelId)
+          : undefined;
+        return (
+          <div
+            key={criterion.id}
+            className="flex items-baseline justify-between gap-2 text-xs"
+          >
+            <span className={bodyCls}>{criterion.name}</span>
+            <span className={`font-mono font-semibold ${headingCls}`}>
+              {level && score ? (
+                `${level.label} — ${score.points} pt${score.points === 1 ? '' : 's'}`
+              ) : (
+                <span className={`italic ${bodyCls}`}>not yet scored</span>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const WrittenAnswerReview: React.FC<{
   studentAnswer: string;
   grade: WrittenAnswerGrade | undefined;
   showResponse: boolean;
   maxPoints: number;
+  /** Frozen rubric snapshot for this question, if one was attached. */
+  rubricSnapshot?: Rubric;
   /** LIGHT for the async/self-paced review; dark for a live-ended quiz. */
   light?: boolean;
-}> = ({ studentAnswer, grade, showResponse, maxPoints, light = false }) => {
+}> = ({
+  studentAnswer,
+  grade,
+  showResponse,
+  maxPoints,
+  rubricSnapshot,
+  light = false,
+}) => {
   if (!showResponse) {
     return null;
   }
@@ -3606,12 +3937,25 @@ export const WrittenAnswerReview: React.FC<{
               </p>
             </div>
           )}
+          {rubricSnapshot &&
+            grade.rubricScores &&
+            grade.rubricScores.length > 0 && (
+              <ScoredRubricDisplay
+                rubric={rubricSnapshot}
+                scores={grade.rubricScores}
+                light={light}
+              />
+            )}
           <div
             className={`flex items-baseline justify-between gap-2 pt-1 border-t ${
               light ? 'border-slate-200' : 'border-slate-700/60'
             }`}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span
+              className={`text-[10px] font-bold uppercase tracking-wider ${
+                light ? 'text-slate-500' : 'text-slate-300'
+              }`}
+            >
               Score
             </span>
             <span
@@ -3626,11 +3970,19 @@ export const WrittenAnswerReview: React.FC<{
       )}
       {!hasGrade &&
         (showingLiveAnswer ? (
-          <p className="text-[11px] text-slate-500 italic">
+          <p
+            className={`text-[11px] italic ${
+              light ? 'text-slate-500' : 'text-slate-300'
+            }`}
+          >
             Showing your latest response — not yet graded by your teacher.
           </p>
         ) : (
-          <p className="text-[11px] text-slate-500 italic">
+          <p
+            className={`text-[11px] italic ${
+              light ? 'text-slate-500' : 'text-slate-300'
+            }`}
+          >
             Not yet graded by your teacher.
           </p>
         ))}

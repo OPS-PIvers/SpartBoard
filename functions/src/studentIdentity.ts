@@ -1149,25 +1149,30 @@ export const pinLoginV1 = onCall(
       if (!code) {
         throw new HttpsError('invalid-argument', 'code is required for quiz.');
       }
+      // Filter status in the query itself — old non-joinable sessions sharing a reused code must never crowd the live one out of a capped page.
       const codeMatch = await db
         .collection('quiz_sessions')
         .where('code', '==', code)
-        .limit(5)
+        .where('status', 'in', ['waiting', 'active', 'paused'])
+        .limit(1)
         .get();
-      const joinable = codeMatch.docs.find((d) => {
-        const s = (d.data() as { status?: unknown }).status;
-        return s === 'waiting' || s === 'active' || s === 'paused';
-      });
-      if (!joinable) {
+      if (codeMatch.empty) {
+        // Cheap existence check purely for log clarity: was this code never
+        // used, or did every session sharing it end?
+        const anyMatch = await db
+          .collection('quiz_sessions')
+          .where('code', '==', code)
+          .limit(1)
+          .get();
         console.warn('[pinLoginV1] fallback', {
           kind,
           reason: 'no-joinable-session',
-          codeMatchCount: codeMatch.size,
+          codeExisted: !anyMatch.empty,
           period,
         });
         return { matched: false, reason: 'no-joinable-session' };
       }
-      sessionRef = joinable.ref;
+      sessionRef = codeMatch.docs[0].ref;
     } else {
       const sessionId =
         typeof data.sessionId === 'string' ? data.sessionId : '';

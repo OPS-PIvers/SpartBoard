@@ -28,6 +28,7 @@ import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/Quiz
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
+import { PresentScreen } from '@/components/widgets/QuizWidget/components/present/PresentScreen';
 import {
   makeQuizSession,
   makeQuizResponses,
@@ -37,11 +38,25 @@ import {
   makeVaResponses,
 } from './sessionViewsMocks';
 
-type ViewKey = 'quiz-monitor' | 'quiz-results' | 'va-monitor' | 'va-results';
-type StateKey = 'waiting' | 'live' | 'paused' | 'ended' | 'populated' | 'empty';
+type ViewKey =
+  | 'quiz-monitor'
+  | 'quiz-present'
+  | 'quiz-results'
+  | 'va-monitor'
+  | 'va-results';
+type StateKey =
+  | 'waiting'
+  | 'live'
+  | 'reviewing'
+  | 'self-paced'
+  | 'paused'
+  | 'ended'
+  | 'populated'
+  | 'empty';
 
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
+  { key: 'quiz-present', label: 'Quiz Present' },
   { key: 'quiz-results', label: 'Quiz Results' },
   { key: 'va-monitor', label: 'VA Monitor' },
   { key: 'va-results', label: 'VA Results' },
@@ -54,6 +69,8 @@ const VIEWS: { key: ViewKey; label: string }[] = [
 const STATES: { key: StateKey; label: string }[] = [
   { key: 'waiting', label: 'Waiting (no responses)' },
   { key: 'live', label: 'Live' },
+  { key: 'reviewing', label: 'Reviewing (present)' },
+  { key: 'self-paced', label: 'Self-paced (present)' },
   { key: 'paused', label: 'Paused' },
   { key: 'ended', label: 'Ended' },
   { key: 'populated', label: 'Populated (results)' },
@@ -64,10 +81,17 @@ const WIDTHS = [340, 520, 820];
 
 const noop = (): Promise<void> => Promise.resolve();
 
-const SessionView: React.FC<{ view: ViewKey; state: StateKey }> = ({
-  view,
-  state,
-}) => {
+const PRESENT_STANDINGS = [
+  { studentUid: 'u1', name: 'Ada Lovelace', score: 940, rank: 1 },
+  { studentUid: 'u2', name: 'Grace Hopper', score: 880, rank: 2 },
+  { studentUid: 'u3', name: 'Katherine Johnson', score: 720, rank: 3 },
+];
+
+const SessionView: React.FC<{
+  view: ViewKey;
+  state: StateKey;
+  showNames: boolean;
+}> = ({ view, state, showNames }) => {
   if (view === 'quiz-monitor') {
     const status =
       state === 'paused' ? 'paused' : state === 'ended' ? 'ended' : 'active';
@@ -90,6 +114,38 @@ const SessionView: React.FC<{ view: ViewKey; state: StateKey }> = ({
         onRevealAnswer={noop}
         onHideAnswer={noop}
         onBack={() => undefined}
+      />
+    );
+  }
+
+  if (view === 'quiz-present') {
+    const status =
+      state === 'waiting'
+        ? 'waiting'
+        : state === 'paused'
+          ? 'paused'
+          : state === 'ended'
+            ? 'ended'
+            : 'active';
+    const session = {
+      ...makeQuizSession(status),
+      sessionMode: state === 'self-paced' ? 'student' : 'teacher',
+      questionPhase: state === 'reviewing' ? 'reviewing' : 'answering',
+      pauseMessage: state === 'paused' ? 'Back in 5 minutes' : undefined,
+    } as ReturnType<typeof makeQuizSession>;
+    const responses = state === 'waiting' ? [] : makeQuizResponses();
+    return (
+      <PresentScreen
+        session={session}
+        currentQ={makeQuizData().questions[0]}
+        responses={responses}
+        answered={responses.length}
+        counts={{ notStarted: 2, inProgress: 3, done: 5 }}
+        total={10}
+        standings={PRESENT_STANDINGS}
+        isGamified
+        classAverage={82}
+        showNames={showNames}
       />
     );
   }
@@ -138,6 +194,7 @@ export const SessionViewsDevHarness: React.FC = () => {
   const [view, setView] = useState<ViewKey>('quiz-monitor');
   const [state, setState] = useState<StateKey>('live');
   const [width, setWidth] = useState<number>(520);
+  const [showNames, setShowNames] = useState(false);
 
   // Guard: without auth-bypass this harness would boot the real AuthProvider +
   // DashboardProvider against a live Firebase account (real Firestore
@@ -189,6 +246,18 @@ export const SessionViewsDevHarness: React.FC = () => {
                     </select>
                   </label>
 
+                  <button
+                    onClick={() => setShowNames((v) => !v)}
+                    aria-pressed={showNames}
+                    className={`px-3 py-2 rounded text-sm font-bold transition ${
+                      showNames
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    {showNames ? 'Names on' : 'Names off'}
+                  </button>
+
                   <div className="flex items-center gap-1">
                     {WIDTHS.map((w) => (
                       <button
@@ -210,7 +279,11 @@ export const SessionViewsDevHarness: React.FC = () => {
                   className="rounded-2xl border border-slate-700 bg-slate-100 shadow-xl overflow-hidden"
                   style={{ width, height: 640, containerType: 'size' }}
                 >
-                  <SessionView view={view} state={state} />
+                  <SessionView
+                    view={view}
+                    state={state}
+                    showNames={showNames}
+                  />
                 </div>
               </div>
             </DashboardProvider>

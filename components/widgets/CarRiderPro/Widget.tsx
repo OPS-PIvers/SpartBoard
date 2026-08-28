@@ -15,7 +15,7 @@ export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="w-full h-full flex items-center justify-center bg-slate-50">
+          <div className="w-full h-full flex items-center justify-center">
             <Loader2
               className="animate-spin text-slate-300"
               style={{

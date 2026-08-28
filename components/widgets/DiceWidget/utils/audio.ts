@@ -1,24 +1,12 @@
-// Singleton-like Audio Manager for Dice
-export let diceAudioCtx: AudioContext | null = null;
+import { getAudioCtx } from '@/utils/timeToolAudio';
 
-// Add type definition for webkitAudioContext
-interface CustomWindow extends Window {
-  webkitAudioContext: typeof AudioContext;
-}
-
-export const getDiceAudioCtx = () => {
-  if (!diceAudioCtx) {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as unknown as CustomWindow).webkitAudioContext;
-    diceAudioCtx = new AudioContextClass();
-  }
-  return diceAudioCtx;
-};
+// Delegates to the app-wide shared AudioContext singleton (avoids per-widget-type contexts).
+export const getDiceAudioCtx = getAudioCtx;
 
 export const playRollSound = () => {
   try {
     const ctx = getDiceAudioCtx();
+    if (!ctx) return;
     if (ctx.state === 'suspended') void ctx.resume();
 
     const osc = ctx.createOscillator();

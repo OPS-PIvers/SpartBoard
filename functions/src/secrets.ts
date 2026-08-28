@@ -8,7 +8,8 @@
  */
 import { defineSecret } from 'firebase-functions/params';
 
-export const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
+// Removed: AI callables moved to Vertex AI (ADC auth); the GEMINI_API_KEY secret is deleted.
+
 export const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
 export const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
 export const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');

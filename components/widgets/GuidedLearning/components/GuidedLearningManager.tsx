@@ -210,11 +210,6 @@ export interface GuidedLearningManagerProps {
     assignment: GuidedLearningAssignment
   ) => void | Promise<void>;
 
-  /** Persisted library grid/list toggle (from widget config). */
-  initialLibraryViewMode?: 'grid' | 'list';
-  /** Persist the library grid/list toggle into widget config. */
-  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
-
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
@@ -380,8 +375,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentDelete,
   onAssignmentPublishScores,
   onAssignmentUnpublishScores,
-  initialLibraryViewMode,
-  onLibraryViewModeChange,
   assignmentMode = 'submissions',
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
@@ -474,11 +467,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const view = useLibraryView<LibraryEntry>({
     items: allEntries,
     initialSort: LIBRARY_INITIAL_SORT,
-    initialViewMode: initialLibraryViewMode ?? 'grid',
+    // Phase 2 redesign: the library is list-only (monitor row idiom).
+    initialViewMode: 'list',
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
     filterPredicates: LIBRARY_FILTER_PREDICATES,
-    onViewModeChange: onLibraryViewModeChange,
   });
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
@@ -511,14 +504,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // ─── Drop-to-folder handler ───────────────────────────────────────────────
   const { moveItem } = folderState;
-  const handleDropOnFolder = useCallback(
-    async (itemId: string, folderId: string | null): Promise<void> => {
+  // Takes an unprefixed set id — the folder picker already has one.
+  const moveSetToFolder = useCallback(
+    async (rawId: string, folderId: string | null): Promise<void> => {
       if (!userId) return;
-      // GL entry ids are prefixed "personal:" or "building:". Only personal
-      // entries participate in folders; building cards are `sortable={false}`
-      // so drops from them shouldn't fire, but we guard defensively.
-      if (!itemId.startsWith('personal:')) return;
-      const rawId = itemId.slice('personal:'.length);
       try {
         await moveItem(rawId, folderId);
       } catch (err) {
@@ -526,6 +515,16 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       }
     },
     [userId, moveItem]
+  );
+  const handleDropOnFolder = useCallback(
+    async (itemId: string, folderId: string | null): Promise<void> => {
+      // GL entry ids are prefixed "personal:" or "building:". Only personal
+      // entries participate in folders; building cards are `sortable={false}`
+      // so drops from them shouldn't fire, but we guard defensively.
+      if (!itemId.startsWith('personal:')) return;
+      await moveSetToFolder(itemId.slice('personal:'.length), folderId);
+    },
+    [moveSetToFolder]
   );
 
   // ─── Bulk handlers (Step 8) ─────────────────────────────────────────────
@@ -1275,7 +1274,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       folders={folderState.folders}
       selectedFolderId={folderPickerTarget.folderId}
       onSelect={(folderId) => {
-        void handleDropOnFolder(folderPickerTarget.rawId, folderId);
+        void moveSetToFolder(folderPickerTarget.rawId, folderId);
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}

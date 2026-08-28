@@ -8,6 +8,7 @@
 import React, { useReducer, useEffect, useRef } from 'react';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
+import { getAudioCtx } from '@/utils/timeToolAudio';
 import {
   WidgetData,
   CustomWidgetConfig,
@@ -32,16 +33,10 @@ import {
 // Audio helper
 // ---------------------------------------------------------------------------
 
-let globalAudioContext: AudioContext | null = null;
-
-function getAudioContext(): AudioContext {
-  globalAudioContext ??= new AudioContext();
-  return globalAudioContext;
-}
-
 function playBeep(frequency = 440, duration = 0.3): void {
   try {
-    const ctx = getAudioContext();
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     if (ctx.state === 'suspended') {
       void ctx.resume();
     }

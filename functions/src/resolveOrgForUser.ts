@@ -18,6 +18,17 @@
  * Returns `{ orgId: null }` (not an error) when the domain isn't registered to
  * any org, so the client can cleanly fall back to the free/no-org tier instead
  * of treating "unregistered domain" as a failure.
+ *
+ * AUTO-ENROLLMENT: resolving an org for a verified-email caller who has no
+ * member doc also CREATES `/organizations/{orgId}/members/{emailLower}` as an
+ * active teacher. Historically member docs only came from the 2026-04-19
+ * backfill (scripts/backfill-org-members.js) or invite acceptance, so a
+ * registered-domain teacher signing in for the first time silently landed in
+ * the free tier with ClassLink and every org surface hidden. Guards mirror the
+ * backfill: numeric-local (student-ID) emails are skipped, existing docs are
+ * never touched (admin roles and 'inactive' lockouts survive), the email claim
+ * must be verified, and an org can opt out via `autoEnrollDomainUsers: false`
+ * on its org doc. Enrollment failures are logged but never fail resolution.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
@@ -62,6 +73,57 @@ export function resolveDomainCandidates(
   return candidates;
 }
 
+/**
+ * True when an email is eligible for auto-enrollment as a teacher: non-empty
+ * local part that is not all digits (numeric locals are student accounts —
+ * same rail as backfill-org-members.js). Pure so it's unit-testable.
+ */
+export function isAutoEnrollableEmail(email: string): boolean {
+  const local = email.split('@')[0] ?? '';
+  return local.length > 0 && !/^\d+$/.test(local);
+}
+
+/**
+ * Upserts nothing — strictly CREATES the caller's member doc when absent.
+ * Existing docs (any role, any status) are left untouched so this can never
+ * demote an admin or resurrect a deactivated member. Uses `create()` so a
+ * concurrent duplicate loses cleanly (ALREADY_EXISTS is swallowed).
+ */
+async function autoEnrollMember(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  uid: string,
+  token: { email?: string; email_verified?: boolean; name?: string }
+): Promise<void> {
+  const email = token.email?.trim().toLowerCase() ?? '';
+  if (!email || token.email_verified !== true) return;
+  if (!isAutoEnrollableEmail(email)) return;
+
+  const memberRef = db.doc(`organizations/${orgId}/members/${email}`);
+  const memberSnap = await memberRef.get();
+  if (memberSnap.exists) return;
+
+  // Per-org opt-out: only read the org doc on the rare doc-missing path.
+  const orgSnap = await db.doc(`organizations/${orgId}`).get();
+  if (orgSnap.get('autoEnrollDomainUsers') === false) return;
+
+  try {
+    await memberRef.create({
+      email,
+      orgId,
+      roleId: 'teacher',
+      buildingIds: [],
+      status: 'active',
+      name: typeof token.name === 'string' ? token.name : '',
+      uid,
+      addedBySource: 'auto-enroll:resolveOrgForUser',
+    });
+  } catch (err) {
+    // gRPC 6 = ALREADY_EXISTS: a concurrent call won the create race.
+    if ((err as { code?: number }).code !== 6) throw err;
+  }
+}
+
 export const resolveOrgForUser = onCall(
   {
     // 256MiB: the nodejs24 + firebase-admin cold-start footprint is ~135-144MiB,
@@ -81,7 +143,12 @@ export const resolveOrgForUser = onCall(
 
     // Read the domain from the verified token ONLY — never from request.data —
     // so the resolution is always scoped to the caller's own identity.
-    const token = request.auth.token as { email?: string; hd?: string };
+    const token = request.auth.token as {
+      email?: string;
+      hd?: string;
+      email_verified?: boolean;
+      name?: string;
+    };
     const candidates = resolveDomainCandidates(token.hd, token.email);
     if (candidates.length === 0) {
       // No usable domain (e.g. anonymous/SSO-student token with no email
@@ -94,7 +161,20 @@ export const resolveOrgForUser = onCall(
     // At most two sequential lookups (usually one after dedup).
     for (const domain of candidates) {
       const orgId = await resolveOrgIdForDomain(db, domain);
-      if (orgId) return { orgId };
+      if (orgId) {
+        // First-sign-in provisioning; a failure here must not fail resolution
+        // (the client would fall back to the operator org and lose the
+        // resolved orgId entirely). The next app load retries.
+        try {
+          await autoEnrollMember(db, orgId, request.auth.uid, token);
+        } catch (err) {
+          console.error(
+            `[resolveOrgForUser] auto-enroll failed for org ${orgId}:`,
+            err
+          );
+        }
+        return { orgId };
+      }
     }
     return { orgId: null };
   }

@@ -27,6 +27,8 @@ interface SegmentedTabsProps<K extends string = string> {
    * linkage. Use a per-instance prefix (e.g. React `useId()`).
    */
   panelIdPrefix?: string;
+  /** Render for a dark (brand-blue) header surface instead of the light one. */
+  onDark?: boolean;
 }
 
 /**
@@ -40,6 +42,7 @@ export function SegmentedTabs<K extends string = string>({
   labelsHidden = false,
   ariaLabel,
   panelIdPrefix,
+  onDark = false,
 }: SegmentedTabsProps<K>): React.ReactElement {
   // WAI-ARIA 1.2 § 3.23 tablist keyboard pattern — select-follows-focus model:
   // arrow keys move focus AND selection simultaneously so tabIndex=0 always
@@ -90,7 +93,7 @@ export function SegmentedTabs<K extends string = string>({
       role="tablist"
       aria-label={ariaLabel}
       onKeyDown={onNavKeyDown}
-      className="flex items-center rounded-xl bg-slate-200/50 min-w-0"
+      className={`flex items-center rounded-xl min-w-0 ${onDark ? 'bg-white/15' : 'bg-slate-200/50'}`}
       style={{ padding: 'min(3px, 0.8cqmin)', gap: 'min(2px, 0.5cqmin)' }}
     >
       {tabs.map(({ key, label, icon: Icon, count }) => {
@@ -109,10 +112,16 @@ export function SegmentedTabs<K extends string = string>({
             aria-label={labelsHidden ? label : undefined}
             title={labelsHidden ? label : undefined}
             onClick={() => onChange(key)}
-            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${
+            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+              onDark
+                ? 'focus-visible:ring-white'
+                : 'focus-visible:ring-brand-blue-primary'
+            } ${
               selected
                 ? 'bg-white text-brand-blue-dark shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
+                : onDark
+                  ? 'text-white/80 hover:text-white'
+                  : 'text-slate-500 hover:text-slate-800'
             }`}
             style={{
               gap: 'min(6px, 1.5cqmin)',
@@ -137,7 +146,9 @@ export function SegmentedTabs<K extends string = string>({
                 className={`inline-flex items-center justify-center rounded-full font-bold leading-none ${
                   selected
                     ? 'bg-brand-blue-primary text-white'
-                    : 'bg-slate-200/70 text-slate-600'
+                    : onDark
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-200/70 text-slate-600'
                 }`}
                 style={{
                   paddingInline: 'min(7px, 1.8cqmin)',

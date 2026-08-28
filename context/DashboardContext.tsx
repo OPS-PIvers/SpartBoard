@@ -275,6 +275,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (path.startsWith('/share/quiz/')) return null;
     if (path.startsWith('/share/assignment/')) return null;
     if (path.startsWith('/share/video-activity/')) return null;
+    if (path.startsWith('/share/rubric/')) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }
@@ -312,6 +313,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return null;
     });
+
+  const [pendingRubricShareId, setPendingRubricShareId] = useState<
+    string | null
+  >(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    if (path.startsWith('/share/rubric/')) {
+      return path.split('/share/rubric/')[1] || null;
+    }
+    return null;
+  });
 
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
@@ -357,6 +369,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearPendingVideoActivityShare = useCallback(() => {
     setPendingVideoActivityShareId(null);
+    window.history.replaceState(null, '', '/');
+  }, []);
+
+  const clearPendingRubricShare = useCallback(() => {
+    setPendingRubricShareId(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
@@ -542,6 +559,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
     return TOOLS.map((t) => t.type);
+  });
+
+  const [hiddenTools, setHiddenTools] = useState<
+    (WidgetType | InternalToolType)[]
+  >(() => {
+    if (!dockCacheMatchesUser) return [];
+    const saved = localStorage.getItem('spartboard_hidden_tools');
+    if (saved) {
+      try {
+        return JSON.parse(saved) as (WidgetType | InternalToolType)[];
+      } catch (e) {
+        console.error('Failed to parse hidden tools', e);
+      }
+    }
+    return [];
   });
 
   const [dockItems, setDockItems] = useState<DockItem[]>(() => {
@@ -1048,6 +1080,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             JSON.stringify(cloudLibrary)
           );
         }
+        const cloudHidden =
+          data && Array.isArray(data.hiddenTools) ? data.hiddenTools : null;
+        if (cloudHidden !== null) {
+          setHiddenTools(cloudHidden);
+          localStorage.setItem(
+            'spartboard_hidden_tools',
+            JSON.stringify(cloudHidden)
+          );
+        }
         // A non-empty cloud dock is itself proof of initialization. The
         // explicit `dockInitialized` flag landed later than the dock-sync
         // feature, so existing users who set up their dock before that
@@ -1079,6 +1120,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         lastSavedDockDataRef.current = JSON.stringify({
           dockItems: cloudDock ?? null,
           libraryOrder: cloudLibrary ?? null,
+          hiddenTools: cloudHidden ?? null,
         });
         succeeded = true;
       } catch (err) {
@@ -1117,7 +1159,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Skip the redundant post-hydration write: if the current state matches
     // the last snapshot we saved or hydrated, there's nothing to persist.
-    const serialized = JSON.stringify({ dockItems, libraryOrder });
+    const serialized = JSON.stringify({ dockItems, libraryOrder, hiddenTools });
     if (serialized === lastSavedDockDataRef.current) return;
 
     if (dockPersistTimerRef.current !== null) {
@@ -1135,6 +1177,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         {
           dockItems,
           libraryOrder,
+          hiddenTools,
           dockInitialized: true,
         },
         { merge: true }
@@ -1156,7 +1199,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         dockPersistTimerRef.current = null;
       }
     };
-  }, [user, dockHydrationOk, isDockInitialized, dockItems, libraryOrder]);
+  }, [
+    user,
+    dockHydrationOk,
+    isDockInitialized,
+    dockItems,
+    libraryOrder,
+    hiddenTools,
+  ]);
 
   // Drop any stale dock localStorage entries left behind by a *previous
   // user* on this device. Legacy localStorage with no recorded uid is
@@ -1180,6 +1230,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem('classroom_visible_tools');
       localStorage.removeItem('classroom_dock_initialized');
       localStorage.removeItem('spartboard_library_order');
+      localStorage.removeItem('spartboard_hidden_tools');
     }
     // Claim the cache for this user so subsequent reloads trust the
     // localStorage cache and skip straight to the cloud-synced state. The
@@ -2529,6 +2580,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           d.id === activeIdRef.current ? { ...d, libraryOrder: tools } : d
         )
       );
+    },
+    []
+  );
+
+  const toggleToolHidden = useCallback(
+    (type: WidgetType | InternalToolType) => {
+      setHiddenTools((prev) => {
+        const next = prev.includes(type)
+          ? prev.filter((t) => t !== type)
+          : [...prev, type];
+        localStorage.setItem('spartboard_hidden_tools', JSON.stringify(next));
+        return next;
+      });
     },
     []
   );
@@ -5662,6 +5726,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingVideoActivityShareId,
       setPendingVideoActivityShareId,
       clearPendingVideoActivityShare,
+      pendingRubricShareId,
+      clearPendingRubricShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
@@ -5771,6 +5837,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingVideoActivityShareId,
       setPendingVideoActivityShareId,
       clearPendingVideoActivityShare,
+      pendingRubricShareId,
+      clearPendingRubricShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
@@ -5804,7 +5872,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // F9 — tool-visibility slice. Split out of `contextValue` so a tool toggle
   // (or dock/library reorder) recreates ONLY this object, re-rendering its few
-  // consumers (Dock / NewUserSetup / WidgetLibrary / SidebarWidgets) instead of
+  // consumers (Dock / NewUserSetup / WidgetLibrary) instead of
   // every `useDashboard()` consumer. State + persistence effects stay in this
   // provider; this memo just exposes the same 17 callbacks/values from a
   // narrower context. Deps mirror exactly the tool-vis fields the deleted
@@ -5814,6 +5882,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       visibleTools,
       dockItems,
       libraryOrder,
+      hiddenTools,
+      toggleToolHidden,
       toggleToolVisibility,
       setAllToolsVisibility,
       reorderTools,
@@ -5833,6 +5903,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       visibleTools,
       dockItems,
       libraryOrder,
+      hiddenTools,
+      toggleToolHidden,
       toggleToolVisibility,
       setAllToolsVisibility,
       reorderTools,

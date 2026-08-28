@@ -527,6 +527,7 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./Stations/Settings'),
     'StationsAppearanceSettings'
   ),
+  text: lazyNamed(() => import('./TextWidget'), 'TextAppearanceSettings'),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {

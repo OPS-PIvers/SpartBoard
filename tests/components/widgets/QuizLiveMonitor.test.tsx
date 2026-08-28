@@ -1,8 +1,10 @@
 /**
- * Smoke-level coverage for QuizLiveMonitor — focuses on the privacy
- * gate around score reveal, the chip-style class-period filter, and
- * the leaderboard-broadcast invariant that filtering must NOT touch
- * the student-facing leaderboard.
+ * Smoke-level coverage for the rebuilt QuizLiveMonitor (calm default face):
+ * projector safety (scores off by default, on-demand join code), status
+ * buckets with inline roster expansion, needs-help pinning (raised hand +
+ * stuck heuristic), toolbar toggle/sort/filter persistence via widget
+ * config, the period-filter vs leaderboard-broadcast invariant, and the live
+ * correct-answer lock. Present mode is covered in QuizPresentMode.test.tsx.
  *
  * Heavy mocking style mirrors `QuizResults.regenerate.test.tsx`: every
  * hook the component reaches into is stubbed at module-scope so the
@@ -20,43 +22,20 @@ import type {
 } from '@/types';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
-const updateAccountPreferences = vi.fn();
 const addToast = vi.fn();
 const showConfirm = vi.fn().mockResolvedValue(false);
 
-// Mutable auth-state container so individual tests can flip Colors / score
-// preference without remounting the module. The `useAuth` mock reads from
-// this on every call, and `rerender(...)` forces the component to re-read.
-const authState: {
-  quizMonitorColorsEnabled: boolean;
-  quizMonitorScoreDisplay: 'percent' | 'count' | 'hidden';
-} = {
-  quizMonitorColorsEnabled: true,
-  quizMonitorScoreDisplay: 'percent',
-};
-
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    orgId: 'test-org',
-    get quizMonitorColorsEnabled() {
-      return authState.quizMonitorColorsEnabled;
-    },
-    get quizMonitorScoreDisplay() {
-      return authState.quizMonitorScoreDisplay;
-    },
-    updateAccountPreferences,
-  }),
+  useAuth: () => ({ orgId: 'test-org' }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({
-    addToast,
-  }),
+  useDashboard: () => ({ addToast }),
 }));
 
 // `useDialog` is globally stubbed in tests/setup.ts but its showConfirm
-// resolves true by default, which would fire the END handler on first render.
-// Override locally with a resolve-false stub so the END button is inert.
+// resolves true by default, which would fire the END handler on first click.
+// Override locally with a resolve-false stub so END is inert unless armed.
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({
     showConfirm,
@@ -70,9 +49,11 @@ vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
     byStudentUid: new Map(),
     byAssignmentPseudonym: new Map(),
   }),
-  // QuizLiveMonitor reaches into resolveResponseDisplayName which calls
-  // formatStudentName — exporting a no-op keeps the resolver happy.
   formatStudentName: () => '',
+}));
+
+vi.mock('@/hooks/useLtiSessionNames', () => ({
+  useLtiSessionNames: () => new Map(),
 }));
 
 vi.mock('@/utils/quizAudio', () => ({
@@ -81,9 +62,8 @@ vi.mock('@/utils/quizAudio', () => ({
 }));
 
 // firebase/firestore is real in this repo but db/auth from `@/config/firebase`
-// are globally stubbed to `{}` in tests/setup.ts. We mock the firestore
-// primitives QuizLiveMonitor calls so the broadcast effect is observable
-// without a real backend.
+// are globally stubbed in tests/setup.ts. Mock the primitives the monitor
+// calls so the leaderboard broadcast effect is observable without a backend.
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((..._args: unknown[]) => ({ __doc: _args.slice(1) })),
   updateDoc: vi.fn().mockResolvedValue(undefined),
@@ -92,8 +72,15 @@ vi.mock('firebase/firestore', () => ({
 
 import * as firestore from 'firebase/firestore';
 import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
+import { QuestionDetail } from '@/components/widgets/QuizWidget/components/monitor/QuestionResults';
 
 // ─── Fixture helpers ────────────────────────────────────────────────────────
+function fakeTimestamp(ms: number): import('firebase/firestore').Timestamp {
+  return {
+    toMillis: () => ms,
+  } as import('firebase/firestore').Timestamp;
+}
+
 function makeQuizData(): QuizData {
   return {
     id: 'quiz-1',
@@ -141,6 +128,7 @@ function makeResponse(
 ): QuizResponse {
   return {
     studentUid: `uid-${overrides.pin}`,
+    _responseKey: `pin-${overrides.classPeriod}-${overrides.pin}`,
     joinedAt: 1,
     status: 'completed',
     answers: [{ questionId: 'q1', answer: 'a', answeredAt: 100 }],
@@ -164,15 +152,6 @@ function makeConfig(overrides: Partial<QuizConfig> = {}): QuizConfig {
   } as unknown as QuizConfig;
 }
 
-const noopAsync = () => Promise.resolve();
-
-interface RenderOpts {
-  session?: Partial<QuizSession>;
-  config?: Partial<QuizConfig>;
-  responses?: QuizResponse[];
-  rosters?: ClassRoster[];
-}
-
 function makeRoster(name: string): ClassRoster {
   return {
     id: `roster-${name}`,
@@ -184,7 +163,19 @@ function makeRoster(name: string): ClassRoster {
   } as unknown as ClassRoster;
 }
 
-function buildTree(opts: RenderOpts) {
+const noopAsync = () => Promise.resolve();
+
+interface RenderOpts {
+  session?: Partial<QuizSession>;
+  config?: Partial<QuizConfig>;
+  responses?: QuizResponse[];
+  rosters?: ClassRoster[];
+  onUpdateConfig?: (updates: Partial<QuizConfig>) => void;
+  onEnd?: () => Promise<void>;
+  onClearHand?: (key: string) => Promise<void>;
+}
+
+function renderMonitor(opts: RenderOpts = {}) {
   const session = makeSession(opts.session);
   const config = makeConfig({
     periodNames: session.periodNames,
@@ -192,573 +183,259 @@ function buildTree(opts: RenderOpts) {
   });
   const rosters: ClassRoster[] =
     opts.rosters ?? (session.periodNames ?? []).map(makeRoster);
-  return (
+  return render(
     <QuizLiveMonitor
       session={session}
       responses={opts.responses ?? []}
       quizData={makeQuizData()}
       onAdvance={noopAsync}
-      onEnd={noopAsync}
+      onEnd={opts.onEnd ?? noopAsync}
       config={config}
       rosters={rosters}
-      onUpdateConfig={vi.fn()}
+      onUpdateConfig={opts.onUpdateConfig ?? vi.fn()}
+      onClearHand={opts.onClearHand}
     />
   );
 }
 
-function renderMonitor(opts: RenderOpts = {}) {
-  const result = render(buildTree(opts));
-  // Helper to force a re-render. Passes a freshly constructed JSX element
-  // so React's element-identity bail-out doesn't skip the update — needed
-  // by tests that mutate `authState` between clicks and want the next
-  // render to observe the new value.
-  const rerenderSame = () => result.rerender(buildTree(opts));
-  return Object.assign(result, { rerenderSame });
-}
+const openBucket = (label: RegExp) =>
+  fireEvent.click(screen.getByRole('button', { name: label }));
 
-// Approve the privacy gate that hides scores/colors by default. After
-// approval, the persisted account preference takes effect. Helpers below
-// click a toggle once with the confirm dialog auto-resolving true, then
-// reset mocks so the test only sees calls from the action under test.
-async function approveScoreReveal() {
-  showConfirm.mockResolvedValueOnce(true);
-  // Click the Colors button: turning ON triggers the confirm. With stored
-  // colors=true, no preference write happens — the click only flips the
-  // session-local approval flag.
-  fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-  vi.clearAllMocks();
-  // Restore the default-deny showConfirm so subsequent prompts (e.g. END)
-  // don't accidentally fire in tests that don't expect a dialog.
-  showConfirm.mockResolvedValue(false);
-}
-
-describe('QuizLiveMonitor', () => {
+describe('QuizLiveMonitor (rebuilt)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     showConfirm.mockResolvedValue(false);
-    authState.quizMonitorColorsEnabled = true;
-    authState.quizMonitorScoreDisplay = 'percent';
-    // Each call to updateAccountPreferences should mirror the requested
-    // change into authState so the next render observes the new value
-    // (matches the real Firestore-backed implementation).
-    updateAccountPreferences.mockImplementation(
-      (
-        updates: Partial<{
-          quizMonitorColorsEnabled: boolean;
-          quizMonitorScoreDisplay: 'percent' | 'count' | 'hidden';
-        }>
-      ): Promise<void> => {
-        if (typeof updates.quizMonitorColorsEnabled === 'boolean') {
-          authState.quizMonitorColorsEnabled = updates.quizMonitorColorsEnabled;
-        }
-        if (updates.quizMonitorScoreDisplay !== undefined) {
-          authState.quizMonitorScoreDisplay = updates.quizMonitorScoreDisplay;
-        }
-        return Promise.resolve();
-      }
-    );
   });
 
-  it('hides the period chip filter when the assignment targets a single period', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('renders the calm default face: buckets with counts, no roster, no join code, no score pills', () => {
     renderMonitor({
-      session: { periodNames: ['Period 1'] },
+      responses: [
+        makeResponse({ pin: '1111', classPeriod: 'Period 1' }),
+        makeResponse({
+          pin: '2222',
+          classPeriod: 'Period 1',
+          status: 'in-progress',
+        }),
+        makeResponse({
+          pin: '3333',
+          classPeriod: 'Period 1',
+          status: 'joined',
+          answers: [],
+        }),
+      ],
+    });
+    expect(screen.getByText('Not started')).toBeInTheDocument();
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
+    // Roster stays collapsed and the join code is on-demand only.
+    expect(screen.queryByText(/PIN 1111/)).not.toBeInTheDocument();
+    expect(screen.queryByText('ABC123')).not.toBeInTheDocument();
+    expect(screen.queryByText(/%$/)).not.toBeInTheDocument();
+  });
+
+  it('expands the tapped bucket inline and collapses it on the second tap', () => {
+    renderMonitor({
       responses: [makeResponse({ pin: '1111', classPeriod: 'Period 1' })],
     });
+    openBucket(/Done/);
+    expect(screen.getByText(/PIN 1111/)).toBeInTheDocument();
+    openBucket(/Done/);
+    expect(screen.queryByText(/PIN 1111/)).not.toBeInTheDocument();
+  });
+
+  it('pins needs-help students (raised hand + stuck) above the rest with a Clear action for hands', async () => {
+    const onClearHand = vi.fn().mockResolvedValue(undefined);
+    const now = Date.now();
+    renderMonitor({
+      onClearHand,
+      responses: [
+        makeResponse({
+          pin: '1111',
+          classPeriod: 'Period 1',
+          status: 'in-progress',
+          handRaisedAt: fakeTimestamp(now - 60_000),
+        }),
+        makeResponse({
+          pin: '2222',
+          classPeriod: 'Period 1',
+          status: 'in-progress',
+          lastWriteAt: fakeTimestamp(now - 300_000),
+        }),
+        makeResponse({
+          pin: '3333',
+          classPeriod: 'Period 1',
+          status: 'in-progress',
+        }),
+      ],
+    });
+    expect(screen.getByText(/2 need help/)).toBeInTheDocument();
+    openBucket(/In progress/);
+    expect(screen.getByText(/Raised hand/)).toBeInTheDocument();
+    expect(screen.getByText(/No activity/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(onClearHand).toHaveBeenCalledWith('pin-Period 1-1111');
+  });
+
+  it('keeps scores hidden by default and persists the Scores toggle to widget config', () => {
+    const onUpdateConfig = vi.fn();
+    renderMonitor({
+      onUpdateConfig,
+      responses: [makeResponse({ pin: '1111', classPeriod: 'Period 1' })],
+    });
+    openBucket(/Done/);
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Scores' }));
+    expect(onUpdateConfig).toHaveBeenCalledWith({ monitorShowScores: true });
+  });
+
+  it('shows score pills and proficiency tints when the persisted toggles are on', () => {
+    renderMonitor({
+      config: { monitorShowScores: true, monitorShowProficiency: true },
+      responses: [makeResponse({ pin: '1111', classPeriod: 'Period 1' })],
+    });
+    openBucket(/Done/);
+    expect(screen.getByText('100%')).toBeInTheDocument();
+  });
+
+  it('persists sort and filter choices and applies the score filter to the visible list', () => {
+    const onUpdateConfig = vi.fn();
+    renderMonitor({
+      onUpdateConfig,
+      config: { monitorFilterBy: 'low' },
+      responses: [
+        // 100% — filtered out by 'low'.
+        makeResponse({ pin: '1111', classPeriod: 'Period 1' }),
+        // 0% — wrong answer, passes 'low'.
+        makeResponse({
+          pin: '2222',
+          classPeriod: 'Period 1',
+          answers: [{ questionId: 'q1', answer: 'b', answeredAt: 100 }],
+        }),
+      ],
+    });
+    openBucket(/Done/);
+    expect(screen.queryByText(/PIN 1111/)).not.toBeInTheDocument();
+    expect(screen.getByText(/PIN 2222/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: /Sort students/i }), {
+      target: { value: 'score' },
+    });
+    expect(onUpdateConfig).toHaveBeenCalledWith({ monitorSortBy: 'score' });
+    fireEvent.change(
+      screen.getByRole('combobox', { name: /Filter students/i }),
+      { target: { value: 'tabs' } }
+    );
+    expect(onUpdateConfig).toHaveBeenCalledWith({ monitorFilterBy: 'tabs' });
+  });
+
+  it('hides the Tab warnings toggle when the session has tab warnings disabled', () => {
+    renderMonitor({
+      session: { tabWarningsEnabled: false },
+      responses: [makeResponse({ pin: '1111', classPeriod: 'Period 1' })],
+    });
+    openBucket(/Done/);
     expect(
-      screen.queryByRole('group', { name: /Filter monitor by class period/i })
+      screen.queryByRole('button', { name: 'Tab warnings' })
     ).not.toBeInTheDocument();
   });
 
-  it('renders one chip per period plus an "All" chip when 2+ periods are targeted, defaulting to the first period', () => {
-    renderMonitor({
-      session: { periodNames: ['P1', 'P2', 'P3'] },
-      responses: [
-        makeResponse({ pin: '1111', classPeriod: 'P1' }),
-        makeResponse({ pin: '2222', classPeriod: 'P2' }),
-        makeResponse({ pin: '3333', classPeriod: 'P3' }),
-      ],
-    });
-    expect(
-      screen.getByRole('group', { name: /Filter monitor by class period/i })
-    ).toBeInTheDocument();
-    const p1 = screen.getByRole('button', { name: 'P1' });
-    const p2 = screen.getByRole('button', { name: 'P2' });
-    const p3 = screen.getByRole('button', { name: 'P3' });
-    const all = screen.getByRole('button', { name: 'All' });
-    // Default selection narrows to the first targeted period.
-    expect(p1).toHaveAttribute('aria-pressed', 'true');
-    expect(p2).toHaveAttribute('aria-pressed', 'false');
-    expect(p3).toHaveAttribute('aria-pressed', 'false');
-    expect(all).toHaveAttribute('aria-pressed', 'false');
-    // KPI roster reflects the narrowed default — only P1's response shows.
-    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
-  });
-
-  it('clicking a period chip narrows the KPI counts and roster exclusively to that period', () => {
-    renderMonitor({
-      session: { periodNames: ['P1', 'P2'] },
-      responses: [
-        makeResponse({ pin: '1111', classPeriod: 'P1', status: 'completed' }),
-        makeResponse({ pin: '2222', classPeriod: 'P2', status: 'completed' }),
-      ],
-    });
-    // Default narrows to P1 only.
-    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
-    // Switch to P2 — exclusive selection.
-    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
-    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
-    expect(screen.getByRole('button', { name: 'P2' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    expect(screen.getByRole('button', { name: 'P1' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
-    // All widens back out.
-    fireEvent.click(screen.getByRole('button', { name: 'All' }));
-    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 2');
-    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-  });
-
-  it('resolves SSO joiners through session.classPeriodByClassId so they are not filtered out when only classId is set', () => {
-    // SSO student: response has `classId` but no `classPeriod` (multi-class
-    // claim, claim-resolution race, or legacy doc). The chip filter must
-    // resolve via the session map before deciding to drop the row.
-    renderMonitor({
-      session: {
-        periodNames: ['P1', 'P2'],
-        classPeriodByClassId: { 'class-A': 'P1', 'class-B': 'P2' },
-      },
-      responses: [
-        makeResponse({ pin: '1111', classPeriod: 'P1', status: 'completed' }),
-        // SSO row: classId only, no classPeriod
-        {
-          studentUid: 'uid-sso-A',
-          joinedAt: 1,
-          status: 'completed',
-          answers: [{ questionId: 'q1', answer: 'a', answeredAt: 100 }],
-          score: null,
-          submittedAt: 200,
-          tabSwitchWarnings: 0,
-          classId: 'class-A',
-        } as unknown as QuizResponse,
-        // SSO row that belongs to P2 — must NOT show under default P1.
-        {
-          studentUid: 'uid-sso-B',
-          joinedAt: 1,
-          status: 'completed',
-          answers: [{ questionId: 'q1', answer: 'a', answeredAt: 100 }],
-          score: null,
-          submittedAt: 200,
-          tabSwitchWarnings: 0,
-          classId: 'class-B',
-        } as unknown as QuizResponse,
-      ],
-    });
-    // Default narrows to P1: PIN row (P1) + SSO row resolved via class-A → P1.
-    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 2');
-    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
-    // P2: only the class-B SSO row qualifies.
-    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
-  });
-
-  it('cycles the score-display preference percent → count → hidden → percent after the privacy gate is approved', async () => {
-    const { rerenderSame } = renderMonitor({
-      session: { periodNames: ['P1'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-    await approveScoreReveal();
-    const cycleBtn = () =>
-      screen.getByRole('button', { name: /Cycle score display/i });
-
-    // Click 1: percent → count
-    fireEvent.click(cycleBtn());
-    await act(async () => {
-      await Promise.resolve();
-    });
-    rerenderSame();
-    // Click 2: count → hidden
-    fireEvent.click(cycleBtn());
-    await act(async () => {
-      await Promise.resolve();
-    });
-    rerenderSame();
-    // Click 3: hidden → percent (back through the gate, which is already
-    // approved for this session so no second confirm dialog appears)
-    fireEvent.click(cycleBtn());
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(updateAccountPreferences).toHaveBeenCalledTimes(3);
-    expect(updateAccountPreferences).toHaveBeenNthCalledWith(1, {
-      quizMonitorScoreDisplay: 'count',
-    });
-    expect(updateAccountPreferences).toHaveBeenNthCalledWith(2, {
-      quizMonitorScoreDisplay: 'hidden',
-    });
-    expect(updateAccountPreferences).toHaveBeenNthCalledWith(3, {
-      quizMonitorScoreDisplay: 'percent',
-    });
-  });
-
-  it('Colors toggle requires the privacy gate before persisting a flip', async () => {
-    // Start with stored colors OFF so a click after approval produces a
-    // visible "turn ON → persist true" call.
-    authState.quizMonitorColorsEnabled = false;
-    renderMonitor({
-      session: { periodNames: ['P1'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-
-    // First click: triggers the privacy confirm. With showConfirm → true,
-    // approval is granted and the stored preference flips on.
-    showConfirm.mockResolvedValueOnce(true);
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-    expect(updateAccountPreferences).toHaveBeenCalledWith({
-      quizMonitorColorsEnabled: true,
-    });
-  });
-
-  it('cancelling the privacy gate keeps scores hidden and writes nothing', async () => {
-    renderMonitor({
-      session: { periodNames: ['P1'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-    showConfirm.mockResolvedValueOnce(false);
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-    expect(updateAccountPreferences).not.toHaveBeenCalled();
-  });
-
-  it('resets the score-reveal approval when the session id changes so a new quiz starts with scores hidden', async () => {
-    const result = render(
-      buildTree({
-        session: { id: 'sess-A', periodNames: ['P1'] },
-        responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-      })
-    );
-    // Approve the privacy gate in the first session.
-    showConfirm.mockResolvedValueOnce(true);
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    // Sanity: subsequent toggles in the same session no longer prompt.
-    showConfirm.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(showConfirm).not.toHaveBeenCalled();
-
-    // Now swap to a fresh session id on the same component instance — the
-    // approval should reset, so the next reveal click prompts again.
-    const session2 = makeSession({ id: 'sess-B', periodNames: ['P1'] });
-    const config2 = makeConfig({ periodNames: session2.periodNames });
-    result.rerender(
-      <QuizLiveMonitor
-        session={session2}
-        responses={[makeResponse({ pin: '1111', classPeriod: 'P1' })]}
-        quizData={makeQuizData()}
-        onAdvance={noopAsync}
-        onEnd={noopAsync}
-        config={config2}
-        rosters={[makeRoster('P1')]}
-        onUpdateConfig={vi.fn()}
-      />
-    );
-    showConfirm.mockClear();
-    showConfirm.mockResolvedValueOnce(false);
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-  });
-
-  it('coalesces concurrent reveal requests so rapid Colors clicks only open one confirm dialog', async () => {
-    let resolveConfirm: (value: boolean) => void = () => undefined;
-    showConfirm.mockImplementationOnce(
-      () =>
-        new Promise<boolean>((resolve) => {
-          resolveConfirm = resolve;
-        })
-    );
-    renderMonitor({
-      session: { periodNames: ['P1'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-    // Click the same reveal trigger twice rapidly. The second click happens
-    // while the first confirm is still pending; without the in-flight guard
-    // both would invoke `showConfirm`, stacking two dialogs.
-    const colorsBtn = screen.getByRole('button', { name: /Colors/i });
-    fireEvent.click(colorsBtn);
-    fireEvent.click(colorsBtn);
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-    await act(async () => {
-      resolveConfirm(false);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-  });
-
-  it('does not apply approval to a fresh session if session.id changes while the confirm dialog is awaiting', async () => {
-    // Hold the confirm promise open so we can swap session.id under it.
-    let resolveConfirm: (value: boolean) => void = () => undefined;
-    showConfirm.mockImplementationOnce(
-      () =>
-        new Promise<boolean>((resolve) => {
-          resolveConfirm = resolve;
-        })
-    );
-    const result = render(
-      buildTree({
-        session: { id: 'sess-A', periodNames: ['P1'] },
-        responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-      })
-    );
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-
-    // Swap the active session before the dialog resolves. The session-id
-    // change block clears any prior approval — but the in-flight confirm
-    // must NOT race ahead and re-set scoreRevealApproved on the new session.
-    const session2 = makeSession({ id: 'sess-B', periodNames: ['P1'] });
-    const config2 = makeConfig({ periodNames: session2.periodNames });
-    result.rerender(
-      <QuizLiveMonitor
-        session={session2}
-        responses={[makeResponse({ pin: '1111', classPeriod: 'P1' })]}
-        quizData={makeQuizData()}
-        onAdvance={noopAsync}
-        onEnd={noopAsync}
-        config={config2}
-        rosters={[makeRoster('P1')]}
-        onUpdateConfig={vi.fn()}
-      />
-    );
-
-    // Now resolve the original confirm with `true` — the new session must
-    // stay un-approved, so the next reveal click on session B prompts again.
-    await act(async () => {
-      resolveConfirm(true);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    showConfirm.mockClear();
-    showConfirm.mockResolvedValueOnce(false);
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows the empty-state and Clear filter button when the active filter narrows to zero rows', () => {
-    renderMonitor({
-      session: { periodNames: ['P1', 'P2'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-    // Default selects P1; switching to P2 (which has no responses) yields
-    // the empty state. The Clear filter button widens back out.
-    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
-    expect(
-      screen.getByText(/No students match the active class-period filter\./i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Clear filter/i })
-    ).toBeInTheDocument();
-  });
-
-  it('keeps the live leaderboard broadcast on the unfiltered response set even while the period filter is narrowed', () => {
+  it('narrows buckets by period chips but keeps the leaderboard broadcast on the unfiltered set', () => {
     vi.useFakeTimers();
     try {
       const updateDocMock = firestore.updateDoc as unknown as ReturnType<
         typeof vi.fn
       >;
       updateDocMock.mockClear();
-
       renderMonitor({
-        session: {
-          periodNames: ['P1', 'P2'],
-          // Gamification flag — required for `isGamificationActive` to fire
-          // the broadcast effect. Without it, the effect early-returns.
-          speedBonusEnabled: true,
-        },
+        session: { periodNames: ['P1', 'P2'], speedBonusEnabled: true },
         responses: [
-          makeResponse({
-            pin: '1111',
-            classPeriod: 'P1',
-            status: 'completed',
-          }),
-          makeResponse({
-            pin: '2222',
-            classPeriod: 'P2',
-            status: 'completed',
-          }),
+          makeResponse({ pin: '1111', classPeriod: 'P1' }),
+          makeResponse({ pin: '2222', classPeriod: 'P2' }),
         ],
       });
+      // Multi-period default narrows to the first period.
+      const doneCounts = screen.getAllByText('1');
+      expect(doneCounts.length).toBeGreaterThan(0);
 
-      // Initial broadcast — debounced 300ms. The chip filter defaults to
-      // P1 only on the monitor side; the leaderboard MUST still see both
-      // responses.
       act(() => {
         vi.advanceTimersByTime(400);
       });
-
-      expect(updateDocMock).toHaveBeenCalled();
-      const initialCall = updateDocMock.mock.calls.find(
+      const leaderboardCall = updateDocMock.mock.calls.find(
         (c) =>
           typeof c[1] === 'object' &&
           c[1] !== null &&
-          'liveLeaderboard' in (c[1] as Record<string, unknown>)
+          Array.isArray((c[1] as { liveLeaderboard?: unknown }).liveLeaderboard)
       );
-      if (!initialCall) throw new Error('initial leaderboard call missing');
-      const initialEntries = (initialCall[1] as { liveLeaderboard: unknown[] })
-        .liveLeaderboard;
-      expect(Array.isArray(initialEntries)).toBe(true);
-      expect(initialEntries).toHaveLength(2);
-
-      // Sanity: the visible roster on the monitor is narrowed to 1 row by
-      // the chip-filter default while the leaderboard above stayed at 2.
-      vi.useRealTimers();
-      expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
-
-      // Switch the chip to P2 and re-arm the broadcast — same invariant.
-      fireEvent.click(screen.getByRole('button', { name: 'P2' }));
-      expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
-
-      vi.useFakeTimers();
-      act(() => {
-        vi.advanceTimersByTime(400);
-      });
-
-      const leaderboardCalls = updateDocMock.mock.calls.filter(
-        (c) =>
-          typeof c[1] === 'object' &&
-          c[1] !== null &&
-          'liveLeaderboard' in (c[1] as Record<string, unknown>) &&
-          Array.isArray((c[1] as { liveLeaderboard: unknown }).liveLeaderboard)
-      );
-      for (const call of leaderboardCalls) {
-        const entries = (call[1] as { liveLeaderboard: unknown[] })
-          .liveLeaderboard;
-        expect(entries).toHaveLength(2);
-      }
+      if (!leaderboardCall) throw new Error('leaderboard broadcast missing');
+      expect(
+        (leaderboardCall[1] as { liveLeaderboard: unknown[] }).liveLeaderboard
+      ).toHaveLength(2);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('renders an OPEN and a PREVIEW link in every join-code bar when session.code is set', () => {
-    // The component renders the join-code bar in two layout variants (compact
-    // and full); both should expose an OPEN link to the bare student URL and
-    // a PREVIEW link with `preview=1` appended. Mocking `window.location.origin`
-    // makes the assertions independent of where the test happens to run.
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      writable: true,
-      value: { origin: 'https://app.school.com' },
-    });
-    renderMonitor({
-      session: { code: 'ABC123', periodNames: ['P1'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-
-    const openLinks = screen.getAllByRole('link', { name: /^OPEN$/ });
-    const previewLinks = screen.getAllByRole('link', { name: /PREVIEW/ });
-
-    // Two layout variants each render the pair, so we expect ≥ 1 of each
-    // and the same count.
-    expect(openLinks.length).toBeGreaterThan(0);
-    expect(openLinks.length).toBe(previewLinks.length);
-
-    openLinks.forEach((a) => {
-      expect(a).toHaveAttribute(
-        'href',
-        'https://app.school.com/quiz?code=ABC123'
-      );
-    });
-    previewLinks.forEach((a) => {
-      expect(a).toHaveAttribute(
-        'href',
-        'https://app.school.com/quiz?code=ABC123&preview=1'
-      );
-    });
-  });
-
-  it('omits the OPEN and PREVIEW links entirely when session.code is empty', () => {
-    renderMonitor({
-      session: { code: '', periodNames: ['P1'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-    expect(
-      screen.queryByRole('link', { name: /^OPEN$/ })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('link', { name: /PREVIEW/ })
-    ).not.toBeInTheDocument();
-  });
-
-  it('surfaces a toast when updateAccountPreferences rejects on the Colors toggle', async () => {
-    // Start with stored colors OFF so the post-approval branch will issue
-    // an updateAccountPreferences write that we can reject.
-    authState.quizMonitorColorsEnabled = false;
-    // The handler logs the error before toasting; silence it here so the
-    // expected rejection doesn't pollute test output.
-    const errorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => undefined);
-    updateAccountPreferences.mockRejectedValueOnce(new Error('write failed'));
-    renderMonitor({
-      session: { periodNames: ['P1'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
-    });
-
-    showConfirm.mockResolvedValueOnce(true);
-    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-
-    // The catch handler is async — flush microtasks so the rejection
-    // settles before we assert.
+  it('does not call onEnd when the Make Inactive confirm is declined', async () => {
+    const onEnd = vi.fn().mockResolvedValue(undefined);
+    renderMonitor({ onEnd });
+    showConfirm.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: /End/ }));
     await act(async () => {
       await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
     });
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+});
 
-    expect(addToast).toHaveBeenCalledTimes(1);
-    expect(addToast.mock.calls[0][0]).toMatch(
-      /Could not save the Colors preference/i
+describe('QuestionDetail correct-answer lock', () => {
+  const question = makeQuizData().questions[0];
+  const responses = [
+    makeResponse({ pin: '1111', classPeriod: 'Period 1' }),
+    makeResponse({
+      pin: '2222',
+      classPeriod: 'Period 1',
+      answers: [{ questionId: 'q1', answer: 'b', answeredAt: 100 }],
+    }),
+  ];
+
+  it('never marks the correct answer while the session is live', () => {
+    render(
+      <QuestionDetail
+        session={makeSession({ status: 'active' })}
+        question={question}
+        index={0}
+        responses={responses}
+      />
     );
-    expect(addToast.mock.calls[0][1]).toBe('error');
-    errorSpy.mockRestore();
+    expect(
+      screen.getByText(
+        /Correct answers appear in results after the session ends/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Correct answer')).not.toBeInTheDocument();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
+  it('marks the correct answer once the session has ended', () => {
+    render(
+      <QuestionDetail
+        session={makeSession({ status: 'ended' })}
+        question={question}
+        index={0}
+        responses={responses}
+      />
+    );
+    expect(
+      screen.queryByText(/appear in results after the session ends/i)
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Correct answer')).toBeInTheDocument();
   });
 });

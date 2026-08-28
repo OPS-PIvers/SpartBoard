@@ -93,20 +93,15 @@ describe('InlineTitle (via PageStrip) — Escape-cancel stale onBlur guard', () 
   });
 });
 
-// Regression (#2429 round-2 review): the popover's dismiss-on-Escape listener
-// is registered on `document`, while InlineTitle cancels a rename from a React
-// synthetic `onKeyDown` that calls `e.stopPropagation()`. The concern raised in
-// review was that React 17+ delegates to the root container rather than
-// `document`, so the native keydown would still reach the document listener and
-// close the whole popover when the user only meant to cancel the rename.
+// Regression (#2429 round-2 review): the popover's dismiss-on-Escape handler
+// (a React onKeyDown on the popover element itself, see PageStrip.tsx), while
+// InlineTitle cancels a rename from its own React synthetic `onKeyDown` that
+// calls `e.stopPropagation()`. The concern raised in review was that Escape
+// would bubble past the rename input and also close the whole popover when
+// the user only meant to cancel the rename.
 //
-// It does not, and these tests pin that. React 17+ calls `preparePortalMount`
-// on every portal container, so the popover's delegated listeners live on
-// `document.body` (the portal target — see `createPortal(..., document.body)`
-// in PageStrip.tsx). React's SyntheticEvent.stopPropagation() also calls
-// `nativeEvent.stopPropagation()`, which halts native bubbling at `body`,
-// one hop before `document`. So the popover's document-level `onKey` never
-// runs for a keydown originating inside the portal.
+// It does not, and these tests pin that. InlineTitle's own `stopPropagation()`
+// stops the bubble before it can reach the popover's onKeyDown.
 //
 // This is load-bearing: if InlineTitle's `stopPropagation()` is ever removed
 // (it also exists to stop the widget wrapper's Backspace/Delete/arrow nudge
@@ -159,20 +154,18 @@ describe('InlineTitle (via PageStrip) — Escape-cancel does not dismiss the pop
   });
 
   it('still dismisses the popover on Escape when no rename is in progress', () => {
-    // Complement to the test above: the document-level handler must remain
-    // functional for Escape presses that do NOT originate inside a portalled
+    // Complement to the test above: the popover's own onKeyDown must remain
+    // functional for Escape presses that do NOT originate inside a rename
     // input, otherwise "the popover never closes" would pass the test above
     // for the wrong reason.
     render(
       <PageStrip pages={multiPages} onRenamePage={vi.fn()} {...baseProps} />
     );
     fireEvent.click(screen.getByRole('button', { name: /manage pages/i }));
-    expect(screen.getByTestId('drawing-page-popover')).toBeInTheDocument();
+    const popover = screen.getByTestId('drawing-page-popover');
 
     act(() => {
-      document.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-      );
+      fireEvent.keyDown(popover, { key: 'Escape' });
     });
 
     expect(

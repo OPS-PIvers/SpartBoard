@@ -434,26 +434,21 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         // buttons can collapse their text labels at narrow widths via
         // `@[Npx]:` Tailwind variants below.
         //
-        // Two surfaces: grid mode keeps the glass card; list mode renders a
-        // slim hairline-separated row (no per-row border box) so lists read
-        // as lists, not stacked cards.
+        // Monitor row idiom: both surfaces are opaque white with a hairline
+        // border — list rows are slim bordered rows, grid keeps the card box.
         '@container group relative flex text-slate-700',
         isList
-          ? 'flex-row items-center rounded-lg border-b border-slate-200/60 transition-colors'
-          : 'flex-col rounded-2xl border backdrop-blur-sm shadow-sm transition-shadow hover:shadow-md',
+          ? 'flex-row items-center rounded-lg border transition-colors'
+          : 'flex-col rounded-2xl border shadow-sm transition-shadow hover:shadow-md',
         selectionMode && selected
-          ? isList
-            ? 'bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary/30'
-            : 'border-brand-blue-primary/60 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-brand-blue-primary/30'
+          ? 'border-brand-blue-primary/60 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary/30'
           : isList
-            ? 'hover:bg-white/60'
-            : 'border-slate-200/60 bg-white/70 hover:bg-white/85',
+            ? 'border-brand-gray-lightest bg-white hover:border-brand-blue-primary/30 hover:bg-brand-blue-lighter/20'
+            : 'border-brand-gray-lighter bg-white hover:bg-brand-blue-lighter/10',
         (onClick ?? onDoubleClick ?? selectionMode) && 'cursor-pointer',
         isDragging && 'opacity-50',
         isDragOverlay &&
-          (isList
-            ? 'pointer-events-none border-b-0 bg-white shadow-lg ring-2 ring-brand-blue-primary/30'
-            : 'pointer-events-none ring-2 ring-brand-blue-primary/30'),
+          'pointer-events-none bg-white shadow-lg ring-2 ring-brand-blue-primary/30',
       ]
         .filter(Boolean)
         .join(' ')}

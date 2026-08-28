@@ -147,11 +147,6 @@ export interface MiniAppManagerProps {
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
 
-  /** Persisted library grid/list toggle (from widget config). */
-  initialLibraryViewMode?: 'grid' | 'list';
-  /** Persist the library grid/list toggle into widget config. */
-  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
-
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
@@ -313,8 +308,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveReactivate,
   onArchiveDelete,
   onArchiveOpenApp,
-  initialLibraryViewMode,
-  onLibraryViewModeChange,
   assignmentMode = 'submissions',
   readOnly = false,
 }) => {
@@ -432,8 +425,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
     filterPredicates: LIBRARY_FILTER_PREDICATES,
-    initialViewMode: initialLibraryViewMode ?? 'grid',
-    onViewModeChange: onLibraryViewModeChange,
+    // Phase 2 redesign: the library is list-only (monitor row idiom).
+    initialViewMode: 'list',
   });
 
   const source: MiniAppSource =
@@ -478,14 +471,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   /* ── Drop-to-folder handler (Wave 3-B-3) ─────────────────────────────── */
   const { moveItem } = folderState;
-  const handleDropOnFolder = useCallback(
-    async (itemId: string, folderId: string | null): Promise<void> => {
+  // Takes an unprefixed app id — the folder picker already has one.
+  const moveAppToFolder = useCallback(
+    async (rawId: string, folderId: string | null): Promise<void> => {
       if (!userId) return;
-      // Row ids are prefixed `personal:` or `global:`. Only personal rows
-      // participate in folders; global cards are `sortable={false}` so drops
-      // from them shouldn't fire, but guard defensively.
-      if (!itemId.startsWith('personal:')) return;
-      const rawId = itemId.slice('personal:'.length);
       try {
         await moveItem(rawId, folderId);
       } catch (err) {
@@ -493,6 +482,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       }
     },
     [userId, moveItem]
+  );
+  const handleDropOnFolder = useCallback(
+    async (itemId: string, folderId: string | null): Promise<void> => {
+      // Row ids are prefixed `personal:` or `global:`. Only personal rows
+      // participate in folders; global cards are `sortable={false}` so drops
+      // from them shouldn't fire, but guard defensively.
+      if (!itemId.startsWith('personal:')) return;
+      await moveAppToFolder(itemId.slice('personal:'.length), folderId);
+    },
+    [moveAppToFolder]
   );
 
   /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
@@ -1176,8 +1175,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         filters={[SOURCE_FILTER]}
         filterValues={view.toolbarProps.filterValues}
         onFilterChange={view.toolbarProps.onFilterChange}
-        viewMode={view.toolbarProps.viewMode}
-        onViewModeChange={view.toolbarProps.onViewModeChange}
         rightSlot={
           userId && !isGlobalView ? (
             <button
@@ -1242,7 +1239,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       folders={folderState.folders}
       selectedFolderId={folderPickerTarget.folderId}
       onSelect={(folderId) => {
-        void handleDropOnFolder(folderPickerTarget.id, folderId);
+        void moveAppToFolder(folderPickerTarget.id, folderId);
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}

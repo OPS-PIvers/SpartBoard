@@ -7,6 +7,7 @@ import {
   type SharedAssignmentImportMode,
 } from '@/hooks/useQuizAssignments';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
+import { useRubrics } from '@/hooks/useRubrics';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
@@ -52,11 +53,14 @@ export const DeepLinkShareImporter: React.FC = () => {
     clearPendingAssignmentShare,
     pendingVideoActivityShareId,
     clearPendingVideoActivityShare,
+    pendingRubricShareId,
+    clearPendingRubricShare,
   } = useDashboard();
 
   const { importSharedQuiz, saveQuiz, deleteQuiz, attachSyncLinkage } = useQuiz(
     user?.uid
   );
+  const { importSharedRubric } = useRubrics(user?.uid);
   const { importSharedAssignment, peekSharedAssignment } = useQuizAssignments(
     user?.uid
   );
@@ -181,6 +185,46 @@ export const DeepLinkShareImporter: React.FC = () => {
     addToast,
     clearPendingQuizShare,
     openQuizWidgetToTab,
+  ]);
+
+  // Pending rubric share import. Rubrics have no widget surface of their own,
+  // so a toast naming the imported rubric is the whole success affordance.
+  useEffect(() => {
+    if (!pendingRubricShareId || !user) return;
+    // Cleared synchronously before awaiting — see the quiz effect above.
+    const shareId = pendingRubricShareId;
+    clearPendingRubricShare();
+    void importSharedRubric(shareId)
+      .then((rubric) => {
+        const title = rubric?.title?.trim();
+        addToast(
+          title
+            ? `Rubric "${title}" imported to your library!`
+            : 'Shared rubric imported to your library!',
+          'success'
+        );
+      })
+      .catch((err: unknown) => {
+        logError('DeepLinkShareImporter.importSharedRubric', err, { shareId });
+        const msg =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : '';
+        addToast(
+          msg
+            ? `Failed to import shared rubric: ${msg}`
+            : 'Failed to import shared rubric.',
+          'error'
+        );
+      });
+  }, [
+    pendingRubricShareId,
+    user,
+    importSharedRubric,
+    clearPendingRubricShare,
+    addToast,
   ]);
 
   // Stable callback: imports a shared assignment with the chosen mode and

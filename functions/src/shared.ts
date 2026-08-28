@@ -36,7 +36,24 @@ export function normalizeModelName(raw: unknown): string | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
   if (!/^gemini-[\w.-]+$/.test(trimmed)) return undefined;
+  if (isDeprecatedModelId(trimmed)) {
+    console.warn(
+      `[gemini] ignoring deprecated model override "${trimmed}" — ` +
+        'falling back to the current default (see GEMINI.md)'
+    );
+    return undefined;
+  }
   return trimmed;
+}
+
+// Deprecated per GEMINI.md; rejecting them makes a stale Firestore override self-heal to the default instead of needing a manual sweep.
+const RETIRED_MODEL_ID_PREFIXES = ['gemini-1.', 'gemini-2.0-'];
+
+function isDeprecatedModelId(model: string): boolean {
+  return (
+    RETIRED_MODEL_ID_PREFIXES.some((prefix) => model.startsWith(prefix)) ||
+    /-preview(?:-|$)/.test(model)
+  );
 }
 
 /**

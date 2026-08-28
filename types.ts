@@ -3027,6 +3027,37 @@ export function isWrittenQuestionType(type: QuizQuestionType): boolean {
   return type === 'short' || type === 'essay';
 }
 
+/**
+ * Kinds of stimulus content a teacher can attach to quiz questions.
+ * `gdoc-embed` covers Google Docs/Slides shared as embeds by URL.
+ */
+export type QuizStimulusType =
+  | 'image'
+  | 'pdf'
+  | 'audio'
+  | 'video'
+  | 'youtube'
+  | 'gdoc-embed';
+
+/**
+ * A stimulus attached to one or more quiz questions. Lives on
+ * `QuizData.stimuli`; questions reference entries via `stimulusIds` —
+ * the pointer array IS the grouping (no group objects).
+ */
+export interface QuizStimulus {
+  /** Stable UUID — question `stimulusIds` pointers reference this. */
+  id: string;
+  type: QuizStimulusType;
+  /** Source URL (pasted or derived from the Drive file). */
+  url: string;
+  /** Set when the file lives in the teacher's Google Drive. */
+  driveFileId?: string;
+  /** Authoring-only name; stripped before the session doc is written. */
+  label: string;
+  /** audio/video/youtube only: max completed plays per attempt. Undefined = unlimited. */
+  playLimit?: number;
+}
+
 export interface QuizQuestion {
   id: string;
   /** Time limit in seconds. 0 = no time limit. */
@@ -3067,6 +3098,24 @@ export interface QuizQuestion {
    * means no cap is displayed.
    */
   maxWords?: number;
+  /**
+   * short/essay only (M12 rubrics). Id of the rubric in the teacher's
+   * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
+   * Informational only — graders always read the snapshot.
+   */
+  rubricId?: string;
+  /**
+   * short/essay only (M12 rubrics). Frozen copy of the rubric captured at
+   * attach time; library edits never alter authored quizzes or past grades.
+   * When present, the rubric's criteria max-sum is the question's `points`.
+   */
+  rubricSnapshot?: Rubric;
+  /**
+   * Ids of `QuizData.stimuli` entries shown alongside this question.
+   * Empty/missing = no stimuli. The shared-pointer array is the grouping:
+   * consecutive questions carrying the same id form a stimulus set.
+   */
+  stimulusIds?: string[];
 }
 
 /**
@@ -3081,13 +3130,30 @@ export interface GradeResult {
   pointsEarned: number;
   /** Max points for this question (= q.points ?? 1). */
   pointsMax: number;
+  /**
+   * Grading lifecycle for this slot. `awaiting-grade` means `pointsEarned` is
+   * a placeholder, not a real 0 — such slots are omitted from gradebook /
+   * Classroom pushes and marked provisional wherever a total displays.
+   */
+  state: GradeState;
 }
+
+/**
+ * Grading lifecycle of a single answer slot.
+ * - `scored` — a real, final score (auto-graded, or a teacher grade).
+ * - `awaiting-grade` — answered but not yet fully graded (ungraded written
+ *   response, or a rubric with some criteria still unscored).
+ * - `not-attempted` — no answer to grade; a genuine 0.
+ */
+export type GradeState = 'scored' | 'awaiting-grade' | 'not-attempted';
 
 /** Full quiz data stored in Google Drive as JSON */
 export interface QuizData {
   id: string;
   title: string;
   questions: QuizQuestion[];
+  /** Stimuli attachable to questions via `QuizQuestion.stimulusIds`. */
+  stimuli?: QuizStimulus[];
   createdAt: number;
   updatedAt: number;
 }
@@ -3130,6 +3196,12 @@ export interface QuizMetadata {
   folderId?: string | null;
   /** Synchronized-quiz linkage; see `QuizMetadataSyncLinkage`. */
   sync?: QuizMetadataSyncLinkage;
+  /**
+   * Lowercased question-text blob (capped) written on save so library search
+   * can match question content without a Drive load. Absent on quizzes not
+   * re-saved since the field was introduced — search falls back to title.
+   */
+  searchText?: string;
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -3233,6 +3305,14 @@ export interface QuizPublicQuestion {
   maxWords?: number;
   /** short/essay only: max points the teacher can award. */
   points?: number;
+  /**
+   * short/essay only (M12 decision 6). Frozen rubric snapshot, projected
+   * unchanged from `QuizQuestion.rubricSnapshot` — contains no answer key,
+   * so it's safe to expose to students while answering and in results.
+   */
+  rubricSnapshot?: Rubric;
+  /** Ids into `QuizSession.stimuli` shown alongside this question. */
+  stimulusIds?: string[];
 }
 
 export interface QuizLeaderboardEntry {
@@ -3274,6 +3354,13 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /**
+   * Stimuli referenced by at least one public question, projected from the
+   * quiz at session-create time with authoring labels stripped. `playLimit`
+   * is kept — students enforce it client-side. Absent on pre-feature
+   * sessions and on quizzes with no attached stimuli.
+   */
+  stimuli?: QuizStimulus[];
 
   /**
    * True once at least one Schoology LTI student has launched this session and
@@ -3330,6 +3417,11 @@ export interface QuizSession {
   shuffleAnswerOptions?: boolean;
   /** Current phase within a question: 'answering' (default) or 'reviewing' (between-question review) */
   questionPhase?: 'answering' | 'reviewing';
+  /**
+   * Teacher-written reason shown while paused — on the projected board AND on
+   * each student's paused overlay, so a heads-down student sees it too.
+   */
+  pauseMessage?: string;
   /** Top-N leaderboard snapshot broadcast by the teacher for student view. */
   liveLeaderboard?: QuizLeaderboardEntry[];
 
@@ -3643,6 +3735,19 @@ export interface QuizResponse {
    */
   preSyncVersion?: number;
   /**
+   * Completed-play counters for play-limited stimuli, keyed
+   * `a{attemptIndex}:{stimulusId}` so each retake starts fresh without a
+   * reset write. Client-side enforcement only (a hostile client can skip
+   * counting; the limit is a pacing tool, not a security boundary).
+   */
+  stimulusPlays?: Record<string, number>;
+  /**
+   * Load-failure counters per stimulus id, written by the student client
+   * when a stimulus fails to load (after its scoped retry). Read by the
+   * teacher monitor roster to flag students who can't see a stimulus.
+   */
+  stimulusErrors?: Record<string, number>;
+  /**
    * True when a teacher has manually unlocked an auto-submitted or
    * attempt-limit-locked response so the student can resume. The hooks
    * preserve `answers` on the next rejoin and skip the "Warning N of 3"
@@ -3665,6 +3770,14 @@ export interface QuizResponse {
    * this map; their correctness is recomputed on the fly by `gradeAnswer`.
    */
   grading?: { [questionId: string]: WrittenAnswerGrade };
+  /**
+   * Server-stamped time the student raised their hand from the live quiz UI,
+   * or null when lowered (by the student or cleared by the teacher). Absent on
+   * responses written before the feature existed — treat as null. Deliberately
+   * NOT mirrored into `lastWriteAt` so a raised hand can't defer idle
+   * auto-submit.
+   */
+  handRaisedAt?: import('firebase/firestore').Timestamp | null;
 }
 
 /**
@@ -3727,6 +3840,65 @@ export interface WrittenAnswerRubricScore {
   /** Snapshot for resilience against later rubric edits. */
   points: number;
   note?: string;
+}
+
+/**
+ * A single performance level within a rubric criterion. Ordered
+ * low-to-high in storage; the grader renders high-to-low.
+ */
+export interface RubricLevel {
+  id: string;
+  label: string;
+  /** Non-negative; unique within a criterion. */
+  points: number;
+  description?: string;
+}
+
+/** A single scoring dimension in a rubric (e.g. "Thesis & Argument"). */
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  description?: string;
+  /** 2–6 levels, ordered low → high. */
+  levels: RubricLevel[];
+}
+
+/**
+ * Teacher-owned reusable rubric at `/users/{teacherUid}/rubrics/{rubricId}`.
+ * Attaching to a question embeds a snapshot in `QuizQuestion.rubricSnapshot`;
+ * the library doc is never read at grading time.
+ */
+export interface Rubric {
+  id: string;
+  title: string;
+  description?: string;
+  criteria: RubricCriterion[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Link-share copy at `/shared_rubrics/{shareId}` — full payload inlined. */
+export interface SharedRubric extends Rubric {
+  originalAuthor: string;
+  sharedAt: number;
+}
+
+/**
+ * PLC library copy at `/plcs/{plcId}/rubrics/{id}` — the full inline rubric
+ * payload plus attribution. Doc id === `id`. Mirrors `PlcQuizEntry`'s
+ * attribution + soft-delete tombstone contract.
+ */
+export interface PlcRubricEntry extends Rubric {
+  /** UID of the original sharer. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** Soft-delete tombstone; absent/null on live entries. */
+  deletedAt?: number | null;
 }
 
 /**
@@ -3883,6 +4055,16 @@ export interface QuizConfig {
    * Pre-selects the picker on re-launch.
    */
   lastRosterIdsByQuizId?: Record<string, string[]>;
+  /** Live monitor roster toolbar: show per-student score pills (off = projector-safe default). */
+  monitorShowScores?: boolean;
+  /** Live monitor roster toolbar: show tab-switch warning badges. */
+  monitorShowTabWarnings?: boolean;
+  /** Live monitor roster toolbar: tint rows by proficiency band. */
+  monitorShowProficiency?: boolean;
+  /** Live monitor roster sort order. */
+  monitorSortBy?: 'first' | 'last' | 'status' | 'score';
+  /** Live monitor roster filter. */
+  monitorFilterBy?: 'all' | 'hi' | 'mid' | 'low' | 'tabs';
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -4163,6 +4345,8 @@ export interface SyncedQuizGroup {
   version: number;
   title: string;
   questions: QuizQuestion[];
+  /** Stimuli referenced by `questions[].stimulusIds`. Absent on legacy groups. */
+  stimuli?: QuizStimulus[];
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -4196,6 +4380,8 @@ export interface SharedQuizAssignment {
   /** Inlined quiz data so the importer can copy it into their own library. */
   title: string;
   questions: QuizQuestion[];
+  /** Stimuli referenced by `questions[].stimulusIds`. Absent on legacy shares. */
+  stimuli?: QuizStimulus[];
   createdAt: number;
   updatedAt: number;
   assignmentSettings: QuizAssignmentSettings;
@@ -4282,6 +4468,8 @@ export interface SyncedVideoActivityGroup {
 export interface PlcQuizVersionContent {
   title: string;
   questions: QuizQuestion[];
+  /** Present when the snapshotted quiz carried stimuli. */
+  stimuli?: QuizStimulus[];
   behavior?: QuizBehaviorSettings;
 }
 
@@ -4377,7 +4565,7 @@ export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
  */
 export type VideoActivityQuestion = Omit<
   QuizQuestion,
-  'type' | 'matchingDistractors'
+  'type' | 'matchingDistractors' | 'stimulusIds'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */
@@ -6169,6 +6357,11 @@ export interface UserProfile {
    */
   dockInitialized?: boolean;
   /**
+   * Widget types the user hid from the Widget Library's default view.
+   * Independent of dock membership. Synced across devices.
+   */
+  hiddenTools?: (WidgetType | InternalToolType)[];
+  /**
    * IDs of backgrounds the user has starred as favorites. May be preset IDs
    * (Tailwind class strings like `'bg-gradient-to-br from-blue-400'`), HTTPS
    * URLs (Drive uploads or preset images), or `custom:` values (custom solid
@@ -6325,11 +6518,23 @@ export interface Toast {
   };
 }
 
+export type WidgetCategory =
+  | 'time'
+  | 'management'
+  | 'instruction'
+  | 'interaction'
+  | 'media'
+  | 'fun';
+
 export interface ToolMetadata {
   type: WidgetType | InternalToolType;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   color: string;
+  /** Library filter category; see WIDGET_CATEGORIES in config/tools.ts */
+  category?: WidgetCategory;
+  /** Synonyms/related terms matched by the library's fuzzy search */
+  keywords?: string[];
   defaultWidth?: number;
   defaultHeight?: number;
   minWidth?: number;

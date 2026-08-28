@@ -54,6 +54,7 @@ import { Toast } from '@/components/common/Toast';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
+import { isDeprecatedGeminiModelId } from '@/utils/geminiModelDeprecation';
 
 const GLOBAL_FEATURES: {
   id: GlobalFeature;
@@ -211,15 +212,16 @@ const GEMINI_FEATURES: GlobalFeature[] = [
   'ai-file-context',
 ];
 
-const KNOWN_GEMINI_MODELS = [
+// Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in aiGeneration.ts — this picker writes to global_permissions/gemini-functions.
+export const KNOWN_GEMINI_MODELS = [
   {
-    value: 'gemini-3-flash-preview',
-    label: 'Gemini 3 Flash (Preview)',
+    value: 'gemini-3.7-flash',
+    label: 'Gemini 3.7 Flash',
     tier: 'advanced',
   },
   {
-    value: 'gemini-3.1-flash-lite-preview',
-    label: 'Gemini 3.1 Flash Lite (Preview)',
+    value: 'gemini-3.5-flash-lite',
+    label: 'Gemini 3.5 Flash Lite',
     tier: 'standard',
   },
   {
@@ -232,22 +234,25 @@ const KNOWN_GEMINI_MODELS = [
     label: 'Gemini 2.5 Flash Lite',
     tier: 'standard',
   },
-  {
-    value: 'gemini-2.0-flash',
-    label: 'Gemini 2.0 Flash',
-    tier: 'advanced',
-  },
-  {
-    value: 'gemini-2.0-flash-lite',
-    label: 'Gemini 2.0 Flash Lite',
-    tier: 'standard',
-  },
+  // gemini-2.0-*/1.5-* dropped: GEMINI.md marks them deprecated and normalizeModelName rejects them server-side. 2.5-* kept — Google's Vertex locations doc lists both as global-endpoint models.
 ] as const;
 
 const GEMINI_MODEL_REGEX = /^gemini-[\w.-]+$/;
 
-const DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview';
-const DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview';
+// A deprecated-but-well-formed id is shape-valid, so flag it separately — the server discards it and runs the default.
+const modelFieldError = (value: string, showCustom: boolean): string | null => {
+  if (!showCustom || value === '') return null;
+  if (!GEMINI_MODEL_REGEX.test(value)) {
+    return 'Must match pattern: gemini-[name] (letters, digits, dots, hyphens, underscores)';
+  }
+  if (isDeprecatedGeminiModelId(value)) {
+    return 'Deprecated model — the server ignores this override and uses the default. Choose a current model.';
+  }
+  return null;
+};
+
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
+const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 
 /**
  * Shared UI for configuring Gemini model overrides on the `gemini-functions`
@@ -274,14 +279,8 @@ const GeminiModelConfigSection: React.FC<{
   const [showCustomStandard, setShowCustomStandard] =
     React.useState(isCustomStandard);
 
-  const advancedError =
-    showCustomAdvanced &&
-    advancedModel !== '' &&
-    !GEMINI_MODEL_REGEX.test(advancedModel);
-  const standardError =
-    showCustomStandard &&
-    standardModel !== '' &&
-    !GEMINI_MODEL_REGEX.test(standardModel);
+  const advancedError = modelFieldError(advancedModel, showCustomAdvanced);
+  const standardError = modelFieldError(standardModel, showCustomStandard);
 
   const handleSelectChange = (
     field: 'advancedModel' | 'standardModel',
@@ -346,7 +345,7 @@ const GeminiModelConfigSection: React.FC<{
     tier: string,
     showCustom: boolean,
     setShowCustom: (v: boolean) => void,
-    hasError: boolean
+    error: string | null
   ) => (
     <div>
       <label className="text-xxs font-bold text-purple-700 uppercase tracking-widest mb-1 block">
@@ -374,17 +373,15 @@ const GeminiModelConfigSection: React.FC<{
             placeholder="e.g. gemini-2.5-flash"
             value={currentValue}
             onChange={(e) => handleCustomInput(field, e.target.value)}
+            aria-invalid={error !== null}
             className={`${inputClass} ${
-              hasError
+              error !== null
                 ? 'border-red-400 focus:ring-red-400'
                 : 'border-purple-200'
             }`}
           />
-          {hasError && (
-            <p className="text-xxs text-red-600 mt-0.5">
-              Must match pattern: gemini-[name] (letters, digits, dots, hyphens,
-              underscores)
-            </p>
+          {error !== null && (
+            <p className="text-xxs text-red-600 mt-0.5">{error}</p>
           )}
         </div>
       )}

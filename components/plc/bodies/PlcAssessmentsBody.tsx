@@ -19,12 +19,13 @@
 
 import React, { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, Film, type LucideIcon } from 'lucide-react';
+import { BookOpen, ClipboardCheck, Film, type LucideIcon } from 'lucide-react';
 import { Plc, getPlcFeatures } from '@/types';
 import { PlcQuizzesBody } from './PlcQuizzesBody';
 import { PlcVideoActivitiesTabsBody } from './PlcVideoActivitiesTabsBody';
+import { PlcRubricLibraryBody } from './PlcRubricLibraryBody';
 
-type AssessmentType = 'quiz' | 'video-activity';
+type AssessmentType = 'quiz' | 'video-activity' | 'rubric';
 
 interface TypeFilterDef {
   id: AssessmentType;
@@ -45,6 +46,12 @@ const TYPE_FILTERS: readonly TypeFilterDef[] = [
     icon: Film,
     labelKey: 'plcDashboard.assessmentsTypes.videoActivities',
     labelDefault: 'Video Activities',
+  },
+  {
+    id: 'rubric',
+    icon: ClipboardCheck,
+    labelKey: 'plcDashboard.assessmentsTypes.rubrics',
+    labelDefault: 'Rubrics',
   },
 ] as const;
 
@@ -71,9 +78,12 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
   // sections.ts), so `enabledTypes` is always non-empty here.
   const enabledTypes = useMemo(
     () =>
-      TYPE_FILTERS.filter((f) =>
-        f.id === 'quiz' ? features.quizzes : features.videoActivities
-      ),
+      // Rubrics have no feature flag — they ride along with the section.
+      TYPE_FILTERS.filter((f) => {
+        if (f.id === 'quiz') return features.quizzes;
+        if (f.id === 'video-activity') return features.videoActivities;
+        return true;
+      }),
     [features.quizzes, features.videoActivities]
   );
 
@@ -141,11 +151,13 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
         aria-labelledby={showFilter ? tabButtonId(effectiveType) : undefined}
         className="flex-1 min-h-0"
       >
-        {effectiveType === 'quiz' ? (
+        {effectiveType === 'quiz' && (
           <PlcQuizzesBody plc={plc} onCloseDashboard={onCloseDashboard} />
-        ) : (
+        )}
+        {effectiveType === 'video-activity' && (
           <PlcVideoActivitiesTabsBody plc={plc} />
         )}
+        {effectiveType === 'rubric' && <PlcRubricLibraryBody plc={plc} />}
       </div>
     </div>
   );

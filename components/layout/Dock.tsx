@@ -45,7 +45,10 @@ import {
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { toLunchCountSchoolSite } from '@/config/buildings';
-import { matchesUserBuilding as matchesUserBuildingLevels } from '@/config/widgetGradeLevels';
+import {
+  matchesUserBuilding as matchesUserBuildingLevels,
+  getWidgetGradeLevels,
+} from '@/config/widgetGradeLevels';
 import { AddWidgetOverrides } from '@/types';
 import { getJoinUrl } from '@/utils/urlHelpers';
 import { getLocalTimestampForFilename } from '@/utils/localDate';
@@ -246,6 +249,18 @@ export const Dock: React.FC = () => {
     (type: WidgetType | InternalToolType): boolean =>
       matchesUserBuildingLevels(type, userGradeLevels, featurePermissions),
     [userGradeLevels, featurePermissions]
+  );
+
+  // Permission-aware grade levels for the library's grade filter — admin
+  // overrides in featurePermissions narrow the static config when non-empty.
+  const getToolGradeLevels = useCallback(
+    (type: WidgetType | InternalToolType) => {
+      const permission = featurePermissions.find((p) => p.widgetType === type);
+      return permission?.gradeLevels && permission.gradeLevels.length > 0
+        ? permission.gradeLevels
+        : getWidgetGradeLevels(type);
+    },
+    [featurePermissions]
   );
 
   const handleRecordingComplete = useCallback(
@@ -578,6 +593,13 @@ export const Dock: React.FC = () => {
     if (showLiveInfo) setShowLiveInfo(false);
   }, [liveButtonRef]);
 
+  // Shared close so every path (click-outside, library's own close/Escape) also exits edit mode.
+  const closeLibraryAndEditMode = useCallback(() => {
+    setIsEditMode(false);
+    setShowLibrary(false);
+    setShowMoreMenu(false);
+  }, []);
+
   // Handle exiting edit mode when clicking outside the dock area
   useClickOutside(dockContainerRef, () => {
     if (
@@ -585,9 +607,7 @@ export const Dock: React.FC = () => {
       !renamingFolderId &&
       !showCreateFolderModal
     ) {
-      setIsEditMode(false);
-      setShowLibrary(false);
-      setShowMoreMenu(false);
+      closeLibraryAndEditMode();
     }
   }, [libraryRef]);
 
@@ -1015,10 +1035,9 @@ export const Dock: React.FC = () => {
               }}
               canAccess={canAccessTool}
               matchesUserBuilding={matchesUserBuilding}
-              onClose={() => {
-                setShowMoreMenu(false);
-                setShowLibrary(false);
-              }}
+              getToolGradeLevels={getToolGradeLevels}
+              onEnterEditMode={handleLongPress}
+              onClose={closeLibraryAndEditMode}
               globalStyle={globalStyle}
               triggerRef={dockContainerRef}
               libraryOrder={libraryOrder}

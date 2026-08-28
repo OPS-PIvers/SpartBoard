@@ -253,6 +253,7 @@ export const DashboardView: React.FC = () => {
     pendingQuizShareId,
     pendingAssignmentShareId,
     pendingVideoActivityShareId,
+    pendingRubricShareId,
     pendingSharedCollectionId,
     clearPendingSharedCollection,
     // Widget grouping
@@ -304,7 +305,8 @@ export const DashboardView: React.FC = () => {
     !mountShareImporter &&
     (pendingQuizShareId ||
       pendingAssignmentShareId ||
-      pendingVideoActivityShareId)
+      pendingVideoActivityShareId ||
+      pendingRubricShareId)
   ) {
     setMountShareImporter(true);
   }

@@ -592,6 +592,36 @@ service cloud.firestore {
                     && request.resource.data.id == resource.data.id;
     }
 
+    // M12 rubrics — teacher-owned reusable rubric library. Schema-locked to the
+    // `Rubric` interface's top-level keys so graders can trust the shape at read
+    // time (criterion internals are client-validated; CEL can't deep-validate
+    // nested lists). studentRole tokens denied — students never own rubrics.
+    match /users/{userId}/rubrics/{rubricId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && !isStudentRoleUser() && notDeactivated();
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == rubricId
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.createdAt is int
+                    && request.resource.data.updatedAt is int;
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.updatedAt is int;
+    }
+
     // Per-teacher inventory of Schoology (LTI) sections this teacher has SEEN via
     // a launch but may not have linked yet — drives the "Link to Schoology"
     // review screen + the post-launch prompt, and carries the sessionId the
@@ -1152,6 +1182,26 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Shared rubrics (M12) — link-based rubric sharing, same get/author-write
+    // posture as shared_quizzes plus a schema lock (full rubric payload is
+    // inlined so recipients import without a second read). No list — share docs
+    // are fetched only by known id, preventing enumeration.
+    match /shared_rubrics/{shareId} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.originalAuthor == request.auth.uid
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria',
+                         'createdAt', 'updatedAt', 'originalAuthor', 'sharedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.originalAuthor is string
+                    && request.resource.data.sharedAt is int;
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+    }
+
     // Shared quiz assignments - like shared_quizzes but also carries assignment
     // settings (class label, PLC sheet URL, session toggles) so a receiving
     // teacher can get a pre-configured, paused assignment when they paste the link.
@@ -1347,7 +1397,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1359,7 +1409,8 @@ service cloud.firestore {
         // Validate plcId type when present so a malformed link/cast can't write
         // a non-string value that downstream PLC reads would mishandle.
         && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
@@ -1369,7 +1420,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
@@ -1378,7 +1429,8 @@ service cloud.firestore {
         // plcId is the link to the owning PLC and must stay immutable post-create
         // — handle the case where either side is missing the field with a default.
         && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.
@@ -2434,6 +2486,64 @@ service cloud.firestore {
           && plcCanEditContent(plcId);
       }
 
+      // PLC Rubric Library (M12 Phase 3-I). Unlike quizzes/video-activities,
+      // the full rubric payload is inlined (rubrics are small; no synced-group
+      // indirection). Posture mirrors the Quiz Library — any non-viewer member
+      // shares / mirror-edits / unshares; identity + attribution
+      // (id/sharedBy*/sharedAt) immutable post-create. `criteria` is a list of
+      // complex objects CEL can't deep-validate; shape locked via hasOnly([...])
+      // and interior validation is client-enforced, same as personal rubrics.
+      match /rubrics/{plcRubricId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'description', 'criteria',
+               'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && plcRubricId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.criteria is list
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.createdAt is int
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        // Update: non-viewer member mirror-edits content fields or soft-deletes
+        // via deletedAt. Identity + attribution immutable; viewers denied.
+        allow update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'description', 'criteria',
+               'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.title is string
+          && request.resource.data.criteria is list
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        // Non-viewer member can unshare (PLC-owned model); viewers denied.
+        allow delete: if request.auth != null
+          && plcCanEditContent(plcId);
+      }
+
       // PLC-authored Assignments (Phase 3). Templates any member can pick up onto
       // their board, pointing at a canonical synced_quizzes/{groupId} (content
       // lives there). Posture mirrors the Quiz Library — any member authors /
@@ -3102,7 +3212,24 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors']) &&
+           // Stimulus telemetry maps (per-attempt play counters + load-failure
+           // counters). Truthfulness is client-enforced pacing/diagnostics, not
+           // a security boundary — but size is: the teacher monitor reads every
+           // response doc in the session, so cap the key count to stop a student
+           // inflating their own doc toward the 1 MB limit with junk keys.
+           // Plays are keyed `a{attempt}:{stimulusId}`, errors by stimulus id.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusPlays']) ||
+            (request.resource.data.stimulusPlays is map &&
+             request.resource.data.stimulusPlays.keys().size() <= 200)) &&
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusErrors']) ||
+            (request.resource.data.stimulusErrors is map &&
+             request.resource.data.stimulusErrors.keys().size() <= 100)) &&
+           // `handRaisedAt` must be server-stamped when raising, or null when
+           // the student lowers their own hand — never a client timestamp.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaisedAt']) ||
+            request.resource.data.handRaisedAt == request.time ||
+            request.resource.data.handRaisedAt == null) &&
            // `lastWriteAt` is the idle-auto-submit cutoff field. Must
            // be server-stamped (`serverTimestamp()` from the SDK, which
            // resolves to `request.time` at rule evaluation), NOT a
@@ -3455,11 +3582,23 @@ service cloud.firestore {
                    (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
 
       match /entries/{entryId} {
-        // Students can submit entries (create)
-        allow create: if request.auth != null;
+        // Students can submit entries (create). Parent session must exist and
+        // be active, and the payload must match the client's exact write
+        // shape ({name, joinedAt}) — the teacher's listener queries
+        // orderBy('joinedAt'), so a doc missing that field is invisible to it
+        // and would accumulate forever; an unbounded name string would bloat
+        // the teacher's Drive queue export.
+        allow create: if request.auth != null &&
+          exists(/databases/$(database)/documents/nextup_sessions/$(sessionId)) &&
+          get(/databases/$(database)/documents/nextup_sessions/$(sessionId)).data.get('isActive', false) == true &&
+          request.resource.data.keys().hasOnly(['name', 'joinedAt']) &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() > 0 &&
+          request.resource.data.name.size() <= 100 &&
+          request.resource.data.joinedAt is int;
         // Only teacher and admin can read/delete entries (buffer processing)
         // Path-based ownership check ensures query safety for the teacher's listener
-        allow read, delete: if request.auth != null && 
+        allow read, delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       }
     }

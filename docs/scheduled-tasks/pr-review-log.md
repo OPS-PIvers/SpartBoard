@@ -4,6 +4,49 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-08-27
+
+- PRs reviewed: 11 (all open PRs). Ten are draft nightly-automation PRs into `dev-paul`; one is the `dev-paul` → `main` integration PR.
+  - #2583 — fix(css-scaling): drop opaque `bg-slate-50` from 3 widgets' loading state (head `scheduled-tasks`)
+  - #2582 — docs(nightly): update debugger memory doc for run 52 (head `nightly/debugger-log-2026-08-27`)
+  - #2581 — fix(widgets): consolidate per-widget AudioContext singletons into shared `getAudioCtx` (head `nightly/widgets-2026-08-27`)
+  - #2580 — fix(rules): validate `nextup_sessions` entries create against active session + shape (head `nightly/build-tooling-2026-08-27`)
+  - #2579 — fix(admin): clamp WidgetBuilder default-size inputs instead of allowing 0x0 (head `nightly/admin-config-2026-08-27`)
+  - #2578 — fix(quiz): dedupe questions before building session content (head `nightly/state-data-2026-08-27`)
+  - #2577 — fix(dock): exit edit mode when the Widget Library is closed (head `nightly/dashboard-layout-2026-08-27`)
+  - #2576 — docs(unifier): log run 68 (head `nightly/unifier-log-2026-08-27`)
+  - #2575 — fix(a11y): pair PollWidget "Options" SettingsLabel with its control group (head `nightly/unify-settings-labels-2026-08-27`)
+  - #2574 — fix(quiz): use `@/` alias for cross-directory imports in `monitor/` (head `nightly/unify-import-paths-2026-08-27`)
+  - #2573 — Redesign quiz monitor and align results view with new design (head `dev-paul` → `main`)
+- Comments processed: 8 total — 0 fixed, 0 explained. All eight are prior automated review summaries (`claude[bot]` issue comments) with LGTM verdicts; **zero inline review threads exist across all 11 PRs** (`get_review_comments` returned `totalCount: 0` on every one). No comment requested a change, so no fix was needed and no "why no fix" reply was posted — replying "no action needed" to eight approvals would be pure noise under the frugality directive. The one non-LGTM remark (#2579's clamp-on-keystroke typing note, explicitly marked "Not asking for a change") was carried forward into this run's own review of that PR instead.
+- Fixes pushed: none. No unresolved change request existed on any open PR.
+- Reviews posted: 11 — one structured automated review per open PR, each with the automated-review disclaimer and Claude Code attribution footer. Merge-readiness calls:
+  - Ready: #2583, #2580, #2577, #2575, #2574
+  - Ready with minor notes: #2581, #2579, #2578, #2582, #2576, #2573
+  - Needs changes: none
+- Substantive findings this run (things the per-PR LGTM reviews had not surfaced):
+  - **#2573 — pdfjs worker resolution, checked empirically rather than assumed.** `QuizStimulusView.tsx:354` sets `workerSrc` from `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)` — a *bare* specifier, which is the classic way this pattern 404s in a production build. Ran a full `pnpm build` on the head: Vite does resolve it, emitting `dist/assets/pdf.worker.min-<hash>.mjs` and rewriting the reference in the emitted chunk. Reported as verified-not-a-bug rather than flagged on suspicion.
+  - **#2573 — `stimulusPlays`/`stimulusErrors` have no size bound.** The new rules validate `is map` only. The rule comment correctly disclaims *truthfulness* as a security boundary (client-side pacing), but *size* is a separate axis: a student can inflate their own response doc with arbitrary junk keys up to the 1 MB limit, and the teacher monitor reads every response doc in the session. Suggested a `.keys().size() <= N` bound.
+  - **#2573 — PR description covers roughly one of four shipped changes.** The body describes only the library restyle and mock-data updates; it never mentions the new `pdfjs-dist` production dependency, the `firestore.rules` change, or the live-monitor rebuild. Flagged as a merge-into-`main` legibility problem, not a code defect.
+  - **#2573 — untested enforcement path.** `components/quiz/QuizStimulusView.tsx` (569 lines) has no direct test; the `playLimit` coverage in the suite is all editor-state/util-level, so the actual count-and-block logic (`:154`, `:226`) and the error-counter write path are unexercised. That's the student-facing behavior most likely to regress silently.
+  - **#2579 — the fix is input-side only.** Clamping happens in the editor's `onChange`, but any custom-widget doc already persisted with a `0x0` default size stays broken: `builderStateToDoc` and `Dock.tsx`'s `addWidget` still consume the stored values unguarded. Whether that matters depends on whether such docs exist in production — raised as a decision, not a defect.
+  - **#2578 — `projectSessionStimuli` still reads the pre-dedupe array.** Immediately below the new `sessionQuestions`, stimuli are projected from raw `quiz.questions`, so a duplicate-id question carrying different `stimulusIds` than its surviving twin would leave an unreferenced stimulus in the session doc. Inert (`resolveStimuli` looks up by id) but it undercuts the PR's own "derive both from one array" goal.
+  - **#2582 / #2576 — merge-order caveat on the journal PRs.** Both mark work Completed/Shipped (#2580 for #2582; #2574/#2575 for #2576) while those code PRs are still open. If a code PR is closed unmerged, the journal asserts a fix that isn't in the tree — and the audit that reads the journal would then skip re-finding it.
+- Verification done independently rather than taken from the PRs' own claims:
+  - #2581: grepped the head branch for the removed `diceAudioCtx` export — zero remaining references; confirmed `utils/timeToolAudio.ts::getAudioCtx` is the SSR-safe nullable variant the new call-site guards are written against.
+  - #2580: confirmed `NextUpStudentApp.tsx` is the *only* writer to `nextup_sessions/*/entries` (the teacher widget only reads/deletes), so the `hasOnly(['name','joinedAt'])` whitelist can't break a teacher write; confirmed `NextUp/Settings.tsx` writes `isActive` on both start paths, so the new `.get('isActive', false)` gate resolves correctly for every session the current client creates.
+  - #2578: confirmed `quiz.questions` appeared in `useQuizAssignments.ts` at exactly the two lines this PR changes, so the choke-point fix is complete rather than partial.
+  - #2573: confirmed by name that `WidgetRegistry.ts`, `context/DashboardContext.tsx`, `config/tools.ts`, `config/widgetDefaults.ts`, and `functions/` are untouched; `types.ts` changes are purely additive optional fields with no new `WidgetType` member, so no registry map or `ConfigForWidget` update is required.
+  - Ran `pnpm run build` (exit 0), `pnpm run type-check` (exit 0), and `pnpm run lint` (exit 0, `--max-warnings 0`) locally against `dev-paul`'s head, matching CI.
+- Notes:
+  - Branch-safety: nothing was pushed to `main` or to any `dev-*` branch this run. No code fix was required on any PR, so no branch was modified at all.
+  - CI: all nine code PRs are fully green (six-job suite; #2573 additionally green on CodeQL ×2 and Docker). #2582 and #2576 show **zero** check runs — that is by design, not a gap: `pr-validation.yml` carries `paths-ignore` for `**/*.md` and `docs/**`, so docs-only PRs intentionally skip the suite.
+  - **Log placement again deviates from the literal POST-TASK instruction, for the same reason as the 2026-08-12 and 2026-08-13 entries:** `scheduled-tasks` is currently the head branch of actively-open PR #2583, so committing this log there would inject an unrelated file into a PR under review. Logged instead on the designated `claude/pensive-bell-5qmqs8` branch, rebuilt from the latest `origin/dev-paul`.
+  - Tooling: no `gh` CLI in this environment; all PR list/diff/comment/review operations used the `mcp__github__*` equivalents. The prescribed skill paths `/mnt/skills/user/spart-new-widget/SKILL.md` and `/mnt/skills/user/spart-widget-admin-config/SKILL.md` do not exist here (same note as prior css-scaling/widget-registry audits) — reviewed against the synced copies under `/root/.claude/skills/synced/` and `CLAUDE.md`'s own widget-registration and container-query sections instead.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); CI on Node 24 remains the authoritative gate.
+
+---
+
 ## 2026-08-13
 
 - PRs reviewed: 5 (all open PRs; every head branch eligible — none is `main` or `dev-*`)
@@ -3084,4 +3127,70 @@ So the flag's "silently reintroduce/duplicate" warning describes an unreachable 
   - **Log placement:** stacked on **#2551's head** (`claude/inspiring-cannon-ciu7ws`, `7f9a897`), continuing the established chaining — `pr-review-log.md` is append-only with a nightly writer, so branching fresh from `origin/dev-paul` would guarantee a trailing-line conflict while #2551 stays open. Pushed to the session's designated branch `claude/pensive-bell-va42yz`. Kept **off** `scheduled-tasks`, which is still the head of open PR #2527.
   - Branch safety: no push to `main` or any `dev-*` branch, and no push to any PR head branch at all this run.
   - Tooling: GitHub via the MCP server (no `gh` CLI in this environment); all PR list/read/diff/review/comment operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed, so CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-25 (second run)
+
+- PRs swept: **2** — the full open set has collapsed from 32 to 2 since this morning's run, because #2560 rolled the other 30 into `dev-paul`.
+  - **#2560** — "Nightly routine batch: 30 PRs" (head `dev-paul` → `main`, 133 files, +4989/−459). Not draft.
+  - **#2395** — feat(ai): move Gemini to Vertex AI (head `claude/quirky-ritchie-wghdl3` → `dev-paul`, head `ba14633`). Still draft.
+- Comments processed: **zero unresolved inline threads on either PR** — second run running. #2560 carries no review threads at all (it is a rollup of already-reviewed work); all **17** threads on #2395 are resolved with an author reply carrying either a landed fix or a reasoned decline.
+  - Two top-level items on #2395 had no reply since the last author round: the 2026-08-22 review comment (`5378443617`) and the 2026-08-23 automated review. Both are approvals stating "no changes requested" / "no issues found at this head" — **not valid fix requests**, so no code changed. Replied once with the disposition rather than leaving them silently unanswered.
+  - #2560's only comment is the `claude[bot]` rollup review (`5416586575`) — spot-checks with an explicit "safe to merge as-is" and no findings. Nothing to action and nothing to explain, so no reply was posted (frugality directive).
+- Fixes pushed: **0.** No comment on either PR met the "fix is needed" bar.
+- Verification done rather than inherited — the approving reviews' load-bearing claims were re-derived at `ba14633` before the reply was written, not restated:
+  - `instanceof HttpsError` in **7** catches in `functions/src/aiGeneration.ts`; grep for the old duck-typed `'code' in error` form returns **zero** hits, so the `:1014` case litigated on the #2533 thread is genuinely gone.
+  - Sole `GEMINI_API_KEY` occurrence across `functions/`, `utils/`, `config/`, `components/`, `context/`, `hooks/` is the removal note at `secrets.ts:11`.
+  - `functions/src/shared.ts:55` is `/-preview(?:-|$)/` — date-versioned preview ids rejected without over-rejecting the permissive `gemini-*` pattern the picker depends on.
+  - CI on `ba14633`: 7/7 checks `success`. #2560 at `d2b9ca0`: 10/12 `success`, 2 still in progress (Unit Tests, `test`) — `mergeable_state: unstable` reflects the pending checks, not a failure.
+- New check added this run — **base-drift intersection**, aimed at the class of defect that the 08-19 merge uncovered on #2395 (170 commits of `dev-paul` drift that merged with zero textual conflicts while `aiGeneration.ts` had moved underneath it):
+  - #2395 is **33 commits behind `dev-paul`** (merge-base `25f6127` → tip `d2b9ca0`). Intersecting its 14 changed files against the 33 commits' changed files (`comm -12` over both `--name-only` diffs) gives the **empty set** — `dev-paul` moved only in `components/`, `utils/`, `hooks/`, `firestore.rules`, `types.ts`, `functions/src/organizationInvites*`, and routine docs. So no textual *or* semantic conflict exists this round and no merge commit was pushed into a draft that is otherwise frozen behind ops gates.
+  - Recommended in the reply: re-run this intersection immediately before the eventual merge, since `dev-paul` keeps moving. The cheap version of the 08-19 lesson is the intersection, not the merge.
+  - **Caveat added 08-26, and it narrows the check as written above.** The intersection is empty against `dev-paul` (re-verified at the moved tip `4a6a57a`, now 35 commits of drift — still empty), but it is **not** empty against the *open-PR set*: #2566 modifies `functions/src/studentIdentity.test.ts`, which #2395 also modifies. The hunks don't collide today — #2395 removes the `GEMINI_API_KEY` mock entry at `~:59`, #2566 adds a `pinLoginV1` reused-code test at `~:824` inside a different `describe` — so there is nothing to act on now. The narrower point is that **the moment #2566 lands, the "empty intersection" conclusion stops being current**, so the pre-merge re-run must be against the base that exists at merge time, not against today's. Intersecting only against the base is the incomplete form of this check; the 08-19 defect was exactly a clean textual merge hiding a semantic conflict in a test file.
+- Reviews posted: 0 structured reviews. Both PRs already carry a current review at their present head (#2395's 08-23 review is at the unchanged head `ba14633`; #2560's rollup review is from today), so a third opinion on an unchanged diff would have been noise.
+- #2395 blockers unchanged and still entirely operational: enable `aiplatform.googleapis.com`; grant `roles/aiplatform.user` to the Functions runtime SA; confirm `gemini-3.6-flash` / `gemini-3.5-flash-lite` serve from the `global` endpoint; one live YouTube run per video callable, public **and** unlisted.
+- Notes:
+  - Branch safety: no push to `main`, no push to any `dev-*` branch, and no push to any PR head branch this run.
+  - Log placement: branched fresh from `origin/dev-paul` onto the session's designated branch `claude/inspiring-cannon-yxw9ph`. No chaining was needed this time — the open-PR set no longer contains a log-carrying branch, so the trailing-line conflict the 08-25 first-run entry worked around cannot occur.
+  - Tooling: GitHub via the MCP server (no `gh` CLI); all PR list/read/comment operations used `mcp__github__*` equivalents.
+  - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed, so CI on Node 24 remains the authoritative gate.
+
+---
+
+## 2026-08-26
+
+- PRs reviewed: **8** — the full open set, all targeting `dev-paul`, all drafts.
+  - **#2568** fix(text-widget): wire up dead fontFamily/fontColor/textSizePreset appearance config (`scheduled-tasks`)
+  - **#2567** docs(debugger): log run 51 — 4 fixes shipped, 1 clean (`nightly/debugger-log-2026-08-26`)
+  - **#2566** fix(functions): stop pinLoginV1 quiz-code lookup from missing joinable sessions (`nightly/build-tooling-2026-08-26`)
+  - **#2565** fix(admin): reset stale building selection when the building list empties (`nightly/state-data-2026-08-26`)
+  - **#2564** fix(a11y): add roving tabindex + arrow-key nav to SegmentedControl (`nightly/dashboard-layout-2026-08-26`)
+  - **#2563** fix(drawing): make PageStrip pages popover Escape work inside DraggableWindow (`nightly/widgets-2026-08-26`)
+  - **#2561** docs(scheduled-tasks): log PR review run 2026-08-25 (second run) (`claude/inspiring-cannon-yxw9ph`)
+  - **#2395** feat(ai): move Gemini to Vertex AI, update model IDs (`claude/quirky-ritchie-wghdl3`)
+- Comments processed: **zero unresolved** across all 8 PRs — nothing met the "fix is needed" bar and nothing was left unanswered.
+  - #2395: all **17** inline threads resolved, each with a landed fix or a reasoned decline; the last author reply (2026-08-25) already covers every top-level item. No new comment since.
+  - #2563/#2564/#2565/#2566/#2568: one `claude[bot]` review comment each, all approvals with explicit "no issues found" / "nothing to change." Not fix requests, so no code changed and no reply posted (frugality directive).
+  - #2561/#2567: no comments at all.
+- Fixes pushed: **0.** No branch was checked out for modification and no PR head branch was pushed to.
+- Reviews posted: **8** (one structured review per open PR). Findings that came out of independent verification rather than restating the diff:
+  - **#2566** — the `.limit(1)` safety rationale is overstated in both the PR body and the prior review. `allocateJoinCode()` (`hooks/useQuizAssignments.ts:576-583`) has a last-resort fallback that returns a candidate code after 5 failed attempts **without** a collision check, and the check itself is a non-transactional read. Not a regression (the old `.limit(5)` + `.find()` also picked arbitrarily among joinable matches), but the argument should read "no worse than before," not "uniqueness guaranteed." Also flagged: dropping `codeMatchCount` from the fallback `console.warn` means `no-joinable-session` can no longer distinguish "code never existed" from "code exists, all sessions ended." Composite index independently confirmed present at `firestore.indexes.json:102-120`, so no deploy step is needed.
+  - **#2564** — the added doc comment now claims the WAI-ARIA tablist pattern is implemented, but only the keyboard half is. `role="tablist"`/`role="tab"` still have no `aria-controls` and no `role="tabpanel"` in any of the three consumers, none of which are actually tabs (they're filter/view toggles over a list that stays mounted). `components/common/TextSizePresetSettings.tsx` already uses the correct `role="radiogroup"`/`role="radio"` primitive for this exact shape. Raised as a follow-up decision, not a change to this PR. Also confirmed select-follows-focus is safe here — all three consumers pass plain local state setters, no refetch.
+  - **#2568** — verified the omissions are deliberate rather than gaps: `TextConfig` has no `scaleMultiplier` (so skipping `writeScaleMultiplier` is correct), and `TEXT_WIDGET_TEMPLATES` entries carry only `content` while `applyTemplate` spreads `...config`, so a template can't clobber a newly-set font/color/size. Noted `TEXT_WIDGET_COLORS` (`TextWidget/constants.ts:6`) as a genuine dead export — `bgColor` itself is *not* dead, its control lives in `FormattingToolbar.tsx:810` building swatches inline from `STICKY_NOTE_COLORS`.
+  - **#2563** — noted a behavior narrowing: Escape now only closes the popover while focus is inside it. Traced every path and none break today (the popover carries `tabIndex={-1}`), but the existing "still dismisses on Escape" test fires the key directly on the popover and so would not catch a future regression.
+  - **#2565** — verified the adjust-while-rendering loop terminates by construction (`first` is `'' ` on an empty list, so the next render's condition is false) and that `''` was already a reachable downstream state before this change.
+  - **#2567** — re-derived both new factual claims in the log rather than trusting them: `SidebarBoardsActive.tsx` genuinely has zero render sites, and `utils/periodCompat.ts::buildPeriodFields` genuinely has zero call sites. Both accurate.
+- Base-drift check, re-run at today's tip (`dev-paul` = `4a6a57a`): all six nightly/`scheduled-tasks` branches are **0 behind**; #2561 is 2 behind; #2395 is **35 behind**. All eight merge cleanly with zero conflicts.
+- **New cross-PR finding — the drift intersection has to be re-run against the base that will actually exist at merge time.** #2395's file intersection against `dev-paul` is still empty (confirmed independently), but it is **not** empty against the open-PR set: **#2566 modifies `functions/src/studentIdentity.test.ts`, which #2395 also modifies.** Checked the hunks — #2395 removes a `GEMINI_API_KEY` mock at `~:59`, #2566 adds a test at `~:824`; different regions, no semantic interaction, nothing to act on now. But the moment #2566 lands, the "empty intersection" conclusion stops being current. This is the same mechanism as the 08-19 incident on #2395 (a clean textual merge hiding a semantic conflict in a test file), and the intersection check only catches it if re-run against the post-merge base.
+- CI: 6/6 code PRs green at 7/7 checks. #2567 and #2561 have **zero** check runs, which is expected rather than a gap — `.github/workflows/pr-validation.yml:12-14` sets `paths-ignore` on `**/*.md` and `docs/**` so docs-only PRs skip the suite. Verified in the workflow file rather than inferred.
+- #2395 blockers unchanged and still entirely operational: enable `aiplatform.googleapis.com`; grant `roles/aiplatform.user` to the Functions runtime SA; confirm `gemini-3.6-flash` / `gemini-3.5-flash-lite` serve from the `global` endpoint; one live YouTube run per video callable, public **and** unlisted.
+- Notes:
+  - Branch safety: no push to `main`, no push to any `dev-*` branch, and no push to any PR head branch this run.
+  - **Log placement:** pushed to the session's designated branch `claude/pensive-bell-044lw8`, branched fresh from `origin/dev-paul`. Kept **off** `scheduled-tasks`, which was the head of then-open PR #2568 and now carries code, not just journals.
+  - **Correction, recorded after the fact.** This run declined to chain on #2561's head, reasoning that `dev-paul` squash-merges and so a stacked log branch would replay an entry the base already held in squashed form. **That reading was wrong** — it generalized from the older `(#NNNN)`-suffixed stretch of history. `dev-paul` currently merges PRs with merge commits, and #2561 landed as commit `9b91d31` verbatim. Chaining would have produced *no* conflict; branching fresh produced one, the opposite of the prediction. Resolved by rebasing onto `dev-paul` and re-appending this entry after #2561's and `4117ce9`'s. **Lesson: read the merge style from the commits adjacent to the current tip, not from a run of older history.** This file's merge style has changed at least once, and `40534c4` ("restore run 50 log entry lost in the #2557 merge") shows the cost of misreading it is a silently dropped entry.
+  - **Concurrent-session overlap:** `4117ce9` ("record the open-PR-set caveat on the base-drift check", session `01Qm63SK`) landed the same #2395 / #2566 `studentIdentity.test.ts` finding into the 08-25 entry at 06:35 — about the same minute this run opened its PR. Independently derived on both sides. Two sessions appending to one journal in the same minute is itself the argument for one-file-per-run under `docs/scheduled-tasks/pr-review-log/`.
+  - This is the third run to work around the same append conflict. If it recurs, the durable fix is one file per run under `docs/scheduled-tasks/pr-review-log/` rather than continued chaining — reversing to newest-first wouldn't help, since top-of-file appends conflict just as readily.
+  - Tooling: GitHub via the MCP server (no `gh` CLI in this environment); all PR list/read/diff/review operations used `mcp__github__*` equivalents.
   - Verification env runs Node 22 (repo pins 24, "Unsupported engine" warning); no code was pushed, so CI on Node 24 remains the authoritative gate.

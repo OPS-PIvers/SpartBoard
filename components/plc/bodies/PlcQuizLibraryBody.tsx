@@ -393,6 +393,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
+          ...(canonical.stimuli && canonical.stimuli.length > 0
+            ? { stimuli: canonical.stimuli }
+            : {}),
           createdAt: now,
           updatedAt: now,
         };
@@ -523,6 +526,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
+          ...(canonical.stimuli && canonical.stimuli.length > 0
+            ? { stimuli: canonical.stimuli }
+            : {}),
           createdAt: now,
           updatedAt: now,
         };
@@ -552,6 +558,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
             title: savedMeta.title,
             driveFileId: savedMeta.driveFileId,
             questions: canonical.questions,
+            ...(canonical.stimuli && canonical.stimuli.length > 0
+              ? { stimuli: canonical.stimuli }
+              : {}),
           },
           {
             sessionMode: target.sessionMode,
@@ -674,6 +683,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
             id: crypto.randomUUID(),
             title: canonical.title,
             questions: canonical.questions,
+            ...(canonical.stimuli && canonical.stimuli.length > 0
+              ? { stimuli: canonical.stimuli }
+              : {}),
             createdAt: now,
             updatedAt: now,
           };
