@@ -3743,7 +3743,9 @@ export const CollapsibleRubric: React.FC<{
     : 'border-slate-700 bg-slate-800/60';
   const headingCls = light ? 'text-slate-900' : 'text-slate-100';
   const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
-  if (rubric.criteria.length === 0) return null;
+  if (!Array.isArray(rubric?.criteria) || rubric.criteria.length === 0) {
+    return null;
+  }
   return (
     <div className={`rounded-xl border ${cardCls}`}>
       <button
@@ -3807,11 +3809,33 @@ const ScoredRubricDisplay: React.FC<{
 }> = ({ rubric, scores, light = false }) => {
   const headingCls = light ? 'text-slate-900' : 'text-slate-100';
   const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
+  const labelCls = light ? 'text-slate-500' : 'text-slate-300';
+  if (!Array.isArray(rubric?.criteria) || rubric.criteria.length === 0) {
+    return null;
+  }
   const scoresByCriterion = new Map(scores.map((s) => [s.criterionId, s]));
-  if (rubric.criteria.length === 0) return null;
+  const criterionIds = new Set(rubric.criteria.map((c) => c.id));
+  const staleSnapshot =
+    scores.length > 0 && !scores.some((s) => criterionIds.has(s.criterionId));
+  if (staleSnapshot) {
+    return (
+      <div className="space-y-1.5">
+        <p
+          className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
+        >
+          Rubric
+        </p>
+        <p className={`text-xs italic ${bodyCls}`}>
+          Scored with an earlier version of this rubric.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+      <p
+        className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
+      >
         Rubric
       </p>
       {rubric.criteria.map((criterion) => {
@@ -3829,7 +3853,7 @@ const ScoredRubricDisplay: React.FC<{
               {level && score ? (
                 `${level.label} — ${score.points} pt${score.points === 1 ? '' : 's'}`
               ) : (
-                <span className="italic text-slate-500">not yet scored</span>
+                <span className={`italic ${bodyCls}`}>not yet scored</span>
               )}
             </span>
           </div>

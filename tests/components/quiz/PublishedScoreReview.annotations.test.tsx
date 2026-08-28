@@ -178,6 +178,32 @@ describe('WrittenAnswerReview', () => {
       expect(screen.getByText('not yet scored')).toBeInTheDocument();
     });
 
+    it('shows a stale-rubric note when scores reference a re-attached rubric (M12 3-H fix)', () => {
+      const grade: WrittenAnswerGrade = {
+        pointsAwarded: 6,
+        gradedBy: 't',
+        gradedAt: 0,
+        rubricScores: [
+          { criterionId: 'old-c1', levelId: 'old-l1', points: 3 },
+          { criterionId: 'old-c2', levelId: 'old-l2', points: 3 },
+        ],
+      };
+      render(
+        <WrittenAnswerReview
+          studentAnswer="<p>essay text</p>"
+          grade={grade}
+          showResponse={true}
+          maxPoints={6}
+          rubricSnapshot={rubric}
+        />
+      );
+      expect(
+        screen.getByText(/Scored with an earlier version of this rubric/i)
+      ).toBeInTheDocument();
+      expect(screen.queryByText('not yet scored')).not.toBeInTheDocument();
+      expect(screen.queryByText('Thesis')).not.toBeInTheDocument();
+    });
+
     it('does not render a rubric section when the grade has no rubricScores', () => {
       const grade: WrittenAnswerGrade = {
         pointsAwarded: 4,
