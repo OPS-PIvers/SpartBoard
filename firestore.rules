@@ -592,6 +592,36 @@ service cloud.firestore {
                     && request.resource.data.id == resource.data.id;
     }
 
+    // M12 rubrics — teacher-owned reusable rubric library. Schema-locked to the
+    // `Rubric` interface's top-level keys so graders can trust the shape at read
+    // time (criterion internals are client-validated; CEL can't deep-validate
+    // nested lists). studentRole tokens denied — students never own rubrics.
+    match /users/{userId}/rubrics/{rubricId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && !isStudentRoleUser() && notDeactivated();
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == rubricId
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.createdAt is int
+                    && request.resource.data.updatedAt is int;
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.updatedAt is int;
+    }
+
     // Per-teacher inventory of Schoology (LTI) sections this teacher has SEEN via
     // a launch but may not have linked yet — drives the "Link to Schoology"
     // review screen + the post-launch prompt, and carries the sessionId the
@@ -1148,6 +1178,26 @@ service cloud.firestore {
       allow get: if request.auth != null;
       allow create: if request.auth != null &&
         request.resource.data.originalAuthor == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+    }
+
+    // Shared rubrics (M12) — link-based rubric sharing, same get/author-write
+    // posture as shared_quizzes plus a schema lock (full rubric payload is
+    // inlined so recipients import without a second read). No list — share docs
+    // are fetched only by known id, preventing enumeration.
+    match /shared_rubrics/{shareId} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.originalAuthor == request.auth.uid
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria',
+                         'createdAt', 'updatedAt', 'originalAuthor', 'sharedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.originalAuthor is string
+                    && request.resource.data.sharedAt is int;
       allow update, delete: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }

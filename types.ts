@@ -3099,6 +3099,18 @@ export interface QuizQuestion {
    */
   maxWords?: number;
   /**
+   * short/essay only (M12 rubrics). Id of the rubric in the teacher's
+   * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
+   * Informational only — graders always read the snapshot.
+   */
+  rubricId?: string;
+  /**
+   * short/essay only (M12 rubrics). Frozen copy of the rubric captured at
+   * attach time; library edits never alter authored quizzes or past grades.
+   * When present, the rubric's criteria max-sum is the question's `points`.
+   */
+  rubricSnapshot?: Rubric;
+  /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
    * Empty/missing = no stimuli. The shared-pointer array is the grouping:
    * consecutive questions carrying the same id form a stimulus set.
@@ -3807,6 +3819,47 @@ export interface WrittenAnswerRubricScore {
   /** Snapshot for resilience against later rubric edits. */
   points: number;
   note?: string;
+}
+
+/**
+ * A single performance level within a rubric criterion. Ordered
+ * low-to-high in storage; the grader renders high-to-low.
+ */
+export interface RubricLevel {
+  id: string;
+  label: string;
+  /** Non-negative; unique within a criterion. */
+  points: number;
+  description?: string;
+}
+
+/** A single scoring dimension in a rubric (e.g. "Thesis & Argument"). */
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  description?: string;
+  /** 2–6 levels, ordered low → high. */
+  levels: RubricLevel[];
+}
+
+/**
+ * Teacher-owned reusable rubric at `/users/{teacherUid}/rubrics/{rubricId}`.
+ * Attaching to a question embeds a snapshot in `QuizQuestion.rubricSnapshot`;
+ * the library doc is never read at grading time.
+ */
+export interface Rubric {
+  id: string;
+  title: string;
+  description?: string;
+  criteria: RubricCriterion[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Link-share copy at `/shared_rubrics/{shareId}` — full payload inlined. */
+export interface SharedRubric extends Rubric {
+  originalAuthor: string;
+  sharedAt: number;
 }
 
 /**
