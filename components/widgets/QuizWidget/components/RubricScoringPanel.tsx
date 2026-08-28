@@ -9,6 +9,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { MessageSquarePlus, X } from 'lucide-react';
 import { Rubric, RubricCriterion, RubricLevel } from '@/types';
 import type { WrittenAnswerRubricScore } from '@/types';
+import { rubricMaxPoints } from '@/utils/rubricPoints';
 
 interface RubricScoringPanelProps {
   rubric: Rubric;
@@ -105,15 +106,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
     });
   }, []);
 
-  const rubricMax = useMemo(
-    () =>
-      rubric.criteria.reduce(
-        (total, c) =>
-          total + c.levels.reduce((best, l) => Math.max(best, l.points), 0),
-        0
-      ),
-    [rubric.criteria]
-  );
+  const rubricMax = useMemo(() => rubricMaxPoints(rubric), [rubric]);
 
   const derivedPoints = sumPoints(scores);
   const scoredCount = rubric.criteria.filter((c) =>
