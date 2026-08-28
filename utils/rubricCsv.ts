@@ -1,11 +1,5 @@
-// CSV import/export for M12 written-response rubrics (see
-// docs/specs/M12-written-response-rubrics-spec.md §7).
-//
-// The RFC-4180 row/cell tokenizer below is duplicated from
-// `utils/csvImport.ts` rather than shared — see the cross-reference comment
-// there. Both parsers are small and dependency-free by design; keeping them
-// independent avoids coupling the bulk-invite flow's column model to the
-// rubric one.
+// CSV import/export for M12 written-response rubrics (see docs/specs/M12-written-response-rubrics-spec.md §7).
+// The RFC-4180 tokenizer below is duplicated from utils/csvImport.ts on purpose — see the cross-reference comment there.
 
 import type { Rubric, RubricCriterion, RubricLevel } from '@/types';
 
@@ -19,8 +13,7 @@ const MAX_LEVELS = 6;
 const MIN_LEVELS = 2;
 
 // ---------------------------------------------------------------------------
-// RFC 4180 line/cell tokenization (duplicated from utils/csvImport.ts — see
-// the cross-reference comment there).
+// RFC 4180 line/cell tokenization (duplicated from utils/csvImport.ts).
 // ---------------------------------------------------------------------------
 
 function splitLogicalRows(source: string): string[] {
@@ -104,9 +97,11 @@ function buildColumnIndex(headerCells: string[]): {
   criterionIdx: number | undefined;
   descriptionIdx: number | undefined;
   levelGroups: LevelColumnGroup[];
+  hasExtraLevelColumns: boolean;
 } {
   let criterionIdx: number | undefined;
   let descriptionIdx: number | undefined;
+  let hasExtraLevelColumns = false;
   const levelGroups = new Map<number, LevelColumnGroup>();
 
   headerCells.forEach((raw, idx) => {
@@ -124,7 +119,11 @@ function buildColumnIndex(headerCells: string[]): {
     );
     if (!levelMatch) return;
     const n = Number(levelMatch[1]);
-    if (n < 1 || n > MAX_LEVELS) return;
+    if (n < 1) return;
+    if (n > MAX_LEVELS) {
+      hasExtraLevelColumns = true;
+      return;
+    }
     const field = levelMatch[2].toLowerCase();
     const group = levelGroups.get(n) ?? { n, labelIdx: -1, pointsIdx: -1 };
     if (field === 'label') group.labelIdx = idx;
@@ -139,6 +138,7 @@ function buildColumnIndex(headerCells: string[]): {
     levelGroups: Array.from(levelGroups.values())
       .filter((g) => g.labelIdx >= 0 && g.pointsIdx >= 0)
       .sort((a, b) => a.n - b.n),
+    hasExtraLevelColumns,
   };
 }
 
@@ -161,7 +161,7 @@ export function parseRubricCsv(text: string): ParseRubricResult {
   }
 
   const headerCells = parseRow(logicalRows[0]);
-  const { criterionIdx, descriptionIdx, levelGroups } =
+  const { criterionIdx, descriptionIdx, levelGroups, hasExtraLevelColumns } =
     buildColumnIndex(headerCells);
 
   if (criterionIdx === undefined) {
@@ -174,6 +174,12 @@ export function parseRubricCsv(text: string): ParseRubricResult {
 
   const errors: ParseRubricResult['errors'] = [];
   const warnings: ParseRubricResult['warnings'] = [];
+  if (hasExtraLevelColumns) {
+    warnings.push({
+      line: 1,
+      reason: `Extra columns beyond the supported count are ignored (max ${MAX_LEVELS} levels).`,
+    });
+  }
   const criteria: RubricCriterion[] = [];
 
   for (let i = 1; i < logicalRows.length; i++) {
@@ -208,14 +214,6 @@ export function parseRubricCsv(text: string): ParseRubricResult {
       const level: RubricLevel = { id: crypto.randomUUID(), label, points };
       if (description) level.description = description;
       levels.push(level);
-    }
-
-    if (levels.length > MAX_LEVELS) {
-      warnings.push({
-        line,
-        reason: `Criterion "${name}" has more than ${MAX_LEVELS} levels; truncated to ${MAX_LEVELS}.`,
-      });
-      levels.length = MAX_LEVELS;
     }
 
     if (levels.length < MIN_LEVELS) {

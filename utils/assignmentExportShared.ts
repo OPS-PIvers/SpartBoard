@@ -207,8 +207,14 @@ export function buildResultsSheetData<
       const cols = [grade ? formatExportPoints(grade.pointsEarned) : ''];
       if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
         const scores = r.grading?.[q.id]?.rubricScores ?? [];
+        const scoreMap = new Map<string, (typeof scores)[number]>();
+        for (const s of scores) {
+          if (!scoreMap.has(s.criterionId)) {
+            scoreMap.set(s.criterionId, s);
+          }
+        }
         for (const c of q.rubricSnapshot.criteria) {
-          const score = scores.find((s) => s.criterionId === c.id);
+          const score = scoreMap.get(c.id);
           if (!score) {
             cols.push('', '');
             continue;

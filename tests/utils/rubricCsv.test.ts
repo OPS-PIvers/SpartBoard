@@ -121,6 +121,23 @@ describe('parseRubricCsv', () => {
     expect(assertRubric(result.rubric).criteria[0].levels).toHaveLength(6);
   });
 
+  it('warns and drops extra columns for an 8-level CSV, keeping 6 levels', () => {
+    const csv = [
+      'Criterion,Level 1 Label,Level 1 Points,Level 2 Label,Level 2 Points,Level 3 Label,Level 3 Points,Level 4 Label,Level 4 Points,Level 5 Label,Level 5 Points,Level 6 Label,Level 6 Points,Level 7 Label,Level 7 Points,Level 8 Label,Level 8 Points',
+      'Thesis,A,1,B,2,C,3,D,4,E,5,F,6,G,7,H,8',
+    ].join('\n');
+    const result = parseRubricCsv(csv);
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([
+      {
+        line: 1,
+        reason:
+          'Extra columns beyond the supported count are ignored (max 6 levels).',
+      },
+    ]);
+    expect(assertRubric(result.rubric).criteria[0].levels).toHaveLength(6);
+  });
+
   it('round-trips cells containing commas and quotes through the serializer', () => {
     const rubric: Rubric = {
       id: 'r1',
