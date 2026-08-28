@@ -38,6 +38,7 @@ const gradeFn = (
   isCorrect: false,
   pointsEarned: answer ? (question.points ?? 1) : 0,
   pointsMax: question.points ?? 1,
+  state: answer ? 'scored' : 'not-attempted',
 });
 
 function makeResponse(
