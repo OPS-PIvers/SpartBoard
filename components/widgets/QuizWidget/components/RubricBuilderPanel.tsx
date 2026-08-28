@@ -5,8 +5,12 @@ import {
   AlertCircle,
   ArrowDown,
   ArrowUp,
+  Check,
+  Copy,
   Download,
+  Loader2,
   Plus,
+  Share2,
   Trash2,
   Upload,
   X,
@@ -103,6 +107,20 @@ const validateRubric = (rubric: Rubric): string[] => {
   return errors;
 };
 
+// Accepts a bare share id or a pasted share URL (`/share/rubric/{id}`) and
+// returns the id, mirroring how quiz share links resolve to a doc id.
+const extractShareId = (input: string): string => {
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+  try {
+    const url = new URL(trimmed);
+    const segments = url.pathname.split('/').filter(Boolean);
+    return segments[segments.length - 1] ?? '';
+  } catch {
+    return trimmed;
+  }
+};
+
 const move = <T,>(list: T[], from: number, to: number): T[] => {
   if (to < 0 || to >= list.length) return list;
   const next = [...list];
@@ -118,7 +136,8 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   onClose,
   teacherUid,
 }) => {
-  const { rubrics, saveRubric } = useRubrics(teacherUid);
+  const { rubrics, saveRubric, shareRubric, importSharedRubric } =
+    useRubrics(teacherUid);
   const { showConfirm } = useDialog();
   const [draft, setDraft] = useState<Rubric>(
     () => existingSnapshot ?? blankRubric()
@@ -134,6 +153,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     Array<{ line: number; reason: string }>
   >([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [importCode, setImportCode] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const didAutoFocus = useRef(false);
 
@@ -235,6 +262,64 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     onAttach(attached, attached.id);
   };
 
+  const savedInLibrary = rubrics.find((r) => r.id === draft.id);
+
+  const handleShare = async () => {
+    if (!savedInLibrary) return;
+    setSharing(true);
+    setShareError(null);
+    setShareUrl(null);
+    setCopied(false);
+    try {
+      const shareId = await shareRubric(savedInLibrary.id);
+      const url = `${window.location.origin}/share/rubric/${shareId}`;
+      setShareUrl(url);
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(url);
+          setCopied(true);
+        } catch {
+          // Clipboard write can fail (permissions/insecure context) — the
+          // link is still shown below for manual copy.
+        }
+      }
+    } catch (err) {
+      setShareError(err instanceof Error ? err.message : 'Share failed.');
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleCopyShareUrl = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+    } catch {
+      setShareError('Could not copy — select and copy the link manually.');
+    }
+  };
+
+  const handleImport = async () => {
+    const shareId = extractShareId(importCode);
+    if (!shareId) {
+      setImportError('Enter a share code or link.');
+      return;
+    }
+    setImporting(true);
+    setImportError(null);
+    setImportSuccess(null);
+    try {
+      await importSharedRubric(shareId);
+      setImportSuccess('Rubric imported into your library.');
+      setImportCode('');
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <aside
       className="absolute inset-y-0 right-0 w-full max-w-md bg-white border-l border-slate-200 shadow-xl z-20 flex flex-col"
@@ -302,6 +387,46 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-bold text-slate-700">
+              Import from code or link
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={importCode}
+              onChange={(e) => setImportCode(e.target.value)}
+              placeholder="Paste a share code or link"
+              aria-label="Rubric share code or link"
+              className={`${inputClass} flex-1`}
+            />
+            <button
+              onClick={() => void handleImport()}
+              disabled={importing || !importCode.trim()}
+              aria-label="Import shared rubric"
+              className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40"
+            >
+              {importing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'Import'
+              )}
+            </button>
+          </div>
+          {importError && (
+            <p className="text-xs text-rose-700" role="alert">
+              {importError}
+            </p>
+          )}
+          {importSuccess && (
+            <p className="text-xs text-emerald-700" role="status">
+              {importSuccess}
+            </p>
+          )}
         </div>
 
         <div>
@@ -487,7 +612,53 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
             <Download className="w-3.5 h-3.5" />
             Export CSV
           </button>
+          <button
+            onClick={() => void handleShare()}
+            disabled={!savedInLibrary || sharing}
+            title={
+              savedInLibrary
+                ? undefined
+                : 'Save this rubric to your library before sharing.'
+            }
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40"
+          >
+            {sharing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Share2 className="w-3.5 h-3.5" />
+            )}
+            Share
+          </button>
         </div>
+
+        {shareError && (
+          <p className="text-xs text-rose-700" role="alert">
+            {shareError}
+          </p>
+        )}
+        {shareUrl && (
+          <div className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <input
+              type="text"
+              readOnly
+              value={shareUrl}
+              aria-label="Rubric share link"
+              className="flex-1 bg-transparent text-xs text-slate-700 focus:outline-none"
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              onClick={() => void handleCopyShareUrl()}
+              aria-label="Copy rubric share link"
+              className="p-1 text-slate-500 hover:text-slate-900 rounded"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-emerald-600" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        )}
 
         {csvErrors.length > 0 && (
           <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs space-y-1">
