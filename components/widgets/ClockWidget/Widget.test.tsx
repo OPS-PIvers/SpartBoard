@@ -272,6 +272,24 @@ describe('ClockWidget', () => {
     expect(commitCount).toBe(0);
   });
 
+  it('syncs the displayed minute immediately when toggling to seconds-hidden right after a minute rollover', () => {
+    vi.setSystemTime(new Date('2023-01-01T14:30:59.900'));
+
+    const { rerender } = render(
+      <ClockWidget widget={createWidget({ showSeconds: true })} />
+    );
+    expect(screen.getByText('30')).toBeInTheDocument();
+
+    // Crosses into the next minute before the toggle, but before the old
+    // 1s interval's next tick would have fired on its own.
+    vi.setSystemTime(new Date('2023-01-01T14:31:00.050'));
+    rerender(<ClockWidget widget={createWidget({ showSeconds: false })} />);
+
+    // The toggle must resync the display immediately, not leave the stale
+    // pre-toggle minute on screen until the next 60s-aligned tick.
+    expect(screen.getByText('31')).toBeInTheDocument();
+  });
+
   it('keeps the AM/PM label above the low-contrast opacity floor', () => {
     const date = new Date('2023-01-01T14:30:45');
     vi.setSystemTime(date);
