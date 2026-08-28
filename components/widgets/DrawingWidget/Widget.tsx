@@ -1591,6 +1591,7 @@ export const DrawingWidget: React.FC<{
         />
         <canvas
           ref={canvasRef}
+          data-inking-surface="true"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
