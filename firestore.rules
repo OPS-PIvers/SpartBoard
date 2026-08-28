@@ -2486,6 +2486,64 @@ service cloud.firestore {
           && plcCanEditContent(plcId);
       }
 
+      // PLC Rubric Library (M12 Phase 3-I). Unlike quizzes/video-activities,
+      // the full rubric payload is inlined (rubrics are small; no synced-group
+      // indirection). Posture mirrors the Quiz Library — any non-viewer member
+      // shares / mirror-edits / unshares; identity + attribution
+      // (id/sharedBy*/sharedAt) immutable post-create. `criteria` is a list of
+      // complex objects CEL can't deep-validate; shape locked via hasOnly([...])
+      // and interior validation is client-enforced, same as personal rubrics.
+      match /rubrics/{plcRubricId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'description', 'criteria',
+               'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && plcRubricId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.criteria is list
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.createdAt is int
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        // Update: non-viewer member mirror-edits content fields or soft-deletes
+        // via deletedAt. Identity + attribution immutable; viewers denied.
+        allow update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'description', 'criteria',
+               'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.title is string
+          && request.resource.data.criteria is list
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        // Non-viewer member can unshare (PLC-owned model); viewers denied.
+        allow delete: if request.auth != null
+          && plcCanEditContent(plcId);
+      }
+
       // PLC-authored Assignments (Phase 3). Templates any member can pick up onto
       // their board, pointing at a canonical synced_quizzes/{groupId} (content
       // lives there). Posture mirrors the Quiz Library — any member authors /
