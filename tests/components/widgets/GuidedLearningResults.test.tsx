@@ -11,6 +11,8 @@
  */
 
 import React from 'react';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import type { GuidedLearningSet } from '@/types';
@@ -179,5 +181,57 @@ describe('GuidedLearningResults.fetchSessionClassIds', () => {
     // No log, no toast on the "no class fields" case.
     expect(loggedErrors).toHaveLength(0);
     expect(addToast).not.toHaveBeenCalled();
+  });
+});
+
+describe('GuidedLearningResults front-face scaling', () => {
+  it('renders without the hardcoded-size classes the cqmin conversion removed', async () => {
+    // jsdom's CSS parser doesn't recognize the `min()` function used by
+    // every cqmin style here — React never even writes it to the style
+    // attribute in this environment, so it can't be asserted on the
+    // rendered DOM. Guard the regression the conversion actually fixes
+    // instead: none of the removed fixed-size Tailwind classes come back.
+    getDocResult = { resolves: { exists: true, data: {} } };
+    const { container } = render(
+      <GuidedLearningResults
+        set={makeSet()}
+        sessionId="s1"
+        onClose={() => undefined}
+      />
+    );
+    await waitFor(() => {
+      expect(pseudonymsHook).toHaveBeenCalled();
+    });
+
+    const classNames = Array.from(container.querySelectorAll('*'))
+      .map((el) => el.getAttribute('class') ?? '')
+      .join(' ');
+    for (const cls of [
+      'text-xs',
+      'text-sm',
+      'text-2xl',
+      'w-3',
+      'w-4',
+      'w-6',
+      'h-3',
+      'h-4',
+      'h-6',
+    ]) {
+      expect(classNames.split(/\s+/)).not.toContain(cls);
+    }
+  });
+
+  it('sizes text and icons with cqmin source, never cqh/cqw', () => {
+    const source = readFileSync(
+      resolve(
+        __dirname,
+        '../../../components/widgets/GuidedLearning/components/GuidedLearningResults.tsx'
+      ),
+      'utf8'
+    );
+    const cqminMatches = source.match(/cqmin/g) ?? [];
+    expect(cqminMatches.length).toBeGreaterThan(20);
+    expect(source).not.toMatch(/\bcqh\b/);
+    expect(source).not.toMatch(/\bcqw\b/);
   });
 });
