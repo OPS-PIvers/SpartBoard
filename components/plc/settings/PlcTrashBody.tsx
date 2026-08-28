@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BookOpen,
+  ClipboardCheck,
   Film,
   ListChecks,
   Loader2,
@@ -59,6 +60,11 @@ const TYPE_META: Record<
     labelKey: 'plcDashboard.trash.type.videoActivity',
     labelDefault: 'Video activity',
   },
+  rubric: {
+    icon: ClipboardCheck,
+    labelKey: 'plcDashboard.trash.type.rubric',
+    labelDefault: 'Rubric',
+  },
 };
 
 function formatDate(ms: number): string {
@@ -78,7 +84,7 @@ function formatDate(ms: number): string {
 /**
  * Trash view (Decision 3.1, §6.1) — lives inside Settings. Lists every
  * soft-deleted item across the PLC's content types (notes, to-dos, docs,
- * comments, quizzes, video activities) with a per-row Restore action. Restore
+ * comments, quizzes, video activities, rubrics) with a per-row Restore action. Restore
  * clears the `deletedAt` tombstone and logs an `item_restored` activity event
  * (handled by `usePlcTrash`). Items are GC'd server-side after 30 days
  * (Wave-4 `gcPlcOrphans`).

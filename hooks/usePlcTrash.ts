@@ -3,7 +3,7 @@
  * (Decision 3.1, §3.10, §6.1). Two cooperating pieces live here:
  *
  *   1. `usePlcTrash(plcId)` — subscribes directly to every member-deletable
- *      subcollection (notes, todos, docs, comments, quizzes, video_activities)
+ *      subcollection (notes, todos, docs, comments, quizzes, video_activities, rubrics)
  *      and surfaces ONLY the soft-deleted rows (`deletedAt != null`) as a single
  *      newest-deleted-first list, each carrying a `restore()` action. The normal
  *      section lists (and the `PlcProvider` slices) FILTER OUT `deletedAt != null`,
@@ -42,6 +42,7 @@ import type {
   PlcDoc,
   PlcNote,
   PlcQuizEntry,
+  PlcRubricEntry,
   PlcTodo,
   PlcVideoActivityEntry,
 } from '@/types';
@@ -52,6 +53,7 @@ import { parseTodo } from '@/hooks/usePlcTodos';
 import { parseDoc } from '@/hooks/usePlcDocs';
 import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
+import { parsePlcRubricEntry } from '@/hooks/usePlcRubrics';
 import { parseComment } from '@/hooks/usePlcComments';
 
 const PLCS_COLLECTION = 'plcs';
@@ -68,7 +70,8 @@ export type PlcTrashItemType =
   | 'doc'
   | 'comment'
   | 'quiz'
-  | 'videoActivity';
+  | 'videoActivity'
+  | 'rubric';
 
 /** One soft-deleted row, normalized across content types for the Trash list. */
 export interface PlcTrashItem {
@@ -101,6 +104,7 @@ const SUBCOLLECTION_FOR: Record<PlcTrashItemType, string> = {
   comment: 'comments',
   quiz: 'quizzes',
   videoActivity: 'video_activities',
+  rubric: 'rubrics',
 };
 
 /**
@@ -141,6 +145,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
   const [videoActivities, setVideoActivities] = useState<
     PlcVideoActivityEntry[]
   >([]);
+  const [rubrics, setRubrics] = useState<PlcRubricEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -155,6 +160,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
     setComments([]);
     setQuizzes([]);
     setVideoActivities([]);
+    setRubrics([]);
     setLoading(true);
     setError(null);
   }
@@ -165,7 +171,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       return () => clearTimeout(tmr);
     }
     let settled = 0;
-    const total = 6;
+    const total = 7;
     const markSettled = () => {
       settled += 1;
       if (settled >= total) setLoading(false);
@@ -265,6 +271,22 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       },
       onErr('videoActivities')
     );
+    const unsubRubrics = onSnapshot(
+      query(collection(db, PLCS_COLLECTION, plcId, 'rubrics')),
+      (snap) => {
+        const list: PlcRubricEntry[] = [];
+        snap.forEach((d) => {
+          const parsed = parsePlcRubricEntry(
+            d.id,
+            d.data() as Record<string, unknown>
+          );
+          if (parsed && parsed.deletedAt != null) list.push(parsed);
+        });
+        setRubrics(list);
+        markSettled();
+      },
+      onErr('rubrics')
+    );
 
     return () => {
       unsubNotes();
@@ -273,6 +295,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       unsubComments();
       unsubQuizzes();
       unsubVas();
+      unsubRubrics();
     };
   }, [plcId, user]);
 
@@ -326,10 +349,18 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
         deletedAt: va.deletedAt ?? 0,
       });
     }
+    for (const r of rubrics) {
+      merged.push({
+        id: r.id,
+        type: 'rubric',
+        title: r.title,
+        deletedAt: r.deletedAt ?? 0,
+      });
+    }
     // Newest-deleted-first.
     merged.sort((a, b) => b.deletedAt - a.deletedAt);
     return merged;
-  }, [notes, todos, docs, comments, quizzes, videoActivities]);
+  }, [notes, todos, docs, comments, quizzes, videoActivities, rubrics]);
 
   const restore = useCallback(
     async (item: PlcTrashItem): Promise<void> => {
@@ -382,6 +413,8 @@ async function restorePlcItem(
       return;
     case 'quiz':
     case 'videoActivity':
+    case 'rubric':
+      // Same write as `restoreRubricInPlc` (hooks/usePlcRubrics.ts).
       await updateDoc(ref, { deletedAt: null, updatedAt: Date.now() });
       return;
     case 'todo':

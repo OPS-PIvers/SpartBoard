@@ -229,6 +229,7 @@ const REQUIRED_TRASH_TYPE_KEYS = [
   'comment',
   'quiz',
   'videoActivity',
+  'rubric',
 ] as const;
 
 /** Keys within plcDashboard.presence (T7 who's-here strip, Decision 2.1) */
