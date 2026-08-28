@@ -111,6 +111,15 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   >([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const didAutoFocus = useRef(false);
+
+  // Move focus into the panel once on open.
+  const focusCloseButton = useCallback((el: HTMLButtonElement | null) => {
+    if (el && !didAutoFocus.current) {
+      didAutoFocus.current = true;
+      el.focus();
+    }
+  }, []);
 
   const errors = useMemo(() => validateRubric(draft), [draft]);
   const maxSum = rubricMaxPoints(draft);
@@ -202,10 +211,17 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     <aside
       className="absolute inset-y-0 right-0 w-full max-w-md bg-white border-l border-slate-200 shadow-xl z-20 flex flex-col"
       aria-label="Rubric builder"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
       <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
         <h3 className="font-bold text-slate-900 text-sm">Rubric</h3>
         <button
+          ref={focusCloseButton}
           onClick={onClose}
           aria-label="Close rubric builder"
           className="p-1 text-slate-500 hover:text-slate-900 rounded"

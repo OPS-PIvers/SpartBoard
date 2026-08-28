@@ -162,4 +162,17 @@ describe('RubricBuilderPanel', () => {
     renderPanel({ existingSnapshot: snapshot });
     expect(screen.getByText(/library copy has changed/i)).toBeInTheDocument();
   });
+
+  it('moves focus to the close button on open', () => {
+    renderPanel();
+    expect(screen.getByLabelText('Close rubric builder')).toHaveFocus();
+  });
+
+  it('closes on Escape', () => {
+    const props = renderPanel();
+    fireEvent.keyDown(screen.getByLabelText('Rubric builder'), {
+      key: 'Escape',
+    });
+    expect(props.onClose).toHaveBeenCalled();
+  });
 });

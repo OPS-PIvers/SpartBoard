@@ -6,7 +6,7 @@
  * through the controller object the modal hands them.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   AlertCircle,
   GripVertical,
@@ -355,17 +355,27 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
   const { user } = useAuth();
   const [showRubricBuilder, setShowRubricBuilder] = useState(false);
-  // Manual points held aside while a rubric owns the question's points.
-  const [manualPointsBeforeRubric, setManualPointsBeforeRubric] = useState<
-    number | null
-  >(null);
+  // Manual points held aside per question while a rubric owns its points.
+  const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
+
+  // Adjusting state while rendering: close the builder when the selection moves.
+  const [lastSelectedId, setLastSelectedId] = useState(selectedQuestionId);
+  if (lastSelectedId !== selectedQuestionId) {
+    setLastSelectedId(selectedQuestionId);
+    setShowRubricBuilder(false);
+  }
+
+  const selectedHasRubric = !!selectedQuestion?.rubricSnapshot;
 
   const handleAttachRubric = useCallback(
     (rubric: Rubric, rubricId?: string) => {
       if (!selectedQuestionId) return;
-      setManualPointsBeforeRubric(
-        (prev) => prev ?? selectedQuestion?.points ?? 1
-      );
+      if (!selectedHasRubric) {
+        manualPointsByQuestion.current.set(
+          selectedQuestionId,
+          selectedQuestion?.points ?? 1
+        );
+      }
       updateQuestion(selectedQuestionId, {
         rubricId: rubricId ?? rubric.id,
         rubricSnapshot: rubric,
@@ -373,24 +383,26 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       });
       setShowRubricBuilder(false);
     },
-    [selectedQuestionId, selectedQuestion?.points, updateQuestion]
+    [
+      selectedQuestionId,
+      selectedHasRubric,
+      selectedQuestion?.points,
+      updateQuestion,
+    ]
   );
 
   const handleDetachRubric = useCallback(() => {
     if (!selectedQuestionId) return;
+    // No stash (rubric attached in an earlier session) — keep current points.
+    const stashed = manualPointsByQuestion.current.get(selectedQuestionId);
     updateQuestion(selectedQuestionId, {
       rubricId: undefined,
       rubricSnapshot: undefined,
-      points: manualPointsBeforeRubric ?? selectedQuestion?.points ?? 1,
+      points: stashed ?? selectedQuestion?.points ?? 1,
     });
-    setManualPointsBeforeRubric(null);
+    manualPointsByQuestion.current.delete(selectedQuestionId);
     setShowRubricBuilder(false);
-  }, [
-    selectedQuestionId,
-    manualPointsBeforeRubric,
-    selectedQuestion?.points,
-    updateQuestion,
-  ]);
+  }, [selectedQuestionId, selectedQuestion?.points, updateQuestion]);
 
   if (!selectedQuestion) {
     return (
@@ -492,11 +504,10 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               min={1}
               max={100}
               value={q.points ?? 1}
+              aria-label="Points"
               disabled={!!q.rubricSnapshot}
-              title={
-                q.rubricSnapshot
-                  ? 'Points come from the attached rubric.'
-                  : undefined
+              aria-describedby={
+                q.rubricSnapshot ? 'question-points-rubric-hint' : undefined
               }
               onChange={(e) =>
                 updateQuestion(q.id, {
@@ -508,6 +519,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               }
               className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-600`}
             />
+            {q.rubricSnapshot && (
+              <p
+                id="question-points-rubric-hint"
+                className="mt-1 text-xs text-slate-600"
+              >
+                Points come from the attached rubric.
+              </p>
+            )}
           </div>
         </div>
 
