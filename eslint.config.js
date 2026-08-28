@@ -241,5 +241,40 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // D4 (Import Path Convention) enforcement: a file under
+    // components/widgets/QuizWidget/components/<subdir>/ must not reach
+    // across into a SIBLING components/<subdir>/ (monitor, present) via a
+    // relative import — use the
+    // `@/components/widgets/QuizWidget/components/<dir>/...` alias instead.
+    // Same recurring cross-subdirectory-relative-import bug class already
+    // guarded above for components/plc/**, components/widgets/** (math-tools),
+    // and components/admin/Organization/views/**; found here twice in
+    // consecutive nightly runs — the `monitor/` -> `../../utils/...` escape
+    // (run 68, left unenforced as an isolated one-off) and now a two-way
+    // `monitor/` <-> `present/` escape (this run), once the Present-mode
+    // rebuild added the `present/` subdirectory as a sibling of `monitor/`.
+    // Deliberately scoped to `components/` (not all of QuizWidget/) so it
+    // does NOT flag the pre-existing, already-catalogued D4-E2 gray-zone
+    // `'../utils/...'` import in `components/QuizResults.tsx` (a direct
+    // child of `components/` reaching its immediate parent's `utils/`
+    // sibling, not a subdir-to-subdir escape).
+    files: ['components/widgets/QuizWidget/components/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(\\.\\./)+(monitor|present)(/.*)?$',
+              caseSensitive: true,
+              message:
+                "Cross-subdirectory QuizWidget import — use '@/components/widgets/QuizWidget/components/<dir>/...' instead of a relative path that escapes this subdirectory (see D4 in docs/routines/unifier.md).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig
 );
