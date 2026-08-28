@@ -32,7 +32,7 @@ export interface UseRubricsResult {
   saveRubric: (rubric: Rubric) => Promise<void>;
   deleteRubric: (rubricId: string) => Promise<void>;
   shareRubric: (rubricId: string) => Promise<string>;
-  importSharedRubric: (shareId: string) => Promise<void>;
+  importSharedRubric: (shareId: string) => Promise<Rubric>;
 }
 
 export const useRubrics = (userId: string | undefined): UseRubricsResult => {
@@ -115,7 +115,7 @@ export const useRubrics = (userId: string | undefined): UseRubricsResult => {
   );
 
   const importSharedRubric = useCallback(
-    async (shareId: string): Promise<void> => {
+    async (shareId: string): Promise<Rubric> => {
       if (!userId) throw new Error('Not authenticated');
       const snap = await getDoc(doc(db, SHARED_RUBRICS_COLLECTION, shareId));
       if (!snap.exists()) throw new Error('Shared rubric not found');
@@ -136,6 +136,7 @@ export const useRubrics = (userId: string | undefined): UseRubricsResult => {
         doc(db, 'users', userId, RUBRICS_COLLECTION, imported.id),
         imported
       );
+      return imported;
     },
     [userId]
   );

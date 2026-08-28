@@ -336,6 +336,8 @@ const { dashboardValue } = vi.hoisted(() => {
     stopSharingDashboard: asyncNoop,
     isActiveBoardReadOnly: false,
     drawingWidgetsMigrating: new Set<string>(),
+    pendingRubricShareId: null,
+    clearPendingRubricShare: noop,
     pendingQuizShareId: null,
     clearPendingQuizShare: noop,
     pendingAssignmentShareId: null,

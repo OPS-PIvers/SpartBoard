@@ -25,6 +25,8 @@ const LIBRARY_RUBRIC: Rubric = {
 };
 
 const showConfirm = vi.fn();
+const shareRubric = vi.fn();
+const importSharedRubric = vi.fn();
 
 vi.mock('@/hooks/useRubrics', () => ({
   useRubrics: () => ({
@@ -33,8 +35,8 @@ vi.mock('@/hooks/useRubrics', () => ({
     error: null,
     saveRubric: vi.fn().mockResolvedValue(undefined),
     deleteRubric: vi.fn(),
-    shareRubric: vi.fn(),
-    importSharedRubric: vi.fn(),
+    shareRubric,
+    importSharedRubric,
   }),
 }));
 
@@ -84,6 +86,11 @@ describe('RubricBuilderPanel — destructive-load guards', () => {
   beforeEach(() => {
     showConfirm.mockReset();
     showConfirm.mockResolvedValue(true);
+    shareRubric.mockReset();
+    importSharedRubric.mockReset();
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
   });
 
   it('loads a library rubric without prompting when the draft is untouched', async () => {
@@ -151,5 +158,144 @@ describe('RubricBuilderPanel — destructive-load guards', () => {
     importCsv();
 
     await waitFor(() => expect(titleInput().value).toBe('Imported Rubric'));
+  });
+});
+
+describe('RubricBuilderPanel — link sharing', () => {
+  beforeEach(() => {
+    showConfirm.mockReset();
+    showConfirm.mockResolvedValue(true);
+    shareRubric.mockReset();
+    importSharedRubric.mockReset();
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+  });
+
+  it('shares a library rubric and displays the returned code as a link', async () => {
+    shareRubric.mockResolvedValue('share-abc');
+    open(LIBRARY_RUBRIC);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+
+    expect(shareRubric).toHaveBeenCalledWith(LIBRARY_RUBRIC.id);
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText<HTMLInputElement>('Rubric share link').value
+      ).toContain('/share/rubric/share-abc')
+    );
+  });
+
+  it('disables sharing a draft that has not been saved to the library', () => {
+    open();
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled();
+  });
+
+  it('shows an error when sharing fails', async () => {
+    shareRubric.mockRejectedValue(new Error('Not authenticated'));
+    open(LIBRARY_RUBRIC);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Not authenticated')).toBeInTheDocument()
+    );
+  });
+
+  it('imports a rubric from a pasted share code', async () => {
+    importSharedRubric.mockResolvedValue(undefined);
+    open();
+
+    fireEvent.change(screen.getByLabelText('Rubric share code or link'), {
+      target: { value: 'share-xyz' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Import shared rubric' })
+    );
+
+    await waitFor(() =>
+      expect(importSharedRubric).toHaveBeenCalledWith('share-xyz')
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText('Rubric imported into your library.')
+      ).toBeInTheDocument()
+    );
+  });
+
+  it('extracts the share id from a pasted URL', async () => {
+    importSharedRubric.mockResolvedValue(undefined);
+    open();
+
+    fireEvent.change(screen.getByLabelText('Rubric share code or link'), {
+      target: { value: 'https://spartboard.web.app/share/rubric/share-xyz' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Import shared rubric' })
+    );
+
+    await waitFor(() =>
+      expect(importSharedRubric).toHaveBeenCalledWith('share-xyz')
+    );
+  });
+
+  it('disables sharing while the draft diverges from the saved library copy', () => {
+    open(LIBRARY_RUBRIC);
+    fireEvent.change(titleInput(), { target: { value: 'Edited title' } });
+
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled();
+    expect(
+      screen.getByText('Save to library before sharing.')
+    ).toBeInTheDocument();
+  });
+
+  it('clears share state when another library rubric is loaded', async () => {
+    shareRubric.mockResolvedValue('share-abc');
+    open(LIBRARY_RUBRIC);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Rubric share link')).toBeInTheDocument()
+    );
+
+    fireEvent.change(screen.getByLabelText('Library'), {
+      target: { value: '' },
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Rubric share link')).toBeNull()
+    );
+  });
+
+  it('extracts the share id from a scheme-less pasted URL', async () => {
+    importSharedRubric.mockResolvedValue(undefined);
+    open();
+
+    fireEvent.change(screen.getByLabelText('Rubric share code or link'), {
+      target: { value: 'spartboard.web.app/share/rubric/share-xyz' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Import shared rubric' })
+    );
+
+    await waitFor(() =>
+      expect(importSharedRubric).toHaveBeenCalledWith('share-xyz')
+    );
+  });
+
+  it('shows an error when import fails', async () => {
+    importSharedRubric.mockRejectedValue(new Error('Shared rubric not found'));
+    open();
+
+    fireEvent.change(screen.getByLabelText('Rubric share code or link'), {
+      target: { value: 'bad-code' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Import shared rubric' })
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Shared rubric not found')).toBeInTheDocument()
+    );
   });
 });

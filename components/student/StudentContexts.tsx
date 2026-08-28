@@ -286,6 +286,10 @@ const mockDashboard: DashboardContextValue = {
   },
   isActiveBoardReadOnly: false,
   drawingWidgetsMigrating: new Set<string>(),
+  pendingRubricShareId: null,
+  clearPendingRubricShare: () => {
+    // No-op
+  },
   pendingQuizShareId: null,
   clearPendingQuizShare: () => {
     // No-op
