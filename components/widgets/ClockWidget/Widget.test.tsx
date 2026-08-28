@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import React, { Profiler } from 'react';
+import { Profiler } from 'react';
 import type { ProfilerOnRenderCallback } from 'react';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
