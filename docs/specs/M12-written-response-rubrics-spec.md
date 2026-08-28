@@ -1,6 +1,6 @@
 # M12 — Written-response Phase 3: Rubric-based Grading
 
-**Status:** Implementation spec — ready to build  
+**Status:** Implementation spec — decisions locked 2026-08-27 (see §3a), building  
 **Author:** Architect review of dev-paul codebase  
 **Scope:** Phase 3 of docs/written-response-quiz-questions.md — rubric data model, builder UI, grader integration, Firestore collection + rules, CSV export of rubric scores, and PLC sharing of rubrics  
 **Date:** 2026-06-25
@@ -46,7 +46,21 @@ The **personal rubric library** (`/users/{teacherUid}/rubrics/`) remains the aut
 
 ---
 
-## 3. Open decisions (need Paul)
+## 3a. Decisions locked (Paul, 2026-08-27)
+
+The three open decisions below are resolved, plus six further decisions from the same grilling session:
+
+1. **OD-1 → Option A.** Builder is an in-editor slide-over on the written question; library management lives in the same panel.
+2. **OD-2 → Option A.** Rubric level selections auto-fill `pointsAwarded`; the points field stays editable for overrides.
+3. **OD-3 → Option B, now.** Full PLC integration in this phase — a new `/plcs/{plcId}/rubrics` subcollection, a Rubrics tab in the PLC library, and rubric shares counted in `plcContributions` with parity to other resource types. The link-based `shared_rubrics` flow from §2 ships too (it underpins colleague-to-colleague sharing outside a PLC), but the phase is not done until the PLC tab lands.
+4. **Rubric total becomes the question's max points.** Attaching a rubric makes the criteria max-sum the question's authoritative `points`; detaching restores the manual points field. This supersedes Risk 3's "warn and offer to sync" — there is nothing to sync; the builder writes `points` on attach/detach. The grader still clamps.
+5. **Structure confirmed:** criteria × levels grid (as spec'd). Scope confirmed: per-question attach from a reusable personal library, copy-on-attach snapshot (as spec'd §2).
+6. **Students see the rubric before and after.** The student quiz view renders the attached rubric alongside the written question while answering; published results show the scored rubric (selected levels + points per criterion).
+7. **`GradeResult.state` interleaves into this effort.** Per RR-06 (rich-response wayfinder), `GradeResult` gains a required `state: 'scored' | 'awaiting-grade' | 'not-attempted'`; `awaiting-grade` responses are omitted from gradebook/Classroom push (fixing the ungraded-essay-pushes-0 defect). The rest of RR Phase 2 stays on its own track.
+8. **Partial rubric scores save as provisional.** A grade with some criteria unscored persists, and the response stays `awaiting-grade` (always visibly marked, per RR-06) until every criterion has a level. Auto-fill of `pointsAwarded` happens only when all criteria are scored; a partial save stores `rubricScores` without finalizing.
+9. **Deferred:** per-slot grade keying (`{qid}::{slot}`) waits for the audio track; Phase 4 AI-assisted grading stays deferred.
+
+## 3. Open decisions (RESOLVED — see §3a; original analysis retained below)
 
 ### OD-1: Where does the rubric builder UI live?
 
@@ -640,6 +654,26 @@ Recipient pastes rubric share link/code
 - [ ] Add "Share rubric" button + copyable link/code to `RubricBuilderPanel`
 - [ ] Add "Import from link" entry point in `RubricBuilderPanel` library list (or in a thin `RubricImportModal`)
 - [ ] Wire `useRubrics.shareRubric` and `useRubrics.importSharedRubric`
+- [ ] Run `pnpm run validate`
+
+### Phase 3-G — `GradeResult.state` (interleaved from RR-06; own PR)
+
+- [ ] Add required `state: 'scored' | 'awaiting-grade' | 'not-attempted'` to `GradeResult`; let the compiler walk all consumers
+- [ ] Written question with no manual grade → `awaiting-grade` (not `pointsEarned: 0` masquerading as scored)
+- [ ] `awaiting-grade` omitted from Classroom push (`classroomGradePush.ts`) and archive publish — fixes ungraded-essay-pushes-0
+- [ ] Provisional marking anywhere a partially-graded score displays (monitor, results, export, student view)
+- [ ] Partial-rubric save keeps the slot `awaiting-grade` (decision 8)
+
+### Phase 3-H — Student-facing rubric views (decision 6)
+
+- [ ] Student quiz view: render `question.rubricSnapshot` (criteria + level descriptors) alongside the written question while answering
+- [ ] Published results: scored rubric (selected level + points per criterion) in the student results view, provisional-marked when `awaiting-grade`
+
+### Phase 3-I — PLC integration (decision 3)
+
+- [ ] `/plcs/{plcId}/rubrics/{id}` subcollection + rules (mirror PLC quizzes pattern) + rules tests
+- [ ] Rubrics tab in the PLC library UI; share-to-PLC from `RubricBuilderPanel`; import-from-PLC to personal library
+- [ ] Count rubric shares in `plcContributions` with parity to other resource types
 - [ ] Run `pnpm run validate`
 
 ---
