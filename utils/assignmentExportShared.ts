@@ -171,18 +171,26 @@ export function buildResultsSheetData<
       if (!ans) continue;
       grades.set(q.id, gradeFn(q, ans.answer, r));
     }
+    // An `awaiting-grade` slot's 0 is a placeholder, not a score. Render the
+    // cell as "Ungraded" (distinct from an unanswered question's blank) and
+    // flag the row total as provisional so nobody reads the deflated
+    // percentage as the student's final grade.
     const answerCols = questions.map((q) => {
       const grade = grades.get(q.id);
       if (!grade) return '';
+      if (grade.state === 'awaiting-grade') return 'Ungraded';
       return formatExportPoints(grade.pointsEarned);
     });
+    const awaitingGrade = questions.some(
+      (q) => grades.get(q.id)?.state === 'awaiting-grade'
+    );
     const earnedPoints = questions.reduce((sum, q) => {
       const grade = grades.get(q.id);
       return grade ? sum + grade.pointsEarned : sum;
     }, 0);
     const scoreDisplay =
       r.status === 'completed' && maxPoints > 0
-        ? `${Math.round((earnedPoints / maxPoints) * 100)}%`
+        ? `${Math.round((earnedPoints / maxPoints) * 100)}%${awaitingGrade ? ' (provisional)' : ''}`
         : '';
     return [
       timestamp,

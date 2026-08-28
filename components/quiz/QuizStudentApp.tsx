@@ -3370,6 +3370,20 @@ const PublishedScoreReview: React.FC<{
   const correctCount = myResponse.answers.filter(
     (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
+  // A written answer with no grade entry is still owed a teacher grade, so any
+  // score shown here is provisional (M12 decision 8 / RR-06). Detected from the
+  // student's own response — no answer key is exposed to this view.
+  const writtenQuestionIds = new Set(
+    publicQuestions
+      .filter((q) => isWrittenQuestionType(q.type))
+      .map((q) => q.id)
+  );
+  const awaitingGrade = myResponse.answers.some(
+    (a) =>
+      writtenQuestionIds.has(a.questionId) &&
+      (a.answer ?? '').trim().length > 0 &&
+      !myResponse.grading?.[a.questionId]
+  );
 
   // Watermark overlay — rendered above content via fixed positioning, below
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
@@ -3538,10 +3552,18 @@ const PublishedScoreReview: React.FC<{
                   {correctCount} of {autoGradedCount} fully correct
                 </p>
               )}
+              {awaitingGrade && (
+                <p className={`mt-2 text-sm font-semibold ${prepText}`}>
+                  Provisional — your written response is still being graded, so
+                  this score will change.
+                </p>
+              )}
             </>
           ) : (
             <p className={`text-sm ${prepText}`}>
-              Your score is being prepared. Check back soon.
+              {awaitingGrade
+                ? 'Your written response is still being graded. Check back soon.'
+                : 'Your score is being prepared. Check back soon.'}
             </p>
           )}
         </section>

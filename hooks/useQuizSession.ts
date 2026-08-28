@@ -391,6 +391,39 @@ function longestOrderedSubsequenceLength(
   return tails.length;
 }
 
+/**
+ * True when `grade` carries rubric selections that don't yet cover every
+ * criterion in the question's snapshot — a provisional save (M12 decision 8).
+ * A grade with no `rubricScores` at all is a plain manual score, not partial.
+ */
+function isPartialRubricGrade(
+  question: QuizQuestion,
+  grade: import('@/types').WrittenAnswerGrade
+): boolean {
+  const criteria = question.rubricSnapshot?.criteria;
+  if (!criteria || criteria.length === 0) return false;
+  const scores = grade.rubricScores;
+  if (!scores || scores.length === 0) return false;
+  const scoredIds = new Set(scores.map((s) => s.criterionId));
+  return criteria.some((c) => !scoredIds.has(c.id));
+}
+
+/**
+ * True when the submission holds something to grade. Written answers arrive as
+ * rich-text HTML, so an untouched editor submits markup (`<p><br></p>`) that a
+ * bare `.trim()` would read as an attempt; strip tags and entities first. A
+ * cheap regex rather than `htmlToPlainText` — this runs once per answer per
+ * response across whole-class grading loops.
+ */
+function hasSubmittedContent(studentAnswer: string): boolean {
+  return (
+    (studentAnswer ?? '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .trim().length > 0
+  );
+}
+
 export function gradeAnswer(
   question: QuizQuestion,
   studentAnswer: string,
@@ -403,29 +436,45 @@ export function gradeAnswer(
 ): GradeResult {
   const max = question.points ?? 1;
   const partial = question.allowPartialCredit === true;
+  // Blank submissions are a genuine 0, not something still owed a grade.
+  const attempted = hasSubmittedContent(studentAnswer);
 
-  // Written question types are graded manually by the teacher. If no
-  // grade has been entered yet, the answer is reported as "not yet
-  // graded" — zero points awarded, isCorrect=false — so downstream stats
-  // (which weight by isCorrect) don't credit ungraded essays as correct.
+  // Written question types are graded manually by the teacher. Until a grade
+  // exists the slot is `awaiting-grade`: `pointsEarned: 0` is a placeholder,
+  // and callers must not publish or push it as a real score.
   if (question.type === 'short' || question.type === 'essay') {
     if (!manualGrade) {
-      return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: attempted ? 'awaiting-grade' : 'not-attempted',
+      };
     }
     const awarded = Math.min(max, Math.max(0, manualGrade.pointsAwarded));
     return {
       isCorrect: awarded === max && max > 0,
       pointsEarned: awarded,
       pointsMax: max,
+      // A partial rubric save persists its points but stays provisional.
+      state: isPartialRubricGrade(question, manualGrade)
+        ? 'awaiting-grade'
+        : 'scored',
     };
   }
 
+  const state: GradeResult['state'] = attempted ? 'scored' : 'not-attempted';
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
 
   if (question.type === 'MC' || question.type === 'FIB') {
     const isCorrect = correct === given;
-    return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+    return {
+      isCorrect,
+      pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state,
+    };
   }
   if (question.type === 'Matching') {
     const correctPairs = correct.split('|').map(normalizeAnswer);
@@ -466,6 +515,7 @@ export function gradeAnswer(
         isCorrect: strictCorrect,
         pointsEarned: strictCorrect ? max : 0,
         pointsMax: max,
+        state,
       };
     }
     const pointsEarned = total === 0 ? 0 : (matched / total) * max;
@@ -483,12 +533,17 @@ export function gradeAnswer(
     // a 0-point question (where `0 >= 0` would otherwise mark every answer
     // correct) and avoids floating-point comparison entirely.
     const isCorrect = matched === total;
-    return { isCorrect, pointsEarned, pointsMax: max };
+    return { isCorrect, pointsEarned, pointsMax: max, state };
   }
   if (question.type === 'Ordering') {
     const isCorrect = correct === given;
     if (!partial) {
-      return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+      return {
+        isCorrect,
+        pointsEarned: isCorrect ? max : 0,
+        pointsMax: max,
+        state,
+      };
     }
     const correctItems = question.correctAnswer.split('|');
     const givenItems = studentAnswer.split('|');
@@ -497,9 +552,9 @@ export function gradeAnswer(
       correctItems.length === 0 ? 0 : (lis / correctItems.length) * max;
     // isCorrect must share pointsEarned's lis-based formula, not the strict whole-string equality above.
     const partialIsCorrect = lis === correctItems.length;
-    return { isCorrect: partialIsCorrect, pointsEarned, pointsMax: max };
+    return { isCorrect: partialIsCorrect, pointsEarned, pointsMax: max, state };
   }
-  return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+  return { isCorrect: false, pointsEarned: 0, pointsMax: max, state };
 }
 
 /**

@@ -218,6 +218,41 @@ export function canScoreResponse(
 }
 
 /**
+ * Whether any of the response's answered questions is still awaiting a teacher
+ * grade — an ungraded written response, or a rubric with criteria left unscored
+ * (M12 decision 8).
+ *
+ * Such a response's total is PROVISIONAL: `getEarnedPoints` counts the ungraded
+ * slot as 0, so the displayed score understates what the student will end up
+ * with. Gradebook pushes must omit these responses entirely (a phantom 0 in a
+ * real gradebook is persistent and hard to notice), and every surface that
+ * renders the score must mark it.
+ *
+ * Unanswered written questions do NOT count — a blank is a genuine 0, not
+ * something the teacher still owes a grade for.
+ */
+export function isResponseAwaitingGrade(
+  r: QuizResponse,
+  questions: QuizQuestion[]
+): boolean {
+  const qMap = new Map(questions.map((q) => [q.id, q]));
+  // Dedup by questionId to mirror getEarnedPoints's arrayUnion-race guard.
+  const seen = new Set<string>();
+  for (const ans of r.answers ?? []) {
+    const q = qMap.get(ans.questionId);
+    if (!q) continue;
+    if (seen.has(ans.questionId)) continue;
+    seen.add(ans.questionId);
+    const manualGrade =
+      q.type === 'short' || q.type === 'essay' ? r.grading?.[q.id] : undefined;
+    if (gradeAnswer(q, ans.answer, manualGrade).state === 'awaiting-grade') {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Composite-key separator used by `buildPinToNameMap` /
  * `buildPinToExportNameMap`. Map keys are `${classPeriod}${PIN_KEY_SEP}${pin}`
  * so that the same PIN in two different rosters resolves to two different

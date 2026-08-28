@@ -23,18 +23,24 @@ const grade = (
 });
 
 describe('gradeAnswer — written types', () => {
-  it('returns ungraded (0 points, isCorrect=false) when no manual grade exists for an essay', () => {
+  it('returns awaiting-grade (0 points, isCorrect=false) when no manual grade exists for an essay', () => {
     const result = gradeAnswer(q({ type: 'essay', points: 10 }), '<p>...</p>');
     expect(result).toEqual({
       isCorrect: false,
       pointsEarned: 0,
       pointsMax: 10,
+      state: 'awaiting-grade',
     });
   });
 
-  it('returns ungraded when no manual grade exists for a short-answer', () => {
+  it('returns awaiting-grade when no manual grade exists for a short-answer', () => {
     const result = gradeAnswer(q({ type: 'short', points: 5 }), 'my answer');
-    expect(result).toEqual({ isCorrect: false, pointsEarned: 0, pointsMax: 5 });
+    expect(result).toEqual({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 5,
+      state: 'awaiting-grade',
+    });
   });
 
   it('returns awarded points when a manual grade is supplied', () => {
@@ -96,6 +102,109 @@ describe('gradeAnswer — written types', () => {
     );
     expect(result.isCorrect).toBe(true);
     expect(result.pointsEarned).toBe(2);
+  });
+});
+
+describe('gradeAnswer — GradeResult.state (M12 3-G)', () => {
+  const rubricQ = (criterionIds: string[]): QuizQuestion =>
+    q({
+      type: 'essay',
+      points: 6,
+      rubricSnapshot: {
+        id: 'rub-1',
+        title: 'DBQ',
+        criteria: criterionIds.map((id) => ({
+          id,
+          name: id,
+          levels: [
+            { id: `${id}-lo`, label: 'Below', points: 0 },
+            { id: `${id}-hi`, label: 'Meets', points: 3 },
+          ],
+        })),
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    });
+
+  it("a blank written answer with no grade is 'not-attempted', not 'awaiting-grade'", () => {
+    expect(gradeAnswer(q({ type: 'essay' }), '').state).toBe('not-attempted');
+    expect(gradeAnswer(q({ type: 'short' }), '   ').state).toBe(
+      'not-attempted'
+    );
+  });
+
+  it("an untouched rich-text editor ('<p><br></p>') is 'not-attempted'", () => {
+    // A bare .trim() would read the markup as an attempt and block the whole
+    // response from the gradebook push forever.
+    expect(gradeAnswer(q({ type: 'essay' }), '<p><br></p>').state).toBe(
+      'not-attempted'
+    );
+    expect(gradeAnswer(q({ type: 'essay' }), '<p>&nbsp;</p>').state).toBe(
+      'not-attempted'
+    );
+    expect(gradeAnswer(q({ type: 'essay' }), '<p>Real text</p>').state).toBe(
+      'awaiting-grade'
+    );
+  });
+
+  it("a saved manual grade makes a written slot 'scored'", () => {
+    const result = gradeAnswer(
+      q({ type: 'essay', points: 10 }),
+      '<p>...</p>',
+      grade({ pointsAwarded: 7 })
+    );
+    expect(result.state).toBe('scored');
+  });
+
+  it("an answered auto-graded question is 'scored' whether right or wrong", () => {
+    const mc = q({ type: 'MC', correctAnswer: 'A', points: 2 });
+    expect(gradeAnswer(mc, 'A').state).toBe('scored');
+    expect(gradeAnswer(mc, 'B').state).toBe('scored');
+  });
+
+  it("a blank auto-graded answer is 'not-attempted'", () => {
+    expect(
+      gradeAnswer(q({ type: 'MC', correctAnswer: 'A', points: 2 }), '').state
+    ).toBe('not-attempted');
+  });
+
+  it("a partial rubric grade stays 'awaiting-grade' even with points awarded", () => {
+    const result = gradeAnswer(
+      rubricQ(['c1', 'c2']),
+      'my essay',
+      grade({
+        pointsAwarded: 3,
+        rubricScores: [{ criterionId: 'c1', levelId: 'c1-hi', points: 3 }],
+      })
+    );
+    expect(result.state).toBe('awaiting-grade');
+    // The points still persist — a partial save is stored, not discarded.
+    expect(result.pointsEarned).toBe(3);
+  });
+
+  it("a rubric grade covering every criterion is 'scored'", () => {
+    const result = gradeAnswer(
+      rubricQ(['c1', 'c2']),
+      'my essay',
+      grade({
+        pointsAwarded: 6,
+        rubricScores: [
+          { criterionId: 'c1', levelId: 'c1-hi', points: 3 },
+          { criterionId: 'c2', levelId: 'c2-hi', points: 3 },
+        ],
+      })
+    );
+    expect(result.state).toBe('scored');
+    expect(result.pointsEarned).toBe(6);
+  });
+
+  it("a manual points override with no rubricScores is 'scored', not partial", () => {
+    const result = gradeAnswer(
+      rubricQ(['c1', 'c2']),
+      'my essay',
+      grade({ pointsAwarded: 5 })
+    );
+    expect(result.state).toBe('scored');
   });
 });
 

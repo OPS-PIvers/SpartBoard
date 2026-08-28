@@ -462,7 +462,16 @@ export const RosterList: React.FC<RosterListProps> = ({
               {showScores &&
                 (s.displayScore != null ? (
                   <span
-                    className="rounded-full bg-brand-blue-lighter text-brand-blue-dark font-sans font-semibold tabular-nums"
+                    className={`rounded-full font-sans font-semibold tabular-nums ${
+                      s.awaitingGrade
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-brand-blue-lighter text-brand-blue-dark'
+                    }`}
+                    title={
+                      s.awaitingGrade
+                        ? 'Provisional — a written response is still ungraded, so this total will change.'
+                        : undefined
+                    }
                     style={{
                       fontSize: 'min(11px, 3.8cqmin)',
                       padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
@@ -470,6 +479,9 @@ export const RosterList: React.FC<RosterListProps> = ({
                   >
                     {s.displayScore}
                     {isGamified ? ' pts' : '%'}
+                    {s.awaitingGrade && (
+                      <span aria-label="provisional, not fully graded">*</span>
+                    )}
                   </span>
                 ) : (
                   <span
