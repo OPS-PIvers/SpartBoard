@@ -33,6 +33,7 @@ import {
   clampPan,
   clampWidgetToWorld,
   computeCursorAnchoredPan,
+  viewportToWrapper,
 } from '@/utils/zoomPanMath';
 import {
   AlertCircle,
@@ -1103,6 +1104,17 @@ export const DashboardView: React.FC = () => {
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    // The widget surface renders inside a translate()-then-scale() camera
+    // (see the "ZOOMABLE WIDGET SURFACE" transform below), so a raw
+    // e.clientX/clientY is a SCREEN point, not the board-space coordinate
+    // widgets are positioned in. Without unprojecting through the current
+    // zoom/pan, anything dropped while zoomed or panned lands away from the
+    // cursor. dropPoint() is the shared conversion for every drop branch below.
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const dropPoint = (clientX: number, clientY: number) =>
+      viewportToWrapper({ x: clientX, y: clientY }, zoom, panOffset, vw, vh);
+
     // Handle PDF files dragged from the filesystem
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
@@ -1115,8 +1127,9 @@ export const DashboardView: React.FC = () => {
         }
         const w = 600;
         const h = 750;
-        const dropX = Math.max(0, e.clientX - w / 2);
-        const dropY = Math.max(0, e.clientY - h / 2);
+        const boardPoint = dropPoint(e.clientX, e.clientY);
+        const dropX = Math.max(0, boardPoint.x - w / 2);
+        const dropY = Math.max(0, boardPoint.y - h / 2);
         addToast(t('sidebar.header.syncingChanges'), 'info');
         void (async () => {
           try {
@@ -1158,15 +1171,12 @@ export const DashboardView: React.FC = () => {
         ) as SpartStickerDropPayload;
         const w = 150;
         const h = 150;
-        const fallbackClientX =
-          typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
-        const fallbackClientY =
-          typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
-        const clientX = e.clientX ?? fallbackClientX;
-        const clientY = e.clientY ?? fallbackClientY;
+        const clientX = e.clientX ?? vw / 2;
+        const clientY = e.clientY ?? vh / 2;
+        const boardPoint = dropPoint(clientX, clientY);
 
-        const x = clientX - w / 2;
-        const y = clientY - h / 2;
+        const x = boardPoint.x - w / 2;
+        const y = boardPoint.y - h / 2;
 
         addWidget('sticker', {
           x,
@@ -1219,15 +1229,12 @@ export const DashboardView: React.FC = () => {
           w = baseSize * ratio;
         }
 
-        const fallbackClientX =
-          typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
-        const fallbackClientY =
-          typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
-        const clientX = e.clientX ?? fallbackClientX;
-        const clientY = e.clientY ?? fallbackClientY;
+        const clientX = e.clientX ?? vw / 2;
+        const clientY = e.clientY ?? vh / 2;
+        const boardPoint = dropPoint(clientX, clientY);
 
-        const x = clientX - w / 2;
-        const y = clientY - h / 2;
+        const x = boardPoint.x - w / 2;
+        const y = boardPoint.y - h / 2;
 
         addWidget('sticker', {
           x,
