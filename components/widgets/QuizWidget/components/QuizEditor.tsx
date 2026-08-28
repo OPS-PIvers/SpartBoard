@@ -6,7 +6,7 @@
  * through the controller object the modal hands them.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   AlertCircle,
   GripVertical,
@@ -15,7 +15,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { LibraryFolder, QuizQuestion, QuizQuestionType } from '@/types';
+import { LibraryFolder, QuizQuestion, QuizQuestionType, Rubric } from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -26,6 +26,8 @@ import {
   OrderingAnswerEditor,
 } from './MatchingOrderingEditor';
 import { QuestionStimulusSection } from './StimulusManagerPanel';
+import { RubricBuilderPanel } from './RubricBuilderPanel';
+import { rubricMaxPoints } from '@/utils/rubricPoints';
 import type { QuizEditorController } from './useQuizEditorState';
 
 interface PaneProps {
@@ -351,6 +353,57 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     [selectedQuestionId, updateQuestion]
   );
 
+  const { user } = useAuth();
+  const [showRubricBuilder, setShowRubricBuilder] = useState(false);
+  // Manual points held aside per question while a rubric owns its points.
+  const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
+
+  // Adjusting state while rendering: close the builder when the selection moves.
+  const [lastSelectedId, setLastSelectedId] = useState(selectedQuestionId);
+  if (lastSelectedId !== selectedQuestionId) {
+    setLastSelectedId(selectedQuestionId);
+    setShowRubricBuilder(false);
+  }
+
+  const selectedHasRubric = !!selectedQuestion?.rubricSnapshot;
+
+  const handleAttachRubric = useCallback(
+    (rubric: Rubric, rubricId?: string) => {
+      if (!selectedQuestionId) return;
+      if (!selectedHasRubric) {
+        manualPointsByQuestion.current.set(
+          selectedQuestionId,
+          selectedQuestion?.points ?? 1
+        );
+      }
+      updateQuestion(selectedQuestionId, {
+        rubricId: rubricId ?? rubric.id,
+        rubricSnapshot: rubric,
+        points: rubricMaxPoints(rubric),
+      });
+      setShowRubricBuilder(false);
+    },
+    [
+      selectedQuestionId,
+      selectedHasRubric,
+      selectedQuestion?.points,
+      updateQuestion,
+    ]
+  );
+
+  const handleDetachRubric = useCallback(() => {
+    if (!selectedQuestionId) return;
+    // No stash (rubric attached in an earlier session) — keep current points.
+    const stashed = manualPointsByQuestion.current.get(selectedQuestionId);
+    updateQuestion(selectedQuestionId, {
+      rubricId: undefined,
+      rubricSnapshot: undefined,
+      points: stashed ?? selectedQuestion?.points ?? 1,
+    });
+    manualPointsByQuestion.current.delete(selectedQuestionId);
+    setShowRubricBuilder(false);
+  }, [selectedQuestionId, selectedQuestion?.points, updateQuestion]);
+
   if (!selectedQuestion) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
@@ -371,7 +424,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const typeMeta = QUESTION_TYPES.find((t) => t.value === q.type);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
         <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
           Question {selectedIndex + 1} of {questions.length}
@@ -402,9 +455,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             <label className={labelClass}>Type</label>
             <select
               value={q.type}
+              aria-label="Type"
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
                 const isWritten = nextType === 'short' || nextType === 'essay';
+                // A rubric only applies to written types, and its Detach button
+                // only renders there — so drop it here, restoring the stashed
+                // manual points, or Points stays locked with no way to unlock.
+                const droppingRubric = !isWritten && !!q.rubricSnapshot;
+                const stashedPoints = manualPointsByQuestion.current.get(q.id);
+                if (droppingRubric) manualPointsByQuestion.current.delete(q.id);
                 updateQuestion(q.id, {
                   type: nextType,
                   incorrectAnswers: nextType === 'MC' ? ['', ''] : [],
@@ -413,6 +473,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   // Reset written-specific fields when switching off written types
                   placeholder: isWritten ? q.placeholder : undefined,
                   maxWords: isWritten ? q.maxWords : undefined,
+                  rubricId: isWritten ? q.rubricId : undefined,
+                  rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
+                  ...(droppingRubric
+                    ? { points: stashedPoints ?? q.points ?? 1 }
+                    : {}),
                 });
               }}
               className={`${inputClass} appearance-none`}
@@ -451,6 +516,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               min={1}
               max={100}
               value={q.points ?? 1}
+              aria-label="Points"
+              disabled={!!q.rubricSnapshot}
+              aria-describedby={
+                q.rubricSnapshot ? 'question-points-rubric-hint' : undefined
+              }
               onChange={(e) =>
                 updateQuestion(q.id, {
                   points: Math.min(
@@ -459,8 +529,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   ),
                 })
               }
-              className={inputClass}
+              className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-600`}
             />
+            {q.rubricSnapshot && (
+              <p
+                id="question-points-rubric-hint"
+                className="mt-1 text-xs text-slate-600"
+              >
+                Points come from the attached rubric.
+              </p>
+            )}
           </div>
         </div>
 
@@ -564,6 +642,35 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 exceed it.
               </p>
             </div>
+            <div>
+              <label className={labelClass}>Rubric</label>
+              {q.rubricSnapshot ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-slate-700 font-bold">
+                    {q.rubricSnapshot.title || 'Untitled rubric'}
+                  </span>
+                  <button
+                    onClick={() => setShowRubricBuilder(true)}
+                    className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={handleDetachRubric}
+                    className="px-2.5 py-1 border border-rose-200 rounded-lg text-xs font-bold text-rose-700"
+                  >
+                    Detach
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowRubricBuilder(true)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                >
+                  Attach Rubric
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div>
@@ -625,6 +732,18 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             quiz-level Stimuli tab; both edit the same array. */}
         <QuestionStimulusSection state={state} questionId={q.id} />
       </div>
+
+      {showRubricBuilder && (q.type === 'short' || q.type === 'essay') && (
+        <RubricBuilderPanel
+          key={q.id}
+          questionId={q.id}
+          existingSnapshot={q.rubricSnapshot}
+          onAttach={handleAttachRubric}
+          onDetach={handleDetachRubric}
+          onClose={() => setShowRubricBuilder(false)}
+          teacherUid={user?.uid ?? ''}
+        />
+      )}
     </div>
   );
 }, quizDetailPanePropsEqual);
