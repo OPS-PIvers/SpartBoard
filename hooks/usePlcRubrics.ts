@@ -11,7 +11,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
+  deleteField,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -35,13 +37,18 @@ export interface ShareRubricWithPlcInput {
   sharedByEmail: string;
 }
 
+/** What a share attempt did — re-sharing an unshared rubric revives its tombstone. */
+export type ShareRubricOutcome = 'created' | 'restored' | 'already-shared';
+
 interface UsePlcRubricsResult {
   rubrics: PlcRubricEntry[];
   loading: boolean;
   /** Non-null means the empty list is "couldn't load," not "no items yet." */
   error: Error | null;
   /** Write a PLC rubric entry; the signed-in user is stamped as `sharedBy`. */
-  shareRubricWithPlc: (input: ShareRubricWithPlcInput) => Promise<void>;
+  shareRubricWithPlc: (
+    input: ShareRubricWithPlcInput
+  ) => Promise<ShareRubricOutcome>;
   /** Soft-delete (tombstone) a PLC rubric entry — any non-viewer member. */
   unshareRubricFromPlc: (rubricId: string) => Promise<void>;
   /** Restore a soft-deleted PLC rubric entry by clearing its `deletedAt`. */
@@ -194,9 +201,9 @@ export const usePlcRubrics = (plcId: string | null): UsePlcRubricsResult => {
   }, [plcId, user]);
 
   const shareRubricWithPlc = useCallback(
-    async (input: ShareRubricWithPlcInput): Promise<void> => {
+    async (input: ShareRubricWithPlcInput): Promise<ShareRubricOutcome> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      await writePlcRubricEntry(plcId, user.uid, input);
+      return writePlcRubricEntry(plcId, user.uid, input);
     },
     [plcId, user]
   );
@@ -247,14 +254,35 @@ export const usePlcRubrics = (plcId: string | null): UsePlcRubricsResult => {
  * One-shot write of a PLC rubric entry. Mirrors `writePlcQuizEntry` — used
  * from surfaces (e.g. the rubric builder) that know the target PLC but aren't
  * subscribed to it.
+ *
+ * The doc id is the rubric id, so an unshared rubric leaves a tombstone that
+ * a re-share must revive with an update: the rules freeze `sharedBy*` /
+ * `sharedAt` / `createdAt` after create, so a fresh create payload is denied.
  */
 export async function writePlcRubricEntry(
   plcId: string,
   uid: string,
   input: ShareRubricWithPlcInput
-): Promise<void> {
+): Promise<ShareRubricOutcome> {
   const now = Date.now();
   const { rubric } = input;
+  const ref = doc(db, PLCS_COLLECTION, plcId, RUBRICS_SUBCOLLECTION, rubric.id);
+  const existing = await getDoc(ref);
+
+  if (existing.exists()) {
+    const deletedAt = (existing.data() as Record<string, unknown>).deletedAt;
+    if (deletedAt == null) return 'already-shared';
+    // Content-only revive; original attribution stands (PLC-owned model).
+    await updateDoc(ref, {
+      title: rubric.title,
+      criteria: rubric.criteria,
+      description: rubric.description ?? deleteField(),
+      updatedAt: now,
+      deletedAt: deleteField(),
+    });
+    return 'restored';
+  }
+
   const entry: PlcRubricEntry = {
     id: rubric.id,
     title: rubric.title,
@@ -269,8 +297,6 @@ export async function writePlcRubricEntry(
       ? { description: rubric.description }
       : {}),
   };
-  await setDoc(
-    doc(db, PLCS_COLLECTION, plcId, RUBRICS_SUBCOLLECTION, rubric.id),
-    entry
-  );
+  await setDoc(ref, entry);
+  return 'created';
 }

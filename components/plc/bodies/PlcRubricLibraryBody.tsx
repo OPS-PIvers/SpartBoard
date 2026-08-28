@@ -16,7 +16,14 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClipboardCheck, Download, Share2, Trash2, Users2 } from 'lucide-react';
+import {
+  ClipboardCheck,
+  Download,
+  Loader2,
+  Share2,
+  Trash2,
+  Users2,
+} from 'lucide-react';
 import type { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -57,6 +64,8 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
   const { rubrics: personalRubrics, saveRubric } = useRubrics(user?.uid);
   const {
     rubrics: plcRubrics,
+    loading,
+    error,
     shareRubricWithPlc,
     unshareRubricFromPlc,
   } = usePlcRubrics(plc.id);
@@ -64,16 +73,13 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
   const [sharePickerOpen, setSharePickerOpen] = useState(false);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
 
-  // A personal rubric counts as already shared when a live PLC entry carries
-  // its id (share preserves the source id) or the same title.
-  const sharedKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const entry of plcRubrics) {
-      keys.add(entry.id);
-      keys.add(entry.title.trim().toLowerCase());
-    }
-    return keys;
-  }, [plcRubrics]);
+  // Share preserves the source id, so id equality is the only sound test —
+  // titles collide across genuinely different rubrics. Tombstoned entries are
+  // absent here on purpose: re-sharing one revives it.
+  const sharedIds = useMemo(
+    () => new Set(plcRubrics.map((entry) => entry.id)),
+    [plcRubrics]
+  );
 
   const pickerItems = useMemo(
     () =>
@@ -85,10 +91,9 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
           points: rubricMaxPoints(r),
           defaultValue: '{{criteria}} criteria · {{points}} pts',
         }),
-        alreadyShared:
-          sharedKeys.has(r.id) || sharedKeys.has(r.title.trim().toLowerCase()),
+        alreadyShared: sharedIds.has(r.id),
       })),
-    [personalRubrics, sharedKeys, t]
+    [personalRubrics, sharedIds, t]
   );
 
   const handleShare = useCallback(
@@ -100,18 +105,33 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
         const ownerEmailLower =
           getPlcMemberEmail(plc, user.uid) ??
           (user.email ? user.email.toLowerCase() : '');
-        await shareRubricWithPlc({
+        const outcome = await shareRubricWithPlc({
           rubric,
           sharedByName: user.displayName ?? '',
           sharedByEmail: ownerEmailLower,
         });
-        addToast(
-          t('plcDashboard.rubricLibrary.sharedToast', {
-            title: rubric.title,
-            defaultValue: '"{{title}}" shared with this PLC.',
-          }),
-          'success'
-        );
+        if (outcome === 'already-shared') {
+          addToast(
+            t('plcDashboard.rubricLibrary.alreadySharedToast', {
+              title: rubric.title,
+              defaultValue: '"{{title}}" is already shared with this PLC.',
+            }),
+            'info'
+          );
+        } else {
+          addToast(
+            outcome === 'restored'
+              ? t('plcDashboard.rubricLibrary.resharedToast', {
+                  title: rubric.title,
+                  defaultValue: '"{{title}}" is shared with this PLC again.',
+                })
+              : t('plcDashboard.rubricLibrary.sharedToast', {
+                  title: rubric.title,
+                  defaultValue: '"{{title}}" shared with this PLC.',
+                }),
+            'success'
+          );
+        }
         setSharePickerOpen(false);
       } catch (err) {
         logError('PlcRubricLibraryBody.share', err, {
@@ -207,6 +227,22 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
     [addToast, plc.id, showConfirm, t, unshareRubricFromPlc]
   );
 
+  if (loading) {
+    return (
+      <div
+        role="status"
+        className="flex items-center justify-center py-10 text-slate-400"
+      >
+        <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+        <span className="sr-only">
+          {t('plcDashboard.rubricLibrary.loading', {
+            defaultValue: 'Loading rubrics…',
+          })}
+        </span>
+      </div>
+    );
+  }
+
   const shareCta = canEdit ? (
     <button
       type="button"
@@ -229,18 +265,29 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
           })}
         </h3>
         <div className="flex items-center gap-3">
-          <span className="text-xxs text-slate-400">
-            {t('plcDashboard.rubricLibrary.count', {
-              count: plcRubrics.length,
-              defaultValue: '{{count}} rubric',
-              defaultValue_other: '{{count}} rubrics',
-            })}
-          </span>
+          {!error && (
+            <span className="text-xxs text-slate-400">
+              {t('plcDashboard.rubricLibrary.count', {
+                count: plcRubrics.length,
+                defaultValue: '{{count}} rubric',
+                defaultValue_other: '{{count}} rubrics',
+              })}
+            </span>
+          )}
           {shareCta}
         </div>
       </div>
 
-      {plcRubrics.length === 0 ? (
+      {error ? (
+        <div
+          role="alert"
+          className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"
+        >
+          {t('plcDashboard.rubricLibrary.loadError', {
+            defaultValue: "Couldn't load shared rubrics. Please try again.",
+          })}
+        </div>
+      ) : plcRubrics.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
           <ClipboardCheck
             className="w-6 h-6 mx-auto text-slate-400"

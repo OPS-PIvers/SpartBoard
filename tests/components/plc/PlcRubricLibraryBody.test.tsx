@@ -46,9 +46,11 @@ vi.mock('@/hooks/useRubrics', () => ({
   useRubrics: () => ({ rubrics: personalRubrics, saveRubric }),
 }));
 
-const shareRubricWithPlc = vi.fn().mockResolvedValue(undefined);
+const shareRubricWithPlc = vi.fn().mockResolvedValue('created');
 const unshareRubricFromPlc = vi.fn().mockResolvedValue(undefined);
 let plcRubrics: PlcRubricEntry[] = [];
+let plcLoading = false;
+let plcError: Error | null = null;
 vi.mock('@/hooks/usePlcRubrics', async () => {
   const actual = await vi.importActual<typeof import('@/hooks/usePlcRubrics')>(
     '@/hooks/usePlcRubrics'
@@ -57,8 +59,8 @@ vi.mock('@/hooks/usePlcRubrics', async () => {
     toPortableRubric: actual.toPortableRubric,
     usePlcRubrics: () => ({
       rubrics: plcRubrics,
-      loading: false,
-      error: null,
+      loading: plcLoading,
+      error: plcError,
       shareRubricWithPlc,
       unshareRubricFromPlc,
       restoreRubricInPlc: vi.fn(),
@@ -125,9 +127,12 @@ beforeAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   showConfirm.mockResolvedValue(true);
+  shareRubricWithPlc.mockResolvedValue('created');
   canEdit = true;
   personalRubrics = [personalRubric];
   plcRubrics = [plcEntry];
+  plcLoading = false;
+  plcError = null;
 });
 
 const renderSubject = () =>
@@ -153,6 +158,24 @@ describe('PlcRubricLibraryBody', () => {
     expect(screen.getByText('No shared rubrics yet')).toBeInTheDocument();
   });
 
+  it('shows the loading state instead of the empty state before the first snapshot', () => {
+    plcRubrics = [];
+    plcLoading = true;
+    renderSubject();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.queryByText('No shared rubrics yet')).toBeNull();
+  });
+
+  it('shows an error state instead of the empty state when the subscription fails', () => {
+    plcRubrics = [];
+    plcError = new Error('permission-denied');
+    renderSubject();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /Couldn't load shared rubrics/
+    );
+    expect(screen.queryByText('No shared rubrics yet')).toBeNull();
+  });
+
   it('shares a personal rubric with attribution from the picker', async () => {
     renderSubject();
     fireEvent.click(screen.getByRole('button', { name: /Share a rubric/i }));
@@ -168,6 +191,57 @@ describe('PlcRubricLibraryBody', () => {
     expect(addToast).toHaveBeenCalledWith(
       expect.stringContaining('Argument Essay'),
       'success'
+    );
+  });
+
+  it('keys the already-shared badge on rubric id, not on a shared title', async () => {
+    // Same title, different rubric — must still be shareable.
+    personalRubrics = [{ ...personalRubric, title: plcEntry.title }];
+    renderSubject();
+    fireEvent.click(screen.getByRole('button', { name: /Share a rubric/i }));
+    expect(
+      await screen.findByRole('button', { name: /^Share$/i, hidden: true })
+    ).toBeEnabled();
+    expect(screen.queryByText('Already shared')).toBeNull();
+  });
+
+  it('disables the picker row for a rubric already shared under the same id', async () => {
+    personalRubrics = [{ ...personalRubric, id: plcEntry.id }];
+    renderSubject();
+    fireEvent.click(screen.getByRole('button', { name: /Share a rubric/i }));
+    expect(await screen.findByText('Already shared')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /^Share$/i, hidden: true })
+    ).toBeDisabled();
+  });
+
+  it('reports a revived tombstone as a re-share', async () => {
+    shareRubricWithPlc.mockResolvedValue('restored');
+    renderSubject();
+    fireEvent.click(screen.getByRole('button', { name: /Share a rubric/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Share$/i, hidden: true })
+    );
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(
+        expect.stringContaining('shared with this PLC again'),
+        'success'
+      )
+    );
+  });
+
+  it('surfaces an already-shared outcome without claiming success', async () => {
+    shareRubricWithPlc.mockResolvedValue('already-shared');
+    renderSubject();
+    fireEvent.click(screen.getByRole('button', { name: /Share a rubric/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^Share$/i, hidden: true })
+    );
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(
+        expect.stringContaining('is already shared with this PLC'),
+        'info'
+      )
     );
   });
 

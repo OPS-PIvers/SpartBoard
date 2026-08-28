@@ -365,7 +365,8 @@
     "assessmentsTypes": {
       "label": "Tipo de evaluación",
       "quizzes": "Cuestionarios",
-      "videoActivities": "Actividades de Video"
+      "videoActivities": "Actividades de Video",
+      "rubrics": "Rúbricas"
     },
     "assignmentsSubTabs": {
       "label": "Vistas de tareas",
@@ -675,6 +676,37 @@
       "driveRequired": "Conecta Google Drive en tu cuenta para importar cuestionarios de la Comunidad.",
       "driveRequiredForEdit": "Conecta Google Drive en tu cuenta para editar cuestionarios de la Comunidad.",
       "driveDisconnected": "Conecta Google Drive para importar cuestionarios de la Comunidad a tu biblioteca personal."
+    },
+    "rubricLibrary": {
+      "heading": "Rúbricas Compartidas",
+      "count_one": "{{count}} rúbrica",
+      "count_other": "{{count}} rúbricas",
+      "loading": "Cargando rúbricas…",
+      "loadError": "No se pudieron cargar las rúbricas compartidas. Inténtalo de nuevo.",
+      "empty": "Aún no hay rúbricas compartidas",
+      "emptyHint": "Comparte una rúbrica de tu biblioteca para que tu equipo califique las respuestas escritas de la misma manera.",
+      "bySharer": "compartida por {{name}}",
+      "unknownSharer": "un compañero",
+      "criterionCount_one": "{{count}} criterio",
+      "criterionCount_other": "{{count}} criterios",
+      "maxPoints": "{{points}} pts",
+      "importAction": "Agregar a mi biblioteca",
+      "importedToast": "\"{{title}}\" se agregó a tu biblioteca de rúbricas.",
+      "importFailed": "No se pudo importar la rúbrica.",
+      "shareCta": "Compartir una rúbrica",
+      "sharedToast": "\"{{title}}\" se compartió con esta Comunidad.",
+      "resharedToast": "\"{{title}}\" se volvió a compartir con esta Comunidad.",
+      "alreadySharedToast": "\"{{title}}\" ya está compartida con esta Comunidad.",
+      "shareFailed": "No se pudo compartir la rúbrica con esta Comunidad.",
+      "sharePickerTitle": "Compartir una rúbrica con esta Comunidad",
+      "sharePickerPrompt": "Elige una rúbrica de tu biblioteca.",
+      "sharePickerEmpty": "Aún no tienes rúbricas. Crea una a partir de una pregunta escrita en el editor de cuestionarios.",
+      "pickerMeta": "{{criteria}} criterios · {{points}} pts",
+      "unshareAction": "Dejar de compartir",
+      "unshareLabel": "Dejar de compartir {{title}}",
+      "unshareTitle": "Dejar de compartir rúbrica",
+      "unshareConfirm": "¿Eliminar \"{{title}}\" de esta Comunidad? Los compañeros perderán acceso a la entrada compartida; las copias que ya estén en sus bibliotecas seguirán funcionando.",
+      "unshareFailed": "No se pudo dejar de compartir la rúbrica."
     },
     "presence": {
       "heading": "Quién está aquí",
@@ -1012,7 +1044,8 @@
       "notesNote": "Los espectadores pueden leer notas y documentos, pero no agregarlos ni modificarlos.",
       "todosNote": "Los espectadores pueden leer la lista de tareas, pero no agregar ni cambiar elementos.",
       "meetingNote": "Los espectadores pueden seguir la reunión, pero no editarla ni guardarla.",
-      "homeNote": "Los espectadores pueden leer todo aquí, pero no crear contenido nuevo."
+      "homeNote": "Los espectadores pueden leer todo aquí, pero no crear contenido nuevo.",
+      "rubricsNote": "Los espectadores pueden explorar y copiar las rúbricas compartidas, pero no pueden compartirlas ni dejar de compartirlas."
     },
     "resources": {
       "managerTitle": "Recursos de la Comunidad",
