@@ -30,22 +30,25 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setTime(new Date());
   }
 
-  // Seconds hidden: tick once a minute (aligned to the boundary) instead of every second.
+  // Seconds hidden: tick once a minute instead of every second, re-deriving the
+  // delay from the wall clock each tick so throttling/jank can't accumulate drift.
   useEffect(() => {
     if (showSeconds) {
       const timer = setInterval(() => setTime(new Date()), 1000);
       return () => clearInterval(timer);
     }
-    const msUntilNextMinute = 60_000 - (Date.now() % 60_000);
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const timeout = setTimeout(() => {
-      setTime(new Date());
-      interval = setInterval(() => setTime(new Date()), 60_000);
-    }, msUntilNextMinute);
-    return () => {
-      clearTimeout(timeout);
-      if (interval) clearInterval(interval);
+    let timeout: ReturnType<typeof setTimeout>;
+    const scheduleNextMinute = () => {
+      timeout = setTimeout(
+        () => {
+          setTime(new Date());
+          scheduleNextMinute();
+        },
+        60_000 - (Date.now() % 60_000)
+      );
     };
+    scheduleNextMinute();
+    return () => clearTimeout(timeout);
   }, [showSeconds]);
 
   const hours = time.getHours();

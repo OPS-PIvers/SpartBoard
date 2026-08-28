@@ -290,6 +290,35 @@ describe('ClockWidget', () => {
     expect(screen.getByText('31')).toBeInTheDocument();
   });
 
+  // A free-running setInterval(60_000) never realigns: event-loop delay and
+  // background-tab throttling shift its phase off the minute boundary
+  // permanently, so an always-on display drifts further behind the wall clock
+  // the longer it runs. Each tick must re-derive its delay from Date.now().
+  it('re-derives the minute delay from the wall clock on every tick', () => {
+    vi.setSystemTime(new Date('2023-01-01T14:30:20.000'));
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+    renderWidget(createWidget({ showSeconds: false, format24: true }));
+
+    // Aligns to the boundary 40s out rather than waiting a full period.
+    expect(setTimeoutSpy.mock.calls.at(-1)?.[1]).toBe(40_000);
+
+    for (let minute = 31; minute <= 33; minute++) {
+      const scheduledBefore = setTimeoutSpy.mock.calls.length;
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(screen.getByText(String(minute))).toBeInTheDocument();
+      // Each tick schedules the next one afresh rather than free-running, so a
+      // late-firing tick pulls the schedule back onto the boundary.
+      expect(setTimeoutSpy.mock.calls.length).toBe(scheduledBefore + 1);
+    }
+
+    // A fixed-period interval is exactly what can't self-correct.
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+  });
+
   it('keeps the AM/PM label above the low-contrast opacity floor', () => {
     const date = new Date('2023-01-01T14:30:45');
     vi.setSystemTime(date);
