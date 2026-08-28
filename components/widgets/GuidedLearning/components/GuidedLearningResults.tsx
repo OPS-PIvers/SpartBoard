@@ -337,7 +337,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <h3
                 className="text-slate-300 font-semibold uppercase tracking-wider"
                 style={{
-                  fontSize: 'min(11px, 4cqmin)',
+                  fontSize: 'min(12px, 4.5cqmin)',
                   marginBottom: 'min(8px, 2cqmin)',
                 }}
               >
@@ -411,7 +411,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               <h3
                 className="text-slate-300 font-semibold uppercase tracking-wider"
                 style={{
-                  fontSize: 'min(11px, 4cqmin)',
+                  fontSize: 'min(12px, 4.5cqmin)',
                   marginBottom: 'min(8px, 2cqmin)',
                 }}
               >
