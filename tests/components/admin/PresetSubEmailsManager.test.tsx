@@ -286,4 +286,42 @@ describe('PresetSubEmailsManager — email case handling', () => {
 
     expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
   });
+
+  // Regression: the footer status text checked `savedAt` before `dirty`, so
+  // once a save ever succeeded, the stale "Saved HH:MM:SS" label stuck
+  // around forever — even after a later edit made the Save button enabled
+  // again. An admin editing a second time after an earlier save had no
+  // visible cue their new changes were unsaved.
+  it('shows "Unsaved changes" (not a stale "Saved" label) after editing again post-save', async () => {
+    render(<PresetSubEmailsManager />);
+
+    act(() => {
+      listeners[listeners.length - 1].next(fakeDocSnap({ emails: [] }));
+    });
+
+    const input = screen.getByPlaceholderText('ohssub@orono.k12.mn.us');
+    fireEvent.change(input, { target: { value: 'first@orono.k12.mn.us' } });
+    fireEvent.click(screen.getByRole('button', { name: /add/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+      await Promise.resolve();
+    });
+
+    // Firestore echoes the successful write back through onSnapshot.
+    act(() => {
+      listeners[listeners.length - 1].next(
+        fakeDocSnap({ emails: ['first@orono.k12.mn.us'] })
+      );
+    });
+    expect(screen.getByText(/^Saved /)).toBeInTheDocument();
+
+    // A second edit after the save should mark the panel dirty again.
+    fireEvent.change(input, { target: { value: 'second@orono.k12.mn.us' } });
+    fireEvent.click(screen.getByRole('button', { name: /add/i }));
+
+    expect(screen.getByRole('button', { name: /save/i })).toBeEnabled();
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    expect(screen.queryByText(/^Saved /)).not.toBeInTheDocument();
+  });
 });
