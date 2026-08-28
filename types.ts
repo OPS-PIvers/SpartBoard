@@ -3305,6 +3305,12 @@ export interface QuizPublicQuestion {
   maxWords?: number;
   /** short/essay only: max points the teacher can award. */
   points?: number;
+  /**
+   * short/essay only (M12 decision 6). Frozen rubric snapshot, projected
+   * unchanged from `QuizQuestion.rubricSnapshot` — contains no answer key,
+   * so it's safe to expose to students while answering and in results.
+   */
+  rubricSnapshot?: Rubric;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
 }
