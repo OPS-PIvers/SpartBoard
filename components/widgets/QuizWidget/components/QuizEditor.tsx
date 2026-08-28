@@ -6,7 +6,7 @@
  * through the controller object the modal hands them.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   AlertCircle,
   GripVertical,
@@ -15,7 +15,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { LibraryFolder, QuizQuestion, QuizQuestionType } from '@/types';
+import { LibraryFolder, QuizQuestion, QuizQuestionType, Rubric } from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -26,6 +26,8 @@ import {
   OrderingAnswerEditor,
 } from './MatchingOrderingEditor';
 import { QuestionStimulusSection } from './StimulusManagerPanel';
+import { RubricBuilderPanel } from './RubricBuilderPanel';
+import { rubricMaxPoints } from '@/utils/rubricPoints';
 import type { QuizEditorController } from './useQuizEditorState';
 
 interface PaneProps {
@@ -351,6 +353,45 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     [selectedQuestionId, updateQuestion]
   );
 
+  const { user } = useAuth();
+  const [showRubricBuilder, setShowRubricBuilder] = useState(false);
+  // Manual points held aside while a rubric owns the question's points.
+  const [manualPointsBeforeRubric, setManualPointsBeforeRubric] = useState<
+    number | null
+  >(null);
+
+  const handleAttachRubric = useCallback(
+    (rubric: Rubric, rubricId?: string) => {
+      if (!selectedQuestionId) return;
+      setManualPointsBeforeRubric(
+        (prev) => prev ?? selectedQuestion?.points ?? 1
+      );
+      updateQuestion(selectedQuestionId, {
+        rubricId: rubricId ?? rubric.id,
+        rubricSnapshot: rubric,
+        points: rubricMaxPoints(rubric),
+      });
+      setShowRubricBuilder(false);
+    },
+    [selectedQuestionId, selectedQuestion?.points, updateQuestion]
+  );
+
+  const handleDetachRubric = useCallback(() => {
+    if (!selectedQuestionId) return;
+    updateQuestion(selectedQuestionId, {
+      rubricId: undefined,
+      rubricSnapshot: undefined,
+      points: manualPointsBeforeRubric ?? selectedQuestion?.points ?? 1,
+    });
+    setManualPointsBeforeRubric(null);
+    setShowRubricBuilder(false);
+  }, [
+    selectedQuestionId,
+    manualPointsBeforeRubric,
+    selectedQuestion?.points,
+    updateQuestion,
+  ]);
+
   if (!selectedQuestion) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
@@ -371,7 +412,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const typeMeta = QUESTION_TYPES.find((t) => t.value === q.type);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
         <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
           Question {selectedIndex + 1} of {questions.length}
@@ -451,6 +492,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               min={1}
               max={100}
               value={q.points ?? 1}
+              disabled={!!q.rubricSnapshot}
+              title={
+                q.rubricSnapshot
+                  ? 'Points come from the attached rubric.'
+                  : undefined
+              }
               onChange={(e) =>
                 updateQuestion(q.id, {
                   points: Math.min(
@@ -459,7 +506,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   ),
                 })
               }
-              className={inputClass}
+              className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-600`}
             />
           </div>
         </div>
@@ -564,6 +611,35 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 exceed it.
               </p>
             </div>
+            <div>
+              <label className={labelClass}>Rubric</label>
+              {q.rubricSnapshot ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-slate-700 font-bold">
+                    {q.rubricSnapshot.title || 'Untitled rubric'}
+                  </span>
+                  <button
+                    onClick={() => setShowRubricBuilder(true)}
+                    className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={handleDetachRubric}
+                    className="px-2.5 py-1 border border-rose-200 rounded-lg text-xs font-bold text-rose-700"
+                  >
+                    Detach
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowRubricBuilder(true)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                >
+                  Attach Rubric
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div>
@@ -625,6 +701,18 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             quiz-level Stimuli tab; both edit the same array. */}
         <QuestionStimulusSection state={state} questionId={q.id} />
       </div>
+
+      {showRubricBuilder && (q.type === 'short' || q.type === 'essay') && (
+        <RubricBuilderPanel
+          key={q.id}
+          questionId={q.id}
+          existingSnapshot={q.rubricSnapshot}
+          onAttach={handleAttachRubric}
+          onDetach={handleDetachRubric}
+          onClose={() => setShowRubricBuilder(false)}
+          teacherUid={user?.uid ?? ''}
+        />
+      )}
     </div>
   );
 }, quizDetailPanePropsEqual);
