@@ -2025,7 +2025,10 @@ export const useQuizAssignments = (
       // straightforward and we can slice it across the 500-write cap.
       interface ResponseUpdate {
         ref: ReturnType<typeof doc>;
-        patch: { score: number; answers: QuizResponseAnswer[] };
+        patch: {
+          score: number | ReturnType<typeof deleteField>;
+          answers: QuizResponseAnswer[];
+        };
       }
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
@@ -2033,6 +2036,12 @@ export const useQuizAssignments = (
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;
         let pointsMax = 0;
+        // Set when any answered slot is still owed a teacher grade (ungraded
+        // written response, or a rubric with criteria left unscored). Such a
+        // response gets its `answers` refreshed but NO published `score` —
+        // the ungraded slot counts as 0 here, so publishing now would show
+        // the student a grade the teacher hasn't finished awarding.
+        let awaitingGrade = false;
         // Track which question ids have already been scored so a duplicate
         // answer (arrayUnion race writing the same questionId twice into
         // `answers`) can't inflate pointsEarned and pointsMax. Each
@@ -2064,6 +2073,7 @@ export const useQuizAssignments = (
               ? data.grading?.[q.id]
               : undefined;
           const result = gradeAnswer(q, a.answer, manualGrade);
+          if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (!scoredQuestionIds.has(a.questionId)) {
             scoredQuestionIds.add(a.questionId);
             pointsEarned += result.pointsEarned;
@@ -2096,7 +2106,13 @@ export const useQuizAssignments = (
           pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
         updates.push({
           ref: d.ref,
-          patch: { score, answers: gradedAnswers },
+          // `deleteField()` rather than an omitted key so a stale score from
+          // an earlier publish can't linger on a response that has since
+          // become awaiting-grade; the student sees "being prepared" instead.
+          patch: {
+            score: awaitingGrade ? deleteField() : score,
+            answers: gradedAnswers,
+          },
         });
       }
 

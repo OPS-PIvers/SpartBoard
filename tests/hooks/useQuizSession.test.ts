@@ -125,9 +125,19 @@ describe('gradeAnswer', () => {
       points: 4,
     };
     const correct = gradeAnswer(q, 'a|b|c|d');
-    expect(correct).toEqual({ isCorrect: true, pointsEarned: 4, pointsMax: 4 });
+    expect(correct).toEqual({
+      isCorrect: true,
+      pointsEarned: 4,
+      pointsMax: 4,
+      state: 'scored',
+    });
     const wrong = gradeAnswer(q, 'd|c|b|a');
-    expect(wrong).toEqual({ isCorrect: false, pointsEarned: 0, pointsMax: 4 });
+    expect(wrong).toEqual({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 4,
+      state: 'scored',
+    });
   });
 
   it('defaults to 1 point when points is unset', () => {

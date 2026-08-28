@@ -3130,7 +3130,22 @@ export interface GradeResult {
   pointsEarned: number;
   /** Max points for this question (= q.points ?? 1). */
   pointsMax: number;
+  /**
+   * Grading lifecycle for this slot. `awaiting-grade` means `pointsEarned` is
+   * a placeholder, not a real 0 — such slots are omitted from gradebook /
+   * Classroom pushes and marked provisional wherever a total displays.
+   */
+  state: GradeState;
 }
+
+/**
+ * Grading lifecycle of a single answer slot.
+ * - `scored` — a real, final score (auto-graded, or a teacher grade).
+ * - `awaiting-grade` — answered but not yet fully graded (ungraded written
+ *   response, or a rubric with some criteria still unscored).
+ * - `not-attempted` — no answer to grade; a genuine 0.
+ */
+export type GradeState = 'scored' | 'awaiting-grade' | 'not-attempted';
 
 /** Full quiz data stored in Google Drive as JSON */
 export interface QuizData {

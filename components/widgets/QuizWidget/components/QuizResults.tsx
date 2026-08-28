@@ -59,6 +59,8 @@ import {
   getScoreSuffix,
   getEarnedPoints,
   isGamificationActive,
+  isResponseAwaitingGrade,
+  selectPushableResponses,
 } from '../utils/quizScoreboard';
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -571,6 +573,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           ) / filteredScoreable.length
         )
       : null;
+  // Any ungraded written response in the averaged set makes the average
+  // provisional — the ungraded slot counts as 0 until the teacher grades it.
+  const avgIsProvisional = useMemo(
+    () =>
+      filteredScoreable.some((r) => isResponseAwaitingGrade(r, quiz.questions)),
+    [filteredScoreable, quiz.questions]
+  );
 
   const handleSendToScoreboard = useCallback(
     (mode: 'pin' | 'name') => {
@@ -581,8 +590,23 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         return;
       }
 
-      const newTeams = buildScoreboardTeams(
+      // The Scoreboard publishes a FINAL score, so an ungraded written response
+      // is held back rather than seated at its provisional 0 — same fence as the
+      // Classroom push (`buildQuizClassroomGradeEntries`).
+      const pushable = selectPushableResponses(
         filteredCompleted,
+        quiz.questions
+      );
+      const awaitingCount = filteredCompleted.filter((r) =>
+        isResponseAwaitingGrade(r, quiz.questions)
+      ).length;
+      const awaitingNote =
+        awaitingCount > 0
+          ? ` ${awaitingCount} still being graded — not included.`
+          : '';
+
+      const newTeams = buildScoreboardTeams(
+        pushable,
         quiz.questions,
         mode,
         pinToName,
@@ -597,7 +621,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       // a misleading "0 students" success.
       if (newTeams.length === 0) {
         addToast(
-          'No scoreable students yet — the answer key may still be loading.',
+          awaitingCount > 0
+            ? `No final scores yet — ${awaitingCount} response${awaitingCount === 1 ? ' is' : 's are'} still being graded.`
+            : 'No scoreable students yet — the answer key may still be loading.',
           'info'
         );
         return;
@@ -615,7 +641,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           },
         });
         addToast(
-          `Updated scoreboard with ${newTeams.length} students.`,
+          `Updated scoreboard with ${newTeams.length} students.${awaitingNote}`,
           'success'
         );
       } else {
@@ -625,7 +651,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           },
         });
         addToast(
-          `Created scoreboard with ${newTeams.length} students.`,
+          `Created scoreboard with ${newTeams.length} students.${awaitingNote}`,
           'success'
         );
       }
@@ -1526,6 +1552,14 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                   {filteredCompleted.length} of {filteredResponses.length}{' '}
                   students finished
                 </p>
+                {filteredAvgScore !== null && avgIsProvisional && (
+                  <p
+                    className="font-sans font-semibold text-amber-800"
+                    style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                  >
+                    Provisional — written responses still need grading
+                  </p>
+                )}
               </div>
 
               <ScoreDistribution
@@ -2145,6 +2179,10 @@ const StudentsScreen: React.FC<{
           const scoreable =
             (r.status === 'completed' || r.status === 'in-progress') &&
             canScoreResponse(r, questions);
+          // The total counts an ungraded written answer as 0, so flag it as
+          // provisional rather than letting it read as the final grade.
+          const awaitingGrade =
+            scoreable && isResponseAwaitingGrade(r, questions);
           const warnings = r.tabSwitchWarnings ?? 0;
           const resultsLockedOut = r.resultsLockedOut === true;
           const resultsTabWarnings = r.resultsTabWarnings ?? 0;
@@ -2303,6 +2341,14 @@ const StudentsScreen: React.FC<{
                         {earned}/{maxPoints} pts
                         {r.status === 'in-progress' && ' (In Progress)'}
                       </p>
+                      {awaitingGrade && (
+                        <span
+                          className="mt-0.5 inline-flex"
+                          title="Provisional — a written response is still ungraded, so this total will change once you grade it."
+                        >
+                          <SessionBadge tone="warn" label="Provisional" />
+                        </span>
+                      )}
                       {/* Fresh responses now carry preSyncVersion: 0
                        * so the server-side sync query
                        * (`where('preSyncVersion', '==', 0)`) can find
