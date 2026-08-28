@@ -117,6 +117,12 @@ const extractShareId = (input: string): string => {
     const segments = url.pathname.split('/').filter(Boolean);
     return segments[segments.length - 1] ?? '';
   } catch {
+    // Scheme-less pastes (`spartboard.web.app/share/rubric/abc`) fail URL
+    // parsing — fall back to the last path segment; bare codes pass through.
+    if (trimmed.includes('/')) {
+      const segments = trimmed.split(/[?#]/)[0].split('/').filter(Boolean);
+      return segments[segments.length - 1] ?? '';
+    }
     return trimmed;
   }
 };
@@ -263,9 +269,18 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   };
 
   const savedInLibrary = rubrics.find((r) => r.id === draft.id);
+  // Sharing copies the saved library doc, so a draft that has diverged from it
+  // would silently share the stale version.
+  const draftDivergedFromLibrary =
+    !!savedInLibrary &&
+    rubricSignature(draft) !== rubricSignature(savedInLibrary);
+  const canShare = !!savedInLibrary && !draftDivergedFromLibrary;
+  const shareBlockedReason = canShare
+    ? null
+    : 'Save to library before sharing.';
 
   const handleShare = async () => {
-    if (!savedInLibrary) return;
+    if (!savedInLibrary || draftDivergedFromLibrary) return;
     setSharing(true);
     setShareError(null);
     setShareUrl(null);
@@ -378,6 +393,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               setDraft(next);
               setCsvErrors([]);
               setCsvWarnings([]);
+              setShareUrl(null);
+              setShareError(null);
+              setCopied(false);
             }}
           >
             <option value="">New rubric…</option>
@@ -614,12 +632,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           </button>
           <button
             onClick={() => void handleShare()}
-            disabled={!savedInLibrary || sharing}
-            title={
-              savedInLibrary
-                ? undefined
-                : 'Save this rubric to your library before sharing.'
-            }
+            disabled={!canShare || sharing}
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40"
           >
             {sharing ? (
@@ -631,6 +644,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           </button>
         </div>
 
+        {shareBlockedReason && (
+          <p className="text-xs text-slate-600">{shareBlockedReason}</p>
+        )}
         {shareError && (
           <p className="text-xs text-rose-700" role="alert">
             {shareError}

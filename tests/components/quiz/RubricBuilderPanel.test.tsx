@@ -239,6 +239,50 @@ describe('RubricBuilderPanel — link sharing', () => {
     );
   });
 
+  it('disables sharing while the draft diverges from the saved library copy', () => {
+    open(LIBRARY_RUBRIC);
+    fireEvent.change(titleInput(), { target: { value: 'Edited title' } });
+
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled();
+    expect(
+      screen.getByText('Save to library before sharing.')
+    ).toBeInTheDocument();
+  });
+
+  it('clears share state when another library rubric is loaded', async () => {
+    shareRubric.mockResolvedValue('share-abc');
+    open(LIBRARY_RUBRIC);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Rubric share link')).toBeInTheDocument()
+    );
+
+    fireEvent.change(screen.getByLabelText('Library'), {
+      target: { value: '' },
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Rubric share link')).toBeNull()
+    );
+  });
+
+  it('extracts the share id from a scheme-less pasted URL', async () => {
+    importSharedRubric.mockResolvedValue(undefined);
+    open();
+
+    fireEvent.change(screen.getByLabelText('Rubric share code or link'), {
+      target: { value: 'spartboard.web.app/share/rubric/share-xyz' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Import shared rubric' })
+    );
+
+    await waitFor(() =>
+      expect(importSharedRubric).toHaveBeenCalledWith('share-xyz')
+    );
+  });
+
   it('shows an error when import fails', async () => {
     importSharedRubric.mockRejectedValue(new Error('Shared rubric not found'));
     open();

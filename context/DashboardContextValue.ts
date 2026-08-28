@@ -318,6 +318,13 @@ export interface DashboardContextValue {
   pendingVideoActivityShareId: string | null;
   setPendingVideoActivityShareId: (shareId: string | null) => void;
   clearPendingVideoActivityShare: () => void;
+  /**
+   * Pending rubric share id, parsed from `/share/rubric/{shareId}`. Consumed
+   * by DeepLinkShareImporter, which imports the rubric into the teacher's
+   * library and toasts the result.
+   */
+  pendingRubricShareId: string | null;
+  clearPendingRubricShare: () => void;
   setPendingQuizShareId: (shareId: string | null) => void;
   /**
    * Set after a successful `importSharedAssignment` to signal the QuizWidget
