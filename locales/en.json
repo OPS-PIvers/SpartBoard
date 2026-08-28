@@ -985,7 +985,8 @@
         "doc": "Doc",
         "comment": "Comment",
         "quiz": "Quiz",
-        "videoActivity": "Video activity"
+        "videoActivity": "Video activity",
+        "rubric": "Rubric"
       }
     },
     "versions": {
