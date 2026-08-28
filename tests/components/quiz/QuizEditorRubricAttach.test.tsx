@@ -125,7 +125,8 @@ const quiz: QuizData = {
 };
 
 const detail = () => within(screen.getByTestId('detail-pane'));
-const pointsInput = () => detail().getByRole('spinbutton', { name: 'Points' });
+const pointsInput = () =>
+  detail().getByRole<HTMLInputElement>('spinbutton', { name: 'Points' });
 
 const selectQuestion = (text: string) => {
   fireEvent.click(within(screen.getByTestId('context-pane')).getByText(text));
@@ -185,6 +186,51 @@ describe('QuizEditor — rubric attach/detach points stash', () => {
     fireEvent.click(detail().getByRole('button', { name: 'Detach' }));
     expect(pointsInput().valueAsNumber).toBe(7);
     expect(pointsInput()).toBeEnabled();
+  });
+
+  it('switching to a non-written type detaches the rubric and restores stashed points', () => {
+    open();
+    selectQuestion('Question one');
+    attachLibraryRubric();
+    expect(pointsInput().valueAsNumber).toBe(7);
+    expect(pointsInput()).toBeDisabled();
+
+    fireEvent.change(detail().getByRole('combobox', { name: 'Type' }), {
+      target: { value: 'MC' },
+    });
+
+    expect(pointsInput()).toBeEnabled();
+    expect(pointsInput().valueAsNumber).toBe(5);
+    expect(
+      detail().queryByText('Points come from the attached rubric.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('switching a prior-session rubric question to a non-written type keeps its points', () => {
+    open();
+    selectQuestion('Question three');
+    expect(pointsInput()).toBeDisabled();
+
+    fireEvent.change(detail().getByRole('combobox', { name: 'Type' }), {
+      target: { value: 'MC' },
+    });
+
+    expect(pointsInput()).toBeEnabled();
+    expect(pointsInput().valueAsNumber).toBe(7);
+  });
+
+  it('switching between written types keeps the attached rubric', () => {
+    open();
+    selectQuestion('Question three');
+
+    fireEvent.change(detail().getByRole('combobox', { name: 'Type' }), {
+      target: { value: 'short' },
+    });
+
+    expect(pointsInput()).toBeDisabled();
+    expect(
+      detail().getByText('Points come from the attached rubric.')
+    ).toBeInTheDocument();
   });
 
   it('switching questions closes an open rubric builder', () => {

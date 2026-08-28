@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Rubric, RubricCriterion, RubricLevel } from '@/types';
+import { useDialog } from '@/context/useDialog';
 import { useRubrics } from '@/hooks/useRubrics';
 import { parseRubricCsv, rubricToCsv } from '@/utils/rubricCsv';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
@@ -32,6 +33,24 @@ const inputClass =
 
 const MIN_LEVELS = 2;
 const MAX_LEVELS = 6;
+const MIN_CRITERIA = 1;
+
+// Order-stable projection of the meaningful fields, used to detect unsaved
+// edits without false-positiving on key insertion order.
+const rubricSignature = (r: Rubric): string =>
+  JSON.stringify([
+    r.title.trim(),
+    r.description?.trim() ?? '',
+    r.criteria.map((c) => [
+      c.name.trim(),
+      c.description?.trim() ?? '',
+      c.levels.map((l) => [
+        l.label.trim(),
+        l.points,
+        l.description?.trim() ?? '',
+      ]),
+    ]),
+  ]);
 
 const newLevel = (points: number): RubricLevel => ({
   id: crypto.randomUUID(),
@@ -100,9 +119,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   teacherUid,
 }) => {
   const { rubrics, saveRubric } = useRubrics(teacherUid);
+  const { showConfirm } = useDialog();
   const [draft, setDraft] = useState<Rubric>(
     () => existingSnapshot ?? blankRubric()
   );
+  // Signature of the last rubric loaded into the draft (open, library pick, or
+  // save), so destructive loads can tell edited drafts from untouched ones.
+  const loadedSignatureRef = useRef<string | null>(null);
+  loadedSignatureRef.current ??= rubricSignature(draft);
   const [csvErrors, setCsvErrors] = useState<
     Array<{ line: number; reason: string }>
   >([]);
@@ -169,10 +193,13 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     setCsvWarnings(result.warnings);
     if (result.rubric) {
       const now = Date.now();
+      // The parser only ever supplies criteria, plus a generic placeholder
+      // title and no description — so keep whatever the teacher already typed.
+      const importedTitle = result.rubric.title?.trim();
       setDraft((prev) => ({
         ...prev,
-        title: result.rubric?.title ?? prev.title,
-        description: result.rubric?.description,
+        title: prev.title.trim() ? prev.title : (importedTitle ?? prev.title),
+        description: result.rubric?.description ?? prev.description,
         criteria: result.rubric?.criteria ?? [],
         updatedAt: now,
       }));
@@ -194,6 +221,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     setSaveError(null);
     try {
       await saveRubric({ ...draft, updatedAt: Date.now() });
+      loadedSignatureRef.current = rubricSignature(draft);
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : 'Failed to save rubric.'
@@ -246,9 +274,23 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
             id="rubric-library-select"
             className={`${inputClass} appearance-none`}
             value=""
-            onChange={(e) => {
-              const picked = rubrics.find((r) => r.id === e.target.value);
-              setDraft(picked ? { ...picked } : blankRubric());
+            onChange={async (e) => {
+              const pickedId = e.target.value;
+              if (rubricSignature(draft) !== loadedSignatureRef.current) {
+                const ok = await showConfirm(
+                  'Loading another rubric replaces the criteria and levels you have edited here. Save to library first if you want to keep them.',
+                  {
+                    title: 'Discard unsaved rubric edits?',
+                    variant: 'warning',
+                    confirmLabel: 'Discard and Load',
+                  }
+                );
+                if (!ok) return;
+              }
+              const picked = rubrics.find((r) => r.id === pickedId);
+              const next = picked ? { ...picked } : blankRubric();
+              loadedSignatureRef.current = rubricSignature(next);
+              setDraft(next);
               setCsvErrors([]);
               setCsvWarnings([]);
             }}
@@ -325,8 +367,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                     criteria: prev.criteria.filter((x) => x.id !== c.id),
                   }))
                 }
+                disabled={draft.criteria.length <= MIN_CRITERIA}
                 aria-label={`Remove criterion ${ci + 1}`}
-                className="p-1 text-slate-500 hover:text-red-500"
+                className="p-1 text-slate-500 hover:text-red-500 disabled:opacity-30"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

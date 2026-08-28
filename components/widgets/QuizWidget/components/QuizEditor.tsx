@@ -455,9 +455,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             <label className={labelClass}>Type</label>
             <select
               value={q.type}
+              aria-label="Type"
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
                 const isWritten = nextType === 'short' || nextType === 'essay';
+                // A rubric only applies to written types, and its Detach button
+                // only renders there — so drop it here, restoring the stashed
+                // manual points, or Points stays locked with no way to unlock.
+                const droppingRubric = !isWritten && !!q.rubricSnapshot;
+                const stashedPoints = manualPointsByQuestion.current.get(q.id);
+                if (droppingRubric) manualPointsByQuestion.current.delete(q.id);
                 updateQuestion(q.id, {
                   type: nextType,
                   incorrectAnswers: nextType === 'MC' ? ['', ''] : [],
@@ -466,6 +473,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   // Reset written-specific fields when switching off written types
                   placeholder: isWritten ? q.placeholder : undefined,
                   maxWords: isWritten ? q.maxWords : undefined,
+                  rubricId: isWritten ? q.rubricId : undefined,
+                  rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
+                  ...(droppingRubric
+                    ? { points: stashedPoints ?? q.points ?? 1 }
+                    : {}),
                 });
               }}
               className={`${inputClass} appearance-none`}

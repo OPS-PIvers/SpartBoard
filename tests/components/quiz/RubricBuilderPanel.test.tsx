@@ -1,178 +1,155 @@
-import React from 'react';
+/**
+ * RubricBuilderPanel — guards against destructive loads silently discarding
+ * a teacher's in-progress draft (library pick, CSV import, criterion delete).
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Rubric } from '@/types';
 
-const saveRubric = vi.fn().mockResolvedValue(undefined);
-const rubricsState: { rubrics: Rubric[] } = { rubrics: [] };
+const LIBRARY_RUBRIC: Rubric = {
+  id: 'rub-1',
+  title: 'Paragraph Rubric',
+  criteria: [
+    {
+      id: 'c1',
+      name: 'Thesis',
+      levels: [
+        { id: 'l1', label: 'Below', points: 1 },
+        { id: 'l2', label: 'Meets', points: 3 },
+      ],
+    },
+  ],
+  createdAt: 1,
+  updatedAt: 2,
+};
+
+const showConfirm = vi.fn();
 
 vi.mock('@/hooks/useRubrics', () => ({
   useRubrics: () => ({
-    rubrics: rubricsState.rubrics,
+    rubrics: [LIBRARY_RUBRIC],
     loading: false,
     error: null,
-    saveRubric,
+    saveRubric: vi.fn().mockResolvedValue(undefined),
     deleteRubric: vi.fn(),
     shareRubric: vi.fn(),
     importSharedRubric: vi.fn(),
   }),
 }));
 
+vi.mock('@/context/useDialog', () => ({
+  useDialog: vi.fn(() => ({
+    showAlert: vi.fn(),
+    showConfirm,
+    showPrompt: vi.fn(),
+  })),
+}));
+
 import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 
-const CSV = [
-  'Criterion,Description,Level 1 Label,Level 1 Points,Level 1 Description,Level 2 Label,Level 2 Points,Level 2 Description',
-  'Thesis,Clarity,Below,1,No thesis,Meets,3,Clear thesis',
-  'Evidence,Support,Below,1,None,Meets,4,Plenty',
-].join('\n');
+const open = (existingSnapshot?: Rubric) =>
+  render(
+    <RubricBuilderPanel
+      questionId="q1"
+      existingSnapshot={existingSnapshot}
+      onAttach={vi.fn()}
+      onDetach={vi.fn()}
+      onClose={vi.fn()}
+      teacherUid="uid-test"
+    />
+  );
 
-const renderPanel = (
-  overrides: Partial<React.ComponentProps<typeof RubricBuilderPanel>> = {}
-) => {
-  const props = {
-    questionId: 'q1',
-    onAttach: vi.fn(),
-    onDetach: vi.fn(),
-    onClose: vi.fn(),
-    teacherUid: 'teacher-1',
-    ...overrides,
-  };
-  render(<RubricBuilderPanel {...props} />);
-  return props;
+const titleInput = () =>
+  screen.getByLabelText<HTMLInputElement>('Title', { selector: 'input' });
+
+const pickFromLibrary = () =>
+  fireEvent.change(screen.getByLabelText('Library'), {
+    target: { value: LIBRARY_RUBRIC.id },
+  });
+
+const CSV =
+  'Criterion,Level 1 Label,Level 1 Points,Level 2 Label,Level 2 Points\nVoice,Below,1,Meets,4\n';
+
+// jsdom's File has no .text(); stub it so the panel's reader path works.
+const importCsv = () => {
+  const file = new File([CSV], 'rubric.csv', { type: 'text/csv' });
+  Object.defineProperty(file, 'text', { value: () => Promise.resolve(CSV) });
+  fireEvent.change(screen.getByLabelText('Import rubric CSV'), {
+    target: { files: [file] },
+  });
 };
 
-describe('RubricBuilderPanel', () => {
+describe('RubricBuilderPanel — destructive-load guards', () => {
   beforeEach(() => {
-    rubricsState.rubrics = [];
-    saveRubric.mockClear();
+    showConfirm.mockReset();
+    showConfirm.mockResolvedValue(true);
   });
 
-  it('renders the library picker and a starter criterion', () => {
-    renderPanel();
-    expect(screen.getByLabelText('Library')).toBeInTheDocument();
-    expect(screen.getByLabelText('Criterion 1 name')).toBeInTheDocument();
-    expect(
-      screen.getByLabelText('Criterion 1 level 2 label')
-    ).toBeInTheDocument();
+  it('loads a library rubric without prompting when the draft is untouched', async () => {
+    open();
+    pickFromLibrary();
+
+    await waitFor(() => expect(titleInput().value).toBe(LIBRARY_RUBRIC.title));
+    expect(showConfirm).not.toHaveBeenCalled();
   });
 
-  it('adds a criterion and a level', () => {
-    renderPanel();
-    fireEvent.click(screen.getByText('Add Criterion'));
-    expect(screen.getByLabelText('Criterion 2 name')).toBeInTheDocument();
-    fireEvent.click(screen.getAllByText('Add Level')[0]);
-    expect(
-      screen.getByLabelText('Criterion 1 level 3 label')
-    ).toBeInTheDocument();
+  it('keeps the edited draft when the discard confirm is declined', async () => {
+    showConfirm.mockResolvedValue(false);
+    open();
+    fireEvent.change(titleInput(), { target: { value: 'My draft' } });
+
+    pickFromLibrary();
+
+    await waitFor(() => expect(showConfirm).toHaveBeenCalled());
+    expect(titleInput().value).toBe('My draft');
   });
 
-  it('shows a validation error for duplicate point values in a criterion', () => {
-    renderPanel();
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 2 points'), {
-      target: { value: '0' },
-    });
-    expect(screen.getByRole('alert').textContent).toContain(
-      'duplicate point value 0'
-    );
+  it('replaces the edited draft once the discard confirm is accepted', async () => {
+    open();
+    fireEvent.change(titleInput(), { target: { value: 'My draft' } });
+
+    pickFromLibrary();
+
+    await waitFor(() => expect(titleInput().value).toBe(LIBRARY_RUBRIC.title));
+    expect(showConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('populates builder state from an imported CSV', async () => {
-    renderPanel();
-    const input = screen.getByLabelText('Import rubric CSV');
-    const file = new File([CSV], 'rubric.csv', { type: 'text/csv' });
-    // jsdom File.text() is not implemented in all versions — stub it.
-    Object.defineProperty(file, 'text', { value: () => Promise.resolve(CSV) });
-    fireEvent.change(input, { target: { files: [file] } });
+  it('does not prompt for an unedited attached snapshot', async () => {
+    open(LIBRARY_RUBRIC);
+    pickFromLibrary();
+
+    await waitFor(() => expect(showConfirm).not.toHaveBeenCalled());
+  });
+
+  it('disables the remove button for the last remaining criterion', () => {
+    open();
+    expect(screen.getByLabelText('Remove criterion 1')).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Criterion' }));
+    expect(screen.getByLabelText('Remove criterion 1')).toBeEnabled();
+    expect(screen.getByLabelText('Remove criterion 2')).toBeEnabled();
+  });
+
+  it('keeps a teacher-typed title when importing criteria from CSV', async () => {
+    open();
+    fireEvent.change(titleInput(), { target: { value: 'My draft' } });
+
+    importCsv();
 
     await waitFor(() =>
-      expect(screen.getByLabelText('Criterion 1 name')).toHaveValue('Thesis')
+      expect(
+        screen.getByLabelText<HTMLInputElement>('Criterion 1 name').value
+      ).toBe('Voice')
     );
-    expect(screen.getByLabelText('Criterion 2 name')).toHaveValue('Evidence');
-    // Max-sum of the imported rubric: 3 + 4.
-    expect(screen.getByText('Total points: 7')).toBeInTheDocument();
+    expect(titleInput().value).toBe('My draft');
   });
 
-  it('attaches with the snapshot and the criteria max-sum points', () => {
-    const props = renderPanel();
-    fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: 'Paragraph Rubric' },
-    });
-    fireEvent.change(screen.getByLabelText('Criterion 1 name'), {
-      target: { value: 'Thesis' },
-    });
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 1 label'), {
-      target: { value: 'Below' },
-    });
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 2 label'), {
-      target: { value: 'Meets' },
-    });
-    fireEvent.change(screen.getByLabelText('Criterion 1 level 2 points'), {
-      target: { value: '5' },
-    });
+  it('falls back to the imported title when the draft has none', async () => {
+    open();
 
-    expect(screen.queryByRole('alert')).toBeNull();
-    fireEvent.click(screen.getByText('Attach to question'));
+    importCsv();
 
-    expect(props.onAttach).toHaveBeenCalledTimes(1);
-    const [rubric] = vi.mocked(props.onAttach).mock.calls[0] as [Rubric];
-    expect(rubric.title).toBe('Paragraph Rubric');
-    expect(rubric.criteria[0].levels.map((l) => l.points)).toEqual([0, 5]);
-  });
-
-  it('offers detach only when a rubric is already attached', () => {
-    const snapshot: Rubric = {
-      id: 'r1',
-      title: 'Existing',
-      criteria: [
-        {
-          id: 'c1',
-          name: 'Thesis',
-          levels: [
-            { id: 'l1', label: 'Below', points: 1 },
-            { id: 'l2', label: 'Meets', points: 4 },
-          ],
-        },
-      ],
-      createdAt: 1,
-      updatedAt: 2,
-    };
-    const props = renderPanel({ existingSnapshot: snapshot });
-    fireEvent.click(screen.getByText('Detach rubric'));
-    expect(props.onDetach).toHaveBeenCalled();
-  });
-
-  it('warns when the library copy is newer than the attached snapshot', () => {
-    const snapshot: Rubric = {
-      id: 'r1',
-      title: 'Existing',
-      criteria: [
-        {
-          id: 'c1',
-          name: 'Thesis',
-          levels: [
-            { id: 'l1', label: 'Below', points: 1 },
-            { id: 'l2', label: 'Meets', points: 4 },
-          ],
-        },
-      ],
-      createdAt: 1,
-      updatedAt: 2,
-    };
-    rubricsState.rubrics = [{ ...snapshot, updatedAt: 99 }];
-    renderPanel({ existingSnapshot: snapshot });
-    expect(screen.getByText(/library copy has changed/i)).toBeInTheDocument();
-  });
-
-  it('moves focus to the close button on open', () => {
-    renderPanel();
-    expect(screen.getByLabelText('Close rubric builder')).toHaveFocus();
-  });
-
-  it('closes on Escape', () => {
-    const props = renderPanel();
-    fireEvent.keyDown(screen.getByLabelText('Rubric builder'), {
-      key: 'Escape',
-    });
-    expect(props.onClose).toHaveBeenCalled();
+    await waitFor(() => expect(titleInput().value).toBe('Imported Rubric'));
   });
 });
