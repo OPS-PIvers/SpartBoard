@@ -3884,6 +3884,24 @@ export interface SharedRubric extends Rubric {
 }
 
 /**
+ * PLC library copy at `/plcs/{plcId}/rubrics/{id}` — the full inline rubric
+ * payload plus attribution. Doc id === `id`. Mirrors `PlcQuizEntry`'s
+ * attribution + soft-delete tombstone contract.
+ */
+export interface PlcRubricEntry extends Rubric {
+  /** UID of the original sharer. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** Soft-delete tombstone; absent/null on live entries. */
+  deletedAt?: number | null;
+}
+
+/**
  * Per-roster, non-PII PIN index. Stored at
  * `/users/{teacherUid}/rosters/{rosterId}/pin_index/{indexKey}`.
  *

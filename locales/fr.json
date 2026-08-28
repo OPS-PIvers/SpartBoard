@@ -365,7 +365,8 @@
     "assessmentsTypes": {
       "label": "Type d'évaluation",
       "quizzes": "Quiz",
-      "videoActivities": "Activités vidéo"
+      "videoActivities": "Activités vidéo",
+      "rubrics": "Grilles d'évaluation"
     },
     "assignmentsSubTabs": {
       "label": "Vues des activités",
@@ -675,6 +676,37 @@
       "driveRequired": "Connectez Google Drive dans votre compte pour importer les quiz de la Communauté.",
       "driveRequiredForEdit": "Connectez Google Drive dans votre compte pour modifier les quiz de la Communauté.",
       "driveDisconnected": "Connectez Google Drive pour importer les quiz de la Communauté dans votre bibliothèque personnelle."
+    },
+    "rubricLibrary": {
+      "heading": "Grilles d'évaluation partagées",
+      "count_one": "{{count}} grille d'évaluation",
+      "count_other": "{{count}} grilles d'évaluation",
+      "loading": "Chargement des grilles d'évaluation…",
+      "loadError": "Impossible de charger les grilles d'évaluation partagées. Veuillez réessayer.",
+      "empty": "Aucune grille d'évaluation partagée pour l'instant",
+      "emptyHint": "Partagez une grille de votre bibliothèque pour que votre équipe évalue les réponses rédigées de la même manière.",
+      "bySharer": "partagée par {{name}}",
+      "unknownSharer": "un collègue",
+      "criterionCount_one": "{{count}} critère",
+      "criterionCount_other": "{{count}} critères",
+      "maxPoints": "{{points}} pts",
+      "importAction": "Ajouter à ma bibliothèque",
+      "importedToast": "« {{title}} » a été ajoutée à votre bibliothèque de grilles.",
+      "importFailed": "Impossible d'importer la grille d'évaluation.",
+      "shareCta": "Partager une grille",
+      "sharedToast": "« {{title}} » a été partagée avec cette Communauté.",
+      "resharedToast": "« {{title}} » est de nouveau partagée avec cette Communauté.",
+      "alreadySharedToast": "« {{title}} » est déjà partagée avec cette Communauté.",
+      "shareFailed": "Impossible de partager la grille avec cette Communauté.",
+      "sharePickerTitle": "Partager une grille d'évaluation avec cette Communauté",
+      "sharePickerPrompt": "Choisissez une grille dans votre bibliothèque.",
+      "sharePickerEmpty": "Vous n'avez pas encore de grille d'évaluation. Créez-en une à partir d'une question rédigée dans l'éditeur de quiz.",
+      "pickerMeta": "{{criteria}} critères · {{points}} pts",
+      "unshareAction": "Ne plus partager",
+      "unshareLabel": "Ne plus partager {{title}}",
+      "unshareTitle": "Ne plus partager la grille",
+      "unshareConfirm": "Retirer « {{title}} » de cette Communauté ? Les collègues perdront l'accès à l'entrée partagée ; les copies déjà présentes dans leurs bibliothèques continueront de fonctionner.",
+      "unshareFailed": "Impossible d'arrêter le partage de la grille."
     },
     "presence": {
       "heading": "Qui est là",
@@ -1012,7 +1044,8 @@
       "notesNote": "Les observateurs peuvent lire les notes et documents, mais ne peuvent pas les ajouter ni les modifier.",
       "todosNote": "Les observateurs peuvent lire la liste des tâches, mais ne peuvent pas ajouter ni modifier d’éléments.",
       "meetingNote": "Les observateurs peuvent suivre la réunion, mais ne peuvent pas la modifier ni l’enregistrer.",
-      "homeNote": "Les observateurs peuvent tout lire ici, mais ne peuvent pas créer de nouveau contenu."
+      "homeNote": "Les observateurs peuvent tout lire ici, mais ne peuvent pas créer de nouveau contenu.",
+      "rubricsNote": "Les observateurs peuvent consulter et copier les grilles partagées, mais ne peuvent ni les partager ni arrêter leur partage."
     },
     "resources": {
       "managerTitle": "Ressources de la CAP",

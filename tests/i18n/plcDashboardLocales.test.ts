@@ -36,6 +36,7 @@ const REQUIRED_TOP_LEVEL_SECTIONS = [
   'notes',
   'todos',
   'quizLibrary',
+  'rubricLibrary',
 ] as const;
 
 /** Keys within plcDashboard.tabs */
@@ -91,6 +92,47 @@ const REQUIRED_QUIZ_LIBRARY_KEYS = [
   'driveRequired',
   'driveRequiredForEdit',
   'driveDisconnected',
+] as const;
+
+/** Keys within plcDashboard.rubricLibrary (M12 Phase 3-I PLC rubric library). */
+const REQUIRED_RUBRIC_LIBRARY_KEYS = [
+  'heading',
+  'count_one',
+  'count_other',
+  'loading',
+  'loadError',
+  'empty',
+  'emptyHint',
+  'bySharer',
+  'unknownSharer',
+  'criterionCount_one',
+  'criterionCount_other',
+  'maxPoints',
+  'importAction',
+  'importedToast',
+  'importFailed',
+  'shareCta',
+  'sharedToast',
+  'resharedToast',
+  'alreadySharedToast',
+  'shareFailed',
+  'sharePickerTitle',
+  'sharePickerPrompt',
+  'sharePickerEmpty',
+  'pickerMeta',
+  'unshareAction',
+  'unshareLabel',
+  'unshareTitle',
+  'unshareConfirm',
+  'unshareFailed',
+] as const;
+
+/** Keys within plcDashboard.assessmentsTypes (Assessments tab type filter). */
+const REQUIRED_ASSESSMENTS_TYPES_KEYS = [
+  'label',
+  'quizzes',
+  'videoActivities',
+  'rubrics',
 ] as const;
 
 /** Keys within plcDashboard.notes */
@@ -650,6 +692,7 @@ const REQUIRED_VIEWER_KEYS = [
   'todosNote',
   'meetingNote',
   'homeNote',
+  'rubricsNote',
 ] as const;
 
 type LocaleFile = typeof en;
@@ -727,6 +770,11 @@ const WAVE3_KEY_GROUPS: ReadonlyArray<{
   {
     path: 'plcDashboard.settings.digest',
     keys: REQUIRED_SETTINGS_DIGEST_KEYS,
+  },
+  { path: 'plcDashboard.rubricLibrary', keys: REQUIRED_RUBRIC_LIBRARY_KEYS },
+  {
+    path: 'plcDashboard.assessmentsTypes',
+    keys: REQUIRED_ASSESSMENTS_TYPES_KEYS,
   },
 ];
 
