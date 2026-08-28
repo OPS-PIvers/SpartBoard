@@ -187,15 +187,25 @@ export default tseslint.config(
     // D4 (Import Path Convention) enforcement: a file under any
     // components/widgets/<WidgetDir>/ directory must not reach across into
     // the SIBLING `components/widgets/math-tools/` shared tool-implementation
-    // directory via a relative import — use the
-    // `@/components/widgets/math-tools/...` alias instead. This is the same
-    // recurring cross-subdirectory-relative-import bug class already guarded
-    // for `components/plc/**` above; found here in `MathToolInstance/` (which
+    // directory, or (within QuizWidget specifically) into the sibling
+    // `monitor/`/`present/` subdirectories, via a relative import — use the
+    // `@/components/widgets/...` alias instead. This is the same recurring
+    // cross-subdirectory-relative-import bug class already guarded for
+    // `components/plc/**` above; found here in `MathToolInstance/` (which
     // used '../math-tools/...') while its sibling `MathTools/` already used
-    // the canonical alias for the identical module. `'../WidgetLayout'` from
-    // inside a widget subfolder (a root-level shared file, not a sibling
-    // feature directory) is an intentionally-preserved gray zone (D4-E2) and
-    // is NOT matched by this pattern.
+    // the canonical alias for the identical module, and again in
+    // `QuizWidget/components/{monitor,present}/` (a two-way escape between
+    // those two subdirectories, run 69 — a single review PR earlier had
+    // added the `monitor|present` restriction as a SEPARATE config object
+    // scoped to `components/widgets/QuizWidget/components/**`; in ESLint
+    // flat config, when two config objects both match a file and set the
+    // same rule key, the later object's value wholly replaces the earlier
+    // one rather than merging, so that separate block silently dropped this
+    // block's `math-tools` restriction for any file under
+    // `QuizWidget/components/**` — folded into one block instead). `'../WidgetLayout'`
+    // from inside a widget subfolder (a root-level shared file, not a
+    // sibling feature directory) is an intentionally-preserved gray zone
+    // (D4-E2) and is NOT matched by this pattern.
     files: ['components/widgets/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
@@ -203,10 +213,10 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: '^(\\.\\./)+math-tools(/.*)?$',
+              regex: '^(\\.\\./)+(math-tools|monitor|present)(/.*)?$',
               caseSensitive: true,
               message:
-                "Cross-subdirectory widgets import — use '@/components/widgets/math-tools/...' instead of a relative path that escapes this widget's own directory (see D4 in docs/routines/unifier.md).",
+                "Cross-subdirectory widgets import — use the '@/components/widgets/...' alias instead of a relative path that escapes this widget's own directory (see D4 in docs/routines/unifier.md).",
             },
           ],
         },
@@ -235,41 +245,6 @@ export default tseslint.config(
               caseSensitive: true,
               message:
                 "Cross-subdirectory Organization import — use '@/components/admin/Organization/...' instead of a relative path that escapes this view's own directory (see D4 in docs/routines/unifier.md).",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    // D4 (Import Path Convention) enforcement: a file under
-    // components/widgets/QuizWidget/components/<subdir>/ must not reach
-    // across into a SIBLING components/<subdir>/ (monitor, present) via a
-    // relative import — use the
-    // `@/components/widgets/QuizWidget/components/<dir>/...` alias instead.
-    // Same recurring cross-subdirectory-relative-import bug class already
-    // guarded above for components/plc/**, components/widgets/** (math-tools),
-    // and components/admin/Organization/views/**; found here twice in
-    // consecutive nightly runs — the `monitor/` -> `../../utils/...` escape
-    // (run 68, left unenforced as an isolated one-off) and now a two-way
-    // `monitor/` <-> `present/` escape (this run), once the Present-mode
-    // rebuild added the `present/` subdirectory as a sibling of `monitor/`.
-    // Deliberately scoped to `components/` (not all of QuizWidget/) so it
-    // does NOT flag the pre-existing, already-catalogued D4-E2 gray-zone
-    // `'../utils/...'` import in `components/QuizResults.tsx` (a direct
-    // child of `components/` reaching its immediate parent's `utils/`
-    // sibling, not a subdir-to-subdir escape).
-    files: ['components/widgets/QuizWidget/components/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              regex: '^(\\.\\./)+(monitor|present)(/.*)?$',
-              caseSensitive: true,
-              message:
-                "Cross-subdirectory QuizWidget import — use '@/components/widgets/QuizWidget/components/<dir>/...' instead of a relative path that escapes this subdirectory (see D4 in docs/routines/unifier.md).",
             },
           ],
         },
