@@ -275,6 +275,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (path.startsWith('/share/quiz/')) return null;
     if (path.startsWith('/share/assignment/')) return null;
     if (path.startsWith('/share/video-activity/')) return null;
+    if (path.startsWith('/share/rubric/')) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }
@@ -312,6 +313,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return null;
     });
+
+  const [pendingRubricShareId, setPendingRubricShareId] = useState<
+    string | null
+  >(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    if (path.startsWith('/share/rubric/')) {
+      return path.split('/share/rubric/')[1] || null;
+    }
+    return null;
+  });
 
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
@@ -357,6 +369,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearPendingVideoActivityShare = useCallback(() => {
     setPendingVideoActivityShareId(null);
+    window.history.replaceState(null, '', '/');
+  }, []);
+
+  const clearPendingRubricShare = useCallback(() => {
+    setPendingRubricShareId(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
@@ -5709,6 +5726,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingVideoActivityShareId,
       setPendingVideoActivityShareId,
       clearPendingVideoActivityShare,
+      pendingRubricShareId,
+      clearPendingRubricShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
@@ -5818,6 +5837,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingVideoActivityShareId,
       setPendingVideoActivityShareId,
       clearPendingVideoActivityShare,
+      pendingRubricShareId,
+      clearPendingRubricShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,

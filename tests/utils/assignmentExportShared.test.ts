@@ -29,11 +29,13 @@ describe('buildResultsSheetData', () => {
     isCorrect: true,
     pointsEarned: q.points ?? 1,
     pointsMax: q.points ?? 1,
+    state: 'scored',
   });
   const ALWAYS_ZERO: () => GradeResult = () => ({
     isCorrect: false,
     pointsEarned: 0,
     pointsMax: 1,
+    state: 'scored',
   });
 
   function q(overrides: Partial<ExportableQuestion> = {}): ExportableQuestion {
@@ -181,6 +183,7 @@ describe('buildResultsSheetData', () => {
       isCorrect: answer === 'correct',
       pointsEarned: answer === 'correct' ? 1 : 0,
       pointsMax: 1,
+      state: 'scored',
     });
 
     const response = r({
@@ -305,6 +308,57 @@ describe('buildResultsSheetData', () => {
     it('does not log for legacy PIN-only responses (no SSO map passed)', () => {
       buildResultsSheetData([r({ pin: '01' })], [q()], ALWAYS_FULL);
       expect(vi.mocked(console.error)).not.toHaveBeenCalled();
+    });
+  });
+  describe('awaiting-grade slots (M12 3-G)', () => {
+    const AWAITING: () => GradeResult = () => ({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 1,
+      state: 'awaiting-grade',
+    });
+
+    it("renders an awaiting-grade cell as 'Ungraded', not a 0", () => {
+      const { dataRows } = buildResultsSheetData([r()], [q()], AWAITING);
+      expect(dataRows[0][11]).toBe('Ungraded');
+    });
+
+    it('marks the row score provisional when any slot is awaiting a grade', () => {
+      const { dataRows } = buildResultsSheetData([r()], [q()], AWAITING);
+      expect(dataRows[0][6]).toBe('0% (provisional)');
+    });
+
+    it('leaves a fully scored row unmarked', () => {
+      const { dataRows } = buildResultsSheetData([r()], [q()], ALWAYS_FULL);
+      expect(dataRows[0][6]).toBe('100%');
+      expect(dataRows[0][11]).toBe('1');
+    });
+
+    it('marks the row provisional when only one of several questions is ungraded', () => {
+      const questions = [q({ id: 'q1' }), q({ id: 'q2' })];
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'a' },
+          { questionId: 'q2', answer: 'b' },
+        ],
+      });
+      const gradeFn = (question: ExportableQuestion): GradeResult =>
+        question.id === 'q2'
+          ? {
+              isCorrect: false,
+              pointsEarned: 0,
+              pointsMax: 1,
+              state: 'awaiting-grade',
+            }
+          : { isCorrect: true, pointsEarned: 1, pointsMax: 1, state: 'scored' };
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        questions,
+        gradeFn
+      );
+      expect(dataRows[0][6]).toBe('50% (provisional)');
+      expect(dataRows[0][11]).toBe('1');
+      expect(dataRows[0][12]).toBe('Ungraded');
     });
   });
 });

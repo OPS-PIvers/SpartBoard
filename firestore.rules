@@ -592,6 +592,36 @@ service cloud.firestore {
                     && request.resource.data.id == resource.data.id;
     }
 
+    // M12 rubrics — teacher-owned reusable rubric library. Schema-locked to the
+    // `Rubric` interface's top-level keys so graders can trust the shape at read
+    // time (criterion internals are client-validated; CEL can't deep-validate
+    // nested lists). studentRole tokens denied — students never own rubrics.
+    match /users/{userId}/rubrics/{rubricId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && !isStudentRoleUser() && notDeactivated();
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == rubricId
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.createdAt is int
+                    && request.resource.data.updatedAt is int;
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.updatedAt is int;
+    }
+
     // Per-teacher inventory of Schoology (LTI) sections this teacher has SEEN via
     // a launch but may not have linked yet — drives the "Link to Schoology"
     // review screen + the post-launch prompt, and carries the sessionId the
@@ -1148,6 +1178,26 @@ service cloud.firestore {
       allow get: if request.auth != null;
       allow create: if request.auth != null &&
         request.resource.data.originalAuthor == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+    }
+
+    // Shared rubrics (M12) — link-based rubric sharing, same get/author-write
+    // posture as shared_quizzes plus a schema lock (full rubric payload is
+    // inlined so recipients import without a second read). No list — share docs
+    // are fetched only by known id, preventing enumeration.
+    match /shared_rubrics/{shareId} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.originalAuthor == request.auth.uid
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'title', 'description', 'criteria',
+                         'createdAt', 'updatedAt', 'originalAuthor', 'sharedAt'
+                       ])
+                    && request.resource.data.title is string
+                    && request.resource.data.criteria is list
+                    && request.resource.data.originalAuthor is string
+                    && request.resource.data.sharedAt is int;
       allow update, delete: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
@@ -2428,6 +2478,64 @@ service cloud.firestore {
           && request.resource.data.youtubeUrl is string
           && request.resource.data.questionCount is int
           && request.resource.data.questionCount >= 0
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        // Non-viewer member can unshare (PLC-owned model); viewers denied.
+        allow delete: if request.auth != null
+          && plcCanEditContent(plcId);
+      }
+
+      // PLC Rubric Library (M12 Phase 3-I). Unlike quizzes/video-activities,
+      // the full rubric payload is inlined (rubrics are small; no synced-group
+      // indirection). Posture mirrors the Quiz Library — any non-viewer member
+      // shares / mirror-edits / unshares; identity + attribution
+      // (id/sharedBy*/sharedAt) immutable post-create. `criteria` is a list of
+      // complex objects CEL can't deep-validate; shape locked via hasOnly([...])
+      // and interior validation is client-enforced, same as personal rubrics.
+      match /rubrics/{plcRubricId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'description', 'criteria',
+               'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && plcRubricId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.criteria is list
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.createdAt is int
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        // Update: non-viewer member mirror-edits content fields or soft-deletes
+        // via deletedAt. Identity + attribution immutable; viewers denied.
+        allow update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'description', 'criteria',
+               'createdAt', 'updatedAt',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.title is string
+          && request.resource.data.criteria is list
           && request.resource.data.updatedAt is int
           && plcSubDeletedAtOk();
 

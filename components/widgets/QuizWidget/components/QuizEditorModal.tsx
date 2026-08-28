@@ -18,6 +18,7 @@ import {
   QuizData,
   QuizQuestion,
   QuizStimulus,
+  Rubric,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
@@ -72,6 +73,23 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
   return true;
 };
 
+// Order-stable projection of a rubric snapshot's meaningful fields, so a
+// rubric edit that leaves `points` unchanged still reads as dirty.
+const rubricSnapshotKey = (rubric: Rubric | undefined): string =>
+  rubric
+    ? JSON.stringify([
+        rubric.id,
+        rubric.title,
+        rubric.description ?? '',
+        rubric.criteria.map((c) => [
+          c.id,
+          c.name,
+          c.description ?? '',
+          c.levels.map((l) => [l.id, l.label, l.points, l.description ?? '']),
+        ]),
+      ])
+    : '';
+
 const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -88,7 +106,10 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       qa.incorrectAnswers.length !== qb.incorrectAnswers.length ||
       (qa.placeholder ?? '') !== (qb.placeholder ?? '') ||
       (qa.maxWords ?? 0) !== (qb.maxWords ?? 0) ||
-      (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|')
+      (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
+      (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
+      rubricSnapshotKey(qa.rubricSnapshot) !==
+        rubricSnapshotKey(qb.rubricSnapshot)
     ) {
       return false;
     }

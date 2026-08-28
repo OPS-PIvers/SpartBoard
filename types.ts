@@ -3099,6 +3099,18 @@ export interface QuizQuestion {
    */
   maxWords?: number;
   /**
+   * short/essay only (M12 rubrics). Id of the rubric in the teacher's
+   * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
+   * Informational only — graders always read the snapshot.
+   */
+  rubricId?: string;
+  /**
+   * short/essay only (M12 rubrics). Frozen copy of the rubric captured at
+   * attach time; library edits never alter authored quizzes or past grades.
+   * When present, the rubric's criteria max-sum is the question's `points`.
+   */
+  rubricSnapshot?: Rubric;
+  /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
    * Empty/missing = no stimuli. The shared-pointer array is the grouping:
    * consecutive questions carrying the same id form a stimulus set.
@@ -3118,7 +3130,22 @@ export interface GradeResult {
   pointsEarned: number;
   /** Max points for this question (= q.points ?? 1). */
   pointsMax: number;
+  /**
+   * Grading lifecycle for this slot. `awaiting-grade` means `pointsEarned` is
+   * a placeholder, not a real 0 — such slots are omitted from gradebook /
+   * Classroom pushes and marked provisional wherever a total displays.
+   */
+  state: GradeState;
 }
+
+/**
+ * Grading lifecycle of a single answer slot.
+ * - `scored` — a real, final score (auto-graded, or a teacher grade).
+ * - `awaiting-grade` — answered but not yet fully graded (ungraded written
+ *   response, or a rubric with some criteria still unscored).
+ * - `not-attempted` — no answer to grade; a genuine 0.
+ */
+export type GradeState = 'scored' | 'awaiting-grade' | 'not-attempted';
 
 /** Full quiz data stored in Google Drive as JSON */
 export interface QuizData {
@@ -3278,6 +3305,12 @@ export interface QuizPublicQuestion {
   maxWords?: number;
   /** short/essay only: max points the teacher can award. */
   points?: number;
+  /**
+   * short/essay only (M12 decision 6). Frozen rubric snapshot, projected
+   * unchanged from `QuizQuestion.rubricSnapshot` — contains no answer key,
+   * so it's safe to expose to students while answering and in results.
+   */
+  rubricSnapshot?: Rubric;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
 }
@@ -3807,6 +3840,65 @@ export interface WrittenAnswerRubricScore {
   /** Snapshot for resilience against later rubric edits. */
   points: number;
   note?: string;
+}
+
+/**
+ * A single performance level within a rubric criterion. Ordered
+ * low-to-high in storage; the grader renders high-to-low.
+ */
+export interface RubricLevel {
+  id: string;
+  label: string;
+  /** Non-negative; unique within a criterion. */
+  points: number;
+  description?: string;
+}
+
+/** A single scoring dimension in a rubric (e.g. "Thesis & Argument"). */
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  description?: string;
+  /** 2–6 levels, ordered low → high. */
+  levels: RubricLevel[];
+}
+
+/**
+ * Teacher-owned reusable rubric at `/users/{teacherUid}/rubrics/{rubricId}`.
+ * Attaching to a question embeds a snapshot in `QuizQuestion.rubricSnapshot`;
+ * the library doc is never read at grading time.
+ */
+export interface Rubric {
+  id: string;
+  title: string;
+  description?: string;
+  criteria: RubricCriterion[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Link-share copy at `/shared_rubrics/{shareId}` — full payload inlined. */
+export interface SharedRubric extends Rubric {
+  originalAuthor: string;
+  sharedAt: number;
+}
+
+/**
+ * PLC library copy at `/plcs/{plcId}/rubrics/{id}` — the full inline rubric
+ * payload plus attribution. Doc id === `id`. Mirrors `PlcQuizEntry`'s
+ * attribution + soft-delete tombstone contract.
+ */
+export interface PlcRubricEntry extends Rubric {
+  /** UID of the original sharer. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** Soft-delete tombstone; absent/null on live entries. */
+  deletedAt?: number | null;
 }
 
 /**
