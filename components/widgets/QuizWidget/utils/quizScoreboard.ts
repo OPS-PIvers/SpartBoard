@@ -236,9 +236,13 @@ export function isResponseAwaitingGrade(
   questions: QuizQuestion[]
 ): boolean {
   const qMap = new Map(questions.map((q) => [q.id, q]));
-  // Dedup by questionId to mirror getEarnedPoints's arrayUnion-race guard.
+  // Sort then dedup by questionId exactly as getEarnedPoints does, so both pick
+  // the same representative answer when arrayUnion races duplicate a questionId.
+  const sortedAnswers = [...(r.answers ?? [])].sort(
+    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
+  );
   const seen = new Set<string>();
-  for (const ans of r.answers ?? []) {
+  for (const ans of sortedAnswers) {
     const q = qMap.get(ans.questionId);
     if (!q) continue;
     if (seen.has(ans.questionId)) continue;
@@ -250,6 +254,22 @@ export function isResponseAwaitingGrade(
     }
   }
   return false;
+}
+
+/**
+ * Responses eligible for a one-time push of FINAL scores (Scoreboard, gradebook).
+ * Drops what can't be scored yet and what's still awaiting a teacher grade — a
+ * phantom 0 published as final is the failure mode. Live in-session views rank
+ * provisional totals instead and must NOT use this.
+ */
+export function selectPushableResponses(
+  responses: QuizResponse[],
+  questions: QuizQuestion[]
+): QuizResponse[] {
+  return responses.filter(
+    (r) =>
+      canScoreResponse(r, questions) && !isResponseAwaitingGrade(r, questions)
+  );
 }
 
 /**

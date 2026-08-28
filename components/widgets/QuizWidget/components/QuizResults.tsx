@@ -60,6 +60,7 @@ import {
   getEarnedPoints,
   isGamificationActive,
   isResponseAwaitingGrade,
+  selectPushableResponses,
 } from '../utils/quizScoreboard';
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -589,8 +590,23 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         return;
       }
 
-      const newTeams = buildScoreboardTeams(
+      // The Scoreboard publishes a FINAL score, so an ungraded written response
+      // is held back rather than seated at its provisional 0 — same fence as the
+      // Classroom push (`buildQuizClassroomGradeEntries`).
+      const pushable = selectPushableResponses(
         filteredCompleted,
+        quiz.questions
+      );
+      const awaitingCount = filteredCompleted.filter((r) =>
+        isResponseAwaitingGrade(r, quiz.questions)
+      ).length;
+      const awaitingNote =
+        awaitingCount > 0
+          ? ` ${awaitingCount} still being graded — not included.`
+          : '';
+
+      const newTeams = buildScoreboardTeams(
+        pushable,
         quiz.questions,
         mode,
         pinToName,
@@ -605,7 +621,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       // a misleading "0 students" success.
       if (newTeams.length === 0) {
         addToast(
-          'No scoreable students yet — the answer key may still be loading.',
+          awaitingCount > 0
+            ? `No final scores yet — ${awaitingCount} response${awaitingCount === 1 ? ' is' : 's are'} still being graded.`
+            : 'No scoreable students yet — the answer key may still be loading.',
           'info'
         );
         return;
@@ -623,7 +641,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           },
         });
         addToast(
-          `Updated scoreboard with ${newTeams.length} students.`,
+          `Updated scoreboard with ${newTeams.length} students.${awaitingNote}`,
           'success'
         );
       } else {
@@ -633,7 +651,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           },
         });
         addToast(
-          `Created scoreboard with ${newTeams.length} students.`,
+          `Created scoreboard with ${newTeams.length} students.${awaitingNote}`,
           'success'
         );
       }

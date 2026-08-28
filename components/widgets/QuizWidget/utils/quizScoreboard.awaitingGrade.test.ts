@@ -5,7 +5,11 @@
  * whole point is the `GradeResult.state` contract.
  */
 import { describe, it, expect } from 'vitest';
-import { isResponseAwaitingGrade } from './quizScoreboard';
+import {
+  isResponseAwaitingGrade,
+  selectPushableResponses,
+  getEarnedPoints,
+} from './quizScoreboard';
 import type { QuizQuestion, QuizResponse, Rubric } from '@/types';
 
 const mc = (id: string): QuizQuestion => ({
@@ -45,7 +49,7 @@ const essay = (id: string, snapshot?: Rubric): QuizQuestion => ({
 });
 
 const response = (
-  answers: { questionId: string; answer: string }[],
+  answers: { questionId: string; answer: string; answeredAt?: number }[],
   grading?: QuizResponse['grading']
 ): QuizResponse =>
   ({
@@ -119,5 +123,47 @@ describe('isResponseAwaitingGrade', () => {
       { questionId: 'e1', answer: 'my essay' },
     ]);
     expect(isResponseAwaitingGrade(r, [mc('q1'), essay('e1')])).toBe(true);
+  });
+
+  it('picks the same duplicate answer getEarnedPoints does (earliest answeredAt)', () => {
+    // Raw array order puts the blank retry first; chronological order (what
+    // getEarnedPoints credits) puts the real essay first.
+    const r = response([
+      { questionId: 'e1', answer: '<p><br></p>', answeredAt: 500 },
+      { questionId: 'e1', answer: 'my essay', answeredAt: 100 },
+    ]);
+    const qs = [essay('e1')];
+    expect(getEarnedPoints(r, qs)).toBe(0);
+    expect(isResponseAwaitingGrade(r, qs)).toBe(true);
+  });
+});
+
+describe('selectPushableResponses', () => {
+  const qs = [mc('q1'), essay('e1')];
+
+  it('keeps a response whose every answered question is scored', () => {
+    const r = response([{ questionId: 'q1', answer: 'A' }]);
+    expect(selectPushableResponses([r], qs)).toEqual([r]);
+  });
+
+  it('drops a response whose essay is still awaiting a teacher grade', () => {
+    const graded = response([{ questionId: 'q1', answer: 'A' }]);
+    const ungraded = response([
+      { questionId: 'q1', answer: 'A' },
+      { questionId: 'e1', answer: 'my essay' },
+    ]);
+    expect(selectPushableResponses([graded, ungraded], qs)).toEqual([graded]);
+  });
+
+  it('keeps the response once the essay carries a grade', () => {
+    const r = response([{ questionId: 'e1', answer: 'my essay' }], {
+      e1: { pointsAwarded: 6, gradedBy: 't1', gradedAt: 1 },
+    });
+    expect(selectPushableResponses([r], qs)).toEqual([r]);
+  });
+
+  it('drops a response that cannot be scored yet (answer key not loaded)', () => {
+    const r = response([{ questionId: 'q1', answer: 'A' }]);
+    expect(selectPushableResponses([r], [])).toEqual([]);
   });
 });

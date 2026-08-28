@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { gradeAnswer } from '@/hooks/useQuizSession';
+import {
+  gradeAnswer,
+  isWrittenAnswerAwaitingGrade,
+} from '@/hooks/useQuizSession';
 import type { QuizQuestion, WrittenAnswerGrade } from '@/types';
 
 const q = (overrides: Partial<QuizQuestion> = {}): QuizQuestion => ({
@@ -21,6 +24,26 @@ const grade = (
   gradedAt: 0,
   ...overrides,
 });
+
+const rubricQuestion = (criterionIds: string[]): QuizQuestion =>
+  q({
+    type: 'essay',
+    points: 6,
+    rubricSnapshot: {
+      id: 'rub-1',
+      title: 'DBQ',
+      criteria: criterionIds.map((id) => ({
+        id,
+        name: id,
+        levels: [
+          { id: `${id}-lo`, label: 'Below', points: 0 },
+          { id: `${id}-hi`, label: 'Meets', points: 3 },
+        ],
+      })),
+      createdAt: 0,
+      updatedAt: 0,
+    },
+  });
 
 describe('gradeAnswer — written types', () => {
   it('returns awaiting-grade (0 points, isCorrect=false) when no manual grade exists for an essay', () => {
@@ -106,26 +129,6 @@ describe('gradeAnswer — written types', () => {
 });
 
 describe('gradeAnswer — GradeResult.state (M12 3-G)', () => {
-  const rubricQ = (criterionIds: string[]): QuizQuestion =>
-    q({
-      type: 'essay',
-      points: 6,
-      rubricSnapshot: {
-        id: 'rub-1',
-        title: 'DBQ',
-        criteria: criterionIds.map((id) => ({
-          id,
-          name: id,
-          levels: [
-            { id: `${id}-lo`, label: 'Below', points: 0 },
-            { id: `${id}-hi`, label: 'Meets', points: 3 },
-          ],
-        })),
-        createdAt: 0,
-        updatedAt: 0,
-      },
-    });
-
   it("a blank written answer with no grade is 'not-attempted', not 'awaiting-grade'", () => {
     expect(gradeAnswer(q({ type: 'essay' }), '').state).toBe('not-attempted');
     expect(gradeAnswer(q({ type: 'short' }), '   ').state).toBe(
@@ -170,7 +173,7 @@ describe('gradeAnswer — GradeResult.state (M12 3-G)', () => {
 
   it("a partial rubric grade stays 'awaiting-grade' even with points awarded", () => {
     const result = gradeAnswer(
-      rubricQ(['c1', 'c2']),
+      rubricQuestion(['c1', 'c2']),
       'my essay',
       grade({
         pointsAwarded: 3,
@@ -184,7 +187,7 @@ describe('gradeAnswer — GradeResult.state (M12 3-G)', () => {
 
   it("a rubric grade covering every criterion is 'scored'", () => {
     const result = gradeAnswer(
-      rubricQ(['c1', 'c2']),
+      rubricQuestion(['c1', 'c2']),
       'my essay',
       grade({
         pointsAwarded: 6,
@@ -200,11 +203,70 @@ describe('gradeAnswer — GradeResult.state (M12 3-G)', () => {
 
   it("a manual points override with no rubricScores is 'scored', not partial", () => {
     const result = gradeAnswer(
-      rubricQ(['c1', 'c2']),
+      rubricQuestion(['c1', 'c2']),
       'my essay',
       grade({ pointsAwarded: 5 })
     );
     expect(result.state).toBe('scored');
+  });
+});
+
+// The student-facing published-score view has no answer key, so it calls this
+// detector directly rather than gradeAnswer.
+describe('isWrittenAnswerAwaitingGrade', () => {
+  it('treats an untouched rich-text editor as not attempted', () => {
+    expect(
+      isWrittenAnswerAwaitingGrade(undefined, '<p><br></p>', undefined)
+    ).toBe(false);
+    expect(
+      isWrittenAnswerAwaitingGrade(undefined, '<p>&nbsp;</p>', undefined)
+    ).toBe(false);
+    expect(isWrittenAnswerAwaitingGrade(undefined, '   ', undefined)).toBe(
+      false
+    );
+  });
+
+  it('flags a real ungraded answer', () => {
+    expect(
+      isWrittenAnswerAwaitingGrade(undefined, '<p>Real text</p>', undefined)
+    ).toBe(true);
+  });
+
+  it('clears once a grade exists', () => {
+    expect(
+      isWrittenAnswerAwaitingGrade(
+        undefined,
+        '<p>Real text</p>',
+        grade({ pointsAwarded: 4 })
+      )
+    ).toBe(false);
+  });
+
+  it('flags a partial rubric grade when the snapshot is available', () => {
+    const q2 = rubricQuestion(['c1', 'c2']);
+    expect(
+      isWrittenAnswerAwaitingGrade(
+        q2,
+        '<p>Real text</p>',
+        grade({
+          pointsAwarded: 3,
+          rubricScores: [{ criterionId: 'c1', levelId: 'c1-hi', points: 3 }],
+        })
+      )
+    ).toBe(true);
+    expect(
+      isWrittenAnswerAwaitingGrade(
+        q2,
+        '<p>Real text</p>',
+        grade({
+          pointsAwarded: 6,
+          rubricScores: [
+            { criterionId: 'c1', levelId: 'c1-hi', points: 3 },
+            { criterionId: 'c2', levelId: 'c2-hi', points: 3 },
+          ],
+        })
+      )
+    ).toBe(false);
   });
 });
 

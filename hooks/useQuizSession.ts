@@ -397,7 +397,7 @@ function longestOrderedSubsequenceLength(
  * A grade with no `rubricScores` at all is a plain manual score, not partial.
  */
 function isPartialRubricGrade(
-  question: QuizQuestion,
+  question: Pick<QuizQuestion, 'rubricSnapshot'>,
   grade: import('@/types').WrittenAnswerGrade
 ): boolean {
   const criteria = question.rubricSnapshot?.criteria;
@@ -424,6 +424,21 @@ function hasSubmittedContent(studentAnswer: string): boolean {
   );
 }
 
+/**
+ * Whether a written answer still owes the teacher a grade — the single detector
+ * behind `GradeResult.state === 'awaiting-grade'`. Exported so student-facing
+ * surfaces (which never see the answer key) reuse the same HTML-aware blank
+ * check and partial-rubric rule instead of re-deriving them.
+ */
+export function isWrittenAnswerAwaitingGrade(
+  question: Pick<QuizQuestion, 'rubricSnapshot'> | undefined,
+  studentAnswer: string,
+  grade: import('@/types').WrittenAnswerGrade | undefined
+): boolean {
+  if (!grade) return hasSubmittedContent(studentAnswer);
+  return question ? isPartialRubricGrade(question, grade) : false;
+}
+
 export function gradeAnswer(
   question: QuizQuestion,
   studentAnswer: string,
@@ -443,12 +458,18 @@ export function gradeAnswer(
   // exists the slot is `awaiting-grade`: `pointsEarned: 0` is a placeholder,
   // and callers must not publish or push it as a real score.
   if (question.type === 'short' || question.type === 'essay') {
+    // A partial rubric save persists its points but stays provisional.
+    const awaiting = isWrittenAnswerAwaitingGrade(
+      question,
+      studentAnswer,
+      manualGrade
+    );
     if (!manualGrade) {
       return {
         isCorrect: false,
         pointsEarned: 0,
         pointsMax: max,
-        state: attempted ? 'awaiting-grade' : 'not-attempted',
+        state: awaiting ? 'awaiting-grade' : 'not-attempted',
       };
     }
     const awarded = Math.min(max, Math.max(0, manualGrade.pointsAwarded));
@@ -456,10 +477,7 @@ export function gradeAnswer(
       isCorrect: awarded === max && max > 0,
       pointsEarned: awarded,
       pointsMax: max,
-      // A partial rubric save persists its points but stays provisional.
-      state: isPartialRubricGrade(question, manualGrade)
-        ? 'awaiting-grade'
-        : 'scored',
+      state: awaiting ? 'awaiting-grade' : 'scored',
     };
   }
 

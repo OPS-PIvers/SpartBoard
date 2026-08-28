@@ -52,6 +52,7 @@ import { logError } from '@/utils/logError';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
+  isWrittenAnswerAwaitingGrade,
   SessionEndedError,
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
@@ -3378,11 +3379,16 @@ const PublishedScoreReview: React.FC<{
       .filter((q) => isWrittenQuestionType(q.type))
       .map((q) => q.id)
   );
+  // No rubric argument: `QuizPublicQuestion` carries no `rubricSnapshot`, so a
+  // partial-rubric grade reads as scored here until Phase 3-H exposes one.
   const awaitingGrade = myResponse.answers.some(
     (a) =>
       writtenQuestionIds.has(a.questionId) &&
-      (a.answer ?? '').trim().length > 0 &&
-      !myResponse.grading?.[a.questionId]
+      isWrittenAnswerAwaitingGrade(
+        undefined,
+        a.answer ?? '',
+        myResponse.grading?.[a.questionId]
+      )
   );
 
   // Watermark overlay — rendered above content via fixed positioning, below
