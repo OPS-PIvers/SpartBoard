@@ -14,7 +14,7 @@
  * `submittedAt` + derive a `status` string.
  */
 
-import type { GradeResult } from '@/types';
+import type { GradeResult, Rubric, WrittenAnswerRubricScore } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
 
@@ -41,6 +41,10 @@ export interface ExportableResponse {
    */
   submittedAt: number | null;
   tabSwitchWarnings?: number;
+  /** Per-question manual grades; read for rubric score export columns. */
+  grading?: {
+    [questionId: string]: { rubricScores?: WrittenAnswerRubricScore[] };
+  };
 }
 
 /** Minimum question shape the export reads. */
@@ -48,6 +52,8 @@ export interface ExportableQuestion {
   id: string;
   text: string;
   points?: number;
+  /** When present, emits per-criterion rubric columns (see buildResultsSheetData). */
+  rubricSnapshot?: Rubric;
 }
 
 export interface BuildResultsSheetDataOptions {
@@ -122,6 +128,22 @@ export function buildResultsSheetData<
   };
 
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
+
+  // A question's rubric columns only appear when it carries a snapshot AND
+  // at least one response was actually scored against it — an attached-but-
+  // unused rubric shouldn't bloat every export with empty columns.
+  const rubricQuestionIds = new Set(
+    questions
+      .filter(
+        (q) =>
+          q.rubricSnapshot &&
+          responses.some(
+            (r) => (r.grading?.[q.id]?.rubricScores?.length ?? 0) > 0
+          )
+      )
+      .map((q) => q.id)
+  );
+
   const headers = [
     'Timestamp',
     'Teacher',
@@ -134,9 +156,18 @@ export function buildResultsSheetData<
     'Max Points',
     'Warnings',
     'Submitted At',
-    ...questions.map(
-      (q, i) => `Q${i + 1} (${q.points ?? 1}pt): ${q.text.substring(0, 40)}`
-    ),
+    ...questions.flatMap((q, i) => {
+      const cols = [
+        `Q${i + 1} (${q.points ?? 1}pt): ${q.text.substring(0, 40)}`,
+      ];
+      if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
+        for (const c of q.rubricSnapshot.criteria) {
+          cols.push(`Q${i + 1} Rubric - ${c.name}`);
+          cols.push(`Q${i + 1} Rubric - ${c.name} Points`);
+        }
+      }
+      return cols;
+    }),
   ];
 
   const dataRows = responses.map((r) => {
@@ -171,10 +202,22 @@ export function buildResultsSheetData<
       if (!ans) continue;
       grades.set(q.id, gradeFn(q, ans.answer, r));
     }
-    const answerCols = questions.map((q) => {
+    const answerCols = questions.flatMap((q) => {
       const grade = grades.get(q.id);
-      if (!grade) return '';
-      return formatExportPoints(grade.pointsEarned);
+      const cols = [grade ? formatExportPoints(grade.pointsEarned) : ''];
+      if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
+        const scores = r.grading?.[q.id]?.rubricScores ?? [];
+        for (const c of q.rubricSnapshot.criteria) {
+          const score = scores.find((s) => s.criterionId === c.id);
+          if (!score) {
+            cols.push('', '');
+            continue;
+          }
+          const level = c.levels.find((l) => l.id === score.levelId);
+          cols.push(level?.label ?? '', formatExportPoints(score.points));
+        }
+      }
+      return cols;
     });
     const earnedPoints = questions.reduce((sum, q) => {
       const grade = grades.get(q.id);
