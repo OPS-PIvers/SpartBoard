@@ -253,6 +253,7 @@ export const DashboardView: React.FC = () => {
     pendingQuizShareId,
     pendingAssignmentShareId,
     pendingVideoActivityShareId,
+    pendingRubricShareId,
     pendingSharedCollectionId,
     clearPendingSharedCollection,
     // Widget grouping
@@ -304,7 +305,8 @@ export const DashboardView: React.FC = () => {
     !mountShareImporter &&
     (pendingQuizShareId ||
       pendingAssignmentShareId ||
-      pendingVideoActivityShareId)
+      pendingVideoActivityShareId ||
+      pendingRubricShareId)
   ) {
     setMountShareImporter(true);
   }
@@ -591,6 +593,19 @@ export const DashboardView: React.FC = () => {
         }
 
         if (document.body.classList.contains('is-dragging-widget')) {
+          suppressCurrentGesture.current = true;
+        }
+
+        // Ink must never queue board gestures: suppress whenever the global
+        // annotation pen is active, the pointer is a stylus, or the gesture
+        // started on a drawing surface (whiteboard/annotation canvases).
+        if (
+          annotationActive ||
+          ('pointerType' in event && event.pointerType === 'pen') ||
+          !!(event.target as HTMLElement | null)?.closest?.(
+            '[data-inking-surface]'
+          )
+        ) {
           suppressCurrentGesture.current = true;
         }
 
@@ -1357,6 +1372,14 @@ export const DashboardView: React.FC = () => {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onDoubleClick={(e) => {
+        // A double-tap while inking (drawing surfaces, or the global pen
+        // overlay) must not toggle fullscreen.
+        if (
+          annotationActive ||
+          (e.target as HTMLElement | null)?.closest?.('[data-inking-surface]')
+        ) {
+          return;
+        }
         const nativeEvent = e.nativeEvent;
         if (
           'pointerType' in nativeEvent &&

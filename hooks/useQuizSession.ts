@@ -321,6 +321,7 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     if (q.placeholder) base.placeholder = q.placeholder;
     if (q.maxWords && q.maxWords > 0) base.maxWords = q.maxWords;
     if (q.points && q.points > 0) base.points = q.points;
+    if (q.rubricSnapshot) base.rubricSnapshot = q.rubricSnapshot;
   }
   // Stimulus pointers are student-safe (the referenced entries carry no
   // answer data) and are needed to render/group stimuli client-side.

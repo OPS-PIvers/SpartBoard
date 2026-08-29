@@ -129,19 +129,13 @@ export function buildResultsSheetData<
 
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
 
-  // A question's rubric columns only appear when it carries a snapshot AND
-  // at least one response was actually scored against it — an attached-but-
-  // unused rubric shouldn't bloat every export with empty columns.
+  // Gated on the quiz definition alone: any question carrying a snapshot
+  // always emits its criterion columns, ungraded responses render empty
+  // cells. Gating on scores would make the header non-deterministic between
+  // a pre-grading and a post-grading export of the same quiz, and the PLC
+  // shared-sheet append guard rejects a schema change.
   const rubricQuestionIds = new Set(
-    questions
-      .filter(
-        (q) =>
-          q.rubricSnapshot &&
-          responses.some(
-            (r) => (r.grading?.[q.id]?.rubricScores?.length ?? 0) > 0
-          )
-      )
-      .map((q) => q.id)
+    questions.filter((q) => q.rubricSnapshot).map((q) => q.id)
   );
 
   const headers = [

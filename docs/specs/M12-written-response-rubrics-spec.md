@@ -1,6 +1,6 @@
 # M12 — Written-response Phase 3: Rubric-based Grading
 
-**Status:** Implementation spec — decisions locked 2026-08-27 (see §3a), building  
+**Status:** SHIPPED to dev-paul 2026-08-28 — all phases 3-A..3-I merged (PRs #2614–#2619, #2628–#2630); decisions locked 2026-08-27 (see §3a)  
 **Author:** Architect review of dev-paul codebase  
 **Scope:** Phase 3 of docs/written-response-quiz-questions.md — rubric data model, builder UI, grader integration, Firestore collection + rules, CSV export of rubric scores, and PLC sharing of rubrics  
 **Date:** 2026-06-25
@@ -609,72 +609,72 @@ Recipient pastes rubric share link/code
 
 ### Phase 3-A — Types + Firestore foundation (independently shippable)
 
-- [ ] Add `Rubric`, `RubricCriterion`, `RubricLevel`, `SharedRubric` to `types.ts`
-- [ ] Add `rubricId?` and `rubricSnapshot?` to `QuizQuestion` in `types.ts`
-- [ ] Add `/users/{userId}/rubrics/{rubricId}` rules block to `firestore.rules`
-- [ ] Add `/shared_rubrics/{shareId}` rules block to `firestore.rules`
-- [ ] Write `tests/rules/firestore-rules-rubrics.test.ts` and verify with `pnpm run test:rules`
-- [ ] Run `pnpm run type-check` — no new errors expected (new optional fields on existing types)
+- [x] Add `Rubric`, `RubricCriterion`, `RubricLevel`, `SharedRubric` to `types.ts`
+- [x] Add `rubricId?` and `rubricSnapshot?` to `QuizQuestion` in `types.ts`
+- [x] Add `/users/{userId}/rubrics/{rubricId}` rules block to `firestore.rules`
+- [x] Add `/shared_rubrics/{shareId}` rules block to `firestore.rules`
+- [x] Write `tests/rules/firestore-rules-rubrics.test.ts` and verify with `pnpm run test:rules`
+- [x] Run `pnpm run type-check` — no new errors expected (new optional fields on existing types)
 
 ### Phase 3-B — CSV utilities (independently shippable, no UI dependency)
 
-- [ ] Create `/utils/rubricCsv.ts` with `parseRubricCsv` and `rubricToCsv`
-- [ ] Create `/public/templates/rubric-template.csv`
-- [ ] Write `tests/utils/rubricCsv.test.ts` and verify all cases pass
-- [ ] Extend `ExportableQuestion` and `ExportableResponse` in `assignmentExportShared.ts`
-- [ ] Implement rubric-column logic in `buildResultsSheetData`
-- [ ] Write `tests/utils/assignmentExportShared.rubricColumns.test.ts`
-- [ ] Run `pnpm run validate` — green
+- [x] Create `/utils/rubricCsv.ts` with `parseRubricCsv` and `rubricToCsv`
+- [x] Create `/public/templates/rubric-template.csv`
+- [x] Write `tests/utils/rubricCsv.test.ts` and verify all cases pass
+- [x] Extend `ExportableQuestion` and `ExportableResponse` in `assignmentExportShared.ts`
+- [x] Implement rubric-column logic in `buildResultsSheetData`
+- [x] Write `tests/utils/assignmentExportShared.rubricColumns.test.ts`
+- [x] Run `pnpm run validate` — green
 
 ### Phase 3-C — `useRubrics` hook
 
-- [ ] Create `/hooks/useRubrics.ts` with full CRUD + share/import surface
-- [ ] Write `tests/hooks/useRubrics.test.ts` (mock Firestore, test state transitions)
-- [ ] Verify hook exports are type-correct (`pnpm run type-check`)
+- [x] Create `/hooks/useRubrics.ts` with full CRUD + share/import surface
+- [x] Write `tests/hooks/useRubrics.test.ts` (mock Firestore, test state transitions)
+- [x] Verify hook exports are type-correct (`pnpm run type-check`)
 
 ### Phase 3-D — Builder UI (`RubricBuilderPanel`)
 
-- [ ] Create `/components/widgets/QuizWidget/components/RubricBuilderPanel.tsx`
-- [ ] Modify `QuizEditorDetailPane` in `QuizEditor.tsx` to mount the panel
-- [ ] Write `tests/components/quiz/RubricBuilderPanel.test.tsx`
-- [ ] Manual smoke-test: open quiz editor, add short question, build a 3-criterion rubric, attach, save
-- [ ] Run `pnpm run validate`
+- [x] Create `/components/widgets/QuizWidget/components/RubricBuilderPanel.tsx`
+- [x] Modify `QuizEditorDetailPane` in `QuizEditor.tsx` to mount the panel
+- [x] Write `tests/components/quiz/RubricBuilderPanel.test.tsx`
+- [x] Manual smoke-test: open quiz editor, add short question, build a 3-criterion rubric, attach, save
+- [x] Run `pnpm run validate`
 
 ### Phase 3-E — Grader integration (`RubricScoringPanel`)
 
-- [ ] Create `/components/widgets/QuizWidget/components/RubricScoringPanel.tsx`
-- [ ] Modify `WrittenResponseGrader.tsx` to mount panel, track draft scores, include in grade object
-- [ ] Write `tests/components/quiz/RubricScoringPanel.test.tsx`
-- [ ] Write `tests/components/quiz/WrittenResponseGrader.rubricScores.test.tsx` — 4 tests: no rubric = no panel; rubric panel mounts; level selection auto-fills points; rubricScores included in onSaveGrade call
-- [ ] Manual smoke-test: run a quiz with a rubric-attached question, open grader, select levels, save, verify Firestore document contains `rubricScores` array
-- [ ] Run `pnpm run validate`
+- [x] Create `/components/widgets/QuizWidget/components/RubricScoringPanel.tsx`
+- [x] Modify `WrittenResponseGrader.tsx` to mount panel, track draft scores, include in grade object
+- [x] Write `tests/components/quiz/RubricScoringPanel.test.tsx`
+- [x] Write `tests/components/quiz/WrittenResponseGrader.rubricScores.test.tsx` — 4 tests: no rubric = no panel; rubric panel mounts; level selection auto-fills points; rubricScores included in onSaveGrade call
+- [x] Manual smoke-test: run a quiz with a rubric-attached question, open grader, select levels, save, verify Firestore document contains `rubricScores` array
+- [x] Run `pnpm run validate`
 
 ### Phase 3-F — Sharing UI + link flow
 
-- [ ] Add "Share rubric" button + copyable link/code to `RubricBuilderPanel`
-- [ ] Add "Import from link" entry point in `RubricBuilderPanel` library list (or in a thin `RubricImportModal`)
-- [ ] Wire `useRubrics.shareRubric` and `useRubrics.importSharedRubric`
-- [ ] Run `pnpm run validate`
+- [x] Add "Share rubric" button + copyable link/code to `RubricBuilderPanel`
+- [x] Add "Import from link" entry point in `RubricBuilderPanel` library list (or in a thin `RubricImportModal`)
+- [x] Wire `useRubrics.shareRubric` and `useRubrics.importSharedRubric`
+- [x] Run `pnpm run validate`
 
 ### Phase 3-G — `GradeResult.state` (interleaved from RR-06; own PR)
 
-- [ ] Add required `state: 'scored' | 'awaiting-grade' | 'not-attempted'` to `GradeResult`; let the compiler walk all consumers
-- [ ] Written question with no manual grade → `awaiting-grade` (not `pointsEarned: 0` masquerading as scored)
-- [ ] `awaiting-grade` omitted from Classroom push (`classroomGradePush.ts`) and archive publish — fixes ungraded-essay-pushes-0
-- [ ] Provisional marking anywhere a partially-graded score displays (monitor, results, export, student view)
-- [ ] Partial-rubric save keeps the slot `awaiting-grade` (decision 8)
+- [x] Add required `state: 'scored' | 'awaiting-grade' | 'not-attempted'` to `GradeResult`; let the compiler walk all consumers
+- [x] Written question with no manual grade → `awaiting-grade` (not `pointsEarned: 0` masquerading as scored)
+- [x] `awaiting-grade` omitted from Classroom push (`classroomGradePush.ts`) and archive publish — fixes ungraded-essay-pushes-0
+- [x] Provisional marking anywhere a partially-graded score displays (monitor, results, export, student view)
+- [x] Partial-rubric save keeps the slot `awaiting-grade` (decision 8)
 
 ### Phase 3-H — Student-facing rubric views (decision 6)
 
-- [ ] Student quiz view: render `question.rubricSnapshot` (criteria + level descriptors) alongside the written question while answering
-- [ ] Published results: scored rubric (selected level + points per criterion) in the student results view, provisional-marked when `awaiting-grade`
+- [x] Student quiz view: render `question.rubricSnapshot` (criteria + level descriptors) alongside the written question while answering
+- [x] Published results: scored rubric (selected level + points per criterion) in the student results view, provisional-marked when `awaiting-grade`
 
 ### Phase 3-I — PLC integration (decision 3)
 
-- [ ] `/plcs/{plcId}/rubrics/{id}` subcollection + rules (mirror PLC quizzes pattern) + rules tests
-- [ ] Rubrics tab in the PLC library UI; share-to-PLC from `RubricBuilderPanel`; import-from-PLC to personal library
-- [ ] Count rubric shares in `plcContributions` with parity to other resource types
-- [ ] Run `pnpm run validate`
+- [x] `/plcs/{plcId}/rubrics/{id}` subcollection + rules (mirror PLC quizzes pattern) + rules tests
+- [x] Rubrics tab in the PLC library UI; share-to-PLC from `RubricBuilderPanel`; import-from-PLC to personal library
+- [x] Count rubric shares in `plcContributions` with parity to other resource types
+- [x] Run `pnpm run validate`
 
 ---
 

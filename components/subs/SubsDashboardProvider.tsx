@@ -236,6 +236,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       groupBuildMode: false,
       pendingShareId: null,
       pendingShareImport: null as PendingShareImport | null,
+      pendingRubricShareId: null,
+      clearPendingRubricShare: NOOP,
       pendingQuizShareId: null,
       pendingAssignmentShareId: null,
       pendingVideoActivityShareId: null,

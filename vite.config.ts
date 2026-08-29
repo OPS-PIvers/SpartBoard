@@ -7,12 +7,16 @@ import react from '@vitejs/plugin-react';
 // inlined into the JS bundle.  This removes the fragile initial network fetch
 // that was required to establish the "current" version at runtime.
 let __APP_VERSION__ = 'dev';
+let __APP_BUILD_ID__ = 'dev';
 try {
   const raw = fs.readFileSync(
     path.resolve(__dirname, 'public/version.json'),
     'utf-8'
   );
-  __APP_VERSION__ = JSON.parse(raw).version;
+  const parsed = JSON.parse(raw);
+  __APP_VERSION__ = parsed.version;
+  // Older version.json files predate buildId; fall back so the compare still works.
+  __APP_BUILD_ID__ = parsed.buildId ?? parsed.version;
 } catch {
   // version.json hasn't been generated yet (fresh checkout) – fall back to 'dev'
 }
@@ -28,6 +32,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(__APP_VERSION__),
+    __APP_BUILD_ID__: JSON.stringify(__APP_BUILD_ID__),
   },
   resolve: {
     alias: {
