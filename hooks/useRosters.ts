@@ -170,10 +170,18 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
     o.hiddenOptionIdsByQuestion &&
     typeof o.hiddenOptionIdsByQuestion === 'object'
   ) {
-    override.hiddenOptionIdsByQuestion = o.hiddenOptionIdsByQuestion as Record<
-      string,
-      string[]
-    >;
+    // Drive JSON is externally mutable — drop entries that aren't string arrays
+    // rather than trusting the shape downstream.
+    const hidden: Record<string, string[]> = {};
+    for (const [questionId, ids] of Object.entries(
+      o.hiddenOptionIdsByQuestion as Record<string, unknown>
+    )) {
+      if (!Array.isArray(ids)) continue;
+      hidden[questionId] = ids.filter(
+        (id): id is string => typeof id === 'string'
+      );
+    }
+    override.hiddenOptionIdsByQuestion = hidden;
   }
   if (
     o.rubricOverrideByQuestion &&
@@ -893,17 +901,19 @@ export const useRosters = (user: User | null) => {
         const existingMeta = metaListRef.current.find((m) => m.id === id);
         let cachedContent = studentsCacheRef.current.get(id);
 
-        // A cold cache means "students unknown", not "students empty". Carrying
-        // [] forward here would upload a whole-file overwrite that deletes every
-        // student, so hydrate from Drive first and abort if that fails.
-        if (cachedContent === undefined && students === undefined) {
+        // A cold cache means "file contents unknown", not "empty". Carrying the
+        // empty defaults forward would upload a whole-file overwrite that
+        // deletes whichever fields the caller didn't pass (students on a
+        // groups-only write, groups/overrides on a students-only write), so
+        // hydrate from Drive first and abort if that fails.
+        if (cachedContent === undefined) {
           if (!existingMeta?.driveFileId) {
             // No Drive file yet ⇒ nothing has ever been uploaded, so empty is
             // genuinely correct rather than unknown.
             cachedContent = { students: [], ...emptyRosterFileExtras() };
           } else if (!driveService) {
             throw new Error(
-              `Cannot update roster ${id}: Drive is unavailable and its students are not loaded`
+              `Cannot update roster ${id}: Drive is unavailable and its saved contents are not loaded`
             );
           } else {
             cachedContent = await loadRosterFileFromDrive(

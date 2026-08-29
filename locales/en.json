@@ -136,6 +136,7 @@
       "classLinkImport": "Import",
       "classLinkMerge": "Merge",
       "duplicatePins": "Duplicate PINs: {{pins}}",
+      "saveFailed": "Could not save this class. Your changes are still here — check your Google Drive connection and try again.",
       "namesOnePerLine": "Names (One per line)",
       "firstNames": "First Names",
       "lastNames": "Last Names",

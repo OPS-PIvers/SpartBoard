@@ -394,4 +394,33 @@ describe('RosterEditorModal', () => {
       ]);
     });
   });
+
+  it('keeps the modal open and surfaces an alert when the save rejects', async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, 'error')
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      .mockImplementation(() => {});
+    const onClose = vi.fn();
+    const onSave = vi
+      .fn()
+      .mockRejectedValue(new Error('Failed to save roster changes to Drive'));
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={null}
+        onClose={onClose}
+        onSave={onSave}
+      />
+    );
+
+    await user.type(screen.getByPlaceholderText(/class name/i), 'Doomed');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not save/i);
+    expect(onClose).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });

@@ -66,14 +66,34 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   const initialGroups = useMemo(() => roster?.groups ?? [], [roster]);
   const [groups, setGroups] = useState<RosterGroup[]>(initialGroups);
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || saving) return;
     const groupsChanged =
       JSON.stringify(groups) !== JSON.stringify(initialGroups);
-    if (groupsChanged) {
-      await onSave(name.trim(), validStudents, groups);
-    } else {
-      await onSave(name.trim(), validStudents);
+    setSaveError(null);
+    setSaving(true);
+    try {
+      if (groupsChanged) {
+        await onSave(name.trim(), validStudents, groups);
+      } else {
+        await onSave(name.trim(), validStudents);
+      }
+    } catch (err) {
+      // Keep the modal open with the teacher's edits intact — closing here
+      // would discard them with no indication the save never landed.
+      console.error('Failed to save roster:', err);
+      setSaveError(
+        t('sidebar.classes.saveFailed', {
+          defaultValue:
+            'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
+        })
+      );
+      return;
+    } finally {
+      setSaving(false);
     }
     onClose();
   };
@@ -110,12 +130,22 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           />
           <button
             onClick={handleSave}
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
             className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={16} /> {t('common.save', { defaultValue: 'Save' })}
           </button>
         </div>
+
+        {saveError && (
+          <div
+            role="alert"
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-300 rounded-lg text-red-800 text-xs font-semibold shrink-0"
+          >
+            <AlertTriangle size={14} className="text-red-600 shrink-0" />
+            {saveError}
+          </div>
+        )}
 
         {roster && (
           <div className="shrink-0">

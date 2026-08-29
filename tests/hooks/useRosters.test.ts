@@ -653,6 +653,46 @@ describe('useRosters — updateRoster', () => {
     );
   });
 
+  it('re-hydrates groups from Drive before a students-only write when the cache is cold', async () => {
+    // Same cold-cache setup, but the caller supplies students — the groups it
+    // never passed must survive the whole-file overwrite.
+    const downloadFile = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('token expired'))
+      .mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
+          defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+        })
+      );
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    currentDriveService = makeDriveService({ downloadFile, updateFileContent });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', { driveFileId: 'file-1', studentCount: 1 }),
+    ]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    expect(result.current.rosters[0].students).toHaveLength(0);
+
+    await act(async () => {
+      await result.current.updateRoster('r1', {
+        students: [student({ id: 's1' }), student({ id: 's2' })],
+      });
+    });
+
+    expect(downloadFile).toHaveBeenLastCalledWith('file-1');
+    const body = await readBlobBody(updateFileContent.mock.calls[0][1] as Blob);
+    expect(body.students.map((s) => s.id)).toEqual(['s1', 's2']);
+    expect(body.groups).toEqual([
+      { id: 'g1', name: 'Reds', studentIds: ['s1'] },
+    ]);
+    expect(body.defaultOverridesByStudentId).toEqual({
+      s1: { timeMultiplier: 2 },
+    });
+  });
+
   it('throws rather than writing an empty roster when the cache is cold and Drive is unavailable', async () => {
     currentDriveService = null;
     const { result } = renderHook(() => useRosters(mockUser));
@@ -666,7 +706,7 @@ describe('useRosters — updateRoster', () => {
         result.current.updateRoster('r1', {
           groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
         })
-      ).rejects.toThrow(/students are not loaded/);
+      ).rejects.toThrow(/saved contents are not loaded/);
     });
     expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
@@ -1004,6 +1044,35 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     expect(roster.defaultOverridesByStudentId).toEqual({
       s1: { timeMultiplier: 1.5, tabWarningThreshold: 'off' },
     });
+  });
+
+  it('drops non-string-array hiddenOptionIdsByQuestion entries from a hand-edited Drive file', async () => {
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [],
+          defaultOverridesByStudentId: {
+            s1: {
+              hiddenOptionIdsByQuestion: {
+                q1: 'not-an-array',
+                q2: [1, 'opt-a', null, 'opt-b'],
+                q3: ['opt-c'],
+              },
+            },
+          },
+        })
+      ),
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    expect(
+      result.current.rosters[0].defaultOverridesByStudentId?.s1
+        ?.hiddenOptionIdsByQuestion
+    ).toEqual({ q2: ['opt-a', 'opt-b'], q3: ['opt-c'] });
   });
 
   it('writes the v2 envelope (not a bare array) on every save', async () => {

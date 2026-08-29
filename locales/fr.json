@@ -136,6 +136,7 @@
       "classLinkImport": "Importer",
       "classLinkMerge": "Fusionner",
       "duplicatePins": "PIN en double : {{pins}}",
+      "saveFailed": "Impossible d'enregistrer cette classe. Vos modifications sont conservées — vérifiez votre connexion Google Drive et réessayez.",
       "namesOnePerLine": "Noms (un par ligne)",
       "firstNames": "Prénoms",
       "lastNames": "Noms",
