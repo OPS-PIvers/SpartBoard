@@ -16,6 +16,7 @@ import {
   ClassRoster,
   ClassRosterMeta,
   RosterGroup,
+  RubricSnapshot,
   Student,
   StudentOverride,
 } from '@/types';
@@ -187,10 +188,18 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
     o.rubricOverrideByQuestion &&
     typeof o.rubricOverrideByQuestion === 'object'
   ) {
-    override.rubricOverrideByQuestion = o.rubricOverrideByQuestion as Record<
-      string,
-      unknown
-    >;
+    // Now that A1's type lands a real shape here, keep only 'points' and
+    // object snapshots — a primitive from a hand-edited file would break
+    // downstream rubric reads.
+    const swaps: Record<string, RubricSnapshot | 'points'> = {};
+    for (const [questionId, value] of Object.entries(
+      o.rubricOverrideByQuestion as Record<string, unknown>
+    )) {
+      if (value === 'points') swaps[questionId] = 'points';
+      else if (value && typeof value === 'object')
+        swaps[questionId] = value as RubricSnapshot;
+    }
+    override.rubricOverrideByQuestion = swaps;
   }
   if (
     typeof o.tabWarningThreshold === 'number' ||

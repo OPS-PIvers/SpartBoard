@@ -202,25 +202,8 @@ export interface RosterGroup {
   studentIds: string[];
 }
 
-/**
- * Per-student accommodation/targeting override (M17 spec §2a). Defined locally
- * ahead of A1 landing this type on `types.ts`; shape matches §2a exactly and
- * should be reconciled (not redefined) when A1 merges.
- * `RubricSnapshot` is a placeholder pending A1 — see M17 spec §2a.
- */
-export interface StudentOverride {
-  timeMultiplier?: 1.5 | 2 | 'unlimited';
-  /** Quiz only: subset of question ids to serve. */
-  questionIds?: string[];
-  /** Quiz only, never the correct answer. */
-  hiddenOptionIdsByQuestion?: Record<string, string[]>;
-  /** Quiz only. */
-  rubricOverrideByQuestion?: Record<string, unknown>;
-  /** Quiz only (during-taking system). */
-  tabWarningThreshold?: number | 'off';
-  openAt?: number;
-  closeAt?: number;
-}
+// `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`
+// — this file's placeholder was reconciled away when A1 landed the real type.
 
 // --- PLC (PROFESSIONAL LEARNING COMMUNITY) TYPES ---
 
