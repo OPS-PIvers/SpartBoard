@@ -257,14 +257,22 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
       orderedStations,
       activeRoster.map((s) => s.id)
     );
-    persistAssignments(result.assignments);
+    // Merge onto the full map — shuffle only knows about today's present
+    // roster, so a plain replace would delete absent students' stations.
+    persistAssignments({ ...assignments, ...result.assignments });
     if (result.overflowStudents.length > 0) {
       addToast(
         `${result.overflowStudents.length} student${result.overflowStudents.length === 1 ? '' : 's'} unassigned (over capacity).`,
         'info'
       );
     }
-  }, [orderedStations, activeRoster, persistAssignments, addToast]);
+  }, [
+    orderedStations,
+    activeRoster,
+    assignments,
+    persistAssignments,
+    addToast,
+  ]);
 
   // Watch rotationTrigger from a linked Timer — bumps to Date.now() invoke rotate.
   // Mirrors `externalTrigger` in RandomWidget.tsx: assign the latest callback
