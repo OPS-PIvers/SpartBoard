@@ -4200,7 +4200,8 @@ export interface StudentOverride {
   timeMultiplier?: 1.5 | 2 | 'unlimited';
   questionIds?: string[]; // quiz only: subset to serve
   hiddenOptionIdsByQuestion?: Record<string, string[]>; // quiz only, never the correct answer
-  rubricOverrideByQuestion?: Record<string, RubricSnapshot>; // quiz only
+  // quiz only; 'points' means grade this question by raw points, ignoring any rubric
+  rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
   tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
