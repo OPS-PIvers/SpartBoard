@@ -1774,5 +1774,22 @@
     "emptySubtitle": "Derzeit gibt es keine weiteren PLGs in Ihrem Gebäude.",
     "noOrgTitle": "Gebäudeverzeichnis nicht verfügbar",
     "noOrgSubtitle": "Ihr Konto ist noch keiner Schule zugeordnet, daher können wir keine PLGs in der Nähe anzeigen."
+  },
+  "studentOverride": {
+    "noAccommodations": "Keine Anpassungen",
+    "copyFromLabel": "Anpassungen kopieren von",
+    "copy": "Kopieren",
+    "timeMultiplier": "Zusätzliche Zeit",
+    "tabWarningThreshold": "Tab-Warnschwelle",
+    "default": "Standard",
+    "off": "Aus",
+    "windowShift": "Zeitfensterverschiebung",
+    "opensAt": "Öffnet",
+    "closesAt": "Schließt",
+    "questionSubset": "Fragenauswahl",
+    "hideOptions": "Antwortoptionen ausblenden",
+    "rubricSwap": "Bewertungsraster ändern",
+    "rubricDefault": "Standard",
+    "rubricPoints": "Punktemodus"
   }
 }

@@ -1774,5 +1774,22 @@
     "emptySubtitle": "Ahora mismo no hay otras Comunidades en tu edificio.",
     "noOrgTitle": "Directorio del edificio no disponible",
     "noOrgSubtitle": "Tu cuenta aún no está vinculada a una escuela, por lo que no podemos mostrar Comunidades cercanas."
+  },
+  "studentOverride": {
+    "noAccommodations": "Sin adaptaciones",
+    "copyFromLabel": "Copiar adaptaciones de",
+    "copy": "Copiar",
+    "timeMultiplier": "Tiempo extendido",
+    "tabWarningThreshold": "Umbral de aviso de pestaña",
+    "default": "Predeterminado",
+    "off": "Desactivado",
+    "windowShift": "Ajuste de horario",
+    "opensAt": "Abre",
+    "closesAt": "Cierra",
+    "questionSubset": "Subconjunto de preguntas",
+    "hideOptions": "Ocultar opciones de respuesta",
+    "rubricSwap": "Cambiar rúbrica",
+    "rubricDefault": "Predeterminado",
+    "rubricPoints": "Modo de puntos"
   }
 }
