@@ -9,12 +9,21 @@
  * answer, so highlights stay anchored even if the teacher later unlocks
  * the attempt and the student edits.
  *
- * Rubric scoring (Phase 3) is still out of scope; the storage shape
- * (`WrittenAnswerGrade.rubricScores`) is already reserved on the type so
- * this component can grow into it without a schema migration.
+ * Phase 3 adds rubric scoring: when the question carries a
+ * `rubricSnapshot`, `RubricScoringPanel` mounts in the right rail and
+ * auto-fills the points field once every criterion has a selected level —
+ * never overwriting a total the teacher typed by hand. A partial selection
+ * saves its `rubricScores` plus the running total, and the response stays
+ * awaiting-grade downstream.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -26,12 +35,15 @@ import {
   QuizResponse,
   WrittenAnswerAnnotation,
   WrittenAnswerGrade,
+  WrittenAnswerRubricScore,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
+import { RubricScoringPanel } from './RubricScoringPanel';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { sumRubricScorePoints } from '@/utils/rubricPoints';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -53,6 +65,9 @@ interface WrittenResponseGraderProps {
   teacherUid: string;
   onClose: () => void;
 }
+
+const clampPoints = (points: number, maxPoints: number): number =>
+  Math.max(0, Math.min(points, maxPoints));
 
 export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   quiz,
@@ -130,17 +145,56 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(
     null
   );
+  const [draftRubricScores, setDraftRubricScores] = useState<
+    WrittenAnswerRubricScore[]
+  >([]);
   const [hydrationKey, setHydrationKey] = useState<string>('');
+  // The last rubric total we auto-filled, so a manual override is recognizable.
+  const lastAutoFilledPointsRef = useRef<string>('');
+  const pointsInputRef = useRef<string>('');
+  pointsInputRef.current = pointsInput;
 
+  const rubricCriteriaCount = question?.rubricSnapshot?.criteria.length ?? 0;
   const targetKey = `${responseKey ?? ''}::${question?.id ?? ''}`;
   if (targetKey !== hydrationKey) {
     setHydrationKey(targetKey);
     setPointsInput(savedGrade != null ? String(savedGrade.pointsAwarded) : '');
     setComment(savedGrade?.overallComment ?? '');
     setDraftAnnotations(savedGrade?.annotations ?? []);
+    setDraftRubricScores(savedGrade?.rubricScores ?? []);
     setActiveAnnotationId(null);
     setSaveError(null);
+    // A saved score matching its complete rubric total reads as auto-filled.
+    lastAutoFilledPointsRef.current =
+      rubricCriteriaCount > 0 &&
+      savedGrade?.rubricScores?.length === rubricCriteriaCount
+        ? String(
+            clampPoints(
+              sumRubricScorePoints(savedGrade.rubricScores),
+              maxPoints
+            )
+          )
+        : '';
   }
+
+  // Auto-fill points only once every criterion has a level (decisions 2 + 8).
+  // A partial selection persists its scores and leaves the slot provisional.
+  const handleRubricScoresChange = useCallback(
+    (scores: WrittenAnswerRubricScore[], derivedPoints: number) => {
+      setDraftRubricScores(scores);
+      if (rubricCriteriaCount === 0 || scores.length !== rubricCriteriaCount)
+        return;
+      const next = String(clampPoints(derivedPoints, maxPoints));
+      const lastAutoFilled = lastAutoFilledPointsRef.current;
+      // Re-fires that don't change the total (note keystrokes) are no-ops.
+      if (next === lastAutoFilled) return;
+      const current = pointsInputRef.current;
+      if (current !== '' && current !== lastAutoFilled) return;
+      lastAutoFilledPointsRef.current = next;
+      setPointsInput(next);
+    },
+    [rubricCriteriaCount, maxPoints]
+  );
 
   // Are there unsaved edits in the form? `savedGrade` is the persisted
   // value; comparing string projections handles the "empty input vs.
@@ -157,10 +211,15 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     draftAnnotations,
     savedGrade?.annotations
   );
+  const rubricScoresEqual = rubricScoreListsEqual(
+    draftRubricScores,
+    savedGrade?.rubricScores
+  );
   const isDirty =
     pointsInput !== savedPointsStr ||
     comment !== savedCommentStr ||
-    !annotationsEqual;
+    !annotationsEqual ||
+    !rubricScoresEqual;
 
   const confirmDiscardIfDirty = useCallback((): boolean => {
     if (!isDirty) return true;
@@ -242,18 +301,28 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       return;
     }
     const trimmed = pointsInput.trim();
+    // Decision 8: a partial rubric banks its running sum, no typed total needed.
+    const isPartialRubric =
+      rubricCriteriaCount > 0 &&
+      draftRubricScores.length > 0 &&
+      draftRubricScores.length < rubricCriteriaCount;
+    let parsed: number;
     if (trimmed === '') {
-      setSaveError('Enter a numeric score.');
-      return;
-    }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) {
-      setSaveError('Enter a numeric score.');
-      return;
-    }
-    if (parsed < 0 || parsed > maxPoints) {
-      setSaveError(`Score must be between 0 and ${maxPoints}.`);
-      return;
+      if (!isPartialRubric) {
+        setSaveError('Enter a numeric score.');
+        return;
+      }
+      parsed = clampPoints(sumRubricScorePoints(draftRubricScores), maxPoints);
+    } else {
+      parsed = Number(trimmed);
+      if (!Number.isFinite(parsed)) {
+        setSaveError('Enter a numeric score.');
+        return;
+      }
+      if (parsed < 0 || parsed > maxPoints) {
+        setSaveError(`Score must be between 0 and ${maxPoints}.`);
+        return;
+      }
     }
     // Snapshot the student's answer the first time we save annotations,
     // and keep that snapshot frozen forever after. This is what makes
@@ -286,6 +355,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       overallComment: comment.trim() || undefined,
       annotations: hasAnnotations ? draftAnnotations : undefined,
       gradingSnapshot,
+      rubricScores:
+        draftRubricScores.length > 0 ? draftRubricScores : undefined,
       gradedBy: teacherUid,
       gradedAt: Date.now(),
     };
@@ -313,6 +384,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     maxPoints,
     comment,
     draftAnnotations,
+    draftRubricScores,
+    rubricCriteriaCount,
     savedGrade,
     teacherUid,
     onSaveGrade,
@@ -485,6 +558,16 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         </section>
 
         <aside className="border-l border-slate-200 bg-white p-6 flex flex-col gap-5 overflow-y-auto">
+          {question.rubricSnapshot && (
+            <RubricScoringPanel
+              key={targetKey}
+              rubric={question.rubricSnapshot}
+              maxPoints={maxPoints}
+              initialScores={savedGrade?.rubricScores}
+              onChange={handleRubricScoresChange}
+            />
+          )}
+
           <div>
             <label
               htmlFor="grade-points"
@@ -584,6 +667,29 @@ const annotationListsEqual = (
       return false;
     if ((x.comment ?? '') !== (y.comment ?? '')) return false;
     if (x.authorUid !== y.authorUid) return false;
+  }
+  return true;
+};
+
+/**
+ * Field-level equality on two rubric-score lists, keyed by `criterionId` so
+ * list order never trips a spurious dirty state — same posture as
+ * `annotationListsEqual`. Treats a missing note and `''` as equal.
+ */
+const rubricScoreListsEqual = (
+  a: WrittenAnswerRubricScore[],
+  b: WrittenAnswerRubricScore[] | undefined
+): boolean => {
+  const right = b ?? [];
+  if (a.length !== right.length) return false;
+  const byCriterion = new Map<string, WrittenAnswerRubricScore>();
+  for (const x of right) byCriterion.set(x.criterionId, x);
+  for (const x of a) {
+    const y = byCriterion.get(x.criterionId);
+    if (!y) return false;
+    if (x.levelId !== y.levelId) return false;
+    if (x.points !== y.points) return false;
+    if ((x.note ?? '') !== (y.note ?? '')) return false;
   }
   return true;
 };

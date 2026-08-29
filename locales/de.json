@@ -365,7 +365,8 @@
     "assessmentsTypes": {
       "label": "Bewertungstyp",
       "quizzes": "Quizze",
-      "videoActivities": "Videoaktivitäten"
+      "videoActivities": "Videoaktivitäten",
+      "rubrics": "Bewertungsraster"
     },
     "assignmentsSubTabs": {
       "label": "Aufgabenansichten",
@@ -676,6 +677,37 @@
       "driveRequiredForEdit": "Verbinde Google Drive in deinem Konto, um PLG-Quizze zu bearbeiten.",
       "driveDisconnected": "Verbinde Google Drive, um PLG-Quizze in deine persönliche Bibliothek zu importieren."
     },
+    "rubricLibrary": {
+      "heading": "Geteilte Bewertungsraster",
+      "count_one": "{{count}} Bewertungsraster",
+      "count_other": "{{count}} Bewertungsraster",
+      "loading": "Bewertungsraster werden geladen…",
+      "loadError": "Geteilte Bewertungsraster konnten nicht geladen werden. Bitte versuche es erneut.",
+      "empty": "Noch keine geteilten Bewertungsraster",
+      "emptyHint": "Teile ein Bewertungsraster aus deiner Bibliothek, damit dein Team schriftliche Antworten einheitlich bewertet.",
+      "bySharer": "geteilt von {{name}}",
+      "unknownSharer": "einem Teammitglied",
+      "criterionCount_one": "{{count}} Kriterium",
+      "criterionCount_other": "{{count}} Kriterien",
+      "maxPoints": "{{points}} Pkt.",
+      "importAction": "Zu meiner Bibliothek hinzufügen",
+      "importedToast": "„{{title}}“ wurde deiner Bewertungsraster-Bibliothek hinzugefügt.",
+      "importFailed": "Bewertungsraster konnte nicht importiert werden.",
+      "shareCta": "Bewertungsraster teilen",
+      "sharedToast": "„{{title}}“ wurde mit dieser PLG geteilt.",
+      "resharedToast": "„{{title}}“ ist wieder mit dieser PLG geteilt.",
+      "alreadySharedToast": "„{{title}}“ ist bereits mit dieser PLG geteilt.",
+      "shareFailed": "Bewertungsraster konnte nicht mit dieser PLG geteilt werden.",
+      "sharePickerTitle": "Ein Bewertungsraster mit dieser PLG teilen",
+      "sharePickerPrompt": "Wähle ein Bewertungsraster aus deiner Bibliothek.",
+      "sharePickerEmpty": "Du hast noch keine Bewertungsraster. Erstelle eines aus einer offenen Frage im Quiz-Editor.",
+      "pickerMeta": "{{criteria}} Kriterien · {{points}} Pkt.",
+      "unshareAction": "Freigabe aufheben",
+      "unshareLabel": "Freigabe von {{title}} aufheben",
+      "unshareTitle": "Freigabe des Bewertungsrasters aufheben",
+      "unshareConfirm": "„{{title}}“ aus dieser PLG entfernen? Teammitglieder verlieren den Zugriff auf den geteilten Eintrag; bereits kopierte Bewertungsraster bleiben funktionsfähig.",
+      "unshareFailed": "Freigabe des Bewertungsrasters konnte nicht aufgehoben werden."
+    },
     "presence": {
       "heading": "Wer ist hier",
       "othersHere": "{{count}} Teammitglied jetzt hier",
@@ -953,7 +985,8 @@
         "doc": "Dokument",
         "comment": "Kommentar",
         "quiz": "Quiz",
-        "videoActivity": "Videoaktivität"
+        "videoActivity": "Videoaktivität",
+        "rubric": "Bewertungsraster"
       }
     },
     "versions": {
@@ -1012,7 +1045,8 @@
       "notesNote": "Betrachter können Notizen und Dokumente lesen, aber nicht hinzufügen oder ändern.",
       "todosNote": "Betrachter können die Aufgabenliste lesen, aber keine Einträge hinzufügen oder ändern.",
       "meetingNote": "Betrachter können dem Meeting folgen, es aber nicht bearbeiten oder speichern.",
-      "homeNote": "Betrachter können hier alles lesen, aber keine neuen Inhalte erstellen."
+      "homeNote": "Betrachter können hier alles lesen, aber keine neuen Inhalte erstellen.",
+      "rubricsNote": "Betrachter können geteilte Bewertungsraster ansehen und kopieren, aber nicht teilen oder deren Freigabe aufheben."
     },
     "resources": {
       "managerTitle": "PLG-Ressourcen",

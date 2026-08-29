@@ -11,10 +11,10 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 
 import { QuizEditorModal } from './QuizEditorModal';
-import type { QuizData } from '@/types';
+import type { QuizData, Rubric } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
@@ -33,6 +33,18 @@ vi.mock('@/context/useDialog', () => ({
 }));
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: vi.fn(() => ({ driveService: null, userDomain: undefined })),
+}));
+
+vi.mock('@/hooks/useRubrics', () => ({
+  useRubrics: () => ({
+    rubrics: [],
+    loading: false,
+    error: null,
+    saveRubric: vi.fn().mockResolvedValue(undefined),
+    deleteRubric: vi.fn(),
+    shareRubric: vi.fn(),
+    importSharedRubric: vi.fn(),
+  }),
 }));
 
 // Minimal EditorWorkspace mock: renders both panes and exposes isDirty via a
@@ -81,6 +93,53 @@ const fakeQuiz: QuizData = {
       correctAnswer: 'A',
       incorrectAnswers: ['B', 'C', 'D'],
       timeLimit: 30,
+    },
+  ],
+  createdAt: 1000,
+  updatedAt: 2000,
+};
+
+const RUBRIC: Rubric = {
+  id: 'rub-1',
+  title: 'Paragraph Rubric',
+  criteria: [
+    {
+      id: 'c1',
+      name: 'Thesis',
+      levels: [
+        { id: 'l1', label: 'Below', points: 1 },
+        { id: 'l2', label: 'Meets', points: 3 },
+      ],
+    },
+    {
+      id: 'c2',
+      name: 'Evidence',
+      levels: [
+        { id: 'l3', label: 'Below', points: 1 },
+        { id: 'l4', label: 'Meets', points: 4 },
+      ],
+    },
+  ],
+  createdAt: 1,
+  updatedAt: 2,
+};
+
+const rubricQuiz: QuizData = {
+  id: 'quiz-2',
+  title: 'Writing',
+  questions: [
+    {
+      id: 'q1',
+      text: 'Explain your reasoning.',
+      type: 'essay',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      timeLimit: 60,
+      // Matches the rubric's criteria max-sum (3 + 4), so a rubric edit that
+      // preserves the level points leaves `points` untouched.
+      points: 7,
+      rubricId: 'rub-1',
+      rubricSnapshot: RUBRIC,
     },
   ],
   createdAt: 1000,
@@ -141,5 +200,33 @@ describe('QuizEditorModal isDirty (behavior compare)', () => {
 
     fireEvent.click(speedToggle);
     expect(dirtyAttr()).toBe('false');
+  });
+
+  it('flips dirty when a rubric edit leaves the question points unchanged', () => {
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={rubricQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(dirtyAttr()).toBe('false');
+
+    const detail = () => within(screen.getByTestId('detail-pane'));
+    fireEvent.click(detail().getByRole('button', { name: 'Edit' }));
+
+    // Rename a criterion — the level points (and so the question's points)
+    // are untouched, so only the snapshot itself differs.
+    fireEvent.change(screen.getByLabelText('Criterion 1 name'), {
+      target: { value: 'Thesis Statement' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Attach to question' }));
+
+    expect(
+      detail().getByRole<HTMLInputElement>('spinbutton', { name: 'Points' })
+        .valueAsNumber
+    ).toBe(7);
+    expect(dirtyAttr()).toBe('true');
   });
 });

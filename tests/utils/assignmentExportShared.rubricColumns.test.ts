@@ -65,6 +65,56 @@ describe('buildResultsSheetData rubric columns', () => {
     expect(headers.some((h) => h.includes('Rubric'))).toBe(false);
   });
 
+  it('emits criterion columns with empty cells when no response is scored yet', () => {
+    const questions: ExportableQuestion[] = [
+      { id: 'q1', text: 'Essay', points: 6, rubricSnapshot: rubric },
+    ];
+    const responses = [
+      makeResponse({ answers: [{ questionId: 'q1', answer: 'text' }] }),
+    ];
+    const { headers, dataRows } = buildResultsSheetData(
+      responses,
+      questions,
+      gradeFn
+    );
+    // Header shape is a function of the quiz definition only, so a pre-grading
+    // export and a post-grading append share a schema.
+    expect(headers.filter((h) => h.startsWith('Q1 Rubric'))).toHaveLength(4);
+    const thesisIdx = headers.indexOf('Q1 Rubric - Thesis');
+    const thesisPtsIdx = headers.indexOf('Q1 Rubric - Thesis Points');
+    expect(dataRows[0][thesisIdx]).toBe('');
+    expect(dataRows[0][thesisPtsIdx]).toBe('');
+  });
+
+  it('emits the same header before and after grading', () => {
+    const questions: ExportableQuestion[] = [
+      { id: 'q1', text: 'Essay', points: 6, rubricSnapshot: rubric },
+    ];
+    const answers = [{ questionId: 'q1', answer: 'text' }];
+    const before = buildResultsSheetData(
+      [makeResponse({ answers })],
+      questions,
+      gradeFn
+    );
+    const after = buildResultsSheetData(
+      [
+        makeResponse({
+          answers,
+          grading: {
+            q1: {
+              rubricScores: [
+                { criterionId: 'crit-thesis', levelId: 'lvl-meets', points: 3 },
+              ],
+            },
+          },
+        }),
+      ],
+      questions,
+      gradeFn
+    );
+    expect(before.headers).toEqual(after.headers);
+  });
+
   it('emits criterion columns with correct labels and values when scored', () => {
     const questions: ExportableQuestion[] = [
       { id: 'q1', text: 'Essay', points: 6, rubricSnapshot: rubric },

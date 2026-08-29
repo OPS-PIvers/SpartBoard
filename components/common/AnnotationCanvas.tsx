@@ -223,6 +223,7 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
   return (
     <canvas
       ref={canvasRef}
+      data-inking-surface="true"
       className={`touch-none cursor-crosshair ${className ?? ''}`}
       onPointerDown={handleStart}
       onPointerMove={handleMove}
