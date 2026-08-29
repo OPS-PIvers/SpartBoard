@@ -34,10 +34,22 @@ vi.mock('@/context/useAuth', () => ({
 }));
 
 // Stub the heavy hook surfaces so the component renders without touching
-// Firestore subscriptions.
+// Firestore subscriptions. `mockResponses` is mutable per-test so the
+// scaling test below can exercise the summary-cards/per-question/
+// student-list branches, not just the empty state.
+interface GuidedLearningResponseFixture {
+  sessionId: string;
+  studentAnonymousId: string;
+  pin?: string;
+  answers: { stepId: string; answer: string | string[]; isCorrect: null }[];
+  completedAt: number | null;
+  startedAt: number;
+  score: number | null;
+}
+let mockResponses: GuidedLearningResponseFixture[] = [];
 vi.mock('@/hooks/useGuidedLearningSession', () => ({
   useGuidedLearningSessionTeacher: () => ({
-    responses: [],
+    responses: mockResponses,
     responsesLoading: false,
     subscribeToResponses: () => () => undefined,
     exportResponsesAsCSV: vi.fn(),
@@ -90,11 +102,11 @@ vi.mock('@/config/firebase', () => ({
 
 import { GuidedLearningResults } from '@/components/widgets/GuidedLearning/components/GuidedLearningResults';
 
-function makeSet(): GuidedLearningSet {
+function makeSet(steps: GuidedLearningSet['steps'] = []): GuidedLearningSet {
   return {
     id: 'set-1',
     title: 'A Set',
-    steps: [],
+    steps,
     createdAt: 0,
     updatedAt: 0,
   } as unknown as GuidedLearningSet;
@@ -104,6 +116,7 @@ beforeEach(() => {
   loggedErrors.length = 0;
   addToast.mockClear();
   pseudonymsHook.mockClear();
+  mockResponses = [];
 });
 
 describe('GuidedLearningResults.fetchSessionClassIds', () => {
@@ -191,10 +204,41 @@ describe('GuidedLearningResults front-face scaling', () => {
     // attribute in this environment, so it can't be asserted on the
     // rendered DOM. Guard the regression the conversion actually fixes
     // instead: none of the removed fixed-size Tailwind classes come back.
+    // Non-empty responses + a question step so the summary cards,
+    // per-question breakdown, and student list all render too, not just
+    // the header and empty state.
     getDocResult = { resolves: { exists: true, data: {} } };
+    mockResponses = [
+      {
+        sessionId: 's1',
+        studentAnonymousId: 'student-1',
+        answers: [{ stepId: 'q1', answer: 'a', isCorrect: null }],
+        completedAt: 100,
+        startedAt: 0,
+        score: null,
+      },
+      {
+        sessionId: 's1',
+        studentAnonymousId: 'student-2',
+        answers: [],
+        completedAt: null,
+        startedAt: 0,
+        score: null,
+      },
+    ];
+    const set = makeSet([
+      {
+        id: 'q1',
+        xPct: 0,
+        yPct: 0,
+        imageIndex: 0,
+        interactionType: 'question',
+        question: { type: 'multiple-choice', text: 'What is 2+2?' },
+      } as unknown as GuidedLearningSet['steps'][number],
+    ]);
     const { container } = render(
       <GuidedLearningResults
-        set={makeSet()}
+        set={set}
         sessionId="s1"
         onClose={() => undefined}
       />
@@ -202,6 +246,10 @@ describe('GuidedLearningResults front-face scaling', () => {
     await waitFor(() => {
       expect(pseudonymsHook).toHaveBeenCalled();
     });
+    // Sanity-check the non-empty branches actually rendered, so this test
+    // can't silently degrade back to only covering the empty state.
+    expect(container.querySelector('.font-bold.text-white')).not.toBeNull();
+    expect(container.textContent?.includes('What is 2+2?')).toBe(true);
 
     const classNames = Array.from(container.querySelectorAll('*'))
       .map((el) => el.getAttribute('class') ?? '')
