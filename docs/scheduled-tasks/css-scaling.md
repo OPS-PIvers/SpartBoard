@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-29_
-_Last action: 2026-08-28 — MEDIUM `GuidedLearningResults` front-face view (zero container-query units) resolved: converted all Tailwind text/icon/spacing utilities to `cqmin`-scaled inline styles throughout the header, summary cards, per-question breakdown, and student list, matching the `GuidedLearningPlayer`/`VideoActivityWidget/components/Results.tsx` conversion pattern. Also swapped the header back-button and loading spinner from `text-slate-400` to `text-slate-300` per CLAUDE.md's muted-text-on-dark-surfaces rule. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, `vitest run tests/components/widgets/GuidedLearningResults.test.tsx` 4/4 pass. PR opened to dev-paul.
+_Last action: 2026-08-29 — MEDIUM `GuidedLearningAIGenerator` in-widget overlay (zero container-query units) resolved: converted every hardcoded Tailwind text/icon/spacing/padding/margin/gap utility in the overlay root, header, dropzone, image-count label, `SortableImageRow` list item, prompt textarea, error/clamp-warning banners, and both footer buttons to `cqmin`-capped inline styles, following the MiniApp overlay (2026-08-21) conversion pattern. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, `vitest run tests/components/widgets/GuidedLearningAIGenerator.clampBanner.test.tsx` 2/2 pass. PR opened to dev-paul.
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM `GuidedLearningAIGenerator` in-widget overlay has zero container-query units
-
-- **Detected:** 2026-08-24
-- **File:** `components/widgets/GuidedLearning/components/GuidedLearningAIGenerator.tsx` (544 lines, 0 `cqmin`)
-- **Detail:** Rendered at `GuidedLearning/Widget.tsx:831`; root is `className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col p-6"` (`:371`) — an absolutely-positioned child *inside* the widget's own container, not portaled, so `cqmin` resolves. This is the exact analog of the Completed 2026-08-21 item "MiniApp internal dialog overlays", which was resolved on precisely this reasoning. Hardcoded throughout: `p-6` overlay padding (`:371`), `w-5 h-5` header/close icons (`:377,384`), `text-sm` (`:389,488,493,502`), `text-xs` (`:126,147,403,439,448,480,518,527`), `w-16 h-16` thumbnail (`:112`), `p-2.5`/`p-3`/`gap-3`/`py-5`/`mb-4`.
-- **Fix:** Apply the same conversion the MiniApp overlay fix used (see the 2026-08-21 action note): `text-sm` → `min(14px, 5.5cqmin)`, `text-xs` → `min(11px, 4cqmin)`, `w-5 h-5` → `min(20px, 5cqmin)`, `p-6` → `padding: 'min(24px, 5cqmin)'`, etc.
 
 ### MEDIUM `TrafficLightWidget` primary content has a hardcoded 40px minimum that breaks small sizes
 
@@ -373,6 +366,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### MEDIUM `GuidedLearningAIGenerator` in-widget overlay has zero container-query units
+
+- **Detected:** 2026-08-24
+- **Completed:** 2026-08-29
+- **File:** `components/widgets/GuidedLearning/components/GuidedLearningAIGenerator.tsx` (544 lines, 0 `cqmin`)
+- **Detail:** Rendered at `GuidedLearning/Widget.tsx:831`; root is `className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col p-6"` (`:371`) — an absolutely-positioned child *inside* the widget's own container, not portaled, so `cqmin` resolves. Exact analog of the Completed 2026-08-21 item "MiniApp internal dialog overlays". Hardcoded throughout: `p-6` overlay padding, `w-5 h-5` header/close icons, `text-sm`, `text-xs` (×8 sites), `w-16 h-16` thumbnail, `p-2.5`/`p-3`/`gap-2`/`gap-3`/`py-5`/`mb-4`/`mt-4`/`space-y-3`.
+- **Resolution:** Converted every hardcoded Tailwind text/icon/spacing/padding/margin/gap utility to a `cqmin`-capped inline style, matching the MiniApp overlay pattern: header title → `min(16px, 6cqmin)`, body/textarea/banner text → `min(14px, 5.5cqmin)`, labels/captions/`text-xs` sites → `min(11px, 4cqmin)`, header/close/action icons → `min(20px, 5cqmin)`, list-row and banner icons → `min(14-16px, 4-4.5cqmin)` proportionally, thumbnail → `min(64px, 16cqmin)`, and all `p-*`/`px-*`/`py-*`/`gap-*`/`mb-*`/`mt-*` spacing → `min(Npx, Ncqmin)` padding/gap/margin styles. `space-y-3` on the scrollable body was replaced with `flex flex-col` + a `gap` style so vertical rhythm scales too. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, `vitest run tests/components/widgets/GuidedLearningAIGenerator.clampBanner.test.tsx` 2/2 pass.
 
 ### MEDIUM `GuidedLearningResults` front-face view has zero container-query units
 
