@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { WidgetData, ClockConfig } from '@/types';
@@ -22,11 +22,9 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Resync the display the instant showSeconds changes, so a toggle right
   // after a minute rollover doesn't leave a stale minute up for up to 60s.
-  const prevShowSecondsRef = useRef(showSeconds);
-  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
-  if (prevShowSecondsRef.current !== showSeconds) {
-    // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern)
-    prevShowSecondsRef.current = showSeconds;
+  const [prevShowSeconds, setPrevShowSeconds] = useState(showSeconds);
+  if (prevShowSeconds !== showSeconds) {
+    setPrevShowSeconds(showSeconds);
     setTime(new Date());
   }
 
