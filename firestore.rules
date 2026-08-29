@@ -3062,6 +3062,33 @@ service cloud.firestore {
       }
     }
 
+    // Per-student assignment pointers (M17). One doc per (student, assignment),
+    // written EXCLUSIVELY by setAssignmentTargetsV1 and the assignment-deletion
+    // cleanup triggers (Admin SDK bypasses these rules) — no client write path
+    // exists, because the pseudonym uid derivation needs the server-only HMAC
+    // secret. Reads (get AND list) are gated purely on the {studentUid} path
+    // segment plus the studentRole claim, so a student's own listener works and
+    // nobody can enumerate another student's items.
+    //
+    // NON-GOAL, recorded deliberately: no Cloud Function, admin surface, or
+    // export job may query /student_assignments grouped per-student ACROSS
+    // assignments. The collection exists solely for each student's own
+    // listener; teacher surfaces always resolve identity through the
+    // per-assignment pseudonym functions (getPseudonymsForAssignmentV1), which
+    // is what preserves cross-assignment unlinkability. A collectionGroup
+    // query on `items` is denied here by omission — no wildcard rule matches
+    // that collection group.
+    match /student_assignments/{studentUid} {
+      allow read, write: if false;
+
+      match /items/{assignmentId} {
+        allow read: if request.auth != null &&
+          request.auth.uid == studentUid &&
+          isStudentRoleUser();
+        allow write: if false;
+      }
+    }
+
     // Quiz Sessions — keyed by session UUID (was teacherUid). The teacher
     // owns the document and stores their uid on the `teacherUid` field.
     // Multiple concurrent sessions per teacher are allowed.
@@ -3110,6 +3137,13 @@ service cloud.firestore {
         function sessionAttemptLimit() {
           return sessionData().get('attemptLimit', null);
         }
+        // M17 session-level close window. Epoch-ms number (never a Timestamp —
+        // a Timestamp-vs-number comparison would silently always pass). Absent
+        // on every pre-M17 session, so the gate is a no-op there.
+        function withinSessionCloseWindow() {
+          return sessionData().get('closeAt', null) == null ||
+                 request.time.toMillis() < sessionData().closeAt;
+        }
 
         // Student branch allows resource == null so the join flow can probe via
         // getDoc() before create/resume (else a Null-value throw on studentUid).
@@ -3153,6 +3187,8 @@ service cloud.firestore {
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           sessionMode() == 'submissions' &&
+          // Block joins after the assignment's close time (M17).
+          withinSessionCloseWindow() &&
           (isStudentRoleUser()
             ? responseKey == request.auth.uid
             : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -3167,6 +3203,9 @@ service cloud.firestore {
           // Score guard: students may only ever write null to score.
           (request.auth.uid == resource.data.studentUid &&
            passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
+           // Student writes stop at the session close time (M17). The teacher
+           // branch above is unaffected — grading continues after close.
+           withinSessionCloseWindow() &&
            request.resource.data.studentUid == resource.data.studentUid &&
            // SSO studentRole responses omit `pin` entirely (no PIN was used
            // to join), so direct dot-access on `resource.data.pin` would
@@ -3648,6 +3687,11 @@ service cloud.firestore {
         function vaSessionAttemptLimit() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('sessionOptions', {}).get('attemptLimit', null);
         }
+        // M17 session-level close window (epoch-ms number; absent pre-M17).
+        function vaWithinSessionCloseWindow() {
+          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('closeAt', null) == null ||
+                 request.time.toMillis() < get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.closeAt;
+        }
 
         // Student branch allows resource == null so the join flow can probe via
         // getDoc() before create (else a Null-value throw on studentUid). Mirrors
@@ -3673,6 +3717,8 @@ service cloud.firestore {
           passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           vaSessionMode() == 'submissions' &&
+          // Block joins after the assignment's close time (M17).
+          vaWithinSessionCloseWindow() &&
           (isStudentRoleUser()
             ? responseDocId == request.auth.uid
             : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -3688,6 +3734,9 @@ service cloud.firestore {
           (
             resource.data.studentUid == request.auth.uid &&
             passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
+            // Student writes stop at the session close time (M17); the teacher
+            // branch above is unaffected.
+            vaWithinSessionCloseWindow() &&
             request.resource.data.studentUid == resource.data.studentUid &&
             request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
             request.resource.data.get('name', null) == resource.data.get('name', null) &&
@@ -3786,6 +3835,11 @@ service cloud.firestore {
         function maSessionClassIds() {
           return maSessionData().get('classIds', []);
         }
+        // M17 session-level close window (epoch-ms number; absent pre-M17).
+        function maWithinSessionCloseWindow() {
+          return maSessionData().get('closeAt', null) == null ||
+                 request.time.toMillis() < maSessionData().closeAt;
+        }
 
         // Teacher + admins read all submissions; a student reads their own (the
         // /my-assignments completion badge). Identity is the studentUid field
@@ -3816,6 +3870,8 @@ service cloud.firestore {
           // Block submissions on view-only sessions (mode is frozen at creation).
           // Defense in depth alongside the existing `submissionsEnabled` gate.
           maSessionData().get('mode', 'submissions') == 'submissions' &&
+          // Block submissions after the assignment's close time (M17).
+          maWithinSessionCloseWindow() &&
           (
             maSessionData().get('submissionsEnabled', false) == true ||
             (request.resource.data.payload.keys().hasOnly(['completed']) &&
@@ -3892,6 +3948,11 @@ service cloud.firestore {
         function glSessionMode() {
           return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('assignmentMode', 'submissions');
         }
+        // M17 session-level close window (epoch-ms number; absent pre-M17).
+        function glWithinSessionCloseWindow() {
+          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('closeAt', null) == null ||
+                 request.time.toMillis() < get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.closeAt;
+        }
 
         // Teacher can read all responses; students can only read their own
         allow read: if request.auth != null && (
@@ -3908,7 +3969,9 @@ service cloud.firestore {
           request.resource.data.score == null &&
           passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
-          glSessionMode() == 'submissions';
+          glSessionMode() == 'submissions' &&
+          // Block joins after the assignment's close time (M17).
+          glWithinSessionCloseWindow();
         // Two disjoint branches: TEACHER (owning teacher/admin writes score +
         // per-answer isCorrect on publishAssignmentScores, clears on unpublish;
         // teacherUid is the sole gate, unconstrained payload so publish fields
@@ -3922,6 +3985,9 @@ service cloud.firestore {
           (
             studentUid == request.auth.uid &&
             passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
+            // Student writes stop at the session close time (M17); the teacher
+            // branch above is unaffected.
+            glWithinSessionCloseWindow() &&
             request.resource.data.studentAnonymousId == resource.data.studentAnonymousId &&
             request.resource.data.sessionId == resource.data.sessionId &&
             request.resource.data.startedAt == resource.data.startedAt &&
