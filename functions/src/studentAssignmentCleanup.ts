@@ -21,37 +21,15 @@ import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
 import {
   STUDENT_ASSIGNMENTS_ROOT,
   STUDENT_ASSIGNMENT_ITEMS,
-  MAX_TARGET_REFS,
+  targetRefsFromAssignment,
   uidForRef,
   type StudentTargetRef,
 } from './studentAssignmentTargets';
 
 const BATCH_OP_LIMIT = 400;
 
-/** Re-parse the deleted doc's refs; unknown shapes are ignored, not thrown on. */
-export function targetRefsFromAssignment(
-  data: Record<string, unknown> | undefined
-): StudentTargetRef[] {
-  const raw = data?.targetStudents;
-  if (!Array.isArray(raw)) return [];
-  const out: StudentTargetRef[] = [];
-  for (const item of raw.slice(0, MAX_TARGET_REFS)) {
-    if (typeof item !== 'object' || item === null) continue;
-    const kind = (item as { kind?: unknown }).kind;
-    if (kind === 'classlink') {
-      const sourcedId = (item as { sourcedId?: unknown }).sourcedId;
-      if (typeof sourcedId === 'string' && sourcedId.length > 0) {
-        out.push({ kind: 'classlink', sourcedId });
-      }
-    } else if (kind === 'test') {
-      const email = (item as { email?: unknown }).email;
-      if (typeof email === 'string' && email.length > 0) {
-        out.push({ kind: 'test', email: email.toLowerCase() });
-      }
-    }
-  }
-  return out;
-}
+// Shared with the fan-out CF so both sides hash the identical ref set.
+export { targetRefsFromAssignment };
 
 export async function deletePointersForAssignment(
   db: admin.firestore.Firestore,

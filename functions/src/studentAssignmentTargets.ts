@@ -17,11 +17,35 @@
  *     pointer doc. Candidate classes come from the caller's own roster docs and
  *     are then re-verified against ClassLink ("does this teacher teach it?"),
  *     mirroring `getPseudonymsForAssignmentV1`. Test classes are scoped to the
- *     org resolved from the caller's own email domain.
+ *     org resolved from the caller's own email domain AND gated on the same
+ *     org-admin check that governs the `testClasses` docs themselves — roster
+ *     docs are client-writable, so same-org alone would let any teacher forge
+ *     a `testClassId` and reach any test-class student.
  *   - Ordering: the session's `individualTargeting` flag is written BEFORE the
  *     pointer docs so the exposure window stays one-sided (spec §2a).
  *   - PII: `sourcedId` / emails arrive in the payload and are used in memory
  *     only. Pointer docs carry no PII.
+ *
+ * Ref keying: every ref is keyed by KIND + identifier — `classlink:{sourcedId}`
+ * (case preserved; OneRoster ids are case-sensitive) or `test:{emailLower}`.
+ * `overridesBySourcedId` MUST use these same namespaced keys; a bare identifier
+ * is rejected, because test emails and sourcedIds share one record and an
+ * unqualified key could cross kinds.
+ *
+ * Merge semantics for an existing pointer doc (partial payloads must never
+ * erase a stored 504/IEP accommodation):
+ *   - `override` is rewritten ONLY when this call's `overridesBySourcedId`
+ *     contains the ref's key. An explicit `null` (or an unrecognizable value)
+ *     clears it; an absent key preserves whatever is stored.
+ *   - `openAt` / `closeAt` / `dueAt` are rewritten ONLY when the corresponding
+ *     key is present in this call's `window`. A present `null` clears the
+ *     field; an absent key preserves the stored value.
+ *   - `createdAt` is always preserved from the existing doc.
+ *
+ * The resolved target set is persisted back onto the teacher's assignment doc
+ * (`targetStudents` + `targetMode`) in the same operation, so the doc always
+ * mirrors the true pointer set that the A2b deletion triggers re-hash. Clients
+ * never write those two fields themselves.
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -96,6 +120,7 @@ export interface StudentOverride {
   closeAt?: number;
 }
 
+/** `undefined` = key absent (preserve stored value); `null` = explicit clear. */
 export interface AssignmentWindow {
   openAt?: number | null;
   closeAt?: number | null;
@@ -105,6 +130,7 @@ export interface AssignmentWindow {
 export type SkipReason =
   | 'malformed-ref'
   | 'not-in-teacher-classes'
+  | 'test-class-not-authorized'
   | 'duplicate'
   | 'over-limit';
 
@@ -123,6 +149,12 @@ export interface TargetAuthorizationContext {
   classIdBySourcedId: Map<string, string>;
   /** Lowercased test-class member email → the test class slug. */
   classIdByTestEmail: Map<string, string>;
+  /**
+   * True only when the caller clears the same org-admin gate that governs the
+   * `testClasses` docs themselves. False ⇒ every `test` ref is skipped with a
+   * distinct reason rather than falling through as "not in your classes".
+   */
+  testClassAuthorized: boolean;
 }
 
 export interface SetAssignmentTargetsInput {
@@ -131,12 +163,14 @@ export interface SetAssignmentTargetsInput {
   sessionId: string;
   add: StudentTargetRef[];
   remove: StudentTargetRef[];
-  overridesBySourcedId: Record<string, StudentOverride>;
+  /** Keyed by `refKey()`; a present key with `null` clears the override. */
+  overridesBySourcedId: Record<string, StudentOverride | null>;
   window: AssignmentWindow;
   /**
    * Explicit target mode. 'students' forces `individualTargeting: true` on the
-   * session; 'class' clears it AFTER the pointer deletes. Omitted leaves the
-   * flag untouched — a partial remove must never re-expose the assignment.
+   * session even when the set is empty (an intentionally empty assignment);
+   * 'class' clears it AFTER the pointer deletes. Omitted derives the flag from
+   * the resulting full target set.
    */
   targetMode?: 'class' | 'students';
 }
@@ -161,9 +195,32 @@ function parseRef(raw: unknown): StudentTargetRef | null {
   return null;
 }
 
-/** Stable dedupe/override key for a ref (matches `overridesBySourcedId` keys). */
+/**
+ * Kind-namespaced dedupe/override key. Test emails and ClassLink sourcedIds
+ * share one `overridesBySourcedId` record, so the kind is part of the key —
+ * a bare identifier could otherwise collide across kinds.
+ */
 export function refKey(ref: StudentTargetRef): string {
-  return ref.kind === 'classlink' ? ref.sourcedId : ref.email;
+  return ref.kind === 'classlink'
+    ? `classlink:${ref.sourcedId}`
+    : `test:${ref.email}`;
+}
+
+/**
+ * Re-parse persisted `targetStudents` refs (assignment doc or trigger payload).
+ * Unknown shapes are ignored, never thrown on.
+ */
+export function targetRefsFromAssignment(
+  data: Record<string, unknown> | undefined
+): StudentTargetRef[] {
+  const raw = data?.targetStudents;
+  if (!Array.isArray(raw)) return [];
+  const out: StudentTargetRef[] = [];
+  for (const item of raw.slice(0, MAX_TARGET_REFS)) {
+    const ref = parseRef(item);
+    if (ref) out.push(ref);
+  }
+  return out;
 }
 
 /** uid derivation per ref kind — test students namespace as `test:{emailLower}`. */
@@ -202,6 +259,10 @@ export function resolveTargets(
       continue;
     }
     seen.add(key);
+    if (ref.kind === 'test' && !ctx.testClassAuthorized) {
+      skipped.push({ ref, reason: 'test-class-not-authorized' });
+      continue;
+    }
     const classId =
       ref.kind === 'classlink'
         ? ctx.classIdBySourcedId.get(ref.sourcedId)
@@ -291,8 +352,26 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
-function sanitizeWindowValue(raw: unknown): number | null {
+/**
+ * Absent key ⇒ `undefined` (preserve the stored value). Present key ⇒ the
+ * number, or `null` to clear.
+ */
+function sanitizeWindowValue(
+  window: Record<string, unknown>,
+  key: 'openAt' | 'closeAt' | 'dueAt'
+): number | null | undefined {
+  if (!(key in window)) return undefined;
+  const raw = window[key];
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+/**
+ * Override keys must be kind-namespaced (`classlink:…` / `test:…`). Test keys
+ * are lowercased to match `refKey`; ClassLink sourcedIds keep their case.
+ */
+function normalizeOverrideKey(key: string): string | null {
+  if (key.startsWith('test:')) return `test:${key.slice(5).toLowerCase()}`;
+  return key.startsWith('classlink:') ? key : null;
 }
 
 // ── input parsing ──────────────────────────────────────────────────────────
@@ -349,7 +428,9 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
   const add = parseRefList(data.add, skipped);
   const remove = parseRefList(data.remove, skipped);
 
-  const overridesBySourcedId: Record<string, StudentOverride> = {};
+  // A present key always lands in the record (value `null` = clear); only
+  // unnamespaced keys are dropped, since they can't be attributed to a kind.
+  const overridesBySourcedId: Record<string, StudentOverride | null> = {};
   if (
     typeof data.overridesBySourcedId === 'object' &&
     data.overridesBySourcedId !== null
@@ -357,8 +438,9 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
     for (const [key, value] of Object.entries(
       data.overridesBySourcedId as Record<string, unknown>
     ).slice(0, MAX_TARGET_REFS)) {
-      const override = sanitizeOverride(value);
-      if (override) overridesBySourcedId[key.toLowerCase()] = override;
+      const normalized = normalizeOverrideKey(key);
+      if (normalized)
+        overridesBySourcedId[normalized] = sanitizeOverride(value);
     }
   }
 
@@ -380,9 +462,9 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
       remove,
       overridesBySourcedId,
       window: {
-        openAt: sanitizeWindowValue(rawWindow.openAt),
-        closeAt: sanitizeWindowValue(rawWindow.closeAt),
-        dueAt: sanitizeWindowValue(rawWindow.dueAt),
+        openAt: sanitizeWindowValue(rawWindow, 'openAt'),
+        closeAt: sanitizeWindowValue(rawWindow, 'closeAt'),
+        dueAt: sanitizeWindowValue(rawWindow, 'dueAt'),
       },
       targetMode,
     },
@@ -392,13 +474,22 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
 
 // ── handler ────────────────────────────────────────────────────────────────
 
-/** `overridesBySourcedId` is keyed by sourcedId for ClassLink, email for test. */
-function overrideForRef(
-  input: SetAssignmentTargetsInput,
-  target: ResolvedTarget
-): StudentOverride | null {
-  return input.overridesBySourcedId[target.key.toLowerCase()] ?? null;
+/**
+ * Resolve one field under the merge contract: an absent payload key preserves
+ * the stored value; a present key (including `null`) replaces it.
+ */
+function mergedField<T>(
+  supplied: T | null | undefined,
+  stored: unknown,
+  isValid: (v: unknown) => v is T
+): T | undefined {
+  if (supplied !== undefined) return supplied === null ? undefined : supplied;
+  return isValid(stored) ? stored : undefined;
 }
+
+const isNumber = (v: unknown): v is number => typeof v === 'number';
+const isOverride = (v: unknown): v is StudentOverride =>
+  typeof v === 'object' && v !== null;
 
 async function chunkedCommit(
   db: admin.firestore.Firestore,
@@ -464,44 +555,79 @@ export async function handleSetAssignmentTargets(
       .collection(STUDENT_ASSIGNMENT_ITEMS)
       .doc(input.assignmentId);
 
+  // The authoritative post-call target set: what the doc already recorded,
+  // minus this call's removals, plus the refs that resolved. This — not the
+  // caller — is what gets persisted, so the doc always mirrors the real
+  // pointer set the A2b deletion triggers re-hash.
+  const removeKeys = new Set(input.remove.map(refKey));
+  const finalByKey = new Map<string, StudentTargetRef>();
+  for (const ref of targetRefsFromAssignment(assignmentSnap.data())) {
+    const key = refKey(ref);
+    if (!removeKeys.has(key)) finalByKey.set(key, ref);
+  }
+  for (const target of addResult.resolved)
+    finalByKey.set(target.key, target.ref);
+  const finalRefs = [...finalByKey.values()];
+
+  // An empty resulting set with no explicit 'students' intent must not leave a
+  // stuck `individualTargeting: true` that hides the assignment from everyone.
+  // An explicitly-empty 'students' assignment is intentional and stays hidden.
+  const explicitStudents = input.targetMode === 'students';
+  const wantsIndividual =
+    explicitStudents || (input.targetMode !== 'class' && finalRefs.length > 0);
+  const clearsIndividual =
+    input.targetMode === 'class' ||
+    (!explicitStudents && finalRefs.length === 0);
+
   // Session flag first: hiding an individually-targeted assignment from the
   // class channel must never lag the pointer writes (§2a one-sided window).
-  const wantsIndividual =
-    input.targetMode === 'students' ||
-    (input.targetMode !== 'class' && addResult.resolved.length > 0);
   if (wantsIndividual) {
     await sessionRef.set({ individualTargeting: true }, { merge: true });
   }
 
-  // Preserve `createdAt` so a re-run converges instead of churning the doc.
-  const existingCreatedAt = new Map<string, number>();
+  // Existing pointer docs feed the merge contract (preserved `createdAt`, and
+  // `override`/window fields whose keys this payload omits).
+  const existingByUid = new Map<string, Record<string, unknown>>();
   const addRefs = addResult.resolved.map((t) => itemsPath(t.uid));
   for (let i = 0; i < addRefs.length; i += GET_ALL_CHUNK) {
     const snaps = await db.getAll(...addRefs.slice(i, i + GET_ALL_CHUNK));
     for (const snap of snaps) {
-      const createdAt: unknown = snap.get('createdAt');
-      if (typeof createdAt === 'number') {
-        existingCreatedAt.set(snap.ref.parent.parent?.id ?? '', createdAt);
-      }
+      const data = snap.data();
+      if (data) existingByUid.set(snap.ref.parent.parent?.id ?? '', data);
     }
   }
 
   const now = Date.now();
   const ops: ((batch: admin.firestore.WriteBatch) => void)[] = [];
   for (const target of addResult.resolved) {
-    const override = overrideForRef(input, target);
+    const existing = existingByUid.get(target.uid) ?? {};
+    const storedCreatedAt = existing.createdAt;
     const payload: Record<string, unknown> = {
       kind: input.kind,
       sessionId: input.sessionId,
       teacherUid: callerUid,
       classId: target.classId,
-      createdAt: existingCreatedAt.get(target.uid) ?? now,
+      createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
     };
-    if (input.window.openAt !== null) payload.openAt = input.window.openAt;
-    if (input.window.closeAt !== null) payload.closeAt = input.window.closeAt;
-    if (input.window.dueAt !== null) payload.dueAt = input.window.dueAt;
-    if (override) payload.override = override;
+    const openAt = mergedField(input.window.openAt, existing.openAt, isNumber);
+    const closeAt = mergedField(
+      input.window.closeAt,
+      existing.closeAt,
+      isNumber
+    );
+    const dueAt = mergedField(input.window.dueAt, existing.dueAt, isNumber);
+    const override = mergedField(
+      target.key in input.overridesBySourcedId
+        ? input.overridesBySourcedId[target.key]
+        : undefined,
+      existing.override,
+      isOverride
+    );
+    if (openAt !== undefined) payload.openAt = openAt;
+    if (closeAt !== undefined) payload.closeAt = closeAt;
+    if (dueAt !== undefined) payload.dueAt = dueAt;
+    if (override !== undefined) payload.override = override;
     const ref = itemsPath(target.uid);
     ops.push((batch) => batch.set(ref, payload));
   }
@@ -511,9 +637,20 @@ export async function handleSetAssignmentTargets(
   }
   await chunkedCommit(db, ops);
 
+  // Persisted after the pointer commit so the doc only ever claims targets
+  // that actually landed; a failed commit throws and an identical retry
+  // converges.
+  await assignmentRef.set(
+    {
+      targetStudents: finalRefs,
+      targetMode: input.targetMode ?? (wantsIndividual ? 'students' : 'class'),
+    },
+    { merge: true }
+  );
+
   // Teardown flag last: revealing the assignment to the class channel must not
   // precede the pointer deletes.
-  if (input.targetMode === 'class') {
+  if (clearsIndividual) {
     await sessionRef.set({ individualTargeting: false }, { merge: true });
   }
 
@@ -564,18 +701,50 @@ export async function loadOwnedRosterClasses(
   };
 }
 
+/**
+ * Mirrors the `testClasses` rules gate (`isSuperAdmin() || isDomainAdmin(org)`):
+ * only someone who may legitimately read/write those docs may target their
+ * members. Same-org membership alone is NOT enough — roster docs are
+ * client-writable, so a plain teacher could otherwise forge a `testClassId`
+ * onto their own roster and reach any test-class student in the org.
+ */
+export async function isTestClassAuthority(
+  db: admin.firestore.Firestore,
+  teacherEmailLower: string,
+  orgId: string
+): Promise<boolean> {
+  const [adminDoc, memberDoc] = await Promise.all([
+    db.collection('admins').doc(teacherEmailLower).get(),
+    db.doc(`organizations/${orgId}/members/${teacherEmailLower}`).get(),
+  ]);
+  if (adminDoc.exists) return true;
+  const roleId: unknown = memberDoc.exists ? memberDoc.get('roleId') : null;
+  return (
+    typeof roleId === 'string' &&
+    (roleId.trim() === 'super_admin' || roleId.trim() === 'domain_admin')
+  );
+}
+
 async function loadTestClassMembership(
   db: admin.firestore.Firestore,
   teacherEmail: string,
   testClassIds: readonly string[]
-): Promise<Map<string, string>> {
+): Promise<{ membership: Map<string, string>; authorized: boolean }> {
   const out = new Map<string, string>();
-  if (testClassIds.length === 0) return out;
+  if (testClassIds.length === 0) {
+    return { membership: out, authorized: false };
+  }
   // Org comes from the CALLER's own verified email domain, never the payload —
   // that is what makes cross-org test-class targeting impossible.
   const domain = normalizeEmailDomain(teacherEmail);
   const orgId = domain ? await resolveOrgIdForDomain(db, domain) : null;
-  if (!orgId) return out;
+  if (!orgId) return { membership: out, authorized: false };
+  const authorized = await isTestClassAuthority(
+    db,
+    teacherEmail.toLowerCase(),
+    orgId
+  );
+  if (!authorized) return { membership: out, authorized: false };
   const snaps = await Promise.all(
     testClassIds.map((id) =>
       db
@@ -596,7 +765,7 @@ async function loadTestClassMembership(
       }
     }
   }
-  return out;
+  return { membership: out, authorized: true };
 }
 
 async function loadClassLinkMembership(
@@ -710,7 +879,7 @@ export const setAssignmentTargetsV1 = onCall(
 
     const loadContext = async (): Promise<TargetAuthorizationContext> => {
       const owned = await loadOwnedRosterClasses(db, callerUid);
-      const [classIdByTestEmail, classIdBySourcedId] = await Promise.all([
+      const [testClasses, classIdBySourcedId] = await Promise.all([
         loadTestClassMembership(db, teacherEmail, owned.testClassIds),
         classlinkClientId && classlinkClientSecret && tenantUrl
           ? loadClassLinkMembership(
@@ -734,7 +903,11 @@ export const setAssignmentTargetsV1 = onCall(
             })
           : new Map<string, string>(),
       ]);
-      return { classIdBySourcedId, classIdByTestEmail };
+      return {
+        classIdBySourcedId,
+        classIdByTestEmail: testClasses.membership,
+        testClassAuthorized: testClasses.authorized,
+      };
     };
 
     return handleSetAssignmentTargets(

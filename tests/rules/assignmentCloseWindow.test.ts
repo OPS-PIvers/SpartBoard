@@ -359,3 +359,200 @@ describe('mini_app_sessions/submissions — session closeAt gate', () => {
     await assertSucceeds(deleteDoc(doc(asTeacher(), subPath(SESSION_PAST))));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Grace window (F4) + post-close exemptions (F5)
+// ---------------------------------------------------------------------------
+//
+// The gate carries a fixed 120s grace so the client's mid-attempt auto-submit
+// (spec §3a-D) is not rejected as it races closeAt, and it is scoped so two
+// PRE-EXISTING student flows keep working after close: published-results
+// anti-screenshot writes, and a teacher-granted `unlocked` extension.
+
+const SESSION_GRACE = 'session-closed-within-grace';
+const SESSION_UNLOCKED = 'session-closed-unlocked';
+
+describe('quiz closeAt — grace window and post-close exemptions', () => {
+  const respPath = (session: string) =>
+    `quiz_sessions/${session}/responses/${STUDENT_UID}`;
+  const baseResp = (extra: Record<string, unknown> = {}) => ({
+    studentUid: STUDENT_UID,
+    joinedAt: 1000,
+    score: null,
+    answers: [] as unknown[],
+    status: 'active',
+    tabSwitchWarnings: 0,
+    completedAttempts: 0,
+    ...extra,
+  });
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      // Closed 5s ago — inside the 120s grace.
+      await setDoc(doc(db, `quiz_sessions/${SESSION_GRACE}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        status: 'active',
+        closeAt: Date.now() - 5_000,
+      });
+      await setDoc(doc(db, `quiz_sessions/${SESSION_PAST}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        status: 'active',
+        closeAt: PAST,
+      });
+    });
+  });
+
+  it('accepts the mid-attempt auto-submit landing just after closeAt', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), respPath(SESSION_GRACE)), baseResp());
+    });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), respPath(SESSION_GRACE)), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+        status: 'completed',
+        submittedAt: 2000,
+      })
+    );
+  });
+
+  it('still denies an ordinary answer write long after closeAt', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), respPath(SESSION_PAST)), baseResp());
+    });
+    await assertFails(
+      updateDoc(doc(asStudent(), respPath(SESSION_PAST)), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+      })
+    );
+  });
+
+  it('allows a results-protection-only write after closeAt', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), respPath(SESSION_PAST)),
+        baseResp({ score: 90, status: 'completed', resultsTabWarnings: 0 })
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), respPath(SESSION_PAST)), {
+        resultsTabWarnings: 1,
+        resultsLockedOut: true,
+        resultsLockedOutAt: 3000,
+      })
+    );
+  });
+
+  it('allows the unlocked student to finish and clear the flag after closeAt', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), respPath(SESSION_PAST)),
+        baseResp({ unlocked: true, status: 'joined' })
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), respPath(SESSION_PAST)), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+        status: 'completed',
+        submittedAt: 2000,
+        unlocked: false,
+      })
+    );
+  });
+
+  it('denies a post-close answer write when unlocked is false', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), respPath(SESSION_PAST)),
+        baseResp({ unlocked: false })
+      );
+    });
+    await assertFails(
+      updateDoc(doc(asStudent(), respPath(SESSION_PAST)), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+      })
+    );
+  });
+});
+
+describe('video activity closeAt — grace window and unlocked exemption', () => {
+  const respPath = (session: string) =>
+    `video_activity_sessions/${session}/responses/${STUDENT_UID}`;
+  const baseResp = (extra: Record<string, unknown> = {}) => ({
+    studentUid: STUDENT_UID,
+    name: 'Student A',
+    joinedAt: 1000,
+    score: null,
+    completedAt: null,
+    answers: [] as unknown[],
+    completedAttempts: 0,
+    tabSwitchWarnings: 0,
+    ...extra,
+  });
+
+  const seedSession = async (sessionId: string, closeAt: number) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `video_activity_sessions/${sessionId}`),
+        {
+          id: sessionId,
+          activityId: 'act-1',
+          teacherUid: TEACHER_UID,
+          classId: CLASS_A,
+          status: 'active',
+          createdAt: 1000,
+          closeAt,
+        }
+      );
+    });
+  };
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+  });
+
+  it('accepts the mid-attempt auto-submit landing just after closeAt', async () => {
+    await seedSession(SESSION_GRACE, Date.now() - 5_000);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), respPath(SESSION_GRACE)), baseResp());
+    });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), respPath(SESSION_GRACE)), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+        completedAt: 2000,
+      })
+    );
+  });
+
+  it('allows the unlocked student to finish and clear the flag after closeAt', async () => {
+    await seedSession(SESSION_UNLOCKED, PAST);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), respPath(SESSION_UNLOCKED)),
+        baseResp({ unlocked: true })
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), respPath(SESSION_UNLOCKED)), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+        completedAt: 2000,
+        unlocked: false,
+      })
+    );
+  });
+
+  it('denies a post-close answer write when not unlocked', async () => {
+    await seedSession(SESSION_PAST, PAST);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), respPath(SESSION_PAST)), baseResp());
+    });
+    await assertFails(
+      updateDoc(doc(asStudent(), respPath(SESSION_PAST)), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+      })
+    );
+  });
+});

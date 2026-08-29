@@ -65,6 +65,13 @@ service cloud.firestore {
     // write a single `classId`. Picks the list gate when `classIds` is non-empty,
     // else the legacy single-class gate. Callers pass get(...) defaults so an
     // absent field falls through to a no-op gate.
+    // M17 close-window grace (ms). The client auto-submits answered work when
+    // closeAt passes mid-attempt (spec §3a-D); that write lands at/just after
+    // closeAt, so a zero-tolerance gate would discard in-flight student work.
+    function assignmentCloseGraceMs() {
+      return 120000;
+    }
+
     function passesStudentClassGateCompat(sessionClassIds, sessionClassId) {
       return sessionClassIds is list && sessionClassIds.size() > 0
              ? passesStudentClassGateList(sessionClassIds)
@@ -3142,7 +3149,15 @@ service cloud.firestore {
         // on every pre-M17 session, so the gate is a no-op there.
         function withinSessionCloseWindow() {
           return sessionData().get('closeAt', null) == null ||
-                 request.time.toMillis() < sessionData().closeAt;
+                 request.time.toMillis() < sessionData().closeAt + assignmentCloseGraceMs();
+        }
+        // Two pre-existing student flows legitimately write AFTER closeAt and
+        // must not regress: the published-results anti-screenshot counters, and
+        // a teacher-granted extension (`unlocked: true`, cleared by the student
+        // on completion). Both are exempted from the close gate below.
+        function isResultsProtectionOnlyWrite() {
+          return request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']);
         }
 
         // Student branch allows resource == null so the join flow can probe via
@@ -3205,7 +3220,9 @@ service cloud.firestore {
            passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
            // Student writes stop at the session close time (M17). The teacher
            // branch above is unaffected — grading continues after close.
-           withinSessionCloseWindow() &&
+           (withinSessionCloseWindow() ||
+            isResultsProtectionOnlyWrite() ||
+            resource.data.get('unlocked', false) == true) &&
            request.resource.data.studentUid == resource.data.studentUid &&
            // SSO studentRole responses omit `pin` entirely (no PIN was used
            // to join), so direct dot-access on `resource.data.pin` would
@@ -3690,7 +3707,7 @@ service cloud.firestore {
         // M17 session-level close window (epoch-ms number; absent pre-M17).
         function vaWithinSessionCloseWindow() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('closeAt', null) == null ||
-                 request.time.toMillis() < get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.closeAt;
+                 request.time.toMillis() < get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.closeAt + assignmentCloseGraceMs();
         }
 
         // Student branch allows resource == null so the join flow can probe via
@@ -3735,8 +3752,10 @@ service cloud.firestore {
             resource.data.studentUid == request.auth.uid &&
             passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
             // Student writes stop at the session close time (M17); the teacher
-            // branch above is unaffected.
-            vaWithinSessionCloseWindow() &&
+            // branch above is unaffected. A teacher-granted extension
+            // (`unlocked: true`) is exempt so the resumed attempt can finish.
+            (vaWithinSessionCloseWindow() ||
+             resource.data.get('unlocked', false) == true) &&
             request.resource.data.studentUid == resource.data.studentUid &&
             request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
             request.resource.data.get('name', null) == resource.data.get('name', null) &&
@@ -3838,7 +3857,7 @@ service cloud.firestore {
         // M17 session-level close window (epoch-ms number; absent pre-M17).
         function maWithinSessionCloseWindow() {
           return maSessionData().get('closeAt', null) == null ||
-                 request.time.toMillis() < maSessionData().closeAt;
+                 request.time.toMillis() < maSessionData().closeAt + assignmentCloseGraceMs();
         }
 
         // Teacher + admins read all submissions; a student reads their own (the
@@ -3951,7 +3970,7 @@ service cloud.firestore {
         // M17 session-level close window (epoch-ms number; absent pre-M17).
         function glWithinSessionCloseWindow() {
           return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('closeAt', null) == null ||
-                 request.time.toMillis() < get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.closeAt;
+                 request.time.toMillis() < get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.closeAt + assignmentCloseGraceMs();
         }
 
         // Teacher can read all responses; students can only read their own
