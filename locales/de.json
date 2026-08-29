@@ -1790,6 +1790,20 @@
     "hideOptions": "Antwortoptionen ausblenden",
     "rubricSwap": "Bewertungsraster ändern",
     "rubricDefault": "Standard",
-    "rubricPoints": "Punktemodus"
+    "rubricPoints": "Punktemodus",
+    "timeMultiplierNone": "Keine",
+    "timeMultiplierUnlimited": "Unbegrenzt",
+    "chip": {
+      "unlimitedTime": "Unbegrenzte Zeit",
+      "extendedTime": "{{multiplier}}x Zeit",
+      "questionSubset": "{{selected}}/{{total}} Fragen",
+      "hiddenOptions_one": "{{count}} Option ausgeblendet",
+      "hiddenOptions_other": "{{count}} Optionen ausgeblendet",
+      "rubricSwaps_one": "{{count}} Rasterwechsel",
+      "rubricSwaps_other": "{{count}} Rasterwechsel",
+      "tabWarningsOff": "Tab-Warnungen aus",
+      "tabWarning": "Tab-Warnung: {{threshold}}",
+      "windowShifted": "Zeitfenster verschoben"
+    }
   }
 }

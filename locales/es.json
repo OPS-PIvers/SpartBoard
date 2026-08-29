@@ -1790,6 +1790,20 @@
     "hideOptions": "Ocultar opciones de respuesta",
     "rubricSwap": "Cambiar rúbrica",
     "rubricDefault": "Predeterminado",
-    "rubricPoints": "Modo de puntos"
+    "rubricPoints": "Modo de puntos",
+    "timeMultiplierNone": "Ninguno",
+    "timeMultiplierUnlimited": "Ilimitado",
+    "chip": {
+      "unlimitedTime": "Tiempo ilimitado",
+      "extendedTime": "{{multiplier}}x tiempo",
+      "questionSubset": "{{selected}}/{{total}} preguntas",
+      "hiddenOptions_one": "{{count}} opción oculta",
+      "hiddenOptions_other": "{{count}} opciones ocultas",
+      "rubricSwaps_one": "{{count}} cambio de rúbrica",
+      "rubricSwaps_other": "{{count}} cambios de rúbrica",
+      "tabWarningsOff": "Avisos de pestaña desactivados",
+      "tabWarning": "Aviso de pestaña: {{threshold}}",
+      "windowShifted": "Horario ajustado"
+    }
   }
 }

@@ -1790,6 +1790,20 @@
     "hideOptions": "Hide answer options",
     "rubricSwap": "Rubric swap",
     "rubricDefault": "Default",
-    "rubricPoints": "Points mode"
+    "rubricPoints": "Points mode",
+    "timeMultiplierNone": "None",
+    "timeMultiplierUnlimited": "Unlimited",
+    "chip": {
+      "unlimitedTime": "Unlimited time",
+      "extendedTime": "{{multiplier}}x time",
+      "questionSubset": "{{selected}}/{{total}} Qs",
+      "hiddenOptions_one": "{{count}} option hidden",
+      "hiddenOptions_other": "{{count}} options hidden",
+      "rubricSwaps_one": "{{count}} rubric swap",
+      "rubricSwaps_other": "{{count}} rubric swaps",
+      "tabWarningsOff": "Tab warnings off",
+      "tabWarning": "Tab warning: {{threshold}}",
+      "windowShifted": "Window shifted"
+    }
   }
 }

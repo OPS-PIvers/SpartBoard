@@ -50,14 +50,27 @@ export interface OverrideEditorRowProps {
   defaultExpanded?: boolean;
 }
 
+/** `labelKey`/`labelDefault` are absent for the bare multiplier units (1.5x, 2x), which read the same in every locale. */
 const TIME_MULTIPLIER_OPTIONS: Array<{
-  label: string;
+  id: string;
+  labelKey?: string;
+  labelDefault?: string;
   value: StudentOverride['timeMultiplier'];
 }> = [
-  { label: 'None', value: undefined },
-  { label: '1.5x', value: 1.5 },
-  { label: '2x', value: 2 },
-  { label: 'Unlimited', value: 'unlimited' },
+  {
+    id: 'none',
+    labelKey: 'studentOverride.timeMultiplierNone',
+    labelDefault: 'None',
+    value: undefined,
+  },
+  { id: '1.5x', value: 1.5 },
+  { id: '2x', value: 2 },
+  {
+    id: 'unlimited',
+    labelKey: 'studentOverride.timeMultiplierUnlimited',
+    labelDefault: 'Unlimited',
+    value: 'unlimited',
+  },
 ];
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
@@ -88,7 +101,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const [copySourceId, setCopySourceId] = useState('');
 
   const totalQuestions = quizMode ? questions.length : undefined;
-  const chips = summarizeOverride(override, { totalQuestions });
+  const chips = summarizeOverride(override, t, { totalQuestions });
 
   const patch = (next: Partial<StudentOverride>) =>
     onChange({ ...override, ...next });
@@ -223,14 +236,14 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </span>
             <div
               role="group"
-              aria-label="Extended time"
+              aria-label={t('studentOverride.timeMultiplier', 'Extended time')}
               className="mt-1 inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
             >
               {TIME_MULTIPLIER_OPTIONS.map((opt) => {
                 const active = override.timeMultiplier === opt.value;
                 return (
                   <button
-                    key={opt.label}
+                    key={opt.id}
                     type="button"
                     aria-pressed={active}
                     onClick={() => patch({ timeMultiplier: opt.value })}
@@ -241,7 +254,9 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                         : 'text-slate-600 hover:bg-slate-50')
                     }
                   >
-                    {opt.label}
+                    {opt.labelKey
+                      ? t(opt.labelKey, opt.labelDefault ?? opt.id)
+                      : opt.id}
                   </button>
                 );
               })}
