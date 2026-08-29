@@ -178,7 +178,19 @@
       "restrictionsFilter": "Search classmates…",
       "restrictionsEmptyRoster": "Add more students to set restrictions.",
       "restrictionsNoMatches": "No matches.",
-      "restrictionsFooter": "Restrictions apply to both students automatically."
+      "restrictionsFooter": "Restrictions apply to both students automatically.",
+      "editorTabsLabel": "Roster editor tabs",
+      "studentsTab": "Students",
+      "groupsTab": "Groups ({{count}})",
+      "newGroupName": "New Group",
+      "emptyGroupsTitle": "No groups yet",
+      "emptyGroupsSubtitle": "Save a subset of this class for quick targeting.",
+      "addGroup": "+ New Group",
+      "editGroupMembers": "Edit group members",
+      "removeGroup": "Remove group",
+      "groupMemberCount_one": "{{count}} student",
+      "groupMemberCount_other": "{{count}} students",
+      "noStudentsToGroup": "Add students first."
     },
     "plcs": {
       "title": "My PLCs",

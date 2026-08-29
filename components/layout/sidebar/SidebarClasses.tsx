@@ -388,17 +388,19 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       ? (rosters.find((r) => r.id === editingRosterId) ?? null)
       : null;
 
-  const handleSaveRoster = async (name: string, students: Student[]) => {
+  const handleSaveRoster = async (
+    name: string,
+    students: Student[],
+    groups?: RosterGroup[]
+  ) => {
     if (editingRosterId === 'new') {
       await addRoster(name, students);
     } else if (editingRosterId) {
-      await updateRoster(editingRosterId, { name, students });
-    }
-  };
-
-  const handleSaveGroups = async (groups: RosterGroup[]) => {
-    if (editingRosterId && editingRosterId !== 'new') {
-      await updateRoster(editingRosterId, { groups });
+      await updateRoster(editingRosterId, {
+        name,
+        students,
+        ...(groups !== undefined ? { groups } : {}),
+      });
     }
   };
 
@@ -719,7 +721,6 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           roster={editingRoster}
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
-          onSaveGroups={handleSaveGroups}
         />
       )}
 

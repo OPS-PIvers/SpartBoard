@@ -178,7 +178,19 @@
       "restrictionsFilter": "Mitschüler/innen suchen…",
       "restrictionsEmptyRoster": "Füge weitere Schüler/innen hinzu, um Einschränkungen festzulegen.",
       "restrictionsNoMatches": "Keine Treffer.",
-      "restrictionsFooter": "Einschränkungen gelten automatisch für beide Schüler/innen."
+      "restrictionsFooter": "Einschränkungen gelten automatisch für beide Schüler/innen.",
+      "editorTabsLabel": "Klassenlisten-Editor-Tabs",
+      "studentsTab": "Schüler/innen",
+      "groupsTab": "Gruppen ({{count}})",
+      "newGroupName": "Neue Gruppe",
+      "emptyGroupsTitle": "Noch keine Gruppen",
+      "emptyGroupsSubtitle": "Speichere eine Teilmenge dieser Klasse für schnelles Zuweisen.",
+      "addGroup": "+ Neue Gruppe",
+      "editGroupMembers": "Gruppenmitglieder bearbeiten",
+      "removeGroup": "Gruppe entfernen",
+      "groupMemberCount_one": "{{count}} Schüler/in",
+      "groupMemberCount_other": "{{count}} Schüler/innen",
+      "noStudentsToGroup": "Füge zuerst Schüler/innen hinzu."
     },
     "plcs": {
       "title": "Meine PLGs",

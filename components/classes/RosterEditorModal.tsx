@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
 import { Student, ClassRoster, RosterGroup } from '@/types';
 import { Modal } from '@/components/common/Modal';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
 import {
   RestrictionsPicker,
@@ -14,13 +15,16 @@ interface RosterEditorModalProps {
   /** Pass `null` to create a new roster. */
   roster: ClassRoster | null;
   onClose: () => void;
-  onSave: (name: string, students: Student[]) => Promise<void> | void;
   /**
-   * Persists group edits (M17 A4). Omitted/no-op for a brand-new roster —
-   * groups attach to an existing roster id, so the tab is hidden until the
-   * roster has been saved once.
+   * Single write per save (M17 A4 fix). `groups` is included only when the
+   * groups tab was actually edited from the roster's saved value — a plain
+   * student edit must produce exactly one call, matching pre-PR behavior.
    */
-  onSaveGroups?: (groups: RosterGroup[]) => Promise<void> | void;
+  onSave: (
+    name: string,
+    students: Student[],
+    groups?: RosterGroup[]
+  ) => Promise<void> | void;
 }
 
 /**
@@ -35,7 +39,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   roster,
   onClose,
   onSave,
-  onSaveGroups,
 }) => {
   const { t } = useTranslation();
   const {
@@ -60,13 +63,17 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   } = useRosterRowsState(roster);
 
   const [activeTab, setActiveTab] = useState<'students' | 'groups'>('students');
-  const [groups, setGroups] = useState<RosterGroup[]>(roster?.groups ?? []);
+  const initialGroups = useMemo(() => roster?.groups ?? [], [roster]);
+  const [groups, setGroups] = useState<RosterGroup[]>(initialGroups);
 
   const handleSave = async () => {
     if (!name.trim()) return;
-    await onSave(name.trim(), validStudents);
-    if (roster && onSaveGroups) {
-      await onSaveGroups(groups);
+    const groupsChanged =
+      JSON.stringify(groups) !== JSON.stringify(initialGroups);
+    if (groupsChanged) {
+      await onSave(name.trim(), validStudents, groups);
+    } else {
+      await onSave(name.trim(), validStudents);
     }
     onClose();
   };
@@ -111,30 +118,29 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
         </div>
 
         {roster && (
-          <div className="flex items-center gap-1 shrink-0 border-b border-slate-200">
-            <button
-              onClick={() => setActiveTab('students')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider border-b-2 -mb-px transition-colors ${
-                activeTab === 'students'
-                  ? 'border-brand-blue-primary text-brand-blue-primary'
-                  : 'border-transparent text-slate-400 hover:text-slate-500'
-              }`}
-            >
-              {t('sidebar.classes.studentsTab', { defaultValue: 'Students' })}
-            </button>
-            <button
-              onClick={() => setActiveTab('groups')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider border-b-2 -mb-px transition-colors ${
-                activeTab === 'groups'
-                  ? 'border-brand-blue-primary text-brand-blue-primary'
-                  : 'border-transparent text-slate-400 hover:text-slate-500'
-              }`}
-            >
-              {t('sidebar.classes.groupsTab', {
-                defaultValue: 'Groups ({{count}})',
-                count: groups.length,
+          <div className="shrink-0">
+            <SegmentedControl
+              value={activeTab}
+              onChange={setActiveTab}
+              ariaLabel={t('sidebar.classes.editorTabsLabel', {
+                defaultValue: 'Roster editor tabs',
               })}
-            </button>
+              options={[
+                {
+                  value: 'students',
+                  label: t('sidebar.classes.studentsTab', {
+                    defaultValue: 'Students',
+                  }),
+                },
+                {
+                  value: 'groups',
+                  label: t('sidebar.classes.groupsTab', {
+                    defaultValue: 'Groups ({{count}})',
+                    count: groups.length,
+                  }),
+                },
+              ]}
+            />
           </div>
         )}
 

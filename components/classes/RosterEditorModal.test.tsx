@@ -152,6 +152,41 @@ describe('RosterEditorModal', () => {
     });
   });
 
+  it('calls onSave exactly once on a plain student edit (no groups touched)', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [],
+      groups: [{ id: 'g1', name: 'Group A', studentIds: [] }],
+      driveFileId: null,
+      studentCount: 0,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /\+ add student/i }));
+    const firstInputs = screen.getAllByPlaceholderText(/^first name$/i);
+    await user.type(firstInputs[0], 'Alice');
+
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+    // No groups arg — legacy path must not touch the groups field.
+    expect(onSave.mock.calls[0]).toHaveLength(2);
+  });
+
   it('splits full names when toggling single → dual', async () => {
     const user = userEvent.setup();
     render(
