@@ -3059,26 +3059,42 @@ service cloud.firestore {
         // who learns a sessionId (the parent `sessions` read is a broad,
         // tracked MEDIUM) could spray unbounded arbitrary-shape docs into a
         // teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
+        // Not enforced here: cross-document PIN uniqueness (joinSession's
+        // client-side check is a non-atomic race, same accepted trade-off
+        // as the join-code collision check) — would need a transaction or
+        // Cloud Function to close properly; tracked in firestore-rules.md.
         function isValidLiveStudentPayload(data) {
           return data.keys().hasOnly(['pin', 'status', 'joinedAt', 'lastActive']) &&
             data.pin is string && data.pin.size() > 0 && data.pin.size() <= 10 &&
             data.status in ['active', 'frozen', 'disconnected'] &&
-            data.joinedAt is int && data.lastActive is int;
+            data.joinedAt is int && data.joinedAt > 0 &&
+            data.lastActive is int && data.lastActive > 0;
         }
         allow create: if request.auth != null &&
           request.auth.uid == studentId &&
           isValidLiveStudentPayload(request.resource.data);
-        // Teacher/admin only ever update `status` (toggleFreezeStudent,
-        // endSession's disconnect sweep). The owning student also rejoins by
-        // re-writing the full shape over an existing doc (joinSession's
-        // `setDoc`, evaluated here as an update since the doc pre-exists) —
-        // allow that case too, matching create's own shape constraints.
+        // Teacher/admin may set `status` to any value (toggleFreezeStudent,
+        // endSession's disconnect sweep) — that's the freeze control itself.
+        // The owning student may only mark themselves disconnected
+        // (leaveSession); letting them set 'active'/'frozen' directly would
+        // let a student self-unfreeze via a bare status-only write. The
+        // owning student also rejoins by re-writing the full shape over an
+        // existing doc (joinSession's `setDoc`, evaluated here as an update
+        // since the doc pre-exists, always sets status:'active') — blocked
+        // while currently frozen, and pinned to 'active' as the only status
+        // it may write, so a fabricated rejoin can't be used to either
+        // escape an active freeze or self-freeze via the wider shape check.
         allow update: if request.auth != null &&
           (
-            ((request.auth.uid == userId || isAdmin() || request.auth.uid == studentId) &&
+            ((request.auth.uid == userId || isAdmin()) &&
              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
              request.resource.data.status in ['active', 'frozen', 'disconnected']) ||
             (request.auth.uid == studentId &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+             request.resource.data.status == 'disconnected') ||
+            (request.auth.uid == studentId &&
+             resource.data.status != 'frozen' &&
+             request.resource.data.status == 'active' &&
              isValidLiveStudentPayload(request.resource.data))
           );
         allow delete: if request.auth != null &&

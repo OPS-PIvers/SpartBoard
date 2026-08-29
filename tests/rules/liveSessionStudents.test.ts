@@ -6,12 +6,17 @@
 //     be EXACTLY {pin, status, joinedAt, lastActive} — pin a non-empty string
 //     capped at 10 chars (MAX_PIN_LENGTH in useLiveSession.ts), status one of
 //     the three LiveStudent enum values, joinedAt/lastActive ints.
-//   - update: teacher/admin/owning-student may flip `status` only
-//     (toggleFreezeStudent, leaveSession, endSession's disconnect sweep);
-//     the owning student may ALSO overwrite the full valid shape (matching
-//     create's constraints) — joinSession's rejoin path (persisted
-//     anonymous auth across a refresh) `setDoc`s the full record over an
-//     existing doc, which Firestore evaluates as an update, not a create.
+//   - update: teacher/admin may flip `status` to ANY value — that's the
+//     freeze control itself (toggleFreezeStudent, endSession's disconnect
+//     sweep). The owning student may only flip their own `status` to
+//     'disconnected' (leaveSession) — never 'active'/'frozen' directly,
+//     which would let a student self-unfreeze. The owning student may ALSO
+//     overwrite the full valid shape (matching create's constraints) —
+//     joinSession's rejoin path (persisted anonymous auth across a
+//     refresh) `setDoc`s the full record over an existing doc, which
+//     Firestore evaluates as an update, not a create — but only while NOT
+//     currently frozen, so a fabricated rejoin write can't be used to
+//     escape an active freeze either.
 //
 // Regression coverage: before this rule tightened, `create` had no schema
 // check at all, so any authenticated user who learned a live sessionId
@@ -21,7 +26,12 @@
 // unconstrained for the same three actors. A first attempt at this fix
 // restricted ALL updates to `status`-only, which broke the rejoin path
 // above — caught by automated review before merge, fixed by widening the
-// owning-student branch to also accept the full valid shape.
+// owning-student branch to also accept the full valid shape. A second
+// review round then caught that the widened rule let a student set
+// `status` to ANY value (including escaping a teacher-applied freeze) via
+// either the status-only or full-rejoin branch — fixed by restricting the
+// student's own allowed status transitions and gating the rejoin branch on
+// the pre-write status not already being 'frozen'.
 //
 // Requires a running Firestore emulator. Invoke via: pnpm run test:rules
 
@@ -192,6 +202,36 @@ describe('live session students — create', () => {
     );
   });
 
+  it('rejects a zero or negative joinedAt', async () => {
+    await assertFails(
+      setDoc(studentRef(asStudent(ATTACKER_UID), ATTACKER_UID), {
+        pin: '1234',
+        status: 'active',
+        joinedAt: 0,
+        lastActive: 2000,
+      })
+    );
+    await assertFails(
+      setDoc(studentRef(asStudent(ATTACKER_UID), ATTACKER_UID), {
+        pin: '1234',
+        status: 'active',
+        joinedAt: -1000,
+        lastActive: 2000,
+      })
+    );
+  });
+
+  it('rejects a zero or negative lastActive', async () => {
+    await assertFails(
+      setDoc(studentRef(asStudent(ATTACKER_UID), ATTACKER_UID), {
+        pin: '1234',
+        status: 'active',
+        joinedAt: 2000,
+        lastActive: 0,
+      })
+    );
+  });
+
   it('rejects a missing field (joinedAt)', async () => {
     await assertFails(
       setDoc(studentRef(asStudent(ATTACKER_UID), ATTACKER_UID), {
@@ -301,6 +341,60 @@ describe('live session students — update', () => {
   it('rejects a stranger (not teacher/admin/owning student) updating status', async () => {
     await assertFails(
       updateDoc(studentRef(asStudent(ATTACKER_UID), STUDENT_UID), {
+        status: 'disconnected',
+      })
+    );
+  });
+
+  const freezeStudent = async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(
+        doc(ctx.firestore(), `sessions/${TEACHER_UID}/students/${STUDENT_UID}`),
+        { status: 'frozen' }
+      );
+    });
+  };
+
+  it('rejects the owning student setting their own status to active directly (self-unfreeze bypass)', async () => {
+    await freezeStudent();
+    await assertFails(
+      updateDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
+        status: 'active',
+      })
+    );
+  });
+
+  it('rejects the owning student setting their own status to frozen directly', async () => {
+    await assertFails(
+      updateDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
+        status: 'frozen',
+      })
+    );
+  });
+
+  it('rejects the owning student escaping a freeze via the full rejoin-overwrite path', async () => {
+    await freezeStudent();
+    await assertFails(
+      setDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
+        pin: '4821',
+        status: 'active',
+        joinedAt: 3000,
+        lastActive: 3000,
+      })
+    );
+  });
+
+  it('allows the teacher to unfreeze a student (frozen -> active)', async () => {
+    await freezeStudent();
+    await assertSucceeds(
+      updateDoc(studentRef(asTeacher(), STUDENT_UID), { status: 'active' })
+    );
+  });
+
+  it('allows the owning student to disconnect even while frozen (leaveSession)', async () => {
+    await freezeStudent();
+    await assertSucceeds(
+      updateDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
         status: 'disconnected',
       })
     );
