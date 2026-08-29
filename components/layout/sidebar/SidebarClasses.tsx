@@ -19,7 +19,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
-import { ClassRoster, Student } from '@/types';
+import { ClassRoster, RosterGroup, Student } from '@/types';
 import { auth, functions } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
 import { Modal } from '@/components/common/Modal';
@@ -396,6 +396,12 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     }
   };
 
+  const handleSaveGroups = async (groups: RosterGroup[]) => {
+    if (editingRosterId && editingRosterId !== 'new') {
+      await updateRoster(editingRosterId, { groups });
+    }
+  };
+
   const handleDelete = async (roster: ClassRoster) => {
     const confirmed = await showConfirm(
       t('sidebar.classes.confirmDelete', {
@@ -713,6 +719,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           roster={editingRoster}
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
+          onSaveGroups={handleSaveGroups}
         />
       )}
 

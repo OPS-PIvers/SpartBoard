@@ -189,6 +189,37 @@ export interface ClassRoster extends ClassRosterMeta {
    * unknown" so the UI can show a retry banner instead of "0 students".
    */
   loadError?: string;
+  /** Saved per-roster student groups (M17 A4). Lives in the Drive file, not Firestore. */
+  groups?: RosterGroup[];
+  /** Standing per-student accommodation defaults, keyed by `Student.id` (M17 A4). */
+  defaultOverridesByStudentId?: Record<string, StudentOverride>;
+}
+
+/** A saved subset of a roster's students, editable from `RosterEditorModal` (M17 A4). */
+export interface RosterGroup {
+  id: string;
+  name: string;
+  studentIds: string[];
+}
+
+/**
+ * Per-student accommodation/targeting override (M17 spec §2a). Defined locally
+ * ahead of A1 landing this type on `types.ts`; shape matches §2a exactly and
+ * should be reconciled (not redefined) when A1 merges.
+ * `RubricSnapshot` is a placeholder pending A1 — see M17 spec §2a.
+ */
+export interface StudentOverride {
+  timeMultiplier?: 1.5 | 2 | 'unlimited';
+  /** Quiz only: subset of question ids to serve. */
+  questionIds?: string[];
+  /** Quiz only, never the correct answer. */
+  hiddenOptionIdsByQuestion?: Record<string, string[]>;
+  /** Quiz only. */
+  rubricOverrideByQuestion?: Record<string, unknown>;
+  /** Quiz only (during-taking system). */
+  tabWarningThreshold?: number | 'off';
+  openAt?: number;
+  closeAt?: number;
 }
 
 // --- PLC (PROFESSIONAL LEARNING COMMUNITY) TYPES ---
