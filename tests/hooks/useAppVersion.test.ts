@@ -6,9 +6,19 @@ import {
 } from '@/hooks/useAppVersion';
 import { vi, Mock } from 'vitest';
 
-// The hook reads the build-time constant __APP_VERSION__.
+// The hook reads the build-time constant __APP_BUILD_ID__.
 // In tests Vite's `define` isn't active, so we shim the global ourselves.
-declare let __APP_VERSION__: string;
+declare let __APP_BUILD_ID__: string;
+
+const versionPayload = (buildId?: string) => ({
+  ok: true,
+  json: () =>
+    Promise.resolve({
+      version: '2026.06.03',
+      buildDate: '2023-01-01',
+      ...(buildId === undefined ? {} : { buildId }),
+    }),
+});
 
 describe('useAppVersion', () => {
   let globalFetch: Mock;
@@ -18,15 +28,11 @@ describe('useAppVersion', () => {
     globalFetch = vi.fn();
     globalThis.fetch = globalFetch;
 
-    // Set a known build version for tests (non-'dev' so polling starts)
-    (globalThis as Record<string, unknown>).__APP_VERSION__ = '1.0.0';
+    // Set a known build id for tests (non-'dev' so polling starts)
+    (globalThis as Record<string, unknown>).__APP_BUILD_ID__ = 'abc123def456';
 
-    // Default mock response: returns the same version as the build
-    globalFetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ version: '1.0.0', buildDate: '2023-01-01' }),
-    });
+    // Default mock response: returns the same build id as the running bundle
+    globalFetch.mockResolvedValue(versionPayload('abc123def456'));
 
     // Reset the module-level singleton so each test gets a fresh polling loop.
     __resetAppVersionForTests();
@@ -36,25 +42,21 @@ describe('useAppVersion', () => {
     vi.clearAllMocks();
     vi.useRealTimers();
     __resetAppVersionForTests();
-    delete (globalThis as Record<string, unknown>).__APP_VERSION__;
+    delete (globalThis as Record<string, unknown>).__APP_BUILD_ID__;
   });
 
   it('should initialize with updateAvailable as false', () => {
     const { result } = renderHook(() => useAppVersion(1000));
     expect(result.current.updateAvailable).toBe(false);
-    // No initial fetch — the build version is baked in
+    // No initial fetch — the build id is baked in
     expect(globalFetch).not.toHaveBeenCalled();
   });
 
-  it('should detect when a new version is available', async () => {
+  it('should detect when a new build is available', async () => {
     const { result } = renderHook(() => useAppVersion(1000));
 
-    // Mock fetch to return a new version on the first poll
-    globalFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({ version: '1.0.1', buildDate: '2023-01-02' }),
-    });
+    // Mock fetch to return a new build id on the first poll
+    globalFetch.mockResolvedValueOnce(versionPayload('999fedcba321'));
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -65,10 +67,25 @@ describe('useAppVersion', () => {
     expect(globalFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should not indicate update available if version is the same', async () => {
+  it('should detect a new build even when the changelog version is unchanged', async () => {
     const { result } = renderHook(() => useAppVersion(1000));
 
-    // Advance to first poll — returns same version
+    // Same curated `version`, different commit — the case that previously
+    // left the reload prompt permanently silent between changelog entries.
+    globalFetch.mockResolvedValueOnce(versionPayload('999fedcba321'));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+
+    expect(result.current.updateAvailable).toBe(true);
+  });
+
+  it('should not indicate update available if the build id is the same', async () => {
+    const { result } = renderHook(() => useAppVersion(1000));
+
+    // Advance to first poll — returns same build id
     await act(async () => {
       vi.advanceTimersByTime(1000);
       await Promise.resolve();
@@ -77,12 +94,8 @@ describe('useAppVersion', () => {
     expect(result.current.updateAvailable).toBe(false);
     expect(globalFetch).toHaveBeenCalledTimes(1);
 
-    // Advance to second poll — still same version
-    globalFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({ version: '1.0.0', buildDate: '2023-01-01' }),
-    });
+    // Advance to second poll — still same build id
+    globalFetch.mockResolvedValueOnce(versionPayload('abc123def456'));
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -91,6 +104,30 @@ describe('useAppVersion', () => {
 
     expect(globalFetch).toHaveBeenCalledTimes(2);
     expect(result.current.updateAvailable).toBe(false);
+  });
+
+  it('should keep polling when the response has no buildId', async () => {
+    const { result } = renderHook(() => useAppVersion(1000));
+
+    // A deployment predating buildId — not comparable, so no prompt.
+    globalFetch.mockResolvedValueOnce(versionPayload(undefined));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+
+    expect(result.current.updateAvailable).toBe(false);
+
+    // Polling continues, so a later deploy is still detected.
+    globalFetch.mockResolvedValueOnce(versionPayload('999fedcba321'));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+
+    expect(result.current.updateAvailable).toBe(true);
   });
 
   it('should handle fetch errors gracefully and keep polling', async () => {
@@ -115,11 +152,7 @@ describe('useAppVersion', () => {
     );
 
     // Should schedule another poll even after error
-    globalFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({ version: '1.0.1', buildDate: '2023-01-02' }),
-    });
+    globalFetch.mockResolvedValueOnce(versionPayload('999fedcba321'));
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -167,8 +200,8 @@ describe('useAppVersion', () => {
     });
   });
 
-  it('should not poll when build version is dev', async () => {
-    (globalThis as Record<string, unknown>).__APP_VERSION__ = 'dev';
+  it('should not poll when the build id is dev', async () => {
+    (globalThis as Record<string, unknown>).__APP_BUILD_ID__ = 'dev';
 
     const { result } = renderHook(() => useAppVersion(1000));
 
