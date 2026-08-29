@@ -17,7 +17,7 @@ import { LiveSession, LiveStudent, WidgetType, WidgetConfig } from '@/types';
 const SESSIONS_COLLECTION = 'sessions';
 const STUDENTS_COLLECTION = 'students';
 
-const MAX_PIN_LENGTH = 10; // Prevent storage abuse; mirrored as a literal in firestore.rules' students create/update rule
+const MAX_PIN_LENGTH = 10; // Prevent storage abuse; the sibling #2625 rules-hardening PR adds a matching (not yet merged) server-side size() cap — keep both in sync once it lands
 
 /** Unique 6-char join code generator with collision check against active live sessions. */
 // Relies on the broad `sessions` read permission (firestore.rules: `match
