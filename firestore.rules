@@ -2980,7 +2980,9 @@ service cloud.firestore {
     // Sessions - Teacher owns it, Students can join
     match /sessions/{userId} {
       // Only authenticated users (including anonymous) can read sessions
-      // This allows students to find sessions by code and listen to updates
+      // This allows students to find sessions by code and listen to updates.
+      // Also relied on by hooks/useLiveSession.ts's allocateSessionCode()
+      // for its collision check — narrowing this will break it too.
       // TODO: For Phase 2/Production, implement Cloud Functions to validate
       // join codes server-side and remove this broad read permission.
       allow read: if request.auth != null;

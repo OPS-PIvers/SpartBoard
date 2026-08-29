@@ -309,6 +309,37 @@ describe('useLiveSession — startSession join-code collision avoidance', () => 
 
     expect(getDocsMock).toHaveBeenCalledTimes(2);
   });
+
+  it('falls back to an unchecked code after exhausting all 5 collision-retry attempts', async () => {
+    const getDocsMock = firestore.getDocs as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    const collision = {
+      docs: [{ id: 'other-teacher', data: () => ({ isActive: true }) }],
+    };
+    getDocsMock
+      .mockResolvedValueOnce({ docs: [] }) // clear old students
+      .mockResolvedValueOnce(collision) // attempt 1
+      .mockResolvedValueOnce(collision) // attempt 2
+      .mockResolvedValueOnce(collision) // attempt 3
+      .mockResolvedValueOnce(collision) // attempt 4
+      .mockResolvedValueOnce(collision); // attempt 5 — retries exhausted
+
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+
+    let session: { code: string } | undefined;
+    await act(async () => {
+      session = await result.current.startSession('widget-1', 'clock');
+    });
+
+    // All 5 retries collided; the last-resort fallback still returns a
+    // (theoretically uncollision-checked) code rather than blocking the
+    // teacher from starting the session.
+    expect(getDocsMock).toHaveBeenCalledTimes(6);
+    expect(session?.code).toBeTruthy();
+  });
 });
 
 describe('useLiveSession — teacher student-list reference stability', () => {
