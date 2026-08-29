@@ -618,6 +618,78 @@ describe('useRosters — updateRoster', () => {
       name: 'Just a rename',
     });
   });
+
+  it('re-hydrates from Drive before a students-less write when the cache is cold', async () => {
+    // First download fails, so buildRosters leaves the cache empty; the
+    // groups-only write below must not treat that as "zero students".
+    const downloadFile = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('token expired'))
+      .mockResolvedValue(
+        driveBlob([student({ id: 's1' }), student({ id: 's2' })])
+      );
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    currentDriveService = makeDriveService({ downloadFile, updateFileContent });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', { driveFileId: 'file-1', studentCount: 2 }),
+    ]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    expect(result.current.rosters[0].students).toHaveLength(0);
+
+    await act(async () => {
+      await result.current.updateRoster('r1', {
+        groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
+      });
+    });
+
+    expect(downloadFile).toHaveBeenLastCalledWith('file-1');
+    const body = await readBlobBody(updateFileContent.mock.calls[0][1] as Blob);
+    expect(body.students.map((s) => s.id)).toEqual(['s1', 's2']);
+    expect(body.groups).toHaveLength(1);
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      'users/teacher-1/rosters/r1',
+      expect.objectContaining({ studentCount: 2 })
+    );
+  });
+
+  it('throws rather than writing an empty roster when the cache is cold and Drive is unavailable', async () => {
+    currentDriveService = null;
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', { driveFileId: 'file-1', studentCount: 2 }),
+    ]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+
+    await act(async () => {
+      await expect(
+        result.current.updateRoster('r1', {
+          groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
+        })
+      ).rejects.toThrow(/students are not loaded/);
+    });
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('treats a cold cache as genuinely empty when the roster has no Drive file yet', async () => {
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    currentDriveService = makeDriveService({ updateFileContent });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { studentCount: 0 })]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.updateRoster('r1', {
+        groups: [{ id: 'g1', name: 'Reds', studentIds: [] }],
+      });
+    });
+
+    expect(currentDriveService.downloadFile).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      'users/teacher-1/rosters/r1',
+      expect.objectContaining({ studentCount: 0 })
+    );
+  });
 });
 
 // ─── setAbsentStudents ────────────────────────────────────────────────────────

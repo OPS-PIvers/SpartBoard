@@ -343,7 +343,13 @@ class MockRosterStore {
         updated.students = assignPins(updates.students);
         updated.studentCount = updated.students.length;
       }
-      if (updates.students !== undefined || updates.groups !== undefined) {
+      // Same three-field condition as the real updateRoster path, so bypass
+      // mode doesn't diverge once defaultOverridesByStudentId gets a writer.
+      if (
+        updates.students !== undefined ||
+        updates.groups !== undefined ||
+        updates.defaultOverridesByStudentId !== undefined
+      ) {
         const pruned = pruneRosterFileContent({
           students: updated.students,
           groups: updated.groups ?? [],
@@ -884,7 +890,30 @@ export const useRosters = (user: User | null) => {
         groups !== undefined ||
         defaultOverridesByStudentId !== undefined
       ) {
-        const previousContent = studentsCacheRef.current.get(id) ?? {
+        const existingMeta = metaListRef.current.find((m) => m.id === id);
+        let cachedContent = studentsCacheRef.current.get(id);
+
+        // A cold cache means "students unknown", not "students empty". Carrying
+        // [] forward here would upload a whole-file overwrite that deletes every
+        // student, so hydrate from Drive first and abort if that fails.
+        if (cachedContent === undefined && students === undefined) {
+          if (!existingMeta?.driveFileId) {
+            // No Drive file yet ⇒ nothing has ever been uploaded, so empty is
+            // genuinely correct rather than unknown.
+            cachedContent = { students: [], ...emptyRosterFileExtras() };
+          } else if (!driveService) {
+            throw new Error(
+              `Cannot update roster ${id}: Drive is unavailable and its students are not loaded`
+            );
+          } else {
+            cachedContent = await loadRosterFileFromDrive(
+              existingMeta.driveFileId
+            );
+            studentsCacheRef.current.set(id, cachedContent);
+          }
+        }
+
+        const previousContent = cachedContent ?? {
           students: [],
           ...emptyRosterFileExtras(),
         };
@@ -922,7 +951,6 @@ export const useRosters = (user: User | null) => {
         // Upload to Drive (update in-place when a file already exists)
         if (driveService) {
           try {
-            const existingMeta = metaListRef.current.find((m) => m.id === id);
             const driveFileId = await uploadRosterFileToDrive(
               id,
               nextContent,
@@ -975,7 +1003,7 @@ export const useRosters = (user: User | null) => {
         await updateDoc(doc(db, 'users', user.uid, 'rosters', id), metaUpdates);
       }
     },
-    [user, driveService, uploadRosterFileToDrive]
+    [user, driveService, uploadRosterFileToDrive, loadRosterFileFromDrive]
   );
 
   const setAbsentStudents = useCallback(
