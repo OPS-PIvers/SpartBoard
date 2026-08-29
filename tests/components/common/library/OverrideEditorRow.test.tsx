@@ -143,6 +143,78 @@ describe('OverrideEditorRow', () => {
     });
   });
 
+  it('gives the tab-warning threshold input an accessible name', () => {
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={vi.fn()}
+        quizMode
+        questions={questions}
+        defaultExpanded
+      />
+    );
+    expect(screen.getByLabelText('Tab-warning threshold')).toBeInTheDocument();
+  });
+
+  it('stores a rubric snapshot copy rather than aliasing the library rubric', () => {
+    const onChange = vi.fn();
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={onChange}
+        quizMode
+        questions={questions}
+        rubrics={[rubric]}
+        defaultExpanded
+      />
+    );
+    fireEvent.change(screen.getByDisplayValue('Default'), {
+      target: { value: 'r1' },
+    });
+    const stored = (
+      onChange.mock.calls[0][0] as {
+        rubricOverrideByQuestion: Record<string, Rubric>;
+      }
+    ).rubricOverrideByQuestion.q2;
+    expect(stored).toEqual(rubric);
+    expect(stored).not.toBe(rubric);
+    expect(stored.criteria).not.toBe(rubric.criteria);
+  });
+
+  it('still shows a stored rubric snapshot whose source left the library', () => {
+    const removed: Rubric = {
+      id: 'gone',
+      title: 'Retired rubric',
+      createdAt: 0,
+      updatedAt: 0,
+      criteria: [],
+    };
+    const onChange = vi.fn();
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ rubricOverrideByQuestion: { q2: removed } }}
+        onChange={onChange}
+        quizMode
+        questions={questions}
+        rubrics={[rubric]}
+        defaultExpanded
+      />
+    );
+    // Reads as the stored snapshot, not a misleading "Default".
+    const select = screen.getByDisplayValue('Retired rubric');
+    expect(select).toHaveValue('gone');
+
+    // Re-selecting it keeps the snapshot instead of silently clearing.
+    fireEvent.change(select, { target: { value: 'r1' } });
+    fireEvent.change(select, { target: { value: 'gone' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      rubricOverrideByQuestion: { q2: removed },
+    });
+  });
+
   it("copies another selected student's full override", () => {
     const onChange = vi.fn();
     const peers = [

@@ -12,7 +12,7 @@
  * per-criterion/per-question row layout and light-surface card treatment.
  */
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
@@ -99,6 +99,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copySourceId, setCopySourceId] = useState('');
+  const tabWarningInputId = useId();
 
   const totalQuestions = quizMode ? questions.length : undefined;
   const chips = summarizeOverride(override, t, { totalQuestions });
@@ -150,7 +151,10 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   ) => {
     const current = { ...(override.rubricOverrideByQuestion ?? {}) };
     if (value === undefined) delete current[questionId];
-    else current[questionId] = value;
+    else if (value === 'points') current[questionId] = 'points';
+    // Deep clone: the stored value is a RubricSnapshot, so it must not alias
+    // the live library rubric and drift when that rubric is later edited.
+    else current[questionId] = JSON.parse(JSON.stringify(value)) as Rubric;
     patch({
       rubricOverrideByQuestion:
         Object.keys(current).length > 0 ? current : undefined,
@@ -265,7 +269,10 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
 
           {quizMode && (
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label
+                htmlFor={tabWarningInputId}
+                className="text-xs font-bold uppercase tracking-wider text-slate-500"
+              >
                 {t(
                   'studentOverride.tabWarningThreshold',
                   'Tab-warning threshold'
@@ -273,6 +280,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               </label>
               <div className="mt-1 flex items-center gap-2">
                 <input
+                  id={tabWarningInputId}
                   type="number"
                   min={1}
                   disabled={override.tabWarningThreshold === 'off'}
@@ -418,6 +426,19 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                       : overrideValue
                         ? overrideValue.id
                         : '';
+                  // A stored snapshot whose source rubric is gone from the
+                  // library (edited away, deleted, or copied from a peer) still
+                  // needs an option, or the select would silently read
+                  // "Default" while the override says otherwise.
+                  const storedSnapshot =
+                    overrideValue && overrideValue !== 'points'
+                      ? overrideValue
+                      : null;
+                  const selectable =
+                    storedSnapshot &&
+                    !rubrics.some((r) => r.id === storedSnapshot.id)
+                      ? [...rubrics, storedSnapshot]
+                      : rubrics;
                   return (
                     <div
                       key={q.id}
@@ -436,7 +457,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                           else
                             setRubricOverride(
                               q.id,
-                              rubrics.find((r) => r.id === v)
+                              selectable.find((r) => r.id === v)
                             );
                         }}
                         className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700"
@@ -447,7 +468,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                         <option value="points">
                           {t('studentOverride.rubricPoints', 'Points mode')}
                         </option>
-                        {rubrics.map((r) => (
+                        {selectable.map((r) => (
                           <option key={r.id} value={r.id}>
                             {r.title}
                           </option>
