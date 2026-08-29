@@ -169,7 +169,10 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           className="w-full bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none resize-none disabled:opacity-50"
           style={{
             padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
-            fontSize: 'min(11px, 4cqmin)',
+            // Editable text a teacher types into, not display text — floor
+            // it at 10px instead of letting cqmin shrink it unbounded on a
+            // narrowed widget.
+            fontSize: 'clamp(10px, 4cqmin, 11px)',
           }}
         />
       </div>
