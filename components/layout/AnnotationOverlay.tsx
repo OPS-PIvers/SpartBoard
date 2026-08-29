@@ -622,6 +622,7 @@ export const AnnotationOverlay: React.FC = () => {
         onDrop={interactive ? handleImageDrop : undefined}
         onDragOver={interactive ? handleImageDragOver : undefined}
         data-selected-id={selectedId ?? ''}
+        data-inking-surface="true"
         className={`absolute inset-0 ${
           interactive
             ? activeTool === 'select'

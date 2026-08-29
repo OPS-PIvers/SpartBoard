@@ -14,7 +14,7 @@
  * `submittedAt` + derive a `status` string.
  */
 
-import type { GradeResult } from '@/types';
+import type { GradeResult, Rubric, WrittenAnswerRubricScore } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
 
@@ -41,6 +41,10 @@ export interface ExportableResponse {
    */
   submittedAt: number | null;
   tabSwitchWarnings?: number;
+  /** Per-question manual grades; read for rubric score export columns. */
+  grading?: {
+    [questionId: string]: { rubricScores?: WrittenAnswerRubricScore[] };
+  };
 }
 
 /** Minimum question shape the export reads. */
@@ -48,6 +52,8 @@ export interface ExportableQuestion {
   id: string;
   text: string;
   points?: number;
+  /** When present, emits per-criterion rubric columns (see buildResultsSheetData). */
+  rubricSnapshot?: Rubric;
 }
 
 export interface BuildResultsSheetDataOptions {
@@ -122,6 +128,16 @@ export function buildResultsSheetData<
   };
 
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
+
+  // Gated on the quiz definition alone: any question carrying a snapshot
+  // always emits its criterion columns, ungraded responses render empty
+  // cells. Gating on scores would make the header non-deterministic between
+  // a pre-grading and a post-grading export of the same quiz, and the PLC
+  // shared-sheet append guard rejects a schema change.
+  const rubricQuestionIds = new Set(
+    questions.filter((q) => q.rubricSnapshot).map((q) => q.id)
+  );
+
   const headers = [
     'Timestamp',
     'Teacher',
@@ -134,9 +150,18 @@ export function buildResultsSheetData<
     'Max Points',
     'Warnings',
     'Submitted At',
-    ...questions.map(
-      (q, i) => `Q${i + 1} (${q.points ?? 1}pt): ${q.text.substring(0, 40)}`
-    ),
+    ...questions.flatMap((q, i) => {
+      const cols = [
+        `Q${i + 1} (${q.points ?? 1}pt): ${q.text.substring(0, 40)}`,
+      ];
+      if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
+        for (const c of q.rubricSnapshot.criteria) {
+          cols.push(`Q${i + 1} Rubric - ${c.name}`);
+          cols.push(`Q${i + 1} Rubric - ${c.name} Points`);
+        }
+      }
+      return cols;
+    }),
   ];
 
   const dataRows = responses.map((r) => {
@@ -171,18 +196,48 @@ export function buildResultsSheetData<
       if (!ans) continue;
       grades.set(q.id, gradeFn(q, ans.answer, r));
     }
-    const answerCols = questions.map((q) => {
+    // An `awaiting-grade` slot's 0 is a placeholder, not a score. Render the
+    // cell as "Ungraded" (distinct from an unanswered question's blank) and
+    // flag the row total as provisional so nobody reads the deflated
+    // percentage as the student's final grade.
+    const answerCols = questions.flatMap((q) => {
       const grade = grades.get(q.id);
-      if (!grade) return '';
-      return formatExportPoints(grade.pointsEarned);
+      const baseCell = !grade
+        ? ''
+        : grade.state === 'awaiting-grade'
+          ? 'Ungraded'
+          : formatExportPoints(grade.pointsEarned);
+      const cols = [baseCell];
+      if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
+        const scores = r.grading?.[q.id]?.rubricScores ?? [];
+        const scoreMap = new Map<string, (typeof scores)[number]>();
+        for (const s of scores) {
+          if (!scoreMap.has(s.criterionId)) {
+            scoreMap.set(s.criterionId, s);
+          }
+        }
+        for (const c of q.rubricSnapshot.criteria) {
+          const score = scoreMap.get(c.id);
+          if (!score) {
+            cols.push('', '');
+            continue;
+          }
+          const level = c.levels.find((l) => l.id === score.levelId);
+          cols.push(level?.label ?? '', formatExportPoints(score.points));
+        }
+      }
+      return cols;
     });
+    const awaitingGrade = questions.some(
+      (q) => grades.get(q.id)?.state === 'awaiting-grade'
+    );
     const earnedPoints = questions.reduce((sum, q) => {
       const grade = grades.get(q.id);
       return grade ? sum + grade.pointsEarned : sum;
     }, 0);
     const scoreDisplay =
       r.status === 'completed' && maxPoints > 0
-        ? `${Math.round((earnedPoints / maxPoints) * 100)}%`
+        ? `${Math.round((earnedPoints / maxPoints) * 100)}%${awaitingGrade ? ' (provisional)' : ''}`
         : '';
     return [
       timestamp,

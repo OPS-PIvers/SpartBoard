@@ -42,6 +42,9 @@ import {
   Unlock as UnlockIcon,
   ShieldAlert,
   Hand,
+  ChevronDown,
+  ChevronRight,
+  ListChecks,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -52,6 +55,7 @@ import { logError } from '@/utils/logError';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
+  isWrittenAnswerAwaitingGrade,
   SessionEndedError,
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
@@ -69,6 +73,7 @@ import {
   QuizSession,
   QuizPublicQuestion,
   WrittenAnswerGrade,
+  Rubric,
   isWrittenQuestionType,
   isAnswerSubmitted,
 } from '@/types';
@@ -2659,6 +2664,12 @@ const ActiveQuiz: React.FC<{
           {(currentQuestion.type === 'short' ||
             currentQuestion.type === 'essay') && (
             <div className="space-y-4">
+              {currentQuestion.rubricSnapshot && (
+                <CollapsibleRubric
+                  rubric={currentQuestion.rubricSnapshot}
+                  light={light}
+                />
+              )}
               <React.Suspense
                 fallback={
                   <div
@@ -3370,6 +3381,25 @@ const PublishedScoreReview: React.FC<{
   const correctCount = myResponse.answers.filter(
     (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
+  // A written answer with no grade entry is still owed a teacher grade, so any
+  // score shown here is provisional (M12 decision 8 / RR-06). Detected from the
+  // student's own response — no answer key is exposed to this view.
+  const writtenQuestionsById = new Map(
+    publicQuestions
+      .filter((q) => isWrittenQuestionType(q.type))
+      .map((q) => [q.id, q] as const)
+  );
+  const awaitingGrade = myResponse.answers.some((a) => {
+    const q = writtenQuestionsById.get(a.questionId);
+    return (
+      q !== undefined &&
+      isWrittenAnswerAwaitingGrade(
+        q,
+        a.answer ?? '',
+        myResponse.grading?.[a.questionId]
+      )
+    );
+  });
 
   // Watermark overlay — rendered above content via fixed positioning, below
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
@@ -3538,10 +3568,22 @@ const PublishedScoreReview: React.FC<{
                   {correctCount} of {autoGradedCount} fully correct
                 </p>
               )}
+              {awaitingGrade && (
+                <p
+                  className={`mt-2 text-sm font-semibold ${
+                    light ? 'text-amber-700' : 'text-amber-300'
+                  }`}
+                >
+                  Provisional — your written response is still being graded, so
+                  this score will change.
+                </p>
+              )}
             </>
           ) : (
             <p className={`text-sm ${prepText}`}>
-              Your score is being prepared. Check back soon.
+              {awaitingGrade
+                ? 'Your written response is still being graded. Check back soon.'
+                : 'Your score is being prepared. Check back soon.'}
             </p>
           )}
         </section>
@@ -3626,6 +3668,7 @@ const PublishedScoreReview: React.FC<{
                           grade={writtenGrade}
                           showResponse={showResponses}
                           maxPoints={q.points ?? 1}
+                          rubricSnapshot={q.rubricSnapshot}
                           light={light}
                         />
                       ) : (
@@ -3689,14 +3732,160 @@ const PublishedScoreReview: React.FC<{
  * the question hasn't been graded yet — useful for self-paced quizzes
  * where the teacher publishes scores in chunks.
  */
+/**
+ * Collapsible rubric preview shown while a student is answering a written
+ * question — criteria, levels, points, and descriptors. Contains no answer
+ * key, so it's safe on the student-safe `QuizPublicQuestion` payload.
+ */
+export const CollapsibleRubric: React.FC<{
+  rubric: Rubric;
+  light?: boolean;
+}> = ({ rubric, light = false }) => {
+  const [open, setOpen] = useState(false);
+  const cardCls = light
+    ? 'border-slate-200 bg-slate-50'
+    : 'border-slate-700 bg-slate-800/60';
+  const headingCls = light ? 'text-slate-900' : 'text-slate-100';
+  const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
+  if (!Array.isArray(rubric?.criteria) || rubric.criteria.length === 0) {
+    return null;
+  }
+  return (
+    <div className={`rounded-xl border ${cardCls}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors ${
+          open ? 'rounded-t-xl' : 'rounded-xl'
+        } ${light ? 'hover:bg-slate-100' : 'hover:bg-slate-700/60'} ${headingCls}`}
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+        )}
+        <ListChecks className="w-3.5 h-3.5" aria-hidden />
+        {rubric.title || 'Scoring rubric'}
+      </button>
+      {open && (
+        <div className="space-y-3 px-3 pb-3">
+          {rubric.criteria.map((criterion) => (
+            <div key={criterion.id}>
+              <p className={`text-xs font-semibold ${headingCls}`}>
+                {criterion.name}
+              </p>
+              {criterion.description && (
+                <p className={`text-xs ${bodyCls} mb-1`}>
+                  {criterion.description}
+                </p>
+              )}
+              <ul className="space-y-1">
+                {[...criterion.levels]
+                  .sort((a, b) => b.points - a.points)
+                  .map((level) => (
+                    <li
+                      key={level.id}
+                      className={`flex items-baseline gap-2 text-xs ${bodyCls}`}
+                    >
+                      <span className={`font-bold ${headingCls}`}>
+                        {level.label} ({level.points} pt
+                        {level.points === 1 ? '' : 's'})
+                      </span>
+                      {level.description && <span>{level.description}</span>}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Scored rubric shown in published results — the level + points a student
+ * earned per criterion, provisional-marked while any criterion is unscored.
+ */
+const ScoredRubricDisplay: React.FC<{
+  rubric: Rubric;
+  scores: import('@/types').WrittenAnswerRubricScore[];
+  light?: boolean;
+}> = ({ rubric, scores, light = false }) => {
+  const headingCls = light ? 'text-slate-900' : 'text-slate-100';
+  const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
+  const labelCls = light ? 'text-slate-500' : 'text-slate-300';
+  if (!Array.isArray(rubric?.criteria) || rubric.criteria.length === 0) {
+    return null;
+  }
+  const scoresByCriterion = new Map(scores.map((s) => [s.criterionId, s]));
+  const criterionIds = new Set(rubric.criteria.map((c) => c.id));
+  const staleSnapshot =
+    scores.length > 0 && !scores.some((s) => criterionIds.has(s.criterionId));
+  if (staleSnapshot) {
+    return (
+      <div className="space-y-1.5">
+        <p
+          className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
+        >
+          Rubric
+        </p>
+        <p className={`text-xs italic ${bodyCls}`}>
+          Scored with an earlier version of this rubric.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <p
+        className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
+      >
+        Rubric
+      </p>
+      {rubric.criteria.map((criterion) => {
+        const score = scoresByCriterion.get(criterion.id);
+        const level = score
+          ? criterion.levels.find((l) => l.id === score.levelId)
+          : undefined;
+        return (
+          <div
+            key={criterion.id}
+            className="flex items-baseline justify-between gap-2 text-xs"
+          >
+            <span className={bodyCls}>{criterion.name}</span>
+            <span className={`font-mono font-semibold ${headingCls}`}>
+              {level && score ? (
+                `${level.label} — ${score.points} pt${score.points === 1 ? '' : 's'}`
+              ) : (
+                <span className={`italic ${bodyCls}`}>not yet scored</span>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const WrittenAnswerReview: React.FC<{
   studentAnswer: string;
   grade: WrittenAnswerGrade | undefined;
   showResponse: boolean;
   maxPoints: number;
+  /** Frozen rubric snapshot for this question, if one was attached. */
+  rubricSnapshot?: Rubric;
   /** LIGHT for the async/self-paced review; dark for a live-ended quiz. */
   light?: boolean;
-}> = ({ studentAnswer, grade, showResponse, maxPoints, light = false }) => {
+}> = ({
+  studentAnswer,
+  grade,
+  showResponse,
+  maxPoints,
+  rubricSnapshot,
+  light = false,
+}) => {
   if (!showResponse) {
     return null;
   }
@@ -3748,12 +3937,25 @@ export const WrittenAnswerReview: React.FC<{
               </p>
             </div>
           )}
+          {rubricSnapshot &&
+            grade.rubricScores &&
+            grade.rubricScores.length > 0 && (
+              <ScoredRubricDisplay
+                rubric={rubricSnapshot}
+                scores={grade.rubricScores}
+                light={light}
+              />
+            )}
           <div
             className={`flex items-baseline justify-between gap-2 pt-1 border-t ${
               light ? 'border-slate-200' : 'border-slate-700/60'
             }`}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span
+              className={`text-[10px] font-bold uppercase tracking-wider ${
+                light ? 'text-slate-500' : 'text-slate-300'
+              }`}
+            >
               Score
             </span>
             <span
@@ -3768,11 +3970,19 @@ export const WrittenAnswerReview: React.FC<{
       )}
       {!hasGrade &&
         (showingLiveAnswer ? (
-          <p className="text-[11px] text-slate-500 italic">
+          <p
+            className={`text-[11px] italic ${
+              light ? 'text-slate-500' : 'text-slate-300'
+            }`}
+          >
             Showing your latest response — not yet graded by your teacher.
           </p>
         ) : (
-          <p className="text-[11px] text-slate-500 italic">
+          <p
+            className={`text-[11px] italic ${
+              light ? 'text-slate-500' : 'text-slate-300'
+            }`}
+          >
             Not yet graded by your teacher.
           </p>
         ))}

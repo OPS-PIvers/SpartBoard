@@ -5,3 +5,14 @@
 # committed blob (LF) and CI (Linux/LF) deploys are comfortably under it. Force
 # LF so every environment measures the same bytes.
 *.rules text eol=lf
+
+# Node script entrypoints start with a shebang. Vite's SSR transform (which
+# Vitest uses to load them) finds the shebang with /^#!.*\n/ — and JS `.` does
+# not match `\r`, so on a CRLF working tree the match fails, hoisted exports get
+# injected ABOVE the shebang, and the stray `#!` mid-module throws
+# "SyntaxError: Invalid or unexpected token". That breaks any test importing one
+# (scripts/checkTestCounts.test.ts) locally on Windows while CI (LF) stays green.
+# Force LF so every environment parses the same bytes.
+*.mjs text eol=lf
+*.cjs text eol=lf
+scripts/**/*.js text eol=lf

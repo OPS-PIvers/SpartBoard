@@ -10,6 +10,10 @@
 // below rather than pulling in papaparse/csv-parse, because the surface we
 // need (header-based lookup, quoted cells, CRLF) is tiny and the bulk-invite
 // path is load-bearing enough that we want it fully traceable here.
+//
+// `utils/rubricCsv.ts` duplicates this tokenizer for the rubric CSV import/
+// export flow rather than sharing it — keep both in sync if the RFC-4180
+// handling here changes.
 
 /** A single resolved invitation payload ready to send to `createOrganizationInvites`. */
 export interface InviteIntent {

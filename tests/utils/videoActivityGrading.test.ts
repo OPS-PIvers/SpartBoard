@@ -29,7 +29,12 @@ describe('gradeVideoActivityAnswer — MC', () => {
       q({ type: 'MC', correctAnswer: 'Saturn', points: 2 }),
       'Saturn'
     );
-    expect(result).toEqual({ isCorrect: true, pointsEarned: 2, pointsMax: 2 });
+    expect(result).toEqual({
+      isCorrect: true,
+      pointsEarned: 2,
+      pointsMax: 2,
+      state: 'scored',
+    });
   });
 
   it('case- and whitespace-insensitive', () => {
@@ -45,7 +50,12 @@ describe('gradeVideoActivityAnswer — MC', () => {
       q({ type: 'MC', correctAnswer: 'Saturn', points: 5 }),
       'Mars'
     );
-    expect(result).toEqual({ isCorrect: false, pointsEarned: 0, pointsMax: 5 });
+    expect(result).toEqual({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 5,
+      state: 'scored',
+    });
   });
 
   it('fails closed when correctAnswer is empty (un-authored stub)', () => {
@@ -60,6 +70,7 @@ describe('gradeVideoActivityAnswer — MC', () => {
       isCorrect: false,
       pointsEarned: 0,
       pointsMax: 3,
+      state: 'not-attempted',
     });
     const realSubmission = gradeVideoActivityAnswer(
       q({ type: 'MC', correctAnswer: '', points: 3 }),
@@ -115,7 +126,12 @@ describe('gradeVideoActivityAnswer — FIB', () => {
       q({ type: 'FIB', correctAnswer: '', acceptableVariants: ['', '   '] }),
       ''
     );
-    expect(result).toEqual({ isCorrect: false, pointsEarned: 0, pointsMax: 1 });
+    expect(result).toEqual({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 1,
+      state: 'not-attempted',
+    });
   });
 });
 
@@ -130,7 +146,12 @@ describe('gradeVideoActivityAnswer — MA', () => {
       }),
       'b|a|c'
     );
-    expect(result).toEqual({ isCorrect: true, pointsEarned: 3, pointsMax: 3 });
+    expect(result).toEqual({
+      isCorrect: true,
+      pointsEarned: 3,
+      pointsMax: 3,
+      state: 'scored',
+    });
   });
 
   it('zero credit when missing one correct selection (no partial credit)', () => {

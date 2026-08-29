@@ -26,6 +26,11 @@ vi.mock('@/components/widgets/QuizWidget/utils/quizScoreboard', () => ({
   // focused on scaling rather than the (separately tested) scoreability rule.
   canScoreResponse: (r: unknown) =>
     (r as { __scoreable?: boolean }).__scoreable !== false,
+  // M12 3-G: responses still owed a teacher grade (ungraded essay, or a rubric
+  // with criteria left unscored) are dropped too — their earned score counts
+  // the ungraded slot as 0, so pushing now writes an unfinished grade.
+  isResponseAwaitingGrade: (r: unknown) =>
+    (r as { __awaitingGrade?: boolean }).__awaitingGrade === true,
 }));
 
 import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
@@ -43,13 +48,15 @@ const resp = (
   studentUid: string,
   status: QuizResponse['status'],
   earned: number,
-  scoreable = true
+  scoreable = true,
+  awaitingGrade = false
 ): QuizResponse =>
   ({
     studentUid,
     status,
     __earned: earned,
     __scoreable: scoreable,
+    __awaitingGrade: awaitingGrade,
   }) as unknown as QuizResponse;
 
 describe('buildQuizClassroomGradeEntries', () => {
@@ -134,6 +141,35 @@ describe('buildQuizClassroomGradeEntries', () => {
       10
     );
     expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 8 }]);
+  });
+
+  it('excludes a completed response still awaiting a teacher grade (the ungraded-essay-pushes-0 defect)', () => {
+    // The ungraded essay counts as 0 in getEarnedPoints, so pushing now would
+    // write a grade the teacher never awarded. Omit until it is graded.
+    const grades = buildQuizClassroomGradeEntries(
+      [
+        resp('graded', 'completed', 9),
+        resp(
+          'ungraded-essay',
+          'completed',
+          2,
+          /* scoreable */ true,
+          /* awaitingGrade */ true
+        ),
+      ],
+      [q(10)],
+      10
+    );
+    expect(grades).toEqual([{ pseudonymUid: 'graded', pointsEarned: 9 }]);
+  });
+
+  it('excludes a response whose rubric is only partially scored (provisional, not final)', () => {
+    const grades = buildQuizClassroomGradeEntries(
+      [resp('partial-rubric', 'completed', 3, true, true)],
+      [q(10)],
+      10
+    );
+    expect(grades).toEqual([]);
   });
 
   it('scales on correctness points only — getEarnedPoints is called with NO session (excludes speed/streak bonuses)', () => {

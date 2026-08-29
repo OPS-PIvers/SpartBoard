@@ -15,6 +15,7 @@ import {
   canScoreResponse,
   getDisplayScore,
   getResponseScore,
+  isResponseAwaitingGrade,
   isGamificationActive,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import {
@@ -37,6 +38,8 @@ export interface MonitorStudent {
   bandScore: number | null;
   /** Display score (pts when gamified, else percent); null when not scoreable. */
   displayScore: number | null;
+  /** `displayScore` is provisional — a written answer is still ungraded. */
+  awaitingGrade: boolean;
   band: ProficiencyBand | null;
   tabWarnings: number;
   needsHelp: NeedsHelpFlag | null;
@@ -171,6 +174,8 @@ export function useMonitorData(
           displayScore: scoreable
             ? getDisplayScore(r, quizData.questions, scoringConfig)
             : null,
+          awaitingGrade:
+            scoreable && isResponseAwaitingGrade(r, quizData.questions),
           band: bandScore != null ? proficiencyBand(bandScore) : null,
           tabWarnings: r.tabSwitchWarnings ?? 0,
           needsHelp: r.status === 'in-progress' ? needsHelpFlag(r, now) : null,

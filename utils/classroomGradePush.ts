@@ -22,6 +22,7 @@ import { httpsCallable, type Functions } from 'firebase/functions';
 import {
   getEarnedPoints,
   canScoreResponse,
+  isResponseAwaitingGrade,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import type { QuizQuestion, QuizResponse } from '@/types';
 
@@ -50,6 +51,11 @@ export interface ClassroomGradeEntry {
  * unlike the "—" placeholder the teacher views render, a phantom 0 written to the
  * real Classroom gradebook is persistent and hard to notice/undo. Omitting a
  * student is the safe default — better no grade than a wrong 0.
+ *
+ * Responses still `isResponseAwaitingGrade` (an ungraded essay, or a rubric with
+ * criteria left unscored) are excluded for the same reason: the ungraded slot
+ * counts as 0 in `getEarnedPoints`, so pushing now would write a grade the
+ * teacher hasn't finished awarding. Re-push after grading to include them.
  *
  * Grades are intentionally correctness-based: `getEarnedPoints` is called with NO
  * session, so speed/streak bonuses are excluded. A Classroom gradebook grade
@@ -86,7 +92,9 @@ export function buildQuizClassroomGradeEntries(
         !!r.studentUid &&
         // Skip responses we can't actually score (answer key not loaded /
         // question-id drift) so a phantom 0 never reaches the gradebook.
-        canScoreResponse(r, questions)
+        canScoreResponse(r, questions) &&
+        // Skip responses still owed a teacher grade — see the doc above.
+        !isResponseAwaitingGrade(r, questions)
     )
     .map((r) => {
       // No session arg → correctness points only (no speed/streak bonus); see

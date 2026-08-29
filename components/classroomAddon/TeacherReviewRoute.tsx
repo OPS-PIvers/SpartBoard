@@ -50,6 +50,7 @@ import { resolveResponseDisplayName } from '@/components/widgets/QuizWidget/util
 import {
   canScoreResponse,
   getDisplayScore,
+  isResponseAwaitingGrade,
   getScoreSuffix,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
@@ -295,7 +296,8 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
         (r) =>
           r.status === 'completed' &&
           !!r.studentUid &&
-          canScoreResponse(r, questions)
+          canScoreResponse(r, questions) &&
+          !isResponseAwaitingGrade(r, questions)
       )
     ) {
       setStatusMsg('No completed responses to push yet.');
@@ -471,6 +473,11 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
                   const key = getResponseDocKey(r);
                   const name = displayNameByResponseKey.get(key) ?? 'Student';
                   const done = r.status === 'completed';
+                  // Mirrors buildQuizClassroomGradeEntries, which omits these
+                  // from the push — the shown total counts an ungraded written
+                  // answer as 0, so label it rather than let it read as final.
+                  const awaitingGrade =
+                    !!quizData && isResponseAwaitingGrade(r, questions);
                   return (
                     <li
                       key={key}
@@ -491,6 +498,11 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
                               )}${scoreSuffix}`
                             : '—'}
                         </span>
+                        {awaitingGrade && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                            Provisional
+                          </span>
+                        )}
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                             done

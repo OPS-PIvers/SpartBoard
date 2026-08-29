@@ -57,6 +57,10 @@ export function gradeVideoActivityAnswer(
   const max = question.points ?? 1;
   const type = question.type ?? 'MC';
   const correct = question.correctAnswer ?? '';
+  // VA has no teacher-graded question types, so nothing here is ever
+  // `awaiting-grade`; a blank submission is a genuine non-attempt.
+  const state: GradeResult['state'] =
+    (studentAnswer ?? '').trim().length > 0 ? 'scored' : 'not-attempted';
 
   if (type === 'MC') {
     // Misconfigured-question guard: an MC with no `correctAnswer` set is a
@@ -65,10 +69,15 @@ export function gradeVideoActivityAnswer(
     // `normalize('') === normalize('')`. Fail closed instead.
     const correctNorm = normalizeAnswer(correct);
     if (correctNorm.length === 0) {
-      return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+      return { isCorrect: false, pointsEarned: 0, pointsMax: max, state };
     }
     const isCorrect = correctNorm === normalizeAnswer(studentAnswer);
-    return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+    return {
+      isCorrect,
+      pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state,
+    };
   }
 
   if (type === 'FIB') {
@@ -79,11 +88,16 @@ export function gradeVideoActivityAnswer(
       .map(normalizeAnswer)
       .filter((s) => s.length > 0);
     if (acceptedNorm.length === 0) {
-      return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+      return { isCorrect: false, pointsEarned: 0, pointsMax: max, state };
     }
     const givenNorm = normalizeAnswer(studentAnswer);
     const isCorrect = acceptedNorm.some((a) => a === givenNorm);
-    return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+    return {
+      isCorrect,
+      pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state,
+    };
   }
 
   if (type === 'MA') {
@@ -110,21 +124,26 @@ export function gradeVideoActivityAnswer(
       wrongSelections === 0;
 
     if (!question.allowPartialCredit) {
-      return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+      return {
+        isCorrect,
+        pointsEarned: isCorrect ? max : 0,
+        pointsMax: max,
+        state,
+      };
     }
     if (correctSet.size === 0) {
-      return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+      return { isCorrect: false, pointsEarned: 0, pointsMax: max, state };
     }
     // Partial credit: reward correct picks, penalize wrong picks. Floor at 0
     // so a student who picked nothing right but every wrong option doesn't
     // go negative. Cap at max for the all-correct case.
     const raw = (intersection - wrongSelections) / correctSet.size;
     const pointsEarned = Math.max(0, Math.min(1, raw)) * max;
-    return { isCorrect, pointsEarned, pointsMax: max };
+    return { isCorrect, pointsEarned, pointsMax: max, state };
   }
 
   // Unknown type — fail closed.
-  return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+  return { isCorrect: false, pointsEarned: 0, pointsMax: max, state };
 }
 
 /**

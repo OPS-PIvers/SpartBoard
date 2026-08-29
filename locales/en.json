@@ -365,7 +365,8 @@
     "assessmentsTypes": {
       "label": "Assessment type",
       "quizzes": "Quizzes",
-      "videoActivities": "Video Activities"
+      "videoActivities": "Video Activities",
+      "rubrics": "Rubrics"
     },
     "assignmentsSubTabs": {
       "label": "Assignment views",
@@ -676,6 +677,37 @@
       "driveRequiredForEdit": "Connect Google Drive in your account to edit PLC quizzes.",
       "driveDisconnected": "Connect Google Drive to import PLC quizzes into your personal library."
     },
+    "rubricLibrary": {
+      "heading": "Shared Rubrics",
+      "count_one": "{{count}} rubric",
+      "count_other": "{{count}} rubrics",
+      "loading": "Loading rubrics…",
+      "loadError": "Couldn't load shared rubrics. Please try again.",
+      "empty": "No shared rubrics yet",
+      "emptyHint": "Share a rubric from your library so your team can score written responses the same way.",
+      "bySharer": "shared by {{name}}",
+      "unknownSharer": "a teammate",
+      "criterionCount_one": "{{count}} criterion",
+      "criterionCount_other": "{{count}} criteria",
+      "maxPoints": "{{points}} pts",
+      "importAction": "Add to my library",
+      "importedToast": "\"{{title}}\" added to your rubric library.",
+      "importFailed": "Failed to import rubric.",
+      "shareCta": "Share a rubric",
+      "sharedToast": "\"{{title}}\" shared with this PLC.",
+      "resharedToast": "\"{{title}}\" is shared with this PLC again.",
+      "alreadySharedToast": "\"{{title}}\" is already shared with this PLC.",
+      "shareFailed": "Failed to share rubric with this PLC.",
+      "sharePickerTitle": "Share a rubric with this PLC",
+      "sharePickerPrompt": "Pick a rubric from your library.",
+      "sharePickerEmpty": "You don’t have any rubrics yet. Build one from a written question in the quiz editor.",
+      "pickerMeta": "{{criteria}} criteria · {{points}} pts",
+      "unshareAction": "Unshare",
+      "unshareLabel": "Unshare {{title}}",
+      "unshareTitle": "Unshare rubric",
+      "unshareConfirm": "Remove \"{{title}}\" from this PLC? Teammates lose access to the shared entry; copies already in their libraries keep working.",
+      "unshareFailed": "Failed to unshare rubric."
+    },
     "presence": {
       "heading": "Who’s here",
       "othersHere": "{{count}} teammate here now",
@@ -953,7 +985,8 @@
         "doc": "Doc",
         "comment": "Comment",
         "quiz": "Quiz",
-        "videoActivity": "Video activity"
+        "videoActivity": "Video activity",
+        "rubric": "Rubric"
       }
     },
     "versions": {
@@ -1012,7 +1045,8 @@
       "notesNote": "Viewers can read notes and docs but can’t add or change them.",
       "todosNote": "Viewers can read the to-do list but can’t add or change items.",
       "meetingNote": "Viewers can follow the meeting but can’t edit or save it.",
-      "homeNote": "Viewers can read everything here but can’t create new content."
+      "homeNote": "Viewers can read everything here but can’t create new content.",
+      "rubricsNote": "Viewers can browse and copy shared rubrics but can’t share or unshare them."
     },
     "resources": {
       "managerTitle": "PLC Resources",
