@@ -1,8 +1,22 @@
 import React from 'react';
-import { render, screen, cleanup } from '@testing-library/react';
+import {
+  render,
+  screen,
+  cleanup,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SpecialistScheduleConfigurationModal } from './SpecialistScheduleConfigurationModal';
 import type { Building } from '@/config/buildings';
+import { getDoc, setDoc, type DocumentSnapshot } from 'firebase/firestore';
+
+const snapshot = (overrides: Record<string, unknown>): DocumentSnapshot =>
+  ({
+    exists: () => false,
+    data: () => undefined,
+    ...overrides,
+  }) as unknown as DocumentSnapshot;
 
 // Minimal lucide-react stub — avoids loading the full icon bundle.
 vi.mock('lucide-react', () => {
@@ -25,9 +39,16 @@ vi.mock('lucide-react', () => {
   });
 });
 
-// isAuthBypass:true short-circuits fetchConfig/handleSave so no Firestore
-// network calls happen during render.
-vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: true }));
+// isAuthBypass:true (the default for every test but the load-path one below)
+// short-circuits fetchConfig/handleSave so no Firestore network calls happen
+// during render. A getter lets one test flip it to exercise the real load.
+let mockIsAuthBypass = true;
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  get isAuthBypass() {
+    return mockIsAuthBypass;
+  },
+}));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   getDoc: vi.fn(),
@@ -49,6 +70,9 @@ const building = (id: string): Building[] => [
 describe('SpecialistScheduleConfigurationModal', () => {
   afterEach(() => {
     cleanup();
+    mockIsAuthBypass = true;
+    vi.mocked(getDoc).mockReset();
+    vi.mocked(setDoc).mockReset();
   });
 
   it('seeds Schumann default specialist options for the canonical short building id', () => {
@@ -97,5 +121,70 @@ describe('SpecialistScheduleConfigurationModal', () => {
     render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
 
     expect(screen.getByText('No options added.')).toBeInTheDocument();
+  });
+
+  it('finds a Firestore-saved buildingDefaults entry keyed by the canonical id when the org building record still resolves to the legacy raw id', async () => {
+    // A real-world mismatch: the saved config was written (or normalized)
+    // under the canonical short id, but useAdminBuildings() still resolves
+    // this org's building doc to its legacy long-form id.
+    mockIsAuthBypass = false;
+    mockUseAdminBuildings.mockReturnValue(building('schumann-elementary'));
+    vi.mocked(getDoc).mockResolvedValue(
+      snapshot({
+        exists: () => true,
+        data: () => ({
+          config: {
+            buildingDefaults: {
+              schumann: {
+                cycleLength: 6,
+                startDate: '2026-01-01',
+                schoolDays: [],
+                dayLabel: 'Day',
+                customDayNames: {},
+                blocks: [],
+                specialistOptions: ['🔬 Science'],
+              },
+            },
+          },
+        }),
+      })
+    );
+
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+
+    expect(await screen.findByText('🔬 Science')).toBeInTheDocument();
+    // If the lookup missed (raw-id bug), it would have fallen back to the
+    // Schumann defaults instead of the saved custom option set.
+    expect(screen.queryByText('🎵 Music')).not.toBeInTheDocument();
+  });
+
+  it('saves a new option under the canonical building id, not the legacy raw id', async () => {
+    mockIsAuthBypass = false;
+    mockUseAdminBuildings.mockReturnValue(building('schumann-elementary'));
+    vi.mocked(getDoc).mockResolvedValue(snapshot({}));
+    vi.mocked(setDoc).mockResolvedValue(undefined);
+
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+    await screen.findByText('🎵 Music');
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. 🎨 Art'), {
+      target: { value: '🎭 Drama' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText('e.g. 🎨 Art'), {
+      key: 'Enter',
+    });
+    await screen.findByText('🎭 Drama');
+
+    fireEvent.click(screen.getByText('Save Configuration'));
+    await waitFor(() => expect(setDoc).toHaveBeenCalled());
+
+    const [, payload] = vi.mocked(setDoc).mock.calls.at(-1) as unknown as [
+      unknown,
+      { config: { buildingDefaults: Record<string, unknown> } },
+    ];
+    expect(Object.keys(payload.config.buildingDefaults)).toEqual(['schumann']);
+    expect(
+      payload.config.buildingDefaults['schumann-elementary']
+    ).toBeUndefined();
   });
 });
