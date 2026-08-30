@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
 _Last audited: 2026-08-30_
-_Last action: 2026-08-23 — HIGH Calendar `no case 'calendar'` in admin building config resolved: added `daysVisible`/`fontFamily`/`fontColor`/`textSizePreset`/`cardColor`/`cardOpacity` to `BuildingCalendarDefaults`, a `case 'calendar':` handler to `getAdminBuildingConfig()`, and a "Widget Appearance Defaults" section to `CalendarConfigurationModal.tsx`. Moved to Completed._
+_Last action: 2026-08-30 — HIGH TalkingTool `no case 'talking-tool'` in admin building config resolved: added `BuildingTalkingToolDefaults` (cardColor/cardOpacity only) to types.ts, a `case 'talking-tool':` handler to `getAdminBuildingConfig()`, and an "Appearance Defaults" section to `TalkingToolConfigurationPanel.tsx`. Moved to Completed._
 
 ---
 
@@ -67,13 +67,6 @@ _2026-06-04 action notes: Selected the MEDIUM appearance-settings group (highest
 _2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard gained `layout?: 'cards' | 'rows'` in `ScoreboardConfig` (commit 4f5d2bb6) — added as a user-configurable toggle in Settings.tsx. `BuildingScoreboardDefaults` does not include `layout`; `ScoreboardConfigurationPanel.tsx` exposes only team defaults; `case 'scoreboard':` in `adminBuildingConfig.ts` passes through only `teams`. New LOW gap added. (2) Classroom-addon commits (VA grade push, grade passback, assignment settings, PLC parity) added `ClassroomAddonContext`, `ClassroomCourseWork`, and session types to types.ts — none are widget-config fields; no building defaults impact. (3) Notebook fix (#1759) and Spotify fix (#1758) are logic-only; no config changes. (4) NumberLine ConfigurationPanel fix already captured in Completed. No new HIGH or MEDIUM items._
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
-
-### HIGH TalkingTool: no `case 'talking-tool'` in admin building config — live `cardColor`/`cardOpacity` unseedable
-
-- **Detected:** 2026-08-23
-- **File:** utils/adminBuildingConfig.ts (no `case 'talking-tool'`), types.ts (`TalkingToolConfig`, no `BuildingTalkingToolDefaults` interface exists), components/admin/TalkingToolConfigurationPanel.tsx, components/widgets/TalkingTool/Settings.tsx, components/widgets/TalkingTool/Widget.tsx
-- **Detail:** `TalkingToolAppearanceSettings` (`TalkingTool/Settings.tsx`) renders the shared `TypographySettings` + `SurfaceColorSettings` primitives, writing `cardColor`/`cardOpacity`/`fontFamily`/`fontColor` into `TalkingToolConfig`. `TalkingTool/Widget.tsx` confirms `cardColor`/`cardOpacity` are **live** (`hexToRgba(cardColor, cardOpacity)` drives `surfaceBg`, applied to the sidebar and content panel backgrounds — lines 18-20, 53, 58, 141). There is no `BuildingTalkingToolDefaults` interface anywhere in types.ts and no `case 'talking-tool':` in `getAdminBuildingConfig()` (confirmed absent from the full case list), so a building admin cannot pre-set the widget's default surface color/opacity. The existing `TalkingToolConfigurationPanel.tsx` (wired into `FeatureConfigurationPanel.tsx` at the `tool.type === 'talking-tool'` branch) manages a **different** config surface entirely — `TalkingToolGlobalConfig.categories` (the talking-stem content library) — and has no appearance controls. This is the widget-level analogue of the WorkSymbols/GraphicOrganizer "no case" HIGH pattern; TalkingTool has never previously appeared in this journal.
-- **Fix:** Add `BuildingTalkingToolDefaults` (buildingId + optional `cardColor`/`cardOpacity`) to types.ts. Add a `case 'talking-tool':` handler to `getAdminBuildingConfig()` validating `cardColor` via `isHexColor` and `cardOpacity` via `isCardOpacity`. **Deliberately do NOT seed `fontFamily`/`fontColor`** — see the companion MEDIUM item below; those are dead controls at the user level and seeding them would replicate the ConceptWeb/GraphicOrganizer anti-pattern. Add a small "Appearance Defaults" section (surface color + opacity only) to `TalkingToolConfigurationPanel.tsx`, below the existing categories editor.
 
 ### MEDIUM TalkingTool: `fontFamily` AND `fontColor` pickers in Settings.tsx are dead controls
 
@@ -239,6 +232,15 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### HIGH TalkingTool: no `case 'talking-tool'` in admin building config — live `cardColor`/`cardOpacity` unseedable
+
+- **Detected:** 2026-08-23
+- **Completed:** 2026-08-30
+- **File:** utils/adminBuildingConfig.ts (`case 'talking-tool'`), types.ts (`BuildingTalkingToolDefaults`, `TalkingToolGlobalConfig.buildingDefaults`), components/admin/TalkingToolConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `TalkingToolAppearanceSettings` writes live `cardColor`/`cardOpacity` (confirmed consumed by `TalkingTool/Widget.tsx` via `hexToRgba` for `surfaceBg`), but `getAdminBuildingConfig()` had no `case 'talking-tool':` and no `BuildingTalkingToolDefaults` interface existed, so a building admin could not pre-set the widget's surface color/opacity.
+- **Resolution:** Added `BuildingTalkingToolDefaults` (buildingId + optional `cardColor`/`cardOpacity` — deliberately omitting `fontFamily`/`fontColor`, which are dead controls at the widget level per the companion MEDIUM item below) and `TalkingToolGlobalConfig.buildingDefaults?: Record<string, BuildingTalkingToolDefaults>` to types.ts. Added a `case 'talking-tool':` handler to `getAdminBuildingConfig()` validating `cardColor` via `isHexColor` and `cardOpacity` via `isCardOpacity`. Extended the existing `TalkingToolConfigurationPanel.tsx` (Path A, already wired at the `tool.type === 'talking-tool'` branch in `FeatureConfigurationPanel.tsx`) with a per-building "Appearance Defaults" section (`BuildingSelector` + `HexColorField` + opacity slider) below the existing categories editor, mirroring the `ConceptWebConfigurationPanel.tsx` surface-color/opacity block. 3 new unit tests added to `adminBuildingConfig.test.ts` (76 pass in the two directly-touched test files, up from 73).
+- **Verification:** `pnpm run type-check` exit 0. `eslint types.ts utils/adminBuildingConfig.ts components/admin/TalkingToolConfigurationPanel.tsx components/admin/FeatureConfigurationPanel.tsx tests/utils/adminBuildingConfig.test.ts --max-warnings 0` exit 0. `prettier --check` clean on all changed files. `vitest run tests/utils/adminBuildingConfig.test.ts tests/components/admin components/widgets/TalkingTool/Widget.test.tsx` — 186 tests pass. PR opened to dev-paul.
 
 ### HIGH Calendar: no `case 'calendar'` in admin building config — 6 live fields unseedable
 

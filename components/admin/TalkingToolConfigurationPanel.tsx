@@ -4,6 +4,10 @@ import { TalkingToolGlobalConfig, TalkingToolCategory } from '@/types';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { BuildingSelector } from './BuildingSelector';
+import { HexColorField } from './HexColorField';
 
 interface TalkingToolConfigurationPanelProps {
   config: Partial<TalkingToolGlobalConfig>;
@@ -14,6 +18,26 @@ export const TalkingToolConfigurationPanel: React.FC<
   TalkingToolConfigurationPanelProps
 > = ({ config, onChange }) => {
   const categories = config.categories ?? DEFAULT_TALKING_TOOL_CATEGORIES;
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
+  const buildingDefaults = config.buildingDefaults ?? {};
+  const currentBuildingConfig = buildingDefaults[selectedBuildingId] ?? {
+    buildingId: selectedBuildingId,
+  };
+
+  const updateBuildingDefaults = (
+    updates: Partial<typeof currentBuildingConfig>
+  ) => {
+    if (!selectedBuildingId) return;
+    onChange({
+      categories,
+      buildingDefaults: {
+        ...buildingDefaults,
+        [selectedBuildingId]: { ...currentBuildingConfig, ...updates },
+      },
+    });
+  };
 
   const updateCategory = (
     id: string,
@@ -185,6 +209,60 @@ export const TalkingToolConfigurationPanel: React.FC<
             </p>
           </div>
         )}
+      </div>
+
+      <div className="border-t border-slate-200 pt-6">
+        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">
+          Appearance Defaults
+        </h4>
+        <BuildingSelector
+          selectedId={selectedBuildingId}
+          onSelect={setSelectedBuildingId}
+          idPrefix="talking-tool-building"
+          ariaLabel="Select building for Talking Tool appearance defaults"
+        />
+        <div
+          role="tabpanel"
+          aria-labelledby={`talking-tool-building-tab-${selectedBuildingId}`}
+          className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4 mt-3"
+        >
+          <p className="text-xs text-slate-500 font-bold">
+            Set the default surface colour and opacity for new Talking Tool
+            widgets in this building. Teachers can still change these per
+            widget.
+          </p>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+              Default Surface Colour
+            </label>
+            <HexColorField
+              value={currentBuildingConfig.cardColor}
+              onChange={(cardColor) => updateBuildingDefaults({ cardColor })}
+              fallback="#ffffff"
+              ariaLabel="Pick default Talking Tool surface colour"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+              Default Surface Opacity (
+              {Math.round((currentBuildingConfig.cardOpacity ?? 1) * 100)}%)
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={currentBuildingConfig.cardOpacity ?? 1}
+              onChange={(e) =>
+                updateBuildingDefaults({
+                  cardOpacity: parseFloat(e.target.value),
+                })
+              }
+              className="w-full accent-brand-blue-primary"
+              aria-label="Default Talking Tool surface opacity"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
