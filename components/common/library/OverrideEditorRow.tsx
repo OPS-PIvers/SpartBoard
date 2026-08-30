@@ -100,6 +100,8 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copySourceId, setCopySourceId] = useState('');
   const tabWarningInputId = useId();
+  // Per-question ids, so each rubric select is named by its own question.
+  const rubricSelectIdBase = useId();
 
   const totalQuestions = quizMode ? questions.length : undefined;
   const chips = summarizeOverride(override, t, { totalQuestions });
@@ -448,10 +450,14 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                       key={q.id}
                       className="flex items-center justify-between gap-2"
                     >
-                      <span className="text-xs text-slate-700 truncate flex-1">
+                      <label
+                        htmlFor={`${rubricSelectIdBase}-${q.id}`}
+                        className="text-xs text-slate-700 truncate flex-1"
+                      >
                         {q.label}
-                      </span>
+                      </label>
                       <select
+                        id={`${rubricSelectIdBase}-${q.id}`}
                         value={selectValue}
                         onChange={(e) => {
                           const v = e.target.value;

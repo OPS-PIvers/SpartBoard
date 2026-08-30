@@ -205,6 +205,34 @@ describe('OverrideEditorRow', () => {
     });
   });
 
+  it('names each rubric-swap select by its own question', () => {
+    const twoWritten: OverrideEditorQuestion[] = [
+      { id: 'q2', label: 'Question 2 (essay)' },
+      { id: 'q3', label: 'Question 3 (essay)' },
+    ];
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={vi.fn()}
+        quizMode
+        questions={twoWritten}
+        rubrics={[rubric]}
+        defaultExpanded
+      />
+    );
+
+    // Without the association both selects announce identically as "Default".
+    // The subset checkbox carries the same question label, so scope to the
+    // select — they stay distinguishable by role for a screen reader.
+    expect(
+      screen.getByLabelText('Question 2 (essay)', { selector: 'select' })
+    ).toHaveValue('');
+    expect(
+      screen.getByLabelText('Question 3 (essay)', { selector: 'select' })
+    ).toHaveValue('');
+  });
+
   it('stores a rubric snapshot copy rather than aliasing the library rubric', () => {
     const onChange = vi.fn();
     render(
