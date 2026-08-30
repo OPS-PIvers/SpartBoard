@@ -219,8 +219,14 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const handleResetAll = useCallback(() => {
-    persistAssignments(resetAllAssignments(activeRoster.map((s) => s.id)));
-  }, [persistAssignments, activeRoster]);
+    // Merge onto the full map — resetAllAssignments only knows about today's
+    // present roster, so a plain replace would delete absent students'
+    // stations (same class of bug fixed for Shuffle in #2640).
+    persistAssignments({
+      ...assignments,
+      ...resetAllAssignments(activeRoster.map((s) => s.id)),
+    });
+  }, [persistAssignments, activeRoster, assignments]);
 
   const handleResetStation = useCallback(
     (stationId: string) => {

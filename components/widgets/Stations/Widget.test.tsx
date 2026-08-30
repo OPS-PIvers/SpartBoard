@@ -263,4 +263,45 @@ describe('StationsWidget', () => {
     ) as [string, { config: StationsConfig }];
     expect(updatePayload.config.assignments.s2).toBe('st-b');
   });
+
+  it("preserves an absent student's station assignment across Reset All", async () => {
+    // Regression test: Reset All only knows about today's present roster (it
+    // builds its unassigned map from `activeRoster`), so it must merge into
+    // the existing assignments map — not replace it — or an absent student's
+    // station is silently deleted and they don't "snap back" to it when
+    // marked present again. Same root cause class as the Shuffle bug fixed
+    // in #2640, but for the "Reset all" button.
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'John', lastName: 'Doe' },
+            { id: 's2', firstName: 'Jane', lastName: 'Smith' },
+          ],
+          absent: { date: getLocalIsoDate(), studentIds: ['s2'] },
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { s1: 'st-a', s2: 'st-b' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+    await screen.findByText('John Doe');
+    expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Reset all'));
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    // Present student s1 is reset to unassigned...
+    expect(updatePayload.config.assignments.s1).toBeNull();
+    // ...but absent student s2's station survives the reset.
+    expect(updatePayload.config.assignments.s2).toBe('st-b');
+  });
 });
