@@ -20,7 +20,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, doc } from 'firebase/firestore';
+import { setDoc, getDoc, getDocs, doc, collection } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-inactive-lockout';
 const ORG_ID = 'orono';
@@ -101,6 +101,13 @@ const APP_ID = 'spart-board';
 
 const starterPackPath = (uid: string) =>
   `artifacts/${APP_ID}/users/${uid}/starterPacks/sp-1`;
+
+// Mirrors hooks/useStarterPacks.ts's real onSnapshot(query(collection(...))) call — the
+// rule is evaluated as a list, not a get, and Firestore checks these separately.
+const starterPackCollection = (
+  fsCtx: ReturnType<typeof asActive>,
+  uid: string
+) => collection(fsCtx, 'artifacts', APP_ID, 'users', uid, 'starterPacks');
 
 const starterPackFields = () => ({
   name: 'My Workspace',
@@ -290,6 +297,28 @@ describe('M1 full sign-in lockout — notDeactivated() gate', () => {
         ...starterPackFields(),
         name: 'Smuggled',
       })
+    );
+  });
+
+  it('active member can LIST their own starter packs (matches the real onSnapshot(query(collection(...))) client call)', async () => {
+    await assertSucceeds(
+      getDocs(starterPackCollection(asActive(), ACTIVE_UID))
+    );
+  });
+
+  it('inactive member is DENIED LISTing their own starter packs', async () => {
+    await assertFails(
+      getDocs(starterPackCollection(asInactive(), INACTIVE_UID))
+    );
+  });
+
+  it('inactive member can still read their own /users/{userId} doc (documented bootstrap-path exemption)', async () => {
+    await assertSucceeds(getDoc(doc(asInactive(), 'users', INACTIVE_UID)));
+  });
+
+  it('inactive member can still read their own userProfile doc (documented bootstrap-path exemption)', async () => {
+    await assertSucceeds(
+      getDoc(doc(asInactive(), 'users', INACTIVE_UID, 'userProfile', 'profile'))
     );
   });
 
