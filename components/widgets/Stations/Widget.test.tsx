@@ -263,4 +263,38 @@ describe('StationsWidget', () => {
     ) as [string, { config: StationsConfig }];
     expect(updatePayload.config.assignments.s2).toBe('st-b');
   });
+
+  it("preserves an absent student's station assignment across Reset All", async () => {
+    // Reset All only sees today's present roster, so it must merge, not replace (same bug class as #2640).
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'John', lastName: 'Doe' },
+            { id: 's2', firstName: 'Jane', lastName: 'Smith' },
+          ],
+          absent: { date: getLocalIsoDate(), studentIds: ['s2'] },
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { s1: 'st-a', s2: 'st-b' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+    await screen.findByText('John Doe');
+    expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Reset all'));
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    expect(updatePayload.config.assignments.s1).toBeNull();
+    expect(updatePayload.config.assignments.s2).toBe('st-b');
+  });
 });
