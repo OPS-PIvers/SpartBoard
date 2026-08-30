@@ -157,6 +157,54 @@ describe('OverrideEditorRow', () => {
     expect(screen.getByLabelText('Tab-warning threshold')).toBeInTheDocument();
   });
 
+  it('clamps a sub-1 tab-warning threshold instead of storing it', () => {
+    // `min={1}` only gates form validation, so the handler has to clamp.
+    const onChange = vi.fn();
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={onChange}
+        quizMode
+        questions={questions}
+        defaultExpanded
+      />
+    );
+    const input = screen.getByLabelText('Tab-warning threshold');
+
+    fireEvent.change(input, { target: { value: '0' } });
+    expect(onChange).toHaveBeenLastCalledWith({ tabWarningThreshold: 1 });
+
+    fireEvent.change(input, { target: { value: '-3' } });
+    expect(onChange).toHaveBeenLastCalledWith({ tabWarningThreshold: 1 });
+
+    // A valid threshold still passes through untouched.
+    fireEvent.change(input, { target: { value: '4' } });
+    expect(onChange).toHaveBeenLastCalledWith({ tabWarningThreshold: 4 });
+  });
+
+  it('clears the tab-warning threshold rather than clamping an emptied field to 1', () => {
+    // Needs a stored value so emptying the input is a real DOM change.
+    const onChange = vi.fn();
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ tabWarningThreshold: 5 }}
+        onChange={onChange}
+        quizMode
+        questions={questions}
+        defaultExpanded
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Tab-warning threshold'), {
+      target: { value: '' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith({
+      tabWarningThreshold: undefined,
+    });
+  });
+
   it('stores a rubric snapshot copy rather than aliasing the library rubric', () => {
     const onChange = vi.fn();
     render(

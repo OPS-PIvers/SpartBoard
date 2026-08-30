@@ -290,9 +290,13 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                       : ''
                   }
                   onChange={(e) => {
+                    // `min` only gates form validation, so clamp here: a 0 or
+                    // negative threshold would reach the live quiz session.
                     const n = Number.parseInt(e.target.value, 10);
                     patch({
-                      tabWarningThreshold: Number.isFinite(n) ? n : undefined,
+                      tabWarningThreshold: Number.isFinite(n)
+                        ? Math.max(1, n)
+                        : undefined,
                     });
                   }}
                   placeholder={t('studentOverride.default', 'Default')}
