@@ -35,6 +35,7 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import { collectDescendantIds } from '@/utils/folderTree';
 import type { Collection } from '@/types';
 
 const COLLECTIONS_SUBPATH = 'collections';
@@ -390,26 +391,11 @@ export const useCollections = (
     [userId]
   );
 
-  // Recursively collect descendant collection ids.
+  // Descendant collection ids, excluding `rootId` itself. Cycle-safe — see
+  // `collectDescendantIds` doc.
   const collectDescendantCollectionIds = useCallback(
-    (rootId: string): string[] => {
-      const byParent = new Map<string | null, Collection[]>();
-      for (const c of collections) {
-        const bucket = byParent.get(c.parentCollectionId) ?? [];
-        bucket.push(c);
-        byParent.set(c.parentCollectionId, bucket);
-      }
-      const out: string[] = [];
-      const walk = (id: string): void => {
-        const kids = byParent.get(id) ?? [];
-        for (const k of kids) {
-          out.push(k.id);
-          walk(k.id);
-        }
-      };
-      walk(rootId);
-      return out;
-    },
+    (rootId: string): string[] =>
+      collectDescendantIds(rootId, collections, (c) => c.parentCollectionId),
     [collections]
   );
 
