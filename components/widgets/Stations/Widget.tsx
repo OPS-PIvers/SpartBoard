@@ -219,8 +219,12 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const handleResetAll = useCallback(() => {
-    persistAssignments(resetAllAssignments(activeRoster.map((s) => s.id)));
-  }, [persistAssignments, activeRoster]);
+    // Merge onto the full map so absent students' stations survive (same bug class as #2640).
+    persistAssignments({
+      ...assignments,
+      ...resetAllAssignments(activeRoster.map((s) => s.id)),
+    });
+  }, [persistAssignments, activeRoster, assignments]);
 
   const handleResetStation = useCallback(
     (stationId: string) => {
