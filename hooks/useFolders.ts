@@ -39,6 +39,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { collectDescendantIds } from '@/utils/folderTree';
 import type { LibraryFolder, LibraryFolderWidget } from '@/types';
 
 /**
@@ -295,27 +296,10 @@ export const useFolders = (
     [userId, collectionName]
   );
 
-  // Recursively collect descendant folder ids (children, grandchildren, …)
-  // of `rootId`. Excludes `rootId` itself.
+  // Descendant folder ids (children, grandchildren, …) of rootId, excluding rootId itself; cycle-safe.
   const collectDescendantFolderIds = useCallback(
-    (rootId: string): string[] => {
-      const byParent = new Map<string | null, LibraryFolder[]>();
-      for (const f of folders) {
-        const bucket = byParent.get(f.parentId) ?? [];
-        bucket.push(f);
-        byParent.set(f.parentId, bucket);
-      }
-      const out: string[] = [];
-      const walk = (id: string): void => {
-        const kids = byParent.get(id) ?? [];
-        for (const k of kids) {
-          out.push(k.id);
-          walk(k.id);
-        }
-      };
-      walk(rootId);
-      return out;
-    },
+    (rootId: string): string[] =>
+      collectDescendantIds(rootId, folders, (f) => f.parentId),
     [folders]
   );
 
