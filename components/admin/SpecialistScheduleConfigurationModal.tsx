@@ -124,8 +124,10 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     }
   };
 
-  const currentBuildingConfig = useMemo(
-    () =>
+  const currentBuildingConfig = useMemo(() => {
+    // Canonicalize so this matches both short-form and legacy long-form building IDs.
+    const canonicalId = canonicalBuildingId(selectedBuildingId);
+    return (
       config.buildingDefaults?.[selectedBuildingId] ?? {
         cycleLength: 6,
         startDate: toDateStr(new Date()),
@@ -133,16 +135,15 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         dayLabel: 'Day',
         customDayNames: {},
         blocks: [],
-        // Canonicalize so this matches both short-form and legacy long-form building IDs.
         specialistOptions:
-          canonicalBuildingId(selectedBuildingId) === 'schumann'
+          canonicalId === 'schumann'
             ? SCHUMANN_DEFAULT_OPTIONS
-            : canonicalBuildingId(selectedBuildingId) === 'intermediate'
+            : canonicalId === 'intermediate'
               ? INTERMEDIATE_DEFAULT_OPTIONS
               : [],
-      },
-    [config.buildingDefaults, selectedBuildingId]
-  );
+      }
+    );
+  }, [config.buildingDefaults, selectedBuildingId]);
 
   const updateBuilding = (
     updates: Partial<SpecialistScheduleBuildingConfig>
