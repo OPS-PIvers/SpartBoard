@@ -224,20 +224,6 @@ describe('AnnotationCanvas', () => {
     expect(onPathsChange).not.toHaveBeenCalled();
   });
 
-  /**
-   * Regression: mid-stroke pointer moves must NOT reassign canvas.width/height.
-   *
-   * Root cause: the render effect unconditionally ran `canvas.width = canvasWidth;
-   * canvas.height = canvasHeight;` on every run, including the runs triggered by
-   * `currentPath` changing on each pointermove during a stroke. Per the HTML canvas
-   * spec, assigning `.width`/`.height` resets and reallocates the entire backing
-   * bitmap even when the new value equals the current one — so every point drawn
-   * during a stroke forced a full canvas reset, when `draw()` already clears via
-   * `ctx.clearRect` and redraws all paths itself.
-   *
-   * Fix: only reassign canvas.width/height when they actually changed from the
-   * previous run, tracked via a ref.
-   */
   it('does NOT reassign canvas width/height on pointer moves that do not change dimensions', () => {
     const fakeCtx = {
       clearRect: vi.fn(),
@@ -252,9 +238,7 @@ describe('AnnotationCanvas', () => {
       strokeStyle: '',
       fillStyle: '',
       lineWidth: 0,
-      // draw() only reads ctx.canvas.width/height for clearRect — a plain
-      // object stand-in avoids coupling to the real canvas element's own
-      // width/height setters (which this test spies on separately).
+      // plain stand-in for ctx.canvas so this doesn't couple to the real element's width/height setters, which are spied on separately
       canvas: {
         width: defaultProps.canvasWidth,
         height: defaultProps.canvasHeight,
@@ -285,8 +269,6 @@ describe('AnnotationCanvas', () => {
       fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 13, clientY: 13 });
     });
 
-    // canvasWidth/canvasHeight never changed across these moves, so the
-    // bitmap-resetting setters must not fire again after the initial mount.
     expect(widthSetSpy).not.toHaveBeenCalled();
     expect(heightSetSpy).not.toHaveBeenCalled();
 

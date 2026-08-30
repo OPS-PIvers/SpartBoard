@@ -101,13 +101,7 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     [color, width]
   );
 
-  // Tracks the last dimensions actually applied to the canvas bitmap, so this
-  // effect's re-runs while drawing (currentPath changes on every pointermove)
-  // don't reassign canvas.width/height when they haven't changed. Per the HTML
-  // canvas spec, assigning .width/.height clears and reallocates the whole
-  // backing bitmap even when the new value equals the old one — draw() already
-  // clears via ctx.clearRect, so a same-value reassignment is pure overhead
-  // repeated on every point of every stroke.
+  // Reassigning canvas.width/height resets the bitmap even at the same value, so track what's applied to skip redundant mid-stroke resets.
   const appliedDimsRef = useRef<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
