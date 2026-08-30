@@ -111,7 +111,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
     const source = peers.find((p) => p.id === copySourceId);
     if (!source) return;
     // Deep clone so the two rows never share nested references.
-    onChange(JSON.parse(JSON.stringify(source.override)) as StudentOverride);
+    onChange(structuredClone(source.override));
   };
 
   const isQuestionIncluded = (qId: string) =>
@@ -154,7 +154,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
     else if (value === 'points') current[questionId] = 'points';
     // Deep clone: the stored value is a RubricSnapshot, so it must not alias
     // the live library rubric and drift when that rubric is later edited.
-    else current[questionId] = JSON.parse(JSON.stringify(value)) as Rubric;
+    else current[questionId] = structuredClone(value);
     patch({
       rubricOverrideByQuestion:
         Object.keys(current).length > 0 ? current : undefined,

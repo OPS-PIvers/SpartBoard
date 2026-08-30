@@ -215,6 +215,79 @@ describe('OverrideEditorRow', () => {
     });
   });
 
+  it('opens the row when defaultExpanded is set', () => {
+    // `expanded` is seeded from defaultExpanded on mount, so compare two
+    // separate mounts rather than re-rendering one with a changed prop.
+    const collapsed = render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('group', { name: 'Extended time' })
+    ).not.toBeInTheDocument();
+    collapsed.unmount();
+
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={vi.fn()}
+        defaultExpanded
+      />
+    );
+    expect(
+      screen.getByRole('group', { name: 'Extended time' })
+    ).toBeInTheDocument();
+  });
+
+  it('round-trips a window-shift timestamp through the datetime-local input', () => {
+    // Both helpers work in local time, so assert the ms → input → ms identity
+    // rather than a fixed string: CI runs UTC, developers do not.
+    const openAt = new Date(2026, 2, 8, 9, 30).getTime();
+    const onChange = vi.fn();
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ openAt }}
+        onChange={onChange}
+        defaultExpanded
+      />
+    );
+
+    // Renders as the local wall-clock time, not the UTC instant.
+    const input = screen.getByLabelText(/Opens/);
+    expect(input).toHaveValue('2026-03-08T09:30');
+
+    // And typing that same wall-clock value back yields the original epoch ms.
+    fireEvent.change(input, { target: { value: '2026-03-08T09:30' } });
+    fireEvent.change(input, { target: { value: '2026-03-09T09:30' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      openAt: new Date(2026, 2, 9, 9, 30).getTime(),
+    });
+  });
+
+  it('clears a window-shift bound when the datetime-local input is emptied', () => {
+    const onChange = vi.fn();
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ closeAt: Date.now() }}
+        onChange={onChange}
+        defaultExpanded
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/Closes/), {
+      target: { value: '' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ closeAt: undefined })
+    );
+  });
+
   it("copies another selected student's full override", () => {
     const onChange = vi.fn();
     const peers = [
