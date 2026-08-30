@@ -223,4 +223,73 @@ describe('AnnotationCanvas', () => {
     // have been called because the user has not released the pointer.
     expect(onPathsChange).not.toHaveBeenCalled();
   });
+
+  /**
+   * Regression: mid-stroke pointer moves must NOT reassign canvas.width/height.
+   *
+   * Root cause: the render effect unconditionally ran `canvas.width = canvasWidth;
+   * canvas.height = canvasHeight;` on every run, including the runs triggered by
+   * `currentPath` changing on each pointermove during a stroke. Per the HTML canvas
+   * spec, assigning `.width`/`.height` resets and reallocates the entire backing
+   * bitmap even when the new value equals the current one — so every point drawn
+   * during a stroke forced a full canvas reset, when `draw()` already clears via
+   * `ctx.clearRect` and redraws all paths itself.
+   *
+   * Fix: only reassign canvas.width/height when they actually changed from the
+   * previous run, tracked via a ref.
+   */
+  it('does NOT reassign canvas width/height on pointer moves that do not change dimensions', () => {
+    const fakeCtx = {
+      clearRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      lineCap: '',
+      lineJoin: '',
+      strokeStyle: '',
+      fillStyle: '',
+      lineWidth: 0,
+      // draw() only reads ctx.canvas.width/height for clearRect — a plain
+      // object stand-in avoids coupling to the real canvas element's own
+      // width/height setters (which this test spies on separately).
+      canvas: {
+        width: defaultProps.canvasWidth,
+        height: defaultProps.canvasHeight,
+      },
+      globalCompositeOperation: '',
+    } as unknown as CanvasRenderingContext2D;
+    const getContextSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockReturnValue(fakeCtx);
+
+    const { container } = render(<AnnotationCanvas {...defaultProps} />);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+
+    const widthSetSpy = vi.spyOn(canvas, 'width', 'set');
+    const heightSetSpy = vi.spyOn(canvas, 'height', 'set');
+
+    act(() => {
+      fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 10, clientY: 10 });
+    });
+    act(() => {
+      fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 11, clientY: 11 });
+    });
+    act(() => {
+      fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 12, clientY: 12 });
+    });
+    act(() => {
+      fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 13, clientY: 13 });
+    });
+
+    // canvasWidth/canvasHeight never changed across these moves, so the
+    // bitmap-resetting setters must not fire again after the initial mount.
+    expect(widthSetSpy).not.toHaveBeenCalled();
+    expect(heightSetSpy).not.toHaveBeenCalled();
+
+    getContextSpy.mockRestore();
+  });
 });
