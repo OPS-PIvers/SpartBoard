@@ -10,7 +10,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
-  firestore: vi.fn(),
+  firestore: Object.assign(vi.fn(), {
+    FieldValue: { delete: () => ({ __delete: true }) },
+  }),
 }));
 
 vi.mock('firebase-functions/v2/https', () => ({
@@ -33,8 +35,10 @@ vi.mock('./secrets', () => ({
 
 import { computeStudentUid } from './classlinkShared';
 import {
+  MAX_TARGET_REFS,
   handleSetAssignmentTargets,
   isTestClassAuthority,
+  targetRefsFromAssignment,
   parseSetAssignmentTargetsInput,
   refKey,
   resolveTargets,
@@ -66,6 +70,20 @@ interface StubState {
     op: 'set' | 'delete';
     data?: Record<string, unknown>;
   }[];
+}
+
+/** Applies `{merge: true}` set semantics, `FieldValue.delete()` sentinel included. */
+function applyMerge(
+  state: StubState,
+  path: string,
+  data: Record<string, unknown>
+) {
+  const next = { ...(state.docs.get(path) ?? {}) };
+  for (const [key, value] of Object.entries(data)) {
+    if ((value as { __delete?: boolean })?.__delete === true) delete next[key];
+    else next[key] = value;
+  }
+  state.docs.set(path, next);
 }
 
 function makeDb(state: StubState) {
@@ -116,13 +134,26 @@ function makeDb(state: StubState) {
     doc: (path: string) => docRef(path),
     getAll: (...refs: { __path: string }[]) =>
       Promise.resolve(refs.map((r) => snapFor(r.__path))),
+    runTransaction: async (
+      fn: (tx: {
+        get: (ref: { __path: string }) => Promise<unknown>;
+        set: (ref: { __path: string }, data: Record<string, unknown>) => void;
+      }) => Promise<unknown>
+    ) =>
+      fn({
+        get: (ref) => Promise.resolve(snapFor(ref.__path)),
+        set: (ref, data) => {
+          state.writes.push({ path: ref.__path, op: 'set', data });
+          applyMerge(state, ref.__path, data);
+        },
+      }),
     batch: () => {
       const ops: (() => void)[] = [];
       return {
         set: (ref: { __path: string }, data: Record<string, unknown>) => {
           ops.push(() => {
             state.writes.push({ path: ref.__path, op: 'set', data });
-            state.docs.set(ref.__path, data);
+            applyMerge(state, ref.__path, data);
           });
         },
         delete: (ref: { __path: string }) => {
@@ -172,6 +203,18 @@ const run = (input: SetAssignmentTargetsInput, uid = TEACHER_UID) =>
   handleSetAssignmentTargets(makeDb(state) as never, uid, HMAC, input, () =>
     Promise.resolve(ctx())
   );
+
+/** Lands a competing write on the assignment doc just before the merge re-reads it. */
+const racedDb = (concurrentWrite: () => void) => {
+  const db = makeDb(state);
+  return {
+    ...db,
+    runTransaction: (fn: Parameters<typeof db.runTransaction>[0]) => {
+      concurrentWrite();
+      return db.runTransaction(fn);
+    },
+  };
+};
 
 const pointerPath = (uid: string) =>
   `student_assignments/${uid}/items/${ASSIGNMENT_ID}`;
@@ -593,6 +636,122 @@ describe('handleSetAssignmentTargets', () => {
     expect('dueAt' in doc).toBe(false);
   });
 
+  // A ref lost to a concurrent write is a pointer doc the A2b deletion trigger
+  // can never see, since it re-hashes `targetStudents` and nothing else.
+  it('merges targetStudents against a concurrent write instead of clobbering it', async () => {
+    state.docs.set(assignmentPath(), {
+      id: ASSIGNMENT_ID,
+      targetStudents: [],
+    });
+    await handleSetAssignmentTargets(
+      racedDb(() => {
+        state.docs.set(assignmentPath(), {
+          id: ASSIGNMENT_ID,
+          targetStudents: [{ kind: 'classlink', sourcedId: SOURCED_B }],
+        });
+      }) as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput(),
+      () => Promise.resolve(ctx())
+    );
+    expect(state.docs.get(assignmentPath())?.targetStudents).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_B },
+      { kind: 'classlink', sourcedId: SOURCED_A },
+    ]);
+  });
+
+  it('never re-exposes the assignment when a concurrent add lands during a remove', async () => {
+    state.docs.set(assignmentPath(), {
+      id: ASSIGNMENT_ID,
+      targetStudents: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+    });
+    state.docs.set(`quiz_sessions/${ASSIGNMENT_ID}`, {
+      teacherUid: TEACHER_UID,
+      individualTargeting: true,
+    });
+    await handleSetAssignmentTargets(
+      racedDb(() => {
+        state.docs.set(assignmentPath(), {
+          id: ASSIGNMENT_ID,
+          targetStudents: [
+            { kind: 'classlink', sourcedId: SOURCED_A },
+            { kind: 'classlink', sourcedId: SOURCED_B },
+          ],
+        });
+      }) as never,
+      TEACHER_UID,
+      HMAC,
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      }),
+      () => Promise.resolve(ctx())
+    );
+    expect(
+      state.docs.get(`quiz_sessions/${ASSIGNMENT_ID}`)?.individualTargeting
+    ).toBe(true);
+  });
+
+  // MAX_TARGET_REFS bounds one call's `add`; without this the stored array grows
+  // past it across incremental calls and every later read loses the tail.
+  it('refuses an add that would push the stored target set past the cap', async () => {
+    state.docs.set(assignmentPath(), {
+      id: ASSIGNMENT_ID,
+      targetStudents: Array.from({ length: MAX_TARGET_REFS }, (_, i) => ({
+        kind: 'classlink',
+        sourcedId: `bulk-${i}`,
+      })),
+    });
+    const result = await run(baseInput());
+    expect(result.written).toBe(0);
+    expect(result.skipped).toContainEqual({
+      ref: { kind: 'classlink', sourcedId: SOURCED_A },
+      reason: 'over-limit',
+    });
+    expect(
+      state.docs.get(pointerPath(computeStudentUid(SOURCED_A, HMAC)))
+    ).toBeUndefined();
+    expect(state.docs.get(assignmentPath())?.targetStudents).toHaveLength(
+      MAX_TARGET_REFS
+    );
+  });
+
+  it('still re-writes a ref already carried on a full target set', async () => {
+    state.docs.set(assignmentPath(), {
+      id: ASSIGNMENT_ID,
+      targetStudents: [
+        { kind: 'classlink', sourcedId: SOURCED_A },
+        ...Array.from({ length: MAX_TARGET_REFS - 1 }, (_, i) => ({
+          kind: 'classlink',
+          sourcedId: `bulk-${i}`,
+        })),
+      ],
+    });
+    const result = await run(baseInput());
+    expect(result.written).toBe(1);
+    expect(pointerFor()).toBeDefined();
+  });
+
+  // Field-level writes: a key this call doesn't touch must not be rewritten, or
+  // a concurrent call editing a different field loses its update.
+  it('omits an untouched field from the pointer write rather than rewriting it', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    state.writes.length = 0;
+    await run(baseInput({ window: { closeAt: 400 } }));
+    const write = state.writes.find(
+      (w) => w.path === pointerPath(computeStudentUid(SOURCED_A, HMAC))
+    );
+    expect(write?.data && 'override' in write.data).toBe(false);
+    expect(pointerFor()).toMatchObject({ override: { timeMultiplier: 2 } });
+  });
+
   it('removes a pointer doc for a removed ref', async () => {
     await run(baseInput());
     const result = await run(
@@ -730,6 +889,24 @@ describe('isTestClassAuthority', () => {
 // ---------------------------------------------------------------------------
 // F7 — kind-namespaced ref keys
 // ---------------------------------------------------------------------------
+
+describe('targetRefsFromAssignment', () => {
+  // The deletion trigger recovers pointer uids from this array alone, so a
+  // stored set larger than one call's cap must still come back whole.
+  it('reads a stored array past MAX_TARGET_REFS rather than truncating it', () => {
+    const refs = targetRefsFromAssignment({
+      targetStudents: Array.from({ length: MAX_TARGET_REFS + 50 }, (_, i) => ({
+        kind: 'classlink',
+        sourcedId: `sid-${i}`,
+      })),
+    });
+    expect(refs).toHaveLength(MAX_TARGET_REFS + 50);
+    expect(refs[MAX_TARGET_REFS + 49]).toEqual({
+      kind: 'classlink',
+      sourcedId: `sid-${MAX_TARGET_REFS + 49}`,
+    });
+  });
+});
 
 describe('refKey', () => {
   it('namespaces by kind so a test email cannot collide with a sourcedId', () => {

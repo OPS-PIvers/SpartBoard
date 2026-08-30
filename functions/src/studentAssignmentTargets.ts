@@ -33,7 +33,9 @@
  * unqualified key could cross kinds.
  *
  * Merge semantics for an existing pointer doc (partial payloads must never
- * erase a stored 504/IEP accommodation):
+ * erase a stored 504/IEP accommodation). Expressed as field-level writes under
+ * `{merge: true}`, so an untouched field is never rewritten and a concurrent
+ * call editing a different field cannot clobber it:
  *   - `override` is rewritten ONLY when this call's `overridesBySourcedId`
  *     contains the ref's key. An explicit `null` (or an unrecognizable value)
  *     clears it; an absent key preserves whatever is stored.
@@ -43,9 +45,11 @@
  *   - `createdAt` is always preserved from the existing doc.
  *
  * The resolved target set is persisted back onto the teacher's assignment doc
- * (`targetStudents` + `targetMode`) in the same operation, so the doc always
- * mirrors the true pointer set that the A2b deletion triggers re-hash. Clients
- * never write those two fields themselves.
+ * (`targetStudents` + `targetMode`) in the same operation — inside a
+ * transaction, since that merge is a read-compute-write and a ref lost to a
+ * concurrent call would strand its pointer doc — so the doc always mirrors the
+ * true pointer set that the A2b deletion triggers re-hash. Clients never write
+ * those two fields themselves.
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -101,6 +105,13 @@ export const STUDENT_ASSIGNMENT_ITEMS = 'items';
 
 /** Bounds — keep one call's fan-out inside a predictable cost envelope. */
 export const MAX_TARGET_REFS = 250;
+/**
+ * Ceiling for re-parsing an already-persisted `targetStudents` array. Set far
+ * above `MAX_TARGET_REFS` and logged when exceeded: the A2b deletion trigger
+ * recovers pointer uids from this field alone, so quietly cutting a stored
+ * array strands every pointer past the cut with no path left to reap it.
+ */
+export const MAX_STORED_TARGET_REFS = 2000;
 export const MAX_OWNED_CLASSES = 20;
 const ROSTER_SCAN_LIMIT = 100;
 const BATCH_OP_LIMIT = 400;
@@ -208,15 +219,24 @@ export function refKey(ref: StudentTargetRef): string {
 
 /**
  * Re-parse persisted `targetStudents` refs (assignment doc or trigger payload).
- * Unknown shapes are ignored, never thrown on.
+ * Unknown shapes are ignored, never thrown on. Reads the whole stored array —
+ * `MAX_TARGET_REFS` bounds one call's incoming payload, not the doc's history,
+ * and applying it here would hide pointers from the A2b deletion trigger.
  */
 export function targetRefsFromAssignment(
   data: Record<string, unknown> | undefined
 ): StudentTargetRef[] {
   const raw = data?.targetStudents;
   if (!Array.isArray(raw)) return [];
+  if (raw.length > MAX_STORED_TARGET_REFS) {
+    // Loud rather than silent: pointers past the cap can no longer be reaped.
+    console.error(
+      '[studentAssignmentTargets] targetStudents exceeds the stored cap:',
+      raw.length
+    );
+  }
   const out: StudentTargetRef[] = [];
-  for (const item of raw.slice(0, MAX_TARGET_REFS)) {
+  for (const item of raw.slice(0, MAX_STORED_TARGET_REFS)) {
     const ref = parseRef(item);
     if (ref) out.push(ref);
   }
@@ -475,21 +495,17 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
 // ── handler ────────────────────────────────────────────────────────────────
 
 /**
- * Resolve one field under the merge contract: an absent payload key preserves
- * the stored value; a present key (including `null`) replaces it.
+ * Resolve one field under the merge contract, as a field-level write against a
+ * `{merge: true}` set: an absent payload key is omitted entirely (the stored
+ * value survives untouched, so a concurrent call editing a different field
+ * cannot clobber it); a present `null` deletes; anything else replaces.
  */
-function mergedField<T>(
-  supplied: T | null | undefined,
-  stored: unknown,
-  isValid: (v: unknown) => v is T
-): T | undefined {
-  if (supplied !== undefined) return supplied === null ? undefined : supplied;
-  return isValid(stored) ? stored : undefined;
+function mergeWrite<T>(
+  supplied: T | null | undefined
+): T | admin.firestore.FieldValue | undefined {
+  if (supplied === undefined) return undefined;
+  return supplied === null ? admin.firestore.FieldValue.delete() : supplied;
 }
-
-const isNumber = (v: unknown): v is number => typeof v === 'number';
-const isOverride = (v: unknown): v is StudentOverride =>
-  typeof v === 'object' && v !== null;
 
 async function chunkedCommit(
   db: admin.firestore.Firestore,
@@ -540,13 +556,6 @@ export async function handleSetAssignmentTargets(
 
   const ctx = await loadContext();
   const addResult = resolveTargets(input.add, ctx, hmacSecret);
-  const addedUids = new Set(addResult.resolved.map((t) => t.uid));
-  // Removals are pure deletes of the caller's own fan-out, so they only need a
-  // uid — an unrecognized ref simply deletes nothing. A uid present in both
-  // lists keeps its pointer (add wins) and never double-writes one batch.
-  const removeUids = [
-    ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
-  ].filter((uid) => !addedUids.has(uid));
 
   const itemsPath = (uid: string) =>
     db
@@ -560,24 +569,42 @@ export async function handleSetAssignmentTargets(
   // caller — is what gets persisted, so the doc always mirrors the real
   // pointer set the A2b deletion triggers re-hash.
   const removeKeys = new Set(input.remove.map(refKey));
-  const finalByKey = new Map<string, StudentTargetRef>();
+  const carriedByKey = new Map<string, StudentTargetRef>();
   for (const ref of targetRefsFromAssignment(assignmentSnap.data())) {
     const key = refKey(ref);
-    if (!removeKeys.has(key)) finalByKey.set(key, ref);
+    if (!removeKeys.has(key)) carriedByKey.set(key, ref);
   }
-  for (const target of addResult.resolved)
-    finalByKey.set(target.key, target.ref);
-  const finalRefs = [...finalByKey.values()];
+
+  // Admission control on the PERSISTED set, not just this call's payload:
+  // `MAX_TARGET_REFS` bounds each `add` list, so incremental calls could push
+  // the stored array past it. A ref that cannot be recorded in
+  // `targetStudents` must not get a pointer doc either — the deletion trigger
+  // would never see it. Refs already carried don't consume budget.
+  const admitted: ResolvedTarget[] = [];
+  const overLimit: SetAssignmentTargetsResult['skipped'] = [];
+  for (const target of addResult.resolved) {
+    if (carriedByKey.has(target.key) || carriedByKey.size < MAX_TARGET_REFS) {
+      carriedByKey.set(target.key, target.ref);
+      admitted.push(target);
+    } else {
+      overLimit.push({ ref: target.ref, reason: 'over-limit' });
+    }
+  }
+
+  const addedUids = new Set(admitted.map((t) => t.uid));
+  // Removals are pure deletes of the caller's own fan-out, so they only need a
+  // uid — an unrecognized ref simply deletes nothing. A uid present in both
+  // lists keeps its pointer (add wins) and never double-writes one batch.
+  const removeUids = [
+    ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
+  ].filter((uid) => !addedUids.has(uid));
 
   // An empty resulting set with no explicit 'students' intent must not leave a
   // stuck `individualTargeting: true` that hides the assignment from everyone.
   // An explicitly-empty 'students' assignment is intentional and stays hidden.
   const explicitStudents = input.targetMode === 'students';
   const wantsIndividual =
-    explicitStudents || (input.targetMode !== 'class' && finalRefs.length > 0);
-  const clearsIndividual =
-    input.targetMode === 'class' ||
-    (!explicitStudents && finalRefs.length === 0);
+    explicitStudents || (input.targetMode !== 'class' && carriedByKey.size > 0);
 
   // Session flag first: hiding an individually-targeted assignment from the
   // class channel must never lag the pointer writes (§2a one-sided window).
@@ -585,10 +612,10 @@ export async function handleSetAssignmentTargets(
     await sessionRef.set({ individualTargeting: true }, { merge: true });
   }
 
-  // Existing pointer docs feed the merge contract (preserved `createdAt`, and
-  // `override`/window fields whose keys this payload omits).
+  // Existing pointer docs feed the one part of the merge contract a field-level
+  // write can't express on its own: `createdAt` is preserved, never rewritten.
   const existingByUid = new Map<string, Record<string, unknown>>();
-  const addRefs = addResult.resolved.map((t) => itemsPath(t.uid));
+  const addRefs = admitted.map((t) => itemsPath(t.uid));
   for (let i = 0; i < addRefs.length; i += GET_ALL_CHUNK) {
     const snaps = await db.getAll(...addRefs.slice(i, i + GET_ALL_CHUNK));
     for (const snap of snaps) {
@@ -599,9 +626,8 @@ export async function handleSetAssignmentTargets(
 
   const now = Date.now();
   const ops: ((batch: admin.firestore.WriteBatch) => void)[] = [];
-  for (const target of addResult.resolved) {
-    const existing = existingByUid.get(target.uid) ?? {};
-    const storedCreatedAt = existing.createdAt;
+  for (const target of admitted) {
+    const storedCreatedAt = existingByUid.get(target.uid)?.createdAt;
     const payload: Record<string, unknown> = {
       kind: input.kind,
       sessionId: input.sessionId,
@@ -610,26 +636,20 @@ export async function handleSetAssignmentTargets(
       createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
     };
-    const openAt = mergedField(input.window.openAt, existing.openAt, isNumber);
-    const closeAt = mergedField(
-      input.window.closeAt,
-      existing.closeAt,
-      isNumber
-    );
-    const dueAt = mergedField(input.window.dueAt, existing.dueAt, isNumber);
-    const override = mergedField(
+    const openAt = mergeWrite(input.window.openAt);
+    const closeAt = mergeWrite(input.window.closeAt);
+    const dueAt = mergeWrite(input.window.dueAt);
+    const override = mergeWrite(
       target.key in input.overridesBySourcedId
         ? input.overridesBySourcedId[target.key]
-        : undefined,
-      existing.override,
-      isOverride
+        : undefined
     );
     if (openAt !== undefined) payload.openAt = openAt;
     if (closeAt !== undefined) payload.closeAt = closeAt;
     if (dueAt !== undefined) payload.dueAt = dueAt;
     if (override !== undefined) payload.override = override;
     const ref = itemsPath(target.uid);
-    ops.push((batch) => batch.set(ref, payload));
+    ops.push((batch) => batch.set(ref, payload, { merge: true }));
   }
   for (const uid of removeUids) {
     const ref = itemsPath(uid);
@@ -639,14 +659,38 @@ export async function handleSetAssignmentTargets(
 
   // Persisted after the pointer commit so the doc only ever claims targets
   // that actually landed; a failed commit throws and an identical retry
-  // converges.
-  await assignmentRef.set(
-    {
-      targetStudents: finalRefs,
-      targetMode: input.targetMode ?? (wantsIndividual ? 'students' : 'class'),
-    },
-    { merge: true }
-  );
+  // converges. Transactional because the merge is a read-compute-write: two
+  // concurrent calls reading the same stale `targetStudents` would each write
+  // their own view, and the loser's pointer docs — already committed above —
+  // would be invisible to the A2b deletion trigger forever.
+  const finalRefs = await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(assignmentRef);
+    const byKey = new Map<string, StudentTargetRef>();
+    for (const ref of targetRefsFromAssignment(fresh.data())) {
+      const key = refKey(ref);
+      if (!removeKeys.has(key)) byKey.set(key, ref);
+    }
+    // A concurrent add lands in `fresh` and is kept even past MAX_TARGET_REFS:
+    // its pointer doc exists, so dropping the ref would strand it.
+    for (const target of admitted) byKey.set(target.key, target.ref);
+    const refs = [...byKey.values()];
+    tx.set(
+      assignmentRef,
+      {
+        targetStudents: refs,
+        targetMode:
+          input.targetMode ?? (refs.length > 0 ? 'students' : 'class'),
+      },
+      { merge: true }
+    );
+    return refs;
+  });
+
+  // Recomputed from the transaction's fresh set, so a concurrent add is not
+  // re-exposed to the class channel by this call's stale view of the targets.
+  const clearsIndividual =
+    input.targetMode === 'class' ||
+    (!explicitStudents && finalRefs.length === 0);
 
   // Teardown flag last: revealing the assignment to the class channel must not
   // precede the pointer deletes.
@@ -655,9 +699,9 @@ export async function handleSetAssignmentTargets(
   }
 
   return {
-    written: addResult.resolved.length,
+    written: admitted.length,
     removed: removeUids.length,
-    skipped: [...preSkipped, ...addResult.skipped],
+    skipped: [...preSkipped, ...addResult.skipped, ...overLimit],
   };
 }
 
