@@ -1046,6 +1046,45 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     });
   });
 
+  it('drops malformed rubric snapshots but keeps points mode and valid ones', async () => {
+    const validRubric = {
+      id: 'r1',
+      title: 'Essay rubric',
+      criteria: [],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [],
+          defaultOverridesByStudentId: {
+            s1: {
+              rubricOverrideByQuestion: {
+                q1: validRubric,
+                q2: 'points',
+                q3: {}, // no criteria/id/title — would throw on snapshot.criteria
+                q4: { id: 'r4', title: 'No criteria', createdAt: 1 },
+                q5: { ...validRubric, criteria: 'not-an-array' },
+                q6: 'nonsense',
+              },
+            },
+          },
+        })
+      ),
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    expect(
+      result.current.rosters[0].defaultOverridesByStudentId?.s1
+        ?.rubricOverrideByQuestion
+    ).toEqual({ q1: validRubric, q2: 'points' });
+  });
+
   it('drops non-string-array hiddenOptionIdsByQuestion entries from a hand-edited Drive file', async () => {
     currentDriveService = makeDriveService({
       downloadFile: vi.fn().mockResolvedValue(

@@ -151,6 +151,23 @@ function parseRosterGroup(raw: unknown): RosterGroup | null {
   return { id: g.id, name: g.name, studentIds };
 }
 
+/**
+ * Validates an embedded rubric snapshot from Drive JSON. Only the fields
+ * `RubricSnapshot` declares required are checked — enough that a consumer can
+ * safely reach for `criteria` — and anything malformed is dropped here rather
+ * than thrown on at read time.
+ */
+function parseRubricSnapshot(raw: unknown): RubricSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string' || typeof r.title !== 'string') return null;
+  if (!Array.isArray(r.criteria)) return null;
+  if (typeof r.createdAt !== 'number' || typeof r.updatedAt !== 'number') {
+    return null;
+  }
+  return raw as RubricSnapshot;
+}
+
 function parseStudentOverride(raw: unknown): StudentOverride | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -188,16 +205,15 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
     o.rubricOverrideByQuestion &&
     typeof o.rubricOverrideByQuestion === 'object'
   ) {
-    // Now that A1's type lands a real shape here, keep only 'points' and
-    // object snapshots — a primitive from a hand-edited file would break
-    // downstream rubric reads.
     const swaps: Record<string, RubricSnapshot | 'points'> = {};
     for (const [questionId, value] of Object.entries(
       o.rubricOverrideByQuestion as Record<string, unknown>
     )) {
       if (value === 'points') swaps[questionId] = 'points';
-      else if (value && typeof value === 'object')
-        swaps[questionId] = value as RubricSnapshot;
+      else {
+        const snapshot = parseRubricSnapshot(value);
+        if (snapshot) swaps[questionId] = snapshot;
+      }
     }
     override.rubricOverrideByQuestion = swaps;
   }
