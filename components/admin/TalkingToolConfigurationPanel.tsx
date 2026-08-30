@@ -46,7 +46,7 @@ export const TalkingToolConfigurationPanel: React.FC<
     const next = categories.map((c) =>
       c.id === id ? { ...c, ...updates } : c
     );
-    onChange({ categories: next });
+    onChange({ categories: next, buildingDefaults });
   };
 
   const addCategory = () => {
@@ -57,12 +57,12 @@ export const TalkingToolConfigurationPanel: React.FC<
       icon: 'MessageSquare',
       stems: [{ id: crypto.randomUUID(), text: 'New sentence stem...' }],
     };
-    onChange({ categories: [...categories, newCat] });
+    onChange({ categories: [...categories, newCat], buildingDefaults });
   };
 
   const removeCategory = (id: string) => {
     const next = categories.filter((c) => c.id !== id);
-    onChange({ categories: next });
+    onChange({ categories: next, buildingDefaults });
   };
 
   const addStem = (catId: string) => {
@@ -74,7 +74,7 @@ export const TalkingToolConfigurationPanel: React.FC<
           }
         : c
     );
-    onChange({ categories: next });
+    onChange({ categories: next, buildingDefaults });
   };
 
   const updateStem = (catId: string, stemId: string, value: string) => {
@@ -87,7 +87,7 @@ export const TalkingToolConfigurationPanel: React.FC<
       }
       return c;
     });
-    onChange({ categories: next });
+    onChange({ categories: next, buildingDefaults });
   };
 
   const removeStem = (catId: string, stemId: string) => {
@@ -98,7 +98,7 @@ export const TalkingToolConfigurationPanel: React.FC<
       }
       return c;
     });
-    onChange({ categories: next });
+    onChange({ categories: next, buildingDefaults });
   };
 
   return (
