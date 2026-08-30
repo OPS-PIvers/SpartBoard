@@ -101,21 +101,15 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     [color, width]
   );
 
-  // Reassigning canvas.width/height resets the bitmap even at the same value, so track what's applied to skip redundant mid-stroke resets.
-  const appliedDimsRef = useRef<{ w: number; h: number } | null>(null);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const applied = appliedDimsRef.current;
-    if (!applied || applied.w !== canvasWidth || applied.h !== canvasHeight) {
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
-      appliedDimsRef.current = { w: canvasWidth, h: canvasHeight };
-    }
+    // Reassigning canvas.width/height resets the bitmap even at the same value, so compare first (matches DrawingWidget/useDrawingCanvas.ts).
+    if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
+    if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
 
     draw(ctx, paths, currentPath);
   }, [paths, currentPath, canvasWidth, canvasHeight, draw]);
