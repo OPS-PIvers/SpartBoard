@@ -37,8 +37,10 @@
  * `{merge: true}`, so an untouched field is never rewritten and a concurrent
  * call editing a different field cannot clobber it:
  *   - `override` is rewritten ONLY when this call's `overridesBySourcedId`
- *     contains the ref's key. An explicit `null` (or an unrecognizable value)
- *     clears it; an absent key preserves whatever is stored.
+ *     contains the ref's key. An explicit `null` clears it; an absent key
+ *     preserves whatever is stored. A present but unparseable value is refused
+ *     (`malformed-override`) rather than read as a clear, so a garbled payload
+ *     cannot erase an accommodation.
  *   - `openAt` / `closeAt` / `dueAt` are rewritten ONLY when the corresponding
  *     key is present in this call's `window`. A present `null` clears the
  *     field; an absent key preserves the stored value.
@@ -140,6 +142,7 @@ export interface AssignmentWindow {
 
 export type SkipReason =
   | 'malformed-ref'
+  | 'malformed-override'
   | 'not-in-teacher-classes'
   | 'test-class-not-authorized'
   | 'duplicate'
@@ -394,6 +397,13 @@ function normalizeOverrideKey(key: string): string | null {
   return key.startsWith('classlink:') ? key : null;
 }
 
+/** Rebuild the ref a normalized override key names, for skip reporting. */
+function refFromOverrideKey(key: string): StudentTargetRef {
+  return key.startsWith('test:')
+    ? { kind: 'test', email: key.slice(5) }
+    : { kind: 'classlink', sourcedId: key.slice('classlink:'.length) };
+}
+
 // ── input parsing ──────────────────────────────────────────────────────────
 
 function parseRefList(
@@ -448,8 +458,12 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
   const add = parseRefList(data.add, skipped);
   const remove = parseRefList(data.remove, skipped);
 
-  // A present key always lands in the record (value `null` = clear); only
-  // unnamespaced keys are dropped, since they can't be attributed to a kind.
+  // Only an explicit `null` lands in the record as a clear. A present but
+  // unparseable value is NOT treated as one: `sanitizeOverride` returns `null`
+  // for both, and collapsing them would let a garbled client payload delete a
+  // stored 504/IEP accommodation. Such a key is left out entirely — the merge
+  // then preserves the stored value — and reported so the drop isn't silent.
+  // Unnamespaced keys are dropped, since they can't be attributed to a kind.
   const overridesBySourcedId: Record<string, StudentOverride | null> = {};
   if (
     typeof data.overridesBySourcedId === 'object' &&
@@ -459,8 +473,18 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
       data.overridesBySourcedId as Record<string, unknown>
     ).slice(0, MAX_TARGET_REFS)) {
       const normalized = normalizeOverrideKey(key);
-      if (normalized)
-        overridesBySourcedId[normalized] = sanitizeOverride(value);
+      if (!normalized) continue;
+      if (value === null) {
+        overridesBySourcedId[normalized] = null;
+        continue;
+      }
+      const sanitized = sanitizeOverride(value);
+      if (sanitized) overridesBySourcedId[normalized] = sanitized;
+      else
+        skipped.push({
+          ref: refFromOverrideKey(normalized),
+          reason: 'malformed-override',
+        });
     }
   }
 

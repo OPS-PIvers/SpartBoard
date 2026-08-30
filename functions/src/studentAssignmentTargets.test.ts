@@ -589,6 +589,33 @@ describe('handleSetAssignmentTargets', () => {
     expect('override' in pointerFor()).toBe(false);
   });
 
+  // End-to-end through the parser: a garbled client payload is the one way a
+  // present key could reach the handler as a clear it never intended.
+  it('never erases a stored override on a garbled payload', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    const { input } = parseSetAssignmentTargetsInput({
+      assignmentId: ASSIGNMENT_ID,
+      sessionId: ASSIGNMENT_ID,
+      kind: 'quiz',
+      add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      overridesBySourcedId: { [`classlink:${SOURCED_A}`]: { someTypo: 1 } },
+    });
+    await handleSetAssignmentTargets(
+      makeDb(state) as never,
+      TEACHER_UID,
+      HMAC,
+      input,
+      () => Promise.resolve(ctx())
+    );
+    expect(pointerFor()).toMatchObject({ override: { timeMultiplier: 2 } });
+  });
+
   it('replaces a stored override when the key carries a new value', async () => {
     await run(
       baseInput({
@@ -824,6 +851,27 @@ describe('parseSetAssignmentTargetsInput', () => {
     expect(input.overridesBySourcedId).toEqual({
       'classlink:sid-a': null,
       'test:mixed@school.edu': { timeMultiplier: 2 },
+    });
+  });
+
+  // `sanitizeOverride` returns null for an explicit clear AND for garbage;
+  // only the first may reach the pointer doc as a delete.
+  it('refuses an unparseable override value instead of reading it as a clear', () => {
+    const { input, skipped } = parseSetAssignmentTargetsInput({
+      assignmentId: 'a',
+      sessionId: 'a',
+      kind: 'quiz',
+      overridesBySourcedId: {
+        'classlink:sid-a': { someTypo: 1 },
+        'classlink:sid-b': { timeMultiplier: 2 },
+      },
+    });
+    expect(input.overridesBySourcedId).toEqual({
+      'classlink:sid-b': { timeMultiplier: 2 },
+    });
+    expect(skipped).toContainEqual({
+      ref: { kind: 'classlink', sourcedId: 'sid-a' },
+      reason: 'malformed-override',
     });
   });
 
