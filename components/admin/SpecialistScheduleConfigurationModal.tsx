@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { canonicalBuildingId } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   SpecialistScheduleGlobalConfig,
@@ -132,10 +133,14 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         dayLabel: 'Day',
         customDayNames: {},
         blocks: [],
+        // Compare canonicalized so this matches both the current short-form
+        // building IDs ('schumann', 'intermediate') and any lingering
+        // legacy long-form IDs ('schumann-elementary', ...) — see
+        // config/buildings.ts's BUILDING_ID_ALIASES for why both exist.
         specialistOptions:
-          selectedBuildingId === 'schumann-elementary'
+          canonicalBuildingId(selectedBuildingId) === 'schumann'
             ? SCHUMANN_DEFAULT_OPTIONS
-            : selectedBuildingId === 'orono-intermediate-school'
+            : canonicalBuildingId(selectedBuildingId) === 'intermediate'
               ? INTERMEDIATE_DEFAULT_OPTIONS
               : [],
       },
