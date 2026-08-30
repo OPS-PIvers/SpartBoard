@@ -265,12 +265,7 @@ describe('StationsWidget', () => {
   });
 
   it("preserves an absent student's station assignment across Reset All", async () => {
-    // Regression test: Reset All only knows about today's present roster (it
-    // builds its unassigned map from `activeRoster`), so it must merge into
-    // the existing assignments map — not replace it — or an absent student's
-    // station is silently deleted and they don't "snap back" to it when
-    // marked present again. Same root cause class as the Shuffle bug fixed
-    // in #2640, but for the "Reset all" button.
+    // Reset All only sees today's present roster, so it must merge, not replace (same bug class as #2640).
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       ...mockDashboardContext,
       rosters: [
@@ -299,9 +294,7 @@ describe('StationsWidget', () => {
     const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
       -1
     ) as [string, { config: StationsConfig }];
-    // Present student s1 is reset to unassigned...
     expect(updatePayload.config.assignments.s1).toBeNull();
-    // ...but absent student s2's station survives the reset.
     expect(updatePayload.config.assignments.s2).toBe('st-b');
   });
 });
