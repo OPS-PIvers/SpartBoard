@@ -580,6 +580,10 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const studentIds = useMemo(
+    () => new Set(students.map((s) => s.id)),
+    [students]
+  );
 
   const addGroup = () => {
     const group: RosterGroup = {
@@ -635,6 +639,11 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
           <ul className="flex flex-col divide-y divide-slate-100">
             {groups.map((group) => {
               const expanded = expandedId === group.id;
+              // Count only members still on the roster — a student deleted in
+              // the Students tab isn't pruned from studentIds until save.
+              const memberCount = group.studentIds.filter((id) =>
+                studentIds.has(id)
+              ).length;
               return (
                 <li key={group.id} className="p-3">
                   <div className="flex items-center gap-2">
@@ -654,7 +663,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     />
                     <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
                       {t('sidebar.classes.groupMemberCount', {
-                        count: group.studentIds.length,
+                        count: memberCount,
                         defaultValue: '{{count}} student',
                         defaultValue_other: '{{count}} students',
                       })}

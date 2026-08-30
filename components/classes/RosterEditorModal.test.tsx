@@ -187,6 +187,41 @@ describe('RosterEditorModal', () => {
     expect(onSave.mock.calls[0]).toHaveLength(2);
   });
 
+  it('drops a deleted student from the group member count without waiting for a save', async () => {
+    const user = userEvent.setup();
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        { id: 's2', firstName: 'Bob', lastName: 'Jones', pin: '02' },
+      ],
+      groups: [{ id: 'g1', name: 'Group A', studentIds: ['s1', 's2'] }],
+      driveFileId: null,
+      studentCount: 2,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    // Remove Alice from the Students tab...
+    const removeButtons = screen.getAllByRole('button', {
+      name: /remove student/i,
+    });
+    await user.click(removeButtons[0]);
+
+    // ...then the Groups tab badge should already read 1, not the stale 2.
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    expect(screen.getByText('1 student')).toBeInTheDocument();
+  });
+
   it('splits full names when toggling single → dual', async () => {
     const user = userEvent.setup();
     render(
