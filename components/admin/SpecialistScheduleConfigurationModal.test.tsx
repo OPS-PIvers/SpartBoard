@@ -36,10 +36,7 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
 }));
 
-// Post-migration, useAdminBuildings() resolves to CANONICAL short building
-// IDs ('schumann', 'intermediate', ...) rather than the legacy long-form
-// IDs ('schumann-elementary', 'orono-intermediate-school', ...) that used to
-// be canonical before the org-buildings migration (config/buildings.ts).
+// Post-migration, useAdminBuildings() resolves canonical short IDs, not legacy long-form ones.
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => [
     {
@@ -65,9 +62,6 @@ describe('SpecialistScheduleConfigurationModal', () => {
   it('seeds Schumann default specialist options for the canonical short building id', () => {
     render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
 
-    // Schumann is selected by default (first building in the list) and
-    // should default to its 5 curated specialist options, never an empty
-    // "No options added." state.
     expect(screen.getByText('🎵 Music')).toBeInTheDocument();
     expect(screen.getByText('👟 PE')).toBeInTheDocument();
     expect(screen.getByText('🎨 Art')).toBeInTheDocument();

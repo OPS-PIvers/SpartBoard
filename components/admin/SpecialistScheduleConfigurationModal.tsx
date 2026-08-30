@@ -133,10 +133,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         dayLabel: 'Day',
         customDayNames: {},
         blocks: [],
-        // Compare canonicalized so this matches both the current short-form
-        // building IDs ('schumann', 'intermediate') and any lingering
-        // legacy long-form IDs ('schumann-elementary', ...) — see
-        // config/buildings.ts's BUILDING_ID_ALIASES for why both exist.
+        // Canonicalize so this matches both short-form and legacy long-form building IDs.
         specialistOptions:
           canonicalBuildingId(selectedBuildingId) === 'schumann'
             ? SCHUMANN_DEFAULT_OPTIONS
