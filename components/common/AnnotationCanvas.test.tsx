@@ -274,4 +274,53 @@ describe('AnnotationCanvas', () => {
 
     getContextSpy.mockRestore();
   });
+
+  it('DOES reassign canvas width/height when canvasWidth/canvasHeight actually change', () => {
+    const fakeCtx = {
+      clearRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      lineCap: '',
+      lineJoin: '',
+      strokeStyle: '',
+      fillStyle: '',
+      lineWidth: 0,
+      canvas: {
+        width: defaultProps.canvasWidth,
+        height: defaultProps.canvasHeight,
+      },
+      globalCompositeOperation: '',
+    } as unknown as CanvasRenderingContext2D;
+    const getContextSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockReturnValue(fakeCtx);
+
+    const { container, rerender } = render(
+      <AnnotationCanvas {...defaultProps} />
+    );
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+
+    const widthSetSpy = vi.spyOn(canvas, 'width', 'set');
+    const heightSetSpy = vi.spyOn(canvas, 'height', 'set');
+
+    act(() => {
+      rerender(
+        <AnnotationCanvas
+          {...defaultProps}
+          canvasWidth={defaultProps.canvasWidth + 100}
+          canvasHeight={defaultProps.canvasHeight + 50}
+        />
+      );
+    });
+
+    expect(widthSetSpy).toHaveBeenCalledWith(defaultProps.canvasWidth + 100);
+    expect(heightSetSpy).toHaveBeenCalledWith(defaultProps.canvasHeight + 50);
+
+    getContextSpy.mockRestore();
+  });
 });
