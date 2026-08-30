@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-29_
+_Last audited: 2026-08-30_
 _Last action: 2026-08-26 — MEDIUM `text` widget dead appearance config resolved: added `TextAppearanceSettings` (TypographySettings + TextSizePresetSettings) to TextWidget/Settings.tsx and registered it in `WIDGET_APPEARANCE_COMPONENTS`. Moved to Completed._
 
 ---

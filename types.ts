@@ -2006,8 +2006,21 @@ export interface TalkingToolCategory {
   stems: TalkingToolStem[];
 }
 
+/**
+ * Per-building surface-color defaults for the Talking Tool widget. Only
+ * `cardColor`/`cardOpacity` are exposed — `fontFamily`/`fontColor` are
+ * currently dead controls at the user level (see TalkingToolAppearanceSettings)
+ * so seeding them would replicate the ConceptWeb/GraphicOrganizer anti-pattern.
+ */
+export interface BuildingTalkingToolDefaults {
+  buildingId: string;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
 export interface TalkingToolGlobalConfig {
   categories?: TalkingToolCategory[];
+  buildingDefaults?: Record<string, BuildingTalkingToolDefaults>;
 }
 
 export interface WeatherConfig {
