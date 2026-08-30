@@ -46,13 +46,6 @@ _2026-06-01: Full collection audit. All collection names from frontend (componen
 
 _2026-05-27: Audited all collection() and collectionGroup() calls in components/, context/, hooks/, utils/, and functions/src/. Cross-referenced 40+ collection names against match blocks in firestore.rules (3066 lines). New code added since 2026-05-18: Spotify OAuth (functions/src/spotifyOAuth.ts), synced quiz/video-activity groups (functions/src/syncedQuizGroups.ts, syncedVideoActivityGroups.ts), shared_notebooks (context/DashboardContext.tsx, hooks/useNotebookSharing.ts). Verified: `shared_notebooks` has a match block (referenced in the 2026-05-23 audit note); `spotify_tokens` (if stored) would need a rule — but review of spotifyOAuth.ts shows it stores tokens in Firebase Auth custom claims, not Firestore; `synced_quiz_groups` and `synced_video_activity_groups` are stored under subcollections of existing organizations path already covered by the broad `/organizations/{orgId}/{document=**}` rule. Default-deny catch-all still present at end of rules. Zero new unprotected collections. Existing two open items unchanged._
 
-### LOW `sessions/{userId}/students` create has no schema or size validation
-
-- **Detected:** 2026-08-24
-- **File:** `firestore.rules:2929-2930`
-- **Detail:** `allow create: if request.auth != null && request.auth.uid == studentId;`. The doc id is bound to the writer's uid (good), but the payload is unconstrained despite the block comment asserting "Student session records store only a PIN — no PII." This compounds the MEDIUM `sessions` broad-list item below (`:2918`): an attacker can enumerate every live session id, then — because anonymous sign-in mints a fresh uid on demand — write an unbounded number of arbitrary-content student docs into any teacher's live roster, each appearing in the teacher's join UI.
-- **Fix:** Add a field whitelist to the create rule (`hasOnly(['pin','name','joinedAt', …])` per the actual write shape) plus a size cap on any string field. Cheap defense-in-depth that does not require the Cloud Function work the broad-read item is blocked on.
-
 ### LOW `notDeactivated()` omitted from three owner-scoped rules
 
 - **Detected:** 2026-08-24
@@ -120,6 +113,14 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 ---
 
 ## Completed
+
+### LOW `sessions/{userId}/students` create has no schema or size validation
+
+- **Detected:** 2026-08-24
+- **Resolved:** 2026-08-28 — resolved outside journal workflow, via the nightly debugger routine's Build & Tooling run, PR [#2625](https://github.com/OPS-PIvers/SpartBoard/pull/2625).
+- **File:** `firestore.rules:2929-2930` (original); create/update block for `sessions/{userId}/students/{studentId}`
+- **Detail (original):** `allow create: if request.auth != null && request.auth.uid == studentId;`. The doc id is bound to the writer's uid (good), but the payload was unconstrained despite the block comment asserting "Student session records store only a PIN — no PII." This compounds the MEDIUM `sessions` broad-list item above (`:56`): an attacker can enumerate every live session id, then — because anonymous sign-in mints a fresh uid on demand — write an unbounded number of arbitrary-content student docs into any teacher's live roster. `update` was also completely unconstrained for teacher/admin/owning-student alike.
+- **Resolution:** Gated `create` to the exact `{pin, status, joinedAt, lastActive}` shape (pin capped at `MAX_PIN_LENGTH`, `status` enum, non-negative `joinedAt`/`lastActive` ints). `update` is per-actor: teacher/admin may set `status` to any value (the freeze control); the owning student may only set their own `status` to `'disconnected'`, or fully overwrite the record on rejoin (matching create's shape, pinned to `status: 'active'`, and blocked while currently frozen) — closing a self-unfreeze bypass a review round caught after the initial fix. Covered by `tests/rules/liveSessionStudents.test.ts` against the real Firestore emulator. **Residual, not fully closed:** cross-document PIN uniqueness (preventing two students from sharing a PIN in one session) still has no server-side enforcement — `joinSession`'s client-side duplicate check is a non-atomic `getDocs`-then-write race, same accepted trade-off class as the join-code collision check in `useLiveSession.ts`. Would need a transaction or Cloud Function to close properly; not attempted here.
 
 ### MEDIUM `nextup_sessions/{sessionId}/entries` create is completely unvalidated
 
