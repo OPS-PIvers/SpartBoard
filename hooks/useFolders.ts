@@ -296,8 +296,7 @@ export const useFolders = (
     [userId, collectionName]
   );
 
-  // Descendant folder ids (children, grandchildren, …) of `rootId`, excluding
-  // `rootId` itself. Cycle-safe — see `collectDescendantIds` doc.
+  // Descendant folder ids (children, grandchildren, …) of rootId, excluding rootId itself; cycle-safe.
   const collectDescendantFolderIds = useCallback(
     (rootId: string): string[] =>
       collectDescendantIds(rootId, folders, (f) => f.parentId),

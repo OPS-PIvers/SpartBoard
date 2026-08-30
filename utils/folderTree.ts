@@ -1,32 +1,9 @@
-/**
- * Shared descendant-collecting walk for the library folder tree (`useFolders`)
- * and the Board collection tree (`useCollections`) — structurally identical
- * hierarchies, each previously carrying its own copy of this recursion.
- *
- * Cycle-safe: `moveFolder`/`moveCollection` already guard against introducing
- * a cycle via `isDescendantOrSelf` (walking UP from the target with a depth
- * cap, "in case of corrupted data"). That guard is a client-side check against
- * a locally-cached snapshot, not a transaction — two concurrent moves from
- * different tabs/devices (A under B, B under A) can each pass their own check
- * against stale state and still land a 2-node cycle once both writes commit.
- * A recursive descendant walk with no visited-set would recurse forever over
- * such a cycle (`RangeError: Maximum call stack size exceeded`), permanently
- * breaking "delete folder" for the whole cyclic branch. `visited` bounds the
- * walk to at most one visit per node regardless of how the graph got
- * corrupted (race, manual Firestore edit, future bug) — the same defensive
- * posture `isDescendantOrSelf` already takes for the ancestor direction.
- */
-
-/** Minimal shape the walk needs: an id plus a parent-id accessor. */
+// Shared cycle-safe descendant walk for useFolders/useCollections' identical tree shapes.
 export interface TreeNode {
   id: string;
 }
 
-/**
- * Collect every descendant id of `rootId` (children, grandchildren, …) from a
- * flat `nodes` list, given a `getParentId` accessor. Excludes `rootId` itself.
- * Order is depth-first, matching the previous per-hook implementations.
- */
+// Collects descendant ids of rootId (excluding rootId), depth-first; a visited set bounds it against a corrupted/cyclic parent graph.
 export function collectDescendantIds<T extends TreeNode>(
   rootId: string,
   nodes: readonly T[],
@@ -41,8 +18,7 @@ export function collectDescendantIds<T extends TreeNode>(
   }
 
   const out: string[] = [];
-  // Seeded with rootId so a cycle that loops back to the root can't re-walk
-  // it either.
+  // Seeded with rootId so a cycle looping back to the root can't re-walk it.
   const visited = new Set<string>([rootId]);
   const walk = (id: string): void => {
     const kids = byParent.get(id) ?? [];

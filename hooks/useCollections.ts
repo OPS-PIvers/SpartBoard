@@ -391,8 +391,7 @@ export const useCollections = (
     [userId]
   );
 
-  // Descendant collection ids, excluding `rootId` itself. Cycle-safe — see
-  // `collectDescendantIds` doc.
+  // Descendant collection ids, excluding rootId itself; cycle-safe.
   const collectDescendantCollectionIds = useCallback(
     (rootId: string): string[] =>
       collectDescendantIds(rootId, collections, (c) => c.parentCollectionId),

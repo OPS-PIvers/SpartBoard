@@ -28,10 +28,7 @@ describe('collectDescendantIds', () => {
     expect(collectDescendantIds('root', nodes, getParentId)).toEqual([]);
   });
 
-  // Regression: a concurrent move from two tabs/devices can each pass their
-  // own client-side isDescendantOrSelf check against stale state and still
-  // land a mutual cycle once both writes commit (A's parent -> B, B's parent
-  // -> A). Deleting either node must not hang/crash the whole tree walk.
+  // Regression: a concurrent cross-device move can land a mutual cycle despite each move's own stale-state check passing.
   it('terminates on a cyclic parent graph instead of recursing forever', () => {
     const nodes: Node[] = [
       { id: 'A', parentId: 'B' },
