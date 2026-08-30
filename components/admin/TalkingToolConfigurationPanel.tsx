@@ -31,7 +31,12 @@ export const TalkingToolConfigurationPanel: React.FC<
   ) => {
     if (!selectedBuildingId) return;
     onChange({
-      categories,
+      // Pass through only what was already persisted — never force the
+      // DEFAULT_TALKING_TOOL_CATEGORIES fallback into storage just because
+      // an admin touched the (unrelated) appearance section.
+      ...(config.categories !== undefined
+        ? { categories: config.categories }
+        : {}),
       buildingDefaults: {
         ...buildingDefaults,
         [selectedBuildingId]: { ...currentBuildingConfig, ...updates },
@@ -232,10 +237,14 @@ export const TalkingToolConfigurationPanel: React.FC<
             widget.
           </p>
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+            <label
+              htmlFor={`talking-tool-color-${selectedBuildingId}`}
+              className="block text-xs font-bold text-slate-600 uppercase mb-2"
+            >
               Default Surface Colour
             </label>
             <HexColorField
+              id={`talking-tool-color-${selectedBuildingId}`}
               value={currentBuildingConfig.cardColor}
               onChange={(cardColor) => updateBuildingDefaults({ cardColor })}
               fallback="#ffffff"
@@ -243,11 +252,15 @@ export const TalkingToolConfigurationPanel: React.FC<
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+            <label
+              htmlFor={`talking-tool-opacity-${selectedBuildingId}`}
+              className="block text-xs font-bold text-slate-600 uppercase mb-2"
+            >
               Default Surface Opacity (
               {Math.round((currentBuildingConfig.cardOpacity ?? 1) * 100)}%)
             </label>
             <input
+              id={`talking-tool-opacity-${selectedBuildingId}`}
               type="range"
               min="0"
               max="1"
