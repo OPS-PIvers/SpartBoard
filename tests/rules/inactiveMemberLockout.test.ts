@@ -97,6 +97,21 @@ const videoActivityFields = () => ({
   createdAt: 1000,
 });
 
+const APP_ID = 'spart-board';
+
+const starterPackPath = (uid: string) =>
+  `artifacts/${APP_ID}/users/${uid}/starterPacks/sp-1`;
+
+const starterPackFields = () => ({
+  name: 'My Workspace',
+  description: 'Captured workspace',
+  icon: 'Wand2',
+  color: 'indigo',
+  gradeLevels: ['k-2'],
+  isLocked: false,
+  widgets: [],
+});
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -153,6 +168,9 @@ beforeEach(async () => {
       doc(db, videoActivityPath(INACTIVE_UID)),
       videoActivityFields()
     );
+    // Seed starter packs under each uid so reads have a doc to find.
+    await setDoc(doc(db, starterPackPath(ACTIVE_UID)), starterPackFields());
+    await setDoc(doc(db, starterPackPath(INACTIVE_UID)), starterPackFields());
   });
 });
 
@@ -244,6 +262,32 @@ describe('M1 full sign-in lockout — notDeactivated() gate', () => {
     await assertFails(
       setDoc(doc(asInactive(), videoActivityPath(INACTIVE_UID)), {
         ...videoActivityFields(),
+        name: 'Smuggled',
+      })
+    );
+  });
+
+  it('active member can read their own starter pack', async () => {
+    await assertSucceeds(getDoc(doc(asActive(), starterPackPath(ACTIVE_UID))));
+  });
+
+  it('active member can write their own starter pack', async () => {
+    await assertSucceeds(
+      setDoc(doc(asActive(), starterPackPath(ACTIVE_UID)), {
+        ...starterPackFields(),
+        name: 'Renamed',
+      })
+    );
+  });
+
+  it('inactive member is DENIED reading their own starter pack', async () => {
+    await assertFails(getDoc(doc(asInactive(), starterPackPath(INACTIVE_UID))));
+  });
+
+  it('inactive member is DENIED writing their own starter pack', async () => {
+    await assertFails(
+      setDoc(doc(asInactive(), starterPackPath(INACTIVE_UID)), {
+        ...starterPackFields(),
         name: 'Smuggled',
       })
     );

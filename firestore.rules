@@ -632,12 +632,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // User data collection
+    // User data collection. Intentionally NOT gated by notDeactivated(): this
+    // doc (email/lastLogin/buildings) is read during sign-in bootstrap, before
+    // AuthContext's own membership listener has resolved status, and adding
+    // the gate here would cost an extra get() on the hottest read path.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User profile (building selection, etc.) — stored per user
+    // User profile (building selection, etc.) — stored per user. Same
+    // bootstrap-path exemption as /users/{userId} above.
     match /users/{userId}/userProfile/{profileId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
@@ -672,7 +676,8 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /artifacts/{appId}/users/{userId}/starterPacks/{packId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                          && notDeactivated();
     }
 
     // Admin-only collections
