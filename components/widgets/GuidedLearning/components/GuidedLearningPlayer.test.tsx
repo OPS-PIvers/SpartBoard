@@ -36,8 +36,14 @@ vi.mock('./interactions/QuestionInteraction', () => ({
 }));
 
 vi.mock('./interactions/SpotlightInteraction', () => ({
-  SpotlightInteraction: ({ step }: { step: { id: string } }) => (
-    <div data-testid="spotlight">{step.id}</div>
+  SpotlightInteraction: ({
+    step,
+  }: {
+    step: { id: string; xPct: number; yPct: number; spotlightRadius?: number };
+  }) => (
+    <div data-testid="spotlight">
+      {`${step.id}|${Math.round(step.xPct)},${Math.round(step.yPct)},r${step.spotlightRadius ?? 'none'}`}
+    </div>
   ),
 }));
 
@@ -482,6 +488,141 @@ describe('GuidedLearningPlayer', () => {
     expect(
       screen.queryByRole('button', { name: /reset view/i })
     ).not.toBeInTheDocument();
+  });
+
+  it('anchors overlays through the rendered transform when v2 zoom persists onto a non-pan-zoom step', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-v2-overlay',
+      title: 'V2 Overlay Test',
+      schemaVersion: 2,
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'zoom-step',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'pan-zoom',
+          panZoomScale: 3,
+        },
+        {
+          id: 'tooltip-step',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Persisted zoom',
+        },
+      ],
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('V2 Overlay Test'));
+
+    // Zoom persists onto the tooltip step, panning its hotspot to center —
+    // the tooltip must anchor at the transformed (centered) position.
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+
+    // Reset returns to identity — the tooltip must anchor at raw coords.
+    fireEvent.click(screen.getByRole('button', { name: /reset view/i }));
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+  });
+
+  it('re-anchors and re-scales a v2 pan-zoom-spotlight after Reset view', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-v2-spotlight',
+      title: 'V2 Spotlight Test',
+      schemaVersion: 2,
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'spot-step',
+          xPct: 10,
+          yPct: 80,
+          imageIndex: 0,
+          interactionType: 'pan-zoom-spotlight',
+          panZoomScale: 2,
+          spotlightRadius: 25,
+        },
+      ],
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('V2 Spotlight Test'));
+
+    // Zoomed on its own hotspot: centered, radius scaled by the zoom.
+    expect(screen.getByTestId('spotlight')).toHaveTextContent(
+      'spot-step|50,50,r50'
+    );
+
+    // Reset view: overlay follows the identity transform back to raw coords.
+    fireEvent.click(screen.getByRole('button', { name: /reset view/i }));
+    expect(screen.getByTestId('spotlight')).toHaveTextContent(
+      'spot-step|30,80,r25'
+    );
+  });
+
+  it('clears the held v2 zoom when the active explore pin is deselected', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-v2-explore',
+      title: 'V2 Explore Test',
+      schemaVersion: 2,
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'zoom-pin',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'pan-zoom',
+          panZoomScale: 3,
+        },
+        {
+          id: 'plain-pin',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Plain pin',
+        },
+      ],
+      mode: 'explore',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('V2 Explore Test'));
+
+    const layer = screen.getByTestId('gl-panzoom-layer');
+    fireEvent.click(screen.getByRole('button', { name: /step 1/i }));
+    expect(layer.style.transform).toContain('scale(3)');
+    expect(
+      screen.getByRole('button', { name: /reset view/i })
+    ).toBeInTheDocument();
+
+    // Deselect via Escape: view returns to identity AND the held zoom clears.
+    const container = layer.parentElement;
+    if (!(container instanceof HTMLElement))
+      throw new Error('Expected canvas container');
+    container.focus();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(
+      screen.queryByRole('button', { name: /reset view/i })
+    ).not.toBeInTheDocument();
+
+    // Clicking a non-pan-zoom pin must not surprise-re-zoom.
+    fireEvent.click(screen.getByRole('button', { name: /step 2/i }));
+    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
   });
 
   it('renders video slides in a <video> element and skips them when preloading', () => {

@@ -289,6 +289,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (panZoomActive) {
       const zoomStep = steps.find((s) => s.id === panZoomActive);
       setZoomScale(zoomStep?.panZoomScale ?? 2.5);
+    } else if (mode === 'explore') {
+      // Explore deselect animates back to identity — clear the held zoom too.
+      setZoomScale(1);
     }
   }
 
@@ -451,18 +454,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     onAnswer?.(stepId, answer, isCorrect);
   };
 
-  // Calculate pan-zoom transform
-  const getPanZoomStyle = (): React.CSSProperties => {
-    if (containerSize.w === 0) return {};
-    const transition = prefersReducedMotion
-      ? 'none'
-      : 'transform 0.6s ease-in-out';
-    // Identity keeps transition + transform so zoom-out animates instead of snapping.
-    const identity: React.CSSProperties = {
-      transform: 'scale(1) translate(0px, 0px)',
-      transition,
-      transformOrigin: '0 0',
-    };
+  // Single source of truth for the transform the pan-zoom layer renders.
+  const renderedTransform = ((): { scale: number; tx: number; ty: number } => {
+    const identity = { scale: 1, tx: 0, ty: 0 };
+    if (containerSize.w === 0) return identity;
     // Legacy sets (schemaVersion absent/1): per-step zoom reset, now animated.
     const scale = schemaV2
       ? zoomScale
@@ -483,6 +478,43 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       containerSize.w,
       containerSize.h
     );
+    return { scale, tx, ty };
+  })();
+
+  // Map container-% coords through the rendered transform so overlays always
+  // anchor where the hotspot is actually painted.
+  const toRenderedCoords = (coords: { xPct: number; yPct: number }) => {
+    const { scale, tx, ty } = renderedTransform;
+    if (scale <= 1) return coords;
+    return {
+      xPct:
+        coords.xPct * scale +
+        (containerSize.w ? (tx / containerSize.w) * 100 : 0),
+      yPct:
+        coords.yPct * scale +
+        (containerSize.h ? (ty / containerSize.h) * 100 : 0),
+    };
+  };
+
+  const activeStepRendered = activeStepInContainer
+    ? { ...activeStepInContainer, ...toRenderedCoords(activeStepInContainer) }
+    : null;
+
+  // Calculate pan-zoom transform
+  const getPanZoomStyle = (): React.CSSProperties => {
+    if (containerSize.w === 0) return {};
+    const transition = prefersReducedMotion
+      ? 'none'
+      : 'transform 0.6s ease-in-out';
+    const { scale, tx, ty } = renderedTransform;
+    // Identity keeps transition + transform so zoom-out animates instead of snapping.
+    if (scale <= 1) {
+      return {
+        transform: 'scale(1) translate(0px, 0px)',
+        transition,
+        transformOrigin: '0 0',
+      };
+    }
     return {
       transform: `scale(${scale}) translate(${tx / scale}px, ${ty / scale}px)`,
       transition,
@@ -563,9 +595,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }
 
     if (type === 'tooltip') {
-      return activeStepInContainer ? (
+      return activeStepRendered ? (
         <TooltipInteraction
-          step={activeStepInContainer}
+          step={activeStepRendered}
           containerWidth={containerSize.w}
           containerHeight={containerSize.h}
         />
@@ -578,9 +610,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       type === 'pan-zoom-spotlight'
     ) {
       const overlay =
-        activeStep.showOverlay === 'tooltip' && activeStepInContainer ? (
+        activeStep.showOverlay === 'tooltip' && activeStepRendered ? (
           <TooltipInteraction
-            step={activeStepInContainer}
+            step={activeStepRendered}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
           />
@@ -602,27 +634,28 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
       if (
         (type === 'spotlight' || type === 'pan-zoom-spotlight') &&
-        activeStepInContainer
+        activeStepRendered
       ) {
-        // v2 sets: spotlightRadius is image-relative — convert to container-%.
+        // v2 sets: spotlightRadius is image-relative — convert to container-%
+        // and scale by the rendered zoom so the circle tracks what's visible.
         const spotlightStep = schemaV2
           ? {
-              ...activeStepInContainer,
-              spotlightRadius: toContainerSpotlightRadiusPct(
-                activeStepInContainer.spotlightRadius ?? 25,
-                imgOffset,
-                containerSize.w,
-                containerSize.h
-              ),
+              ...activeStepRendered,
+              spotlightRadius:
+                toContainerSpotlightRadiusPct(
+                  activeStepRendered.spotlightRadius ?? 25,
+                  imgOffset,
+                  containerSize.w,
+                  containerSize.h
+                ) * renderedTransform.scale,
             }
-          : activeStepInContainer;
+          : activeStepRendered;
         return (
           <>
             <SpotlightInteraction
               step={spotlightStep}
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
-              panZoomActive={Boolean(panZoomActive)}
             />
             {overlay}
           </>
@@ -993,10 +1026,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             <button
               onClick={() => setZoomScale(1)}
               aria-label="Reset view"
-              className="absolute z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+              className="absolute left-1/2 -translate-x-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
               style={{
                 top: 'clamp(8px, 2cqmin, 12px)',
-                right: 'clamp(8px, 2cqmin, 12px)',
                 width: 'clamp(36px, 7cqmin, 56px)',
                 height: 'clamp(36px, 7cqmin, 56px)',
               }}
