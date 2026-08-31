@@ -29,6 +29,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import type { StudentTargetRef } from '@/types';
+import { studentTargetRefKey } from '@/utils/studentTargetRef';
 
 export interface StudentName {
   givenName: string;
@@ -85,24 +87,39 @@ function fetchPseudonymMaps(
   assignmentId: string,
   classId: string,
   orgId: string,
-  teacherUid: string
+  teacherUid: string,
+  targetStudents?: readonly StudentTargetRef[]
 ): Promise<AssignmentPseudonymMaps> {
   if (cacheOwnerUid !== teacherUid) {
     cache = new Map();
     cacheOwnerUid = teacherUid;
   }
-  const key = cacheKey(assignmentId, classId, orgId);
+  const refsKey = (targetStudents ?? []).map(studentTargetRefKey).join(',');
+  const key = `${cacheKey(assignmentId, classId, orgId)}::${refsKey}`;
   const cached = cache.get(key);
   if (cached) return cached;
 
   const callable = httpsCallable<
-    { assignmentId: string; classId: string; orgId?: string },
+    {
+      assignmentId: string;
+      classId?: string;
+      orgId?: string;
+      targetStudents?: readonly StudentTargetRef[];
+    },
     CallableResponse
   >(functions, 'getPseudonymsForAssignmentV1');
 
-  const promise = callable(
-    orgId ? { assignmentId, classId, orgId } : { assignmentId, classId }
-  ).then((res) => {
+  const payload: {
+    assignmentId: string;
+    classId?: string;
+    orgId?: string;
+    targetStudents?: readonly StudentTargetRef[];
+  } = { assignmentId };
+  if (classId) payload.classId = classId;
+  if (orgId) payload.orgId = orgId;
+  if (refsKey) payload.targetStudents = targetStudents;
+
+  const promise = callable(payload).then((res) => {
     const entries = res.data?.pseudonyms ?? {};
     const byStudentUid = new Map<string, StudentName>();
     const byAssignmentPseudonym = new Map<string, StudentName>();
@@ -129,6 +146,13 @@ function fetchPseudonymMaps(
   return promise;
 }
 
+/** Inverse of `studentTargetRefKey()` — lets the effect rebuild refs from `refsKey`. */
+function refFromKey(key: string): StudentTargetRef {
+  return key.startsWith('test:')
+    ? { kind: 'test', email: key.slice(5) }
+    : { kind: 'classlink', sourcedId: key.slice('classlink:'.length) };
+}
+
 export function formatStudentName(name: StudentName | undefined): string {
   if (!name) return '';
   const full = `${name.givenName} ${name.familyName}`.trim();
@@ -151,7 +175,14 @@ export function formatStudentName(name: StudentName | undefined): string {
 export function useAssignmentPseudonymsMulti(
   assignmentId: string | null | undefined,
   classIds: readonly string[] | null | undefined,
-  orgId: string | null | undefined
+  orgId: string | null | undefined,
+  /**
+   * M17 D2: for `targetMode:'students'` assignments, the assignment doc's
+   * `targetStudents` refs. Present ⇒ one ref-scoped call replaces the per-class
+   * fan-out, so partial rosters resolve exactly the targeted students. Absent
+   * ⇒ today's per-classId behavior, unchanged.
+   */
+  targetStudents?: readonly StudentTargetRef[] | null
 ): AssignmentPseudonymMaps {
   // `classIdsKey` is the canonical, value-stable identity for the caller's
   // class list. Deriving it as a memo lets the effect depend on just
@@ -167,18 +198,30 @@ export function useAssignmentPseudonymsMulti(
     [classIds]
   );
   const orgKey = orgId ?? '';
+  // Value-stable identity for the ref list, same rationale as `classIdsKey`.
+  const refsKey = useMemo(
+    () => (targetStudents ?? []).map(studentTargetRefKey).sort().join('|'),
+    [targetStudents]
+  );
   const [resolved, setResolved] = useState<{
     key: string;
     maps: AssignmentPseudonymMaps;
   }>({ key: '', maps: EMPTY_MAPS });
 
   useEffect(() => {
-    if (!assignmentId || classIdsKey.length === 0) return;
+    if (!assignmentId) return;
+    if (classIdsKey.length === 0 && refsKey.length === 0) return;
     const teacherUid = auth.currentUser?.uid ?? '';
     if (!teacherUid) return;
-    const cleanedInEffect = classIdsKey.split('|');
+    const refsInEffect = refsKey ? refsKey.split('|').map(refFromKey) : [];
+    const cleanedInEffect =
+      refsInEffect.length > 0
+        ? ['']
+        : classIdsKey
+          ? classIdsKey.split('|')
+          : [];
     let cancelled = false;
-    const key = `${assignmentId}::${classIdsKey}::${orgKey}`;
+    const key = `${assignmentId}::${classIdsKey}::${orgKey}::${refsKey}`;
     // `Promise.allSettled` (not `Promise.all`) so a single classId's lookup
     // failing — 403 from a revoked share, transient CF unavailability, etc.
     // — must not zero out the entire map. Partial resolution is strictly
@@ -186,7 +229,13 @@ export function useAssignmentPseudonymsMulti(
     // for unresolved uids.
     Promise.allSettled(
       cleanedInEffect.map((cid) =>
-        fetchPseudonymMaps(assignmentId, cid, orgKey, teacherUid)
+        fetchPseudonymMaps(
+          assignmentId,
+          cid,
+          orgKey,
+          teacherUid,
+          refsInEffect.length > 0 ? refsInEffect : undefined
+        )
       )
     )
       .then((results) => {
@@ -232,11 +281,11 @@ export function useAssignmentPseudonymsMulti(
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, classIdsKey, orgKey]);
+  }, [assignmentId, classIdsKey, orgKey, refsKey]);
 
   const currentKey =
-    assignmentId && classIdsKey.length > 0
-      ? `${assignmentId}::${classIdsKey}::${orgKey}`
+    assignmentId && (classIdsKey.length > 0 || refsKey.length > 0)
+      ? `${assignmentId}::${classIdsKey}::${orgKey}::${refsKey}`
       : '';
   return resolved.key === currentKey && currentKey !== ''
     ? resolved.maps
