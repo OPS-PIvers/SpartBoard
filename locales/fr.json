@@ -1788,6 +1788,19 @@
     "noOrgTitle": "Annuaire de l'établissement indisponible",
     "noOrgSubtitle": "Votre compte n'est pas encore associé à un établissement, nous ne pouvons donc pas afficher les CAP à proximité."
   },
+  "assignStudentPicker": {
+    "title": "Choisir des élèves",
+    "selectedCount": "{{count}} sélectionné(s)",
+    "confirm": "Ajouter des élèves",
+    "students": "élèves",
+    "searchPlaceholder": "Rechercher des élèves…",
+    "selectAll": "Tout sélectionner",
+    "noRosters": "Aucune liste de classe disponible.",
+    "noMatches": "Aucun élève ne correspond à votre recherche.",
+    "selectRoster": "Sélectionnez une liste pour voir ses élèves.",
+    "needsSso": "L'affectation individuelle nécessite une connexion ClassLink",
+    "removeStudent": "Retirer {{name}}"
+  },
   "studentOverride": {
     "noAccommodations": "Aucun aménagement",
     "copyFromLabel": "Copier les aménagements de",

@@ -1788,6 +1788,19 @@
     "noOrgTitle": "Building directory unavailable",
     "noOrgSubtitle": "Your account isn't linked to a school yet, so we can't list nearby PLCs."
   },
+  "assignStudentPicker": {
+    "title": "Choose students",
+    "selectedCount": "{{count}} selected",
+    "confirm": "Add students",
+    "students": "students",
+    "searchPlaceholder": "Search students…",
+    "selectAll": "Select all",
+    "noRosters": "No rosters available.",
+    "noMatches": "No students match your search.",
+    "selectRoster": "Select a roster to see its students.",
+    "needsSso": "Individual assignment requires ClassLink sign-in",
+    "removeStudent": "Remove {{name}}"
+  },
   "studentOverride": {
     "noAccommodations": "No accommodations",
     "copyFromLabel": "Copy overrides from",

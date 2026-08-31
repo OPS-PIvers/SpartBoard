@@ -1788,6 +1788,19 @@
     "noOrgTitle": "Gebäudeverzeichnis nicht verfügbar",
     "noOrgSubtitle": "Ihr Konto ist noch keiner Schule zugeordnet, daher können wir keine PLGs in der Nähe anzeigen."
   },
+  "assignStudentPicker": {
+    "title": "Schüler auswählen",
+    "selectedCount": "{{count}} ausgewählt",
+    "confirm": "Schüler hinzufügen",
+    "students": "Schüler",
+    "searchPlaceholder": "Schüler suchen…",
+    "selectAll": "Alle auswählen",
+    "noRosters": "Keine Klassenlisten verfügbar.",
+    "noMatches": "Keine Schüler gefunden.",
+    "selectRoster": "Wähle eine Klassenliste, um Schüler zu sehen.",
+    "needsSso": "Individuelle Zuweisung erfordert ClassLink-Anmeldung",
+    "removeStudent": "{{name}} entfernen"
+  },
   "studentOverride": {
     "noAccommodations": "Keine Anpassungen",
     "copyFromLabel": "Anpassungen kopieren von",
