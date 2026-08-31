@@ -302,6 +302,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   // app knows whether to reveal its [data-spart-submit] button. The app is
   // expected to listen for this message and hide submit controls when
   // submissionsEnabled is false.
+  // timeMultiplier must be applied silently by the generated app: never displayed, never labeled as extended/modified.
   const handleIframeLoad = useCallback(() => {
     const target = iframeRef.current?.contentWindow;
     if (!target) return;
