@@ -7,6 +7,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
+import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 
 // Mock dependencies
 vi.mock('@/context/useDashboard', () => ({
@@ -161,6 +162,92 @@ describe('RecessGearWidget', () => {
 
     // With 70 degrees, should show Long Sleeves
     expect(screen.getByText(/Long Sleeves/i)).toBeInTheDocument();
+  });
+
+  it('respects the teacher useFeelsLike:false toggle even when an admin config exists without an explicit useFeelsLike override', async () => {
+    vi.mocked(useFeaturePermissions).mockReturnValue({
+      subscribeToPermission: vi.fn((_type, callback) => {
+        // Admin saved a config for other reasons (e.g. custom temperatureRanges)
+        // but never touched the "Use Feels-Like" toggle, so it is undefined.
+        callback({
+          widgetType: 'recessGear',
+          enabled: true,
+          accessLevel: 'public',
+          config: { fetchingStrategy: 'client', temperatureRanges: [] },
+        });
+        return vi.fn();
+      }),
+    } as unknown as ReturnType<typeof useFeaturePermissions>);
+
+    vi.mocked(useDashboard).mockReturnValue({
+      activeDashboard: {
+        widgets: [
+          {
+            id: 'weather-1',
+            type: 'weather',
+            config: {
+              temp: 70,
+              feelsLike: 30,
+              condition: 'sunny',
+            } as WeatherConfig,
+          },
+        ],
+      },
+      updateWidget: vi.fn(),
+    } as unknown as DashboardContextValue);
+
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: { ...baseWidget.config, useFeelsLike: false },
+    };
+
+    render(<RecessGearWidget widget={widget} />);
+
+    // Teacher chose the actual temp (70 -> Long Sleeves), not feels-like (30 -> Heavy Coat)
+    expect(await screen.findByText(/Long Sleeves/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Heavy Coat/i)).not.toBeInTheDocument();
+  });
+
+  it('lets an admin-set useFeelsLike:true override a teacher useFeelsLike:false toggle', async () => {
+    vi.mocked(useFeaturePermissions).mockReturnValue({
+      subscribeToPermission: vi.fn((_type, callback) => {
+        callback({
+          widgetType: 'recessGear',
+          enabled: true,
+          accessLevel: 'public',
+          config: { fetchingStrategy: 'client', useFeelsLike: true },
+        });
+        return vi.fn();
+      }),
+    } as unknown as ReturnType<typeof useFeaturePermissions>);
+
+    vi.mocked(useDashboard).mockReturnValue({
+      activeDashboard: {
+        widgets: [
+          {
+            id: 'weather-1',
+            type: 'weather',
+            config: {
+              temp: 70,
+              feelsLike: 30,
+              condition: 'sunny',
+            } as WeatherConfig,
+          },
+        ],
+      },
+      updateWidget: vi.fn(),
+    } as unknown as DashboardContextValue);
+
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: { ...baseWidget.config, useFeelsLike: false },
+    };
+
+    render(<RecessGearWidget widget={widget} />);
+
+    // Admin explicitly set true -> feels-like (30 -> Heavy Coat) wins over the teacher's false.
+    expect(await screen.findByText(/Heavy Coat/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Long Sleeves/i)).not.toBeInTheDocument();
   });
 
   it('renders rain gear in rainy conditions', () => {
