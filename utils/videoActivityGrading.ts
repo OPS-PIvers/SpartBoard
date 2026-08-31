@@ -209,6 +209,28 @@ export function videoActivityMaxPoints(
 }
 
 /**
+ * Drop duplicate question ids, keeping the first occurrence. Mirrors
+ * `dedupeQuestionsById` in `utils/quizMaxPoints.ts`. The same Drive-sync/
+ * arrayUnion race documented above can hand a raw `questions` array to
+ * session-creation code, not just point-summing code — callers building the
+ * student-facing session (which derives both a question count and a
+ * question list from the same array) must dedupe once up front so the two
+ * can never drift out of sync with each other.
+ */
+export function dedupeQuestionsById(
+  questions: VideoActivityQuestion[]
+): VideoActivityQuestion[] {
+  const seen = new Set<string>();
+  const out: VideoActivityQuestion[] = [];
+  for (const q of questions) {
+    if (seen.has(q.id)) continue;
+    seen.add(q.id);
+    out.push(q);
+  }
+  return out;
+}
+
+/**
  * Whether a Video Activity response can be meaningfully scored against the
  * given question set — the VA mirror of `quizScoreboard.canScoreResponse`.
  *

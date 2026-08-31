@@ -227,6 +227,27 @@ export function toPublicStep(
   return base;
 }
 
+/**
+ * Drop duplicate step ids, keeping the first occurrence. Same Drive-sync/
+ * arrayUnion race documented at the top of this file for `set.steps` — a
+ * session-creation caller that derives both a step count and a step list
+ * from the same raw array must dedupe once up front so the two can never
+ * drift out of sync. Mirrors `dedupeQuestionsById` (`utils/quizMaxPoints.ts`,
+ * `utils/videoActivityGrading.ts`).
+ */
+export function dedupeStepsById(
+  steps: GuidedLearningStep[]
+): GuidedLearningStep[] {
+  const seen = new Set<string>();
+  const out: GuidedLearningStep[] = [];
+  for (const s of steps) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    out.push(s);
+  }
+  return out;
+}
+
 // ─── Teacher-side hook ────────────────────────────────────────────────────────
 
 export interface UseGuidedLearningSessionTeacherResult {
@@ -288,7 +309,8 @@ export const useGuidedLearningSessionTeacher = (
       if (!teacherUid) throw new Error('Not authenticated');
 
       const sessionId = crypto.randomUUID();
-      const publicSteps = set.steps.map(toPublicStep);
+      // Dedupe so a duplicated step id can't inflate the session's step count.
+      const publicSteps = dedupeStepsById(set.steps).map(toPublicStep);
 
       const session: GuidedLearningSession = {
         id: sessionId,

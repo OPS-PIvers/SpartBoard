@@ -22,6 +22,7 @@ import {
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import type {
   VideoActivityData,
+  VideoActivityQuestion,
   VideoActivitySession,
   VideoActivitySessionOptions,
 } from '@/types';
@@ -168,6 +169,30 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       createdAt: 1700000000000,
       mode: 'submissions',
     });
+  });
+
+  it('dedupes duplicate question ids before writing session.questions (Drive-sync guard)', async () => {
+    const dupQuestion = (id: string): VideoActivityQuestion => ({
+      id,
+      text: 'What?',
+      timestamp: 30,
+      timeLimit: 30,
+      type: 'MC',
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+      points: 1,
+    });
+    const activity = baseActivity({
+      questions: [dupQuestion('q1'), dupQuestion('q1'), dupQuestion('q2')],
+    });
+    const { result } = renderHook(() => useVideoActivitySessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(activity, TEACHER_UID, []);
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
+    expect(payload.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
   });
 
   it('trims the assignment name', async () => {

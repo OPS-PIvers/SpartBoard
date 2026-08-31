@@ -55,7 +55,10 @@ import type {
   VideoActivityScoreVisibility,
   VideoActivitySession,
 } from '@/types';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import {
+  dedupeQuestionsById,
+  gradeVideoActivityAnswer,
+} from '@/utils/videoActivityGrading';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -308,6 +311,8 @@ export const useVideoActivityAssignments = (
       const targetRosterIds = rosterIds ?? [];
       const assignmentId = crypto.randomUUID();
       const now = Date.now();
+      // Dedupe so a duplicated question id can't inflate "Question X of N".
+      const sessionQuestions = dedupeQuestionsById(activity.questions);
 
       const assignment: VideoActivityAssignment = {
         id: assignmentId,
@@ -352,7 +357,7 @@ export const useVideoActivityAssignments = (
         assignmentName: settings.className ?? activity.title,
         teacherUid: userId,
         youtubeUrl: activity.youtubeUrl,
-        questions: activity.questions,
+        questions: sessionQuestions,
         settings: settings.sessionSettings,
         ...(settings.sessionOptions
           ? { sessionOptions: settings.sessionOptions }
