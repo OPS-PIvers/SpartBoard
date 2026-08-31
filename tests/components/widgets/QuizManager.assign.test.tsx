@@ -350,9 +350,41 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const args = onAssign.mock.calls[0];
-    // Signature: (meta, plcOptions, rosterIds, dueAt)
+    // Signature: (meta, plcOptions, rosterIds, dueAt, targeting)
     const dueAt = args[3];
     expect(dueAt).toBeNull();
+    // M17 §3a-G: the unmodified class-wide flow must emit the empty/default
+    // targeting value — no individual students, no overrides.
+    expect(args[4]).toEqual({
+      targetMode: 'class',
+      targetStudents: [],
+      targetGroupIds: [],
+      overridesByKey: {},
+    });
+  });
+
+  it('M17 §3a-G: class-mode default renders none of the B1/B2 targeting UI, only the collapsed affordance', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+
+    // The collapsed "+ Individual students & overrides" affordance is present…
+    expect(
+      within(dialog).getByRole('button', {
+        name: /\+ Individual students & overrides/i,
+      })
+    ).toBeInTheDocument();
+    // …but the B1 picker trigger and B2 override rows are not rendered.
+    expect(
+      within(dialog).queryByRole('button', { name: /choose students/i })
+    ).not.toBeInTheDocument();
   });
 
   it('calls onAssign with dueAt as epoch ms when a date is entered', async () => {
@@ -503,9 +535,13 @@ describe('Widget.onAssign — createAssignment receives behavior from quiz meta'
     });
     // Crucially, NO mode/sessionOptions/attemptLimit args — behavior is sourced
     // from the quiz meta. The args are (meta, plcOptions, rosterIds, dueAt,
-    // destination); the chooser pick adds the destination as the 5th arg.
-    expect(onAssign.mock.calls[0]).toHaveLength(5);
-    expect(onAssign.mock.calls[0][4]).toBe('spartboard');
+    // targeting, destination, preloadedQuizData); the chooser pick adds the
+    // destination as the 6th arg (M17 B3 inserted `targeting` before it), and
+    // the class-wide path here never expanded individual targeting so the 7th
+    // arg (F1 fix) is null.
+    expect(onAssign.mock.calls[0]).toHaveLength(7);
+    expect(onAssign.mock.calls[0][5]).toBe('spartboard');
+    expect(onAssign.mock.calls[0][6]).toBeNull();
   });
 
   it('behavior summary shows the mode from the quiz behavior', async () => {
@@ -578,7 +614,7 @@ describe('QuizManager assign — destination chooser (Phase 2)', () => {
     );
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    expect(onAssign.mock.calls[0][4]).toBe('classroom');
+    expect(onAssign.mock.calls[0][5]).toBe('classroom');
   });
 
   it('re-picks the destination on each assign (Classroom then SpartBoard-only)', async () => {
@@ -599,7 +635,7 @@ describe('QuizManager assign — destination chooser (Phase 2)', () => {
       })
     );
     await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(1));
-    expect(onAssign.mock.calls[0][4]).toBe('classroom');
+    expect(onAssign.mock.calls[0][5]).toBe('classroom');
 
     // Second assign → SpartBoard Only must NOT inherit the prior 'classroom'.
     fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
@@ -609,7 +645,7 @@ describe('QuizManager assign — destination chooser (Phase 2)', () => {
     dialog = await screen.findByRole('dialog', { name: /chapter 5 review/i });
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
     await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(2));
-    expect(onAssign.mock.calls[1][4]).toBe('spartboard');
+    expect(onAssign.mock.calls[1][5]).toBe('spartboard');
   });
 
   it('picking "Schoology" shows the how-to and does NOT create an assignment', async () => {
