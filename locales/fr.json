@@ -1841,5 +1841,20 @@
       "tabWarning": "Avertissement d'onglet : {{threshold}}",
       "windowShifted": "Fenêtre décalée"
     }
+  },
+  "assignTargeting": {
+    "expandAffordance": "+ Élèves individuels & aménagements",
+    "sectionLabel": "Élèves individuels & aménagements",
+    "chooseStudents": "Choisir des élèves",
+    "editStudents": "Modifier les élèves",
+    "selectedCount": "{{count}} sélectionné(s)",
+    "revertToClass": "Attribuer à toute la classe",
+    "noStudentsYet": "Aucun élève choisi pour l'instant — toute la classe reste non ciblée.",
+    "unknownStudent": "Élève inconnu",
+    "remove": "Retirer",
+    "removeStudent": "Retirer {{name}}",
+    "opensAt": "Ouvre",
+    "closesAt": "Ferme",
+    "dueAt": "Échéance"
   }
 }

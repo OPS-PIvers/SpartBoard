@@ -1841,5 +1841,20 @@
       "tabWarning": "Tab warning: {{threshold}}",
       "windowShifted": "Window shifted"
     }
+  },
+  "assignTargeting": {
+    "expandAffordance": "+ Individual students & overrides",
+    "sectionLabel": "Individual students & overrides",
+    "chooseStudents": "Choose students",
+    "editStudents": "Edit students",
+    "selectedCount": "{{count}} selected",
+    "revertToClass": "Assign to whole class",
+    "noStudentsYet": "No students chosen yet — everyone in the class stays untargeted.",
+    "unknownStudent": "Unknown student",
+    "remove": "Remove",
+    "removeStudent": "Remove {{name}}",
+    "opensAt": "Opens",
+    "closesAt": "Closes",
+    "dueAt": "Due"
   }
 }

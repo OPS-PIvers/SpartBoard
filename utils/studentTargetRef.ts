@@ -1,6 +1,29 @@
 /** Shared `StudentTargetRef` derivation + key formatting (M17 spec §2a/§5 B1). */
 
-import type { ClassRoster, Student, StudentTargetRef } from '@/types';
+import type {
+  ClassRoster,
+  Student,
+  StudentOverride,
+  StudentTargetRef,
+} from '@/types';
+
+/** Default 'class'-mode value for `AssignTargetingSection` (spec §5 B3). */
+export interface AssignTargetingValue {
+  targetMode: 'class' | 'students';
+  targetStudents: StudentTargetRef[];
+  targetGroupIds: string[];
+  overridesByKey: Record<string, StudentOverride>;
+  openAt?: number;
+  closeAt?: number;
+  dueAt?: number;
+}
+
+export const EMPTY_ASSIGN_TARGETING_VALUE: AssignTargetingValue = {
+  targetMode: 'class',
+  targetStudents: [],
+  targetGroupIds: [],
+  overridesByKey: {},
+};
 
 /**
  * Resolve a roster student to a `StudentTargetRef`, or `null` if the student
