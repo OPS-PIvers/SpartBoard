@@ -91,6 +91,10 @@ import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
 import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
+import {
   getScoreSuffix,
   isGamificationActive,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
@@ -1026,6 +1030,8 @@ const ActiveQuiz: React.FC<{
   warningCount: number;
   onRecordStimulusPlay: (playKey: string) => Promise<void>;
   onReportStimulusError: (stimulusId: string) => Promise<void>;
+  /** Per-student pointer override (M17 B4); wired by C3. Absent = session value applies. */
+  pointerTabWarningThreshold?: number | 'off';
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -1039,6 +1045,7 @@ const ActiveQuiz: React.FC<{
   warningCount,
   onRecordStimulusPlay,
   onReportStimulusError,
+  pointerTabWarningThreshold,
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
@@ -1085,7 +1092,7 @@ const ActiveQuiz: React.FC<{
       const message =
         reason === 'post-unlock'
           ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the quiz 3 times. Your quiz is being auto-submitted.';
+          : 'You have left the quiz too many times. Your quiz is being auto-submitted.';
       // Ask the inner question view to flush any pending written-response
       // autosave before we mark the response complete. Listened for in
       // `StudentQuestionView`'s flush handler. Without this, a strike-3
@@ -1104,6 +1111,11 @@ const ActiveQuiz: React.FC<{
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
+  // Effective auto-submit threshold (M17 B4): per-student override > session > default 3.
+  const effectiveTabWarningThreshold = getEffectiveTabWarningThreshold(
+    session.tabWarningThreshold,
+    pointerTabWarningThreshold
+  );
 
   // Test integrity: when the teacher enabled "Block Copy & Paste", suppress
   // copy/cut/paste — and drag-and-drop, the other channel for importing text
@@ -1169,7 +1181,12 @@ const ActiveQuiz: React.FC<{
           }
 
           setShowCheatWarning(true);
-          if (newTotal >= 3) {
+          if (
+            hasReachedTabWarningThreshold(
+              newTotal,
+              effectiveTabWarningThreshold
+            )
+          ) {
             // Use a slight delay so the UI can update before the dialog
             setTimeout(() => void handleAutoSubmit(), 100);
           }
@@ -1198,6 +1215,7 @@ const ActiveQuiz: React.FC<{
     };
   }, [
     tabWarningsEnabled,
+    effectiveTabWarningThreshold,
     session.status,
     reportTabSwitch,
     handleAutoSubmit,
@@ -2267,8 +2285,9 @@ const ActiveQuiz: React.FC<{
             You navigated away from the quiz. This incident has been logged.
             <br />
             <br />
-            <strong>Warning {warningCount} of 3.</strong> If you reach 3
-            warnings, your quiz will automatically submit.
+            <strong>Warning {warningCount}.</strong>{' '}
+            {effectiveTabWarningThreshold !== 'off' &&
+              'Repeated tab switches will automatically submit your quiz.'}
           </p>
           <button
             onClick={() => {
@@ -4029,7 +4048,13 @@ const QuizSubmittedWaitScreen: React.FC<{
   // (the cron-set flag for idle-finalized responses). This banner is
   // tab-switch-specific; the cron-finalized case has no banner yet
   // (deferred UI surface).
-  const tabSwitchAutoSubmitted = (myResponse.tabSwitchWarnings ?? 0) >= 3;
+  const effectiveTabWarningThreshold = getEffectiveTabWarningThreshold(
+    session.tabWarningThreshold
+  );
+  const tabSwitchAutoSubmitted = hasReachedTabWarningThreshold(
+    myResponse.tabSwitchWarnings ?? 0,
+    effectiveTabWarningThreshold
+  );
   const scoreSuffix = getScoreSuffix(session);
 
   return (
@@ -4058,7 +4083,7 @@ const QuizSubmittedWaitScreen: React.FC<{
 
       {tabSwitchAutoSubmitted && (
         <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
-          Auto-submitted because you left the quiz tab 3 times.
+          Auto-submitted because you left the quiz tab too many times.
         </div>
       )}
 

@@ -53,6 +53,16 @@ export {
   pinLoginV1,
 } from './studentIdentity';
 
+// ── Individual assignment targeting (M17): assign-time pseudonym fan-out to
+// /student_assignments, plus the deletion triggers that reap those pointers. ─
+export { setAssignmentTargetsV1 } from './studentAssignmentTargets';
+export {
+  cleanupQuizAssignmentPointers,
+  cleanupVideoActivityAssignmentPointers,
+  cleanupGuidedLearningAssignmentPointers,
+  cleanupMiniAppAssignmentPointers,
+} from './studentAssignmentCleanup';
+
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {
   createOrganizationInvites,

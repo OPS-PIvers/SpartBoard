@@ -12,9 +12,15 @@
  * mounted inside the quiz editor (Task 7+).
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { User, Zap, Clock } from 'lucide-react';
+import { Toggle } from '@/components/common/Toggle';
 import type { QuizBehaviorSettings, QuizSessionMode } from '@/types';
+import {
+  TAB_WARNING_THRESHOLD_MIN,
+  TAB_WARNING_THRESHOLD_MAX,
+  DEFAULT_TAB_WARNING_THRESHOLD,
+} from '@/utils/tabWarningThreshold';
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
 import { ToggleRow } from './AssignmentSettingsToggleGroup';
@@ -50,6 +56,81 @@ const MODES_BASE: Omit<AssignModeOption, 'disabled'>[] = [
     icon: Clock,
   },
 ];
+
+/**
+ * During-taking tab-switch auto-submit threshold (M17 B4). Cloned from the
+ * threshold control in `PublishScoresModal.tsx` (results-protection
+ * threshold) — same toggle + numeric-input pattern, different persisted
+ * field. Quiz-only, so it lives here rather than in the shared
+ * `AssignmentSettingsToggleGroup` (also used by Video Activity).
+ */
+const TabWarningThresholdRow: React.FC<{
+  value: number | 'off' | undefined;
+  onChange: (next: number | 'off') => void;
+}> = ({ value, onChange }) => {
+  const effective = value ?? DEFAULT_TAB_WARNING_THRESHOLD;
+  const enabled = effective !== 'off';
+  const [inputValue, setInputValue] = useState<string>(
+    String(effective === 'off' ? DEFAULT_TAB_WARNING_THRESHOLD : effective)
+  );
+
+  const clamp = (raw: string): number | null => {
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) return null;
+    return Math.min(
+      TAB_WARNING_THRESHOLD_MAX,
+      Math.max(TAB_WARNING_THRESHOLD_MIN, parsed)
+    );
+  };
+
+  const handleToggle = (isEnabled: boolean) => {
+    if (!isEnabled) {
+      onChange('off');
+      return;
+    }
+    const clamped = clamp(inputValue) ?? DEFAULT_TAB_WARNING_THRESHOLD;
+    setInputValue(String(clamped));
+    onChange(clamped);
+  };
+
+  const handleBlur = () => {
+    const clamped = clamp(inputValue) ?? DEFAULT_TAB_WARNING_THRESHOLD;
+    setInputValue(String(clamped));
+    onChange(clamped);
+  };
+
+  return (
+    <div className="pl-0">
+      <label className="flex items-center justify-between gap-3">
+        <span className="text-xs text-slate-700">
+          Auto-submit after repeated tab switches
+        </span>
+        <Toggle
+          checked={enabled}
+          onChange={handleToggle}
+          size="sm"
+          label="Auto-submit after repeated tab switches"
+        />
+      </label>
+      {enabled && (
+        <label className="flex items-center gap-3 mt-1.5">
+          <span className="text-xs text-slate-700">
+            Warnings before auto-submit
+          </span>
+          <input
+            type="number"
+            min={TAB_WARNING_THRESHOLD_MIN}
+            max={TAB_WARNING_THRESHOLD_MAX}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={handleBlur}
+            className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          />
+        </label>
+      )}
+    </div>
+  );
+};
 
 export const QuizBehaviorSettingsPanel: React.FC<
   QuizBehaviorSettingsPanelProps
@@ -136,6 +217,22 @@ export const QuizBehaviorSettingsPanel: React.FC<
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
         shuffleQuestionsAvailable={value.sessionMode === 'student'}
+        afterTabWarningsSlot={
+          (value.sessionOptions.tabWarningsEnabled ?? true) && (
+            <TabWarningThresholdRow
+              value={value.sessionOptions.tabWarningThreshold}
+              onChange={(next) =>
+                onChange({
+                  ...value,
+                  sessionOptions: {
+                    ...value.sessionOptions,
+                    tabWarningThreshold: next,
+                  },
+                })
+              }
+            />
+          )
+        }
         trailingSlot={
           <CollapsibleSection label="Gamification">
             <ToggleRow

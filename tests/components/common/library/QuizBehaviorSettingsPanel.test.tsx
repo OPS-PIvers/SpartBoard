@@ -154,6 +154,76 @@ describe('QuizBehaviorSettingsPanel', () => {
     });
   });
 
+  it('shows the auto-submit threshold row when tab warnings are enabled', () => {
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
+    );
+    expect(
+      screen.getByText('Auto-submit after repeated tab switches')
+    ).toBeInTheDocument();
+  });
+
+  it('hides the auto-submit threshold row when tab warnings are disabled', () => {
+    const value: QuizBehaviorSettings = {
+      ...defaultValue,
+      sessionOptions: {
+        ...defaultValue.sessionOptions,
+        tabWarningsEnabled: false,
+      },
+    };
+    render(<QuizBehaviorSettingsPanel value={value} onChange={vi.fn()} />);
+    expect(
+      screen.queryByText('Auto-submit after repeated tab switches')
+    ).not.toBeInTheDocument();
+  });
+
+  it('turning the threshold toggle off calls onChange with tabWarningThreshold: "off"', () => {
+    const onChange = vi.fn();
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
+    );
+    const label = screen.getByText('Auto-submit after repeated tab switches');
+    const row = label.closest('div');
+    const switchEl = row?.querySelector('[role="switch"]');
+    expect(switchEl).not.toBeNull();
+    fireEvent.click(switchEl as HTMLElement);
+
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(onChange.mock.calls[0][0]).toMatchObject({
+      sessionOptions: expect.objectContaining({ tabWarningThreshold: 'off' }),
+    });
+  });
+
+  it('editing the numeric input calls onChange with the clamped custom threshold', () => {
+    const onChange = vi.fn();
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
+    );
+    const input = screen.getByLabelText('Warnings before auto-submit');
+    fireEvent.change(input, { target: { value: '5' } });
+    fireEvent.blur(input);
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionOptions: expect.objectContaining({ tabWarningThreshold: 5 }),
+      })
+    );
+  });
+
+  it('never renders the numeric threshold when auto-submit is off', () => {
+    const value: QuizBehaviorSettings = {
+      ...defaultValue,
+      sessionOptions: {
+        ...defaultValue.sessionOptions,
+        tabWarningThreshold: 'off',
+      },
+    };
+    render(<QuizBehaviorSettingsPanel value={value} onChange={vi.fn()} />);
+    expect(
+      screen.queryByText('Warnings before auto-submit')
+    ).not.toBeInTheDocument();
+  });
+
   it('when modeLocked, all mode buttons are disabled', () => {
     render(
       <QuizBehaviorSettingsPanel

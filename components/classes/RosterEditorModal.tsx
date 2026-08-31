@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, AlertTriangle, X, Plus, Users } from 'lucide-react';
-import { Student, ClassRoster } from '@/types';
+import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
+import { Student, ClassRoster, RosterGroup } from '@/types';
 import { Modal } from '@/components/common/Modal';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
 import {
   RestrictionsPicker,
@@ -14,7 +15,16 @@ interface RosterEditorModalProps {
   /** Pass `null` to create a new roster. */
   roster: ClassRoster | null;
   onClose: () => void;
-  onSave: (name: string, students: Student[]) => Promise<void> | void;
+  /**
+   * Single write per save (M17 A4 fix). `groups` is included only when the
+   * groups tab was actually edited from the roster's saved value — a plain
+   * student edit must produce exactly one call, matching pre-PR behavior.
+   */
+  onSave: (
+    name: string,
+    students: Student[],
+    groups?: RosterGroup[]
+  ) => Promise<void> | void;
 }
 
 /**
@@ -52,9 +62,39 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     duplicatePins,
   } = useRosterRowsState(roster);
 
+  const [activeTab, setActiveTab] = useState<'students' | 'groups'>('students');
+  const initialGroups = useMemo(() => roster?.groups ?? [], [roster]);
+  const [groups, setGroups] = useState<RosterGroup[]>(initialGroups);
+
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const handleSave = async () => {
-    if (!name.trim()) return;
-    await onSave(name.trim(), validStudents);
+    if (!name.trim() || saving) return;
+    const groupsChanged =
+      JSON.stringify(groups) !== JSON.stringify(initialGroups);
+    setSaveError(null);
+    setSaving(true);
+    try {
+      if (groupsChanged) {
+        await onSave(name.trim(), validStudents, groups);
+      } else {
+        await onSave(name.trim(), validStudents);
+      }
+    } catch (err) {
+      // Keep the modal open with the teacher's edits intact — closing here
+      // would discard them with no indication the save never landed.
+      console.error('Failed to save roster:', err);
+      setSaveError(
+        t('sidebar.classes.saveFailed', {
+          defaultValue:
+            'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
+        })
+      );
+      return;
+    } finally {
+      setSaving(false);
+    }
     onClose();
   };
 
@@ -90,202 +130,253 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           />
           <button
             onClick={handleSave}
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
             className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={16} /> {t('common.save', { defaultValue: 'Save' })}
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleToggleLastNames}
-              className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                showLastNames
-                  ? 'text-blue-600 hover:text-blue-700'
-                  : 'text-slate-400 hover:text-slate-500'
-              }`}
-            >
-              {showLastNames
-                ? t('sidebar.classes.hideLastName', {
-                    defaultValue: '− Last Name',
-                  })
-                : t('sidebar.classes.addLastName', {
-                    defaultValue: '+ Last Name',
-                  })}
-            </button>
-            <button
-              onClick={() => setShowPins((v) => !v)}
-              className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                showPins
-                  ? 'text-violet-600 hover:text-violet-700'
-                  : 'text-slate-400 hover:text-slate-500'
-              }`}
-            >
-              {showPins
-                ? t('sidebar.classes.hideQuizPin', {
-                    defaultValue: '− Quiz PIN',
-                  })
-                : t('sidebar.classes.addQuizPin', {
-                    defaultValue: '+ Quiz PIN',
-                  })}
-            </button>
-            <button
-              onClick={() => setShowEmails((v) => !v)}
-              className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                showEmails
-                  ? 'text-emerald-600 hover:text-emerald-700'
-                  : 'text-slate-400 hover:text-slate-500'
-              }`}
-            >
-              {showEmails
-                ? t('sidebar.classes.hideEmail', {
-                    defaultValue: '− Email',
-                  })
-                : t('sidebar.classes.addEmail', {
-                    defaultValue: '+ Email',
-                  })}
-            </button>
-            <button
-              onClick={() => setShowRestrictions((v) => !v)}
-              className={`text-xs font-black uppercase tracking-wider transition-colors ${
-                showRestrictions
-                  ? 'text-amber-600 hover:text-amber-700'
-                  : 'text-slate-400 hover:text-slate-500'
-              }`}
-            >
-              {showRestrictions
-                ? t('sidebar.classes.hideRestrictions', {
-                    defaultValue: '− Restrictions',
-                  })
-                : t('sidebar.classes.addRestrictions', {
-                    defaultValue: '+ Restrictions',
-                  })}
-            </button>
-          </div>
-          <p className="text-xs text-slate-400 italic">
-            {t('sidebar.classes.bulkPasteTip', {
-              defaultValue: 'Tip: paste multiple names at once to add in bulk.',
-            })}
-          </p>
-        </div>
-
-        {duplicatePins.size > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-lg text-yellow-800 text-xs font-semibold shrink-0">
-            <AlertTriangle size={14} className="text-yellow-600 shrink-0" />
-            {t('sidebar.classes.duplicatePins', {
-              defaultValue: 'Duplicate PINs: {{pins}}',
-              pins: [...duplicatePins].join(', '),
-            })}
+        {saveError && (
+          <div
+            role="alert"
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-300 rounded-lg text-red-800 text-xs font-semibold shrink-0"
+          >
+            <AlertTriangle size={14} className="text-red-600 shrink-0" />
+            {saveError}
           </div>
         )}
 
-        <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
-          {rows.length === 0 ? (
-            <RosterEmptyState
-              title={t('sidebar.classes.emptyRosterTitle', {
-                defaultValue: 'No students yet',
+        {roster && (
+          <div className="shrink-0">
+            <SegmentedControl
+              value={activeTab}
+              onChange={setActiveTab}
+              ariaLabel={t('sidebar.classes.editorTabsLabel', {
+                defaultValue: 'Roster editor tabs',
               })}
-              subtitle={t('sidebar.classes.emptyRosterSubtitle', {
-                defaultValue:
-                  'Click + Add Student or paste a list of names into a row.',
-              })}
-              addLabel={t('sidebar.classes.addStudent', {
-                defaultValue: '+ Add Student',
-              })}
-              onAdd={addRow}
+              options={[
+                {
+                  value: 'students',
+                  label: t('sidebar.classes.studentsTab', {
+                    defaultValue: 'Students',
+                  }),
+                },
+                {
+                  value: 'groups',
+                  label: t('sidebar.classes.groupsTab', {
+                    defaultValue: 'Groups ({{count}})',
+                    count: groups.length,
+                  }),
+                },
+              ]}
             />
-          ) : (
-            <>
-              <RosterHeader
-                showLastNames={showLastNames}
-                showPins={showPins}
-                showEmails={showEmails}
-                showRestrictions={showRestrictions}
-                firstLabel={
-                  showLastNames
-                    ? t('sidebar.classes.firstName', {
-                        defaultValue: 'First Name',
+          </div>
+        )}
+
+        {activeTab === 'groups' && roster ? (
+          <RosterGroupsPanel
+            groups={groups}
+            students={validStudents}
+            onChange={setGroups}
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleToggleLastNames}
+                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                    showLastNames
+                      ? 'text-blue-600 hover:text-blue-700'
+                      : 'text-slate-400 hover:text-slate-500'
+                  }`}
+                >
+                  {showLastNames
+                    ? t('sidebar.classes.hideLastName', {
+                        defaultValue: '− Last Name',
                       })
-                    : t('sidebar.classes.fullName', {
-                        defaultValue: 'Name',
+                    : t('sidebar.classes.addLastName', {
+                        defaultValue: '+ Last Name',
+                      })}
+                </button>
+                <button
+                  onClick={() => setShowPins((v) => !v)}
+                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                    showPins
+                      ? 'text-violet-600 hover:text-violet-700'
+                      : 'text-slate-400 hover:text-slate-500'
+                  }`}
+                >
+                  {showPins
+                    ? t('sidebar.classes.hideQuizPin', {
+                        defaultValue: '− Quiz PIN',
                       })
-                }
-                lastLabel={t('sidebar.classes.lastName', {
-                  defaultValue: 'Last Name',
+                    : t('sidebar.classes.addQuizPin', {
+                        defaultValue: '+ Quiz PIN',
+                      })}
+                </button>
+                <button
+                  onClick={() => setShowEmails((v) => !v)}
+                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                    showEmails
+                      ? 'text-emerald-600 hover:text-emerald-700'
+                      : 'text-slate-400 hover:text-slate-500'
+                  }`}
+                >
+                  {showEmails
+                    ? t('sidebar.classes.hideEmail', {
+                        defaultValue: '− Email',
+                      })
+                    : t('sidebar.classes.addEmail', {
+                        defaultValue: '+ Email',
+                      })}
+                </button>
+                <button
+                  onClick={() => setShowRestrictions((v) => !v)}
+                  className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                    showRestrictions
+                      ? 'text-amber-600 hover:text-amber-700'
+                      : 'text-slate-400 hover:text-slate-500'
+                  }`}
+                >
+                  {showRestrictions
+                    ? t('sidebar.classes.hideRestrictions', {
+                        defaultValue: '− Restrictions',
+                      })
+                    : t('sidebar.classes.addRestrictions', {
+                        defaultValue: '+ Restrictions',
+                      })}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 italic">
+                {t('sidebar.classes.bulkPasteTip', {
+                  defaultValue:
+                    'Tip: paste multiple names at once to add in bulk.',
                 })}
-                pinLabel={t('sidebar.classes.quizPin', {
-                  defaultValue: 'Quiz PIN',
+              </p>
+            </div>
+
+            {duplicatePins.size > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-lg text-yellow-800 text-xs font-semibold shrink-0">
+                <AlertTriangle size={14} className="text-yellow-600 shrink-0" />
+                {t('sidebar.classes.duplicatePins', {
+                  defaultValue: 'Duplicate PINs: {{pins}}',
+                  pins: [...duplicatePins].join(', '),
                 })}
-                emailLabel={t('sidebar.classes.email', {
-                  defaultValue: 'Email',
-                })}
-                restrictionsLabel={t('sidebar.classes.restrictionsHeader', {
-                  defaultValue: 'Restricted from working with',
-                })}
-              />
-              <ul className="flex flex-col divide-y divide-slate-100">
-                {rows.map((row, idx) => (
-                  <RosterRow
-                    key={row.id}
-                    row={row}
-                    index={idx}
+              </div>
+            )}
+
+            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
+              {rows.length === 0 ? (
+                <RosterEmptyState
+                  title={t('sidebar.classes.emptyRosterTitle', {
+                    defaultValue: 'No students yet',
+                  })}
+                  subtitle={t('sidebar.classes.emptyRosterSubtitle', {
+                    defaultValue:
+                      'Click + Add Student or paste a list of names into a row.',
+                  })}
+                  addLabel={t('sidebar.classes.addStudent', {
+                    defaultValue: '+ Add Student',
+                  })}
+                  onAdd={addRow}
+                />
+              ) : (
+                <>
+                  <RosterHeader
                     showLastNames={showLastNames}
                     showPins={showPins}
                     showEmails={showEmails}
                     showRestrictions={showRestrictions}
-                    allRows={rows}
-                    isDuplicatePin={
-                      !!row.pin.trim() && duplicatePins.has(row.pin.trim())
-                    }
-                    firstNamePlaceholder={
+                    firstLabel={
                       showLastNames
-                        ? t('sidebar.classes.firstNamePlaceholder', {
-                            defaultValue: 'First name',
+                        ? t('sidebar.classes.firstName', {
+                            defaultValue: 'First Name',
                           })
-                        : t('sidebar.classes.fullNamePlaceholder', {
-                            defaultValue: 'Full name',
+                        : t('sidebar.classes.fullName', {
+                            defaultValue: 'Name',
                           })
                     }
-                    lastNamePlaceholder={t(
-                      'sidebar.classes.lastNamePlaceholder',
-                      { defaultValue: 'Last name' }
-                    )}
-                    pinPlaceholder={t('sidebar.classes.pinPlaceholder', {
-                      defaultValue: '01',
+                    lastLabel={t('sidebar.classes.lastName', {
+                      defaultValue: 'Last Name',
                     })}
-                    emailPlaceholder={t('sidebar.classes.emailPlaceholder', {
-                      defaultValue: 'student@school.org',
+                    pinLabel={t('sidebar.classes.quizPin', {
+                      defaultValue: 'Quiz PIN',
                     })}
-                    removeLabel={t('sidebar.classes.removeStudent', {
-                      defaultValue: 'Remove student',
+                    emailLabel={t('sidebar.classes.email', {
+                      defaultValue: 'Email',
                     })}
-                    onChange={(patch) => updateRow(row.id, patch)}
-                    onDelete={() => deleteRow(row.id)}
-                    onBulkPaste={(text) =>
-                      bulkPasteInto(row.id, text, showLastNames)
-                    }
-                    onToggleRestriction={(otherId) =>
-                      toggleRestriction(row.id, otherId)
-                    }
+                    restrictionsLabel={t('sidebar.classes.restrictionsHeader', {
+                      defaultValue: 'Restricted from working with',
+                    })}
                   />
-                ))}
-              </ul>
-              <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
-                <button
-                  onClick={addRow}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
-                >
-                  <Plus size={16} />
-                  {t('sidebar.classes.addStudent', {
-                    defaultValue: '+ Add Student',
-                  })}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+                  <ul className="flex flex-col divide-y divide-slate-100">
+                    {rows.map((row, idx) => (
+                      <RosterRow
+                        key={row.id}
+                        row={row}
+                        index={idx}
+                        showLastNames={showLastNames}
+                        showPins={showPins}
+                        showEmails={showEmails}
+                        showRestrictions={showRestrictions}
+                        allRows={rows}
+                        isDuplicatePin={
+                          !!row.pin.trim() && duplicatePins.has(row.pin.trim())
+                        }
+                        firstNamePlaceholder={
+                          showLastNames
+                            ? t('sidebar.classes.firstNamePlaceholder', {
+                                defaultValue: 'First name',
+                              })
+                            : t('sidebar.classes.fullNamePlaceholder', {
+                                defaultValue: 'Full name',
+                              })
+                        }
+                        lastNamePlaceholder={t(
+                          'sidebar.classes.lastNamePlaceholder',
+                          { defaultValue: 'Last name' }
+                        )}
+                        pinPlaceholder={t('sidebar.classes.pinPlaceholder', {
+                          defaultValue: '01',
+                        })}
+                        emailPlaceholder={t(
+                          'sidebar.classes.emailPlaceholder',
+                          {
+                            defaultValue: 'student@school.org',
+                          }
+                        )}
+                        removeLabel={t('sidebar.classes.removeStudent', {
+                          defaultValue: 'Remove student',
+                        })}
+                        onChange={(patch) => updateRow(row.id, patch)}
+                        onDelete={() => deleteRow(row.id)}
+                        onBulkPaste={(text) =>
+                          bulkPasteInto(row.id, text, showLastNames)
+                        }
+                        onToggleRestriction={(otherId) =>
+                          toggleRestriction(row.id, otherId)
+                        }
+                      />
+                    ))}
+                  </ul>
+                  <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
+                    <button
+                      onClick={addRow}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+                    >
+                      <Plus size={16} />
+                      {t('sidebar.classes.addStudent', {
+                        defaultValue: '+ Add Student',
+                      })}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );
@@ -468,6 +559,166 @@ const RosterRow: React.FC<RosterRowProps> = ({
         <X size={16} />
       </button>
     </li>
+  );
+};
+
+interface RosterGroupsPanelProps {
+  groups: RosterGroup[];
+  students: Student[];
+  onChange: (groups: RosterGroup[]) => void;
+}
+
+/**
+ * Per-roster group editor (M17 A4). Clones the toggle-row/checklist idiom
+ * used by `RestrictionsPicker` — a compact expand/collapse list, no new
+ * form controls.
+ */
+const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
+  groups,
+  students,
+  onChange,
+}) => {
+  const { t } = useTranslation();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const studentIds = useMemo(
+    () => new Set(students.map((s) => s.id)),
+    [students]
+  );
+
+  const addGroup = () => {
+    const group: RosterGroup = {
+      id: crypto.randomUUID(),
+      name: t('sidebar.classes.newGroupName', { defaultValue: 'New Group' }),
+      studentIds: [],
+    };
+    onChange([...groups, group]);
+    setExpandedId(group.id);
+  };
+
+  const renameGroup = (id: string, name: string) => {
+    onChange(groups.map((g) => (g.id === id ? { ...g, name } : g)));
+  };
+
+  const deleteGroup = (id: string) => {
+    onChange(groups.filter((g) => g.id !== id));
+    if (expandedId === id) setExpandedId(null);
+  };
+
+  const toggleMember = (groupId: string, studentId: string) => {
+    onChange(
+      groups.map((g) => {
+        if (g.id !== groupId) return g;
+        const inGroup = g.studentIds.includes(studentId);
+        return {
+          ...g,
+          studentIds: inGroup
+            ? g.studentIds.filter((id) => id !== studentId)
+            : [...g.studentIds, studentId],
+        };
+      })
+    );
+  };
+
+  return (
+    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
+      {groups.length === 0 ? (
+        <RosterEmptyState
+          title={t('sidebar.classes.emptyGroupsTitle', {
+            defaultValue: 'No groups yet',
+          })}
+          subtitle={t('sidebar.classes.emptyGroupsSubtitle', {
+            defaultValue: 'Save a subset of this class for quick targeting.',
+          })}
+          addLabel={t('sidebar.classes.addGroup', {
+            defaultValue: '+ New Group',
+          })}
+          onAdd={addGroup}
+        />
+      ) : (
+        <>
+          <ul className="flex flex-col divide-y divide-slate-100">
+            {groups.map((group) => {
+              const expanded = expandedId === group.id;
+              // Count only members still on the roster — a student deleted in
+              // the Students tab isn't pruned from studentIds until save.
+              const memberCount = group.studentIds.filter((id) =>
+                studentIds.has(id)
+              ).length;
+              return (
+                <li key={group.id} className="p-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setExpandedId(expanded ? null : group.id)}
+                      className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
+                      aria-label={t('sidebar.classes.editGroupMembers', {
+                        defaultValue: 'Edit group members',
+                      })}
+                    >
+                      <UsersRound size={16} />
+                    </button>
+                    <input
+                      className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none transition-colors"
+                      value={group.name}
+                      onChange={(e) => renameGroup(group.id, e.target.value)}
+                    />
+                    <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                      {t('sidebar.classes.groupMemberCount', {
+                        count: memberCount,
+                        defaultValue: '{{count}} student',
+                        defaultValue_other: '{{count}} students',
+                      })}
+                    </span>
+                    <button
+                      onClick={() => deleteGroup(group.id)}
+                      aria-label={t('sidebar.classes.removeGroup', {
+                        defaultValue: 'Remove group',
+                      })}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {expanded && (
+                    <ul className="mt-2 ml-7 flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar">
+                      {students.length === 0 ? (
+                        <li className="text-xs text-slate-400 italic">
+                          {t('sidebar.classes.noStudentsToGroup', {
+                            defaultValue: 'Add students first.',
+                          })}
+                        </li>
+                      ) : (
+                        students.map((s) => (
+                          <li key={s.id}>
+                            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={group.studentIds.includes(s.id)}
+                                onChange={() => toggleMember(group.id, s.id)}
+                                className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                              />
+                              {`${s.firstName} ${s.lastName}`.trim() || s.id}
+                            </label>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
+            <button
+              onClick={addGroup}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+            >
+              <Plus size={16} />
+              {t('sidebar.classes.addGroup', { defaultValue: '+ New Group' })}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 };
 
