@@ -147,25 +147,28 @@ export const TooltipInteraction: React.FC<Props> = ({
             style={connectorStyleByPosition[resolvedPosition]}
           />
         )}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute rounded-full bg-white shadow"
-          style={{
-            width: 6,
-            height: 6,
-            ...(resolvedPosition === 'above'
-              ? { left: '50%', bottom: -offset - 3, marginLeft: -3 }
-              : resolvedPosition === 'below'
-                ? { left: '50%', top: -offset - 3, marginLeft: -3 }
-                : resolvedPosition === 'left'
-                  ? { top: '50%', right: -offset - 3, marginTop: -3 }
-                  : { top: '50%', left: -offset - 3, marginTop: -3 }),
-          }}
-        />
+        {/* Anchor dot only makes sense alongside the connector line. */}
+        {offset > 2 && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute rounded-full bg-white shadow"
+            style={{
+              width: 6,
+              height: 6,
+              ...(resolvedPosition === 'above'
+                ? { left: '50%', bottom: -offset - 3, marginLeft: -3 }
+                : resolvedPosition === 'below'
+                  ? { left: '50%', top: -offset - 3, marginLeft: -3 }
+                  : resolvedPosition === 'left'
+                    ? { top: '50%', right: -offset - 3, marginTop: -3 }
+                    : { top: '50%', left: -offset - 3, marginTop: -3 }),
+            }}
+          />
+        )}
         {step.label && (
           <div
             className="font-bold text-white mb-1 tracking-tight"
-            style={{ fontSize: 'min(15px, 4.2cqmin)' }}
+            style={{ fontSize: 'min(18px, 4.2cqmin)' }}
           >
             {step.label}
           </div>

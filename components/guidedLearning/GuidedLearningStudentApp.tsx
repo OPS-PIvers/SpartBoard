@@ -424,7 +424,9 @@ const StudentExperience: React.FC<{
           onClick={handleComplete}
           className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
           style={{
-            bottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)',
+            // Cleared above the player's nav footer (max 60px tall) so tapping Next can never hit this.
+            bottom:
+              'calc(max(env(safe-area-inset-bottom, 0px), 0.75rem) + 68px)',
           }}
         >
           I&apos;m Done

@@ -308,6 +308,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
+    // New step starts with a fresh in-step timer/progress (dot-jump semantics).
+    progressRef.current = 0;
+    setProgress(0);
     setCurrentIdx((prev) => {
       const next = Math.min(prev + 1, steps.length - 1);
       setActiveStepId(steps[next]?.id ?? null);
@@ -317,6 +320,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const goPrev = useCallback(() => {
     if (steps.length === 0) return;
+    progressRef.current = 0;
+    setProgress(0);
     setCurrentIdx((prev) => {
       const prevIdx = Math.max(prev - 1, 0);
       setActiveStepId(steps[prevIdx]?.id ?? null);
@@ -328,6 +333,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     progressRef.current = 0;
+    // Reset display progress at step start (also for zero/unlimited durations).
+    setProgress(0);
 
     const duration = applyTimeMultiplier(
       (currentStep?.autoAdvanceDuration ?? 5) * 1000,
@@ -338,7 +345,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     const interval = 100;
     timerRef.current = setInterval(() => {
       progressRef.current += interval / duration;
-      setProgress(progressRef.current);
+      setProgress(Math.min(progressRef.current, 1));
       if (progressRef.current >= 1) {
         if (timerRef.current) clearInterval(timerRef.current);
         // Don't auto-advance if it's a question that hasn't been answered.
@@ -360,8 +367,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (mode === 'guided' && playing) {
       startTimer();
     } else {
+      // Pause freezes in-step progress; resume restarts the step's timer.
       if (timerRef.current) clearInterval(timerRef.current);
-      progressRef.current = 0;
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -411,7 +418,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         return;
       }
 
-      if (mode === 'structured') {
+      if (mode === 'structured' || mode === 'guided') {
         if (event.key === 'ArrowLeft') {
           event.preventDefault();
           goPrev();
@@ -457,10 +464,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // Whole-session fraction for the guided footer bar (step + in-step timer).
   const guidedProgress =
     steps.length > 0
-      ? Math.min(
-          (currentIdx + (playing ? Math.min(progress, 1) : 0)) / steps.length,
-          1
-        )
+      ? Math.min((currentIdx + Math.min(progress, 1)) / steps.length, 1)
       : 0;
 
   // Single source of truth for the transform the pan-zoom layer renders.
@@ -606,6 +610,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (type === 'tooltip') {
       return activeStepRendered ? (
         <TooltipInteraction
+          key={activeStepRendered.id}
           step={activeStepRendered}
           containerWidth={containerSize.w}
           containerHeight={containerSize.h}
@@ -621,6 +626,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       const overlay =
         activeStep.showOverlay === 'tooltip' && activeStepRendered ? (
           <TooltipInteraction
+            key={activeStepRendered.id}
             step={activeStepRendered}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
@@ -969,14 +975,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 aria-label="Previous step"
                 className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
                 style={{
-                  width: 'clamp(30px, 6cqmin, 44px)',
-                  height: 'clamp(30px, 6cqmin, 44px)',
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
                 }}
               >
                 <ChevronLeft
                   style={{
-                    width: 'clamp(16px, 3.5cqmin, 24px)',
-                    height: 'clamp(16px, 3.5cqmin, 24px)',
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
                   }}
                 />
               </button>
@@ -1041,14 +1047,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 aria-label="Next step"
                 className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
                 style={{
-                  width: 'clamp(30px, 6cqmin, 44px)',
-                  height: 'clamp(30px, 6cqmin, 44px)',
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
                 }}
               >
                 <ChevronRight
                   style={{
-                    width: 'clamp(16px, 3.5cqmin, 24px)',
-                    height: 'clamp(16px, 3.5cqmin, 24px)',
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
                   }}
                 />
               </button>
@@ -1056,26 +1062,43 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           ) : (
             <>
               <button
+                onClick={goPrev}
+                disabled={currentIdx === 0}
+                aria-label="Previous step"
+                className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
+                }}
+              >
+                <ChevronLeft
+                  style={{
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
+                  }}
+                />
+              </button>
+              <button
                 onClick={() => setPlaying((v) => !v)}
                 aria-label={playing ? 'Pause' : 'Play'}
                 className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
                 style={{
-                  width: 'clamp(30px, 6cqmin, 44px)',
-                  height: 'clamp(30px, 6cqmin, 44px)',
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
                 }}
               >
                 {playing ? (
                   <Pause
                     style={{
-                      width: 'clamp(16px, 3.5cqmin, 24px)',
-                      height: 'clamp(16px, 3.5cqmin, 24px)',
+                      width: 'min(24px, 3.5cqmin)',
+                      height: 'min(24px, 3.5cqmin)',
                     }}
                   />
                 ) : (
                   <Play
                     style={{
-                      width: 'clamp(16px, 3.5cqmin, 24px)',
-                      height: 'clamp(16px, 3.5cqmin, 24px)',
+                      width: 'min(24px, 3.5cqmin)',
+                      height: 'min(24px, 3.5cqmin)',
                     }}
                   />
                 )}
@@ -1100,6 +1123,23 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               >
                 {currentIdx + 1} / {steps.length}
               </span>
+              <button
+                onClick={goNext}
+                disabled={currentIdx === steps.length - 1}
+                aria-label="Next step"
+                className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
+                }}
+              >
+                <ChevronRight
+                  style={{
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
+                  }}
+                />
+              </button>
             </>
           )}
         </div>

@@ -739,10 +739,13 @@ describe('GuidedLearningPlayer', () => {
     render(<GuidedLearningPlayer set={set} />);
     fireEvent.load(screen.getByAltText('Guided Footer Test'));
 
-    // No structured nav in guided mode.
+    // Guided mode keeps manual prev/next alongside play/pause.
     expect(
-      screen.queryByRole('button', { name: /next step/i })
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: /next step/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /previous step/i })
+    ).toBeDisabled();
 
     const bar = screen.getByRole('progressbar', { name: /session progress/i });
     expect(bar).toHaveAttribute('aria-valuenow', '0');
@@ -760,6 +763,170 @@ describe('GuidedLearningPlayer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^pause$/i }));
     expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it('navigates guided mode manually and restarts the step timer on a jump', () => {
+    vi.useFakeTimers();
+
+    const set: GuidedLearningSet = {
+      id: 'set-guided-nav',
+      title: 'Guided Nav Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 10,
+          text: 'One',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 10,
+          text: 'Two',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Guided Nav Test'));
+
+    const bar = screen.getByRole('progressbar', { name: /session progress/i });
+
+    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '25');
+
+    // Manual jump forward restarts that step's timer from zero.
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+    expect(bar).toHaveAttribute('aria-valuenow', '50');
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '75');
+
+    // Manual jump back also restarts the step timer state.
+    fireEvent.click(screen.getByRole('button', { name: /previous step/i }));
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+    expect(bar).toHaveAttribute('aria-valuenow', '0');
+
+    vi.useRealTimers();
+  });
+
+  it('supports arrow-key navigation in guided mode', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-guided-keys',
+      title: 'Guided Keys Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'One',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Two',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Guided Keys Test'));
+
+    const layer = screen.getByTestId('gl-panzoom-layer');
+    const container = layer.parentElement;
+    if (!(container instanceof HTMLElement))
+      throw new Error('Expected canvas container');
+    container.focus();
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+  });
+
+  it('keeps in-step progress on pause and restarts it on resume', () => {
+    vi.useFakeTimers();
+
+    const set: GuidedLearningSet = {
+      id: 'set-guided-pause',
+      title: 'Guided Pause Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 10,
+          text: 'One',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Two',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Guided Pause Test'));
+
+    const bar = screen.getByRole('progressbar', { name: /session progress/i });
+
+    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '20');
+
+    // Pause keeps the current in-step progress instead of zeroing it.
+    fireEvent.click(screen.getByRole('button', { name: /^pause$/i }));
+    expect(bar).toHaveAttribute('aria-valuenow', '20');
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '20');
+
+    // Resume restarts the step's timer from zero (dot-jump semantics).
+    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+    expect(bar).toHaveAttribute('aria-valuenow', '0');
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '25');
 
     vi.useRealTimers();
   });
