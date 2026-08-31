@@ -278,6 +278,15 @@ export const InviteAcceptance: React.FC = () => {
   const [status, setStatus] = React.useState<ClaimStatus>({ kind: 'idle' });
   const claimRanRef = React.useRef(false);
 
+  // Reset claim state when the signed-in user changes, so sign-out-then-sign-in-again re-arms the claim instead of showing the stale error forever.
+  const [trackedUid, setTrackedUid] = React.useState(user?.uid);
+  if (user?.uid !== trackedUid) {
+    setTrackedUid(user?.uid);
+    // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync (CLAUDE.md pattern), mirrors useCaptureEscape in Organization/components/primitives.tsx
+    claimRanRef.current = false;
+    setStatus({ kind: 'idle' });
+  }
+
   React.useEffect(() => {
     if (!token) return;
     if (loading) return;

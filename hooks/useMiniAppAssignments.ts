@@ -28,7 +28,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
-import type { AssignmentMode, MiniAppAssignment, MiniAppItem } from '@/types';
+import type {
+  AssignmentMode,
+  MiniAppAssignment,
+  MiniAppItem,
+  StudentOverride,
+} from '@/types';
 
 const ASSIGNMENTS_COLLECTION = 'miniapp_assignments';
 const SESSIONS_COLLECTION = 'mini_app_sessions';
@@ -46,6 +51,22 @@ export interface CreateMiniAppAssignmentInput {
    *  Mirrors MiniAppSession.mode. The `submissionsEnabled` field on the
    *  assignment doc is derived from this — callers don't pass it directly. */
   mode?: AssignmentMode;
+  /**
+   * M17 individual-assignment targeting (spec §5 B3). `targetMode: 'students'`
+   * marks the assignment doc; `targetStudents` itself is NOT written here —
+   * `setAssignmentTargetsV1` is the sole writer of that field (division of
+   * labor, spec §2a). Caller invokes the CF separately after this resolves.
+   */
+  targetMode?: 'class' | 'students';
+  /** M17 B3 — provenance of picked groups (display only). */
+  targetGroupIds?: string[];
+  /** M17 B3 — per-student accommodation overrides, keyed by `StudentTargetRef` key. */
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** M17 B3 — optional due date (ms epoch), display metadata within the open/close window. */
+  dueAt?: number | null;
+  /** M17 B3 — open/close window (epoch ms). Absent = always open (legacy behavior). */
+  openAt?: number | null;
+  closeAt?: number | null;
 }
 
 export interface UseMiniAppAssignmentsResult {
@@ -69,6 +90,13 @@ export interface UseMiniAppAssignmentsResult {
   reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently remove the archive row (the session doc is left as-is). */
   deleteAssignment: (assignmentId: string) => Promise<void>;
+  /**
+   * Durability for the individual-targeting skipped-ref count (canonical
+   * B3 rule): persists a plain, PII-free number onto the teacher's own
+   * assignment doc so the archive/In-progress row can render a "N skipped"
+   * marker after the create-time toast is gone. Names are never persisted.
+   */
+  setTargetSkippedCount: (assignmentId: string, count: number) => Promise<void>;
 }
 
 export const useMiniAppAssignments = (
@@ -155,6 +183,21 @@ export const useMiniAppAssignments = (
         // Derived from `mode` so the two fields can never diverge.
         submissionsEnabled: mode === 'submissions',
         mode,
+        // `targetStudents` is deliberately absent — `setAssignmentTargetsV1`
+        // is the sole writer of that field; the caller invokes it separately.
+        ...(input.targetMode === 'students'
+          ? { targetMode: 'students' as const }
+          : {}),
+        ...(input.targetGroupIds && input.targetGroupIds.length > 0
+          ? { targetGroupIds: input.targetGroupIds }
+          : {}),
+        ...(input.overridesBySourcedId &&
+        Object.keys(input.overridesBySourcedId).length > 0
+          ? { overridesBySourcedId: input.overridesBySourcedId }
+          : {}),
+        ...(input.dueAt != null ? { dueAt: input.dueAt } : {}),
+        ...(input.openAt != null ? { openAt: input.openAt } : {}),
+        ...(input.closeAt != null ? { closeAt: input.closeAt } : {}),
       };
 
       await setDoc(
@@ -279,6 +322,19 @@ export const useMiniAppAssignments = (
     [userId]
   );
 
+  const setTargetSkippedCount = useCallback<
+    UseMiniAppAssignmentsResult['setTargetSkippedCount']
+  >(
+    async (assignmentId, count) => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(
+        doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId),
+        { targetSkippedCount: count, updatedAt: Date.now() }
+      );
+    },
+    [userId]
+  );
+
   return {
     assignments,
     loading,
@@ -288,5 +344,6 @@ export const useMiniAppAssignments = (
     endAssignment,
     reactivateAssignment,
     deleteAssignment,
+    setTargetSkippedCount,
   };
 };

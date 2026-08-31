@@ -2246,9 +2246,17 @@ describe('getPseudonymsForAssignmentV1', () => {
     const result = (await handler(
       { assignmentId: 'asn-1', classId: 'c-1' },
       { auth: TEACHER_AUTH }
-    )) as { pseudonyms: Record<string, unknown> };
+    )) as {
+      pseudonyms: Record<
+        string,
+        { targetRefKey: string } & Record<string, unknown>
+      >;
+    };
 
     expect(result.pseudonyms['student-1-sid']).toBeDefined();
+    expect(result.pseudonyms['student-1-sid'].targetRefKey).toBe(
+      'classlink:student-1-sid'
+    );
   });
 
   it("rejects with permission-denied when the requested classId isn't in the teacher's classes", async () => {
@@ -2442,6 +2450,7 @@ describe('getPseudonymsForAssignmentV1', () => {
           assignmentPseudonym: string;
           givenName: string;
           familyName: string;
+          targetRefKey: string;
         }
       >;
     };
@@ -2470,6 +2479,14 @@ describe('getPseudonymsForAssignmentV1', () => {
       .toString(cryptoJs.enc.Hex);
     expect(result.pseudonyms['sstudent25@orono.k12.mn.us'].studentUid).toBe(
       expectedSstudent25Uid
+    );
+
+    // targetRefKey mirrors the refKey format used by studentAssignmentTargets.ts
+    expect(result.pseudonyms['sstudent25@orono.k12.mn.us'].targetRefKey).toBe(
+      'test:sstudent25@orono.k12.mn.us'
+    );
+    expect(result.pseudonyms['otherstudent@orono.k12.mn.us'].targetRefKey).toBe(
+      'test:otherstudent@orono.k12.mn.us'
     );
 
     // Axios was NOT called — confirms the test-class branch short-circuits
@@ -3002,6 +3019,12 @@ describe('index barrel — deployed export set', () => {
     'getPseudonymsForAssignmentV1',
     'commitRosterPinIndexV1',
     'pinLoginV1',
+    // Individual assignment targeting (M17 A2 / A2b)
+    'setAssignmentTargetsV1',
+    'cleanupQuizAssignmentPointers',
+    'cleanupVideoActivityAssignmentPointers',
+    'cleanupGuidedLearningAssignmentPointers',
+    'cleanupMiniAppAssignmentPointers',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',

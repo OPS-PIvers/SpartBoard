@@ -858,6 +858,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     if (a.source === 'building') {
       badges.push({ label: 'Building', tone: 'warn' });
     }
+    if (a.targetSkippedCount) {
+      badges.push({
+        label: `${a.targetSkippedCount} skipped`,
+        tone: 'warn',
+      });
+    }
 
     const subtitle = (
       <span className="inline-flex items-center gap-2">
