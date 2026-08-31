@@ -80,6 +80,22 @@ export const clampWidgetToWorld = (
   return { x: cx, y: cy };
 };
 
+// Inverse of the forward transform documented at the top of this module —
+// converts a viewport-space point (e.g. a drag-drop event's clientX/clientY)
+// into wrapper-space (pre-transform widget) coordinates, so a widget dropped
+// at the cursor actually lands there regardless of the current zoom/pan
+// camera state.
+export const viewportToWrapper = (
+  point: Point,
+  zoom: number,
+  pan: Point,
+  vw: number,
+  vh: number
+): Point => ({
+  x: vw / 2 + (point.x - vw / 2 - pan.x) / zoom,
+  y: vh / 2 + (point.y - vh / 2 - pan.y) / zoom,
+});
+
 // Compute pan that keeps the wrapper-coordinate under the cursor stationary
 // across a zoom change, then clamp to pan range.
 //
