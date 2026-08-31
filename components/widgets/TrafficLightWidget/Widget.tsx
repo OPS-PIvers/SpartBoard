@@ -35,8 +35,8 @@ export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 width: 'min(28cqh, 80cqw)',
                 height: 'min(28cqh, 80cqw)',
-                minWidth: '40px',
-                minHeight: '40px',
+                minWidth: 'min(40px, 20cqmin)',
+                minHeight: 'min(40px, 20cqmin)',
               }}
             />
             <button
@@ -47,8 +47,8 @@ export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 width: 'min(28cqh, 80cqw)',
                 height: 'min(28cqh, 80cqw)',
-                minWidth: '40px',
-                minHeight: '40px',
+                minWidth: 'min(40px, 20cqmin)',
+                minHeight: 'min(40px, 20cqmin)',
               }}
             />
             <button
@@ -59,8 +59,8 @@ export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 width: 'min(28cqh, 80cqw)',
                 height: 'min(28cqh, 80cqw)',
-                minWidth: '40px',
-                minHeight: '40px',
+                minWidth: 'min(40px, 20cqmin)',
+                minHeight: 'min(40px, 20cqmin)',
               }}
             />
           </div>
