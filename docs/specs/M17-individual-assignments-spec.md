@@ -1,6 +1,6 @@
 # M17 — Individual Assignment: Per-Student Targeting, Windows & Accommodations
 
-**Status:** SPEC r2 — decisions locked with Paul 2026-08-28 (grilling session); revised 2026-08-28 after 4-lens adversarial audit (architecture, privacy, student UX, teacher UX); not yet implemented
+**Status:** SHIPPED 2026-08-31 — all 16 items (A1–E2) implemented and merged to dev-paul across 28 adversarially-reviewed PRs (#2636–#2690). Known accepted limitations recorded in §6 plus: per-student window shifts client-enforced within the session-level server bound (§3a-E); score-denominator snapshotting for re-targeted students tracked as a follow-up task.
 **Author:** Grilling + architect scout of dev-paul codebase; r2 incorporates audit findings verified against dev-paul @ 472ed5ff
 **Scope:** Per-student / group targeting of quiz, video-activity, guided-learning, and mini-app assignments delivered via `/my-assignments`; open/close windows on all four types; per-student accommodation overrides (extended time, reduced question set, reduced MC options, alternate rubric, tab-warning threshold); central Assignments hub; assignment-creation tab-warning control
 **Date:** 2026-08-28
