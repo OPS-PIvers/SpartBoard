@@ -236,9 +236,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // requires toast + row markers).
   const { setAssignmentTargets } = useSetAssignmentTargets();
   const [assignSkippedByAssignmentId, setAssignSkippedByAssignmentId] =
-    useState<
-      Record<string, { ref: StudentTargetRef; reason: SkipReason }[]>
-    >({});
+    useState<Record<string, { ref: StudentTargetRef; reason: SkipReason }[]>>(
+      {}
+    );
 
   // Folders are managed by QuizManager separately; this duplicate binding is
   // used only so the editor modal can surface a folder picker and commit
