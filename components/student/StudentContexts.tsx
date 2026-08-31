@@ -61,6 +61,10 @@ const mockAuth: AuthContextType = {
   saveWidgetConfig: () => {
     // No-op
   },
+  savedWidgetPresets: {},
+  saveWidgetPreset: () => {
+    // No-op
+  },
   profileLoaded: true,
   setupCompleted: true,
   completeSetup: async () => {

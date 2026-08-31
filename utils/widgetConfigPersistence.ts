@@ -1,94 +1,43 @@
-import type { WidgetConfig } from '@/types';
-import { PII_WIDGET_FIELDS } from './dashboardPII';
+import type { WidgetConfig, WidgetType } from '@/types';
 
 /**
- * Config keys that should NOT be persisted globally when saving widget settings.
- * These are either runtime state (would cause broken initial state on new widgets)
- * or large instance-specific data (would bloat the user profile document).
+ * Top-level config keys that persist per-user as appearance defaults.
+ * Everything else is per-board.
+ *
+ * This list is CLOSED. A new widget config key is per-board automatically and
+ * needs no registration here — that is the default and it is the safe one. Only
+ * add a key if it is purely visual and carries no lesson content, student
+ * names, or teacher-authored text. Matching is top-level only: never add a key
+ * that lives nested inside a content array (per-card colors, custom-widget
+ * block styles) — those travel with their content.
  */
-const TRANSIENT_CONFIG_KEYS = new Set<string>([
-  // Student PII — must never reach Firestore via savedWidgetConfigs
-  ...PII_WIDGET_FIELDS,
-
-  // Timer/stopwatch runtime state
-  'isRunning',
-  'elapsedTime',
-  'startTime',
-
-  // Live session identifiers (ephemeral, would reference dead sessions)
-  'activeLiveSessionCode',
-  'activeAssignmentId',
-  'resultsSessionId',
-  'joinCode',
-  'activePollSessionId',
-  'lastPollSessionId',
-  'liveScoreboardWidgetId',
-  'liveScoreboardEnabled',
-  'activeActivityId',
-  'playerSetId',
-
-  // Navigation view state (should reset to landing page)
-  'view',
-  'managerTab',
-  'selectedQuizId',
-  'selectedQuizTitle',
-  'selectedActivityId',
-  'selectedActivityTitle',
-
-  // Remote/capture ephemeral data
-  'remoteCaptureDataUrl',
-  'remoteCaptureTimestamp',
-
-  // Cross-widget instance references (widget IDs don't survive across sessions)
-  'liveQuizWidgetId',
-  'linkedWeatherWidgetId',
-  'externalTrigger',
-  'parentWidgetId',
-
-  // Instance-specific runtime data
-  'isActive',
-  'startedAt',
-  'createdAt',
-  'lastUpdated',
-  'activeDriveFileId',
-  'sessionName',
-  'activities',
-  'draftActivity',
-  'activeApp',
-  'activeAppUnsaved',
-  'activeNotebookId',
-  'placedAssets',
-  'lastResult',
-
-  // Randomizer Jigsaw mode: per-pick group state (jigsaw*Groups also contain
-  // student names in custom-roster mode, so they must never be saved as a
-  // global default).
-  'jigsawHomeGroups',
-  'jigsawExpertGroups',
-  'jigsawView',
-
-  // Large instance data / per-session game state
-  'paths',
-  'furniture',
-  'assignments',
-  'cards',
-  'memoryCards',
-  'hotspots',
-  // Admin building defaults own these arrays; strip from saved defaults so they don't override per-building config.
-  'markers',
-  'jumps',
-
-  // User-typed instance content: styling should carry over to new widgets,
-  // but the text/notes themselves belong to a single instance only.
-  'content',
+export const APPEARANCE_CONFIG_KEYS = new Set<string>([
+  'fontFamily', // shared TypographySettings
+  'fontColor', // shared TypographySettings
+  'cardColor', // shared SurfaceColorSettings
+  'cardOpacity', // shared SurfaceColorSettings
+  'textSizePreset', // shared TextSizePresetSettings
+  'bgColor', // TextConfig — sticky-note color
+  'fontSize', // TextConfig
+  'textColor', // MusicConfig
+  'titleColor', // MaterialsConfig
+  'scaleMultiplier', // ChecklistConfig
+  'layout', // ScoreboardConfig | ExpectationsConfig | MusicConfig
 ]);
 
-/** Strips transient/runtime keys from a config object before persisting. */
-export function stripTransientKeys(
+/**
+ * Keys holding an explicit "save as preset" library, which teachers opt into
+ * and expect to be account-wide. These live in the separate
+ * `savedWidgetPresets` profile field, never in `savedWidgetConfigs`.
+ */
+export const PRESET_CONFIG_KEYS = new Set<string>(['savedLibrary']);
+
+/** Keeps only appearance keys; everything else stays on its own board. */
+export function pickAppearanceKeys(
   config: Partial<WidgetConfig>
 ): Partial<WidgetConfig> {
   return Object.fromEntries(
-    Object.entries(config).filter(([key]) => !TRANSIENT_CONFIG_KEYS.has(key))
+    Object.entries(config).filter(([key]) => APPEARANCE_CONFIG_KEYS.has(key))
   ) as Partial<WidgetConfig>;
 }
 
@@ -99,7 +48,7 @@ export function stripTransientKeys(
  * Layer order:
  *   1. defaults     — from WIDGET_DEFAULTS[type].config (baseline)
  *   2. adminConfig  — from getAdminBuildingConfig (per-building admin defaults)
- *   3. saved        — from user's savedWidgetConfigs (transient keys are stripped here)
+ *   3. saved        — from user's savedWidgetConfigs (appearance keys only)
  *   4. overrides    — explicit per-add overrides (e.g. AI-provided config, paste import)
  */
 export function mergeWidgetConfig(
@@ -112,7 +61,63 @@ export function mergeWidgetConfig(
     {},
     defaults ?? {},
     adminConfig ?? {},
-    stripTransientKeys(saved ?? {}),
+    pickAppearanceKeys(saved ?? {}),
     overrides ?? {}
   ) as WidgetConfig;
+}
+
+export type SavedWidgetConfigMap = Partial<
+  Record<WidgetType, Partial<WidgetConfig>>
+>;
+
+export interface SavedWidgetConfigMigration {
+  /** True when the stored blob holds anything outside the appearance allowlist. */
+  needsMigration: boolean;
+  /** `savedWidgetConfigs` reduced to appearance keys only. */
+  cleaned: SavedWidgetConfigMap;
+  /** Preset libraries lifted out of the old store, keyed by widget type. */
+  presets: SavedWidgetConfigMap;
+}
+
+/**
+ * Splits a legacy `savedWidgetConfigs` blob into the appearance defaults that
+ * may stay account-wide and the opt-in preset libraries that move to
+ * `savedWidgetPresets`. Everything else — lesson content, student names,
+ * teacher-authored text — is dropped, because it belongs to a single board.
+ *
+ * Pure: callers own the Firestore write.
+ */
+export function migrateSavedWidgetConfigs(
+  raw: SavedWidgetConfigMap,
+  existingPresets: SavedWidgetConfigMap = {}
+): SavedWidgetConfigMigration {
+  const cleaned: SavedWidgetConfigMap = {};
+  const presets: SavedWidgetConfigMap = { ...existingPresets };
+  let needsMigration = false;
+
+  const entries = Object.entries(raw) as [string, unknown][];
+  for (const [type, config] of entries) {
+    if (typeof config !== 'object' || config === null) {
+      needsMigration = true;
+      continue;
+    }
+    const widgetType = type as WidgetType;
+    const stored = config as Record<string, unknown>;
+    const appearance = pickAppearanceKeys(stored as Partial<WidgetConfig>);
+    if (Object.keys(appearance).length > 0) cleaned[widgetType] = appearance;
+
+    for (const [key, value] of Object.entries(stored)) {
+      if (APPEARANCE_CONFIG_KEYS.has(key)) continue;
+      needsMigration = true;
+      // A preset library the teacher saved on purpose — keep it, elsewhere.
+      // Presets already in the new field win: they are the newer copy.
+      if (PRESET_CONFIG_KEYS.has(key)) {
+        const alreadyMoved = existingPresets[widgetType];
+        if (alreadyMoved && key in alreadyMoved) continue;
+        presets[widgetType] = { ...presets[widgetType], [key]: value };
+      }
+    }
+  }
+
+  return { needsMigration, cleaned, presets };
 }

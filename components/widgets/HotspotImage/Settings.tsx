@@ -35,7 +35,7 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast } = useDashboard();
-  const { user, savedWidgetConfigs, saveWidgetConfig } = useAuth();
+  const { user, savedWidgetPresets, saveWidgetPreset } = useAuth();
   const config = widget.config as HotspotImageConfig;
   const { uploadHotspotImage, uploading } = useStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,7 +129,7 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
   };
 
   const savedLibrary: HotspotSavedItem[] =
-    (savedWidgetConfigs['hotspot-image'] as Partial<HotspotImageConfig>)
+    (savedWidgetPresets['hotspot-image'] as Partial<HotspotImageConfig>)
       ?.savedLibrary ?? [];
 
   const handleSaveToLibrary = () => {
@@ -147,7 +147,7 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
       createdAt: Date.now(),
     };
 
-    saveWidgetConfig('hotspot-image', {
+    saveWidgetPreset('hotspot-image', {
       savedLibrary: [...savedLibrary, newItem],
     });
     addToast('Saved to library', 'success');
@@ -168,7 +168,7 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
   const handleDeleteFromLibrary = (id: string) => {
     if (!window.confirm('Are you sure you want to delete this saved hotspot?'))
       return;
-    saveWidgetConfig('hotspot-image', {
+    saveWidgetPreset('hotspot-image', {
       savedLibrary: savedLibrary.filter((item) => item.id !== id),
     });
     addToast('Deleted from library', 'info');

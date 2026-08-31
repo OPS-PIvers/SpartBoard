@@ -399,8 +399,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Normalize legacy `view: 'editor'` persisted by pre-Phase 2 dashboards back
   // to 'manager' since editing now happens in a modal rather than a sub-view.
-  // `view` is stripped by `stripTransientKeys` on any subsequent save, so stale
-  // values will clean themselves up without a proactive Firestore write.
+  // `view` is not on the appearance allowlist, so it never persists account-wide
+  // and stale values clean themselves up without a proactive Firestore write.
   const rawView = config.view as VideoActivityView | 'editor' | undefined;
   const view: VideoActivityView =
     rawView === 'editor' || !rawView ? 'manager' : rawView;

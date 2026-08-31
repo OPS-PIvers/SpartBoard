@@ -6108,7 +6108,7 @@ export interface StationsConfig {
   rotationTrigger?: number;
   /**
    * Saved-library snapshot — populated only when this config object is stored
-   * in `savedWidgetConfigs.stations`, never on a live widget instance.
+   * in `savedWidgetPresets.stations`, never on a live widget instance.
    */
   savedLibrary?: SavedStationsPreset[];
   /**
@@ -6474,7 +6474,8 @@ export interface UserRolesConfig {
  *
  * OWNERSHIP CONTRACT — this single document is written by two contexts:
  *  - `AuthContext` owns the account-level/identity fields: `selectedBuildings`,
- *    `language`, `savedWidgetConfigs`, `setupCompleted`, `disableCloseConfirmation`,
+ *    `language`, `savedWidgetConfigs`, `savedWidgetPresets`,
+ *    `savedWidgetConfigsPreV2`, `setupCompleted`, `disableCloseConfirmation`,
  *    `remoteControlEnabled`, `dockPosition`, `quizMonitorColorsEnabled`,
  *    `quizMonitorScoreDisplay`, `favoriteBackgrounds`, `recentBackgrounds`.
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
@@ -6491,8 +6492,24 @@ export interface UserProfile {
   selectedBuildings: string[];
   /** Optional language preference */
   language?: string;
-  /** Global saved widget configs for complex widgets */
+  /**
+   * Account-wide widget appearance defaults, keyed by widget type. Holds ONLY
+   * the keys in `APPEARANCE_CONFIG_KEYS` (utils/widgetConfigPersistence.ts) —
+   * widget content is per-board and must never land here.
+   */
   savedWidgetConfigs?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /**
+   * Opt-in preset libraries the teacher explicitly saved (Stations station
+   * sets, Hotspot Image library). Deliberately account-wide, which is why they
+   * live apart from the appearance defaults above.
+   */
+  savedWidgetPresets?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /**
+   * Pre-migration backup of `savedWidgetConfigs`, written once when the
+   * account-wide store was narrowed to appearance keys. Kept so content
+   * wrongly persisted globally can be recovered if a teacher asks.
+   */
+  savedWidgetConfigsPreV2?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** True after the user has completed the first-time setup wizard */
   setupCompleted?: boolean;
   /**
