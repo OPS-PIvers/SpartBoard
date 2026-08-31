@@ -270,9 +270,18 @@ const MiniAppArchiveRow: React.FC<{
       title={assignment.assignmentName}
       subtitle={assignment.appTitle}
       meta={
-        isViewOnly && trackingEnabled ? (
-          <ViewCountBadge count={count} />
-        ) : undefined
+        <>
+          {isViewOnly && trackingEnabled && <ViewCountBadge count={count} />}
+          {!!assignment.targetSkippedCount &&
+            assignment.targetSkippedCount > 0 && (
+              <span
+                className="font-semibold text-amber-600"
+                title="These students could not be individually targeted — see PLC/roster changes since assignment"
+              >
+                {assignment.targetSkippedCount} skipped
+              </span>
+            )}
+        </>
       }
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}

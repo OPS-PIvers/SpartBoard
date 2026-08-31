@@ -2627,6 +2627,10 @@ export interface MiniAppSession {
   /** Mirrors `MiniAppAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Mirrors `MiniAppAssignment.dueAt`. Display-only metadata within the
+   *  open/close window; read by class-wide students on /my-assignments,
+   *  which sources due dates from this session doc, not the archive row. */
+  dueAt?: number | null;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
@@ -7685,6 +7689,11 @@ export interface MiniAppAssignment {
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Count of individually-targeted students `setAssignmentTargetsV1` could
+   *  not resolve to a pointer doc (PII-free — names are shown ephemerally
+   *  via a toast at assign time only, never persisted). Drives the "N
+   *  skipped" row marker in the assignments list. */
+  targetSkippedCount?: number;
 }
 
 // === /MiniApp assignments ===
