@@ -112,9 +112,14 @@ uses `sortingItems: ["first", "second", …]` in the correct order.
 ## Validation rules (the importer enforces these)
 
 - `title` non-empty.
-- `imageUrls` has at least 1 entry; `steps` has at least 1 entry.
-- Every step has numeric `xPct` and `yPct` (0–100). Out-of-range
+- `imageUrls` has at least 1 entry, with no `blob:` URLs (they are dead
+  outside the authoring browser and the importer rejects them).
+- `steps` has at least 1 entry, and every step is an object (no nulls).
+- Every step has a non-empty string `id`, unique within the file.
+- Every step has numeric `xPct` and `yPct` within 0–100. Out-of-range
   `imageIndex` values are clamped on import — still author them correctly.
+- `mode` is one of `structured` / `guided` / `explore`.
+- Every step's `interactionType` is one of the table above.
 - The whole file is one JSON object (not an array).
 
 Author-side rules the importer does not check but the player relies on:

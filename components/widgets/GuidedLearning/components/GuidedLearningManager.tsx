@@ -18,7 +18,7 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Plus,
   Play,
@@ -180,6 +180,8 @@ export interface GuidedLearningManagerProps {
   ) => void;
   /** Opens the .gl.json import wizard (header secondary action). */
   onImport?: () => void;
+  /** Bumped on import success; switches the library to the Personal view. */
+  importFocusCounter?: number;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
   /** Admin-only — opens the standalone AI authoring dialog for building sets. */
@@ -374,6 +376,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onDeleteBuilding,
   onExport,
   onImport,
+  importFocusCounter = 0,
   onCreateNewPersonal,
   onCreateNewBuilding,
   onOpenAIAuthoring,
@@ -488,6 +491,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
+
+  // Adjust-during-render: on import success, show the Personal view the set landed in.
+  const [seenImportFocus, setSeenImportFocus] = useState(importFocusCounter);
+  if (importFocusCounter !== seenImportFocus) {
+    setSeenImportFocus(importFocusCounter);
+    if (isBuildingFiltered) {
+      view.toolbarProps.onFilterChange?.('source', 'personal');
+    }
+  }
 
   // ─── Drag-reorder only when viewing personal manually (no search, manual
   // sort, source filter === 'personal' so every card is actually reorderable).
@@ -652,7 +664,17 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     ...(isAdmin && isBuildingFiltered
       ? [{ label: 'AI', icon: Sparkles, onClick: onOpenAIAuthoring }]
       : []),
-    ...(onImport ? [{ label: 'Import', icon: Upload, onClick: onImport }] : []),
+    ...(onImport
+      ? [
+          {
+            label: 'Import',
+            icon: Upload,
+            onClick: onImport,
+            disabled: !isDriveConnected,
+            disabledReason: 'Connect Google Drive to import activities.',
+          },
+        ]
+      : []),
   ];
   const secondaryActions =
     headerSecondary.length > 0 ? headerSecondary : undefined;

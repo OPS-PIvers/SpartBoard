@@ -42,6 +42,19 @@ export async function parseGuidedLearningImport(
   return { data: set, warnings };
 }
 
+const VALID_MODES = new Set(['structured', 'guided', 'explore']);
+
+const VALID_INTERACTION_TYPES = new Set([
+  'text-popover',
+  'tooltip',
+  'audio',
+  'video',
+  'pan-zoom',
+  'pan-zoom-spotlight',
+  'spotlight',
+  'question',
+]);
+
 export function validateGuidedLearningImport(
   data: GuidedLearningSet
 ): ImportValidationResult {
@@ -51,21 +64,48 @@ export function validateGuidedLearningImport(
   }
   if (!Array.isArray(data.imageUrls) || data.imageUrls.length === 0) {
     errors.push('At least one image is required.');
+  } else if (data.imageUrls.some((u) => u.startsWith('blob:'))) {
+    errors.push(
+      'Slides use temporary blob: URLs that only work in the authoring browser. Re-export with embedded images.'
+    );
+  }
+  if (!VALID_MODES.has(data.mode)) {
+    errors.push('Mode must be "structured", "guided", or "explore".');
   }
   if (!Array.isArray(data.steps) || data.steps.length === 0) {
     errors.push('At least one step is required.');
+    return { ok: false, errors };
   }
-  if (Array.isArray(data.steps)) {
-    const badStep = data.steps.find(
-      (s) =>
-        typeof s.xPct !== 'number' ||
-        typeof s.yPct !== 'number' ||
-        Number.isNaN(s.xPct) ||
-        Number.isNaN(s.yPct)
+  if (data.steps.some((s) => s === null || typeof s !== 'object')) {
+    errors.push('Every step must be an object — check the steps array.');
+    return { ok: false, errors };
+  }
+  const ids = data.steps.map((s) => s.id);
+  if (ids.some((id) => typeof id !== 'string' || id.trim() === '')) {
+    errors.push('Every step needs a non-empty string id.');
+  } else if (new Set(ids).size !== ids.length) {
+    errors.push('Step ids must be unique.');
+  }
+  const badCoords = data.steps.some(
+    (s) =>
+      typeof s.xPct !== 'number' ||
+      typeof s.yPct !== 'number' ||
+      Number.isNaN(s.xPct) ||
+      Number.isNaN(s.yPct) ||
+      s.xPct < 0 ||
+      s.xPct > 100 ||
+      s.yPct < 0 ||
+      s.yPct > 100
+  );
+  if (badCoords) {
+    errors.push(
+      'Every step needs numeric xPct/yPct hotspot coordinates between 0 and 100.'
     );
-    if (badStep) {
-      errors.push('Every step needs numeric xPct/yPct hotspot coordinates.');
-    }
+  }
+  if (data.steps.some((s) => !VALID_INTERACTION_TYPES.has(s.interactionType))) {
+    errors.push(
+      'Every step needs a known interactionType (tooltip, text-popover, pan-zoom, spotlight, pan-zoom-spotlight, audio, video, or question).'
+    );
   }
   return { ok: errors.length === 0, errors };
 }

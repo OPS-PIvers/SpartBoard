@@ -100,6 +100,29 @@ describe('embedSetImages', () => {
     expect(fetchMedia).not.toHaveBeenCalled();
   });
 
+  it('never fetches video-kind slides and warns they stay linked', async () => {
+    const fetchMedia = vi.fn();
+    const { set: out, warnings } = await embedSetImages(
+      makeSet({
+        imageUrls: ['https://example.com/clip.mp4'],
+        imageKinds: ['video'],
+      }),
+      fetchMedia
+    );
+    expect(fetchMedia).not.toHaveBeenCalled();
+    expect(out.imageUrls[0]).toBe('https://example.com/clip.mp4');
+    expect(warnings.join(' ')).toMatch(/video.*linked online/);
+  });
+
+  it('keeps oversize media linked instead of embedding', async () => {
+    const bigBlob = { size: 26 * 1024 * 1024, type: 'image/png' } as Blob;
+    const { set: out, warnings } = await embedSetImages(makeSet(), () =>
+      Promise.resolve(bigBlob)
+    );
+    expect(out.imageUrls[0]).toBe('https://example.com/a.png');
+    expect(warnings.join(' ')).toMatch(/larger than 25MB/);
+  });
+
   it('warns about step-level uploaded media', async () => {
     const set = makeSet({ imageUrls: [PNG_DATA_URI] });
     set.steps[0].audioUrl = 'https://storage/audio.mp3';
@@ -183,6 +206,19 @@ describe('parseGuidedLearningJson', () => {
       /does not look like/
     );
     expect(() => parseGuidedLearningJson('[1,2]')).toThrow(/single/);
+  });
+
+  it('rejects null steps with a friendly message', () => {
+    const bad = { ...makeSet(), steps: [null] };
+    expect(() => parseGuidedLearningJson(JSON.stringify(bad))).toThrow(
+      /step must be an object/
+    );
+  });
+
+  it('uses source-neutral copy for invalid JSON', () => {
+    expect(() => parseGuidedLearningJson('not json')).toThrow(
+      /Paste or upload/
+    );
   });
 
   it('normalizes legacy single-image sets', () => {

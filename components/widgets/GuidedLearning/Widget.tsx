@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -716,9 +716,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   // ─── .gl.json export / import ────────────────────────────────────────────
-  const { uploadGuidedLearningMedia } = useStorage();
+  const { uploadGuidedLearningMedia, deleteFile } = useStorage();
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [exportingSetId, setExportingSetId] = useState<string | null>(null);
+  const [importFocusCounter, setImportFocusCounter] = useState(0);
+  // Caches the rehosted set so a save retry reuses uploads instead of re-uploading.
+  const importRehostCacheRef = useRef<{
+    source: GuidedLearningSet;
+    rehosted: GuidedLearningSet;
+  } | null>(null);
 
   const handleExport = async (
     setId: string,
@@ -765,16 +771,27 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const importAdapter = createGuidedLearningImportAdapter({
     save: async (set, title) => {
       if (!user?.uid) throw new Error('Not authenticated');
+      if (!isDriveConnected) {
+        throw new Error('Connect Google Drive to import activities.');
+      }
       const uid = user.uid;
-      const { set: rehosted } = await rehostImportedSetImages(
-        set,
-        (blob, fileName) => uploadGuidedLearningMedia(uid, blob, fileName)
-      );
+      const cached = importRehostCacheRef.current;
+      let rehosted: GuidedLearningSet;
+      if (cached && cached.source === set) {
+        rehosted = cached.rehosted;
+      } else {
+        const result = await rehostImportedSetImages(set, (blob, fileName) =>
+          uploadGuidedLearningMedia(uid, blob, fileName)
+        );
+        rehosted = result.set;
+        importRehostCacheRef.current = { source: set, rehosted };
+      }
       const prepared = prepareImportedSet(
         { ...rehosted, title: title.trim() || rehosted.title },
         uid
       );
       await saveSet(prepared);
+      importRehostCacheRef.current = null;
     },
     renderPreview: (set) => {
       const thumb = pickThumbnailUrl(set);
@@ -922,6 +939,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   void handleExport(setId, driveFileId, buildingSet);
                 }}
                 onImport={() => setShowImportWizard(true)}
+                importFocusCounter={importFocusCounter}
                 onCreateNewPersonal={handleCreateNew}
                 onCreateNewBuilding={handleCreateNewBuilding}
                 onOpenAIAuthoring={() => setShowAIGen(true)}
@@ -1117,9 +1135,20 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
 
       <ImportWizard<GuidedLearningSet>
         isOpen={showImportWizard}
-        onClose={() => setShowImportWizard(false)}
+        onClose={() => {
+          setShowImportWizard(false);
+          // Best-effort cleanup of uploads whose save never succeeded.
+          const cached = importRehostCacheRef.current;
+          importRehostCacheRef.current = null;
+          for (const path of cached?.rehosted.imagePaths ?? []) {
+            if (path) void deleteFile(path).catch(() => undefined);
+          }
+        }}
         adapter={importAdapter}
-        onSaved={(title) => addToast(`"${title}" imported.`, 'success')}
+        onSaved={(title) => {
+          addToast(`"${title}" imported to your personal library.`, 'success');
+          setImportFocusCounter((c) => c + 1);
+        }}
       />
 
       {viewOnlyShareTarget && (

@@ -80,6 +80,61 @@ describe('validateGuidedLearningImport', () => {
     expect(result.ok).toBe(false);
     expect(result.errors.join(' ')).toMatch(/xPct/);
   });
+
+  it('rejects out-of-range hotspot coordinates', () => {
+    const bad = makeSet();
+    bad.steps[0].xPct = 120;
+    const result = validateGuidedLearningImport(bad);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/between 0 and 100/);
+  });
+
+  it('rejects blob: slide urls', () => {
+    const result = validateGuidedLearningImport(
+      makeSet({ imageUrls: ['blob:https://app/xyz'] })
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/blob/);
+  });
+
+  it('rejects an unknown mode', () => {
+    const result = validateGuidedLearningImport(
+      makeSet({ mode: 'freestyle' as GuidedLearningSet['mode'] })
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/structured/);
+  });
+
+  it('rejects unknown interaction types', () => {
+    const bad = makeSet();
+    bad.steps[0].interactionType =
+      'dance' as (typeof bad.steps)[0]['interactionType'];
+    const result = validateGuidedLearningImport(bad);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/interactionType/);
+  });
+
+  it('rejects null steps without throwing', () => {
+    const bad = makeSet();
+    bad.steps = [null] as unknown as GuidedLearningSet['steps'];
+    const result = validateGuidedLearningImport(bad);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/must be an object/);
+  });
+
+  it('rejects missing or duplicate step ids', () => {
+    const missing = makeSet();
+    missing.steps[0].id = '';
+    expect(validateGuidedLearningImport(missing).errors.join(' ')).toMatch(
+      /non-empty string id/
+    );
+
+    const dupes = makeSet();
+    dupes.steps = [dupes.steps[0], { ...dupes.steps[0] }];
+    expect(validateGuidedLearningImport(dupes).errors.join(' ')).toMatch(
+      /unique/
+    );
+  });
 });
 
 describe('createGuidedLearningImportAdapter', () => {
