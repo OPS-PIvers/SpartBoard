@@ -3,6 +3,7 @@ import { WidgetData } from '@/types';
 import { widgetRefRegistry, setWidgetOverride } from './widgetRefRegistry';
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
+import { getWorldBounds, type Bounds } from '@/utils/zoomPanMath';
 
 interface GroupBoundingBoxProps {
   groupWidgets: WidgetData[];
@@ -13,6 +14,27 @@ const PADDING = 12; // px padding around the bounding box
 const HANDLE_SIZE = 44; // minimum touch target size
 // RGB components of brand-blue-light (#4356a0) for group styling
 const GROUP_BRAND_RGB = '67, 86, 160';
+
+// Maximum uniform scale that keeps the group's far bbox edge inside world
+// bounds. Mirrors DraggableWindow's clampWidgetToWorld for single-widget
+// resize — group resize scales every member uniformly from one anchor
+// corner, so clamping the shared bbox's far corner bounds every member.
+function computeMaxGroupScale(
+  corner: 'se' | 'sw' | 'ne' | 'nw',
+  anchorX: number,
+  anchorY: number,
+  bboxW: number,
+  bboxH: number,
+  bounds: Bounds
+): number {
+  const growsRight = corner === 'se' || corner === 'ne';
+  const growsDown = corner === 'se' || corner === 'sw';
+  const availableX = growsRight ? bounds.maxX - anchorX : anchorX - bounds.minX;
+  const availableY = growsDown ? bounds.maxY - anchorY : anchorY - bounds.minY;
+  const maxScaleX = bboxW > 0 ? availableX / bboxW : Infinity;
+  const maxScaleY = bboxH > 0 ? availableY / bboxH : Infinity;
+  return Math.max(0, Math.min(maxScaleX, maxScaleY));
+}
 
 /** Computes the pixel bounding box of a set of widgets */
 function computeBBox(widgets: WidgetData[]) {
@@ -153,9 +175,22 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
           for (const w of rs.widgets) {
             minScale = Math.max(minScale, 150 / w.startW, 100 / w.startH);
           }
+          // Cap growth so the group can't be resized past the world bounds
+          // every drag/single-widget-resize path already respects.
+          const maxScale = computeMaxGroupScale(
+            corner,
+            rs.anchorX,
+            rs.anchorY,
+            rs.bboxW,
+            rs.bboxH,
+            getWorldBounds(window.innerWidth, window.innerHeight)
+          );
           const scale = Math.max(
             minScale,
-            Math.sqrt(Math.max(0, scaleX) * Math.max(0, scaleY))
+            Math.min(
+              maxScale,
+              Math.sqrt(Math.max(0, scaleX) * Math.max(0, scaleY))
+            )
           );
 
           // Apply to each widget via direct DOM manipulation. The DOM write
@@ -230,6 +265,16 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             100 / w.startH
           );
         }
+        // Same world-bounds cap as onMove — keeps the committed size in sync
+        // with the last live-drag frame instead of snapping back on release.
+        const maxFinalScale = computeMaxGroupScale(
+          corner,
+          rs.anchorX,
+          rs.anchorY,
+          rs.bboxW,
+          rs.bboxH,
+          getWorldBounds(window.innerWidth, window.innerHeight)
+        );
         // Use the same geometric-mean formula as onMove so the committed
         // dimensions match the last drag-frame exactly. The previous
         // arithmetic mean ((fScaleX + fScaleY) / 2) differed from the
@@ -237,7 +282,10 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         // non-proportional drags, causing a visible widget jump on release.
         const finalScale = Math.max(
           minFinalScale,
-          Math.sqrt(Math.max(0, fScaleX) * Math.max(0, fScaleY))
+          Math.min(
+            maxFinalScale,
+            Math.sqrt(Math.max(0, fScaleX) * Math.max(0, fScaleY))
+          )
         );
 
         // Commit all positions+dimensions in one batch, then clear each
