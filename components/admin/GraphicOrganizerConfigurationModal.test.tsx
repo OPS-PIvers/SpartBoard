@@ -96,4 +96,115 @@ describe('GraphicOrganizerConfigurationModal', () => {
     expect(config.buildingDefaults['schumann']?.cardOpacity).toBe(0.75);
     expect(config.buildingDefaults['schumann-elementary']).toBeUndefined();
   });
+
+  it('finds a buildings (custom-templates) entry keyed by the canonical id when the org building record resolves to a legacy raw id', () => {
+    // getBuildingConfig/setBuildingConfig got the same canonicalization
+    // treatment as buildingDefaults but weren't pinned by a test.
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    render(
+      <GraphicOrganizerConfigurationModal
+        isOpen
+        onClose={vi.fn()}
+        permission={basePermission({
+          buildings: {
+            schumann: {
+              templates: [
+                {
+                  id: 't1',
+                  name: 'Existing Template',
+                  layout: 'frayer',
+                  defaultNodes: {},
+                  fontFamily: 'sans',
+                },
+              ],
+            },
+          },
+          buildingDefaults: {},
+        })}
+        onSave={vi.fn()}
+      />
+    );
+
+    // If the lookup missed (raw-id bug), the empty state would render
+    // instead of the saved template.
+    expect(screen.getByText('Existing Template')).toBeInTheDocument();
+  });
+
+  it('saves a new custom template under the canonical building id, not the legacy raw id', () => {
+    const onSave = vi.fn<(updates: Partial<FeaturePermission>) => void>();
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    render(
+      <GraphicOrganizerConfigurationModal
+        isOpen
+        onClose={vi.fn()}
+        permission={basePermission({ buildings: {}, buildingDefaults: {} })}
+        onSave={onSave}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Add Template'));
+    fireEvent.click(screen.getByText('Save Template'));
+    fireEvent.click(screen.getByText('Apply Configuration'));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const config = onSave.mock.calls[0][0]?.config as unknown as {
+      buildings: Record<string, { templates: unknown[] }>;
+    };
+    expect(config.buildings['schumann']?.templates).toHaveLength(1);
+    expect(config.buildings['schumann-elementary']).toBeUndefined();
+  });
+
+  it('resolves to the last-in-insertion-order value when both a canonical and legacy key exist for the same building', () => {
+    // canonicalizeBuildingKeyedRecord documents that when two raw keys
+    // collapse to the same canonical id, the later Object.entries() entry
+    // wins — not "canonical always wins". Placing the canonical key second
+    // mirrors the realistic case: a legacy-keyed doc later re-saved under
+    // the canonical key by this fix.
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    render(
+      <GraphicOrganizerConfigurationModal
+        isOpen
+        onClose={vi.fn()}
+        permission={basePermission({
+          buildings: {},
+          buildingDefaults: {
+            'schumann-elementary': {
+              buildingId: 'schumann-elementary',
+              cardOpacity: 0.3,
+            },
+            schumann: { buildingId: 'schumann', cardOpacity: 0.9 },
+          },
+        })}
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText('Default Surface Opacity (90%)')
+    ).toBeInTheDocument();
+  });
 });
