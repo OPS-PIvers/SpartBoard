@@ -18,12 +18,18 @@ import { PresetCardProps } from './types';
 import { AccessLevel } from '@/types';
 
 interface TagInputProps {
+  id?: string;
   tags: string[];
   onChange: (next: string[]) => void;
   suggestions: string[];
 }
 
-const TagInput: React.FC<TagInputProps> = ({ tags, onChange, suggestions }) => {
+const TagInput: React.FC<TagInputProps> = ({
+  id,
+  tags,
+  onChange,
+  suggestions,
+}) => {
   const [draft, setDraft] = React.useState('');
 
   // Keep a ref that always holds the latest tag list so rapid additions
@@ -74,6 +80,7 @@ const TagInput: React.FC<TagInputProps> = ({ tags, onChange, suggestions }) => {
           </span>
         ))}
         <input
+          id={id}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -366,8 +373,9 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
 
       {/* Tags expanded row */}
       <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-        <SettingsLabel>Tags</SettingsLabel>
+        <SettingsLabel htmlFor={`tags-input-${preset.id}`}>Tags</SettingsLabel>
         <TagInput
+          id={`tags-input-${preset.id}`}
           tags={preset.tags ?? []}
           onChange={(next) => void updatePreset(preset.id, { tags: next })}
           suggestions={allTags}
