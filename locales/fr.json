@@ -1860,7 +1860,9 @@
     "scheduleLabel": "Horaire",
     "scheduleSummaryBoth": "Ouvre {{open}} – Ferme {{close}}",
     "scheduleSummaryOpenOnly": "Ouvre {{open}}",
-    "scheduleSummaryCloseOnly": "Ferme {{close}}"
+    "scheduleSummaryCloseOnly": "Ferme {{close}}",
+    "skippedToast_one": "{{count}} élève n'a pas pu être ciblé et a été ignoré.",
+    "skippedToast_other": "{{count}} élèves n'ont pas pu être ciblés et ont été ignorés."
   },
   "assignmentsHub": {
     "title": "Devoirs",
@@ -1895,6 +1897,7 @@
     },
     "detail": {
       "emptyRoster": "Aucun élève n'est encore ciblé par ce devoir.",
+      "emptyRosterAddStudents": "Ajouter des élèves",
       "manualStatus": "PIN/manuel — pas de statut SSO",
       "manualCount": "{{count}} manuel",
       "unresolvedStudent": "Élève",

@@ -1860,7 +1860,9 @@
     "scheduleLabel": "Schedule",
     "scheduleSummaryBoth": "Opens {{open}} – Closes {{close}}",
     "scheduleSummaryOpenOnly": "Opens {{open}}",
-    "scheduleSummaryCloseOnly": "Closes {{close}}"
+    "scheduleSummaryCloseOnly": "Closes {{close}}",
+    "skippedToast_one": "{{count}} student could not be targeted and was skipped.",
+    "skippedToast_other": "{{count}} students could not be targeted and were skipped."
   },
   "assignmentsHub": {
     "title": "Assignments",
@@ -1895,6 +1897,7 @@
     },
     "detail": {
       "emptyRoster": "No students are targeted by this assignment yet.",
+      "emptyRosterAddStudents": "Add students",
       "manualStatus": "PIN/manual — no SSO status",
       "manualCount": "{{count}} manual",
       "unresolvedStudent": "Student",

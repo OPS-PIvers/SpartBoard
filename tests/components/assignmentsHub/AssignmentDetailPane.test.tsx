@@ -167,4 +167,19 @@ describe('AssignmentDetailPane — D3 edit-in-place', () => {
     expect(screen.getByText('Alex Doe')).toBeInTheDocument();
     expect(screen.getByText('Removed — work retained')).toBeInTheDocument();
   });
+
+  it('keeps header controls and offers an Add students action when the roster is empty (F2)', () => {
+    render(
+      <AssignmentDetailPane
+        row={makeRow({ targetStudents: [], rosterIds: [] })}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Close now' })
+    ).toBeInTheDocument();
+    const addButton = screen.getByRole('button', { name: 'Add students' });
+    fireEvent.click(addButton);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
 });

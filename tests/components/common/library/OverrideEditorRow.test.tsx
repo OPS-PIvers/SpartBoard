@@ -302,7 +302,7 @@ describe('OverrideEditorRow', () => {
       />
     );
     expect(
-      screen.queryByRole('group', { name: 'Extended time' })
+      screen.queryByRole('tablist', { name: 'Extended time' })
     ).not.toBeInTheDocument();
     collapsed.unmount();
 
@@ -315,7 +315,7 @@ describe('OverrideEditorRow', () => {
       />
     );
     expect(
-      screen.getByRole('group', { name: 'Extended time' })
+      screen.getByRole('tablist', { name: 'Extended time' })
     ).toBeInTheDocument();
   });
 

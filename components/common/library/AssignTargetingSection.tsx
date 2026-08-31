@@ -83,7 +83,7 @@ export interface AssignTargetingSectionProps {
   value: AssignTargetingValue;
   onChange: (next: AssignTargetingValue) => void;
   kind: AssignTargetingKind;
-  /** Quiz-only assignment-level due date (Decision 5); other kinds omit. */
+  /** Guided-learning/mini-app assignment-level due date; Quiz/VA keep their legacy due-date field and omit this. */
   showDueAt?: boolean;
   /** Present only for quiz consumers — unlocks question subset / MC hider / rubric swap in B2 rows. */
   quizContext?: AssignTargetingQuizContext;

@@ -1860,7 +1860,9 @@
     "scheduleLabel": "Horario",
     "scheduleSummaryBoth": "Abre {{open}} – Cierra {{close}}",
     "scheduleSummaryOpenOnly": "Abre {{open}}",
-    "scheduleSummaryCloseOnly": "Cierra {{close}}"
+    "scheduleSummaryCloseOnly": "Cierra {{close}}",
+    "skippedToast_one": "{{count}} estudiante no pudo ser seleccionado y fue omitido.",
+    "skippedToast_other": "{{count}} estudiantes no pudieron ser seleccionados y fueron omitidos."
   },
   "assignmentsHub": {
     "title": "Tareas",
@@ -1895,6 +1897,7 @@
     },
     "detail": {
       "emptyRoster": "Todavía no hay estudiantes asignados a esta tarea.",
+      "emptyRosterAddStudents": "Agregar estudiantes",
       "manualStatus": "PIN/manual — sin estado SSO",
       "manualCount": "{{count}} manual",
       "unresolvedStudent": "Estudiante",

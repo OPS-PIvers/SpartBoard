@@ -217,20 +217,7 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
     );
   }
 
-  if (rosterRows.length === 0) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
-          <Users className="h-6 w-6 text-slate-400" aria-hidden="true" />
-        </div>
-        <p className="max-w-xs text-sm text-slate-600">
-          {t('assignmentsHub.detail.emptyRoster', {
-            defaultValue: 'No students are targeted by this assignment yet.',
-          })}
-        </p>
-      </div>
-    );
-  }
+  const isEmptyRoster = rosterRows.length === 0;
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -264,25 +251,27 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
             </div>
           )}
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {STATUS_ORDER.map((status) => (
-            <span
-              key={status}
-              className="inline-flex items-center gap-1 text-xs text-slate-500"
-            >
-              <AssignmentStatusChip status={status} />
-              <span>{counts[status]}</span>
-            </span>
-          ))}
-          {counts.manual > 0 && (
-            <span className="text-xs text-slate-400">
-              {t('assignmentsHub.detail.manualCount', {
-                defaultValue: '{{count}} manual',
-                count: counts.manual,
-              })}
-            </span>
-          )}
-        </div>
+        {!isEmptyRoster && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {STATUS_ORDER.map((status) => (
+              <span
+                key={status}
+                className="inline-flex items-center gap-1 text-xs text-slate-500"
+              >
+                <AssignmentStatusChip status={status} />
+                <span>{counts[status]}</span>
+              </span>
+            ))}
+            {counts.manual > 0 && (
+              <span className="text-xs text-slate-400">
+                {t('assignmentsHub.detail.manualCount', {
+                  defaultValue: '{{count}} manual',
+                  count: counts.manual,
+                })}
+              </span>
+            )}
+          </div>
+        )}
         {editing && (
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
             <AssignTargetingSection
@@ -327,9 +316,33 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
         )}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
-        {rosterRows.map((r) => (
-          <RosterRow key={r.key} row={r} />
-        ))}
+        {isEmptyRoster
+          ? !editing && (
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                  <Users
+                    className="h-6 w-6 text-slate-400"
+                    aria-hidden="true"
+                  />
+                </div>
+                <p className="max-w-xs text-sm text-slate-600">
+                  {t('assignmentsHub.detail.emptyRoster', {
+                    defaultValue:
+                      'No students are targeted by this assignment yet.',
+                  })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+                >
+                  {t('assignmentsHub.detail.emptyRosterAddStudents', {
+                    defaultValue: 'Add students',
+                  })}
+                </button>
+              </div>
+            )
+          : rosterRows.map((r) => <RosterRow key={r.key} row={r} />)}
       </div>
     </div>
   );

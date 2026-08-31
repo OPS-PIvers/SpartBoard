@@ -1860,7 +1860,9 @@
     "scheduleLabel": "Zeitplan",
     "scheduleSummaryBoth": "Öffnet {{open}} – Schließt {{close}}",
     "scheduleSummaryOpenOnly": "Öffnet {{open}}",
-    "scheduleSummaryCloseOnly": "Schließt {{close}}"
+    "scheduleSummaryCloseOnly": "Schließt {{close}}",
+    "skippedToast_one": "{{count}} Schüler/in konnte nicht ausgewählt werden und wurde übersprungen.",
+    "skippedToast_other": "{{count}} Schüler/innen konnten nicht ausgewählt werden und wurden übersprungen."
   },
   "assignmentsHub": {
     "title": "Aufgaben",
@@ -1895,6 +1897,7 @@
     },
     "detail": {
       "emptyRoster": "Dieser Aufgabe sind noch keine Schüler zugewiesen.",
+      "emptyRosterAddStudents": "Schüler hinzufügen",
       "manualStatus": "PIN/manuell — kein SSO-Status",
       "manualCount": "{{count}} manuell",
       "unresolvedStudent": "Schüler",

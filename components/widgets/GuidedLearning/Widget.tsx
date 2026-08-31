@@ -50,6 +50,7 @@ import { Loader2 } from 'lucide-react';
 // ─── AI generation modal (admin only) ────────────────────────────────────────
 import { GuidedLearningAIGenerator } from './components/GuidedLearningAIGenerator';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 
 const GL_PERSONAL_COLLECTION = 'guided_learning';
 
@@ -387,10 +388,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               });
               const skippedCount = res.data.skipped?.length ?? 0;
               if (skippedCount > 0) {
-                addToast(
-                  `${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be targeted — check the assignment.`,
-                  'error'
-                );
+                addToast(skippedTargetsToastMessage(skippedCount), 'error');
                 // D3 edit-in-place must also refresh targetSkippedCount on re-assign.
                 await updateDoc(
                   doc(
