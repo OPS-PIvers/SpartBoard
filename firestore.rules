@@ -3141,6 +3141,18 @@ service cloud.firestore {
       }
     }
 
+    // Server-time clock-skew probe (M17 §3a-D / utils/serverTime.ts). Any
+    // signed-in user (teacher or student) may write/read only their own
+    // scratch doc — used solely to diff a serverTimestamp() round-trip
+    // against local Date.now() and derive an approximate offset. No PII,
+    // no cross-user access.
+    match /server_time_probe/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['at']) &&
+        request.resource.data.at == request.time;
+    }
+
     // Quiz Sessions — keyed by session UUID (was teacherUid). The teacher
     // owns the document and stores their uid on the `teacherUid` field.
     // Multiple concurrent sessions per teacher are allowed.
