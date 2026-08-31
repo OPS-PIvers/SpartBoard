@@ -28,7 +28,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
-import type { AssignmentMode, MiniAppAssignment, MiniAppItem } from '@/types';
+import type {
+  AssignmentMode,
+  MiniAppAssignment,
+  MiniAppItem,
+  StudentOverride,
+  StudentTargetRef,
+} from '@/types';
 
 const ASSIGNMENTS_COLLECTION = 'miniapp_assignments';
 const SESSIONS_COLLECTION = 'mini_app_sessions';
@@ -46,6 +52,21 @@ export interface CreateMiniAppAssignmentInput {
    *  Mirrors MiniAppSession.mode. The `submissionsEnabled` field on the
    *  assignment doc is derived from this — callers don't pass it directly. */
   mode?: AssignmentMode;
+  /** M17 B3 — individual-student targeting mode. Default 'class' — legacy behavior untouched. */
+  targetMode?: 'class' | 'students';
+  /** M17 B3 — only meaningful when `targetMode === 'students'`; mirrors the
+   *  set `setAssignmentTargetsV1` resolves. Provided at creation only when
+   *  non-empty so `targetMode:'class'` assignments never gain the field. */
+  targetStudents?: StudentTargetRef[];
+  /** M17 B3 — provenance of picked groups (display only). */
+  targetGroupIds?: string[];
+  /** M17 B3 — per-student accommodation overrides, keyed by `StudentTargetRef` key. */
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** M17 B3 — optional due date (ms epoch), display metadata within the open/close window. */
+  dueAt?: number | null;
+  /** M17 B3 — open/close window (epoch ms). Absent = always open (legacy behavior). */
+  openAt?: number | null;
+  closeAt?: number | null;
 }
 
 export interface UseMiniAppAssignmentsResult {
@@ -155,6 +176,22 @@ export const useMiniAppAssignments = (
         // Derived from `mode` so the two fields can never diverge.
         submissionsEnabled: mode === 'submissions',
         mode,
+        ...(input.targetMode === 'students'
+          ? { targetMode: 'students' as const }
+          : {}),
+        ...(input.targetStudents && input.targetStudents.length > 0
+          ? { targetStudents: input.targetStudents }
+          : {}),
+        ...(input.targetGroupIds && input.targetGroupIds.length > 0
+          ? { targetGroupIds: input.targetGroupIds }
+          : {}),
+        ...(input.overridesBySourcedId &&
+        Object.keys(input.overridesBySourcedId).length > 0
+          ? { overridesBySourcedId: input.overridesBySourcedId }
+          : {}),
+        ...(input.dueAt != null ? { dueAt: input.dueAt } : {}),
+        ...(input.openAt != null ? { openAt: input.openAt } : {}),
+        ...(input.closeAt != null ? { closeAt: input.closeAt } : {}),
       };
 
       await setDoc(

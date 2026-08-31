@@ -206,6 +206,37 @@ describe('useMiniAppSessionTeacher — createSession', () => {
     expect('classIds' in payload).toBe(false);
     expect('rosterIds' in payload).toBe(false);
   });
+
+  // M17 B3 — assignment-level schedule window + individual-targeting flag.
+  it('includes openAt/closeAt/individualTargeting when provided', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A', {
+        openAt: 1000,
+        closeAt: 2000,
+        individualTargeting: true,
+      });
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.openAt).toBe(1000);
+    expect(payload.closeAt).toBe(2000);
+    expect(payload.individualTargeting).toBe(true);
+  });
+
+  it('omits openAt/closeAt/individualTargeting when absent (default class-wide flow untouched)', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A');
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect('openAt' in payload).toBe(false);
+    expect('closeAt' in payload).toBe(false);
+    expect('individualTargeting' in payload).toBe(false);
+  });
 });
 
 describe('useMiniAppSessionTeacher — subscribeToAppSessions', () => {
