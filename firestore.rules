@@ -61,10 +61,6 @@ service cloud.firestore {
               sessionClassIds.hasAny(request.auth.token.classIds));
     }
 
-    // Phase 5A compat: post-5A sessions write a `classIds` list, pre-5A sessions
-    // write a single `classId`. Picks the list gate when `classIds` is non-empty,
-    // else the legacy single-class gate. Callers pass get(...) defaults so an
-    // absent field falls through to a no-op gate.
     // M17 close-window grace (ms). The client auto-submits answered work when
     // closeAt passes mid-attempt (spec §3a-D); that write lands at/just after
     // closeAt, so a zero-tolerance gate would discard in-flight student work.
@@ -72,6 +68,10 @@ service cloud.firestore {
       return 120000;
     }
 
+    // Phase 5A compat: post-5A sessions write a `classIds` list, pre-5A sessions
+    // write a single `classId`. Picks the list gate when `classIds` is non-empty,
+    // else the legacy single-class gate. Callers pass get(...) defaults so an
+    // absent field falls through to a no-op gate.
     function passesStudentClassGateCompat(sessionClassIds, sessionClassId) {
       return sessionClassIds is list && sessionClassIds.size() > 0
              ? passesStudentClassGateList(sessionClassIds)
