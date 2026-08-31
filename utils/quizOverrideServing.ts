@@ -25,9 +25,9 @@ export function serveQuestionSubset(
  * carries no stable per-option id (choices are pre-shuffled server-side with
  * the correct answer's identity deliberately unknown), so
  * `StudentOverride.hiddenOptionIdsByQuestion` values are the option's literal
- * text. Trusts the data — hiding the correct answer is prevented at
- * authoring time (B2 UI) and validated server-side (the targeting Cloud
- * Function), not re-checked here.
+ * text — the teacher client translates the B2 editor's structured option ids
+ * to text at save time (`utils/quizHiddenOptions.ts`), which is also where
+ * hiding the correct answer is refused. Nothing to re-check here.
  */
 export function applyHiddenOptions(
   question: QuizPublicQuestion,

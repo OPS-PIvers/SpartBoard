@@ -851,7 +851,13 @@ const QuizJoinFlow: React.FC<{
 
   // Waiting room
   if (session.status === 'waiting') {
-    return <WaitingRoom session={session} pin={pin} />;
+    return (
+      <WaitingRoom
+        session={session}
+        pin={pin}
+        totalQuestions={servedTotalQuestions}
+      />
+    );
   }
 
   // Active quiz — already-completed gate.
@@ -954,6 +960,7 @@ const QuizJoinFlow: React.FC<{
           session={session}
           currentQuestion={currentQ}
           myResponse={myResponse}
+          totalQuestions={servedTotalQuestions}
         />
       );
     }
@@ -1009,7 +1016,9 @@ const WaitingRoom: React.FC<{
   session: QuizSession;
   /** Empty string for SSO `studentRole` joiners — PIN line is hidden. */
   pin: string;
-}> = ({ session, pin }) => (
+  /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
+  totalQuestions?: number;
+}> = ({ session, pin, totalQuestions }) => (
   <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
     <div className="w-16 h-16 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
       <ClipboardList className="w-8 h-8 text-violet-400" />
@@ -1019,7 +1028,7 @@ const WaitingRoom: React.FC<{
       Waiting for your teacher to start…
     </p>
     <p className="text-slate-500 text-xs mb-8">
-      {session.totalQuestions} questions
+      {totalQuestions ?? session.totalQuestions} questions
     </p>
     {pin && (
       <div className="p-4 bg-slate-800 rounded-xl">
@@ -1474,12 +1483,16 @@ const ActiveQuiz: React.FC<{
 
   // M17 C3 — per-student extended-time accommodation (self-paced only, same
   // reasoning as the subset/hidden-option overrides above).
-  const initialTimeLimit = isStudentPaced
+  // Speed bonus divides by this same effective limit (M17 C3 F6) — dividing
+  // by the raw limit would inflate an extended-time student's bonus past
+  // 100% and leak the accommodation.
+  const effectiveTimeLimit = isStudentPaced
     ? applyTimeMultiplier(
         currentQuestion?.timeLimit ?? 0,
         override?.timeMultiplier
       )
     : (currentQuestion?.timeLimit ?? 0);
+  const initialTimeLimit = effectiveTimeLimit;
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -2131,9 +2144,9 @@ const ActiveQuiz: React.FC<{
 
     // Compute speed bonus before submit so it's persisted with the answer
     let computedSpeedBonus: number | undefined;
-    if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+    if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
       const remaining = Math.max(0, timeLeft ?? 0);
-      const bonusPct = Math.round((remaining / currentQuestion.timeLimit) * 50);
+      const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
       if (bonusPct > 0) computedSpeedBonus = bonusPct;
     }
 
@@ -2255,11 +2268,9 @@ const ActiveQuiz: React.FC<{
     try {
       if (!skipWrite) {
         let computedSpeedBonus: number | undefined;
-        if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+        if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
           const remaining = Math.max(0, timeLeft ?? 0);
-          const bonusPct = Math.round(
-            (remaining / currentQuestion.timeLimit) * 50
-          );
+          const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
           if (bonusPct > 0) computedSpeedBonus = bonusPct;
         }
 
@@ -3308,7 +3319,9 @@ const ReviewPhase: React.FC<{
   session: QuizSession;
   currentQuestion: QuizPublicQuestion;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
-}> = ({ session, currentQuestion, myResponse }) => {
+  /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
+  totalQuestions?: number;
+}> = ({ session, currentQuestion, myResponse, totalQuestions }) => {
   const gamificationEnabled = isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
@@ -3335,7 +3348,7 @@ const ReviewPhase: React.FC<{
         {/* Question recap */}
         <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
           Question {session.currentQuestionIndex + 1} of{' '}
-          {session.totalQuestions}
+          {totalQuestions ?? session.totalQuestions}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md">
           {currentQuestion.text}
@@ -3807,7 +3820,7 @@ const PublishedScoreReview: React.FC<{
               Your Answers
             </h2>
             <div className="flex flex-col gap-3">
-              {(session.publicQuestions ?? []).map((q, idx) => {
+              {publicQuestions.map((q, idx) => {
                 const ans = answerById.get(q.id);
                 const studentAnswer = ans?.answer ?? '';
                 const isWritten = isWrittenQuestionType(q.type);

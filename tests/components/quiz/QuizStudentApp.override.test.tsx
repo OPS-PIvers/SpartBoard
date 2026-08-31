@@ -14,8 +14,11 @@ import type {
   QuizSession,
   QuizResponse,
   QuizPublicQuestion,
+  QuizQuestion,
+  StudentOverride,
   StudentAssignmentPointer,
 } from '@/types';
+import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 
 const { mockAuth, mockJoinQuizSession, hookState, pointerState } = vi.hoisted(
   () => {
@@ -121,6 +124,27 @@ const QUESTIONS: QuizPublicQuestion[] = [
   },
 ];
 
+// The teacher-side quiz body the B2 override editor is built from. Option
+// ids follow `QuizManager.toOverrideEditorQuestions`.
+const QUIZ_BODY: QuizQuestion[] = [
+  {
+    id: 'q1',
+    type: 'MC',
+    text: 'What is 2 + 2?',
+    timeLimit: 30,
+    correctAnswer: '4',
+    incorrectAnswers: ['3', '5', '22'],
+  },
+  {
+    id: 'q2',
+    type: 'MC',
+    text: 'Capital of France?',
+    timeLimit: 0,
+    correctAnswer: 'Paris',
+    incorrectAnswers: ['London', 'Berlin', 'Paris'],
+  },
+];
+
 function buildSession(overrides: Partial<QuizSession> = {}): QuizSession {
   return {
     id: 'session-1',
@@ -185,13 +209,31 @@ describe('QuizStudentApp — M17 C3 override materialization', () => {
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
-  it('hides overridden MC options from the served question', async () => {
+  it('hides options authored as B2 editor ids, translated at save time', async () => {
+    // End-to-end: the B2 editor emits structured ids, the save path
+    // translates them to text, and only text lands on the pointer doc.
+    const authored: Record<string, StudentOverride> = {
+      'classlink:s1': {
+        hiddenOptionIdsByQuestion: {
+          q1: ['q1-incorrect-1', 'q1-incorrect-2'],
+        },
+      },
+    };
+    const { overridesByKey } = translateHiddenOptionIdsToText(
+      QUIZ_BODY,
+      authored
+    );
+    const served = overridesByKey['classlink:s1'];
+    expect(served.hiddenOptionIdsByQuestion).toEqual({ q1: ['5', '22'] });
+    expect(JSON.stringify(served)).not.toContain('-incorrect-');
+    expect(JSON.stringify(served)).not.toContain('-correct');
+
     pointerState.current = {
       kind: 'quiz',
       sessionId: 'session-1',
       teacherUid: 'teacher-1',
       classId: 'class-1',
-      override: { hiddenOptionIdsByQuestion: { q1: ['22', '5'] } },
+      override: served,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -205,6 +247,71 @@ describe('QuizStudentApp — M17 C3 override materialization', () => {
     expect(screen.queryByText('5')).not.toBeInTheDocument();
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('keeps a duplicate-text distractor visible so the key survives', async () => {
+    // 'q2-incorrect-2' duplicates the correct answer's text — hiding by text
+    // would take the key down with it, so translation refuses it.
+    const { overridesByKey, warnings } = translateHiddenOptionIdsToText(
+      QUIZ_BODY,
+      {
+        'classlink:s1': {
+          hiddenOptionIdsByQuestion: {
+            q2: ['q2-incorrect-0', 'q2-incorrect-2'],
+          },
+        },
+      }
+    );
+    const served = overridesByKey['classlink:s1'];
+    expect(served.hiddenOptionIdsByQuestion).toEqual({ q2: ['London'] });
+    expect(warnings).toHaveLength(1);
+
+    pointerState.current = {
+      kind: 'quiz',
+      sessionId: 'session-1',
+      teacherUid: 'teacher-1',
+      classId: 'class-1',
+      override: { ...served, questionIds: ['q2'] },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Capital of France?')).toBeInTheDocument()
+    );
+    expect(screen.getByText('Paris')).toBeInTheDocument();
+    expect(screen.queryByText('London')).not.toBeInTheDocument();
+  });
+
+  it('lists only served questions in the published review', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      score: 100,
+      answers: [{ questionId: 'q1', answer: '4', answeredAt: Date.now() }],
+    });
+    pointerState.current = {
+      kind: 'quiz',
+      sessionId: 'session-1',
+      teacherUid: 'teacher-1',
+      classId: 'class-1',
+      override: { questionIds: ['q1', 'q3'] },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Your Answers')).toBeInTheDocument()
+    );
+    expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument();
+    expect(screen.getByText('Color of the sky?')).toBeInTheDocument();
+    expect(screen.queryByText('Capital of France?')).not.toBeInTheDocument();
   });
 
   it('renders the full count with no override (legacy unchanged)', async () => {
