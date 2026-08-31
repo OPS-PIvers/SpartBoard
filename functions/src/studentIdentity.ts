@@ -25,6 +25,12 @@ import {
   type ClassLinkUser,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
+import {
+  MAX_TARGET_REFS,
+  loadTargetDirectory,
+  resolveTargets,
+  targetRefsFromAssignment,
+} from './studentAssignmentTargets';
 
 // Student identity (ClassLink-via-Google) — PII-free auth flow
 // ---------------------------------------------------------------------------
@@ -615,15 +621,24 @@ export const getPseudonymsForAssignmentV1 = onCall(
       assignmentId?: unknown;
       classId?: unknown;
       orgId?: unknown;
+      targetStudents?: unknown;
     };
     const assignmentId =
       typeof data?.assignmentId === 'string' ? data.assignmentId : '';
     const classId = typeof data?.classId === 'string' ? data.classId : '';
+    // M17 D2: `targetMode:'students'` assignments span partial rosters, so the
+    // caller may send the assignment's target refs instead of a classId. Absent
+    // ⇒ the legacy whole-class path below, unchanged.
+    const targetStudents = Array.isArray(data?.targetStudents)
+      ? targetRefsFromAssignment({
+          targetStudents: data.targetStudents.slice(0, MAX_TARGET_REFS),
+        })
+      : [];
     // orgId is optional for backwards compatibility (older clients). The
     // test-class branch only activates when it's provided AND the requested
     // classId resolves to a `testClasses` doc under that org.
     const orgId = typeof data?.orgId === 'string' ? data.orgId : '';
-    if (!assignmentId || !classId) {
+    if (!assignmentId || (!classId && targetStudents.length === 0)) {
       throw new HttpsError(
         'invalid-argument',
         'assignmentId and classId are required.'
@@ -641,6 +656,66 @@ export const getPseudonymsForAssignmentV1 = onCall(
       !tenantUrl
     ) {
       throw new HttpsError('internal', 'Server configuration missing.');
+    }
+
+    // ── Target-refs branch (M17 D2) ──────────────────────────────────────
+    // Resolves exactly the refs the caller asked for, through the SAME
+    // authorization used by `setAssignmentTargetsV1`: a ref that maps to no
+    // class the caller teaches (and a `test` ref from a non-test-class
+    // authority) is reported in `skipped`, never name-resolved.
+    if (targetStudents.length > 0) {
+      const db = admin.firestore();
+      const { ctx, namesByRefKey } = await loadTargetDirectory(
+        db,
+        request.auth.uid,
+        teacherEmail,
+        { classlinkClientId, classlinkClientSecret, tenantUrl },
+        (err) => {
+          if (axios.isAxiosError(err)) {
+            console.error(
+              '[getPseudonymsForAssignmentV1] ClassLink request failed:',
+              err.response?.status
+            );
+          } else {
+            console.error('[getPseudonymsForAssignmentV1] Unexpected failure.');
+          }
+          throw new HttpsError('internal', 'Roster service unavailable.');
+        }
+      );
+      const { resolved, skipped } = resolveTargets(
+        targetStudents,
+        ctx,
+        hmacSecret
+      );
+      const pseudonyms: Record<
+        string,
+        {
+          studentUid: string;
+          assignmentPseudonym: string;
+          givenName: string;
+          familyName: string;
+          targetRefKey: string;
+        }
+      > = {};
+      for (const target of resolved) {
+        const name = namesByRefKey.get(target.key);
+        pseudonyms[
+          target.ref.kind === 'classlink'
+            ? target.ref.sourcedId
+            : target.ref.email
+        ] = {
+          studentUid: target.uid,
+          targetRefKey: target.key,
+          assignmentPseudonym: computeAssignmentPseudonym(
+            target.uid,
+            assignmentId,
+            hmacSecret
+          ),
+          givenName: name?.givenName ?? '',
+          familyName: name?.familyName ?? '',
+        };
+      }
+      return { pseudonyms, skipped };
     }
 
     // ── Test-class branch ────────────────────────────────────────────────

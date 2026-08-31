@@ -26,3 +26,31 @@ export function hasReachedTabWarningThreshold(
   if (threshold === 'off') return false;
   return count >= threshold;
 }
+
+/**
+ * Resolve a specific student's effective tab-warning threshold from the
+ * teacher's assignment-doc overrides (M17 E2 F2), falling back to the
+ * session-level value / default when no override matches. Mirrors the
+ * `resolveRubricForResponse` lookup shape (`targetRefKeyByStudentUid` ->
+ * `overridesBySourcedId[targetRefKey]`).
+ */
+export function resolveStudentTabWarningThreshold(
+  sessionThreshold: number | 'off' | undefined,
+  studentUid: string | null | undefined,
+  overridesBySourcedId:
+    | Record<string, { tabWarningThreshold?: number | 'off' }>
+    | null
+    | undefined,
+  targetRefKeyByStudentUid: Map<string, string> | null | undefined
+): number | 'off' {
+  const targetRefKey = studentUid
+    ? targetRefKeyByStudentUid?.get(studentUid)
+    : undefined;
+  const override = targetRefKey
+    ? overridesBySourcedId?.[targetRefKey]
+    : undefined;
+  return getEffectiveTabWarningThreshold(
+    sessionThreshold,
+    override?.tabWarningThreshold
+  );
+}

@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 
 export interface OverrideEditorQuestionOption {
   id: string;
@@ -24,11 +25,17 @@ export interface OverrideEditorQuestionOption {
   isCorrect: boolean;
 }
 
-/** A question the override editor can target. `options` present ⇒ MC (hider applies); absent ⇒ written (rubric swap applies). */
+/**
+ * A question the override editor can target. `options` present ⇒ MC (hider
+ * applies). `isWritten` true ⇒ short/essay (rubric swap applies). A question
+ * with neither (FIB/Matching/Ordering) is only selectable in the bare
+ * question-subset picker — no per-question hider or rubric swap (F2 fix).
+ */
 export interface OverrideEditorQuestion {
   id: string;
   label: string;
   options?: OverrideEditorQuestionOption[];
+  isWritten?: boolean;
 }
 
 export interface OverrideEditorPeer {
@@ -72,6 +79,13 @@ const TIME_MULTIPLIER_OPTIONS: Array<{
     value: 'unlimited',
   },
 ];
+
+const timeMultiplierOptionById = (id: string) =>
+  TIME_MULTIPLIER_OPTIONS.find((opt) => opt.id === id);
+const timeMultiplierIdForValue = (
+  value: StudentOverride['timeMultiplier']
+): string =>
+  TIME_MULTIPLIER_OPTIONS.find((opt) => opt.value === value)?.id ?? 'none';
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
 const msToLocalInputValue = (ms: number | undefined): string => {
@@ -163,7 +177,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
     });
   };
 
-  const writtenQuestions = questions.filter((q) => !q.options);
+  const writtenQuestions = questions.filter((q) => q.isWritten);
   const mcQuestions = questions.filter((q) => !!q.options);
 
   return (
@@ -240,32 +254,20 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
               {t('studentOverride.timeMultiplier', 'Extended time')}
             </span>
-            <div
-              role="group"
-              aria-label={t('studentOverride.timeMultiplier', 'Extended time')}
-              className="mt-1 inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
-            >
-              {TIME_MULTIPLIER_OPTIONS.map((opt) => {
-                const active = override.timeMultiplier === opt.value;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => patch({ timeMultiplier: opt.value })}
-                    className={
-                      'px-3 py-1.5 text-xs font-bold transition ' +
-                      (active
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'text-slate-600 hover:bg-slate-50')
-                    }
-                  >
-                    {opt.labelKey
-                      ? t(opt.labelKey, opt.labelDefault ?? opt.id)
-                      : opt.id}
-                  </button>
-                );
-              })}
+            <div className="mt-1">
+              <SegmentedControl
+                ariaLabel={t('studentOverride.timeMultiplier', 'Extended time')}
+                value={timeMultiplierIdForValue(override.timeMultiplier)}
+                onChange={(id) =>
+                  patch({ timeMultiplier: timeMultiplierOptionById(id)?.value })
+                }
+                options={TIME_MULTIPLIER_OPTIONS.map((opt) => ({
+                  value: opt.id,
+                  label: opt.labelKey
+                    ? t(opt.labelKey, opt.labelDefault ?? opt.id)
+                    : opt.id,
+                }))}
+              />
             </div>
           </div>
 

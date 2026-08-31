@@ -27,6 +27,7 @@ import {
 import { Z_INDEX } from '@/config/zIndex';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { buildMiniAppExportFilename } from './exportFilename';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
@@ -44,7 +45,8 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, functions } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -55,6 +57,13 @@ import {
   deriveSessionTargetsFromRosters,
   mapLegacyClassIdsToRosterIds,
 } from '@/utils/resolveAssignmentTargets';
+import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
+import {
+  buildSetAssignmentTargetsPayload,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
+import type { StudentOverride, StudentTargetRef } from '@/types';
 import { MiniAppEditorModal } from './components/MiniAppEditorModal';
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
@@ -68,6 +77,30 @@ import {
   type MiniAppImportData,
 } from './adapters/miniAppImportAdapter';
 import type { LibraryTab } from '@/components/common/library/types';
+
+// --- M17 B3: setAssignmentTargetsV1 client caller ---
+// Mirrors `functions/src/studentAssignmentTargets.ts` — kept local (not the
+// shared `utils/studentTargetRef.ts`) so each B3 PR's save-wiring stays
+// independent per the spec's "differ only in save-wiring" contract.
+interface SetAssignmentTargetsParams {
+  assignmentId: string;
+  kind: 'quiz' | 'video-activity' | 'guided-learning' | 'mini-app';
+  sessionId: string;
+  add: StudentTargetRef[];
+  remove: StudentTargetRef[];
+  overridesBySourcedId: Record<string, StudentOverride | null>;
+  window: {
+    openAt?: number | null;
+    closeAt?: number | null;
+    dueAt?: number | null;
+  };
+  targetMode?: 'class' | 'students';
+}
+interface SetAssignmentTargetsResult {
+  written: number;
+  removed: number;
+  skipped: { ref: StudentTargetRef; reason: string }[];
+}
 
 // --- ASSIGN / SHARE MODAL ---
 interface MiniAppAssignModalProps {
@@ -87,6 +120,12 @@ interface MiniAppAssignModalProps {
   /** Org-wide mode. Drives the modal copy (Assign vs Share) and whether the
    *  underlying session is created with submissions enabled. */
   mode: AssignmentMode;
+  /** M17 B3 — schedule + individual-student targeting (spec §5 B3, §4). */
+  targetingValue: AssignTargetingValue;
+  onTargetingChange: (next: AssignTargetingValue) => void;
+  /** M17 B3 — names of students `setAssignmentTargetsV1` could not target,
+   *  surfaced after creation so a skip is never silent (spec §5 B3(4)). */
+  skippedStudentNames: string[];
 }
 
 const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
@@ -102,6 +141,9 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   pickerValue,
   onPickerChange,
   mode,
+  targetingValue,
+  onTargetingChange,
+  skippedStudentNames,
 }) => {
   const isViewOnly = mode === 'view-only';
   const link = createdSessionId
@@ -192,6 +234,19 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 Share this link with your students. They&apos;ll interact with
                 the app immediately.
               </p>
+              {skippedStudentNames.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="text-xs font-bold text-amber-800">
+                    Couldn&apos;t target {skippedStudentNames.length} student
+                    {skippedStudentNames.length === 1 ? '' : 's'}
+                  </p>
+                  <ul className="mt-1 text-xs text-amber-700 list-disc list-inside">
+                    {skippedStudentNames.map((name) => (
+                      <li key={name}>{name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div
                 className="bg-slate-50 border border-slate-200 rounded-xl break-all text-slate-700 font-mono"
                 style={{
@@ -353,6 +408,13 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                       Leave unselected to share the link directly.
                     </p>
                   </div>
+                  <AssignTargetingSection
+                    rosters={rosters}
+                    value={targetingValue}
+                    onChange={onTargetingChange}
+                    kind="mini-app"
+                    showDueAt
+                  />
                 </>
               )}
               {error && (
@@ -455,6 +517,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     endAssignment,
     reactivateAssignment,
     deleteAssignment,
+    setTargetSkippedCount,
   } = useMiniAppAssignments(user?.uid);
 
   // Assign flow state
@@ -467,6 +530,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     useState<AssignClassPickerValue>(makeEmptyPickerValue());
   const [assignmentsForApp, setAssignmentsForApp] =
     useState<MiniAppItem | null>(null);
+  // M17 B3 — schedule + individual-student targeting (spec §5 B3).
+  const [assignTargetingValue, setAssignTargetingValue] =
+    useState<AssignTargetingValue>(EMPTY_ASSIGN_TARGETING_VALUE);
+  const [skippedStudentNames, setSkippedStudentNames] = useState<string[]>([]);
 
   const buildDefaultAssignmentName = (appTitle: string) => {
     const formatted = new Date().toLocaleString([], {
@@ -483,6 +550,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setAssignmentName(buildDefaultAssignmentName(app.title));
     setCreatedSessionId(null);
     setAssignError(null);
+    setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
+    setSkippedStudentNames([]);
     // Pre-populate the roster picker with the teacher's last selection for
     // this app. Prefer unified roster memory; fall back to the legacy
     // ClassLink-sourcedId map so teachers upgrading from pre-unification
@@ -551,6 +620,18 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // Mode is locked org-wide by the admin and frozen onto the session at
       // creation. The session/assignment hooks derive `submissionsEnabled`
       // from `mode` so the two fields can never diverge.
+      // M17 B3 — individual-student targeting is orthogonal to the roster
+      // picker: `targetMode:'students'` narrows delivery to the picked
+      // students within the targeted rosters, and the Schedule window
+      // applies regardless of targeting mode (spec Decision 5/§3a-G).
+      const isIndividualTargeting =
+        assignTargetingValue.targetMode === 'students';
+      // M17 E2 F1: mini-app is the one kind whose archive-row assignment id
+      // differs from the session id (Quiz/VA/GL share one UUID). Generate it
+      // up front so it can be written onto the session doc — the student app
+      // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
+      // uses as the pointer key.
+      const generatedAssignmentId = crypto.randomUUID();
       const sessionId = await createSession(
         assigningApp,
         user.uid,
@@ -559,6 +640,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
+          openAt: assignTargetingValue.openAt ?? null,
+          closeAt: assignTargetingValue.closeAt ?? null,
+          dueAt: assignTargetingValue.dueAt ?? null,
+          assignmentId: generatedAssignmentId,
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up
@@ -566,19 +651,103 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // the session itself still exists. NOTE: only roster-level targeting
       // (`rosterIds`) is mirrored; `classIds` lives on the session doc for
       // the student SSO gate, matching the Quiz/VA/GL assignment shape.
+      let assignmentId: string | null = null;
       try {
-        await createAssignment({
+        assignmentId = await createAssignment({
+          id: generatedAssignmentId,
           sessionId,
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
+          targetMode: assignTargetingValue.targetMode,
+          targetGroupIds: assignTargetingValue.targetGroupIds,
+          overridesBySourcedId: assignTargetingValue.overridesByKey,
+          dueAt: assignTargetingValue.dueAt ?? null,
+          openAt: assignTargetingValue.openAt ?? null,
+          closeAt: assignTargetingValue.closeAt ?? null,
         });
       } catch (archiveErr) {
         console.warn(
           '[MiniAppWidget] Failed to archive assignment',
           archiveErr
         );
+      }
+
+      // Fan out per-student pointer docs. Only invoked when the teacher
+      // actually used individual targeting — `targetMode:'class'` never
+      // touches the Cloud Function, keeping the class-wide flow's click
+      // count and latency unchanged from today (spec §3a-G).
+      if (isIndividualTargeting && assignmentId) {
+        try {
+          const payload = buildSetAssignmentTargetsPayload(
+            undefined,
+            assignTargetingValue
+          );
+          const setAssignmentTargets = httpsCallable<
+            SetAssignmentTargetsParams,
+            SetAssignmentTargetsResult
+          >(functions, 'setAssignmentTargetsV1');
+          const result = await setAssignmentTargets({
+            assignmentId,
+            kind: 'mini-app',
+            sessionId,
+            ...payload,
+          });
+          const skipped = result.data.skipped ?? [];
+          if (skipped.length > 0) {
+            // Durability: persist a plain PII-free count onto the teacher's
+            // own assignment doc so the "N skipped" marker survives beyond
+            // this toast/modal session (canonical B3 skipped-ref rule).
+            // Best-effort — the toast below still surfaces the names now
+            // regardless of whether this write succeeds.
+            try {
+              await setTargetSkippedCount(assignmentId, skipped.length);
+            } catch (persistErr) {
+              console.warn(
+                '[MiniAppWidget] Failed to persist targetSkippedCount',
+                persistErr
+              );
+            }
+            // Names, not raw refs — resolve via the same student index the
+            // targeting section already built, so the teacher sees who was
+            // dropped rather than an opaque sourcedId/email (spec §5 B3(4)).
+            const nameByKey = new Map<string, string>();
+            for (const roster of rosters) {
+              for (const student of roster.students) {
+                if (student.classLinkSourcedId) {
+                  nameByKey.set(
+                    `classlink:${student.classLinkSourcedId}`,
+                    `${student.firstName} ${student.lastName}`.trim()
+                  );
+                } else if (roster.testClassId && student.email) {
+                  nameByKey.set(
+                    `test:${student.email.toLowerCase()}`,
+                    `${student.firstName} ${student.lastName}`.trim()
+                  );
+                }
+              }
+            }
+            const names = skipped.map(({ ref }) => {
+              const key =
+                ref.kind === 'classlink'
+                  ? `classlink:${ref.sourcedId}`
+                  : `test:${ref.email.toLowerCase()}`;
+              return nameByKey.get(key) ?? key;
+            });
+            setSkippedStudentNames(names);
+            addToast(skippedTargetsToastMessage(names.length), 'error');
+          }
+        } catch (targetErr) {
+          console.error(
+            '[MiniAppWidget] Failed to set individual assignment targets',
+            targetErr
+          );
+          addToast(
+            'Assignment created, but individual student targeting failed to apply. Edit the assignment to retry.',
+            'error'
+          );
+        }
       }
       // Remember the teacher's roster picker selection for next time. The
       // legacy `lastSubmissionsEnabledByAppId` per-assignment toggle is
@@ -1509,12 +1678,17 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 pickerValue={assignPickerValue}
                 onPickerChange={setAssignPickerValue}
                 mode={assignmentMode}
+                targetingValue={assignTargetingValue}
+                onTargetingChange={setAssignTargetingValue}
+                skippedStudentNames={skippedStudentNames}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
                   setAssignPickerValue(makeEmptyPickerValue());
+                  setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
+                  setSkippedStudentNames([]);
                 }}
               />
             )}
@@ -1627,12 +1801,17 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 pickerValue={assignPickerValue}
                 onPickerChange={setAssignPickerValue}
                 mode={assignmentMode}
+                targetingValue={assignTargetingValue}
+                onTargetingChange={setAssignTargetingValue}
+                skippedStudentNames={skippedStudentNames}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
                   setAssignPickerValue(makeEmptyPickerValue());
+                  setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
+                  setSkippedStudentNames([]);
                 }}
               />
             )}

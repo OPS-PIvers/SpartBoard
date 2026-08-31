@@ -38,9 +38,12 @@ export interface AssignStudentPickerProps {
   selected: StudentTargetRef[];
   /** Per-student overrides, keyed by `studentTargetRefKey`. Merged with roster defaults on selection. */
   overridesByKey: Record<string, StudentOverride>;
+  /** Group ids previously picked via a group chip (provenance only, spec §2a `targetGroupIds`). */
+  selectedGroupIds?: string[];
   onConfirm: (
     selected: StudentTargetRef[],
-    overridesByKey: Record<string, StudentOverride>
+    overridesByKey: Record<string, StudentOverride>,
+    groupIds: string[]
   ) => void;
 }
 
@@ -56,6 +59,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
   rosters,
   selected,
   overridesByKey,
+  selectedGroupIds = [],
   onConfirm,
 }) => {
   const { t } = useTranslation();
@@ -67,6 +71,8 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     useState<StudentTargetRef[]>(selected);
   const [draftOverrides, setDraftOverrides] =
     useState<Record<string, StudentOverride>>(overridesByKey);
+  const [draftGroupIds, setDraftGroupIds] =
+    useState<string[]>(selectedGroupIds);
 
   // Reset the draft to the caller's controlled values whenever the modal
   // (re)opens, rather than on every prop change — this is the
@@ -77,6 +83,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     if (isOpen) {
       setDraftSelected(selected);
       setDraftOverrides(overridesByKey);
+      setDraftGroupIds(selectedGroupIds);
       setActiveRosterId(rosters[0]?.id ?? null);
       setSearch('');
     }
@@ -208,7 +215,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     for (const [key, override] of Object.entries(draftOverrides)) {
       if (selectedSet.has(key)) prunedOverrides[key] = override;
     }
-    onConfirm(draftSelected, prunedOverrides);
+    onConfirm(draftSelected, prunedOverrides, draftGroupIds);
     onClose();
   };
 
@@ -370,6 +377,13 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                             ]);
                             toAdd.forEach((r) =>
                               applyDefaultOverride(r.ref, roster, r.studentId)
+                            );
+                            // Provenance only (spec §2a) — recorded once, never
+                            // retroactively edited by later individual removals.
+                            setDraftGroupIds((prev) =>
+                              prev.includes(group.id)
+                                ? prev
+                                : [...prev, group.id]
                             );
                           }}
                           className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 transition-colors"

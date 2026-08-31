@@ -25,7 +25,7 @@ const questions: OverrideEditorQuestion[] = [
       { id: 'c', text: 'Also wrong', isCorrect: false },
     ],
   },
-  { id: 'q2', label: 'Question 2 (essay)' },
+  { id: 'q2', label: 'Question 2 (essay)', isWritten: true },
 ];
 
 describe('OverrideEditorRow', () => {
@@ -207,8 +207,8 @@ describe('OverrideEditorRow', () => {
 
   it('names each rubric-swap select by its own question', () => {
     const twoWritten: OverrideEditorQuestion[] = [
-      { id: 'q2', label: 'Question 2 (essay)' },
-      { id: 'q3', label: 'Question 3 (essay)' },
+      { id: 'q2', label: 'Question 2 (essay)', isWritten: true },
+      { id: 'q3', label: 'Question 3 (essay)', isWritten: true },
     ];
     render(
       <OverrideEditorRow
@@ -302,7 +302,7 @@ describe('OverrideEditorRow', () => {
       />
     );
     expect(
-      screen.queryByRole('group', { name: 'Extended time' })
+      screen.queryByRole('tablist', { name: 'Extended time' })
     ).not.toBeInTheDocument();
     collapsed.unmount();
 
@@ -315,7 +315,7 @@ describe('OverrideEditorRow', () => {
       />
     );
     expect(
-      screen.getByRole('group', { name: 'Extended time' })
+      screen.getByRole('tablist', { name: 'Extended time' })
     ).toBeInTheDocument();
   });
 

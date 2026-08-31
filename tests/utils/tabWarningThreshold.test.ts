@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
+  resolveStudentTabWarningThreshold,
   DEFAULT_TAB_WARNING_THRESHOLD,
 } from '@/utils/tabWarningThreshold';
 
@@ -37,5 +38,69 @@ describe('hasReachedTabWarningThreshold', () => {
 
   it('never triggers when the threshold is off', () => {
     expect(hasReachedTabWarningThreshold(100, 'off')).toBe(false);
+  });
+});
+
+describe('resolveStudentTabWarningThreshold (M17 E2 F2)', () => {
+  const overridesBySourcedId = {
+    'classlink:sis-1': { tabWarningThreshold: 5 as number | 'off' },
+    'classlink:sis-2': {},
+  };
+  const targetRefKeyByStudentUid = new Map([
+    ['uid-1', 'classlink:sis-1'],
+    ['uid-2', 'classlink:sis-2'],
+  ]);
+
+  it("uses the matched student's override threshold", () => {
+    expect(
+      resolveStudentTabWarningThreshold(
+        3,
+        'uid-1',
+        overridesBySourcedId,
+        targetRefKeyByStudentUid
+      )
+    ).toBe(5);
+  });
+
+  it('falls back to session threshold when the matched override has no tabWarningThreshold field', () => {
+    expect(
+      resolveStudentTabWarningThreshold(
+        3,
+        'uid-2',
+        overridesBySourcedId,
+        targetRefKeyByStudentUid
+      )
+    ).toBe(3);
+  });
+
+  it('falls back to session threshold when studentUid has no target-ref-key entry', () => {
+    expect(
+      resolveStudentTabWarningThreshold(
+        3,
+        'uid-unknown',
+        overridesBySourcedId,
+        targetRefKeyByStudentUid
+      )
+    ).toBe(3);
+  });
+
+  it('falls back to the default when overridesBySourcedId/targetRefKeyByStudentUid/studentUid are absent', () => {
+    expect(resolveStudentTabWarningThreshold(undefined, null, null, null)).toBe(
+      DEFAULT_TAB_WARNING_THRESHOLD
+    );
+  });
+
+  it("propagates a per-student 'off' override", () => {
+    const overrides = {
+      'classlink:sis-1': { tabWarningThreshold: 'off' as const },
+    };
+    expect(
+      resolveStudentTabWarningThreshold(
+        3,
+        'uid-1',
+        overrides,
+        targetRefKeyByStudentUid
+      )
+    ).toBe('off');
   });
 });

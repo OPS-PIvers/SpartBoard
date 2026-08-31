@@ -133,7 +133,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
           </p>
         )}
         {overrideNote && (
-          <p className="text-xs text-slate-500 italic mt-1">{overrideNote}</p>
+          <p className="text-xs text-slate-600 italic mt-1">{overrideNote}</p>
         )}
       </header>
 

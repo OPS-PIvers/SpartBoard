@@ -84,6 +84,17 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { getQuizBehavior } from '@/utils/quizBehavior';
+import {
+  useSetAssignmentTargets,
+  type SkipReason,
+} from '@/hooks/useSetAssignmentTargets';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import {
+  buildSetAssignmentTargetsPayload,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
+import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
+import type { StudentTargetRef } from '@/types';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -214,12 +225,23 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     updateAssignmentSettings,
     setAssignmentRosters,
     setAssignmentExportUrl,
+    setAssignmentTargetSkippedCount,
     setAssignmentExportedResponseIds,
     shareAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
     syncAssignmentToLatest,
   } = useQuizAssignments(user?.uid);
+
+  // M17 individual-assignment targeting (spec §5 B3). Skipped refs from the
+  // most recent `setAssignmentTargetsV1` call, keyed by assignment id, so the
+  // archive row can carry a discreet marker (never silently dropped — spec
+  // requires toast + row markers).
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const [assignSkippedByAssignmentId, setAssignSkippedByAssignmentId] =
+    useState<Record<string, { ref: StudentTargetRef; reason: SkipReason }[]>>(
+      {}
+    );
 
   // Folders are managed by QuizManager separately; this duplicate binding is
   // used only so the editor modal can surface a folder picker and commit
@@ -1045,6 +1067,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }
 
   if (view === 'monitor' && liveSession) {
+    // M17 E2 F2: resolve the active assignment's per-student overrides so
+    // RosterList can honor per-student tab-warning-threshold accommodations.
+    const monitorActiveAssignment = config.activeAssignmentId
+      ? assignments.find((a) => a.id === config.activeAssignmentId)
+      : undefined;
     // View-only assignments never collect responses — show a notice instead
     // of the live monitor. The mode is frozen at creation, so any session
     // that arrives here as view-only stays that way for its entire life.
@@ -1179,6 +1206,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             } as QuizConfig,
           });
         }}
+        overridesBySourcedId={
+          monitorActiveAssignment?.overridesBySourcedId ?? null
+        }
       />
     );
   }
@@ -1194,6 +1224,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
         onReorderQuizzes={user?.uid ? handleReorderQuizzes : undefined}
+        onLoadQuizData={loadQuiz}
+        skippedTargetsByAssignmentId={assignSkippedByAssignmentId}
         onNew={() => {
           const now = Date.now();
           setEditingQuiz({
@@ -1224,9 +1256,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           plcOptions: PlcOptions,
           rosterIds: string[],
           dueAt: number | null,
-          destination?: AssignDestination
+          targeting: AssignTargetingValue,
+          destination?: AssignDestination,
+          preloadedQuizData?: QuizData | null
         ) => {
-          const data = await loadQuiz(meta);
+          // F1 fix — reuse the content QuizManager already fetched for the
+          // B2 override editor (when the teacher expanded individual
+          // targeting) instead of hitting Drive a second time. Class-wide
+          // assigns never populate `preloadedQuizData`, so they still fetch
+          // exactly once, here.
+          const data = preloadedQuizData ?? (await loadQuiz(meta));
           if (!data) return;
           // Source behavior (sessionMode, sessionOptions, attemptLimit) from
           // the quiz itself now that it lives on the quiz (Task 9).
@@ -1235,6 +1274,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             sessionOptions,
             attemptLimit,
           } = getQuizBehavior(meta);
+
+          // M17 C3 F1 — the B2 editor's structured option ids
+          // (`{questionId}-correct` / `-incorrect-N`) must never reach a
+          // student-readable pointer doc. Resolve them to option TEXT here,
+          // where the full quiz body is in hand; the student side matches on
+          // text. F2: an option whose text duplicates the correct answer is
+          // refused rather than silently taking the key down with it.
+          const hiddenOptions = translateHiddenOptionIdsToText(
+            data.questions,
+            targeting.overridesByKey
+          );
+          const resolvedTargeting: AssignTargetingValue = {
+            ...targeting,
+            overridesByKey: hiddenOptions.overridesByKey,
+          };
+          for (const warning of hiddenOptions.warnings) {
+            addToast(warning, 'warning');
+          }
+
           // Derive session targets from selected rosters — `classIds` feeds
           // the student SSO gate via Firestore rules; `rosterIds` is mirrored
           // onto both assignment and session for reverse lookup.
@@ -1399,8 +1457,79 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 classPeriodByClassId: derived.classPeriodByClassId,
                 mode: quizAssignmentMode,
                 ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
+                // M17 individual-assignment targeting (spec §5 B3). Only the
+                // fields the client owns — `targetMode` and `targetStudents`
+                // are written by `setAssignmentTargetsV1` below, never here
+                // (canonical rule — absent `targetMode` means class default).
+                targetGroupIds: resolvedTargeting.targetGroupIds,
+                overridesBySourcedId: resolvedTargeting.overridesByKey,
+                openAt: resolvedTargeting.openAt ?? null,
+                closeAt: resolvedTargeting.closeAt ?? null,
               }
             );
+
+            // M17 B3 acceptance criterion: class-wide (`targetMode: 'class'`)
+            // assignments never invoke the CF — zero behavior change from
+            // today. Individual targeting fans the pick-list out to
+            // `/student_assignments` pointer docs; skipped refs are surfaced,
+            // never silently dropped.
+            if (resolvedTargeting.targetMode === 'students') {
+              try {
+                const payload = buildSetAssignmentTargetsPayload(
+                  undefined,
+                  resolvedTargeting
+                );
+                const result = await setAssignmentTargets({
+                  assignmentId,
+                  kind: 'quiz',
+                  sessionId: assignmentId,
+                  targetMode: payload.targetMode,
+                  add: payload.add,
+                  remove: payload.remove,
+                  overridesBySourcedId: payload.overridesBySourcedId,
+                  window: payload.window,
+                });
+                if (result.skipped.length > 0) {
+                  setAssignSkippedByAssignmentId((prev) => ({
+                    ...prev,
+                    [assignmentId]: result.skipped,
+                  }));
+                  addToast(
+                    skippedTargetsToastMessage(result.skipped.length),
+                    'warning'
+                  );
+                  // Skipped-ref durability (canonical rule) — persist the
+                  // PII-free count onto the assignment doc so the "N
+                  // skipped" list-row marker survives a reload; the toast
+                  // with names above is ephemeral only. Best-effort: a
+                  // failure here doesn't affect the already-created
+                  // assignment or the in-session toast/marker.
+                  try {
+                    await setAssignmentTargetSkippedCount(
+                      assignmentId,
+                      result.skipped.length
+                    );
+                  } catch (persistErr) {
+                    logError(
+                      'QuizWidget.assignment.setAssignmentTargetSkippedCount',
+                      persistErr,
+                      { assignmentId }
+                    );
+                  }
+                }
+              } catch (targetErr) {
+                logError(
+                  'QuizWidget.assignment.setAssignmentTargets',
+                  targetErr,
+                  { assignmentId }
+                );
+                addToast(
+                  'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
+                  'error'
+                );
+              }
+            }
+
             // Persist the teacher's last-used rosters per quiz so
             // re-launching the same quiz pre-selects the same classes.
             const prevMap = config.lastRosterIdsByQuizId ?? {};

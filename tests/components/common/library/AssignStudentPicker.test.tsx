@@ -85,7 +85,8 @@ describe('AssignStudentPicker', () => {
 
     expect(onConfirm).toHaveBeenCalledWith(
       [{ kind: 'classlink', sourcedId: 'SID-2' }],
-      { 'classlink:SID-2': { timeMultiplier: 2 } }
+      { 'classlink:SID-2': { timeMultiplier: 2 } },
+      []
     );
   });
 
@@ -98,7 +99,8 @@ describe('AssignStudentPicker', () => {
 
     expect(onConfirm).toHaveBeenCalledWith(
       [{ kind: 'test', email: 'kid@example.com' }],
-      {}
+      {},
+      []
     );
   });
 
@@ -121,7 +123,7 @@ describe('AssignStudentPicker', () => {
     fireEvent.click(groupChip);
     fireEvent.click(screen.getByRole('button', { name: /add students/i }));
 
-    const [selected] = onConfirm.mock.calls[0];
+    const [selected, , groupIds] = onConfirm.mock.calls[0];
     expect(selected).toEqual(
       expect.arrayContaining([
         { kind: 'classlink', sourcedId: 'SID-2' },
@@ -129,6 +131,22 @@ describe('AssignStudentPicker', () => {
       ])
     );
     expect(selected).toHaveLength(2);
+    // Group provenance is recorded for display (spec §2a `targetGroupIds`).
+    expect(groupIds).toEqual(['g1']);
+  });
+
+  it('keeps a picked group id after removing one of its members (provenance-only, not retroactively edited)', () => {
+    const onConfirm = vi.fn();
+    renderPicker({ onConfirm });
+
+    fireEvent.click(screen.getByRole('button', { name: /Group A/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /remove grace hopper/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add students/i }));
+
+    const [, , groupIds] = onConfirm.mock.calls[0];
+    expect(groupIds).toEqual(['g1']);
   });
 
   it('removes a student via the selected-summary chip', () => {

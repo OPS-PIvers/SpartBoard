@@ -37,11 +37,13 @@ import {
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
 import type {
   ClassRoster,
+  VideoActivityAssignment,
   VideoActivityMetadata,
   VideoActivityBehaviorSettings,
   VideoActivitySessionSettings,
 } from '@/types';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
+import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 
 // ---------------------------------------------------------------------------
 // Heavy hook stubs
@@ -153,12 +155,14 @@ function makeVaMeta(
  */
 function renderManager(
   activityMeta: VideoActivityMetadata,
-  onAssignFn: ReturnType<typeof vi.fn> = vi.fn()
+  onAssignFn: ReturnType<typeof vi.fn> = vi.fn(),
+  assignments: VideoActivityAssignment[] = []
 ) {
   const onAssign = onAssignFn as (
     activity: VideoActivityMetadata,
     rosterIds: string[],
-    dueAt: number | null
+    dueAt: number | null,
+    targeting: AssignTargetingValue
   ) => Promise<string>;
   render(
     <VideoActivityManager
@@ -173,11 +177,27 @@ function renderManager(
       onResults={vi.fn()}
       defaultSessionSettings={DEFAULT_SESSION_SETTINGS}
       rosters={ROSTERS}
-      assignments={[]}
+      assignments={assignments}
       assignmentsLoading={false}
     />
   );
   return { onAssign: onAssignFn };
+}
+
+function makeVaAssignment(
+  overrides: Partial<VideoActivityAssignment> = {}
+): VideoActivityAssignment {
+  return {
+    id: 'assign-1',
+    activityId: 'va-1',
+    activityTitle: 'Cell Division',
+    activityDriveFileId: 'drive-1',
+    teacherUid: 'teacher-1',
+    status: 'active',
+    createdAt: 1000,
+    updatedAt: 2000,
+    ...overrides,
+  } as unknown as VideoActivityAssignment;
 }
 
 // ---------------------------------------------------------------------------
@@ -395,7 +415,7 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     expect(rosterIds).toContain('r1');
   });
 
-  it('onAssign is called with exactly 3 args (meta, rosterIds, dueAt) — no behavior args', async () => {
+  it('onAssign is called with exactly 4 args (meta, rosterIds, dueAt, targeting) — no behavior args', async () => {
     const onAssign = vi.fn().mockResolvedValue('session-1');
     const customBehavior: VideoActivityBehaviorSettings = {
       ...DEFAULT_VA_BEHAVIOR,
@@ -416,8 +436,8 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    // 3 args: meta, rosterIds, dueAt — NO mode/sessionOptions/attemptLimit
-    expect(onAssign.mock.calls[0]).toHaveLength(3);
+    // 4 args: meta, rosterIds, dueAt, targeting — NO mode/sessionOptions/attemptLimit
+    expect(onAssign.mock.calls[0]).toHaveLength(4);
     // The meta carries the behavior so the Widget handler can call
     // getVideoActivityBehavior(calledMeta) to source the behavior.
     const calledMeta = onAssign.mock.calls[0][0] as VideoActivityMetadata;
@@ -425,5 +445,123 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
       sessionMode: 'student',
       attemptLimit: 2,
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — M17 §5 B3: individual targeting section
+// ---------------------------------------------------------------------------
+
+describe('VideoActivityManager assign modal — individual targeting (M17 B3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('§3a-G: default (class-wide) flow shows only the collapsed affordance, not the picker/overrides', async () => {
+    renderManager(makeVaMeta());
+    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
+    fireEvent.click(assignBtn);
+    await screen.findByRole('dialog', { name: /cell division/i });
+
+    expect(
+      screen.getByText(/\+ individual students & overrides/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /choose students/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('calls onAssign with targetMode "class" and no students by default', async () => {
+    const onAssign = vi.fn().mockResolvedValue('session-1');
+    renderManager(makeVaMeta(), onAssign);
+
+    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
+    fireEvent.click(assignBtn);
+    await screen.findByRole('dialog', { name: /cell division/i });
+
+    const dialog = screen.getByRole('dialog', { name: /cell division/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const targeting = onAssign.mock.calls[0][3] as AssignTargetingValue;
+    expect(targeting.targetMode).toBe('class');
+    expect(targeting.targetStudents).toEqual([]);
+  });
+
+  it('expanding "+ Individual students & overrides" reveals the picker trigger and sets targetMode', async () => {
+    const onAssign = vi.fn().mockResolvedValue('session-1');
+    renderManager(makeVaMeta(), onAssign);
+
+    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
+    fireEvent.click(assignBtn);
+    await screen.findByRole('dialog', { name: /cell division/i });
+
+    fireEvent.click(screen.getByText(/\+ individual students & overrides/i));
+    expect(
+      screen.getByRole('button', { name: /choose students/i })
+    ).toBeInTheDocument();
+
+    const dialog = screen.getByRole('dialog', { name: /cell division/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const targeting = onAssign.mock.calls[0][3] as AssignTargetingValue;
+    expect(targeting.targetMode).toBe('students');
+  });
+
+  it('mirrors the legacy due-date input onto targeting.dueAt', async () => {
+    const onAssign = vi.fn().mockResolvedValue('session-1');
+    renderManager(makeVaMeta(), onAssign);
+
+    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
+    fireEvent.click(assignBtn);
+    await screen.findByRole('dialog', { name: /cell division/i });
+
+    fireEvent.change(screen.getByTestId('va-assign-due-date'), {
+      target: { value: '2026-06-01' },
+    });
+
+    const dialog = screen.getByRole('dialog', { name: /cell division/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const [, , dueAt, targeting] = onAssign.mock.calls[0] as [
+      unknown,
+      unknown,
+      number | null,
+      AssignTargetingValue,
+    ];
+    expect(targeting.dueAt).toBe(dueAt);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — M17 E2 F3: "N skipped" row marker (parity with Quiz/GL/MiniApp)
+// ---------------------------------------------------------------------------
+
+describe('VideoActivityManager — targetSkippedCount row marker (M17 E2 F3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders the "N skipped" marker on an active assignment card', async () => {
+    renderManager(makeVaMeta(), vi.fn(), [
+      makeVaAssignment({ targetSkippedCount: 2 }),
+    ]);
+
+    fireEvent.click(await screen.findByRole('tab', { name: /in progress/i }));
+
+    expect(await screen.findByText('2 skipped')).toBeInTheDocument();
+  });
+
+  it('does not render the marker when targetSkippedCount is 0 or absent', async () => {
+    renderManager(makeVaMeta(), vi.fn(), [
+      makeVaAssignment({ targetSkippedCount: 0 }),
+    ]);
+
+    fireEvent.click(await screen.findByRole('tab', { name: /in progress/i }));
+
+    await screen.findByText('Cell Division');
+    expect(screen.queryByText(/skipped/i)).not.toBeInTheDocument();
   });
 });

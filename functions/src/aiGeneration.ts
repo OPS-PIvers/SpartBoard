@@ -656,6 +656,8 @@ C. When (and ONLY when) the user clicks the submit button, post the result to th
 
 Do NOT auto-submit on every input, key press, or timer tick. The parent treats each SPART_MINIAPP_RESULT message as a student submission, so fire it exactly once per Submit click. The payload must be a plain object (not a scalar or array).
 
+D. If your app has a countdown, time limit, or any other timed element, read event.data.payload.timeMultiplier from the SPART_MINIAPP_INIT message and apply it before starting the timer: a number (e.g. 1.5, 2) multiplies the base duration; the string 'unlimited' means the timer should not run out (hide the countdown or disable the time limit entirely). If the field is absent, use the base duration unchanged. Apps with no timed elements can ignore this field. Apply the multiplier silently: never display the multiplier value, never label the timer as "extended", "modified", or similar, and never show any indicator that this student's time differs from anyone else's — render the timer exactly as you would for a student with no override. The scaled duration IS the duration for that student.
+
 Worked example (flashcards app with a "Done" button):
 
 <!doctype html>

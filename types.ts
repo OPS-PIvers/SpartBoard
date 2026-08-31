@@ -2627,9 +2627,19 @@ export interface MiniAppSession {
   /** Mirrors `MiniAppAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Mirrors `MiniAppAssignment.dueAt`. Display-only metadata within the
+   *  open/close window; read by class-wide students on /my-assignments,
+   *  which sources due dates from this session doc, not the archive row. */
+  dueAt?: number | null;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
+  /** M17 E2 F1: the teacher archive's `MiniAppAssignment.id`, which is a
+   *  distinct UUID from the session id for this kind only (unlike
+   *  quiz/VA/GL where they're the same shared UUID). `setAssignmentTargetsV1`
+   *  keys per-student pointer docs by this id — absent on legacy sessions
+   *  created before this field existed. */
+  assignmentId?: string;
 }
 
 /**
@@ -4240,7 +4250,8 @@ export type RubricSnapshot = Rubric;
 export interface StudentOverride {
   timeMultiplier?: 1.5 | 2 | 'unlimited';
   questionIds?: string[]; // quiz only: subset to serve
-  hiddenOptionIdsByQuestion?: Record<string, string[]>; // quiz only, never the correct answer
+  /** Quiz only. Values are option TEXT, not ids (teacher-side translated; never the correct answer). */
+  hiddenOptionIdsByQuestion?: Record<string, string[]>;
   // quiz only; 'points' means grade this question by raw points, ignoring any rubric
   rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
   tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
@@ -4414,9 +4425,25 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /**
+   * Count of student-target refs the most recent `setAssignmentTargetsV1`
+   * call couldn't add (PII-free — a plain number, no names). Persisted so
+   * the "N skipped" list-row marker survives a reload; the toast with names
+   * shown at assign time is ephemeral only.
+   */
+  targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). Kept so a
+   *  removed-but-submitted student's row still renders (marked "removed")
+   *  in the D2 roster instead of vanishing. Pruned only when the underlying
+   *  response is deleted; never grows past `targetSkippedCount`-scale lists. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 /** See `QuizAssignment.sync`. */
@@ -5900,6 +5927,8 @@ export interface GuidedLearningSession {
   /** Mirrors `GuidedLearningAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Mirrors `GuidedLearningAssignment.dueAt` — display metadata only. */
+  dueAt?: number | null;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
@@ -7600,19 +7629,32 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   classroomAttachment?: ClassroomAttachmentLink;
   /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
   classroomAttachments?: ClassroomAttachmentLink[];
-  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched. */
+  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched.
+   *  Written ONLY by `setAssignmentTargetsV1` (M17 §5 B3 canonical rules) — the
+   *  client never writes this field. */
   targetMode?: 'class' | 'students';
-  /** Only meaningful when `targetMode === 'students'`. */
+  /** Only meaningful when `targetMode === 'students'`. Written ONLY by
+   *  `setAssignmentTargetsV1` — the client never writes this field. */
   targetStudents?: StudentTargetRef[];
   /** Provenance of picked groups (display only); does not drive resolution. */
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Plain, PII-free count of refs `setAssignmentTargetsV1` could not target
+   *  (M17 §5 B3 canonical rules) — durable "N skipped" marker for list rows,
+   *  distinct from the ephemeral toast shown at assign time. */
+  targetSkippedCount?: number;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === MiniApp assignments ===
@@ -7666,11 +7708,22 @@ export interface MiniAppAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Count of individually-targeted students `setAssignmentTargetsV1` could
+   *  not resolve to a pointer doc (PII-free — names are shown ephemerally
+   *  via a toast at assign time only, never persisted). Drives the "N
+   *  skipped" row marker in the assignments list. */
+  targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === /MiniApp assignments ===
@@ -7729,11 +7782,20 @@ export interface GuidedLearningAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Count of `setAssignmentTargetsV1` `skipped` refs from the most recent
+   *  targeting save — surfaced as a discreet row marker (spec §5 B3). */
+  targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === Library folders (Wave 3) ===
