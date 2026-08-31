@@ -2106,8 +2106,19 @@ export const useQuizAssignments = (
       for (const d of responseDocs) {
         const data = d.data() as QuizResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
-        // Absent override (or no subset on it) = the full quiz, unchanged.
-        const subsetIds = overridesByStudentUid[data.studentUid]?.questionIds;
+        // Prefer the response doc's own served-subset snapshot (written by
+        // the student app at answer time) over the live override map — the
+        // live map reflects CURRENT targeting, so removing a student's
+        // override after they submit would otherwise re-score their subset
+        // answers against the full question set. Absent snapshot AND absent
+        // override (or no subset on it) = the full quiz, unchanged.
+        const snapshotIds =
+          Array.isArray(data.servedQuestionIds) &&
+          data.servedQuestionIds.length > 0
+            ? data.servedQuestionIds
+            : undefined;
+        const subsetIds =
+          snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
         const servedIds =
           Array.isArray(subsetIds) && subsetIds.length > 0
             ? new Set(subsetIds)

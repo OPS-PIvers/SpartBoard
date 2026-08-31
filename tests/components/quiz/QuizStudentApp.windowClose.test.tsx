@@ -88,6 +88,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
     submitAnswer: mockSubmitAnswer,
     completeQuiz: mockCompleteQuiz,
     reportTabSwitch: vi.fn(),
+    setServedQuestionIds: vi.fn(),
     warningCount: 0,
   }),
   normalizeAnswer: (s: string) => s,

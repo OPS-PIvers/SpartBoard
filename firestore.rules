@@ -3255,6 +3255,10 @@ service cloud.firestore {
           request.resource.data.get('unlocked', null) == null &&
           request.resource.data.get('unlockedAt', null) == null &&
           request.resource.data.get('grading', null) == null &&
+          // servedQuestionIds is stamped on UPDATE (answer writes), where it
+          // is validated against the student's own pointer doc. Blocking it
+          // at create stops a forged subset riding in on the join write.
+          request.resource.data.get('servedQuestionIds', null) == null &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
@@ -3325,7 +3329,19 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds']) &&
+           // M17 served-subset snapshot: a student may only stamp
+           // servedQuestionIds when it exactly equals the override subset the
+           // setAssignmentTargetsV1 CF fanned out to their own pointer doc —
+           // anything else would let a hostile client shrink the scoring
+           // denominator. Clearing the field (mid-attempt override removal)
+           // is always allowed.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['servedQuestionIds']) ||
+            request.resource.data.get('servedQuestionIds', null) == null ||
+            (sessionData().get('assignmentId', '') != '' &&
+             exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionData().assignmentId)) &&
+             request.resource.data.servedQuestionIds ==
+               get(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionData().assignmentId)).data.get('override', {}).get('questionIds', null))) &&
            // Stimulus telemetry maps (per-attempt play counters + load-failure
            // counters). Truthfulness is client-enforced pacing/diagnostics, not
            // a security boundary — but size is: the teacher monitor reads every

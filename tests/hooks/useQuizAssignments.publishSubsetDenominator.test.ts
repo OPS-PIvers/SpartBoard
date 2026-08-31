@@ -123,7 +123,8 @@ describe('useQuizAssignments — publishAssignmentScores served-subset denominat
   const responseRefs = { subset: { id: 'r-subset' }, full: { id: 'r-full' } };
 
   const publish = async (
-    overridesByStudentUid: Record<string, { questionIds?: string[] }>
+    overridesByStudentUid: Record<string, { questionIds?: string[] }>,
+    subsetResponseExtras: Partial<{ servedQuestionIds: string[] }> = {}
   ) => {
     mockGetDoc.mockResolvedValue({ data: () => ({ overridesByStudentUid }) });
     mockGetDocs.mockResolvedValueOnce({
@@ -136,6 +137,7 @@ describe('useQuizAssignments — publishAssignmentScores served-subset denominat
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q1', answer: 'a', answeredAt: 2 },
             ],
+            ...subsetResponseExtras,
           }),
         },
         {
@@ -193,5 +195,31 @@ describe('useQuizAssignments — publishAssignmentScores served-subset denominat
   it('ignores an override that carries no question subset', async () => {
     const scores = await publish({ [SUBSET_UID]: {} });
     expect(scores.subset).toBe(50);
+  });
+
+  it('keeps a submitted subset score after the override is removed (response snapshot wins)', async () => {
+    // The live map no longer has the student — only the response doc's
+    // served-subset snapshot proves what they were actually asked.
+    const scores = await publish({}, { servedQuestionIds: ['q0', 'q1'] });
+    expect(scores.subset).toBe(100);
+    expect(scores.full).toBe(50);
+  });
+
+  it('prefers the response snapshot over a conflicting live override', async () => {
+    // Teacher retargeted after submission; historical answers still score
+    // against the subset that was served at answer time.
+    const scores = await publish(
+      { [SUBSET_UID]: { questionIds: ['q2', 'q3'] } },
+      { servedQuestionIds: ['q0', 'q1'] }
+    );
+    expect(scores.subset).toBe(100);
+  });
+
+  it('falls back to the live override when the snapshot is an empty array', async () => {
+    const scores = await publish(
+      { [SUBSET_UID]: { questionIds: ['q0', 'q1'] } },
+      { servedQuestionIds: [] }
+    );
+    expect(scores.subset).toBe(100);
   });
 });

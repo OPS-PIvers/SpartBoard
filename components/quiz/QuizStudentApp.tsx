@@ -344,6 +344,7 @@ const QuizJoinFlow: React.FC<{
     setHandRaised,
     recordStimulusPlay,
     reportStimulusError,
+    setServedQuestionIds,
     warningCount,
   } = useQuizSessionStudent();
 
@@ -526,6 +527,10 @@ const QuizJoinFlow: React.FC<{
   // M17 F2 — the pointer's top-level window IS this student's effective one
   // (the CF folds `override.openAt`/`closeAt` into it); it wins over the session.
   const myEffectiveWindow = resolveEffectiveWindow(session, myPointer);
+  // Push the live served subset into the session hook so submitAnswer can
+  // snapshot it onto the response doc (publish-time scoring reads the
+  // snapshot, surviving a later override removal). Ref write — render-safe.
+  setServedQuestionIds(myOverride?.questionIds ?? null);
   // Served subset of `session.publicQuestions` for this student (§3a-F).
   // Every student-facing denominator below derives from this, never from
   // `session.totalQuestions`/`session.publicQuestions.length` directly.
