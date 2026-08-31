@@ -624,6 +624,65 @@ describe('PollSettings', () => {
     });
   });
 
+  it('REGRESSION: starting voting mid-mint cannot strand the shown code on a dead session', async () => {
+    // The auto-mint and startPollSession both used to mint independently when
+    // config.joinCode was still empty. The late mint then overwrote joinCode,
+    // leaving the panel showing a code whose session never went live while the
+    // real session answered to a code nobody saw.
+    type Deferred = { empty: boolean; docs: never[] };
+    let releaseMint: (value: Deferred) => void = () => undefined;
+    let releaseStart: (value: Deferred) => void = () => undefined;
+    mockGetDocs
+      .mockReturnValueOnce(
+        new Promise<Deferred>((resolve) => {
+          releaseMint = resolve;
+        })
+      )
+      .mockReturnValueOnce(
+        new Promise<Deferred>((resolve) => {
+          releaseStart = resolve;
+        })
+      );
+
+    const baseConfig = { question: 'Pick one', options: [] };
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: baseConfig,
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    // Teacher clicks Start before the reservation round-trip has resolved.
+    fireEvent.click(
+      screen.getByRole('button', { name: /start device voting/i })
+    );
+
+    // Start's own mint (if it makes one) lands first; the reservation lands after.
+    releaseStart({ empty: true, docs: [] });
+    releaseMint({ empty: true, docs: [] });
+
+    await waitFor(() => {
+      // Replay the shallow merge DashboardContext performs on every call.
+      const merged = mockUpdateWidget.mock.calls.reduce(
+        (acc, [, update]) => ({
+          ...acc,
+          ...(update as { config: Record<string, unknown> }).config,
+        }),
+        { ...baseConfig } as Record<string, unknown>
+      );
+      expect(merged.activePollSessionId).toBeTruthy();
+      // The code on screen must be the code the live session answers to.
+      expect(merged.joinCode).toBe(merged.activePollSessionId);
+    });
+  });
+
   it('updates the question on blur', () => {
     const mockWidget: WidgetData = {
       id: 'poll-1',
