@@ -737,7 +737,7 @@ export async function handleSetAssignmentTargets(
   const assignmentCloseAt =
     input.window.closeAt !== undefined
       ? input.window.closeAt
-      : (assignmentWindow.closeAt ?? sessionCloseAtNow);
+      : assignmentWindow.closeAt;
   const effectiveCloseAtByUid = new Map<string, number | undefined>();
   const storedMirror: unknown = assignmentData.overridesByStudentUid;
   if (typeof storedMirror === 'object' && storedMirror !== null) {

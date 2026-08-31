@@ -116,7 +116,7 @@ function makeDb(state: StubState) {
     get: () => Promise.resolve(snapFor(path)),
     set: (data: Record<string, unknown>) => {
       state.writes.push({ path, op: 'set', data });
-      state.docs.set(path, { ...(state.docs.get(path) ?? {}), ...data });
+      applyMerge(state, path, data);
       return Promise.resolve();
     },
   });
@@ -1175,6 +1175,30 @@ describe('handleSetAssignmentTargets — session close bound', () => {
         overridesBySourcedId: {
           [`classlink:${SOURCED_A}`]: { closeAt: 500 },
         },
+      })
+    );
+    expect(sessionCloseAt()).toBeUndefined();
+  });
+
+  it('self-heals a stale session bound when the assignment itself is unbounded', async () => {
+    // An explicit window bound (not the assignment doc's own closeAt, which
+    // this function never persists) widens the session to 500.
+    await run(
+      baseInput({
+        window: { openAt: null, closeAt: 500, dueAt: null },
+      })
+    );
+    expect(sessionCloseAt()).toBe(500);
+
+    // Clearing via an override-only call (no window in the payload) must not
+    // re-feed the stale stored session closeAt back in as if it were the
+    // assignment's own close — the assignment doc's closeAt is still null,
+    // so the session must go back to unbounded.
+    await run(
+      baseInput({
+        add: [],
+        window: {},
+        overridesBySourcedId: { [`classlink:${SOURCED_A}`]: null },
       })
     );
     expect(sessionCloseAt()).toBeUndefined();
