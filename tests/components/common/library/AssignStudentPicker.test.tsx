@@ -28,7 +28,7 @@ const mixedRoster: ClassRoster = {
       email: 'kid@example.com',
     },
   ],
-  groups: [{ id: 'g1', name: 'Group A', studentIds: ['s2', 's3'] }],
+  groups: [{ id: 'g1', name: 'Group A', studentIds: ['s1', 's2', 's3'] }],
   defaultOverridesByStudentId: { s2: { timeMultiplier: 2 } },
 };
 
@@ -83,11 +83,23 @@ describe('AssignStudentPicker', () => {
     );
   });
 
-  it('selecting a group chip selects its targetable members and skips the manually-created one', () => {
+  it('selecting a group chip selects its targetable members, skips the manually-created one, and surfaces the omission', () => {
     const onConfirm = vi.fn();
     renderPicker({ onConfirm });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Group A' }));
+    // The chip itself visibly signals the partial selection ("2 of 3").
+    const groupChip = screen.getByRole('button', { name: /Group A/ });
+    expect(groupChip).toHaveTextContent('(2/3)');
+
+    // An inline note names the skipped, untargetable member.
+    expect(
+      screen.getByText(
+        (_, el) =>
+          el?.textContent === 'Not added (no ClassLink sign-in): Ada Lovelace'
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(groupChip);
     fireEvent.click(screen.getByRole('button', { name: /add students/i }));
 
     const [selected] = onConfirm.mock.calls[0];

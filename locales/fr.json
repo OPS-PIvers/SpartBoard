@@ -1797,9 +1797,18 @@
     "selectAll": "Tout sélectionner",
     "noRosters": "Aucune liste de classe disponible.",
     "noMatches": "Aucun élève ne correspond à votre recherche.",
+    "noMatchesTitle": "Aucun résultat",
+    "clearSearch": "Effacer la recherche",
     "selectRoster": "Sélectionnez une liste pour voir ses élèves.",
+    "selectRosterTitle": "Sélectionnez une liste",
+    "emptyRosterTitle": "Aucun élève",
+    "emptyRosterSubtitle": "Cette liste ne contient encore aucun élève.",
+    "loadErrorTitle": "Impossible de charger les élèves",
+    "loadErrorSubtitle": "Rouvrez la liste pour réessayer.",
     "needsSso": "L'affectation individuelle nécessite une connexion ClassLink",
-    "removeStudent": "Retirer {{name}}"
+    "removeStudent": "Retirer {{name}}",
+    "unknownStudent": "Élève inconnu",
+    "groupSkippedNote": "Non ajoutés (pas de connexion ClassLink) : {{names}}"
   },
   "studentOverride": {
     "noAccommodations": "Aucun aménagement",

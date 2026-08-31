@@ -1797,9 +1797,18 @@
     "selectAll": "Alle auswählen",
     "noRosters": "Keine Klassenlisten verfügbar.",
     "noMatches": "Keine Schüler gefunden.",
+    "noMatchesTitle": "Keine Treffer",
+    "clearSearch": "Suche zurücksetzen",
     "selectRoster": "Wähle eine Klassenliste, um Schüler zu sehen.",
+    "selectRosterTitle": "Klassenliste auswählen",
+    "emptyRosterTitle": "Keine Schüler",
+    "emptyRosterSubtitle": "Diese Klassenliste hat noch keine Schüler.",
+    "loadErrorTitle": "Schüler konnten nicht geladen werden",
+    "loadErrorSubtitle": "Öffne die Klassenliste erneut, um es noch einmal zu versuchen.",
     "needsSso": "Individuelle Zuweisung erfordert ClassLink-Anmeldung",
-    "removeStudent": "{{name}} entfernen"
+    "removeStudent": "{{name}} entfernen",
+    "unknownStudent": "Unbekannter Schüler",
+    "groupSkippedNote": "Nicht hinzugefügt (keine ClassLink-Anmeldung): {{names}}"
   },
   "studentOverride": {
     "noAccommodations": "Keine Anpassungen",

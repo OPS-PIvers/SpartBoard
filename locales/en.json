@@ -1797,9 +1797,18 @@
     "selectAll": "Select all",
     "noRosters": "No rosters available.",
     "noMatches": "No students match your search.",
+    "noMatchesTitle": "No matches",
+    "clearSearch": "Clear search",
     "selectRoster": "Select a roster to see its students.",
+    "selectRosterTitle": "Select a roster",
+    "emptyRosterTitle": "No students",
+    "emptyRosterSubtitle": "This roster has no students yet.",
+    "loadErrorTitle": "Couldn't load students",
+    "loadErrorSubtitle": "Reopen the roster to try again.",
     "needsSso": "Individual assignment requires ClassLink sign-in",
-    "removeStudent": "Remove {{name}}"
+    "removeStudent": "Remove {{name}}",
+    "unknownStudent": "Unknown student",
+    "groupSkippedNote": "Not added (no ClassLink sign-in): {{names}}"
   },
   "studentOverride": {
     "noAccommodations": "No accommodations",

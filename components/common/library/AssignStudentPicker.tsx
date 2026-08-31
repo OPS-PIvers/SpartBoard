@@ -19,8 +19,9 @@
 
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Users, X } from 'lucide-react';
+import { AlertCircle, Search, SearchX, Users, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type { ClassRoster, StudentOverride, StudentTargetRef } from '@/types';
 import {
   resolveStudentTargetRef,
@@ -81,6 +82,13 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     }
   }
 
+  // Rosters can populate asynchronously after the modal is already open
+  // (rosters=[] at open time). Adjust-state-during-render (CLAUDE.md) rather
+  // than an effect: once rosters arrive, seed the first one as active.
+  if (activeRosterId === null && rosters.length > 0) {
+    setActiveRosterId(rosters[0].id);
+  }
+
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId) ?? null,
     [rosters, activeRosterId]
@@ -134,34 +142,29 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     );
   };
 
-  const targetableRows = rows.filter((r) => r.ref !== null);
+  const targetableRows = rows.filter(
+    (r): r is RosterStudentRow & { ref: StudentTargetRef } => r.ref !== null
+  );
   const allTargetableSelected =
     targetableRows.length > 0 &&
-    targetableRows.every((r) => selectedKeys.has(studentTargetRefKey(r.ref!)));
+    targetableRows.every((r) => selectedKeys.has(studentTargetRefKey(r.ref)));
 
   const toggleSelectAll = () => {
     if (!activeRoster) return;
     if (allTargetableSelected) {
       const keysToRemove = new Set(
-        targetableRows.map((r) => studentTargetRefKey(r.ref!))
+        targetableRows.map((r) => studentTargetRefKey(r.ref))
       );
       setDraftSelected((prev) =>
         prev.filter((r) => !keysToRemove.has(studentTargetRefKey(r)))
       );
     } else {
       const toAdd = targetableRows.filter(
-        (r) => !selectedKeys.has(studentTargetRefKey(r.ref!))
+        (r) => !selectedKeys.has(studentTargetRefKey(r.ref))
       );
-      setDraftSelected((prev) => [
-        ...prev,
-        ...toAdd.map((r) => r.ref as StudentTargetRef),
-      ]);
+      setDraftSelected((prev) => [...prev, ...toAdd.map((r) => r.ref)]);
       toAdd.forEach((r) =>
-        applyDefaultOverride(
-          r.ref as StudentTargetRef,
-          activeRoster,
-          r.studentId
-        )
+        applyDefaultOverride(r.ref, activeRoster, r.studentId)
       );
     }
   };
@@ -261,18 +264,24 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
         <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-slate-100">
           {draftSelected.map((ref) => {
             const key = studentTargetRefKey(ref);
+            const resolvedName = nameByKey.get(key);
+            const unknownLabel = t('assignStudentPicker.unknownStudent', {
+              defaultValue: 'Unknown student',
+            });
+            const displayName = resolvedName ?? unknownLabel;
             return (
               <span
                 key={key}
+                title={resolvedName ? undefined : key}
                 className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-brand-blue-lighter/40 text-brand-blue-dark text-xxs font-bold"
               >
-                {nameByKey.get(key) ?? key}
+                {displayName}
                 <button
                   type="button"
                   onClick={() => removeSelected(key)}
                   className="hover:bg-brand-blue-primary/20 rounded-full p-0.5 transition-colors"
                   aria-label={t('assignStudentPicker.removeStudent', {
-                    name: nameByKey.get(key) ?? key,
+                    name: displayName,
                     defaultValue: 'Remove {{name}}',
                   })}
                 >
@@ -306,44 +315,68 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                 </span>
               </button>
               {roster.groups && roster.groups.length > 0 && (
-                <div className="px-4 pb-2 flex flex-wrap gap-1">
-                  {roster.groups.map((group) => (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveRosterId(roster.id);
-                        const groupIdSet = new Set(group.studentIds);
-                        const groupRows = roster.students
-                          .filter((s) => groupIdSet.has(s.id))
-                          .map((s) => ({
-                            studentId: s.id,
-                            ref: resolveStudentTargetRef(s, roster),
-                          }))
-                          .filter(
-                            (
-                              r
-                            ): r is {
-                              studentId: string;
-                              ref: StudentTargetRef;
-                            } => r.ref !== null
-                          );
-                        const toAdd = groupRows.filter(
-                          (r) => !selectedKeys.has(studentTargetRefKey(r.ref))
-                        );
-                        setDraftSelected((prev) => [
-                          ...prev,
-                          ...toAdd.map((r) => r.ref),
-                        ]);
-                        toAdd.forEach((r) =>
-                          applyDefaultOverride(r.ref, roster, r.studentId)
-                        );
-                      }}
-                      className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 transition-colors"
-                    >
-                      {group.name}
-                    </button>
-                  ))}
+                <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+                  {roster.groups.map((group) => {
+                    const groupIdSet = new Set(group.studentIds);
+                    const members = roster.students.filter((s) =>
+                      groupIdSet.has(s.id)
+                    );
+                    const targetableMembers = members
+                      .map((s) => ({
+                        studentId: s.id,
+                        ref: resolveStudentTargetRef(s, roster),
+                      }))
+                      .filter(
+                        (
+                          r
+                        ): r is { studentId: string; ref: StudentTargetRef } =>
+                          r.ref !== null
+                      );
+                    const skippedMembers = members.filter(
+                      (s) => resolveStudentTargetRef(s, roster) === null
+                    );
+                    const hasSkipped = skippedMembers.length > 0;
+                    return (
+                      <div key={group.id} className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveRosterId(roster.id);
+                            setSearch('');
+                            const toAdd = targetableMembers.filter(
+                              (r) =>
+                                !selectedKeys.has(studentTargetRefKey(r.ref))
+                            );
+                            setDraftSelected((prev) => [
+                              ...prev,
+                              ...toAdd.map((r) => r.ref),
+                            ]);
+                            toAdd.forEach((r) =>
+                              applyDefaultOverride(r.ref, roster, r.studentId)
+                            );
+                          }}
+                          className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 transition-colors"
+                        >
+                          {group.name}
+                          {hasSkipped &&
+                            ` (${targetableMembers.length}/${members.length})`}
+                        </button>
+                        {hasSkipped && (
+                          <span className="text-xxs text-slate-400 pl-1 max-w-[11rem]">
+                            {t('assignStudentPicker.groupSkippedNote', {
+                              names: skippedMembers
+                                .map((s) =>
+                                  `${s.firstName} ${s.lastName}`.trim()
+                                )
+                                .join(', '),
+                              defaultValue:
+                                'Not added (no ClassLink sign-in): {{names}}',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -423,18 +456,81 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               );
             })}
             {activeRoster && rows.length === 0 && (
-              <p className="text-xs text-slate-400 italic px-4 py-3">
-                {t('assignStudentPicker.noMatches', {
-                  defaultValue: 'No students match your search.',
-                })}
-              </p>
+              <div
+                className="h-full min-h-[12rem]"
+                style={{ containerType: 'size' }}
+              >
+                {activeRoster.loadError ? (
+                  <ScaledEmptyState
+                    icon={AlertCircle}
+                    title={t('assignStudentPicker.loadErrorTitle', {
+                      defaultValue: "Couldn't load students",
+                    })}
+                    subtitle={t('assignStudentPicker.loadErrorSubtitle', {
+                      defaultValue: 'Reopen the roster to try again.',
+                    })}
+                    iconClassName="text-brand-red-primary"
+                    titleClassName="text-slate-700"
+                    subtitleClassName="text-slate-500"
+                  />
+                ) : search.trim() ? (
+                  <ScaledEmptyState
+                    icon={SearchX}
+                    title={t('assignStudentPicker.noMatchesTitle', {
+                      defaultValue: 'No matches',
+                    })}
+                    subtitle={t('assignStudentPicker.noMatches', {
+                      defaultValue: 'No students match your search.',
+                    })}
+                    iconClassName="text-slate-300"
+                    titleClassName="text-slate-700"
+                    subtitleClassName="text-slate-500"
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => setSearch('')}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
+                      >
+                        {t('assignStudentPicker.clearSearch', {
+                          defaultValue: 'Clear search',
+                        })}
+                      </button>
+                    }
+                  />
+                ) : (
+                  <ScaledEmptyState
+                    icon={Users}
+                    title={t('assignStudentPicker.emptyRosterTitle', {
+                      defaultValue: 'No students',
+                    })}
+                    subtitle={t('assignStudentPicker.emptyRosterSubtitle', {
+                      defaultValue: 'This roster has no students yet.',
+                    })}
+                    iconClassName="text-slate-300"
+                    titleClassName="text-slate-700"
+                    subtitleClassName="text-slate-500"
+                  />
+                )}
+              </div>
             )}
             {!activeRoster && (
-              <p className="text-xs text-slate-400 italic px-4 py-3">
-                {t('assignStudentPicker.selectRoster', {
-                  defaultValue: 'Select a roster to see its students.',
-                })}
-              </p>
+              <div
+                className="h-full min-h-[12rem]"
+                style={{ containerType: 'size' }}
+              >
+                <ScaledEmptyState
+                  icon={Users}
+                  title={t('assignStudentPicker.selectRosterTitle', {
+                    defaultValue: 'Select a roster',
+                  })}
+                  subtitle={t('assignStudentPicker.selectRoster', {
+                    defaultValue: 'Select a roster to see its students.',
+                  })}
+                  iconClassName="text-slate-300"
+                  titleClassName="text-slate-700"
+                  subtitleClassName="text-slate-500"
+                />
+              </div>
             )}
           </div>
         </div>
