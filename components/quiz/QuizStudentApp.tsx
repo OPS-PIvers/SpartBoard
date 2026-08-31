@@ -530,7 +530,11 @@ const QuizJoinFlow: React.FC<{
   // Push the live served subset into the session hook so submitAnswer can
   // snapshot it onto the response doc (publish-time scoring reads the
   // snapshot, surviving a later override removal). Ref write — render-safe.
-  setServedQuestionIds(myOverride?.questionIds ?? null);
+  // Gated on pointer resolution: while the subscription is still loading
+  // (`undefined`) a submit must not clear an existing snapshot.
+  if (myPointer !== undefined) {
+    setServedQuestionIds(myOverride?.questionIds ?? null);
+  }
   // Served subset of `session.publicQuestions` for this student (§3a-F).
   // Every student-facing denominator below derives from this, never from
   // `session.totalQuestions`/`session.publicQuestions.length` directly.

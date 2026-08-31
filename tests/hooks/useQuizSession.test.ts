@@ -69,6 +69,11 @@ describe('servedSnapshotPatch', () => {
     expect(servedSnapshotPatch(null, undefined)).toEqual({});
     expect(servedSnapshotPatch([], undefined)).toEqual({});
   });
+
+  it('leaves the doc untouched while the pointer is still loading', () => {
+    expect(servedSnapshotPatch(undefined, ['q0', 'q1'])).toEqual({});
+    expect(servedSnapshotPatch(undefined, undefined)).toEqual({});
+  });
 });
 
 describe('gradeAnswer', () => {

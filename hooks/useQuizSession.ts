@@ -124,12 +124,15 @@ export function quizLedgerKey(
  * Build the `servedQuestionIds` portion of an answer-write patch (M17).
  * Returns {} when the doc already matches the live served subset, the ids
  * when it needs (re)writing, or a deleteField() when a mid-attempt override
- * removal must clear a stale snapshot. Exported for unit tests.
+ * removal must clear a stale snapshot. `served === undefined` means the
+ * pointer subscription hasn't resolved yet — leave the doc untouched rather
+ * than clearing a valid snapshot mid-load. Exported for unit tests.
  */
 export function servedSnapshotPatch(
-  served: string[] | null,
+  served: string[] | null | undefined,
   onDoc: string[] | undefined
 ): { servedQuestionIds?: string[] | ReturnType<typeof deleteField> } {
+  if (served === undefined) return {};
   if (served && served.length > 0) {
     const same =
       Array.isArray(onDoc) &&
@@ -1624,7 +1627,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // Served-subset snapshot source (M17): the student app pushes its live
   // pointer override's questionIds here; submitAnswer persists it. Ref, not
   // state — it must be readable inside the stable submitAnswer callback.
-  const servedQuestionIdsRef = useRef<string[] | null>(null);
+  // Starts `undefined` (pointer not yet resolved) so a submit racing the
+  // pointer load leaves any existing snapshot untouched.
+  const servedQuestionIdsRef = useRef<string[] | null | undefined>(undefined);
   const setServedQuestionIds = useCallback((ids: string[] | null) => {
     servedQuestionIdsRef.current = ids && ids.length > 0 ? ids : null;
   }, []);
