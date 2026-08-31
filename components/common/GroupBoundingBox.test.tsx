@@ -15,6 +15,7 @@ import { render, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GroupBoundingBox } from './GroupBoundingBox';
 import { WidgetData } from '@/types';
+import { getWorldBounds } from '@/utils/zoomPanMath';
 import {
   DashboardContext,
   DashboardContextValue,
@@ -313,5 +314,147 @@ describe('GroupBoundingBox', () => {
     // Must be floored at the minimum dimension (150px wide, 100px tall).
     expect(call.changes.w).toBeGreaterThanOrEqual(150);
     expect(call.changes.h).toBeGreaterThanOrEqual(100);
+  });
+
+  /**
+   * World-bounds regression: every other resize/drag path (DraggableWindow's
+   * single-widget resize, single-widget drag, and group DRAG via
+   * groupSiblingsRef) clamps to clampWidgetToWorld/getWorldBounds so a widget
+   * can never leave the area visible at ZOOM_MIN. GroupBoundingBox's own
+   * resize handles never called into zoomPanMath at all, so an aggressive
+   * corner drag could scale a group's far edge arbitrarily far past
+   * getWorldBounds — inconsistent with every sibling gesture and capable of
+   * stranding grouped widgets somewhere the camera can never pan back to.
+   *
+   * Fix: computeMaxGroupScale caps the uniform scale so the bbox's far
+   * corner (anchor + bboxW/H * scale) never crosses getWorldBounds, mirroring
+   * clampWidgetToWorld's single-widget clamp.
+   */
+  it('clamps the committed size to world bounds on an aggressive corner drag', () => {
+    // Single 200×200 widget at the origin. SE handle: anchor = (0, 0).
+    const widgets = [makeWidget('w1', 0, 0)];
+
+    render(
+      <DashboardContext.Provider value={mockContextValue}>
+        <GroupBoundingBox groupWidgets={widgets} zoom={1} />
+      </DashboardContext.Provider>
+    );
+
+    const seHandleEl = document.querySelector<HTMLElement>(
+      '[data-testid="group-resize-handle-se"]'
+    );
+    if (!seHandleEl) throw new Error('SE handle not found');
+    seHandleEl.setPointerCapture = vi.fn();
+    seHandleEl.hasPointerCapture = vi.fn().mockReturnValue(false);
+    seHandleEl.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(seHandleEl, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+    });
+
+    // Drag a huge distance so the naive (unclamped) geometric-mean scale
+    // would be ~501x — far beyond anything getWorldBounds allows at zoom 1.
+    fireEvent.pointerMove(window, {
+      clientX: 200 + 100_000,
+      clientY: 200 + 100_000,
+      pointerId: 1,
+    });
+
+    act(() => {
+      fireEvent.pointerUp(window, {
+        clientX: 200 + 100_000,
+        clientY: 200 + 100_000,
+        pointerId: 1,
+      });
+    });
+
+    expect(mockUpdateWidgets).toHaveBeenCalledTimes(1);
+    const committed = mockUpdateWidgets.mock.calls[0][0] as CommittedChange[];
+    const call = committed[0];
+    if (!call) throw new Error('No committed changes');
+
+    const bounds = getWorldBounds(window.innerWidth, window.innerHeight);
+    const farX = call.changes.x + call.changes.w;
+    const farY = call.changes.y + call.changes.h;
+
+    // The group's far edge must stay inside the world rectangle every other
+    // resize/drag path already respects — an unclamped drag would blow past
+    // both by roughly two orders of magnitude.
+    expect(farX).toBeLessThanOrEqual(bounds.maxX + 0.01);
+    expect(farY).toBeLessThanOrEqual(bounds.maxY + 0.01);
+
+    // Anchor (0,0) is the top-left corner for an SE drag, so it doesn't move.
+    // bboxH (200) constrains harder than bboxW at this viewport size, so the
+    // committed height should land exactly on the world's bottom edge.
+    expect(call.changes.h).toBeCloseTo(bounds.maxY, 3);
+  });
+
+  it('caps the committed scale to world bounds even when the minScale floor exceeds it', () => {
+    // A small 50x50 widget positioned just 55px from the world's SE corner.
+    // minScale from the hardcoded 150x100 floor (max(150/50, 100/50) = 3)
+    // would force 3x growth regardless of drag distance, but there's only
+    // 1.1x worth of room (55px) before the SE corner hits the world edge.
+    // The clamp order must let maxScale (1.1) win over minScale (3) here —
+    // the old `Math.max(minScale, Math.min(maxScale, scale))` order let
+    // minScale silently override the world-bounds cap on conflict.
+    const bounds = getWorldBounds(window.innerWidth, window.innerHeight);
+    const widget: WidgetData = {
+      id: 'w1',
+      type: 'clock',
+      x: bounds.maxX - 55,
+      y: bounds.maxY - 55,
+      w: 50,
+      h: 50,
+      z: 1,
+      flipped: false,
+      config: {},
+    };
+
+    render(
+      <DashboardContext.Provider value={mockContextValue}>
+        <GroupBoundingBox groupWidgets={[widget]} zoom={1} />
+      </DashboardContext.Provider>
+    );
+
+    const seHandleEl = document.querySelector<HTMLElement>(
+      '[data-testid="group-resize-handle-se"]'
+    );
+    if (!seHandleEl) throw new Error('SE handle not found');
+    seHandleEl.setPointerCapture = vi.fn();
+    seHandleEl.hasPointerCapture = vi.fn().mockReturnValue(false);
+    seHandleEl.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(seHandleEl, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+    });
+    // A tiny 1px drag — the requested scale is ~1, well below minScale (3),
+    // so only the minScale floor (not the drag itself) can push past bounds.
+    fireEvent.pointerMove(window, {
+      clientX: 201,
+      clientY: 201,
+      pointerId: 1,
+    });
+
+    act(() => {
+      fireEvent.pointerUp(window, {
+        clientX: 201,
+        clientY: 201,
+        pointerId: 1,
+      });
+    });
+
+    expect(mockUpdateWidgets).toHaveBeenCalledTimes(1);
+    const committed = mockUpdateWidgets.mock.calls[0][0] as CommittedChange[];
+    const call = committed[0];
+    if (!call) throw new Error('No committed changes');
+
+    const farX = call.changes.x + call.changes.w;
+    const farY = call.changes.y + call.changes.h;
+    expect(farX).toBeLessThanOrEqual(bounds.maxX + 0.01);
+    expect(farY).toBeLessThanOrEqual(bounds.maxY + 0.01);
   });
 });
