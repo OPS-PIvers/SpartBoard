@@ -92,6 +92,7 @@ import {
   buildSetAssignmentTargetsPayload,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
+import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
 
 /**
@@ -1264,6 +1265,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             sessionOptions,
             attemptLimit,
           } = getQuizBehavior(meta);
+
+          // M17 C3 F1 — the B2 editor's structured option ids
+          // (`{questionId}-correct` / `-incorrect-N`) must never reach a
+          // student-readable pointer doc. Resolve them to option TEXT here,
+          // where the full quiz body is in hand; the student side matches on
+          // text. F2: an option whose text duplicates the correct answer is
+          // refused rather than silently taking the key down with it.
+          const hiddenOptions = translateHiddenOptionIdsToText(
+            data.questions,
+            targeting.overridesByKey
+          );
+          const resolvedTargeting: AssignTargetingValue = {
+            ...targeting,
+            overridesByKey: hiddenOptions.overridesByKey,
+          };
+          for (const warning of hiddenOptions.warnings) {
+            addToast(warning, 'warning');
+          }
+
           // Derive session targets from selected rosters — `classIds` feeds
           // the student SSO gate via Firestore rules; `rosterIds` is mirrored
           // onto both assignment and session for reverse lookup.
@@ -1432,10 +1452,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 // fields the client owns — `targetMode` and `targetStudents`
                 // are written by `setAssignmentTargetsV1` below, never here
                 // (canonical rule — absent `targetMode` means class default).
-                targetGroupIds: targeting.targetGroupIds,
-                overridesBySourcedId: targeting.overridesByKey,
-                openAt: targeting.openAt ?? null,
-                closeAt: targeting.closeAt ?? null,
+                targetGroupIds: resolvedTargeting.targetGroupIds,
+                overridesBySourcedId: resolvedTargeting.overridesByKey,
+                openAt: resolvedTargeting.openAt ?? null,
+                closeAt: resolvedTargeting.closeAt ?? null,
               }
             );
 
@@ -1444,11 +1464,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            if (targeting.targetMode === 'students') {
+            if (resolvedTargeting.targetMode === 'students') {
               try {
                 const payload = buildSetAssignmentTargetsPayload(
                   undefined,
-                  targeting
+                  resolvedTargeting
                 );
                 const result = await setAssignmentTargets({
                   assignmentId,

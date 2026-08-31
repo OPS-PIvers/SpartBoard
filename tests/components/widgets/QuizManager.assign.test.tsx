@@ -46,6 +46,7 @@ import type {
   QuizBehaviorSettings,
 } from '@/types';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
+import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 
 // ---------------------------------------------------------------------------
 // Heavy hook stubs
@@ -385,6 +386,65 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     expect(
       within(dialog).queryByRole('button', { name: /choose students/i })
     ).not.toBeInTheDocument();
+  });
+
+  it('M17 C3 F5: blocks an individually-targeted save on a non-self-paced quiz', async () => {
+    const onAssign = vi.fn();
+    renderManager(
+      makeQuizMeta({
+        behavior: { ...DEFAULT_QUIZ_BEHAVIOR, sessionMode: 'teacher' },
+      }),
+      onAssign
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /\+ Individual students & overrides/i,
+      })
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    expect(onAssign).not.toHaveBeenCalled();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      /requires Self-paced mode/i
+    );
+  });
+
+  it('M17 C3 F5: allows an individually-targeted save on a self-paced quiz', async () => {
+    const onAssign = vi.fn();
+    renderManager(
+      makeQuizMeta({
+        behavior: { ...DEFAULT_QUIZ_BEHAVIOR, sessionMode: 'student' },
+      }),
+      onAssign
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /\+ Individual students & overrides/i,
+      })
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const targeting = onAssign.mock.calls[0][4] as AssignTargetingValue;
+    expect(targeting.targetMode).toBe('students');
   });
 
   it('calls onAssign with dueAt as epoch ms when a date is entered', async () => {

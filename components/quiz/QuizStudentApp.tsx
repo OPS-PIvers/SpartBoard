@@ -75,6 +75,7 @@ import {
   QuizPublicQuestion,
   WrittenAnswerGrade,
   Rubric,
+  StudentOverride,
   isWrittenQuestionType,
   isAnswerSubmitted,
 } from '@/types';
@@ -95,6 +96,12 @@ import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
+import {
+  serveQuestionSubset,
+  applyHiddenOptions,
+  applyTimeMultiplier,
+} from '@/utils/quizOverrideServing';
+import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -502,6 +509,34 @@ const QuizJoinFlow: React.FC<{
 
   const isViewOnly = session?.mode === 'view-only';
 
+  // M17 C3 — this student's own accommodation override, read directly from
+  // their pointer doc. A direct `/quiz?code=` visit never mounts
+  // `useStudentAssignments` (that hook only backs `/my-assignments`), so the
+  // student app reads its own pointer here. Only SSO (`studentRole`)
+  // students can be individually targeted (spec §6 non-goal for PIN/anon
+  // joiners) — `auth.currentUser.uid` is their stable pseudonym uid, the
+  // same key `setAssignmentTargetsV1` fans out pointer docs to.
+  const myStudentUid = isStudentRole ? (auth.currentUser?.uid ?? null) : null;
+  const myPointer = useStudentAssignmentPointer(
+    myStudentUid,
+    session?.assignmentId ?? null
+  );
+  const myOverride: StudentOverride | undefined = myPointer?.override;
+  // Served subset of `session.publicQuestions` for this student (§3a-F).
+  // Every student-facing denominator below derives from this, never from
+  // `session.totalQuestions`/`session.publicQuestions.length` directly.
+  const servedPublicQuestions = useMemo(
+    () =>
+      serveQuestionSubset(
+        session?.publicQuestions ?? [],
+        myOverride?.questionIds
+      ),
+    [session?.publicQuestions, myOverride?.questionIds]
+  );
+  const servedTotalQuestions = myOverride?.questionIds
+    ? servedPublicQuestions.length
+    : (session?.totalQuestions ?? 0);
+
   // Subscribe to auth so the view-log effect re-runs when anon sign-in
   // resolves; `auth.currentUser` alone is non-reactive.
   const [authedUid, setAuthedUid] = useState<string | null>(
@@ -816,7 +851,13 @@ const QuizJoinFlow: React.FC<{
 
   // Waiting room
   if (session.status === 'waiting') {
-    return <WaitingRoom session={session} pin={pin} />;
+    return (
+      <WaitingRoom
+        session={session}
+        pin={pin}
+        totalQuestions={servedTotalQuestions}
+      />
+    );
   }
 
   // Active quiz — already-completed gate.
@@ -858,6 +899,7 @@ const QuizJoinFlow: React.FC<{
           pin={pin}
           embedded={embedded}
           watermarkNameOverride={watermarkNameOverride}
+          override={myOverride}
         />
       );
     }
@@ -866,6 +908,8 @@ const QuizJoinFlow: React.FC<{
         session={session}
         myResponse={myResponse}
         pin={pin}
+        totalQuestions={servedTotalQuestions}
+        pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
       />
     );
   }
@@ -916,6 +960,7 @@ const QuizJoinFlow: React.FC<{
           session={session}
           currentQuestion={currentQ}
           myResponse={myResponse}
+          totalQuestions={servedTotalQuestions}
         />
       );
     }
@@ -943,6 +988,8 @@ const QuizJoinFlow: React.FC<{
         warningCount={warningCount}
         onRecordStimulusPlay={recordStimulusPlay}
         onReportStimulusError={reportStimulusError}
+        pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
+        override={myOverride}
       />
     );
   }
@@ -953,11 +1000,12 @@ const QuizJoinFlow: React.FC<{
       session={session}
       myResponse={myResponse}
       answeredCount={(myResponse?.answers ?? []).length}
-      totalQuestions={session.totalQuestions}
+      totalQuestions={servedTotalQuestions}
       pin={pin}
       myStudentUid={myResponse?.studentUid}
       embedded={embedded}
       watermarkNameOverride={watermarkNameOverride}
+      override={myOverride}
     />
   );
 };
@@ -968,7 +1016,9 @@ const WaitingRoom: React.FC<{
   session: QuizSession;
   /** Empty string for SSO `studentRole` joiners — PIN line is hidden. */
   pin: string;
-}> = ({ session, pin }) => (
+  /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
+  totalQuestions?: number;
+}> = ({ session, pin, totalQuestions }) => (
   <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
     <div className="w-16 h-16 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
       <ClipboardList className="w-8 h-8 text-violet-400" />
@@ -978,7 +1028,7 @@ const WaitingRoom: React.FC<{
       Waiting for your teacher to start…
     </p>
     <p className="text-slate-500 text-xs mb-8">
-      {session.totalQuestions} questions
+      {totalQuestions ?? session.totalQuestions} questions
     </p>
     {pin && (
       <div className="p-4 bg-slate-800 rounded-xl">
@@ -1040,6 +1090,8 @@ const ActiveQuiz: React.FC<{
   onReportStimulusError: (stimulusId: string) => Promise<void>;
   /** Per-student pointer override (M17 B4); wired by C3. Absent = session value applies. */
   pointerTabWarningThreshold?: number | 'off';
+  /** This student's pointer override (M17 C3) — question subset, hidden options, extended time. */
+  override?: StudentOverride;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -1054,6 +1106,7 @@ const ActiveQuiz: React.FC<{
   onRecordStimulusPlay,
   onReportStimulusError,
   pointerTabWarningThreshold,
+  override,
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
@@ -1338,6 +1391,21 @@ const ActiveQuiz: React.FC<{
   const attemptIndex = myResponse?.completedAttempts ?? 0;
   const studentShuffleSeed = `${baseShuffleSeed}:attempt-${attemptIndex}`;
 
+  // M17 C3 — served subset of the session's questions for this student.
+  // Only meaningful in self-paced mode (individually-targeted assignments
+  // are always self-paced; a teacher-paced `currentQuestionIndex` is shared
+  // across the whole class and can't diverge per student).
+  const servedPublicQuestions = useMemo(
+    () => serveQuestionSubset(session.publicQuestions, override?.questionIds),
+    [session.publicQuestions, override?.questionIds]
+  );
+  // Every student-facing denominator in this component derives from this,
+  // never from `session.totalQuestions` (M17 spec §3a-F).
+  const effectiveTotalQuestions =
+    isStudentPaced && override?.questionIds
+      ? servedPublicQuestions.length
+      : session.totalQuestions;
+
   // Question-order shuffle. Only meaningful in self-paced mode — in
   // teacher-paced/auto sessions every student must be on the SAME question
   // when the teacher advances `currentQuestionIndex`, so reordering per
@@ -1346,13 +1414,9 @@ const ActiveQuiz: React.FC<{
   const questionOrderShuffleEnabled =
     isStudentPaced && session.shuffleQuestions === true;
   const orderedPublicQuestions = useMemo(() => {
-    if (!questionOrderShuffleEnabled) return session.publicQuestions;
-    return shufflePublicQuestions(session.publicQuestions, studentShuffleSeed);
-  }, [
-    questionOrderShuffleEnabled,
-    session.publicQuestions,
-    studentShuffleSeed,
-  ]);
+    if (!questionOrderShuffleEnabled) return servedPublicQuestions;
+    return shufflePublicQuestions(servedPublicQuestions, studentShuffleSeed);
+  }, [questionOrderShuffleEnabled, servedPublicQuestions, studentShuffleSeed]);
 
   const baseQuestion = isStudentPaced
     ? orderedPublicQuestions[localIndex]
@@ -1363,9 +1427,18 @@ const ActiveQuiz: React.FC<{
   const answerOptionShuffleEnabled = session.shuffleAnswerOptions !== false;
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
-    if (!answerOptionShuffleEnabled) return baseQuestion;
-    return shuffleQuestionForStudent(baseQuestion, studentShuffleSeed);
-  }, [baseQuestion, answerOptionShuffleEnabled, studentShuffleSeed]);
+    const served = isStudentPaced
+      ? applyHiddenOptions(baseQuestion, override?.hiddenOptionIdsByQuestion)
+      : baseQuestion;
+    if (!answerOptionShuffleEnabled) return served;
+    return shuffleQuestionForStudent(served, studentShuffleSeed);
+  }, [
+    baseQuestion,
+    isStudentPaced,
+    override?.hiddenOptionIdsByQuestion,
+    answerOptionShuffleEnabled,
+    studentShuffleSeed,
+  ]);
 
   // ─── Stimuli for the current question ───────────────────────────────────────
   // Resolved against the session's projected stimuli array. Renderers are
@@ -1408,7 +1481,18 @@ const ActiveQuiz: React.FC<{
       )
     : sessionAnswered;
 
-  const initialTimeLimit = currentQuestion?.timeLimit ?? 0;
+  // M17 C3 — per-student extended-time accommodation (self-paced only, same
+  // reasoning as the subset/hidden-option overrides above).
+  // Speed bonus divides by this same effective limit (M17 C3 F6) — dividing
+  // by the raw limit would inflate an extended-time student's bonus past
+  // 100% and leak the accommodation.
+  const effectiveTimeLimit = isStudentPaced
+    ? applyTimeMultiplier(
+        currentQuestion?.timeLimit ?? 0,
+        override?.timeMultiplier
+      )
+    : (currentQuestion?.timeLimit ?? 0);
+  const initialTimeLimit = effectiveTimeLimit;
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -1590,7 +1674,12 @@ const ActiveQuiz: React.FC<{
     setSpeedBonusEarned(null);
     setSaveError(null);
     hydrateAnswerControls();
-    const tl = currentQuestion?.timeLimit ?? 0;
+    const tl = isStudentPaced
+      ? applyTimeMultiplier(
+          currentQuestion?.timeLimit ?? 0,
+          override?.timeMultiplier
+        )
+      : (currentQuestion?.timeLimit ?? 0);
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
   } else if (alreadyAnswered !== prevAlreadyAnswered) {
     // Gate the sentinel update with the same in-flight check as the visible
@@ -2055,9 +2144,9 @@ const ActiveQuiz: React.FC<{
 
     // Compute speed bonus before submit so it's persisted with the answer
     let computedSpeedBonus: number | undefined;
-    if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+    if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
       const remaining = Math.max(0, timeLeft ?? 0);
-      const bonusPct = Math.round((remaining / currentQuestion.timeLimit) * 50);
+      const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
       if (bonusPct > 0) computedSpeedBonus = bonusPct;
     }
 
@@ -2121,7 +2210,7 @@ const ActiveQuiz: React.FC<{
 
     // Auto-complete if on last question
     if (
-      currentIndex >= session.totalQuestions - 1 &&
+      currentIndex >= effectiveTotalQuestions - 1 &&
       myResponse?.status !== 'completed'
     ) {
       await onComplete();
@@ -2129,7 +2218,7 @@ const ActiveQuiz: React.FC<{
   };
 
   const handleNext = () => {
-    if (isStudentPaced && localIndex < session.totalQuestions - 1) {
+    if (isStudentPaced && localIndex < effectiveTotalQuestions - 1) {
       setLocalIndex(localIndex + 1);
     }
   };
@@ -2179,11 +2268,9 @@ const ActiveQuiz: React.FC<{
     try {
       if (!skipWrite) {
         let computedSpeedBonus: number | undefined;
-        if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+        if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
           const remaining = Math.max(0, timeLeft ?? 0);
-          const bonusPct = Math.round(
-            (remaining / currentQuestion.timeLimit) * 50
-          );
+          const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
           if (bonusPct > 0) computedSpeedBonus = bonusPct;
         }
 
@@ -2200,7 +2287,7 @@ const ActiveQuiz: React.FC<{
         }
       }
 
-      const isLast = currentIndex >= session.totalQuestions - 1;
+      const isLast = currentIndex >= effectiveTotalQuestions - 1;
       if (isLast) {
         setSelectedAnswer(answer);
         setSubmitted(true);
@@ -2222,7 +2309,7 @@ const ActiveQuiz: React.FC<{
     }
   };
 
-  const progress = ((currentIndex + 1) / session.totalQuestions) * 100;
+  const progress = ((currentIndex + 1) / effectiveTotalQuestions) * 100;
 
   // Choices are pre-shuffled in publicQuestions by the teacher side
   const options =
@@ -2477,7 +2564,7 @@ const ActiveQuiz: React.FC<{
                   </button>
                 )}
               <span className="text-xs text-slate-500">
-                {currentIndex + 1} / {session.totalQuestions}
+                {currentIndex + 1} / {effectiveTotalQuestions}
               </span>
             </div>
             {timeLeft !== null && !submitted && (
@@ -2574,7 +2661,7 @@ const ActiveQuiz: React.FC<{
 
               <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
                 {isStudentPaced ? (
-                  submitted && currentIndex >= session.totalQuestions - 1 ? (
+                  submitted && currentIndex >= effectiveTotalQuestions - 1 ? (
                     <SuccessPill light={light}>Quiz complete!</SuccessPill>
                   ) : submitted &&
                     autoSubmitTriggeredFor === currentQuestion.id ? (
@@ -2601,7 +2688,7 @@ const ActiveQuiz: React.FC<{
                       >
                         {submitting ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : currentIndex >= session.totalQuestions - 1 ? (
+                        ) : currentIndex >= effectiveTotalQuestions - 1 ? (
                           <>
                             {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
                             <CheckCircle2 className="w-5 h-5" />
@@ -2639,7 +2726,7 @@ const ActiveQuiz: React.FC<{
                       streakEnabled={session.streakBonusEnabled}
                     />
                     <SuccessPill light={light}>
-                      {currentIndex < session.totalQuestions - 1
+                      {currentIndex < effectiveTotalQuestions - 1
                         ? 'Waiting for teacher…'
                         : 'Quiz complete!'}
                     </SuccessPill>
@@ -2671,7 +2758,7 @@ const ActiveQuiz: React.FC<{
               />
               <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
                 {isStudentPaced ? (
-                  submitted && currentIndex >= session.totalQuestions - 1 ? (
+                  submitted && currentIndex >= effectiveTotalQuestions - 1 ? (
                     <SuccessPill light={light}>Quiz complete!</SuccessPill>
                   ) : submitted &&
                     autoSubmitTriggeredFor === currentQuestion.id ? (
@@ -2698,7 +2785,7 @@ const ActiveQuiz: React.FC<{
                       >
                         {submitting ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : currentIndex >= session.totalQuestions - 1 ? (
+                        ) : currentIndex >= effectiveTotalQuestions - 1 ? (
                           <>
                             {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
                             <CheckCircle2 className="w-5 h-5" />
@@ -2737,7 +2824,7 @@ const ActiveQuiz: React.FC<{
                       streakEnabled={session.streakBonusEnabled}
                     />
                     <SuccessPill light={light}>
-                      {currentIndex < session.totalQuestions - 1
+                      {currentIndex < effectiveTotalQuestions - 1
                         ? 'Waiting for teacher…'
                         : 'Quiz complete!'}
                     </SuccessPill>
@@ -2778,7 +2865,7 @@ const ActiveQuiz: React.FC<{
               }}
               submitting={submitting}
               isStudentPaced={isStudentPaced}
-              isLastQuestion={currentIndex >= session.totalQuestions - 1}
+              isLastQuestion={currentIndex >= effectiveTotalQuestions - 1}
               onNext={handleNext}
               saveError={saveError}
             />
@@ -2843,7 +2930,7 @@ const ActiveQuiz: React.FC<{
                 className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
               >
                 {isStudentPaced ? (
-                  submitted && currentIndex >= session.totalQuestions - 1 ? (
+                  submitted && currentIndex >= effectiveTotalQuestions - 1 ? (
                     <QuizCompleteCard />
                   ) : (
                     <>
@@ -2868,7 +2955,7 @@ const ActiveQuiz: React.FC<{
                       >
                         {submitting ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : currentIndex >= session.totalQuestions - 1 ? (
+                        ) : currentIndex >= effectiveTotalQuestions - 1 ? (
                           <>
                             {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
                             <CheckCircle2 className="w-5 h-5" />
@@ -2904,7 +2991,7 @@ const ActiveQuiz: React.FC<{
                   </button>
                 ) : (
                   <WrittenSubmittedCard
-                    isWaiting={currentIndex < session.totalQuestions - 1}
+                    isWaiting={currentIndex < effectiveTotalQuestions - 1}
                   />
                 )}
               </div>
@@ -3232,7 +3319,9 @@ const ReviewPhase: React.FC<{
   session: QuizSession;
   currentQuestion: QuizPublicQuestion;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
-}> = ({ session, currentQuestion, myResponse }) => {
+  /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
+  totalQuestions?: number;
+}> = ({ session, currentQuestion, myResponse, totalQuestions }) => {
   const gamificationEnabled = isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
@@ -3259,7 +3348,7 @@ const ReviewPhase: React.FC<{
         {/* Question recap */}
         <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
           Question {session.currentQuestionIndex + 1} of{' '}
-          {session.totalQuestions}
+          {totalQuestions ?? session.totalQuestions}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md">
           {currentQuestion.text}
@@ -3329,6 +3418,8 @@ const ResultsScreen: React.FC<{
   /** Forwarded to PublishedScoreReview — see QuizStudentAppProps. */
   embedded?: boolean;
   watermarkNameOverride?: string;
+  /** This student's pointer override (M17 C3) — served-subset denominators. */
+  override?: StudentOverride;
 }> = ({
   session,
   myResponse,
@@ -3338,6 +3429,7 @@ const ResultsScreen: React.FC<{
   myStudentUid,
   embedded = false,
   watermarkNameOverride,
+  override,
 }) => {
   const visibility = session.scoreVisibility ?? 'none';
   const showReview = visibility !== 'none' && !!myResponse;
@@ -3351,6 +3443,7 @@ const ResultsScreen: React.FC<{
         pin={pin}
         embedded={embedded}
         watermarkNameOverride={watermarkNameOverride}
+        override={override}
       />
     );
   }
@@ -3437,6 +3530,8 @@ const PublishedScoreReview: React.FC<{
    * auth displayName / PIN / "Student" when unset (standalone routes).
    */
   watermarkNameOverride?: string;
+  /** This student's pointer override (M17 C3) — served-subset denominators. */
+  override?: StudentOverride;
 }> = ({
   session,
   myResponse,
@@ -3444,6 +3539,7 @@ const PublishedScoreReview: React.FC<{
   pin,
   embedded = false,
   watermarkNameOverride,
+  override,
 }) => {
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
   // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
@@ -3493,8 +3589,13 @@ const PublishedScoreReview: React.FC<{
   // essay or short-answer against this tally produces a misleading "0 of
   // 1 fully correct" beneath a 70% score for partial-credit work. Count
   // and label against auto-graded questions only; suppress the line
-  // entirely when the quiz has no auto-graded questions at all.
-  const publicQuestions = session.publicQuestions ?? [];
+  // entirely when the quiz has no auto-graded questions at all. Restricted
+  // to the served subset (M17 §3a-F) — an unmodified question the student
+  // was never served must not count toward this denominator.
+  const publicQuestions = serveQuestionSubset(
+    session.publicQuestions ?? [],
+    override?.questionIds
+  );
   const autoGradedQuestionIds = new Set(
     publicQuestions
       .filter((q) => !isWrittenQuestionType(q.type))
@@ -3719,7 +3820,7 @@ const PublishedScoreReview: React.FC<{
               Your Answers
             </h2>
             <div className="flex flex-col gap-3">
-              {(session.publicQuestions ?? []).map((q, idx) => {
+              {publicQuestions.map((q, idx) => {
                 const ans = answerById.get(q.id);
                 const studentAnswer = ans?.answer ?? '';
                 const isWritten = isWrittenQuestionType(q.type);
@@ -4147,13 +4248,24 @@ const QuizSubmittedWaitScreen: React.FC<{
     ReturnType<typeof useQuizSessionStudent>['myResponse']
   >;
   pin: string;
-}> = ({ session, myResponse, pin }) => {
+  /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
+  totalQuestions?: number;
+  /** Per-student pointer override (M17 B4); absent = session value applies. */
+  pointerTabWarningThreshold?: number | 'off';
+}> = ({
+  session,
+  myResponse,
+  pin,
+  totalQuestions,
+  pointerTabWarningThreshold,
+}) => {
   // Local variable name avoids shadowing `QuizResponse.autoSubmitted`
   // (the cron-set flag for idle-finalized responses). This banner is
   // tab-switch-specific; the cron-finalized case has no banner yet
   // (deferred UI surface).
   const effectiveTabWarningThreshold = getEffectiveTabWarningThreshold(
-    session.tabWarningThreshold
+    session.tabWarningThreshold,
+    pointerTabWarningThreshold
   );
   const tabSwitchAutoSubmitted = hasReachedTabWarningThreshold(
     myResponse.tabSwitchWarnings ?? 0,
@@ -4181,7 +4293,7 @@ const QuizSubmittedWaitScreen: React.FC<{
           {myResponse.answers.length}
         </p>
         <p className="text-slate-400 text-sm">
-          of {session.totalQuestions} questions answered
+          of {totalQuestions ?? session.totalQuestions} questions answered
         </p>
       </div>
 

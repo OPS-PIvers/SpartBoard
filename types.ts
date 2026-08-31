@@ -4244,7 +4244,8 @@ export type RubricSnapshot = Rubric;
 export interface StudentOverride {
   timeMultiplier?: 1.5 | 2 | 'unlimited';
   questionIds?: string[]; // quiz only: subset to serve
-  hiddenOptionIdsByQuestion?: Record<string, string[]>; // quiz only, never the correct answer
+  /** Quiz only. Values are option TEXT, not ids (teacher-side translated; never the correct answer). */
+  hiddenOptionIdsByQuestion?: Record<string, string[]>;
   // quiz only; 'points' means grade this question by raw points, ignoring any rubric
   rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
   tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)

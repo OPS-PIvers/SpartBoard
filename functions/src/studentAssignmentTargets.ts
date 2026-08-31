@@ -126,6 +126,7 @@ export type StudentTargetRef =
 export interface StudentOverride {
   timeMultiplier?: 1.5 | 2 | 'unlimited';
   questionIds?: string[];
+  /** Values are option TEXT — the teacher client translates editor ids before calling. */
   hiddenOptionIdsByQuestion?: Record<string, string[]>;
   rubricOverrideByQuestion?: Record<string, unknown>;
   tabWarningThreshold?: number | 'off';

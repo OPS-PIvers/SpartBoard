@@ -743,6 +743,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
+  // M17 C3 F5 — inline block when individual targeting is picked on a
+  // non-self-paced quiz (overrides can't apply to a class-wide pacing cursor).
+  const [targetingPacingError, setTargetingPacingError] = useState<
+    string | null
+  >(null);
   // Full quiz content for the current assign modal's question-override
   // fields (question subset / MC-option hider / rubric swap). `QuizMetadata`
   // doesn't carry questions — loaded on demand via `onLoadQuizData`.
@@ -1465,6 +1470,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
+    // M17 C3 F5 — per-student overrides are only honored in self-paced mode
+    // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
+    // diverge per student). Block the save rather than silently assigning
+    // accommodations that would never take effect.
+    if (
+      assignTargeting.targetMode === 'students' &&
+      getQuizBehavior(assignTarget).sessionMode !== 'student'
+    ) {
+      setTargetingPacingError(
+        'Individual student targeting requires Self-paced mode. Open the quiz’s Settings and switch pacing to Self-paced, or assign to the whole class.'
+      );
+      return;
+    }
+    setTargetingPacingError(null);
     // Guard against stale rosterIds — rosters can be deleted or fail to load
     // (`loadError`) between the teacher's last assignment and the current one.
     // A roster without students can't produce a joinable session, so treat
@@ -1510,6 +1529,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setAssignTarget(null);
     setAssignDueAt(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setTargetingPacingError(null);
     setAssignQuizData(null);
     setAssignDestination('spartboard');
   };
@@ -1940,6 +1960,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             setAssignTarget(null);
             setAssignDueAt(null);
             setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+            setTargetingPacingError(null);
             setAssignQuizData(null);
             // Reset the destination so a cancelled 'classroom' pick can't leak
             // into a later open (every exit path leaves clean state; the
@@ -1966,6 +1987,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   setAssignTarget(null);
                   setAssignDueAt(null);
                   setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+                  setTargetingPacingError(null);
                   setAssignQuizData(null);
                   setAssignDestination('spartboard');
                   onEdit(assignTarget);
@@ -1974,7 +1996,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               <AssignTargetingSection
                 rosters={rosters}
                 value={assignTargeting}
-                onChange={setAssignTargeting}
+                onChange={(next) => {
+                  setTargetingPacingError(null);
+                  setAssignTargeting(next);
+                }}
                 kind="quiz"
                 quizContext={{
                   questions: toOverrideEditorQuestions(assignQuizData),
@@ -1982,6 +2007,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 }}
                 onExpand={handleExpandIndividualTargeting}
               />
+              {targetingPacingError && (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+                >
+                  {targetingPacingError}
+                </p>
+              )}
             </>
           }
           plcSlot={
