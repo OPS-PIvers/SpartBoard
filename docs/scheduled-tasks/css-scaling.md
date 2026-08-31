@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-08-31_
-_Last action: 2026-08-29 — MEDIUM `GuidedLearningAIGenerator` in-widget overlay (zero container-query units) resolved: converted every hardcoded Tailwind text/icon/spacing/padding/margin/gap utility in the overlay root, header, dropzone, image-count label, `SortableImageRow` list item, prompt textarea, error/clamp-warning banners, and both footer buttons to `cqmin`-capped inline styles, following the MiniApp overlay (2026-08-21) conversion pattern. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, `vitest run tests/components/widgets/GuidedLearningAIGenerator.clampBanner.test.tsx` 2/2 pass. PR opened to dev-paul.
+_Last action: 2026-08-31 — MEDIUM `TrafficLightWidget` hardcoded 40px minimum resolved: made the px floor on all three lights container-relative (`minWidth`/`minHeight: 'min(40px, 20cqmin)'`), leaving the existing `min(28cqh, 80cqw)` formula untouched. `pnpm exec tsc --noEmit` exit 0, `eslint components/widgets/TrafficLightWidget/Widget.tsx --max-warnings 0` exit 0, `prettier --check` clean. No dedicated `TrafficLightWidget` test file exists. PR opened to dev-paul.
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM `TrafficLightWidget` primary content has a hardcoded 40px minimum that breaks small sizes
-
-- **Detected:** 2026-08-24
-- **File:** `components/widgets/TrafficLightWidget/Widget.tsx:38-39, 50-51, 62-63`
-- **Detail:** All three lights — the widget's entire primary content — carry `minWidth: '40px', minHeight: '40px'` alongside their `width/height: 'min(28cqh, 80cqw)'`. `traffic` is `skipScaling: true` with base 120×320 (`WidgetRegistry.ts:591-596`). Below roughly 160px of widget height the px floor overrides the container formula: at 100px tall the three circles pin at 40px each = 120px, plus two `min(12px,3cqh)` gaps and the shell's `p-[min(12px,3cqh)]`, so content exceeds the container and clips. The `min(28cqh, 80cqw)` formula itself is standing WON'T FIX per the fill-better guidance (2026-07-26 / 2026-06-06); this px floor is a separate, previously-unjournaled defect that defeats it.
-- **Fix:** Drop the px floor, or make it container-relative — e.g. `minWidth: 'min(40px, 20cqmin)', minHeight: 'min(40px, 20cqmin)'` — leaving the existing `min(28cqh, 80cqw)` formula untouched.
 
 ### MEDIUM `VideoActivity` Creator front-face view is only half converted
 
@@ -98,6 +91,8 @@ _Nothing currently in progress._
 - **File:** `components/widgets/QuizWidget/components/QuizResults.tsx:2346, 2361`
 - **Detail:** Added by the 2026-08-28 M12 3-G commit (`b8e8806f`, "GradeResult.state — ungraded essays stop pushing 0") in the `StudentsScreen` roster-row per-student total, which renders inline inside the `quiz` widget's own CQ container (`skipScaling: true`) and is otherwise a model citizen — the sibling `ScorePill`/points line right above both hits already use `min(Npx, Ycqmin)` inline styles. Both new `<span className="mt-0.5 inline-flex">` wrappers (one around the new "Provisional" `SessionBadge` for an awaiting-grade written response, one around the existing "Pre-sync vN" badge) carry a bare Tailwind `mt-0.5` (2px) that doesn't track widget size — same anti-pattern category as the standing Open "Second-pass residual hardcoded margin/padding" group item (2026-08-23), but a distinct file not in that group's list.
 - **Fix:** `mt-0.5` → inline `style={{ marginTop: 'min(2px, 0.5cqmin)' }}` merged into (or replacing) the `className`, on both spans.
+
+_2026-08-31 action notes (Monday): Nothing In Progress anywhere across today's reading list (three dailies — widget-registry, css-scaling, typescript-eslint — plus today's Monday weeklies test-coverage, firestore-rules, simplification, ai-integration). No HIGH open items in any journal, so MEDIUM is the effective top severity. Among dailies, widget-registry (order 1) carries only 3 LOW items, so css-scaling (order 2) is the first journal in the reading list with an open MEDIUM, and its Open section's top item in document order — the `TrafficLightWidget` hardcoded-40px-minimum item — is the run's top candidate ahead of any weekly. File-recency check passed: `git log --oneline -10 -- components/widgets/TrafficLightWidget/Widget.tsx` shows the last touch is `14dd7d08` (pre-release hardening, unrelated), well outside the last 5 branch commits (`d5d4e0c4`, `89cf42b9`, `e5939bce`, `9426ab28`, `b58cd313`). Resolution: made the px floor on all three lights container-relative — `minWidth: 'min(40px, 20cqmin)', minHeight: 'min(40px, 20cqmin)'` — leaving the existing `min(28cqh, 80cqw)` formula untouched, exactly per the item's own Fix guidance. `pnpm exec tsc --noEmit` (exit 0), `eslint components/widgets/TrafficLightWidget/Widget.tsx --max-warnings 0` (exit 0), `prettier --check` (clean). No dedicated `TrafficLightWidget` test file exists. Moved the item to Completed. PR opened to dev-paul._
 
 _2026-08-29: Full audit (Saturday daily). `git log --oneline -15 -- components/widgets/` since the 2026-08-28 baseline surfaced a same-day-but-later batch of 8 M12-rubrics commits (`8a4dd410`..`4d00a439`: RubricBuilderPanel, RubricScoringPanel, WrittenResponseGrader rubric integration, QuizEditor/QuizEditorModal/QuizResults wiring, CSV import, resizable-panel + design-audit polish) plus an unrelated gesture-suppression commit (`7e8cbe4f`, touches `DrawingWidget/Widget.tsx` by one line, no sizing) — none mentioned in yesterday's entry, so all traced individually. `RubricBuilderPanel` renders only inside `QuizEditor`'s panes, which render only inside `QuizEditorModal` ("full-screen modal editor" — confirmed via header comment); `RubricScoringPanel` renders only inside `WrittenResponseGrader`, confirmed built on the shared `EditorModalShell` (the same viewport-bound-modal primitive already exempting `GuidedLearningEditor.tsx:874`) — both rubric panels are therefore back-face/modal, out of scope, matching the standing `QuizManager.tsx`/`QuizEditor` precedent. `monitor/MonitorShell.tsx`/`RosterList.tsx` diffs (part of the earlier Present-mode rebuild `d1ba400d`, already vetted 2026-08-28) inspected for the new provisional-badge additions specifically: `RosterList.tsx`'s new badge reuses its existing `cqmin`-capped `style` object verbatim — clean. `QuizResults.tsx`'s new provisional-average paragraph is correctly `fontSize: 'min(11px, 3.8cqmin)'`, but its two new per-student badge wrapper spans use a bare `mt-0.5` — filed as a new LOW above. `QuizStudentApp.tsx` (+220, `/quiz` standalone route) and `QuizPausedPlaceholder.tsx` (+4, full-page student paused screen, pre-existing hardcoded `text-lg`/`text-sm` untouched by this diff) are both genuinely viewport-bound student pages, not widget CQ content — out of scope. `GuidedLearningManager.tsx`/`MiniAppManager.tsx` (+22 each, `be95aa5e` move-to-folder fix) and `useMonitorData.ts`/`quizScoreboard.ts` changes are logic-only (zero JSX). All 15 existing Open items individually re-read at their cited file:line and confirmed still reproducing verbatim, none stale. Supplementary repo-wide greps (`max-[hw]-\[Npx\]`, numeric `size={N}` icon props, hardcoded `text-xs`/`text-sm` outside Settings/Manager/Editor/Modal, hardcoded `w-N h-N` icon classes, bare uncapped `cqmin`) across the full widget set every hit resolved to an already-tracked item or an established WON'T-FIX bucket (`RandomClassContextButton`, `LiveControl.tsx` portal, `SmartNotebook/Viewer.tsx:258`, `DrawingWidget`/`stickers` `skipScaling:false`/exempt group, `Catalyst*Settings` back-face exports). 1 new LOW issue, 0 resolved._
 
@@ -368,6 +363,14 @@ _2026-08-30: Targeted scan (Sunday daily). Loaded `spart-new-widget` skill for t
 ---
 
 ## Completed
+
+### MEDIUM `TrafficLightWidget` primary content has a hardcoded 40px minimum that breaks small sizes
+
+- **Detected:** 2026-08-24
+- **Completed:** 2026-08-31
+- **File:** `components/widgets/TrafficLightWidget/Widget.tsx:38-39, 50-51, 62-63`
+- **Detail:** All three lights — the widget's entire primary content — carried `minWidth: '40px', minHeight: '40px'` alongside their `width/height: 'min(28cqh, 80cqw)'`. `traffic` is `skipScaling: true` with base 120×320 (`WidgetRegistry.ts:591-596`). Below roughly 160px of widget height the px floor overrode the container formula, so content could exceed the container and clip.
+- **Resolution:** Made the px floor container-relative on all three lights: `minWidth: 'min(40px, 20cqmin)', minHeight: 'min(40px, 20cqmin)'`, leaving the existing `min(28cqh, 80cqw)` formula untouched per the fix guidance. `pnpm exec tsc --noEmit` exit 0, `eslint components/widgets/TrafficLightWidget/Widget.tsx --max-warnings 0` exit 0, `prettier --check` clean. No dedicated `TrafficLightWidget` test file exists.
 
 ### MEDIUM `GuidedLearningAIGenerator` in-widget overlay has zero container-query units
 
