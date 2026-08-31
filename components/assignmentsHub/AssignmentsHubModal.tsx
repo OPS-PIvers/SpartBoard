@@ -13,7 +13,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { AssignmentStatusChip } from './AssignmentStatusChip';
+import { AssignmentDetailPane } from './AssignmentDetailPane';
 import {
   useUnifiedAssignments,
   type AssignmentKind,
@@ -404,32 +404,18 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
             </div>
           </div>
 
-          {/* Right: detail pane placeholder — D2 fills this with the
-              per-student status roster (AssignmentStatusChip consumer). */}
-          <div className="hidden md:flex flex-1 min-w-0 items-center justify-center bg-slate-50/60 p-8">
+          {/* Right: detail pane — per-student status roster (M17 §5 D2). */}
+          <div className="hidden md:flex flex-1 min-w-0 bg-slate-50/60">
             {selectedRow ? (
-              <div className="text-center max-w-sm">
-                <p className="text-sm font-semibold text-slate-700">
-                  {selectedRow.title}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {t('assignmentsHub.detailComingSoon', {
-                    defaultValue: 'Per-student status is coming soon.',
+              <AssignmentDetailPane row={selectedRow} />
+            ) : (
+              <div className="flex flex-1 items-center justify-center p-8">
+                <p className="text-sm text-slate-400">
+                  {t('assignmentsHub.selectPrompt', {
+                    defaultValue: 'Select an assignment to view details.',
                   })}
                 </p>
-                <div className="mt-3 flex justify-center gap-1.5">
-                  <AssignmentStatusChip status="not-started" />
-                  <AssignmentStatusChip status="in-progress" />
-                  <AssignmentStatusChip status="submitted" />
-                  <AssignmentStatusChip status="graded" />
-                </div>
               </div>
-            ) : (
-              <p className="text-sm text-slate-400">
-                {t('assignmentsHub.selectPrompt', {
-                  defaultValue: 'Select an assignment to view details.',
-                })}
-              </p>
             )}
           </div>
         </div>

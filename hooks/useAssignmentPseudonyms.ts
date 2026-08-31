@@ -47,6 +47,14 @@ export interface AssignmentPseudonymMaps {
    * teacher's assignment doc without ever seeing the raw sourcedId/email.
    */
   targetRefKeyByStudentUid: Map<string, string>;
+  /**
+   * `assignmentPseudonym` -> namespaced `StudentTargetRef` key. Mini-app
+   * submissions are keyed by `assignmentPseudonym`, not `studentUid` (see
+   * module doc above) — D2's roster builder uses this map (rather than
+   * `targetRefKeyByStudentUid`) to join a mini-app submission doc back to a
+   * roster student / override for that response-keying scheme.
+   */
+  targetRefKeyByAssignmentPseudonym: Map<string, string>;
 }
 
 interface CallableResponse {
@@ -66,6 +74,7 @@ const EMPTY_MAPS: AssignmentPseudonymMaps = {
   byStudentUid: new Map(),
   byAssignmentPseudonym: new Map(),
   targetRefKeyByStudentUid: new Map(),
+  targetRefKeyByAssignmentPseudonym: new Map(),
 };
 
 /** `refsKey` value when `targetStudents` is empty — used for the empty-check guard. */
@@ -127,6 +136,7 @@ function fetchPseudonymMaps(
     const byStudentUid = new Map<string, StudentName>();
     const byAssignmentPseudonym = new Map<string, StudentName>();
     const targetRefKeyByStudentUid = new Map<string, string>();
+    const targetRefKeyByAssignmentPseudonym = new Map<string, string>();
     for (const v of Object.values(entries)) {
       const name: StudentName = {
         givenName: v.givenName ?? '',
@@ -137,8 +147,18 @@ function fetchPseudonymMaps(
         byAssignmentPseudonym.set(v.assignmentPseudonym, name);
       if (v.studentUid && v.targetRefKey)
         targetRefKeyByStudentUid.set(v.studentUid, v.targetRefKey);
+      if (v.assignmentPseudonym && v.targetRefKey)
+        targetRefKeyByAssignmentPseudonym.set(
+          v.assignmentPseudonym,
+          v.targetRefKey
+        );
     }
-    return { byStudentUid, byAssignmentPseudonym, targetRefKeyByStudentUid };
+    return {
+      byStudentUid,
+      byAssignmentPseudonym,
+      targetRefKeyByStudentUid,
+      targetRefKeyByAssignmentPseudonym,
+    };
   });
 
   cache.set(key, promise);
@@ -250,6 +270,7 @@ export function useAssignmentPseudonymsMulti(
         const byStudentUid = new Map<string, StudentName>();
         const byAssignmentPseudonym = new Map<string, StudentName>();
         const targetRefKeyByStudentUid = new Map<string, string>();
+        const targetRefKeyByAssignmentPseudonym = new Map<string, string>();
         results.forEach((res, i) => {
           if (res.status === 'fulfilled') {
             for (const [k, v] of res.value.byStudentUid) byStudentUid.set(k, v);
@@ -257,6 +278,8 @@ export function useAssignmentPseudonymsMulti(
               byAssignmentPseudonym.set(k, v);
             for (const [k, v] of res.value.targetRefKeyByStudentUid)
               targetRefKeyByStudentUid.set(k, v);
+            for (const [k, v] of res.value.targetRefKeyByAssignmentPseudonym)
+              targetRefKeyByAssignmentPseudonym.set(k, v);
           } else {
             logError('useAssignmentPseudonymsMulti.fetchPerClass', res.reason, {
               assignmentId,
@@ -270,6 +293,7 @@ export function useAssignmentPseudonymsMulti(
             byStudentUid,
             byAssignmentPseudonym,
             targetRefKeyByStudentUid,
+            targetRefKeyByAssignmentPseudonym,
           },
         });
       })

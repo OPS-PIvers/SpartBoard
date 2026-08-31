@@ -1887,12 +1887,19 @@
     "emptyAction": "En créer un",
     "noFilterMatches": "Aucun devoir ne correspond à ces filtres.",
     "selectPrompt": "Sélectionnez un devoir pour voir les détails.",
-    "detailComingSoon": "Le statut par élève arrive bientôt.",
     "status": {
       "notStarted": "Pas commencé",
       "inProgress": "En cours",
       "submitted": "Soumis",
       "graded": "Noté"
+    },
+    "detail": {
+      "emptyRoster": "Aucun élève n'est encore ciblé par ce devoir.",
+      "manualStatus": "PIN/manuel — pas de statut SSO",
+      "manualCount": "{{count}} manuel",
+      "unresolvedStudent": "Élève",
+      "modified": "modifié",
+      "modifiedWithCount": "modifié ({{selected}} sur {{total}} questions)"
     }
   }
 }

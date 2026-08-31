@@ -1887,12 +1887,19 @@
     "emptyAction": "Jetzt erstellen",
     "noFilterMatches": "Keine Aufgaben entsprechen diesen Filtern.",
     "selectPrompt": "Wähle eine Aufgabe aus, um Details zu sehen.",
-    "detailComingSoon": "Der Status pro Schüler folgt bald.",
     "status": {
       "notStarted": "Nicht begonnen",
       "inProgress": "In Bearbeitung",
       "submitted": "Eingereicht",
       "graded": "Bewertet"
+    },
+    "detail": {
+      "emptyRoster": "Dieser Aufgabe sind noch keine Schüler zugewiesen.",
+      "manualStatus": "PIN/manuell — kein SSO-Status",
+      "manualCount": "{{count}} manuell",
+      "unresolvedStudent": "Schüler",
+      "modified": "angepasst",
+      "modifiedWithCount": "angepasst ({{selected}} von {{total}} Fragen)"
     }
   }
 }
