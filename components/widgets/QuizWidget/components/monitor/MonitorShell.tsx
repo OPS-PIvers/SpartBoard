@@ -47,7 +47,7 @@ import {
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { Z_INDEX } from '@/config/zIndex';
 import { resolveStimuli } from '@/utils/quizStimuli';
-import { PresentSession } from '../present/PresentSession';
+import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';

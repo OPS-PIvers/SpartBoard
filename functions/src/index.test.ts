@@ -3002,6 +3002,12 @@ describe('index barrel — deployed export set', () => {
     'getPseudonymsForAssignmentV1',
     'commitRosterPinIndexV1',
     'pinLoginV1',
+    // Individual assignment targeting (M17 A2 / A2b)
+    'setAssignmentTargetsV1',
+    'cleanupQuizAssignmentPointers',
+    'cleanupVideoActivityAssignmentPointers',
+    'cleanupGuidedLearningAssignmentPointers',
+    'cleanupMiniAppAssignmentPointers',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',

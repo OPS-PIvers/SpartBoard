@@ -189,7 +189,21 @@ export interface ClassRoster extends ClassRosterMeta {
    * unknown" so the UI can show a retry banner instead of "0 students".
    */
   loadError?: string;
+  /** Saved per-roster student groups (M17 A4). Lives in the Drive file, not Firestore. */
+  groups?: RosterGroup[];
+  /** Standing per-student accommodation defaults, keyed by `Student.id` (M17 A4). */
+  defaultOverridesByStudentId?: Record<string, StudentOverride>;
 }
+
+/** A saved subset of a roster's students, editable from `RosterEditorModal` (M17 A4). */
+export interface RosterGroup {
+  id: string;
+  name: string;
+  studentIds: string[];
+}
+
+// `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`
+// — this file's placeholder was reconciled away when A1 landed the real type.
 
 // --- PLC (PROFESSIONAL LEARNING COMMUNITY) TYPES ---
 
@@ -2006,8 +2020,21 @@ export interface TalkingToolCategory {
   stems: TalkingToolStem[];
 }
 
+/**
+ * Per-building surface-color defaults for the Talking Tool widget. Only
+ * `cardColor`/`cardOpacity` are exposed — `fontFamily`/`fontColor` are
+ * currently dead controls at the user level (see TalkingToolAppearanceSettings)
+ * so seeding them would replicate the ConceptWeb/GraphicOrganizer anti-pattern.
+ */
+export interface BuildingTalkingToolDefaults {
+  buildingId: string;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
 export interface TalkingToolGlobalConfig {
   categories?: TalkingToolCategory[];
+  buildingDefaults?: Record<string, BuildingTalkingToolDefaults>;
 }
 
 export interface WeatherConfig {

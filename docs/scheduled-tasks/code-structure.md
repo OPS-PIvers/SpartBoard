@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-08-21_
+_Last audited: 2026-08-28_
 _Last action: 2026-07-24 — HIGH `organizations/{orgId}/buildings` double-subscription resolved: `useOrgBuildings` reuses AuthContext's `orgBuildings` for the active org instead of opening a second listener_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-28: Friday audit pass (weekly C1), delegated to a dedicated sub-agent. Checked all `.ts`/`.tsx` files under components/, context/, hooks/, utils/ (~360k total lines). Read `context/DashboardContext.tsx` (now **5,915 lines**, up from 5,864 on 2026-08-21 — continued slow growth; HIGH BLOCKED status unaffected) and `functions/src/index.ts` (still a 145-line thin barrel, no new v1 imports). Cross-context duplicate-fetch check: clean. Deep relative-import check (`../../../+`): zero hits repo-wide. 3 new MEDIUM findings (genuine duplicated-logic across sibling files, not just size) and 1 new LOW, plus 2 new single-consumer utils extending the existing tracked list — see below. Corrected the stale file/line pointer on the "getAdminBuildingConfig near-identical cases" LOW item (still cited the pre-2026-05-13 `DashboardContext.tsx` location). Resolved the "mockGuidedLearningDriveService.ts wrong directory" LOW item by correction — its premise no longer holds now that `hooks/useGuidedLearning.ts` imports it as the real Drive-service implementation under `VITE_AUTH_BYPASS` (a documented first-class app mode, not a test harness); moved to Completed. Confirmed the `validTextSizePresets` sub-part of the adminBuildingConfig duplicate-constants LOW item is fixed (single `isTextSizePreset()` helper now used by all 4 cases) — the `validRevealFonts` and `checklist` font-validator sub-parts remain open, item stays Open with an Updated note. A few additional untracked files just over 1000 lines (`hooks/usePlcs.ts`, `utils/spotifyAuth.ts`, `components/admin/Organization/OrganizationPanel.tsx`, `components/widgets/SeatingChart/Widget.tsx`) were read in full but judged reasonably decomposed already — noted here rather than filed as standalone items. Did not fully read `CatalystConfigurationModal.tsx` or `LtiDeepLinkPicker.tsx` (both newly over 1000 lines) this cycle. 3 new MEDIUM, 1 new LOW, 1 LOW resolved-by-correction, 1 LOW pointer corrected._
 
 _2026-08-21: Friday audit pass (weekly C1), delegated to a dedicated sub-agent. 37 commits / 66 unique files touched under context/, hooks/, utils/, components/, functions/src/ since the 2026-08-14 audit — overwhelmingly a11y/css-scaling fixes and small bug fixes (#2503 subs rules, #2461 roster pins, #2498/#2486 Stations id-keying, #2496 PII scrub, #2490 gcPlcOrphans bound). `context/DashboardContext.tsx` confirmed **5,864 lines** (was 5,865 — net -1, essentially unchanged; HIGH BLOCKED status unaffected). `functions/src/index.ts` confirmed still 145 lines, thin barrel, 34 export statements, no new Cloud Function surface. `1f7dc301` (#2488, "unify beta-widget access") is a genuine bug fix, not a structural refactor: extracted `isBetaUser` into new `utils/betaAccess.ts` (20 lines, 2 consumers — AuthContext + DashboardContext), a good cross-context dedup, not a new duplicate-fetch concern. No file newly crossed the 500- or 1000-line threshold (largest single-commit net growth: `components/widgets/Stations/Widget.tsx` +53 net, ending at 572 lines, still under 1000). No new deep relative imports (3+ `../`) in changed non-test source. No new cross-context duplicate Firestore fetches. No new single-consumer utils files (`utils/betaAccess.ts` has 2 consumers, not a candidate). All 12 pre-existing open items re-confirmed valid and unchanged, with two line-number corrections from drift (not content changes): item "stale v1 logger import" — `finalizeIdleQuizAttempts.ts` import line has drifted to **line 49** (was 30, due to earlier doc/comment growth in the file, not a code change); item "double getDoc on userProfile/profile" — AuthContext read now at **line ~1493** (was ~1491), DashboardContext at **line ~1009** (was ~1010), negligible drift. `gcPlcOrphans.ts` (touched this cycle, #2490) already has explicit `memory: '256MiB'`/`timeoutSeconds: 540` and was never in the tracked no-explicit-memory list — no change needed there. Zero new open items._
 
@@ -53,6 +55,34 @@ _2026-06-12: Weekly audit pass. Rebase onto dev-paul (docs/unifier run 13, D4 @/
 _2026-06-10: Weekly audit pass. DashboardContext.tsx confirmed at 5,596 lines (same as 2026-06-05 — no structural changes since). BLOCKED extraction status unchanged. functions/src/index.ts confirmed at 4,305 lines — organically growing domain-split pattern continues. Four new open items added: cardOpacity validation duplication in adminBuildingConfig.ts, stale v1 logger import in finalizeIdleQuizAttempts.ts, OAuth Cloud Functions missing explicit timeoutSeconds, and concurrent userProfile reads/writes between AuthContext and DashboardContext._
 
 _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 5,275 on 2026-05-27). BLOCKED extraction status unchanged. functions/src/index.ts now 4,305 lines — domain split organically in progress (spotifyOAuth.ts, syncedQuizGroups.ts etc.). All Cloud Functions confirmed on v2; no v1 imports found. New LOW finding: feature_permissions and global_permissions read coordination between AuthContext and DashboardContext could benefit from documentation. adminBuildingConfig.ts: font-validation constants duplicated across reveal-grid/numberLine/concept-web cases (related to existing LOW simple-switch-cases item). Test imports with 3+ ../../ levels are all in .test.tsx files using vi.mock() — acceptable. No new large-file violations beyond what's already tracked. 1 new LOW open item added._
+
+### MEDIUM Four "library manager" widgets duplicate ~150-250 lines of bulk-select/folder-drag/preview-pane scaffolding
+
+- **Detected:** 2026-08-28
+- **File:** `components/widgets/GuidedLearning/components/GuidedLearningManager.tsx` (1,363 lines), `components/widgets/MiniApp/components/MiniAppManager.tsx` (1,356 lines), cf. already-tracked `QuizManager.tsx`/`VideoActivityManager.tsx`
+- **Detail:** Each of the four Manager components independently implements: selection-mode state + `handleBulkDelete`/`handleBulkMove` (near-identical `Promise.allSettled` + id-prefix-stripping logic), folder-navigation reset-on-user-change/reset-on-stale-folder patterns, a `FolderPickerPopover` + `moveXToFolder` wrapper, and a preview-pane component. `GuidedLearningManager`'s own header comment cites `QuizManager.tsx` as its "Reference," and `MiniAppManager`'s docstring calls out its "wrinkles (vs the Quiz reference)" — the mirroring is intentional and undocumented as shared code.
+- **Fix:** Extract a shared `useLibraryManagerFolderAndBulk(items, moveItem, deleteItem)` hook (or similar) covering selection-mode/bulk-delete/bulk-move/folder-picker-target wiring, consumed by all four Manager components.
+
+### MEDIUM `PlcVideoActivitiesBody.tsx` explicitly duplicates `PlcQuizLibraryBody.tsx`'s sync/import/edit flow
+
+- **Detected:** 2026-08-28
+- **File:** `components/plc/bodies/PlcVideoActivitiesBody.tsx` (1,165 lines) vs already-tracked `PlcQuizLibraryBody.tsx` (1,582 lines)
+- **Detail:** The file's own header comment states it "Mirrors `PlcQuizLibraryBody` in shape and lifecycle." Confirmed 5 identically-named handlers in both files (`handleEdit`, `handleImport`, `handleSaveEdit`, `handleShareFromPicker`, `handleUnshare`), each independently reimplementing the Sync-vs-Copy import picker, save-conflict resolution (`SyncedVideoActivityVersionConflictError`/its quiz equivalent), and unshare/detach-linkage flow.
+- **Fix:** Extract a shared `usePlcSyncedLibraryBody<TMeta, TData>` hook or a generic body component parameterized by kind (quiz/video-activity) — some sub-pieces (`PlcSyncConflictPrompt`) are already shared; the remaining ~1000 lines of orchestration per file are not.
+
+### MEDIUM `FeaturePermissionsManager.tsx` duplicates its entire card body between grid and list view modes
+
+- **Detected:** 2026-08-28
+- **File:** `components/admin/FeaturePermissionsManager.tsx:542-869` (1,060 lines total)
+- **Detail:** The list-view card (lines 542-702) and grid-view card (lines 705-869) render near-identical content — display-name input, Enabled toggle, access-level buttons, grade-level buttons, `MinTierSelect`, conditional `BetaUsersPanel`, Save button — with only the wrapper markup/layout differing.
+- **Fix:** Extract one `WidgetPermissionCardBody` component taking a `variant: 'grid' | 'list'` prop (the file already uses this pattern for `BetaUsersPanel`'s `variant="expanded" | "card"`).
+
+### LOW `VideoActivityWidget/Widget.tsx` inlines ~20 archive-action callbacks directly in JSX
+
+- **Detected:** 2026-08-28
+- **File:** `components/widgets/VideoActivityWidget/Widget.tsx:527-881` (1,066 lines)
+- **Detail:** `onArchiveCopyUrl`/`onArchivePauseResume`/`onArchiveDeactivate`/`onArchiveReactivate`/`onArchiveDelete`/`onArchiveShare`/`onArchiveResults`/`onArchiveMonitor`/`onArchivePublishScores`/`onArchiveUnpublishScores`/`onShareWithPlc` etc. are each defined inline as JSX props (~350 lines) rather than extracted into a hook.
+- **Fix:** Extract into a `useVideoActivityArchiveActions(...)` hook returning the callback bag; worth checking whether the sibling (already-tracked) `QuizWidget/Widget.tsx` has the same pattern.
 
 ### MEDIUM Large component files not tracked by DashboardContext or functions/src items — 34 files exceed 1000 lines
 
@@ -122,7 +152,8 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### LOW `getAdminBuildingConfig` has 10+ near-identical single-field switch cases
 
 - **Detected:** 2026-04-15
-- **File:** context/DashboardContext.tsx (lines 2177–2196)
+- **Updated:** 2026-08-28 — corrected stale file pointer: the switch was extracted to `utils/adminBuildingConfig.ts` on 2026-05-13 (see Completed section) but this item's pointer was never updated. Actual location is `utils/adminBuildingConfig.ts:190-756`. The case count has grown from ~30 to 33; `sound`, `traffic`, `random`, `dice`, `hotspot-image`, `classes`, `embed`, `qr` (lines 441-585, 662-674) remain 1-3-line near-identical single-field validations. The underlying concern and proposed fix are unchanged.
+- **File:** utils/adminBuildingConfig.ts:190-756
 - **Detail:** Cases for `sound`, `text`, `traffic`, `random`, `dice`, `hotspot-image`, and `classes` each copy 1–2 fields from `raw` with minimal validation (mostly just a type check or existence check). The pattern is identical:
   ```
   case 'dice':
@@ -193,6 +224,8 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
   - `utils/notebookConverter.ts` — 1 consumer (`components/converter/ConverterPage.tsx`) (2026-07-24; 263 lines, SMART Notebook conversion logic — feature-local, candidate for co-location under `components/converter/`)
   - `utils/plcDirectorySubscriptionKey.ts` — 1 consumer (`hooks/usePlcBuildingDirectory.ts`) (2026-08-14; 34 lines)
   - `utils/hydrateDrawingPages.ts` — 1 consumer (`components/widgets/DrawingWidget/Widget.tsx`) (2026-08-14; 53 lines)
+  - `utils/geminiModelDeprecation.ts` — 1 consumer (`components/admin/GlobalPermissionsManager.tsx`) (2026-08-28)
+  - `utils/notebookPages.ts` — 1 consumer (`components/widgets/SmartNotebook/Widget.tsx`) (2026-08-28)
     Single-consumer utils are not necessarily wrong — domain separation is valid — but warrant a quick sanity check that they are not duplicating logic that already exists elsewhere, and that they are documented or self-explanatory.
 - **Fix:** Verify each file's consumer. For `migration.ts` (owned entirely by DashboardContext), consider whether inlining or consolidating the migration logic into the context would reduce indirection. No action required if each file's scope is intentionally bounded.
 
@@ -207,20 +240,22 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### LOW `adminBuildingConfig.ts` — duplicate local constants: `validRevealFonts` and `validTextSizePresets`
 
 - **Detected:** 2026-07-15
+- **Updated:** 2026-08-28 — the `validTextSizePresets` sub-part is now fixed: `utils/adminBuildingConfig.ts:88` defines a single module-level `isTextSizePreset()` helper, referenced consistently by the `need-do-put-then`, `schedule`, `work-symbols`, and `calendar` cases. The `validRevealFonts` duplication (reveal-grid case, lines 202-214, still re-declares the 11-font array instead of reusing `VALID_FONT_FAMILIES`) and the `checklist` `isGlobalFontFamily`-vs-`isWidgetFontFamily` mismatch (line 412) both still reproduce exactly as described below — item stays Open for those two sub-parts.
 - **File:** utils/adminBuildingConfig.ts
 - **Detail:** Two redundant constant declarations found in the reveal-grid switch case: (1) A local `validRevealFonts` constant (array of 11 font family strings) duplicates the module-level exported `VALID_FONT_FAMILIES` constant already defined in the same file — the local copy was likely written before the module-level constant existed or copied without noticing the duplication. (2) The inline `validTextSizePresets` array `['small', 'medium', 'large', 'x-large']` is declared **three times** in three separate switch cases (`need-do-put-then`, `work-symbols`, and `schedule` — the last renamed from `validScheduleTextSizePresets` in 2026-07-27 refactor) with no shared constant — a future addition of a new preset value would require updating all three sites independently. Additionally, the 4-field appearance validation block (`fontFamily`/`fontColor`/`cardColor`/`cardOpacity`) is repeated verbatim across 4+ switch cases; this is related to the existing LOW "simple switch cases" item and can be addressed in that pass. **NEW 2026-08-01:** the `checklist` case uses `isGlobalFontFamily` for its `fontFamily` validator while every other appearance-capable widget case uses `isWidgetFontFamily` — `isGlobalFontFamily` validates bare `GlobalFontFamily` values (`'sans'`, `'mono'`, etc.) while `isWidgetFontFamily` validates `font-*`-prefixed IDs (`'font-sans'`, `'font-mono'`, etc.); the two validators accept disjoint value sets, so the checklist case will reject any `fontFamily` value written by the shared `TypographySettings` primitive and accept legacy bare values that other cases reject.
 - **Fix:** (1) Replace the local `validRevealFonts` reference with `VALID_FONT_FAMILIES` (already in scope). (2) Extract `validTextSizePresets` to a module-level `const VALID_TEXT_SIZE_PRESETS = ['small', 'medium', 'large', 'x-large'] as const` and reference it in all three switch cases. (3) Align the `checklist` `fontFamily` validator: determine which value space `ChecklistConfig.fontFamily` actually receives (check the admin panel's font picker and the `TypographySettings` primitive) and replace the mismatched validator — likely `isWidgetFontFamily` unless checklist's panel intentionally uses bare values. All changes are pure refactors with no behavior impact. The 4-field appearance block can be factored alongside the "simple switch cases" data-declaration refactor already tracked.
 
-### LOW `utils/mockGuidedLearningDriveService.ts` — dev mock lives in `utils/` not `tests/`
-
-- **Detected:** 2026-07-15
-- **File:** utils/mockGuidedLearningDriveService.ts
-- **Detail:** The file is a dev/test double for the guided-learning Drive service. It exports no production logic and has no production imports — only the corresponding test file references it. Dev mocks and test doubles conventionally live under `tests/` (or alongside their source in `__mocks__/`) so that `utils/` remains production-only logic. Its presence in `utils/` could mislead a developer into importing it from production code.
-- **Fix:** Move `utils/mockGuidedLearningDriveService.ts` to `tests/utils/` (or `tests/testHelpers/`) and update the one import in the test file that references it. Verify the move does not break the test suite with `pnpm test`.
-
 ---
 
 ## Completed
+
+### LOW `utils/mockGuidedLearningDriveService.ts` — dev mock lives in `utils/` not `tests/`
+
+- **Detected:** 2026-07-15
+- **Completed:** 2026-08-28 — resolved by correction (premise no longer holds).
+- **File:** utils/mockGuidedLearningDriveService.ts
+- **Detail:** Originally flagged as "exports no production logic and has no production imports — only the corresponding test file references it." That is no longer accurate: `hooks/useGuidedLearning.ts:26-27` imports `MockGuidedLearningDriveService`, and its `getDriveService()` (lines 155-159) instantiates it as the real Drive-service implementation whenever `isAuthBypass` is true — `VITE_AUTH_BYPASS` is a documented, first-class app mode (see CLAUDE.md "Authentication Bypass"), not a test harness.
+- **Resolution:** Closed as resolved-by-correction rather than moved — the file's own status changed (production code now depends on it), not the codebase acting on the original recommendation. If anything, a rename (dropping the `mock` prefix, since it's now a real runtime code path under auth-bypass) would be more useful than relocating the file to `tests/`; not filed as a new item since it's a naming nit, not a structural defect.
 
 ### HIGH `organizations/{orgId}/buildings` double-subscription — AuthContext and Organization panel open concurrent listeners
 
