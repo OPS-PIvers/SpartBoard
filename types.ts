@@ -5746,7 +5746,7 @@ export interface GuidedLearningStep {
   videoStoragePath?: string;
   /** Zoom scale for pan-zoom interaction (default 2.5) */
   panZoomScale?: number;
-  /** Spotlight radius as % of container cqmin (default 25) */
+  /** Spotlight radius as % of image min-dimension (schemaVersion 2; legacy sets: % of container cqmin) — default 25 */
   spotlightRadius?: number;
   /** Banner color tone for banner overlay (default 'blue') */
   bannerTone?: 'blue' | 'red' | 'neutral';

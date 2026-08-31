@@ -1625,8 +1625,9 @@ interface InteractionPreviewOverlayProps {
 /**
  * Live-renders the selected step's player visuals on the editor canvas:
  * the actual spotlight overlay (v2 image-relative radius — the editor
- * stamps schemaVersion 2 on save) and a dashed outline of exactly what a
- * pan-zoom step will frame. Same math as the player's renderedTransform.
+ * stamps schemaVersion 2 on save) and a dashed outline approximating what a
+ * pan-zoom step will frame — exact only when the player container matches
+ * this canvas's aspect ratio. Same math as the player's renderedTransform.
  */
 const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
   step,
@@ -1676,6 +1677,7 @@ const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
             yPct: containerPos.yPct,
             imageIndex: step.imageIndex,
             interactionType: step.interactionType,
+            label: step.label,
             spotlightRadius: toContainerSpotlightRadiusPct(
               step.spotlightRadius ?? 25,
               imgOffset,
@@ -1699,7 +1701,7 @@ const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
           }}
         >
           <span className="absolute left-1.5 top-1.5 rounded bg-slate-900/70 px-1.5 py-0.5 text-xxs font-bold text-white backdrop-blur-sm">
-            Zoom {zoomScale}×
+            Zoom {zoomScale}× (approx frame)
           </span>
         </div>
       )}
@@ -1744,14 +1746,19 @@ const HotspotMarker = React.memo(function HotspotMarker({
   onMove,
   onDragPreview,
 }: HotspotMarkerProps) {
-  // Local position used during a drag so the marker tracks the cursor without
-  // a parent re-render per pointer move. Cleared on pointer-up; the next
-  // render reads from the persisted step.
+  // Local position used during a drag so the marker tracks the cursor; steps
+  // without a live preview skip onDragPreview, avoiding parent re-renders.
+  // Cleared on pointer-up; the next render reads from the persisted step.
   const [dragPos, setDragPos] = useState<{ xPct: number; yPct: number } | null>(
     null
   );
   const xPct = dragPos?.xPct ?? step.xPct;
   const yPct = dragPos?.yPct ?? step.yPct;
+  // Only these interaction types render a live preview overlay while dragging.
+  const hasLivePreview =
+    step.interactionType === 'spotlight' ||
+    step.interactionType === 'pan-zoom' ||
+    step.interactionType === 'pan-zoom-spotlight';
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -1784,12 +1791,14 @@ const HotspotMarker = React.memo(function HotspotMarker({
         const dy = ev.clientY - startY;
         if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
         dragged = true;
+        // Select on drag-start so the dragged step's preview renders live.
+        onSelect(step.id);
       }
       const next = computePct(ev.clientX, ev.clientY);
       lastXPct = next.xPct;
       lastYPct = next.yPct;
       setDragPos(next);
-      onDragPreview(step.id, next);
+      if (hasLivePreview) onDragPreview(step.id, next);
     };
 
     const onUpEvt = (ev: PointerEvent) => {
@@ -1804,7 +1813,7 @@ const HotspotMarker = React.memo(function HotspotMarker({
       if (dragged) {
         onMove(step, lastXPct, lastYPct);
         setDragPos(null);
-        onDragPreview(step.id, null);
+        if (hasLivePreview) onDragPreview(step.id, null);
       } else {
         onSelect(step.id);
       }
