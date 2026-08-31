@@ -1,0 +1,144 @@
+/**
+ * useUnifiedAssignments — normalizes the four per-teacher assignment
+ * collections (quiz/VA/GL/mini-app) into one flat, sortable list for the
+ * Assignments hub (spec §5 D1). Read-only: this hook never writes.
+ *
+ * Class-name resolution: prefers each assignment's own `className` field
+ * (quiz/VA); falls back to joining roster names via `rosterIds` (GL/mini-app,
+ * and quiz/VA legacy rows with no `className`); "—" when neither resolves.
+ */
+
+import { useMemo } from 'react';
+import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
+import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
+import type { ClassRoster } from '@/types';
+
+export type AssignmentKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app';
+
+/** Collapsed lifecycle status for the hub's status filter chip. */
+export type UnifiedAssignmentStatus = 'active' | 'inactive';
+
+export interface UnifiedAssignmentRow {
+  id: string;
+  kind: AssignmentKind;
+  title: string;
+  className: string;
+  status: UnifiedAssignmentStatus;
+  targetMode: 'class' | 'students';
+  targetSkippedCount: number;
+  openAt?: number | null;
+  closeAt?: number | null;
+  createdAt: number;
+}
+
+function resolveClassName(
+  className: string | undefined,
+  rosterIds: string[] | undefined,
+  rosterNamesById: Map<string, string>
+): string {
+  if (className && className.trim()) return className;
+  if (rosterIds && rosterIds.length > 0) {
+    const names = rosterIds
+      .map((id) => rosterNamesById.get(id))
+      .filter((n): n is string => !!n);
+    if (names.length > 0) return names.join(', ');
+  }
+  return '—';
+}
+
+export const useUnifiedAssignments = (
+  userId: string | undefined,
+  rosters: ClassRoster[]
+): { rows: UnifiedAssignmentRow[]; loading: boolean } => {
+  const quiz = useQuizAssignments(userId);
+  const va = useVideoActivityAssignments(userId);
+  const gl = useGuidedLearningAssignments(userId);
+  const miniApp = useMiniAppAssignments(userId);
+
+  const rosterNamesById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const roster of rosters) map.set(roster.id, roster.name);
+    return map;
+  }, [rosters]);
+
+  const rows = useMemo<UnifiedAssignmentRow[]>(() => {
+    const quizRows: UnifiedAssignmentRow[] = quiz.assignments.map((a) => ({
+      id: a.id,
+      kind: 'quiz',
+      title: a.quizTitle,
+      className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
+      status: a.status === 'inactive' ? 'inactive' : 'active',
+      targetMode: a.targetMode === 'students' ? 'students' : 'class',
+      targetSkippedCount: a.targetSkippedCount ?? 0,
+      openAt: a.openAt,
+      closeAt: a.closeAt,
+      createdAt: a.createdAt,
+    }));
+
+    const vaRows: UnifiedAssignmentRow[] = va.assignments.map((a) => ({
+      id: a.id,
+      kind: 'video-activity',
+      title: a.activityTitle,
+      className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
+      status: a.status === 'inactive' ? 'inactive' : 'active',
+      targetMode: a.targetMode === 'students' ? 'students' : 'class',
+      targetSkippedCount: a.targetSkippedCount ?? 0,
+      openAt: a.openAt,
+      closeAt: a.closeAt,
+      createdAt: a.createdAt,
+    }));
+
+    const glRows: UnifiedAssignmentRow[] = gl.assignments.map((a) => ({
+      id: a.id,
+      kind: 'guided-learning',
+      title: a.setTitle,
+      className: resolveClassName(undefined, a.rosterIds, rosterNamesById),
+      status: a.status === 'archived' ? 'inactive' : 'active',
+      targetMode: a.targetMode === 'students' ? 'students' : 'class',
+      targetSkippedCount: 0,
+      openAt: a.openAt,
+      closeAt: a.closeAt,
+      createdAt: a.createdAt,
+    }));
+
+    const miniAppRows: UnifiedAssignmentRow[] = miniApp.assignments.map(
+      (a) => ({
+        id: a.id,
+        kind: 'mini-app',
+        title: a.appTitle,
+        className: resolveClassName(
+          a.assignmentName,
+          a.rosterIds,
+          rosterNamesById
+        ),
+        status: a.status === 'inactive' ? 'inactive' : 'active',
+        targetMode: a.targetMode === 'students' ? 'students' : 'class',
+        targetSkippedCount: a.targetSkippedCount ?? 0,
+        openAt: a.openAt,
+        closeAt: a.closeAt,
+        createdAt: a.createdAt,
+      })
+    );
+
+    return [...quizRows, ...vaRows, ...glRows, ...miniAppRows].sort(
+      (a, b) => b.createdAt - a.createdAt
+    );
+  }, [
+    quiz.assignments,
+    va.assignments,
+    gl.assignments,
+    miniApp.assignments,
+    rosterNamesById,
+  ]);
+
+  return {
+    rows,
+    loading: quiz.loading || va.loading || gl.loading || miniApp.loading,
+  };
+};

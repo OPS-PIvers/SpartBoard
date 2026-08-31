@@ -25,6 +25,7 @@ import {
   Users2,
   Link2,
   Sparkles,
+  ClipboardList,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
@@ -44,6 +45,7 @@ import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
 import { SettingsModal } from '@/components/settingsModal/SettingsModal';
+import { AssignmentsHubModal } from '@/components/assignmentsHub/AssignmentsHubModal';
 import { BackgroundsModal } from '@/components/backgroundsModal/BackgroundsModal';
 import { QuickAccessModal } from '@/components/quickAccessModal/QuickAccessModal';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
@@ -185,6 +187,7 @@ export const Sidebar: React.FC = () => {
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showAssignmentsHub, setShowAssignmentsHub] = useState(false);
   const [showShortLinkQuickCreate, setShowShortLinkQuickCreate] =
     useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -344,6 +347,9 @@ export const Sidebar: React.FC = () => {
       {showSettingsModal && (
         <SettingsModal onClose={() => setShowSettingsModal(false)} />
       )}
+      {showAssignmentsHub && (
+        <AssignmentsHubModal onClose={() => setShowAssignmentsHub(false)} />
+      )}
 
       {showShortLinkQuickCreate && (
         <ShortLinkQuickCreate
@@ -484,6 +490,23 @@ export const Sidebar: React.FC = () => {
                     </div>
                     <span className="flex-grow text-[13px]">
                       {t('sidebar.nav.backgrounds')}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAssignmentsHub(true);
+                      setIsOpen(false);
+                    }}
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <ClipboardList className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.assignments', {
+                        defaultValue: 'Assignments',
+                      })}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>

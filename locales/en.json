@@ -81,6 +81,7 @@
       "configuration": "Configuration",
       "boards": "Boards & Collections",
       "backgrounds": "Backgrounds",
+      "assignments": "Assignments",
       "classes": "My Classes",
       "plcs": "My PLCs",
       "widgets": "Widgets",
@@ -1860,5 +1861,37 @@
     "scheduleSummaryBoth": "Opens {{open}} – Closes {{close}}",
     "scheduleSummaryOpenOnly": "Opens {{open}}",
     "scheduleSummaryCloseOnly": "Closes {{close}}"
+  },
+  "assignmentsHub": {
+    "title": "Assignments",
+    "close": "Close assignments",
+    "kind": {
+      "quiz": "Quiz",
+      "videoActivity": "Video Activity",
+      "guidedLearning": "Guided Learning",
+      "miniApp": "Mini App"
+    },
+    "filterAll": "All",
+    "filterAllClasses": "All classes",
+    "filterAllStatuses": "Any status",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "individualTag": "Individual",
+    "skippedCount": "{{count}} skipped",
+    "windowBoth": "Opens {{open}} – Closes {{close}}",
+    "windowOpenOnly": "Opens {{open}}",
+    "windowCloseOnly": "Closes {{close}}",
+    "loading": "Loading assignments",
+    "emptyBody": "No assignments yet. Assign a quiz or activity from its editor to see it here.",
+    "emptyAction": "Go create one",
+    "noFilterMatches": "No assignments match these filters.",
+    "selectPrompt": "Select an assignment to view details.",
+    "detailComingSoon": "Per-student status is coming soon.",
+    "status": {
+      "notStarted": "Not started",
+      "inProgress": "In progress",
+      "submitted": "Submitted",
+      "graded": "Graded"
+    }
   }
 }

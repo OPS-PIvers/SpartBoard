@@ -81,6 +81,7 @@
       "configuration": "Konfiguration",
       "boards": "Tafeln",
       "backgrounds": "Hintergründe",
+      "assignments": "Aufgaben",
       "classes": "Meine Klassen",
       "plcs": "Meine PLGs",
       "widgets": "Widgets",
@@ -1860,5 +1861,37 @@
     "scheduleSummaryBoth": "Öffnet {{open}} – Schließt {{close}}",
     "scheduleSummaryOpenOnly": "Öffnet {{open}}",
     "scheduleSummaryCloseOnly": "Schließt {{close}}"
+  },
+  "assignmentsHub": {
+    "title": "Aufgaben",
+    "close": "Aufgaben schließen",
+    "kind": {
+      "quiz": "Quiz",
+      "videoActivity": "Videoaktivität",
+      "guidedLearning": "Geführtes Lernen",
+      "miniApp": "Mini-App"
+    },
+    "filterAll": "Alle",
+    "filterAllClasses": "Alle Klassen",
+    "filterAllStatuses": "Jeder Status",
+    "statusActive": "Aktiv",
+    "statusInactive": "Inaktiv",
+    "individualTag": "Individuell",
+    "skippedCount": "{{count}} übersprungen",
+    "windowBoth": "Öffnet {{open}} – Schließt {{close}}",
+    "windowOpenOnly": "Öffnet {{open}}",
+    "windowCloseOnly": "Schließt {{close}}",
+    "loading": "Aufgaben werden geladen",
+    "emptyBody": "Noch keine Aufgaben. Weise ein Quiz oder eine Aktivität aus dem Editor zu, um sie hier zu sehen.",
+    "emptyAction": "Jetzt erstellen",
+    "noFilterMatches": "Keine Aufgaben entsprechen diesen Filtern.",
+    "selectPrompt": "Wähle eine Aufgabe aus, um Details zu sehen.",
+    "detailComingSoon": "Der Status pro Schüler folgt bald.",
+    "status": {
+      "notStarted": "Nicht begonnen",
+      "inProgress": "In Bearbeitung",
+      "submitted": "Eingereicht",
+      "graded": "Bewertet"
+    }
   }
 }

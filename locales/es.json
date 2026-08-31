@@ -81,6 +81,7 @@
       "configuration": "Configuración",
       "boards": "Tableros",
       "backgrounds": "Fondos",
+      "assignments": "Tareas",
       "classes": "Mis Clases",
       "plcs": "Mis Comunidades",
       "widgets": "Widgets",
@@ -1860,5 +1861,37 @@
     "scheduleSummaryBoth": "Abre {{open}} – Cierra {{close}}",
     "scheduleSummaryOpenOnly": "Abre {{open}}",
     "scheduleSummaryCloseOnly": "Cierra {{close}}"
+  },
+  "assignmentsHub": {
+    "title": "Tareas",
+    "close": "Cerrar tareas",
+    "kind": {
+      "quiz": "Cuestionario",
+      "videoActivity": "Actividad de Video",
+      "guidedLearning": "Aprendizaje Guiado",
+      "miniApp": "Mini App"
+    },
+    "filterAll": "Todas",
+    "filterAllClasses": "Todas las clases",
+    "filterAllStatuses": "Cualquier estado",
+    "statusActive": "Activa",
+    "statusInactive": "Inactiva",
+    "individualTag": "Individual",
+    "skippedCount": "{{count}} omitidos",
+    "windowBoth": "Abre {{open}} – Cierra {{close}}",
+    "windowOpenOnly": "Abre {{open}}",
+    "windowCloseOnly": "Cierra {{close}}",
+    "loading": "Cargando tareas",
+    "emptyBody": "Aún no hay tareas. Asigna un cuestionario o actividad desde su editor para verla aquí.",
+    "emptyAction": "Crear una",
+    "noFilterMatches": "Ninguna tarea coincide con estos filtros.",
+    "selectPrompt": "Selecciona una tarea para ver los detalles.",
+    "detailComingSoon": "El estado por estudiante estará disponible pronto.",
+    "status": {
+      "notStarted": "Sin comenzar",
+      "inProgress": "En progreso",
+      "submitted": "Entregada",
+      "graded": "Calificada"
+    }
   }
 }
