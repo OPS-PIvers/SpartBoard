@@ -68,22 +68,61 @@ describe('AssignTargetingSection', () => {
     );
   });
 
-  it('expanded state shows the picker trigger and window pickers', () => {
+  it('expanded state shows the picker trigger, independent of the collapsed Schedule affordance', () => {
     renderSection({
       value: { ...EMPTY_ASSIGN_TARGETING_VALUE, targetMode: 'students' },
     });
     expect(screen.getByText('Choose students')).toBeInTheDocument();
+    // Schedule is a separate affordance, collapsed by default — expanding
+    // "Individual students" must not reveal it (F1 fix).
+    expect(screen.queryByText('Opens')).not.toBeInTheDocument();
+    expect(screen.queryByText('Closes')).not.toBeInTheDocument();
+  });
+
+  it('the Schedule affordance is independent of targetMode and renders window pickers when expanded', () => {
+    renderSection();
+    fireEvent.click(screen.getByText('Schedule'));
     expect(screen.getByText('Opens')).toBeInTheDocument();
     expect(screen.getByText('Closes')).toBeInTheDocument();
     expect(screen.queryByText('Due')).not.toBeInTheDocument();
+    // Expanding Schedule must not touch targetMode.
+    expect(
+      screen.getByText('+ Individual students & overrides')
+    ).toBeInTheDocument();
   });
 
-  it('showDueAt reveals the due date picker', () => {
-    renderSection({
-      value: { ...EMPTY_ASSIGN_TARGETING_VALUE, targetMode: 'students' },
-      showDueAt: true,
-    });
+  it('showDueAt reveals the due date picker once Schedule is expanded', () => {
+    renderSection({ showDueAt: true });
+    fireEvent.click(screen.getByText('Schedule'));
     expect(screen.getByText('Due')).toBeInTheDocument();
+  });
+
+  it('collapsing the Individual section preserves an already-set schedule', () => {
+    const { onChange } = renderSection({
+      value: {
+        targetMode: 'students',
+        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+        targetGroupIds: [],
+        overridesByKey: {},
+        openAt: 1000,
+        closeAt: 2000,
+      },
+    });
+    fireEvent.click(screen.getByText('Assign to whole class'));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetMode: 'class',
+        openAt: 1000,
+        closeAt: 2000,
+      })
+    );
+  });
+
+  it('shows a collapsed-state summary once a schedule is set', () => {
+    renderSection({
+      value: { ...EMPTY_ASSIGN_TARGETING_VALUE, openAt: 1_700_000_000_000 },
+    });
+    expect(screen.getByText(/Opens/)).toBeInTheDocument();
   });
 
   it('collapsing back to class clears students and overrides', () => {
@@ -171,6 +210,7 @@ describe('AssignTargetingSection', () => {
     const { onChange } = renderSection({
       value: { ...EMPTY_ASSIGN_TARGETING_VALUE, targetMode: 'students' },
     });
+    fireEvent.click(screen.getByText('Schedule'));
     const openInput = screen.getByLabelText('Opens', {
       selector: 'input',
     }) as HTMLInputElement | null;

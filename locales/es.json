@@ -1855,6 +1855,10 @@
     "removeStudent": "Quitar a {{name}}",
     "opensAt": "Abre",
     "closesAt": "Cierra",
-    "dueAt": "Vence"
+    "dueAt": "Vence",
+    "scheduleLabel": "Horario",
+    "scheduleSummaryBoth": "Abre {{open}} – Cierra {{close}}",
+    "scheduleSummaryOpenOnly": "Abre {{open}}",
+    "scheduleSummaryCloseOnly": "Cierra {{close}}"
   }
 }

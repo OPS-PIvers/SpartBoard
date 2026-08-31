@@ -1855,6 +1855,10 @@
     "removeStudent": "Remove {{name}}",
     "opensAt": "Opens",
     "closesAt": "Closes",
-    "dueAt": "Due"
+    "dueAt": "Due",
+    "scheduleLabel": "Schedule",
+    "scheduleSummaryBoth": "Opens {{open}} – Closes {{close}}",
+    "scheduleSummaryOpenOnly": "Opens {{open}}",
+    "scheduleSummaryCloseOnly": "Closes {{close}}"
   }
 }

@@ -1855,6 +1855,10 @@
     "removeStudent": "Retirer {{name}}",
     "opensAt": "Ouvre",
     "closesAt": "Ferme",
-    "dueAt": "Échéance"
+    "dueAt": "Échéance",
+    "scheduleLabel": "Horaire",
+    "scheduleSummaryBoth": "Ouvre {{open}} – Ferme {{close}}",
+    "scheduleSummaryOpenOnly": "Ouvre {{open}}",
+    "scheduleSummaryCloseOnly": "Ferme {{close}}"
   }
 }

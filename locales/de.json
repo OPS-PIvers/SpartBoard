@@ -1855,6 +1855,10 @@
     "removeStudent": "{{name}} entfernen",
     "opensAt": "Öffnet",
     "closesAt": "Schließt",
-    "dueAt": "Fällig"
+    "dueAt": "Fällig",
+    "scheduleLabel": "Zeitplan",
+    "scheduleSummaryBoth": "Öffnet {{open}} – Schließt {{close}}",
+    "scheduleSummaryOpenOnly": "Öffnet {{open}}",
+    "scheduleSummaryCloseOnly": "Schließt {{close}}"
   }
 }
