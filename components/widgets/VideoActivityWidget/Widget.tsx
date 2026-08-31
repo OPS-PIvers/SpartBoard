@@ -6,8 +6,14 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
+import {
+  buildSetAssignmentTargetsPayload,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
 import {
   WidgetData,
   VideoActivityConfig,
@@ -554,7 +560,12 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
-        onAssign={async (meta, rosterIds, dueAt) => {
+        onAssign={async (
+          meta,
+          rosterIds,
+          dueAt,
+          targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE
+        ) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
@@ -596,6 +607,126 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             derived.classPeriodByClassId,
             sessionOptions
           );
+
+          // M17 §5 B3 — write the new window fields onto the session doc
+          // (`setAssignmentTargetsV1` only owns the pointer-doc windows /
+          // `individualTargeting`, never the session's own openAt/closeAt)
+          // and create the matching teacher-owned assignment archive doc —
+          // required by `setAssignmentTargetsV1`'s ownership check
+          // (`not-found` if absent) and, as a side benefit, populates the
+          // Archive tab for every assignment, not just PLC imports.
+          if (targeting.openAt != null || targeting.closeAt != null) {
+            await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
+              ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
+              ...(targeting.closeAt != null
+                ? { closeAt: targeting.closeAt }
+                : {}),
+            });
+          }
+          const nowTs = Date.now();
+          const assignmentDoc: VideoActivityAssignment = {
+            id: sessionId,
+            activityId: data.id,
+            activityTitle: data.title,
+            activityDriveFileId: meta.driveFileId,
+            teacherUid: user.uid,
+            status: 'active',
+            createdAt: nowTs,
+            updatedAt: nowTs,
+            className: assignmentName,
+            sessionSettings: defaultSessionSettings,
+            ...(sessionOptions ? { sessionOptions } : {}),
+            ...(derived.periodNames.length > 0
+              ? { periodNames: derived.periodNames }
+              : {}),
+            ...(derived.rosterIds.length > 0
+              ? { rosterIds: derived.rosterIds }
+              : {}),
+            mode: vaAssignmentMode,
+            // `targetMode`/`targetStudents` are deliberately absent — the client
+            // never writes them; `setAssignmentTargetsV1` is the sole writer
+            // (M17 §5 B3 canonical rules), avoiding a doc that claims
+            // students-targeting the CF never actually persisted.
+            ...(targeting.targetGroupIds.length > 0
+              ? { targetGroupIds: targeting.targetGroupIds }
+              : {}),
+            ...(Object.keys(targeting.overridesByKey).length > 0
+              ? { overridesBySourcedId: targeting.overridesByKey }
+              : {}),
+            ...(targeting.dueAt != null ? { dueAt: targeting.dueAt } : {}),
+            ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
+            ...(targeting.closeAt != null
+              ? { closeAt: targeting.closeAt }
+              : {}),
+          };
+          await setDoc(
+            doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
+            assignmentDoc
+          );
+
+          // Call the CF strictly when the teacher chose per-student targeting
+          // (§3a-G) — a class-wide assignment, even with a Schedule window,
+          // never depends on this callable, so a Cloud Functions hiccup can't
+          // regress today's plain assign.
+          if (targeting.targetMode === 'students') {
+            const targetsPayload = buildSetAssignmentTargetsPayload(
+              undefined,
+              targeting
+            );
+            const runSetAssignmentTargets = async (): Promise<void> => {
+              const setAssignmentTargets = httpsCallable(
+                functions,
+                'setAssignmentTargetsV1'
+              );
+              const result = await setAssignmentTargets({
+                assignmentId: sessionId,
+                kind: 'video-activity',
+                sessionId,
+                ...targetsPayload,
+              });
+              const data2 = result.data as {
+                skipped?: { ref: unknown; reason: string }[];
+              };
+              const skippedCount = data2.skipped?.length ?? 0;
+              // Durable, PII-free marker for list rows — the toast below is
+              // ephemeral and names nothing, but a teacher who dismisses it
+              // still needs to see "N skipped" later (M17 §5 B3 canonical rules).
+              await setDoc(
+                doc(
+                  db,
+                  'users',
+                  user.uid,
+                  'video_activity_assignments',
+                  sessionId
+                ),
+                { targetSkippedCount: skippedCount },
+                { merge: true }
+              );
+              if (skippedCount > 0) {
+                addToast(
+                  `${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be targeted and ${skippedCount === 1 ? 'was' : 'were'} skipped.`,
+                  'info'
+                );
+              }
+            };
+            try {
+              await runSetAssignmentTargets();
+            } catch (err) {
+              // The session/assignment doc were already created above — only
+              // the per-student targeting failed. Say so explicitly and offer
+              // a retry instead of the plain success toast further down.
+              addToast(
+                `Assignment created, but individual student targeting failed${
+                  err instanceof Error ? `: ${err.message}` : '.'
+                } Retry targeting?`,
+                'error',
+                {
+                  label: 'Retry',
+                  onClick: () => void runSetAssignmentTargets(),
+                }
+              );
+            }
+          }
 
           // Persist per-activity memory of the last roster selection so
           // subsequent launches pre-fill the picker.

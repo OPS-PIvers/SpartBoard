@@ -55,7 +55,10 @@ import {
   QuizConfig,
   ClassRoster,
   QuizAssignment,
+  QuizData,
+  StudentTargetRef,
   SyncedQuizGroup,
+  isWrittenQuestionType,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -88,6 +91,9 @@ import {
   useSortableReorder,
   BulkActionBar,
   buildDuplicateAction,
+  AssignTargetingSection,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  type AssignTargetingValue,
   type BulkAction,
   type LibraryMenuAction,
   type LibrarySortOption,
@@ -96,6 +102,8 @@ import {
   type LibraryBadgeTone,
   type LibrarySelectionApi,
 } from '@/components/common/library';
+import type { OverrideEditorQuestion } from '@/components/common/library/OverrideEditorRow';
+import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
   type AssignDestination,
@@ -170,6 +178,37 @@ function resolveEffectivePeriodNames(
   return resolveAssignmentTargets(picker, rosters).periodNames;
 }
 
+/**
+ * Projects loaded quiz questions into the shape `OverrideEditorRow`'s B2
+ * question subset / MC-option hider needs (spec §5 B2). `options` is present
+ * only for MC — Matching/Ordering/FIB/written types have no per-option hider,
+ * they're still selectable in the subset picker via the bare question label.
+ * Returns `[]` while the quiz's full content hasn't loaded yet.
+ */
+function toOverrideEditorQuestions(
+  data: QuizData | null
+): OverrideEditorQuestion[] {
+  if (!data) return [];
+  return data.questions.map((q) => ({
+    id: q.id,
+    label: q.text || `Question ${data.questions.indexOf(q) + 1}`,
+    options:
+      q.type === 'MC'
+        ? [
+            { id: `${q.id}-correct`, text: q.correctAnswer, isCorrect: true },
+            ...q.incorrectAnswers.map((text, i) => ({
+              id: `${q.id}-incorrect-${i}`,
+              text,
+              isCorrect: false,
+            })),
+          ]
+        : undefined,
+    // F2 fix — only short/essay are rubric-swappable; FIB/Matching/Ordering
+    // are neither MC-hideable nor rubric-swappable, just subset-selectable.
+    isWritten: isWrittenQuestionType(q.type),
+  }));
+}
+
 function buildDefaultAssignOptions(
   config: QuizConfig,
   quizId: string | undefined,
@@ -239,12 +278,47 @@ interface QuizManagerProps {
     /** Optional due date (epoch ms). null = no due date. */
     dueAt: number | null,
     /**
+     * M17 individual-assignment targeting (spec §5 B3) — target mode, picked
+     * students/groups, per-student overrides, and the assignment-level
+     * open/close window. `targetMode: 'class'` (the default) is the unchanged
+     * legacy flow; the Widget handler only invokes `setAssignmentTargetsV1`
+     * when `targetMode === 'students'`.
+     */
+    targeting: AssignTargetingValue,
+    /**
      * Where the teacher chose to assign (library-row chooser). 'spartboard' =
      * the SpartBoard-only flow; 'classroom' = create the SpartBoard assignment
      * THEN open the Google Classroom course picker. Defaults to 'spartboard'.
      */
-    destination?: AssignDestination
+    destination?: AssignDestination,
+    /**
+     * Full quiz content already loaded via `onLoadQuizData` for the B2
+     * override editor (F1 fix) — present whenever the teacher expanded
+     * "+ Individual students & overrides" during this modal session. The
+     * Widget handler reuses this instead of re-fetching from Drive; `null`/
+     * `undefined` means the class-wide path never needed it, so the handler
+     * still fetches once itself.
+     */
+    preloadedQuizData?: QuizData | null
   ) => void;
+  /**
+   * Loads full quiz content (questions) for the assign modal's B2 override
+   * editor (question subset / MC-option hider / rubric swap need question
+   * data the lightweight `QuizMetadata` doesn't carry). Omitted in test
+   * harnesses that don't exercise individual targeting — the "+ Individual
+   * students & overrides" affordance still renders, just with an empty
+   * question list until this resolves.
+   */
+  onLoadQuizData?: (quiz: QuizMetadata) => Promise<QuizData | null>;
+  /**
+   * M17 individual-assignment targeting (spec §5 B3) — skipped-ref counts
+   * from the most recent `setAssignmentTargetsV1` call, keyed by assignment
+   * id. Renders a discreet row marker so a skipped student is never silent.
+   */
+  skippedTargetsByAssignmentId?: Record<
+    string,
+    { ref: StudentTargetRef; reason: string }[]
+  >;
   /**
    * View-only Share callback — invoked when the org-wide assignment mode
    * for Quiz is `'view-only'` and the teacher clicks the Share button.
@@ -502,6 +576,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onEdit,
   onPreview,
   onAssign,
+  onLoadQuizData,
+  skippedTargetsByAssignmentId,
   onResults,
   onDelete,
   onDuplicate,
@@ -662,6 +738,24 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   // Due date for the current assign modal (epoch ms or null = no due date).
   const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
+  // M17 individual-assignment targeting state (spec §5 B3). Default
+  // 'class' mode renders none of B1/B2 — see `AssignTargetingSection`.
+  const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
+  // M17 C3 F5 — inline block when individual targeting is picked on a
+  // non-self-paced quiz (overrides can't apply to a class-wide pacing cursor).
+  const [targetingPacingError, setTargetingPacingError] = useState<
+    string | null
+  >(null);
+  // Full quiz content for the current assign modal's question-override
+  // fields (question subset / MC-option hider / rubric swap). `QuizMetadata`
+  // doesn't carry questions — loaded on demand via `onLoadQuizData`.
+  const [assignQuizData, setAssignQuizData] = useState<QuizData | null>(null);
+  // Tracks the quiz id whose full content has been loaded/in-flight for the
+  // current assign modal (F1 fix) — see `handleExpandIndividualTargeting`.
+  const loadedAssignQuizDataForRef = useRef<string | null>(null);
+  const { rubrics: assignRubrics } = useRubrics(userId);
 
   // Subscribed at the parent so both AssignPlcSlot (UI) and
   // handleAssignConfirm (effective-id resolution) read the same source.
@@ -675,6 +769,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
       setAssignDueAt(null);
+      setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+      setAssignQuizData(null);
+      loadedAssignQuizDataForRef.current = null;
       setAssignOptions(
         buildDefaultAssignOptions(
           config,
@@ -685,6 +782,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       );
     }
   }
+
+  // Lazily loads the assign modal's question data from an external system
+  // (Drive) — ONLY when the teacher expands "+ Individual students &
+  // overrides" (F1 fix). The class-wide path never touches `onLoadQuizData`,
+  // so a class-wide assign fetches the quiz exactly once (at assign time in
+  // the Widget handler), same as before this feature existed. Re-expanding
+  // the same quiz's targeting section doesn't re-fetch, and the assign
+  // handler below reuses whatever this resolved instead of fetching again.
+  const handleExpandIndividualTargeting = (): void => {
+    if (!assignTarget || !onLoadQuizData) return;
+    if (loadedAssignQuizDataForRef.current === assignTarget.id) return;
+    loadedAssignQuizDataForRef.current = assignTarget.id;
+    const target = assignTarget;
+    void onLoadQuizData(target).then((data) => {
+      // Drop a response for a since-abandoned target (modal reopened on a
+      // different quiz before this resolved).
+      if (loadedAssignQuizDataForRef.current === target.id) {
+        setAssignQuizData(data);
+      }
+    });
+  };
 
   // Live ClassLink fetching is no longer performed at assign time. Imported
   // ClassLink rosters carry their own `classlinkClassId` metadata so the
@@ -1352,6 +1470,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
+    // M17 C3 F5 — per-student overrides are only honored in self-paced mode
+    // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
+    // diverge per student). Block the save rather than silently assigning
+    // accommodations that would never take effect.
+    if (
+      assignTargeting.targetMode === 'students' &&
+      getQuizBehavior(assignTarget).sessionMode !== 'student'
+    ) {
+      setTargetingPacingError(
+        'Individual student targeting requires Self-paced mode. Open the quiz’s Settings and switch pacing to Self-paced, or assign to the whole class.'
+      );
+      return;
+    }
+    setTargetingPacingError(null);
     // Guard against stale rosterIds — rosters can be deleted or fail to load
     // (`loadError`) between the teacher's last assignment and the current one.
     // A roster without students can't produce a joinable session, so treat
@@ -1390,10 +1522,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       plcOptions,
       validRosterIds,
       assignDueAt,
-      assignDestination
+      assignTargeting,
+      assignDestination,
+      assignQuizData
     );
     setAssignTarget(null);
     setAssignDueAt(null);
+    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setTargetingPacingError(null);
+    setAssignQuizData(null);
     setAssignDestination('spartboard');
   };
 
@@ -1756,6 +1893,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           mode="active"
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
+          skippedTargetsByAssignmentId={skippedTargetsByAssignmentId}
           emptyTitle={
             isViewOnly ? 'No active shares' : 'No quizzes in progress'
           }
@@ -1821,6 +1959,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={() => {
             setAssignTarget(null);
             setAssignDueAt(null);
+            setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+            setTargetingPacingError(null);
+            setAssignQuizData(null);
             // Reset the destination so a cancelled 'classroom' pick can't leak
             // into a later open (every exit path leaves clean state; the
             // confirm path already resets it).
@@ -1830,24 +1971,51 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           options={assignOptions}
           onOptionsChange={setAssignOptions}
           extraSlot={
-            <AssignBehaviorSummary
-              meta={assignTarget}
-              dueAt={assignDueAt}
-              onDueAtChange={setAssignDueAt}
-              rosters={rosters}
-              options={assignOptions}
-              onChange={setAssignOptions}
-              onEditInQuiz={() => {
-                // Close the assign modal and open the editor.
-                // The editor defaults to the Questions tab; the teacher
-                // can switch to Settings from there. (Task 9 — initialTab
-                // 'settings' wiring is a follow-up for Task 12.)
-                setAssignTarget(null);
-                setAssignDueAt(null);
-                setAssignDestination('spartboard');
-                onEdit(assignTarget);
-              }}
-            />
+            <>
+              <AssignBehaviorSummary
+                meta={assignTarget}
+                dueAt={assignDueAt}
+                onDueAtChange={setAssignDueAt}
+                rosters={rosters}
+                options={assignOptions}
+                onChange={setAssignOptions}
+                onEditInQuiz={() => {
+                  // Close the assign modal and open the editor.
+                  // The editor defaults to the Questions tab; the teacher
+                  // can switch to Settings from there. (Task 9 — initialTab
+                  // 'settings' wiring is a follow-up for Task 12.)
+                  setAssignTarget(null);
+                  setAssignDueAt(null);
+                  setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+                  setTargetingPacingError(null);
+                  setAssignQuizData(null);
+                  setAssignDestination('spartboard');
+                  onEdit(assignTarget);
+                }}
+              />
+              <AssignTargetingSection
+                rosters={rosters}
+                value={assignTargeting}
+                onChange={(next) => {
+                  setTargetingPacingError(null);
+                  setAssignTargeting(next);
+                }}
+                kind="quiz"
+                quizContext={{
+                  questions: toOverrideEditorQuestions(assignQuizData),
+                  rubrics: assignRubrics,
+                }}
+                onExpand={handleExpandIndividualTargeting}
+              />
+              {targetingPacingError && (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+                >
+                  {targetingPacingError}
+                </p>
+              )}
+            </>
           }
           plcSlot={
             <AssignPlcSlot
@@ -2181,6 +2349,10 @@ const AssignmentsList: React.FC<{
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  skippedTargetsByAssignmentId?: Record<
+    string,
+    { ref: StudentTargetRef; reason: string }[]
+  >;
   emptyTitle: string;
   emptySub: string;
 }> = ({
@@ -2189,6 +2361,7 @@ const AssignmentsList: React.FC<{
   mode,
   buildActions,
   syncedGroups,
+  skippedTargetsByAssignmentId,
   emptyTitle,
   emptySub,
 }) => {
@@ -2215,6 +2388,7 @@ const AssignmentsList: React.FC<{
           mode={mode}
           buildActions={buildActions}
           syncedGroups={syncedGroups}
+          skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
         />
       ))}
     </div>
@@ -2245,6 +2419,8 @@ interface QuizArchiveRowProps {
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
+  skippedTargets?: { ref: StudentTargetRef; reason: string }[];
 }
 
 /**
@@ -2258,8 +2434,13 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   mode,
   buildActions,
   syncedGroups,
+  skippedTargets,
 }) => {
   const assignmentIsViewOnly = a.mode === 'view-only';
+  // Skipped-ref durability (canonical rule) — prefer the in-memory names
+  // from this session's `setAssignmentTargetsV1` call; fall back to the
+  // persisted PII-free count so the marker survives a reload.
+  const skippedCount = skippedTargets?.length ?? a.targetSkippedCount ?? 0;
   const { primary, secondaries } = buildActions(a, mode);
   const status = resolveStatus(a.status, assignmentIsViewOnly);
   // Schoology LTI assignments get `periodNames` written onto the assignment doc
@@ -2361,6 +2542,15 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           >
             <Cloud className="w-2.5 h-2.5" />
             {syncBadge.label}
+          </span>
+        )}
+        {skippedCount > 0 && (
+          <span
+            title={`${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be individually targeted`}
+            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700"
+          >
+            <AlertTriangle className="w-2.5 h-2.5" />
+            {skippedCount} skipped
           </span>
         )}
       </>
