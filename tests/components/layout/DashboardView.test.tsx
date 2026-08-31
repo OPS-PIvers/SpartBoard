@@ -151,6 +151,12 @@ vi.mock('@/hooks/useCollections', () => ({
   }),
 }));
 
+const mockUploadAndRegisterPdf = vi.fn();
+vi.mock('@/hooks/useStorage', () => ({
+  MAX_PDF_SIZE_BYTES: 50 * 1024 * 1024,
+  useStorage: () => ({ uploadAndRegisterPdf: mockUploadAndRegisterPdf }),
+}));
+
 vi.mock('@/components/boardsModal/BoardsModal', () => ({
   BoardsModal: () => null,
 }));
@@ -577,6 +583,240 @@ describe('DashboardView Gestures & Navigation', () => {
           rotation: 0,
         }),
       })
+    );
+  });
+
+  it('unprojects the drop point through the current zoom when placing a spart-sticker', () => {
+    // The widget surface renders inside translate(pan) scale(zoom) (see
+    // DashboardView's "ZOOMABLE WIDGET SURFACE"), so a raw clientX/clientY
+    // is a screen point, not the board-space coordinate widgets live in.
+    // At zoom=1 the two coincide, which is why every other drop test in
+    // this file (all at the default zoom: 1 mock) can't catch a regression
+    // here — this test is the one that actually exercises the projection.
+    Object.defineProperty(window, 'innerWidth', {
+      value: 1024,
+      writable: true,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      value: 768,
+      writable: true,
+    });
+
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      activeDashboard: mockDashboards[1],
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: mockAddWidget,
+      loadDashboard: mockLoadDashboard,
+      removeToast: vi.fn(),
+      updateWidget: vi.fn(),
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      minimizeAllWidgets: vi.fn(),
+      restoreAllWidgets: vi.fn(),
+      deleteAllWidgets: vi.fn(),
+      zoom: 2,
+      setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
+    });
+
+    const { container } = renderView();
+    const dashboardRoot = container.querySelector('#dashboard-root');
+    if (!dashboardRoot) throw new Error('Dashboard root not found');
+
+    const spartStickerData = JSON.stringify({
+      icon: 'Share2',
+      color: 'green',
+      label: 'SHARE',
+      url: 'https://example.com/custom-sticker.png',
+    });
+    const dataTransfer = {
+      getData: vi.fn((type: string) => {
+        if (type === 'application/spart-sticker') return spartStickerData;
+        return '';
+      }),
+    };
+
+    // React's synthetic 'drop' handler doesn't reliably pick up
+    // clientX/clientY from fireEvent.drop's plain event-properties object
+    // under jsdom, so build the native Event directly and mutate it —
+    // matching the pattern the (passing) application/sticker drop tests
+    // below already use.
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+    fireEvent(dashboardRoot, dropEvent);
+
+    // vw=1024, vh=768, zoom=2, pan={0,0}, w=h=150:
+    //   wx = 512 + (500 − 512) / 2 = 506  →  x = 506 − 75 = 431
+    //   wy = 384 + (500 − 384) / 2 = 442  →  y = 442 − 75 = 367
+    // (Unfixed code would call addWidget with x: 425, y: 425 — the raw
+    // clientX/clientY minus half the sticker size, ignoring zoom entirely.)
+    expect(mockAddWidget).toHaveBeenCalledWith(
+      'sticker',
+      expect.objectContaining({ x: 431, y: 367 })
+    );
+  });
+
+  it('unprojects the drop point through the current zoom when placing an application/sticker', () => {
+    Object.defineProperty(window, 'innerWidth', {
+      value: 1024,
+      writable: true,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      value: 768,
+      writable: true,
+    });
+
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      activeDashboard: mockDashboards[1],
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: mockAddWidget,
+      loadDashboard: mockLoadDashboard,
+      removeToast: vi.fn(),
+      updateWidget: vi.fn(),
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      minimizeAllWidgets: vi.fn(),
+      restoreAllWidgets: vi.fn(),
+      deleteAllWidgets: vi.fn(),
+      zoom: 2,
+      setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
+    });
+
+    renderView();
+    const root = document.getElementById('dashboard-root');
+    if (!root) throw new Error('Root not found');
+
+    const dataTransfer = {
+      types: ['application/sticker'],
+      getData: vi.fn((type) => {
+        if (type === 'application/sticker')
+          return JSON.stringify({
+            url: 'https://example.com/sticker.png',
+            ratio: 2,
+          });
+        return '';
+      }),
+    };
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+    fireEvent(root, dropEvent);
+
+    // Base size 200, ratio 2 > 1 → w=200, h=100.
+    // vw=1024, vh=768, zoom=2, pan={0,0}:
+    //   wx = 512 + (500 − 512) / 2 = 506  →  x = 506 − 100 = 406
+    //   wy = 384 + (500 − 384) / 2 = 442  →  y = 442 − 50  = 392
+    // (Unfixed code would call addWidget with x: 400, y: 450.)
+    expect(mockAddWidget).toHaveBeenCalledWith(
+      'sticker',
+      expect.objectContaining({ x: 406, y: 392, w: 200, h: 100 })
+    );
+  });
+
+  it('unprojects the drop point through the current zoom when placing a dropped PDF', async () => {
+    Object.defineProperty(window, 'innerWidth', {
+      value: 1024,
+      writable: true,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      value: 768,
+      writable: true,
+    });
+    mockUploadAndRegisterPdf.mockResolvedValue({
+      id: 'pdf-1',
+      storageUrl: 'https://example.com/doc.pdf',
+      name: 'doc.pdf',
+    });
+
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      activeDashboard: mockDashboards[1],
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: mockAddWidget,
+      loadDashboard: mockLoadDashboard,
+      removeToast: vi.fn(),
+      updateWidget: vi.fn(),
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      minimizeAllWidgets: vi.fn(),
+      restoreAllWidgets: vi.fn(),
+      deleteAllWidgets: vi.fn(),
+      zoom: 2,
+      setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
+    });
+
+    const { container } = renderView();
+    const dashboardRoot = container.querySelector('#dashboard-root');
+    if (!dashboardRoot) throw new Error('Dashboard root not found');
+
+    const pdfFile = new File(['%PDF-1.4'], 'doc.pdf', {
+      type: 'application/pdf',
+    });
+    const dataTransfer = { files: [pdfFile], getData: vi.fn(() => '') };
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+    fireEvent(dashboardRoot, dropEvent);
+
+    // vw=1024, vh=768, zoom=2, pan={0,0}, w=600, h=750:
+    //   wx = 512 + (500 − 512) / 2 = 506  →  x = max(0, 506 − 300) = 206
+    //   wy = 384 + (500 − 384) / 2 = 442  →  y = max(0, 442 − 375) = 67
+    // (Unfixed code would call addWidget with x: 200, y: 125.)
+    await waitFor(() =>
+      expect(mockAddWidget).toHaveBeenCalledWith(
+        'pdf',
+        expect.objectContaining({ x: 206, y: 67, w: 600, h: 750 })
+      )
     );
   });
 

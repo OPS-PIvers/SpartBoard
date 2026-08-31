@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
 _Last audited: 2026-08-24_
-_Last action: 2026-05-18 (admin_audit_log immutability hardening)_
+_Last action: 2026-08-30 (starterPacks `notDeactivated()` gate, via nightly debugger routine)_
 
 ---
 
@@ -45,13 +45,6 @@ _2026-06-08: Audited new code from dev-paul merge for new Firestore collection r
 _2026-06-01: Full collection audit. All collection names from frontend (components/, context/, hooks/, utils/) and functions/src/ cross-referenced against match blocks in firestore.rules. New code absorbed via merge since 2026-05-27: SettingsPanel null-guards, LunchCount/Settings cleanup, Countdown fix, RandomWidget refactor — none introduce new Firestore collection reads/writes. Cross-referenced 40+ collection names. Result: zero uncovered collections. All collections have match blocks. Default-deny catch-all (`match /{document=**} { allow read, write: if false; }`) confirmed present. Two existing open items (sessions list permission, custom_widgets.buildings field) unchanged._
 
 _2026-05-27: Audited all collection() and collectionGroup() calls in components/, context/, hooks/, utils/, and functions/src/. Cross-referenced 40+ collection names against match blocks in firestore.rules (3066 lines). New code added since 2026-05-18: Spotify OAuth (functions/src/spotifyOAuth.ts), synced quiz/video-activity groups (functions/src/syncedQuizGroups.ts, syncedVideoActivityGroups.ts), shared_notebooks (context/DashboardContext.tsx, hooks/useNotebookSharing.ts). Verified: `shared_notebooks` has a match block (referenced in the 2026-05-23 audit note); `spotify_tokens` (if stored) would need a rule — but review of spotifyOAuth.ts shows it stores tokens in Firebase Auth custom claims, not Firestore; `synced_quiz_groups` and `synced_video_activity_groups` are stored under subcollections of existing organizations path already covered by the broad `/organizations/{orgId}/{document=**}` rule. Default-deny catch-all still present at end of rules. Zero new unprotected collections. Existing two open items unchanged._
-
-### LOW `sessions/{userId}/students` create has no schema or size validation
-
-- **Detected:** 2026-08-24
-- **File:** `firestore.rules:2929-2930`
-- **Detail:** `allow create: if request.auth != null && request.auth.uid == studentId;`. The doc id is bound to the writer's uid (good), but the payload is unconstrained despite the block comment asserting "Student session records store only a PIN — no PII." This compounds the MEDIUM `sessions` broad-list item below (`:2918`): an attacker can enumerate every live session id, then — because anonymous sign-in mints a fresh uid on demand — write an unbounded number of arbitrary-content student docs into any teacher's live roster, each appearing in the teacher's join UI.
-- **Fix:** Add a field whitelist to the create rule (`hasOnly(['pin','name','joinedAt', …])` per the actual write shape) plus a size cap on any string field. Cheap defense-in-depth that does not require the Cloud Function work the broad-read item is blocked on.
 
 ### LOW `notDeactivated()` omitted from three owner-scoped rules
 
@@ -120,6 +113,14 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 ---
 
 ## Completed
+
+### LOW `notDeactivated()` omitted from three owner-scoped rules
+
+- **Detected:** 2026-08-24
+- **Resolved:** 2026-08-30 — resolved outside journal workflow, via the nightly debugger routine's Build & Tooling run, PR [#2653](https://github.com/OPS-PIvers/SpartBoard/pull/2653).
+- **File:** `firestore.rules:590-592` (`/users/{userId}`), `:595-597` (`/users/{userId}/userProfile/{profileId}`), `:628-630` (`/artifacts/{appId}/users/{userId}/starterPacks/{packId}`)
+- **Detail (original):** The M1 deactivation-lockout comment at `:198-201` describes "the ~15 owner collections gated by `notDeactivated()`". All owner-scoped blocks were checked: 18 carry the gate (dashboards, rosters, plc_layouts, plc_state, miniapps, saved_widgets, notebooks, pdfs, quizzes, activity_wall_activities, quiz_assignments, guided_learning, video_activities, and the five `*_assignments`/`*_folders` blocks); these three do not. A member deactivated in the operator org can still read/write their user root doc (`email`/`lastLogin`/`buildings`, written by `context/AuthContext.tsx:1844`), their `userProfile` building selection, and their personal starter packs. The two `/users/` omissions may be deliberate — both are read during sign-in bootstrap, before `AuthContext` applies its own deactivation gate, and adding the gate costs an extra `get()` on the hottest read path — but nothing in the file says so. The `artifacts/.../starterPacks` omission has no such rationale and looks like a plain miss.
+- **Resolution:** Added `&& notDeactivated()` to the `starterPacks` rule, matching every sibling owner-scoped collection — confirmed reachable via `components/widgets/StarterPack/Settings.tsx`'s write path and `context/AuthContext.tsx`'s async (not synchronous) deactivation sign-out. The two `/users/` rules were left ungated per the bootstrap-path-exemption theory above, with one-line comments added to each documenting the intentional exemption so future audits stop re-flagging them. Covered by 4 new cases in `tests/rules/inactiveMemberLockout.test.ts` (active member succeeds, inactive member denied, both read and write) against the real Firestore emulator.
 
 ### MEDIUM `nextup_sessions/{sessionId}/entries` create is completely unvalidated
 
