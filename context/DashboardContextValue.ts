@@ -247,6 +247,14 @@ export interface DashboardContextValue {
       changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
     }>
   ) => void;
+  /**
+   * Applies `transform` to the config of every widget of `type` on every board.
+   * Return null to leave a widget untouched. Persists all changed boards.
+   */
+  updateWidgetConfigsAcrossBoards: (
+    type: WidgetType,
+    transform: (config: WidgetConfig) => WidgetConfig | null
+  ) => Promise<void>;
   selectedWidgetIds: string[];
   setSelectedWidgetIds: (
     ids: string[] | ((prev: string[]) => string[])

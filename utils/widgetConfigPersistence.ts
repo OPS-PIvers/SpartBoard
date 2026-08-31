@@ -75,6 +75,11 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'markers',
   'jumps',
 
+  // Materials: the teacher library is profile-owned and read live; per-widget
+  // snapshots are instance data. Neither belongs in a saved global default.
+  'customMaterials',
+  'customMaterialSnapshots',
+
   // User-typed instance content: styling should carry over to new widgets,
   // but the text/notes themselves belong to a single instance only.
   'content',

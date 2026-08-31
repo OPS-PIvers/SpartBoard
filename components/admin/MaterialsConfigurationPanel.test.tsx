@@ -244,4 +244,25 @@ describe('MaterialsConfigurationPanel', () => {
     expect(nextConfig.buildingDefaults.b1.selectedItems).toEqual(['computer']);
     expect(nextConfig.buildingDefaults.b2.selectedItems).toEqual([]);
   });
+
+  it('defaults teacher-created materials on and persists the opt-out', () => {
+    const config: MaterialsGlobalConfig = {
+      customMaterials: [],
+      buildingDefaults: {},
+    };
+
+    render(
+      <MaterialsConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /Let teachers create their own materials/,
+    });
+    expect(toggle).toBeChecked();
+
+    fireEvent.click(toggle);
+
+    const nextConfig = mockOnChange.mock.calls[0][0] as MaterialsGlobalConfig;
+    expect(nextConfig.allowTeacherMaterials).toBe(false);
+  });
 });

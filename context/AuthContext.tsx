@@ -48,6 +48,7 @@ import {
   AssignmentMode,
   AssignmentWidgetKey,
   UserTier,
+  MaterialDefinition,
 } from '@/types';
 import type { MemberRecord, BuildingRecord } from '@/types/organization';
 import { AuthContext } from './AuthContextValue';
@@ -303,6 +304,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [savedWidgetConfigs, setSavedWidgetConfigs] = useState<
     Partial<Record<WidgetType, Partial<WidgetConfig>>>
   >({});
+  const [customMaterials, setCustomMaterials] = useState<MaterialDefinition[]>(
+    []
+  );
   // Initialise from i18n.language. If i18n.init() hasn't resolved its async
   // language detection yet, the useEffect below will sync the state once it fires.
   const [language, setLanguageState] = useState<string>(
@@ -1472,6 +1476,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setProfileLoaded(false);
       setSetupCompletedState(false);
       setSavedWidgetConfigs({});
+      setCustomMaterials([]);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
       setDockPositionState('bottom');
@@ -1551,6 +1556,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 Record<WidgetType, Partial<WidgetConfig>>
               >
             );
+          }
+
+          // Load teacher-created Materials widget entries
+          if (
+            'customMaterials' in data &&
+            Array.isArray(data.customMaterials)
+          ) {
+            setCustomMaterials(data.customMaterials as MaterialDefinition[]);
+          } else {
+            setCustomMaterials([]);
           }
 
           // Decide setupCompleted. The wizard writes `setupCompleted: true` on
@@ -2093,6 +2108,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         return newConfigs;
       });
+    },
+    [user]
+  );
+
+  const saveCustomMaterials = useCallback(
+    async (materials: MaterialDefinition[]) => {
+      setCustomMaterials(materials);
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { customMaterials: materials },
+          { merge: true }
+        );
+      } catch (error) {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving custom materials:', error);
+        }
+        throw error;
+      }
     },
     [user]
   );
@@ -2665,6 +2701,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,
+        customMaterials,
+        saveCustomMaterials,
         profileLoaded,
         setupCompleted,
         completeSetup,

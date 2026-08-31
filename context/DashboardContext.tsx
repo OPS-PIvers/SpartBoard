@@ -4915,6 +4915,43 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // effect, etc.) can invoke it without circular `useCallback` dependencies.
   updateWidgetRef.current = updateWidget;
 
+  // Applies `transform` to every widget of `type` on every board. Returning null
+  // from the transform leaves that widget untouched. The active board rides the
+  // normal autosave; other changed boards are written in one batch.
+  const updateWidgetConfigsAcrossBoards = useCallback(
+    async (
+      type: WidgetType,
+      transform: (config: WidgetConfig) => WidgetConfig | null
+    ) => {
+      const changedById = new Map<string, Dashboard>();
+
+      dashboardsRef.current.forEach((d) => {
+        let changed = false;
+        const widgets = d.widgets.map((w) => {
+          if (w.type !== type) return w;
+          const nextConfig = transform(w.config);
+          if (!nextConfig) return w;
+          changed = true;
+          return { ...w, config: nextConfig, version: (w.version ?? 1) + 1 };
+        });
+        if (changed) changedById.set(d.id, { ...d, widgets });
+      });
+
+      if (changedById.size === 0) return;
+
+      lastLocalUpdateAt.current = Date.now();
+      setDashboards((prev) => prev.map((d) => changedById.get(d.id) ?? d));
+
+      const otherBoards = Array.from(changedById.values()).filter(
+        (d) => d.id !== activeIdRef.current
+      );
+      if (otherBoards.length > 0) {
+        await saveDashboards(otherBoards);
+      }
+    },
+    [saveDashboards]
+  );
+
   // --- Widget grouping ---
 
   const updateWidgets = useCallback(
@@ -5693,6 +5730,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       groupWidgets,
       ungroupWidgets,
       updateWidgets,
+      updateWidgetConfigsAcrossBoards,
       selectedWidgetIds,
       setSelectedWidgetIds,
       groupBuildMode,
@@ -5804,6 +5842,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       groupWidgets,
       ungroupWidgets,
       updateWidgets,
+      updateWidgetConfigsAcrossBoards,
       selectedWidgetIds,
       setSelectedWidgetIds,
       groupBuildMode,

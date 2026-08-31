@@ -309,6 +309,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       ) => void,
       updateDashboard: NOOP as (updates: Partial<Dashboard>) => void,
       updateWidgets: NOOP,
+      updateWidgetConfigsAcrossBoards: () => Promise.resolve(),
 
       // Annotation / zoom / selection — disabled for subs.
       openAnnotation: NOOP,

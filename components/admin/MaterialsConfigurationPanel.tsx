@@ -186,8 +186,32 @@ export const MaterialsConfigurationPanel: React.FC<
     }
   };
 
+  const allowTeacherMaterials = config.allowTeacherMaterials !== false;
+
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allowTeacherMaterials}
+            onChange={(e) =>
+              onChange({ ...config, allowTeacherMaterials: e.target.checked })
+            }
+            className="mt-0.5 h-4 w-4 shrink-0 accent-brand-blue-primary"
+          />
+          <span>
+            <span className="text-xs font-bold text-slate-700 block">
+              Let teachers create their own materials
+            </span>
+            <span className="text-xxs text-slate-500 leading-tight block">
+              Turning this off hides the add button in widget settings.
+              Materials teachers already created keep working.
+            </span>
+          </span>
+        </label>
+      </div>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>

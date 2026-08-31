@@ -2335,6 +2335,8 @@ export interface MaterialDefinition {
 export interface MaterialsGlobalConfig {
   customMaterials?: MaterialDefinition[];
   buildingDefaults: Record<string, BuildingMaterialsDefaults>;
+  /** When false, teachers cannot create their own materials. Defaults to enabled. */
+  allowTeacherMaterials?: boolean;
 }
 
 export interface CalendarGlobalEvent {
@@ -2759,6 +2761,8 @@ export interface MaterialsConfig {
   title?: string;
   titleFont?: string;
   titleColor?: string;
+  /** Definitions of referenced non-built-in materials, so shared/exported boards still render them. */
+  customMaterialSnapshots?: MaterialDefinition[];
 }
 
 export interface CatalystRoutine {
