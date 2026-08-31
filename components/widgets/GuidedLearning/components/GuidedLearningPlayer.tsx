@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Minimize2,
+} from 'lucide-react';
 import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
@@ -17,9 +24,12 @@ import { QuestionInteraction } from './interactions/QuestionInteraction';
 import { BannerInteraction } from './interactions/BannerInteraction';
 import {
   calculateImageFootprint,
+  computePanZoomTranslate,
   toContainerCoords,
+  toContainerSpotlightRadiusPct,
   toImageOffset,
 } from '../utils/imageUtils';
+import { isGuidedLearningSetV2 } from '../utils/setMigration';
 
 /**
  * Clamp a video trim against the player's loaded metadata. The editor already
@@ -192,6 +202,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     return () => ro.disconnect();
   }, [measureImg]);
 
+  const schemaV2 = isGuidedLearningSetV2(set);
+
   const currentStep = steps[currentIdx] ?? null;
   const activeStep = steps.find((s) => s.id === activeStepId) ?? null;
   const rawCurrentImageIndex =
@@ -243,13 +255,18 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       ? (set.imageUrls[prevImageIndex] ?? null)
       : null;
 
+  // Re-measure whenever the slide changes — the <img> src is mutated in
+  // place, so cached images can swap without firing onLoad.
+  useEffect(() => {
+    measureImg();
+  }, [measureImg, currentImageUrl, currentImageIndex]);
+
   const toContainerStep = useCallback(
     (step: GuidedLearningPublicStep | null) => {
       if (!step) return null;
-      return {
-        ...step,
-        ...toContainerCoords(step.xPct, step.yPct, imgOffset),
-      };
+      const coords = toContainerCoords(step.xPct, step.yPct, imgOffset);
+      if (!coords) return null;
+      return { ...step, ...coords };
     },
     [imgOffset]
   );
@@ -263,6 +280,20 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     panZoomTargetStep?.interactionType === 'pan-zoom-spotlight'
       ? panZoomTargetStep.id
       : null;
+
+  // v2 zoom persistence — the held scale survives step changes until reset.
+  const [zoomScale, setZoomScale] = useState(1);
+  const [prevPanZoomId, setPrevPanZoomId] = useState<string | null>(null);
+  if (schemaV2 && panZoomActive !== prevPanZoomId) {
+    setPrevPanZoomId(panZoomActive);
+    if (panZoomActive) {
+      const zoomStep = steps.find((s) => s.id === panZoomActive);
+      setZoomScale(zoomStep?.panZoomScale ?? 2.5);
+    } else if (mode === 'explore') {
+      // Explore deselect animates back to identity — clear the held zoom too.
+      setZoomScale(1);
+    }
+  }
 
   useEffect(() => {
     // Warm the browser cache for image slides so step navigation doesn't
@@ -423,23 +454,70 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     onAnswer?.(stepId, answer, isCorrect);
   };
 
+  // Single source of truth for the transform the pan-zoom layer renders.
+  const renderedTransform = ((): { scale: number; tx: number; ty: number } => {
+    const identity = { scale: 1, tx: 0, ty: 0 };
+    if (containerSize.w === 0) return identity;
+    // Legacy sets (schemaVersion absent/1): per-step zoom reset, now animated.
+    const scale = schemaV2
+      ? zoomScale
+      : panZoomActive
+        ? (steps.find((s) => s.id === panZoomActive)?.panZoomScale ?? 2.5)
+        : 1;
+    if (scale <= 1) return identity;
+    const target = toContainerStep(
+      schemaV2
+        ? panZoomTargetStep
+        : (steps.find((s) => s.id === panZoomActive) ?? null)
+    );
+    if (!target) return identity;
+    const { tx, ty } = computePanZoomTranslate(
+      target.xPct,
+      target.yPct,
+      scale,
+      containerSize.w,
+      containerSize.h
+    );
+    return { scale, tx, ty };
+  })();
+
+  // Map container-% coords through the rendered transform so overlays always
+  // anchor where the hotspot is actually painted.
+  const toRenderedCoords = (coords: { xPct: number; yPct: number }) => {
+    const { scale, tx, ty } = renderedTransform;
+    if (scale <= 1) return coords;
+    return {
+      xPct:
+        coords.xPct * scale +
+        (containerSize.w ? (tx / containerSize.w) * 100 : 0),
+      yPct:
+        coords.yPct * scale +
+        (containerSize.h ? (ty / containerSize.h) * 100 : 0),
+    };
+  };
+
+  const activeStepRendered = activeStepInContainer
+    ? { ...activeStepInContainer, ...toRenderedCoords(activeStepInContainer) }
+    : null;
+
   // Calculate pan-zoom transform
   const getPanZoomStyle = (): React.CSSProperties => {
-    if (!panZoomActive || containerSize.w === 0) return {};
-    const step = toContainerStep(
-      steps.find((s) => s.id === panZoomActive) ?? null
-    );
-    if (!step) return {};
-    const scale = step.panZoomScale ?? 2.5;
-    // Translate so the hotspot is centred
-    const tx =
-      containerSize.w / 2 - (step.xPct / 100) * containerSize.w * scale;
-    const ty =
-      containerSize.h / 2 - (step.yPct / 100) * containerSize.h * scale;
-
+    if (containerSize.w === 0) return {};
+    const transition = prefersReducedMotion
+      ? 'none'
+      : 'transform 0.6s ease-in-out';
+    const { scale, tx, ty } = renderedTransform;
+    // Identity keeps transition + transform so zoom-out animates instead of snapping.
+    if (scale <= 1) {
+      return {
+        transform: 'scale(1) translate(0px, 0px)',
+        transition,
+        transformOrigin: '0 0',
+      };
+    }
     return {
       transform: `scale(${scale}) translate(${tx / scale}px, ${ty / scale}px)`,
-      transition: prefersReducedMotion ? 'none' : 'transform 0.6s ease-in-out',
+      transition,
       transformOrigin: '0 0',
     };
   };
@@ -517,9 +595,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }
 
     if (type === 'tooltip') {
-      return activeStepInContainer ? (
+      return activeStepRendered ? (
         <TooltipInteraction
-          step={activeStepInContainer}
+          step={activeStepRendered}
           containerWidth={containerSize.w}
           containerHeight={containerSize.h}
         />
@@ -532,9 +610,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       type === 'pan-zoom-spotlight'
     ) {
       const overlay =
-        activeStep.showOverlay === 'tooltip' && activeStepInContainer ? (
+        activeStep.showOverlay === 'tooltip' && activeStepRendered ? (
           <TooltipInteraction
-            step={activeStepInContainer}
+            step={activeStepRendered}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
           />
@@ -556,15 +634,28 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
       if (
         (type === 'spotlight' || type === 'pan-zoom-spotlight') &&
-        activeStepInContainer
+        activeStepRendered
       ) {
+        // v2 sets: spotlightRadius is image-relative — convert to container-%
+        // and scale by the rendered zoom so the circle tracks what's visible.
+        const spotlightStep = schemaV2
+          ? {
+              ...activeStepRendered,
+              spotlightRadius:
+                toContainerSpotlightRadiusPct(
+                  activeStepRendered.spotlightRadius ?? 25,
+                  imgOffset,
+                  containerSize.w,
+                  containerSize.h
+                ) * renderedTransform.scale,
+            }
+          : activeStepRendered;
         return (
           <>
             <SpotlightInteraction
-              step={activeStepInContainer}
+              step={spotlightStep}
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
-              panZoomActive={Boolean(panZoomActive)}
             />
             {overlay}
           </>
@@ -721,6 +812,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         >
           {/* Image with optional pan-zoom transform */}
           <div
+            data-testid="gl-panzoom-layer"
             className="w-full h-full relative motion-reduce:transition-none"
             style={getPanZoomStyle()}
           >
@@ -834,6 +926,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 step.yPct,
                 imgOffset
               );
+              // Don't place pins until the image footprint is measured.
+              if (!position) return null;
 
               return (
                 <div
@@ -925,6 +1019,28 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 />
               </button>
             </>
+          )}
+
+          {/* Reset view — v2 sets only, shown while zoomed in */}
+          {schemaV2 && zoomScale > 1 && (
+            <button
+              onClick={() => setZoomScale(1)}
+              aria-label="Reset view"
+              className="absolute left-1/2 -translate-x-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+              style={{
+                top: 'clamp(8px, 2cqmin, 12px)',
+                width: 'clamp(36px, 7cqmin, 56px)',
+                height: 'clamp(36px, 7cqmin, 56px)',
+              }}
+            >
+              <Minimize2
+                className="mx-auto text-white"
+                style={{
+                  width: 'clamp(16px, 4cqmin, 28px)',
+                  height: 'clamp(16px, 4cqmin, 28px)',
+                }}
+              />
+            </button>
           )}
 
           {/* Interaction overlays */}

@@ -5768,7 +5768,7 @@ export interface GuidedLearningVideoTrim {
 /** Full set data stored in Google Drive as JSON */
 export interface GuidedLearningSet {
   id: string;
-  /** Absent = legacy rendering semantics; 2+ opts into overhaul behavior. */
+  /** Absent/1 = legacy semantics (per-step zoom reset, container-relative spotlight); 2+ = zoom persistence + image-relative spotlight. */
   schemaVersion?: number;
   title: string;
   description?: string;
@@ -5953,6 +5953,8 @@ export interface GuidedLearningSession {
    * Mini App) store it as `mode`.
    */
   assignmentMode?: AssignmentMode;
+  /** Mirrors `GuidedLearningSet.schemaVersion` so the student player applies matching semantics. */
+  schemaVersion?: number;
   /** Mirrors `GuidedLearningSet.hotspotPulse` so the student app sees it. */
   hotspotPulse?: 'consistent' | 'reminder' | 'off';
   /** Mirrors `GuidedLearningSet.imageTransition`. */
