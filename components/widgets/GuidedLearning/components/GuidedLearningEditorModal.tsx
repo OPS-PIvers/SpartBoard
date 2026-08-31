@@ -24,6 +24,7 @@ import {
   GuidedLearningEditorContextPane,
   GuidedLearningEditorDetailPane,
 } from './GuidedLearningEditor';
+import { GL_SET_SCHEMA_VERSION } from '../utils/setMigration';
 import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
@@ -256,6 +257,9 @@ export const GuidedLearningEditorModal: React.FC<
       const now = Date.now();
       const builtSet: GuidedLearningSet = {
         id: set.id,
+        // Re-saving opts the set into v2 semantics (zoom persistence,
+        // image-relative spotlight).
+        schemaVersion: GL_SET_SCHEMA_VERSION,
         title: editorState.title.trim(),
         description: editorState.description.trim() || undefined,
         imageUrls: editorState.imageUrls,

@@ -393,6 +393,97 @@ describe('GuidedLearningPlayer', () => {
     );
   });
 
+  it('animates legacy sets back to identity instead of snapping when leaving a pan-zoom step', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-legacy-zoom',
+      title: 'Legacy Zoom Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'zoom-step',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'pan-zoom',
+          panZoomScale: 3,
+        },
+        {
+          id: 'plain-step',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Plain',
+        },
+      ],
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Legacy Zoom Test'));
+
+    const layer = screen.getByTestId('gl-panzoom-layer');
+    expect(layer.style.transform).toContain('scale(3)');
+
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    // Legacy sets reset per step, but with an animated transition — never {}.
+    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(layer.style.transition).toContain('transform');
+    // No reset-view button on legacy sets.
+    expect(
+      screen.queryByRole('button', { name: /reset view/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('persists zoom across steps for v2 sets and offers a reset-view button', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-v2-zoom',
+      title: 'V2 Zoom Test',
+      schemaVersion: 2,
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'zoom-step',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'pan-zoom',
+          panZoomScale: 3,
+        },
+        {
+          id: 'plain-step',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Plain',
+        },
+      ],
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('V2 Zoom Test'));
+
+    const layer = screen.getByTestId('gl-panzoom-layer');
+    expect(layer.style.transform).toContain('scale(3)');
+
+    // Arriving at a non-pan-zoom step keeps the zoom and pans to its hotspot.
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(layer.style.transform).toContain('scale(3)');
+
+    // Reset view animates back to identity and dismisses the button.
+    fireEvent.click(screen.getByRole('button', { name: /reset view/i }));
+    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(
+      screen.queryByRole('button', { name: /reset view/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('renders video slides in a <video> element and skips them when preloading', () => {
     // Record every Image preload by spying on the prototype src setter.
     // Not forwarding to the real setter — jsdom would try (and fail) to

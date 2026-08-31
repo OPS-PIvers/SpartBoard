@@ -156,6 +156,7 @@ describe('GuidedLearningEditorModal save payload', () => {
         'imageUrls',
         'isBuilding',
         'mode',
+        'schemaVersion',
         'steps',
         'title',
         'updatedAt',
@@ -169,6 +170,7 @@ describe('GuidedLearningEditorModal save payload', () => {
       steps: set.steps,
       mode: 'structured',
       createdAt: 1000,
+      schemaVersion: 2,
     });
     expect(typeof saved.updatedAt).toBe('number');
     expect(onClose).toHaveBeenCalledTimes(1);
