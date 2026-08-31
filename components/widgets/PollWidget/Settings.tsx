@@ -85,11 +85,22 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [updateWidget, widget.id]
   );
 
+  // In-flight join-code reservation, shared by the mint effect and Start.
+  const mintPromiseRef = useRef<Promise<string | null> | null>(null);
+
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
     setShowResumePopover(false);
     try {
-      const next = await startPollSession(config, user.uid, mode);
+      // Adopt any in-flight code reservation instead of letting
+      // startPollSession mint a second one: two codes would leave the panel
+      // showing the reserved code while the live session answers to the other.
+      const reserved = await mintPromiseRef.current;
+      const base =
+        reserved && !config.joinCode
+          ? { ...config, joinCode: reserved }
+          : config;
+      const next = await startPollSession(base, user.uid, mode);
       applyConfig(next);
     } catch (err) {
       // Surface the failure rather than leaving the teacher with a
@@ -120,23 +131,25 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Reserve the sticky join code (and its inert session doc) the first time
   // this panel renders, so the link is copyable before voting ever opens.
-  const mintingRef = useRef(false);
+  // The promise is shared with beginSession so Start can adopt this code
+  // rather than racing it with a mint of its own.
   useEffect(() => {
     if (!canOfferAnonymousJoin || !user || config.joinCode) return;
-    if (mintingRef.current) return;
-    mintingRef.current = true;
-    void (async () => {
-      try {
-        const code = await ensurePollJoinCode(config, user.uid);
-        // Patch ONLY the minted key. `updateWidget` merges config shallowly, so
-        // writing back a whole snapshot captured before this round-trip would
-        // revert any edit the teacher made while it was in flight.
-        if (code) applyConfig({ joinCode: code });
-      } catch (err) {
-        logError('PollSettings.ensureJoinCode', err);
-        mintingRef.current = false;
-      }
-    })();
+    if (mintPromiseRef.current) return;
+    const pending = ensurePollJoinCode(config, user.uid).catch((err) => {
+      logError('PollSettings.ensureJoinCode', err);
+      // Clear so a later render can retry, and resolve rather than reject so
+      // an awaiting beginSession isn't taken down with it.
+      mintPromiseRef.current = null;
+      return null;
+    });
+    mintPromiseRef.current = pending;
+    void pending.then((code) => {
+      // Patch ONLY the minted key. `updateWidget` merges config shallowly, so
+      // writing back a whole snapshot captured before this round-trip would
+      // revert any edit the teacher made while it was in flight.
+      if (code) applyConfig({ joinCode: code });
+    });
   }, [canOfferAnonymousJoin, user, config, applyConfig]);
 
   const joinUrl = config.joinCode ? buildPollJoinUrl(config.joinCode) : '';
