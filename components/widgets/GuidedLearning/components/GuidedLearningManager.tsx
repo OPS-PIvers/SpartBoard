@@ -18,7 +18,7 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   Plus,
   Play,
@@ -77,6 +77,13 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
+
+// Lazy so the preview player chunk loads only when a teacher hits Play preview.
+const LazyGuidedLearningPlayer = lazy(() =>
+  import('./GuidedLearningPlayer').then((m) => ({
+    default: m.GuidedLearningPlayer,
+  }))
+);
 
 /* ─── Unified list item ───────────────────────────────────────────────────── */
 
@@ -138,6 +145,18 @@ export interface GuidedLearningManagerProps {
     driveFileId?: string,
     buildingSet?: GuidedLearningSet
   ) => void;
+  /** Phase 5 — warm the set-data cache when a card is selected. */
+  onPrefetchSet?: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => void;
+  /** Phase 5 — cached, toast-free loader backing the inline preview player. */
+  loadSetForPreview?: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => Promise<GuidedLearningSet | null>;
   onDeletePersonal: (
     setId: string,
     driveFileId: string
@@ -356,6 +375,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onPlay,
   onEdit,
   onAssign,
+  onPrefetchSet,
+  loadSetForPreview,
   onDeletePersonal,
   onDuplicatePersonal,
   isDuplicatingPersonal,
@@ -804,7 +825,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         // click opens the editor (when the user can edit; for read-only
         // building cards seen by non-admins, single-click still opens
         // preview but double-click is a no-op).
-        onClick={() => setPreviewEntryId(entry.id)}
+        onClick={() => {
+          setPreviewEntryId(entry.id);
+          // Warm the set-data cache so Play / preview are instant.
+          onPrefetchSet?.(rawId, entry.driveFileId, entry.buildingSet);
+        }}
         onDoubleClick={
           canEdit
             ? () => onEdit(rawId, entry.driveFileId, entry.buildingSet)
@@ -1090,7 +1115,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           if (!livePreviewEntry) return null;
           return (
             <GuidedLearningPreviewPane
+              key={livePreviewEntry.id}
               entry={livePreviewEntry}
+              loadSet={loadSetForPreview}
               onClose={() => setPreviewEntryId(null)}
               onEdit={(e) => {
                 const target = e;
@@ -1318,7 +1345,43 @@ const GuidedLearningPreviewPane: React.FC<{
   onClose: () => void;
   onEdit: (entry: LibraryEntry) => void;
   canEdit: boolean;
-}> = ({ entry, onClose, onEdit, canEdit }) => {
+  loadSet?: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => Promise<GuidedLearningSet | null>;
+}> = ({ entry, onClose, onEdit, canEdit, loadSet }) => {
+  const [previewSet, setPreviewSet] = React.useState<GuidedLearningSet | null>(
+    null
+  );
+  const [previewState, setPreviewState] = React.useState<
+    'idle' | 'loading' | 'playing' | 'error'
+  >('idle');
+  // Rapid-click guard; entry changes remount the pane via `key` at the call site.
+  const requestIdRef = React.useRef(0);
+
+  const rawId =
+    entry.source === 'personal'
+      ? entry.id.slice('personal:'.length)
+      : entry.id.slice('building:'.length);
+
+  const handlePlayPreview = (): void => {
+    if (!loadSet) return;
+    const token = requestIdRef.current + 1;
+    requestIdRef.current = token;
+    setPreviewState('loading');
+    void loadSet(rawId, entry.driveFileId, entry.buildingSet).then((data) => {
+      // Ignore stale results from rapid selection changes.
+      if (token !== requestIdRef.current) return;
+      if (data) {
+        setPreviewSet(data);
+        setPreviewState('playing');
+      } else {
+        setPreviewState('error');
+      }
+    });
+  };
+
   return (
     <LibraryPreviewPane
       isOpen={true}
@@ -1342,17 +1405,59 @@ const GuidedLearningPreviewPane: React.FC<{
       }
     >
       <div className="flex flex-col gap-3 text-sm text-slate-700">
-        {entry.imageUrl ? (
-          <img
-            src={entry.imageUrl}
-            alt=""
-            className="w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
-            No preview image
+        {previewState === 'playing' && previewSet ? (
+          <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-900">
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
+                </div>
+              }
+            >
+              <LazyGuidedLearningPlayer
+                set={previewSet}
+                onClose={() => setPreviewState('idle')}
+                teacherMode
+              />
+            </Suspense>
           </div>
+        ) : (
+          <div className="relative">
+            {entry.imageUrl ? (
+              <img
+                src={entry.imageUrl}
+                alt=""
+                className="w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+                No preview image
+              </div>
+            )}
+            {loadSet && (
+              <button
+                type="button"
+                onClick={handlePlayPreview}
+                disabled={previewState === 'loading'}
+                className="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-900/0 transition-colors hover:bg-slate-900/30 focus-visible:bg-slate-900/30"
+                aria-label={`Play preview of ${entry.title}`}
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-md">
+                  {previewState === 'loading' ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Play className="ml-0.5 h-5 w-5" />
+                  )}
+                </span>
+              </button>
+            )}
+          </div>
+        )}
+        {previewState === 'error' && (
+          <p className="text-xs font-medium text-brand-red-primary">
+            Could not load this set for preview. Try again.
+          </p>
         )}
         {entry.description && (
           <p className="text-xs leading-relaxed text-slate-600">

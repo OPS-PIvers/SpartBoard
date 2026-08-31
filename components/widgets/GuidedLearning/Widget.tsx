@@ -1,4 +1,11 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  lazy,
+  Suspense,
+} from 'react';
 import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -41,18 +48,48 @@ import {
   buildSetAssignmentTargetsPayload,
   EMPTY_ASSIGN_TARGETING_VALUE,
 } from '@/utils/studentTargetRef';
-import { GuidedLearningManager } from './components/GuidedLearningManager';
-import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
-import { GuidedLearningPlayer } from './components/GuidedLearningPlayer';
-import { GuidedLearningResults } from './components/GuidedLearningResults';
 import { Loader2 } from 'lucide-react';
-
-// ─── AI generation modal (admin only) ────────────────────────────────────────
-import { GuidedLearningAIGenerator } from './components/GuidedLearningAIGenerator';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
+import { SetPrefetchCache } from './utils/setPrefetchCache';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 
+// Code-split (Phase 5): heavy GL surfaces load on demand, not with the dashboard.
+const GuidedLearningManager = lazy(() =>
+  import('./components/GuidedLearningManager').then((m) => ({
+    default: m.GuidedLearningManager,
+  }))
+);
+const GuidedLearningEditorModal = lazy(() =>
+  import('./components/GuidedLearningEditorModal').then((m) => ({
+    default: m.GuidedLearningEditorModal,
+  }))
+);
+const GuidedLearningPlayer = lazy(() =>
+  import('./components/GuidedLearningPlayer').then((m) => ({
+    default: m.GuidedLearningPlayer,
+  }))
+);
+const GuidedLearningResults = lazy(() =>
+  import('./components/GuidedLearningResults').then((m) => ({
+    default: m.GuidedLearningResults,
+  }))
+);
+const GuidedLearningAIGenerator = lazy(() =>
+  import('./components/GuidedLearningAIGenerator').then((m) => ({
+    default: m.GuidedLearningAIGenerator,
+  }))
+);
+
 const GL_PERSONAL_COLLECTION = 'guided_learning';
+
+const LazySpinner: React.FC = () => (
+  <div className="h-full flex items-center justify-center">
+    <Loader2
+      className="text-indigo-400 animate-spin"
+      style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
+    />
+  </div>
+);
 
 /**
  * Mirrors `functions/src/studentAssignmentTargets.ts`'s
@@ -221,6 +258,52 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     [updateWidget, widget.id, config]
   );
 
+  // Prefetch cache keyed by set id — each selection owns its own promise, so
+  // rapid card-to-card clicks never race each other.
+  const prefetchCacheRef = useRef(new SetPrefetchCache<GuidedLearningSet>());
+
+  // Fetch set data (building sets skip Drive), deduped through the cache.
+  const fetchSetCached = useCallback(
+    async (
+      setId: string,
+      driveFileId?: string,
+      buildingSet?: GuidedLearningSet
+    ): Promise<GuidedLearningSet | null> => {
+      if (buildingSet) return normalizeGuidedLearningSet(buildingSet);
+      if (!driveFileId) return null;
+      return prefetchCacheRef.current.fetch(setId, () =>
+        loadSetData(driveFileId).then(normalizeGuidedLearningSet)
+      );
+    },
+    [loadSetData]
+  );
+
+  // Fire-and-forget warmup on card select so Play is instant.
+  const prefetchSet = useCallback(
+    (setId: string, driveFileId?: string, buildingSet?: GuidedLearningSet) => {
+      void fetchSetCached(setId, driveFileId, buildingSet).catch(
+        () => undefined
+      );
+    },
+    [fetchSetCached]
+  );
+
+  // Silent loader for the library's inline preview (no widget-level spinner).
+  const loadSetForPreview = useCallback(
+    async (
+      setId: string,
+      driveFileId?: string,
+      buildingSet?: GuidedLearningSet
+    ): Promise<GuidedLearningSet | null> => {
+      try {
+        return await fetchSetCached(setId, driveFileId, buildingSet);
+      } catch {
+        return null;
+      }
+    },
+    [fetchSetCached]
+  );
+
   // Load set data from Drive or use building set directly
   const loadSet = useCallback(
     async (
@@ -232,8 +315,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       if (!driveFileId) return null;
       setLoadingSet(true);
       try {
-        const data = await loadSetData(driveFileId);
-        return normalizeGuidedLearningSet(data);
+        return await fetchSetCached(setId, driveFileId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to load set';
         addToast(msg, 'error');
@@ -242,7 +324,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         setLoadingSet(false);
       }
     },
-    [loadSetData, addToast]
+    [fetchSetCached, addToast]
   );
 
   const handlePlay = async (
@@ -277,6 +359,8 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Firestore-only via saveBuildingSet, personal sets go through Drive +
   // Firestore metadata via saveSet. The Manager never sees this branching.
   const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
+    // Saved content invalidates any prefetched copy.
+    prefetchCacheRef.current.invalidate(set.id);
     if (set.isBuilding) {
       await saveBuildingSet(set);
       addToast('Building set saved.', 'success');
@@ -287,6 +371,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const handleDelete = async (setId: string, driveFileId: string) => {
+    prefetchCacheRef.current.invalidate(setId);
     try {
       await deleteSet(setId, driveFileId);
       addToast('Set deleted.', 'success');
@@ -752,122 +837,132 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         content={
           <div className="h-full w-full">
             {config.view === 'library' && (
-              <GuidedLearningManager
-                userId={user?.uid}
-                sets={sets}
-                buildingSets={buildingSets}
-                assignments={assignments}
-                loading={loading}
-                buildingLoading={buildingLoading}
-                assignmentsLoading={assignmentsLoading}
-                isDriveConnected={isDriveConnected}
-                isAdmin={isAdmin ?? false}
-                onPlay={(setId, driveFileId, buildingSet) => {
-                  void handlePlay(setId, driveFileId, buildingSet);
-                }}
-                onEdit={(setId, driveFileId, buildingSet) => {
-                  void handleEdit(setId, driveFileId, buildingSet);
-                }}
-                onAssign={(setId, driveFileId, buildingSet) => {
-                  void handleAssign(setId, driveFileId, buildingSet);
-                }}
-                onDeletePersonal={(setId, driveFileId) => {
-                  void handleDelete(setId, driveFileId);
-                }}
-                onDuplicatePersonal={(setId, _driveFileId) => {
-                  // `_driveFileId` is part of the manager's signature
-                  // (mirrors onDeletePersonal) but we don't need it —
-                  // `duplicateSet` reads driveFileId off the resolved
-                  // source metadata.
-                  const source = sets.find((s) => s.id === setId);
-                  if (!source) return;
-                  void personalDuplicateBusy.run(setId, async () => {
+              <Suspense fallback={<LazySpinner />}>
+                <GuidedLearningManager
+                  onPrefetchSet={prefetchSet}
+                  loadSetForPreview={loadSetForPreview}
+                  userId={user?.uid}
+                  sets={sets}
+                  buildingSets={buildingSets}
+                  assignments={assignments}
+                  loading={loading}
+                  buildingLoading={buildingLoading}
+                  assignmentsLoading={assignmentsLoading}
+                  isDriveConnected={isDriveConnected}
+                  isAdmin={isAdmin ?? false}
+                  onPlay={(setId, driveFileId, buildingSet) => {
+                    void handlePlay(setId, driveFileId, buildingSet);
+                  }}
+                  onEdit={(setId, driveFileId, buildingSet) => {
+                    void handleEdit(setId, driveFileId, buildingSet);
+                  }}
+                  onAssign={(setId, driveFileId, buildingSet) => {
+                    void handleAssign(setId, driveFileId, buildingSet);
+                  }}
+                  onDeletePersonal={(setId, driveFileId) => {
+                    void handleDelete(setId, driveFileId);
+                  }}
+                  onDuplicatePersonal={(setId, _driveFileId) => {
+                    // `_driveFileId` is part of the manager's signature
+                    // (mirrors onDeletePersonal) but we don't need it —
+                    // `duplicateSet` reads driveFileId off the resolved
+                    // source metadata.
+                    const source = sets.find((s) => s.id === setId);
+                    if (!source) return;
+                    void personalDuplicateBusy.run(setId, async () => {
+                      try {
+                        const copy = await duplicateSet(source);
+                        addToast(`Duplicated as "${copy.title}".`, 'success');
+                      } catch (err) {
+                        addToast(
+                          err instanceof Error
+                            ? err.message
+                            : 'Duplicate failed',
+                          'error'
+                        );
+                      }
+                    });
+                  }}
+                  isDuplicatingPersonal={personalDuplicateBusy.isBusy}
+                  onDuplicateBuilding={(setId) => {
+                    const source = buildingSets.find((s) => s.id === setId);
+                    if (!source) return;
+                    void buildingDuplicateBusy.run(setId, async () => {
+                      try {
+                        const copy = await duplicateBuildingSet(source);
+                        addToast(
+                          `Duplicated building set as "${copy.title}".`,
+                          'success'
+                        );
+                      } catch (err) {
+                        addToast(
+                          err instanceof Error
+                            ? err.message
+                            : 'Duplicate failed',
+                          'error'
+                        );
+                      }
+                    });
+                  }}
+                  isDuplicatingBuilding={buildingDuplicateBusy.isBusy}
+                  onDeleteBuilding={(setId) => {
+                    void handleDeleteBuilding(setId);
+                  }}
+                  onCreateNewPersonal={handleCreateNew}
+                  onCreateNewBuilding={handleCreateNewBuilding}
+                  onOpenAIAuthoring={() => setShowAIGen(true)}
+                  onReorderPersonal={handleReorderPersonal}
+                  recentSessionIds={recentSessionIds}
+                  onViewResults={(sessionId) => {
+                    void handleViewResultsForRecent(sessionId);
+                  }}
+                  onAssignmentCopyLink={(a) => {
+                    void handleAssignmentCopyLink(a);
+                  }}
+                  onAssignmentOpenResults={(a) => {
+                    void handleViewAssignmentResults(a);
+                  }}
+                  onAssignmentArchive={(a) => {
+                    void handleAssignmentArchive(a);
+                  }}
+                  onAssignmentUnarchive={(a) => {
+                    void handleAssignmentUnarchive(a);
+                  }}
+                  onAssignmentDelete={(a) => {
+                    void handleAssignmentDelete(a);
+                  }}
+                  onAssignmentPublishScores={(a) => {
+                    setPublishingAssignment(a);
+                  }}
+                  onAssignmentUnpublishScores={async (a) => {
+                    // One-click unpublish — `unpublishAssignmentScores`
+                    // is a cheap two-write batch (no set lookup, no
+                    // grading).
                     try {
-                      const copy = await duplicateSet(source);
-                      addToast(`Duplicated as "${copy.title}".`, 'success');
+                      await unpublishAssignmentScores(a.id);
+                      addToast('Scores unpublished.', 'success');
                     } catch (err) {
                       addToast(
-                        err instanceof Error ? err.message : 'Duplicate failed',
+                        err instanceof Error
+                          ? err.message
+                          : 'Failed to unpublish scores',
                         'error'
                       );
                     }
-                  });
-                }}
-                isDuplicatingPersonal={personalDuplicateBusy.isBusy}
-                onDuplicateBuilding={(setId) => {
-                  const source = buildingSets.find((s) => s.id === setId);
-                  if (!source) return;
-                  void buildingDuplicateBusy.run(setId, async () => {
-                    try {
-                      const copy = await duplicateBuildingSet(source);
-                      addToast(
-                        `Duplicated building set as "${copy.title}".`,
-                        'success'
-                      );
-                    } catch (err) {
-                      addToast(
-                        err instanceof Error ? err.message : 'Duplicate failed',
-                        'error'
-                      );
-                    }
-                  });
-                }}
-                isDuplicatingBuilding={buildingDuplicateBusy.isBusy}
-                onDeleteBuilding={(setId) => {
-                  void handleDeleteBuilding(setId);
-                }}
-                onCreateNewPersonal={handleCreateNew}
-                onCreateNewBuilding={handleCreateNewBuilding}
-                onOpenAIAuthoring={() => setShowAIGen(true)}
-                onReorderPersonal={handleReorderPersonal}
-                recentSessionIds={recentSessionIds}
-                onViewResults={(sessionId) => {
-                  void handleViewResultsForRecent(sessionId);
-                }}
-                onAssignmentCopyLink={(a) => {
-                  void handleAssignmentCopyLink(a);
-                }}
-                onAssignmentOpenResults={(a) => {
-                  void handleViewAssignmentResults(a);
-                }}
-                onAssignmentArchive={(a) => {
-                  void handleAssignmentArchive(a);
-                }}
-                onAssignmentUnarchive={(a) => {
-                  void handleAssignmentUnarchive(a);
-                }}
-                onAssignmentDelete={(a) => {
-                  void handleAssignmentDelete(a);
-                }}
-                onAssignmentPublishScores={(a) => {
-                  setPublishingAssignment(a);
-                }}
-                onAssignmentUnpublishScores={async (a) => {
-                  // One-click unpublish — `unpublishAssignmentScores`
-                  // is a cheap two-write batch (no set lookup, no
-                  // grading).
-                  try {
-                    await unpublishAssignmentScores(a.id);
-                    addToast('Scores unpublished.', 'success');
-                  } catch (err) {
-                    addToast(
-                      err instanceof Error
-                        ? err.message
-                        : 'Failed to unpublish scores',
-                      'error'
-                    );
-                  }
-                }}
-                assignmentMode={assignmentMode}
-              />
+                  }}
+                  assignmentMode={assignmentMode}
+                />
+              </Suspense>
             )}
 
             {config.view === 'player' && activeSet && (
-              <GuidedLearningPlayer
-                set={activeSet}
-                onClose={() => setView('library')}
-                teacherMode
-              />
+              <Suspense fallback={<LazySpinner />}>
+                <GuidedLearningPlayer
+                  set={activeSet}
+                  onClose={() => setView('library')}
+                  teacherMode
+                />
+              </Suspense>
             )}
 
             {config.view === 'results' &&
@@ -926,60 +1021,68 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   );
                 }
                 return (
-                  <GuidedLearningResults
-                    set={activeSet}
-                    sessionId={config.resultsSessionId}
-                    onClose={closeResults}
-                  />
+                  <Suspense fallback={<LazySpinner />}>
+                    <GuidedLearningResults
+                      set={activeSet}
+                      sessionId={config.resultsSessionId}
+                      onClose={closeResults}
+                    />
+                  </Suspense>
                 );
               })()}
 
             {showAIGen && (
-              <GuidedLearningAIGenerator
-                onClose={() => setShowAIGen(false)}
-                onGenerated={(set) => {
-                  setEditingSet({ ...set, isBuilding: true });
-                  setEditingMeta(null);
-                  setShowAIGen(false);
-                }}
-              />
+              <Suspense fallback={<LazySpinner />}>
+                <GuidedLearningAIGenerator
+                  onClose={() => setShowAIGen(false)}
+                  onGenerated={(set) => {
+                    setEditingSet({ ...set, isBuilding: true });
+                    setEditingMeta(null);
+                    setShowAIGen(false);
+                  }}
+                />
+              </Suspense>
             )}
           </div>
         }
       />
-      <GuidedLearningEditorModal
-        isOpen={!!editingSet}
-        set={editingSet}
-        meta={editingMeta}
-        folders={editingMeta ? glFolders : undefined}
-        folderId={editingMeta?.folderId ?? null}
-        onFolderChange={
-          editingMeta
-            ? async (folderId) => {
-                try {
-                  await moveGlItem(editingMeta.id, folderId);
-                  addToast('Folder updated.', 'success');
-                } catch (err) {
-                  addToast(
-                    err instanceof Error
-                      ? err.message
-                      : 'Failed to update folder',
-                    'error'
-                  );
-                }
-              }
-            : undefined
-        }
-        onClose={() => {
-          setEditingSet(null);
-          setEditingMeta(null);
-        }}
-        onSave={handleSave}
-        onAiGenerated={(generated) => {
-          setEditingSet({ ...generated, isBuilding: true });
-          setEditingMeta(null);
-        }}
-      />
+      {editingSet && (
+        <Suspense fallback={null}>
+          <GuidedLearningEditorModal
+            isOpen
+            set={editingSet}
+            meta={editingMeta}
+            folders={editingMeta ? glFolders : undefined}
+            folderId={editingMeta?.folderId ?? null}
+            onFolderChange={
+              editingMeta
+                ? async (folderId) => {
+                    try {
+                      await moveGlItem(editingMeta.id, folderId);
+                      addToast('Folder updated.', 'success');
+                    } catch (err) {
+                      addToast(
+                        err instanceof Error
+                          ? err.message
+                          : 'Failed to update folder',
+                        'error'
+                      );
+                    }
+                  }
+                : undefined
+            }
+            onClose={() => {
+              setEditingSet(null);
+              setEditingMeta(null);
+            }}
+            onSave={handleSave}
+            onAiGenerated={(generated) => {
+              setEditingSet({ ...generated, isBuilding: true });
+              setEditingMeta(null);
+            }}
+          />
+        </Suspense>
+      )}
 
       {assignTarget && (
         <AssignModal<AssignClassPickerValue>
