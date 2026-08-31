@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getWindowState, formatOpensLabel } from './assignmentWindow';
+import {
+  getWindowState,
+  formatOpensLabel,
+  resolveEffectiveWindow,
+} from './assignmentWindow';
 
 describe('getWindowState', () => {
   it('defaults to open when neither openAt nor closeAt is set', () => {
@@ -37,6 +41,33 @@ describe('getWindowState', () => {
     expect(getWindowState({ openAt, closeAt }, 500)).toBe('upcoming');
     expect(getWindowState({ openAt, closeAt }, 1500)).toBe('open');
     expect(getWindowState({ openAt, closeAt }, 2000)).toBe('closed');
+  });
+});
+
+describe('resolveEffectiveWindow', () => {
+  it('falls back to the session window with no pointer', () => {
+    expect(resolveEffectiveWindow({ openAt: 100, closeAt: 200 }, null)).toEqual(
+      { openAt: 100, closeAt: 200 }
+    );
+  });
+
+  it('lets the pointer top-level window win per field', () => {
+    expect(
+      resolveEffectiveWindow({ openAt: 100, closeAt: 200 }, { closeAt: 500 })
+    ).toEqual({ openAt: 100, closeAt: 500 });
+  });
+
+  it('keeps an earlier per-student close', () => {
+    expect(
+      resolveEffectiveWindow({ closeAt: 200 }, { closeAt: 150 }).closeAt
+    ).toBe(150);
+  });
+
+  it('returns undefined fields when neither side has a window', () => {
+    expect(resolveEffectiveWindow(null, null)).toEqual({
+      openAt: undefined,
+      closeAt: undefined,
+    });
   });
 });
 

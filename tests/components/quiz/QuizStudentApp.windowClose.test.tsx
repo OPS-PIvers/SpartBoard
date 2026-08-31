@@ -28,9 +28,11 @@ const {
   const state: {
     session: import('@/types').QuizSession | null;
     myResponse: import('@/types').QuizResponse | null;
+    pointer: import('@/types').StudentAssignmentPointer | null;
   } = {
     session: null,
     myResponse: null,
+    pointer: null,
   };
   return {
     mockAuth: {
@@ -47,9 +49,9 @@ const {
   };
 });
 
-// M17 C3 — no per-student pointer in these tests (untargeted assignment).
+// M17 C3/F2 — the student's own pointer doc; null for an untargeted assignment.
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
-  useStudentAssignmentPointer: () => null,
+  useStudentAssignmentPointer: () => hookState.pointer,
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -162,6 +164,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   hookState.session = buildSession();
   hookState.myResponse = buildResponse();
+  hookState.pointer = null;
   mockAuth.currentUser = mintUser();
   mockJoinQuizSession.mockResolvedValue('session-1');
   mockGetServerNow.mockImplementation(() => Date.now());
@@ -270,5 +273,51 @@ describe('QuizStudentApp — mid-attempt window close', () => {
     expect(
       screen.queryByText(/window closed.*submitted automatically/i)
     ).not.toBeInTheDocument();
+  });
+});
+
+// M17 F2 — the pointer's top-level `closeAt` is this student's effective
+// close, so an extension must outrank the session's own bound here.
+describe('QuizStudentApp — per-student window shift', () => {
+  function buildPointer(
+    closeAt: number
+  ): import('@/types').StudentAssignmentPointer {
+    return {
+      kind: 'quiz',
+      sessionId: 'session-1',
+      teacherUid: 'teacher-1',
+      classId: 'class-1',
+      closeAt,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  }
+
+  it('does not auto-submit an extended student after the session close', async () => {
+    hookState.session = buildSession({ closeAt: Date.now() - 5_000 });
+    hookState.pointer = buildPointer(Date.now() + 60_000);
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/window closed.*submitted automatically/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('auto-submits at a shortened per-student close before the session close', async () => {
+    hookState.session = buildSession({ closeAt: Date.now() + 60_000 });
+    hookState.pointer = buildPointer(Date.now() - 5_000);
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockCompleteQuiz).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      screen.getByText(/window closed.*submitted automatically/i)
+    ).toBeInTheDocument();
   });
 });

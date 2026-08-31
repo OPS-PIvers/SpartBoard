@@ -102,6 +102,7 @@ import {
   applyTimeMultiplier,
 } from '@/utils/quizOverrideServing';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
+import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -522,6 +523,9 @@ const QuizJoinFlow: React.FC<{
     session?.assignmentId ?? null
   );
   const myOverride: StudentOverride | undefined = myPointer?.override;
+  // M17 F2 — the pointer's top-level window IS this student's effective one
+  // (the CF folds `override.openAt`/`closeAt` into it); it wins over the session.
+  const myEffectiveWindow = resolveEffectiveWindow(session, myPointer);
   // Served subset of `session.publicQuestions` for this student (§3a-F).
   // Every student-facing denominator below derives from this, never from
   // `session.totalQuestions`/`session.publicQuestions.length` directly.
@@ -990,6 +994,7 @@ const QuizJoinFlow: React.FC<{
         onReportStimulusError={reportStimulusError}
         pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
         override={myOverride}
+        effectiveCloseAt={myEffectiveWindow.closeAt}
       />
     );
   }
@@ -1092,6 +1097,8 @@ const ActiveQuiz: React.FC<{
   pointerTabWarningThreshold?: number | 'off';
   /** This student's pointer override (M17 C3) — question subset, hidden options, extended time. */
   override?: StudentOverride;
+  /** Effective close (M17 F2): pointer top-level `closeAt` when present, else the session's. */
+  effectiveCloseAt?: number;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -1107,6 +1114,7 @@ const ActiveQuiz: React.FC<{
   onReportStimulusError,
   pointerTabWarningThreshold,
   override,
+  effectiveCloseAt,
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
@@ -1209,20 +1217,23 @@ const ActiveQuiz: React.FC<{
     }
   }, [onComplete]);
 
+  // M17 F2 — a per-student window shift lands on the pointer doc's top-level
+  // `closeAt`, so an extended student must not be auto-submitted at the
+  // session's close. The session bound still applies server-side (§3a-E).
+  const closeAtForAttempt = effectiveCloseAt ?? session.closeAt;
   useEffect(() => {
-    const closeAt = session.closeAt;
-    if (typeof closeAt !== 'number') return;
+    if (typeof closeAtForAttempt !== 'number') return;
     if (myResponse?.status === 'completed') return;
     if (closeAutoSubmitTriggeredRef.current) return;
     const check = () => {
       if (closeAutoSubmitTriggeredRef.current) return;
-      if (getServerNow() < closeAt) return;
+      if (getServerNow() < closeAtForAttempt) return;
       void attemptCloseAutoSubmit();
     };
     check();
     const id = window.setInterval(check, 5000);
     return () => window.clearInterval(id);
-  }, [session.closeAt, myResponse?.status, attemptCloseAutoSubmit]);
+  }, [closeAtForAttempt, myResponse?.status, attemptCloseAutoSubmit]);
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
