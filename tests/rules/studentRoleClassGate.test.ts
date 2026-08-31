@@ -1031,6 +1031,86 @@ describe('activity_wall_sessions/submissions — moderation status gate', () => 
 });
 
 // ---------------------------------------------------------------------------
+// activity_wall_sessions/submissions — field-injection whitelist
+// ---------------------------------------------------------------------------
+// Prior to hasOnly() being added, create/update had no key whitelist: every
+// individual field was checked if present, but an unlisted extra key (e.g. a
+// large junk string) sailed through untouched — toward the 1MB doc cap, on a
+// doc every gallery viewer's onSnapshot (publiclyShared) downloads whole.
+describe('activity_wall_sessions/submissions — field-injection whitelist', () => {
+  const col = 'activity_wall_sessions';
+  const OPEN_SESSION = `${TEACHER_UID}_field-test-session`;
+  const validSub = {
+    id: 'sub-1',
+    activityId: 'activity-1',
+    content: 'Hello world',
+    submittedAt: 1000,
+    status: 'approved',
+  };
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `${col}/${OPEN_SESSION}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        status: 'active',
+        moderationEnabled: false,
+      });
+    });
+  });
+
+  it('rejects a create carrying an unwhitelisted extra field', async () => {
+    await assertFails(
+      setDoc(doc(asStudentA(), `${col}/${OPEN_SESSION}/submissions/sub-1`), {
+        ...validSub,
+        junk: 'x'.repeat(50),
+      })
+    );
+  });
+
+  it('accepts a create with exactly the whitelisted fields', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asStudentA(), `${col}/${OPEN_SESSION}/submissions/sub-1`),
+        validSub
+      )
+    );
+  });
+
+  it("rejects the teacher's update carrying an unwhitelisted extra field", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `${col}/${OPEN_SESSION}/submissions/sub-1`),
+        validSub
+      );
+    });
+    await assertFails(
+      updateDoc(doc(asTeacher(), `${col}/${OPEN_SESSION}/submissions/sub-1`), {
+        status: 'approved',
+        junk: 'x'.repeat(50),
+      })
+    );
+  });
+
+  it("accepts the teacher's update touching only whitelisted fields", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `${col}/${OPEN_SESSION}/submissions/sub-1`),
+        validSub
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), `${col}/${OPEN_SESSION}/submissions/sub-1`), {
+        status: 'approved',
+        archiveStatus: 'failed',
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // mini_app_sessions/submissions — create/update gate + payload validation
 // ---------------------------------------------------------------------------
 
