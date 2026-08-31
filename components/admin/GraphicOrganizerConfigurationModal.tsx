@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   GraphicOrganizerGlobalConfig,
@@ -90,6 +94,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuilding, setSelectedBuilding] =
     useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can hand back a legacy long-form id (e.g.
+  // `orono-high-school`) when an org's building doc predates the short-id
+  // migration, so buildings/buildingDefaults reads and writes below must
+  // key off the canonical id, not the raw selection.
+  const canonicalId = canonicalBuildingId(selectedBuilding);
   const [globalConfig, setGlobalConfig] =
     useState<GraphicOrganizerGlobalConfig>(() =>
       normalizeConfig(permission.config)
@@ -138,18 +147,20 @@ export const GraphicOrganizerConfigurationModal: React.FC<
 
   const getBuildingConfig = useCallback(
     (buildingId: string): GraphicOrganizerBuildingConfig => {
-      return globalConfig.buildings[buildingId] || { templates: [] };
+      const buildings = canonicalizeBuildingKeyedRecord(globalConfig.buildings);
+      return buildings[canonicalBuildingId(buildingId)] || { templates: [] };
     },
     [globalConfig]
   );
 
   const setBuildingConfig = useCallback(
     (buildingId: string, config: GraphicOrganizerBuildingConfig) => {
+      const canonical = canonicalBuildingId(buildingId);
       setGlobalConfig((prev) => ({
         ...prev,
         buildings: {
-          ...prev.buildings,
-          [buildingId]: config,
+          ...canonicalizeBuildingKeyedRecord(prev.buildings),
+          [canonical]: config,
         },
       }));
     },
@@ -159,26 +170,33 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   // Per-building appearance defaults (seed new widget instances). Stored under
   // `buildingDefaults`, separate from the custom-template `buildings` map above.
   const currentAppearanceDefaults: BuildingGraphicOrganizerDefaults =
-    globalConfig.buildingDefaults?.[selectedBuilding] ?? {
-      buildingId: selectedBuilding,
+    canonicalizeBuildingKeyedRecord(globalConfig.buildingDefaults ?? {})[
+      canonicalId
+    ] ?? {
+      buildingId: canonicalId,
     };
 
   const updateAppearanceDefaults = useCallback(
     (updates: Partial<BuildingGraphicOrganizerDefaults>) => {
-      setGlobalConfig((prev) => ({
-        ...prev,
-        buildingDefaults: {
-          ...(prev.buildingDefaults ?? {}),
-          [selectedBuilding]: {
-            ...(prev.buildingDefaults?.[selectedBuilding] ?? {
-              buildingId: selectedBuilding,
-            }),
-            ...updates,
+      setGlobalConfig((prev) => {
+        const buildingDefaults = canonicalizeBuildingKeyedRecord(
+          prev.buildingDefaults ?? {}
+        );
+        return {
+          ...prev,
+          buildingDefaults: {
+            ...buildingDefaults,
+            [canonicalId]: {
+              ...(buildingDefaults[canonicalId] ?? {
+                buildingId: canonicalId,
+              }),
+              ...updates,
+            },
           },
-        },
-      }));
+        };
+      });
     },
-    [selectedBuilding]
+    [canonicalId]
   );
 
   const appearanceCardOpacity = currentAppearanceDefaults.cardOpacity ?? 1;
