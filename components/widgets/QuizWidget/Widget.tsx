@@ -1066,6 +1066,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }
 
   if (view === 'monitor' && liveSession) {
+    // M17 E2 F2: resolve the active assignment's per-student overrides so
+    // RosterList can honor per-student tab-warning-threshold accommodations.
+    const monitorActiveAssignment = config.activeAssignmentId
+      ? assignments.find((a) => a.id === config.activeAssignmentId)
+      : undefined;
     // View-only assignments never collect responses — show a notice instead
     // of the live monitor. The mode is frozen at creation, so any session
     // that arrives here as view-only stays that way for its entire life.
@@ -1200,6 +1205,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             } as QuizConfig,
           });
         }}
+        overridesBySourcedId={
+          monitorActiveAssignment?.overridesBySourcedId ?? null
+        }
       />
     );
   }

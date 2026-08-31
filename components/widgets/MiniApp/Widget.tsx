@@ -625,6 +625,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // applies regardless of targeting mode (spec Decision 5/§3a-G).
       const isIndividualTargeting =
         assignTargetingValue.targetMode === 'students';
+      // M17 E2 F1: mini-app is the one kind whose archive-row assignment id
+      // differs from the session id (Quiz/VA/GL share one UUID). Generate it
+      // up front so it can be written onto the session doc — the student app
+      // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
+      // uses as the pointer key.
+      const generatedAssignmentId = crypto.randomUUID();
       const sessionId = await createSession(
         assigningApp,
         user.uid,
@@ -636,6 +642,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           openAt: assignTargetingValue.openAt ?? null,
           closeAt: assignTargetingValue.closeAt ?? null,
           dueAt: assignTargetingValue.dueAt ?? null,
+          assignmentId: generatedAssignmentId,
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up
@@ -646,6 +653,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       let assignmentId: string | null = null;
       try {
         assignmentId = await createAssignment({
+          id: generatedAssignmentId,
           sessionId,
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,

@@ -39,6 +39,10 @@ const ASSIGNMENTS_COLLECTION = 'miniapp_assignments';
 const SESSIONS_COLLECTION = 'mini_app_sessions';
 
 export interface CreateMiniAppAssignmentInput {
+  /** M17 E2 F1: caller-supplied id, pre-generated so it can be written onto
+   *  the session doc (`MiniAppSession.assignmentId`) before this archive row
+   *  exists. Falls back to a fresh UUID when omitted. */
+  id?: string;
   sessionId: string;
   app: Pick<MiniAppItem, 'id' | 'title'>;
   assignmentName: string;
@@ -151,7 +155,7 @@ export const useMiniAppAssignments = (
     async (input) => {
       if (!userId) throw new Error('Not authenticated');
 
-      const assignmentId = crypto.randomUUID();
+      const assignmentId = input.id ?? crypto.randomUUID();
       const now = Date.now();
       const trimmedName = input.assignmentName.trim();
 

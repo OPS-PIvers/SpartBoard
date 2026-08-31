@@ -113,6 +113,31 @@ describe('useMiniAppAssignments — createAssignment targeting fields', () => {
     expect(payload.openAt).toBe(1000);
     expect(payload.closeAt).toBe(4000);
   });
+
+  // M17 E2 F1: the Widget generates the assignment id up front (so it can be
+  // written onto the session doc before this archive row exists) and passes
+  // it through as `id` — the doc must be written at that id, not a fresh one.
+  it('uses the caller-supplied id instead of generating a fresh UUID', async () => {
+    const { result } = renderHook(() => useMiniAppAssignments(TEACHER_UID));
+
+    let returned = '';
+    await act(async () => {
+      returned = await result.current.createAssignment({
+        id: 'caller-supplied-id',
+        sessionId: 'sess-1',
+        app: { id: 'app-1', title: 'App' },
+        assignmentName: 'A',
+      });
+    });
+
+    expect(returned).toBe('caller-supplied-id');
+    const [path, payload] = mockSetDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(path).toBe('users/teacher-1/miniapp_assignments/caller-supplied-id');
+    expect(payload.id).toBe('caller-supplied-id');
+  });
 });
 
 // F2 durability fix: skipped-ref count must persist onto the assignment doc

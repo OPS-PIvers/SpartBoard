@@ -47,6 +47,7 @@ describe('useStudentAssignmentOverride', () => {
 
     expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
     capturedNext?.({
+      exists: () => true,
       data: () => ({ override: { timeMultiplier: 1.5 } }),
     });
 
@@ -66,7 +67,7 @@ describe('useStudentAssignmentOverride', () => {
       useStudentAssignmentOverride('uid1', 'assign1', true)
     );
 
-    capturedNext?.({ data: () => ({}) });
+    capturedNext?.({ exists: () => true, data: () => ({}) });
 
     await waitFor(() => {
       expect(result.current).toBeUndefined();

@@ -99,3 +99,75 @@ describe('RosterList — tab-warning threshold-aware lock icon', () => {
     expect(screen.queryByLabelText('Locked')).not.toBeInTheDocument();
   });
 });
+
+// M17 E2 F2: RosterList must resolve each row's effective threshold from the
+// assignment's per-student overrides, not just the session-level value.
+describe('RosterList — per-student tab-warning-threshold override (M17 E2 F2)', () => {
+  function renderWithOverride(
+    tabSwitchWarnings: number,
+    sessionThreshold: number | 'off' | undefined,
+    overridesBySourcedId: Record<
+      string,
+      { tabWarningThreshold?: number | 'off' }
+    >,
+    targetRefKeyByStudentUid: Map<string, string>
+  ) {
+    return render(
+      <RosterList
+        bucket="done"
+        students={[makeStudent(tabSwitchWarnings)]}
+        session={makeSession(sessionThreshold)}
+        config={makeConfig()}
+        isGamified={false}
+        onUpdateConfig={vi.fn()}
+        overridesBySourcedId={overridesBySourcedId}
+        targetRefKeyByStudentUid={targetRefKeyByStudentUid}
+      />
+    );
+  }
+
+  it('a raised per-student override threshold prevents a lock the session default would trigger', () => {
+    renderWithOverride(
+      3,
+      undefined,
+      { 'classlink:sis-1': { tabWarningThreshold: 5 } },
+      new Map([['uid-1', 'classlink:sis-1']])
+    );
+    expect(screen.queryByLabelText('Locked')).not.toBeInTheDocument();
+  });
+
+  it("a per-student 'off' override disables the lock entirely", () => {
+    renderWithOverride(
+      10,
+      3,
+      { 'classlink:sis-1': { tabWarningThreshold: 'off' } },
+      new Map([['uid-1', 'classlink:sis-1']])
+    );
+    expect(screen.queryByLabelText('Locked')).not.toBeInTheDocument();
+  });
+
+  it('a lowered per-student override threshold locks earlier than the session default', () => {
+    renderWithOverride(
+      1,
+      3,
+      { 'classlink:sis-1': { tabWarningThreshold: 1 } },
+      new Map([['uid-1', 'classlink:sis-1']])
+    );
+    expect(screen.getByLabelText('Locked')).toBeInTheDocument();
+  });
+
+  it('falls back to the session threshold when the student has no override entry', () => {
+    renderWithOverride(3, 3, {}, new Map([['uid-1', 'classlink:sis-1']]));
+    expect(screen.getByLabelText('Locked')).toBeInTheDocument();
+  });
+
+  it('falls back to the session threshold when the uid is not in the target-ref map', () => {
+    renderWithOverride(
+      3,
+      3,
+      { 'classlink:sis-1': { tabWarningThreshold: 5 } },
+      new Map()
+    );
+    expect(screen.getByLabelText('Locked')).toBeInTheDocument();
+  });
+});

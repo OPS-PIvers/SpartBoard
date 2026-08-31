@@ -7,6 +7,10 @@
  * delivers the same pointer data for the hub list, but a direct-session
  * visit never mounts that hook, so the quiz/VA/GL/mini-app student apps
  * read their own pointer here to materialize `override`.
+ *
+ * Canonical pointer-doc subscription (M17 E2 F4 consolidation) —
+ * `useStudentAssignmentOverride` is a thin wrapper over this that adds an
+ * `enabled` gate and extracts just the `override` field.
  */
 
 import { useEffect, useState } from 'react';
@@ -17,13 +21,16 @@ import { logError } from '@/utils/logError';
 
 export function useStudentAssignmentPointer(
   studentUid: string | null | undefined,
-  assignmentId: string | null | undefined
+  assignmentId: string | null | undefined,
+  /** Gate the subscription without changing identity (defaults to on). */
+  enabled = true
 ): StudentAssignmentPointer | null {
   const [pointer, setPointer] = useState<StudentAssignmentPointer | null>(null);
+  const active = enabled && !!studentUid && !!assignmentId;
   // Adjusting state while rendering (no setState-in-effect): reset to null
-  // the moment the identity changes, in the same render that observes the
-  // change, rather than in a subsequent effect pass.
-  const identity = `${studentUid ?? ''}#${assignmentId ?? ''}`;
+  // the moment the identity/enabled-ness changes, in the same render that
+  // observes the change, rather than in a subsequent effect pass.
+  const identity = `${active}#${studentUid ?? ''}#${assignmentId ?? ''}`;
   const [seenIdentity, setSeenIdentity] = useState(identity);
   if (seenIdentity !== identity) {
     setSeenIdentity(identity);
@@ -31,7 +38,7 @@ export function useStudentAssignmentPointer(
   }
 
   useEffect(() => {
-    if (!studentUid || !assignmentId) return;
+    if (!enabled || !studentUid || !assignmentId) return;
     const ref = doc(
       db,
       'student_assignments',
@@ -52,7 +59,7 @@ export function useStudentAssignmentPointer(
       }
     );
     return unsubscribe;
-  }, [studentUid, assignmentId]);
+  }, [enabled, studentUid, assignmentId]);
 
   return pointer;
 }

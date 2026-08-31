@@ -52,6 +52,10 @@ export interface CreateMiniAppSessionOptions {
    *  students see it on /my-assignments, which reads the session, not the
    *  archive. */
   dueAt?: number | null;
+  /** M17 E2 F1: the teacher archive's assignment id (distinct from the
+   *  session id for mini-app). Written onto the session doc so the student
+   *  app can resolve its own pointer doc, which the CF keys by this id. */
+  assignmentId?: string;
 }
 
 export interface UseMiniAppSessionTeacherResult {
@@ -123,6 +127,9 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         ...(options?.openAt != null ? { openAt: options.openAt } : {}),
         ...(options?.closeAt != null ? { closeAt: options.closeAt } : {}),
         ...(options?.dueAt != null ? { dueAt: options.dueAt } : {}),
+        ...(options?.assignmentId
+          ? { assignmentId: options.assignmentId }
+          : {}),
       };
 
       await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);

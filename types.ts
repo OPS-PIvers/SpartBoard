@@ -2634,6 +2634,12 @@ export interface MiniAppSession {
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
+  /** M17 E2 F1: the teacher archive's `MiniAppAssignment.id`, which is a
+   *  distinct UUID from the session id for this kind only (unlike
+   *  quiz/VA/GL where they're the same shared UUID). `setAssignmentTargetsV1`
+   *  keys per-student pointer docs by this id — absent on legacy sessions
+   *  created before this field existed. */
+  assignmentId?: string;
 }
 
 /**
