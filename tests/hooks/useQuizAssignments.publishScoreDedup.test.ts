@@ -20,6 +20,7 @@ import { act, renderHook } from '@testing-library/react';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   writeBatch,
@@ -134,6 +135,8 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
       update: batchUpdate,
       commit: batchCommit,
     });
+    // Assignment doc read by publishAssignmentScores for `overridesByStudentUid`.
+    (getDoc as Mock).mockResolvedValue({ data: () => ({}) });
   });
 
   it('scores correctly when answers has no duplicates (baseline)', async () => {
@@ -293,6 +296,8 @@ describe('useQuizAssignments — publishAssignmentScores bounded paging', () => 
       update: batchUpdate,
       commit: batchCommit,
     });
+    // Assignment doc read by publishAssignmentScores for `overridesByStudentUid`.
+    (getDoc as Mock).mockResolvedValue({ data: () => ({}) });
   });
 
   it('scores every response across more than one page (limit + cursor paging)', async () => {

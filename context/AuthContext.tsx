@@ -18,6 +18,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
   collection,
   onSnapshot,
   limit,
@@ -48,6 +49,7 @@ import {
   AssignmentMode,
   AssignmentWidgetKey,
   UserTier,
+  MaterialDefinition,
 } from '@/types';
 import type { MemberRecord, BuildingRecord } from '@/types/organization';
 import { AuthContext } from './AuthContextValue';
@@ -71,7 +73,11 @@ import {
   FEATURE_DEFAULTS,
   WIDGET_DEFAULT_MIN_TIER,
 } from '@/config/featureDefaults';
-import { stripTransientKeys } from '@/utils/widgetConfigPersistence';
+import {
+  migrateSavedWidgetConfigs,
+  pickAppearanceKeys,
+  type SavedWidgetConfigMap,
+} from '@/utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
 import {
   canWriteLastActive,
@@ -303,6 +309,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [savedWidgetConfigs, setSavedWidgetConfigs] = useState<
     Partial<Record<WidgetType, Partial<WidgetConfig>>>
   >({});
+  const [savedWidgetPresets, setSavedWidgetPresets] = useState<
+    Partial<Record<WidgetType, Partial<WidgetConfig>>>
+  >({});
+  const [customMaterials, setCustomMaterials] = useState<MaterialDefinition[]>(
+    []
+  );
   // Initialise from i18n.language. If i18n.init() hasn't resolved its async
   // language detection yet, the useEffect below will sync the state once it fires.
   const [language, setLanguageState] = useState<string>(
@@ -375,6 +387,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const widgetPresetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const migratedConfigsForUidRef = useRef<string | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
   const isRefreshingRef = useRef(false);
   // Prevents duplicate root-doc syncs within the same session
@@ -1472,6 +1486,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setProfileLoaded(false);
       setSetupCompletedState(false);
       setSavedWidgetConfigs({});
+      setSavedWidgetPresets({});
+      setCustomMaterials([]);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
       setDockPositionState('bottom');
@@ -1485,6 +1501,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         firestoreProbedForUidRef.current = null;
         setSelectedBuildingsState([]);
         setSavedWidgetConfigs({});
+        setSavedWidgetPresets({});
         setProfileLoaded(true);
         return;
       }
@@ -1496,6 +1513,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!profileDoc.exists()) {
           setSelectedBuildingsState([]);
           setSavedWidgetConfigs({});
+          setSavedWidgetPresets({});
           setProfileLoaded(true);
           return;
         }
@@ -1540,17 +1558,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             void i18n.changeLanguage(savedLang);
           }
 
-          // Load savedWidgetConfigs
+          // Load the account-wide widget stores.
+          //
+          // Legacy profiles kept whole widget configs in `savedWidgetConfigs`,
+          // so one board's to-do items or links pre-filled every new widget of
+          // that type on every other board. Narrow the store to the appearance
+          // allowlist once per account, lifting explicit preset libraries into
+          // `savedWidgetPresets` and backing the original blob up first.
+          const isConfigMap = (key: string): boolean =>
+            key in data &&
+            typeof data[key] === 'object' &&
+            data[key] !== null &&
+            !Array.isArray(data[key]);
+          const rawSavedConfigs = isConfigMap('savedWidgetConfigs')
+            ? (data.savedWidgetConfigs as SavedWidgetConfigMap)
+            : {};
+          const rawPresets = isConfigMap('savedWidgetPresets')
+            ? (data.savedWidgetPresets as SavedWidgetConfigMap)
+            : {};
+          const { needsMigration, cleaned, presets } =
+            migrateSavedWidgetConfigs(rawSavedConfigs, rawPresets);
+          setSavedWidgetConfigs(cleaned);
+          setSavedWidgetPresets(presets);
+          if (needsMigration && migratedConfigsForUidRef.current !== user.uid) {
+            migratedConfigsForUidRef.current = user.uid;
+            // `updateDoc` replaces these top-level fields outright. A
+            // `setDoc(..., { merge: true })` deep-merges map fields and would
+            // leave every stale nested key exactly where it is.
+            updateDoc(doc(db, 'users', user.uid, 'userProfile', 'profile'), {
+              savedWidgetConfigs: cleaned,
+              savedWidgetPresets: presets,
+              savedWidgetConfigsPreV2: rawSavedConfigs,
+            }).catch((error: unknown) => {
+              console.error('Error migrating saved widget configs:', error);
+            });
+          }
+
+          // Load teacher-created Materials widget entries
           if (
-            'savedWidgetConfigs' in data &&
-            typeof data.savedWidgetConfigs === 'object' &&
-            data.savedWidgetConfigs !== null
+            'customMaterials' in data &&
+            Array.isArray(data.customMaterials)
           ) {
-            setSavedWidgetConfigs(
-              data.savedWidgetConfigs as Partial<
-                Record<WidgetType, Partial<WidgetConfig>>
-              >
-            );
+            setCustomMaterials(data.customMaterials as MaterialDefinition[]);
+          } else {
+            setCustomMaterials([]);
           }
 
           // Decide setupCompleted. The wizard writes `setupCompleted: true` on
@@ -2060,17 +2111,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveWidgetConfig = useCallback(
     (type: WidgetType, config: Partial<WidgetConfig>) => {
-      // Strip transient/runtime keys so they never reach Firestore
-      const filtered = stripTransientKeys(config);
+      // Appearance keys only. Everything else belongs to the board the widget
+      // sits on — see APPEARANCE_CONFIG_KEYS for why this is an allowlist.
+      const filtered = pickAppearanceKeys(config);
       if (Object.keys(filtered).length === 0) return;
 
       setSavedWidgetConfigs((prev) => {
         const newConfigs = {
           ...prev,
-          [type]: stripTransientKeys({
+          [type]: {
             ...(prev[type] ?? {}),
             ...filtered,
-          }),
+          },
         };
 
         if (widgetConfigTimeoutRef.current) {
@@ -2093,6 +2145,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         return newConfigs;
       });
+    },
+    [user]
+  );
+
+  // Explicit "save as preset" libraries (Stations sets, Hotspot Image items).
+  // Account-wide on purpose, which is why they are kept apart from the
+  // appearance defaults above rather than filtered through the allowlist.
+  const saveWidgetPreset = useCallback(
+    (type: WidgetType, preset: Partial<WidgetConfig>) => {
+      setSavedWidgetPresets((prev) => {
+        const newPresets = {
+          ...prev,
+          [type]: {
+            ...(prev[type] ?? {}),
+            ...preset,
+          },
+        };
+
+        if (widgetPresetTimeoutRef.current) {
+          clearTimeout(widgetPresetTimeoutRef.current);
+        }
+
+        widgetPresetTimeoutRef.current = setTimeout(() => {
+          if (!user || isAuthBypass) return;
+          const myToken = ++writeTokenRef.current;
+          setDoc(
+            doc(db, 'users', user.uid, 'userProfile', 'profile'),
+            { savedWidgetPresets: newPresets },
+            { merge: true }
+          ).catch((error) => {
+            if (myToken === writeTokenRef.current) {
+              console.error('Error saving widget presets:', error);
+            }
+          });
+        }, 1000);
+
+        return newPresets;
+      });
+    },
+    [user]
+  );
+
+  const saveCustomMaterials = useCallback(
+    async (materials: MaterialDefinition[]) => {
+      setCustomMaterials(materials);
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { customMaterials: materials },
+          { merge: true }
+        );
+      } catch (error) {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving custom materials:', error);
+        }
+        throw error;
+      }
     },
     [user]
   );
@@ -2665,6 +2776,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,
+        savedWidgetPresets,
+        saveWidgetPreset,
+        customMaterials,
+        saveCustomMaterials,
         profileLoaded,
         setupCompleted,
         completeSetup,

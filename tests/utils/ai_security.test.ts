@@ -100,18 +100,19 @@ describe('DashboardContext AI Security Helpers', () => {
         'poll' as WidgetType,
         config as unknown as Partial<WidgetConfig>
       ) as PollConfig;
-      expect(sanitized.options[0]).toEqual(
+      const sanitizedOptions = sanitized.options ?? [];
+      expect(sanitizedOptions[0]).toEqual(
         expect.objectContaining({ label: 'Good', votes: 0 })
       );
-      expect(sanitized.options[0].id).toBeDefined();
-      expect(sanitized.options[1]).toEqual(
+      expect(sanitizedOptions[0].id).toBeDefined();
+      expect(sanitizedOptions[1]).toEqual(
         expect.objectContaining({ label: 'Bad', votes: 0 })
       );
-      expect(sanitized.options[1].id).toBeDefined();
-      expect(sanitized.options[2]).toEqual(
+      expect(sanitizedOptions[1].id).toBeDefined();
+      expect(sanitizedOptions[2]).toEqual(
         expect.objectContaining({ label: '123', votes: 0 })
       );
-      expect(sanitized.options[2].id).toBeDefined();
+      expect(sanitizedOptions[2].id).toBeDefined();
     });
 
     it('sanitizes scoreboard teams', () => {

@@ -690,6 +690,53 @@ See `utils/timeToolAudio.ts` for the singleton + sound-synthesis helpers, and `u
 - Use `saveCurrentDashboard()` only for manual save operations (rare)
 - Firestore updates are debounced to avoid excessive writes
 
+#### Board isolation: config keys are per-board unless explicitly allowlisted
+
+**Every widget config key belongs to its board and only its board.** A teacher running a
+separate board per class section must be able to keep a different To-Do list, link set,
+roster, or note on each one. Content must never follow a widget type across boards.
+
+The one exception is **visual appearance**, which persists per-user so a teacher who picks
+a font once doesn't re-pick it on every board. That carry-over is driven by a closed
+allowlist in `utils/widgetConfigPersistence.ts`:
+
+```typescript
+// Only these top-level config keys are saved as account-wide defaults.
+APPEARANCE_CONFIG_KEYS = [
+  'fontFamily',
+  'fontColor',
+  'cardColor',
+  'cardOpacity',
+  'textSizePreset',
+  'bgColor',
+  'fontSize',
+  'textColor',
+  'titleColor',
+  'scaleMultiplier',
+  'layout',
+];
+```
+
+Rules when adding or changing a widget config:
+
+- **The allowlist is closed by default.** A new config key is automatically per-board. You
+  do not need to register anything to keep data isolated — that is the default and it is
+  the safe one.
+- **Only add a key to the allowlist if it is purely visual** and carries no lesson content,
+  student names, or teacher-authored text. If you are unsure, leave it off: the cost of
+  omitting a key is "styling didn't stick," while the cost of adding a content key is a
+  teacher's data leaking between class sections.
+- **Never add a nested key.** The allowlist only matches top-level keys. Per-item colors
+  inside `cards`, `nodes`, or custom-widget blocks travel with their content and need no
+  entry.
+- **Explicit "save as preset" features do not use this path.** Stations presets and the
+  Hotspot Image library write to `savedWidgetPresets`, a separate profile field the
+  defaults machinery never touches.
+
+This inverts an earlier blocklist design that leaked Checklist `items` and Links `urls`
+across every board on the account. Deny-by-omission fails toward data leakage; the
+allowlist fails toward a cosmetic annoyance.
+
 ### Draggable Window
 
 All widgets are wrapped in `DraggableWindow` which provides:
@@ -907,6 +954,11 @@ See [docs/LINTING_SETUP.md](docs/LINTING_SETUP.md) for complete linting document
 
 - Widget z-index starts at 1 and increments. Don't manually set z-index; use `bringToFront(id)`
 - Widget dimensions use px values, not percentages
+- **Config keys are per-board by default.** Adding a key to a widget's config requires no
+  registration to keep it isolated to its board. Only add it to `APPEARANCE_CONFIG_KEYS`
+  in `utils/widgetConfigPersistence.ts` if it is purely visual — anything holding lesson
+  content, student names, or teacher-authored text must stay off that list. See "Board
+  isolation" under Persistence.
 - The `flipped` state is managed by DraggableWindow, not individual widgets
 - Audio contexts must be resumed on user interaction (see Timer/Stopwatch unlock patterns)
 - **useEffect is an escape hatch, not a default**: Only use `useEffect` to synchronize with an external system (Firestore, Firebase Auth, DOM events, timers, Web Audio API, localStorage, etc.). Do NOT use it to compute derived state, sync refs, reset state on prop changes, or chain state updates — these all cause extra render passes and subtle bugs. Instead:

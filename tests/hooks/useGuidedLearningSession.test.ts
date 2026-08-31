@@ -3,6 +3,7 @@ import {
   toPublicStep,
   isAnswerCorrect,
   buildGLResponsesCSV,
+  dedupeStepsById,
 } from '@/hooks/useGuidedLearningSession';
 import type {
   GuidedLearningResponse,
@@ -192,6 +193,27 @@ function parseCsv(csv: string): string[][] {
     return cells;
   });
 }
+
+describe('dedupeStepsById', () => {
+  it('keeps the first occurrence and drops later duplicates by id', () => {
+    const first = mcQuestionStep('s1', 'Original text', '2');
+    const dup = mcQuestionStep('s1', 'Phantom duplicate text', '2');
+    const unique = mcQuestionStep('s2', 'What is 2+2?', '4');
+    expect(dedupeStepsById([first, dup, unique])).toEqual([first, unique]);
+  });
+
+  it('returns an equivalent array when there are no duplicates', () => {
+    const list = [
+      mcQuestionStep('s1', 'A', '1'),
+      mcQuestionStep('s2', 'B', '2'),
+    ];
+    expect(dedupeStepsById(list)).toEqual(list);
+  });
+
+  it('returns an empty array for an empty input', () => {
+    expect(dedupeStepsById([])).toEqual([]);
+  });
+});
 
 describe('buildGLResponsesCSV — duplicate-step dedup', () => {
   it('produces the correct column count when set.steps has no duplicates (baseline)', () => {

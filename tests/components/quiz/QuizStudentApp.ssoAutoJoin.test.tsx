@@ -49,6 +49,11 @@ const { mockAuth, mockJoinQuizSession, mockLookupSession } = vi.hoisted(() => {
   };
 });
 
+// M17 C3 — no per-student pointer in these tests (untargeted assignment).
+vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
+  useStudentAssignmentPointer: () => null,
+}));
+
 // Override setup.ts's global `@/config/firebase` mock so we can drive
 // `auth.currentUser` per test (the global mock omits currentUser entirely).
 vi.mock('@/config/firebase', () => ({
@@ -105,6 +110,7 @@ vi.mock('@/hooks/useQuizSession', () => {
       submitAnswer: vi.fn(),
       completeQuiz: vi.fn(),
       reportTabSwitch: vi.fn(),
+      setServedQuestionIds: vi.fn(),
       warningCount: 0,
     }),
     normalizeAnswer: (s: string) => s,

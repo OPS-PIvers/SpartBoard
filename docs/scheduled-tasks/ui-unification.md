@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-08-21_
+_Last audited: 2026-08-28_
 _Last action: 2026-07-25 — MEDIUM `syntax-framer` appearance tab: moved the `left`/`center` alignment toggle out of `SyntaxFramerAppearanceSettings` into the main `SyntaxFramerSettings` panel (alongside Mode), deleted the now-empty `SyntaxFramerAppearanceSettings` component, and removed the `'syntax-framer'` entry from `WIDGET_APPEARANCE_COMPONENTS`. The widget's Style tab now falls back to the shared `UniversalStyleSettings` (background/font/size/transparency the shell already applies) instead of exposing a misleading behavioral-only "Appearance" tab._
 
 ---
@@ -15,6 +15,36 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-08-28: Friday audit pass (weekly C2), delegated to a dedicated sub-agent. Read all 51 widget `Settings.tsx` files by Glob; full-content-read the ~14 not already named anywhere in the journal, plus targeted re-reads of already-tracked files to spot-check reproduction. Did not do a full line-by-line read of all 41 admin `*ConfigurationPanel.tsx` files given the effort budget — read ~7 previously-unaudited ones and grep-verified the rest for the specific checked patterns. Cross-referenced every `fontFamily?`/`fontColor?`/`cardColor?`/`cardOpacity?` field in `types.ts` against `WIDGET_APPEARANCE_COMPONENTS` — fully clean beyond the already-tracked NextUp/VideoActivity/GuidedLearning caveat. Hardcoded-hex sweep found no new offenders. 4 new findings below (2 MEDIUM, 2 LOW). Also discovered the tracked `TextConfig` dead-appearance-config LOW item (2026-04-29) was already fixed on 2026-08-26 per `widget-registry.md`'s action log (`WIDGET_APPEARANCE_COMPONENTS` now has a `text` entry, `TextAppearanceSettings` exported from `TextWidget/Settings.tsx`) but had never been moved to Completed in *this* journal — moved now, crediting the 2026-08-26 fix. Flagged (did not re-open) that the "FeatureConfigurationPanel could use SchemaDrivenConfigurationPanel" item's migration target doesn't exist anywhere in the codebase — see Updated note on that item. All other spot-checked Open items confirmed still reproducing unchanged. 2 new MEDIUM, 2 new LOW, 1 item moved to Completed._
+
+### MEDIUM App-wide Toast system re-implements the shared `Toast` component from scratch; the shared component has zero real consumers
+
+- **Detected:** 2026-08-28
+- **File:** `components/layout/DashboardView.tsx:99-171`, `components/common/Toast.tsx`
+- **Detail:** `components/common/Toast.tsx` is a complete, well-built shared toast component (success/error/info/warning/loading variants, `role="alert"`/`role="status"`, brand-color styles). Grepping the whole repo for `from '@/components/common/Toast'` returns zero matches outside its own test file — nothing imports it. Meanwhile, `DashboardView.tsx` defines a private `ToastContainer` (lines 99-171) that independently re-implements the exact same concept — same `ToastType` semantics, same lucide icon set, same `role={isError ? 'alert' : 'status'}` pattern — but with a completely different visual language (`bg-green-50/90 backdrop-blur-xl border-green-200` glass style vs. the shared component's solid `bg-green-500` style) and its own local `getStyles()`/`getIcon()` closures. Every `showToast()` call in the app (driven by `useDashboard().toasts`) renders through this local copy. This is now the third independent toast implementation alongside the already-tracked `OrgToast` in `components/admin/Organization/components/primitives.tsx`.
+- **Fix:** Either delete the unused `components/common/Toast.tsx` (if the glass style in `DashboardView.tsx` is the intended house style), or refactor `ToastContainer` to render `<Toast>` per-item and evolve the shared component's styling to match. One of these two implementations should not exist.
+
+### MEDIUM Two more hand-rolled toggle switches outside Settings/ConfigurationPanel scope, one with an invalid nested ARIA role
+
+- **Detected:** 2026-08-28
+- **File:** `components/widgets/QuizWidget/components/monitor/QuizSettingsScreen.tsx:40-51`, `components/plc/tabs/PlcSettingsTab.tsx:200-212, 231-241`
+- **Detail:** `QuizSettingsScreen.tsx` hand-rolls a `<button role="switch" aria-checked={on}>` pill toggle instead of `@/components/common/Toggle`. `PlcSettingsTab.tsx` has two more: one wraps an entire feature row in a `<button onClick=…>` and then nests a *separate* `<div role="switch" aria-checked={enabled}>` decorative pill *inside* that button (lines 200-212) — invalid ARIA (an interactive `role="switch"` node nested inside another interactive element, non-focusable, so screen readers see a plain button with a confusing duplicate accessible-switch announcement inside it that doesn't itself receive focus or activation). The second toggle (lines 231-241) is a similar `<button role="switch">` card pattern. None of these three import `Toggle`.
+- **Fix:** Replace all three with `<Toggle checked={…} onChange={…} />`; for the PLC feature-row pattern, drop the inner `role="switch"`/`aria-checked` from the decorative div entirely or restructure so `Toggle` is the sole interactive control with the row itself non-interactive.
+
+### LOW `BlendingBoard/Settings.tsx`, `CarRiderPro/Settings.tsx`, and `First5/Settings.tsx` duplicate a near-identical "centrally managed" notice card
+
+- **Detected:** 2026-08-28
+- **File:** `components/widgets/BlendingBoard/Settings.tsx:5-13`, `components/widgets/CarRiderPro/Settings.tsx:8-16`, `components/widgets/First5/Settings.tsx:11-22`
+- **Detail:** All three panels render the identical wrapper markup — `<div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center flex flex-col items-center gap-3">` with a `w-6 h-6 text-slate-400` icon and a `<p className="text-sm text-slate-600 leading-relaxed">` message — for a read-only "this widget is admin-managed" notice. BlendingBoard and CarRiderPro are verbatim; First5 uses identical container/icon/text classes with different copy. No shared `CentrallyManagedNotice`/`ReadOnlyInfoCard` primitive exists in `components/common/`.
+- **Fix:** Extract a small `AdminManagedNotice` component to `components/common/` accepting an icon and message, and use it from all three (and any future centrally-managed widget).
+
+### LOW `PdfWidget/Settings.tsx` uses a raw `<p>` section label instead of `SettingsLabel` — extends the existing 34-location LOW item
+
+- **Detected:** 2026-08-28
+- **File:** `components/widgets/PdfWidget/Settings.tsx:23-25`
+- **Detail:** `<p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">Current Document</p>` bypasses the shared `SettingsLabel` group-heading primitive, matching the exact pattern already tracked in this journal's "34 locations across 11 files" LOW item — but `PdfWidget/Settings.tsx` is not in that item's file list.
+- **Fix:** Same mechanical fix as the rest of that item — swap to `<SettingsLabel>Current Document</SettingsLabel>`.
 
 _2026-08-21: Friday audit pass (weekly C2), delegated to a dedicated sub-agent. 7 commits touched the target globs (Settings.tsx / *ConfigurationPanel.tsx / *ConfigurationModal.tsx / WidgetRegistry.ts / types.ts) since the 2026-08-14 audit: `01723255`/`dfd3f334` UTC→local-date bug fixes (`getLocalIsoDate()`) in PollWidget/Settings.tsx and CalendarConfigurationModal.tsx — no markup/styling touched; `f285758c` Stations id-vs-name keying bug fix, only `types.ts` change is a JSDoc comment update on `StationsConfig.assignments`; `2e54e7d8`/`081b00e5`/`7f989ec3` continuation of the established `SettingsLabel as="span"` + `htmlFor`/`id`/`role="group"`/`aria-labelledby` retrofit series (Checklist, MathToolInstance, RevealGrid, MaterialsWidget, Scoreboard, TimeToolConfigurationPanel) — confirmed byte-identical `combinedClasses` per commit messages, no new custom controls/duplicated patterns/inline styles/hex; plus an adjacent `80e9b358` Escape-key propagation fix in `Organization/primitives.tsx` (adds `useCaptureEscape` hook) that does not touch the tracked `Toggle`/`Card`/`OrgToast`/`Btn` reimplementations. `WidgetRegistry.ts` had zero commits in the window — no `WIDGET_APPEARANCE_COMPONENTS` additions/removals, nothing new to cross-reference. Fresh spot-check for local `Toggle`/`Card`/`Toast` reimplementations outside `components/common/` across the whole tree: only the already-tracked `Organization/components/primitives.tsx` found — zero new reimplementations. Incidental confirmation (not new): `TimeToolConfigurationPanel.tsx`'s four radiogroups use a chip-per-button `pillClasses()` helper, structurally distinct from the tracked segmented-control `flex bg-slate-100 p-1 rounded-xl` pattern (item 18) and pre-existing (only ARIA touched this window) — does not extend that item's file list. All 25 tracked open items re-confirmed valid and unchanged — several of the a11y commits touched exact files already carrying tracked snowflakes (MaterialsWidget, RevealGrid, Scoreboard, TimeToolConfigurationPanel) but only added ARIA wiring around the pre-existing markup, confirming rather than altering those items. Zero new open items._
 
@@ -176,13 +206,7 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 - **File:** components/admin/FeatureConfigurationPanel.tsx
 - **Detail:** The file is the largest admin config panel at 706 lines and contains per-widget building-default forms inline. Many fields it renders (string inputs, number inputs, color pickers, selects, booleans) follow the same pattern that `SchemaDrivenConfigurationPanel` was designed to handle. Only `MagicConfigurationPanel.tsx` and `RecordConfigurationPanel.tsx` currently use `SchemaDrivenConfigurationPanel`. The 18 remaining config panels that don't use it include `FeatureConfigurationPanel`, `SoundboardConfigurationPanel` (593 lines), `ScheduleConfigurationPanel` (538 lines), and `MaterialsConfigurationPanel` (523 lines).
 - **Fix:** Audit `FeatureConfigurationPanel` for schema-driven extraction candidates. For panels whose entire form can be expressed as a field schema (input type + label + key + validation), migrate to `SchemaDrivenConfigurationPanel`. Panels with complex custom UIs (materials catalog, seating-chart layout, specialist schedule) should remain manual. Start with the simplest panels (DiceConfigurationPanel, TrafficLightConfigurationPanel, DrawingConfigurationPanel) as proof-of-concept before tackling the large ones.
-
-### LOW `TextConfig` has `fontFamily`, `fontColor`, `textSizePreset` but no appearance panel or settings UI
-
-- **Detected:** 2026-04-29
-- **File:** components/widgets/TextWidget/Widget.tsx:37-47, types.ts (`TextConfig`), components/widgets/WidgetRegistry.ts
-- **Detail:** `TextConfig` declares `fontFamily?: string`, `fontColor?: string`, and `textSizePreset?: TextSizePreset`. `TextWidget/Widget.tsx` reads all three at lines 37-47 and applies them: `fontFamily` sets the container-level CSS font class, `fontColor` sets the default text color, `textSizePreset` adjusts the base font size multiplier. However, `text` is absent from `WIDGET_APPEARANCE_COMPONENTS` and `TextSettings` only shows template shortcuts — no UI exists to configure these three fields. They can only be set via admin building config. Teachers have no way to change the widget-level font family or base text color from the dashboard. The FormattingToolbar allows per-selection inline font changes in the content HTML, but `config.fontFamily`/`config.fontColor` control the container defaults that show for unformatted text.
-- **Fix:** Create a `TextAppearanceSettings` component in `components/widgets/TextWidget/Settings.tsx` that renders `TypographySettings` (fontFamily + fontColor) and `TextSizePresetSettings` (textSizePreset). Register in `WIDGET_APPEARANCE_COMPONENTS` as `'text': lazyNamed(() => import('./TextWidget/Settings'), 'TextAppearanceSettings')`. This exposes three config fields that are already consumed by the widget but unreachable by end users.
+- **Updated 2026-08-28:** The item's stated migration target does not exist anywhere in the codebase — confirmed via Glob/Grep: there is no `components/admin/SchemaDrivenConfigurationPanel.tsx`, no `MagicConfigurationPanel.tsx`, and no `RecordConfigurationPanel.tsx` (only doc-file mentions, e.g. this journal and `docs/admin_settings_widget_configs.md`). `FeatureConfigurationPanel.tsx` is unchanged at 708 lines. Either the intended shared component was planned but never built, or it was since removed. Leaving Open, but flagging so the next action-agent doesn't waste a cycle looking for a nonexistent import — the underlying maintainer decision (build `SchemaDrivenConfigurationPanel` first, or rewrite this item) is out of scope for an automated pass.
 
 ### MEDIUM Segmented-control pill selector pattern duplicated ~33× across files with no shared component
 
@@ -259,6 +283,14 @@ _2026-06-10: Weekly audit pass. Scanned all Settings.tsx under components/widget
 ---
 
 ## Completed
+
+### LOW `TextConfig` has `fontFamily`, `fontColor`, `textSizePreset` but no appearance panel or settings UI
+
+- **Detected:** 2026-04-29
+- **Completed:** 2026-08-28 (fix landed 2026-08-26, credited here — this journal was not updated at the time)
+- **File:** components/widgets/TextWidget/Widget.tsx:37-47, types.ts (`TextConfig`), components/widgets/WidgetRegistry.ts
+- **Detail:** `TextConfig` declares `fontFamily?: string`, `fontColor?: string`, and `textSizePreset?: TextSizePreset`, all read and applied by `TextWidget/Widget.tsx`, but `text` was absent from `WIDGET_APPEARANCE_COMPONENTS` and no UI existed to configure them — only admin building config could set them.
+- **Resolution:** Per `widget-registry.md`'s 2026-08-26 action log: added `TextAppearanceSettings` (TypographySettings + TextSizePresetSettings) to `TextWidget/Settings.tsx` and registered it in `WIDGET_APPEARANCE_COMPONENTS` as `text: lazyNamed(() => import('./TextWidget'), 'TextAppearanceSettings')`. Confirmed present in current source (`WidgetRegistry.ts:530`, re-exported via `TextWidget/index.ts:2`). Moving here now to keep this journal's Open list in sync with the actual codebase state.
 
 ### MEDIUM `ConceptWebAppearanceSettings` renders a dead fontColor picker — `ConceptWebConfig.fontColor` is never read by the widget
 

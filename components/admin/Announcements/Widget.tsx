@@ -42,6 +42,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
 import { getLocalIsoDate, combineDateAndTime } from '@/utils/localDate';
+import { getPollQuestions } from '@/utils/pollQuestions';
 import { AnnouncementFormData } from './types';
 import { TextConfigEditor } from './TextConfigEditor';
 import { EmbedConfigEditor } from './EmbedConfigEditor';
@@ -545,7 +546,8 @@ export const PollResponsesPanel: React.FC<{
   onClose: () => void;
 }> = ({ announcement, onClose }) => {
   const config = announcement.widgetConfig as unknown as PollConfig;
-  const options = config.options ?? [];
+  // Announcement embeds render the first question only.
+  const options = getPollQuestions(config)[0].options;
   const [votes, setVotes] = useState<Record<number, number>>({});
 
   useEffect(() => {

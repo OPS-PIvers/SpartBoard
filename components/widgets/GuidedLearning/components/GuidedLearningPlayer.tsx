@@ -5,7 +5,9 @@ import {
   GuidedLearningPublicStep,
   GuidedLearningMode,
   GuidedLearningVideoTrim,
+  StudentOverride,
 } from '@/types';
+import { applyTimeMultiplier } from '@/utils/applyTimeMultiplier';
 import { TextPopoverInteraction } from './interactions/TextPopoverInteraction';
 import { TooltipInteraction } from './interactions/TooltipInteraction';
 import { AudioInteraction } from './interactions/AudioInteraction';
@@ -62,6 +64,8 @@ interface Props {
   ) => void;
   /** Teacher mode: has access to correct answers */
   teacherMode?: boolean;
+  /** Student's accommodation override (M17 C3-gl) — scales guided-mode auto-advance. */
+  timeMultiplier?: StudentOverride['timeMultiplier'];
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -69,6 +73,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   onClose,
   onAnswer,
   teacherMode = false,
+  timeMultiplier,
 }) => {
   const mode: GuidedLearningMode = set.mode;
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
@@ -293,8 +298,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (timerRef.current) clearInterval(timerRef.current);
     progressRef.current = 0;
 
-    const duration = (currentStep?.autoAdvanceDuration ?? 5) * 1000;
-    if (duration <= 0) return;
+    const duration = applyTimeMultiplier(
+      (currentStep?.autoAdvanceDuration ?? 5) * 1000,
+      timeMultiplier
+    );
+    if (duration <= 0 || !Number.isFinite(duration)) return;
 
     const interval = 100;
     timerRef.current = setInterval(() => {
@@ -315,7 +323,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         goNext();
       }
     }, interval);
-  }, [currentStep, answeredStepsRef, goNext]);
+  }, [currentStep, answeredStepsRef, goNext, timeMultiplier]);
 
   useEffect(() => {
     if (mode === 'guided' && playing) {

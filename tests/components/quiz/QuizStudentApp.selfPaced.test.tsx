@@ -73,6 +73,11 @@ const {
   };
 });
 
+// M17 C3 — no per-student pointer in these tests (untargeted assignment).
+vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
+  useStudentAssignmentPointer: () => null,
+}));
+
 vi.mock('@/config/firebase', () => ({
   isConfigured: false,
   isAuthBypass: false,
@@ -111,6 +116,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
       submitAnswer: mockSubmitAnswer,
       completeQuiz: mockCompleteQuiz,
       reportTabSwitch: vi.fn(),
+      setServedQuestionIds: vi.fn(),
       warningCount: 0,
     };
   },

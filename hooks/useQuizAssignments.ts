@@ -54,6 +54,7 @@ import type {
   QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
+  StudentOverride,
 } from '@/types';
 import { projectSessionStimuli } from '@/utils/quizStimuli';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
@@ -135,6 +136,21 @@ export interface CreateAssignmentOptions {
    * `handleShareWithPlc` path, which has Drive content already loaded).
    */
   plcTemplateSyncGroupId?: string;
+  /**
+   * M17 individual-assignment targeting (spec §5 B3). `targetMode: 'students'`
+   * marks the assignment doc so the CF's `individualTargeting` session flag
+   * makes sense downstream; `targetStudents` itself is NOT written here —
+   * `setAssignmentTargetsV1` is the sole writer of that field (division of
+   * labor, spec §2a). Caller invokes the CF separately after `createAssignment`
+   * resolves, passing the same `assignmentId` (== the returned `id`, == the
+   * session id) as `sessionId`.
+   */
+  targetMode?: 'class' | 'students';
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Open/close window (epoch ms), mirrored onto both assignment + session docs. */
+  openAt?: number | null;
+  closeAt?: number | null;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -226,6 +242,16 @@ export interface UseQuizAssignmentsResult {
    * "Export".
    */
   setAssignmentExportUrl: (assignmentId: string, url: string) => Promise<void>;
+  /**
+   * M17 individual-assignment targeting (spec §5 B3) — persists the count of
+   * student-target refs `setAssignmentTargetsV1` couldn't add (PII-free, a
+   * plain number) so the "N skipped" row marker survives a reload; the toast
+   * with names is ephemeral only.
+   */
+  setAssignmentTargetSkippedCount: (
+    assignmentId: string,
+    count: number
+  ) => Promise<void>;
   /**
    * Persist the set of response keys that have been written to the linked
    * sheet. Powers the "Update Sheet" affordance in QuizResults — the next
@@ -666,6 +692,11 @@ export const useQuizAssignments = (
         mode: assignmentMode = 'submissions',
         skipPlcTemplateWrite = false,
         plcTemplateSyncGroupId,
+        targetMode,
+        targetGroupIds,
+        overridesBySourcedId,
+        openAt,
+        closeAt,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       // Defensive sanitization at the hook boundary: drop empty/non-string
@@ -723,6 +754,18 @@ export const useQuizAssignments = (
         // back the assignment doc.
         ...(syncedFrom ? { sync: syncedFrom } : {}),
         mode: assignmentMode,
+        // M17 individual-assignment targeting (spec §5 B3/A1). `targetStudents`
+        // is deliberately absent — `setAssignmentTargetsV1` is the sole writer
+        // of that field; the caller invokes it separately after this commits.
+        ...(targetMode ? { targetMode } : {}),
+        ...(targetGroupIds && targetGroupIds.length > 0
+          ? { targetGroupIds }
+          : {}),
+        ...(overridesBySourcedId && Object.keys(overridesBySourcedId).length > 0
+          ? { overridesBySourcedId }
+          : {}),
+        ...(openAt != null ? { openAt } : {}),
+        ...(closeAt != null ? { closeAt } : {}),
       };
 
       const mode = settings.sessionMode;
@@ -761,6 +804,9 @@ export const useQuizAssignments = (
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
         // Phase 1 toggles
         tabWarningsEnabled: opts.tabWarningsEnabled ?? true,
+        ...(opts.tabWarningThreshold !== undefined
+          ? { tabWarningThreshold: opts.tabWarningThreshold }
+          : {}),
         blockCopyPaste: opts.blockCopyPaste ?? false,
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
@@ -794,6 +840,10 @@ export const useQuizAssignments = (
           : {}),
         attemptLimit: settings.attemptLimit ?? null,
         mode: assignmentMode,
+        // M17 window (spec §5 A1/B3). `individualTargeting` is written only
+        // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
+        ...(openAt != null ? { openAt } : {}),
+        ...(closeAt != null ? { closeAt } : {}),
       };
 
       const batch = writeBatch(db);
@@ -1192,6 +1242,8 @@ export const useQuizAssignments = (
         const o = patch.sessionOptions;
         if (o.tabWarningsEnabled !== undefined)
           sessionPatch.tabWarningsEnabled = o.tabWarningsEnabled;
+        if (o.tabWarningThreshold !== undefined)
+          sessionPatch.tabWarningThreshold = o.tabWarningThreshold;
         if (o.blockCopyPaste !== undefined)
           sessionPatch.blockCopyPaste = o.blockCopyPaste;
         if (o.showResultToStudent !== undefined)
@@ -1314,6 +1366,19 @@ export const useQuizAssignments = (
       await updateDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
         { exportUrl: url, updatedAt: Date.now() }
+      );
+    },
+    [userId]
+  );
+
+  const setAssignmentTargetSkippedCount = useCallback<
+    UseQuizAssignmentsResult['setAssignmentTargetSkippedCount']
+  >(
+    async (assignmentId, count) => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        { targetSkippedCount: count, updatedAt: Date.now() }
       );
     },
     [userId]
@@ -2006,6 +2071,13 @@ export const useQuizAssignments = (
         questionsById.set(q.id, q);
       }
 
+      // Per-student served subsets, keyed by the pseudonym uid the CF wrote —
+      // an individually-targeted student's denominator must come from their
+      // own subset, not the teacher's full question list.
+      const assignmentSnap = await getDoc(assignmentRef);
+      const overridesByStudentUid = (assignmentSnap.data()
+        ?.overridesByStudentUid ?? {}) as Record<string, StudentOverride>;
+
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
       // thousands of submissions can't pull the whole subcollection in a
@@ -2034,6 +2106,23 @@ export const useQuizAssignments = (
       for (const d of responseDocs) {
         const data = d.data() as QuizResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
+        // Prefer the response doc's own served-subset snapshot (written by
+        // the student app at answer time) over the live override map — the
+        // live map reflects CURRENT targeting, so removing a student's
+        // override after they submit would otherwise re-score their subset
+        // answers against the full question set. Absent snapshot AND absent
+        // override (or no subset on it) = the full quiz, unchanged.
+        const snapshotIds =
+          Array.isArray(data.servedQuestionIds) &&
+          data.servedQuestionIds.length > 0
+            ? data.servedQuestionIds
+            : undefined;
+        const subsetIds =
+          snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
+        const servedIds =
+          Array.isArray(subsetIds) && subsetIds.length > 0
+            ? new Set(subsetIds)
+            : null;
         let pointsEarned = 0;
         let pointsMax = 0;
         // Set when any answered slot is still owed a teacher grade (ungraded
@@ -2074,7 +2163,10 @@ export const useQuizAssignments = (
               : undefined;
           const result = gradeAnswer(q, a.answer, manualGrade);
           if (result.state === 'awaiting-grade') awaitingGrade = true;
-          if (!scoredQuestionIds.has(a.questionId)) {
+          if (
+            !scoredQuestionIds.has(a.questionId) &&
+            (!servedIds || servedIds.has(a.questionId))
+          ) {
             scoredQuestionIds.add(a.questionId);
             pointsEarned += result.pointsEarned;
             pointsMax += result.pointsMax;
@@ -2098,6 +2190,7 @@ export const useQuizAssignments = (
         const answeredQuestionIds = new Set<string>();
         for (const a of answers) answeredQuestionIds.add(a.questionId);
         for (const [qId, q] of questionsById) {
+          if (servedIds && !servedIds.has(qId)) continue;
           if (!answeredQuestionIds.has(qId)) {
             pointsMax += q.points ?? 1;
           }
@@ -2241,6 +2334,7 @@ export const useQuizAssignments = (
     updateAssignmentSettings,
     setAssignmentRosters,
     setAssignmentExportUrl,
+    setAssignmentTargetSkippedCount,
     setAssignmentExportedResponseIds,
     shareAssignment,
     peekSharedAssignment,

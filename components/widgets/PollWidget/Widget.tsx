@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   collection,
   doc,
@@ -13,34 +13,58 @@ import {
   useDashboardActions,
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
-import { WidgetData, PollConfig, PollVoteDoc } from '@/types';
-import { RotateCcw, Radio } from 'lucide-react';
+import { WidgetData, PollConfig } from '@/types';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  RotateCcw,
+  Radio,
+} from 'lucide-react';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDialog } from '@/context/useDialog';
-import { buildPublicPollLink } from '@/components/poll/pollLink';
-import {
-  aggregateVotes,
-  makePollSessionId,
-} from '@/components/poll/pollSession';
+import { buildPollJoinUrl } from '@/utils/pollCode';
+import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
+import { usePollSession } from '@/hooks/usePollSession';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboardActions();
   const { showConfirm } = useDialog();
   const globalStyle = useGlobalStyle();
   const config = widget.config as PollConfig & { _announcementId?: string };
-  const { question = 'Vote Now!', _announcementId } = config;
-  const options = useMemo(
-    () => (Array.isArray(config.options) ? config.options : []),
-    [config.options]
-  );
+  const { _announcementId } = config;
+  const isAnnouncement = !!_announcementId;
 
   const { user, canAccessFeature } = useAuth();
-  const activePollSessionId = config.activePollSessionId ?? null;
-  const isLive = !!activePollSessionId;
 
-  // Live device-voting tallies, aggregated from the votes subcollection.
-  const [sessionTally, setSessionTally] = useState<number[]>([]);
+  const applyConfig = useCallback(
+    (next: PollConfig) => updateWidget(widget.id, { config: next }),
+    [updateWidget, widget.id]
+  );
+
+  const {
+    questions,
+    currentQuestionIndex,
+    currentQuestion,
+    isLive,
+    displayOptions: liveOptions,
+    canGoPrev,
+    canGoNext,
+    goToQuestion,
+  } = usePollSession({
+    config,
+    // Announcement embeds have no teacher session — tallies come from the
+    // announcement subcollection instead.
+    teacherUid: isAnnouncement ? undefined : user?.uid,
+    onConfigChange: applyConfig,
+  });
+
+  // Announcements render the first question only — there is no cursor to share.
+  const activeQuestion = isAnnouncement ? questions[0] : currentQuestion;
+  const activeIndex = isAnnouncement ? 0 : currentQuestionIndex;
+  const showNavigation = !isAnnouncement && questions.length > 1;
 
   // When rendered inside an announcement, votes are stored in Firestore
   // under /announcements/{id}/pollVotes/{optionIndex} so all users share
@@ -49,6 +73,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     Record<number, number>
   >({});
   const [userVoted, setUserVoted] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!_announcementId) return;
@@ -65,30 +90,6 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
     return unsub;
   }, [_announcementId]);
-
-  // Subscribe to the public voting session's votes subcollection while a
-  // session is live. Aggregated counts replace the local/announcement tally
-  // on the board. Synchronisation with Firestore — the correct use of effect.
-  useEffect(() => {
-    if (!activePollSessionId || !user) return;
-    const sessionId = makePollSessionId(user.uid, activePollSessionId);
-    const unsub = onSnapshot(
-      collection(db, 'poll_sessions', sessionId, 'votes'),
-      (snap) => {
-        const votes = snap.docs.map((d) => d.data() as PollVoteDoc);
-        setSessionTally(aggregateVotes(votes, options.length));
-      }
-    );
-    return () => {
-      unsub();
-      // Clear on teardown so a stopped session's counts don't flash on the
-      // board when a fresh session starts before its first snapshot arrives.
-      setSessionTally([]);
-    };
-    // `options` is memoised above; option editing is locked while live, so this
-    // doesn't re-subscribe spuriously. Depend on the whole object (not
-    // `options.length`) to satisfy exhaustive-deps unambiguously.
-  }, [activePollSessionId, user, options]);
 
   const vote = (index: number) => {
     if (isLive) return; // Live device-voting: tallies come from participants.
@@ -107,61 +108,56 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       );
       return;
     }
-    const newOptions = [...options];
-    newOptions[index] = {
-      ...newOptions[index],
-      votes: newOptions[index].votes + 1,
-    };
-    updateWidget(widget.id, {
-      config: { ...config, options: newOptions } as PollConfig,
-    });
+    const newOptions = activeQuestion.options.map((o, i) =>
+      i === index ? { ...o, votes: o.votes + 1 } : o
+    );
+    applyConfig(
+      withQuestionAt(config, activeIndex, {
+        ...activeQuestion,
+        options: newOptions,
+      })
+    );
   };
 
   const handleReset = async () => {
-    const confirmed = await showConfirm(
-      'Are you sure you want to reset the poll?',
-      { title: 'Reset Poll', variant: 'warning', confirmLabel: 'Reset' }
-    );
-    if (!confirmed) return;
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        options: options.map((o) => ({ ...o, votes: 0 })),
-      } as PollConfig,
+    const label =
+      questions.length > 1
+        ? `Reset votes on all ${questions.length} questions?`
+        : 'Are you sure you want to reset the poll?';
+    const confirmed = await showConfirm(label, {
+      title: 'Reset Poll',
+      variant: 'warning',
+      confirmLabel: 'Reset',
     });
+    if (!confirmed) return;
+    applyConfig(
+      withPollQuestions(
+        config,
+        questions.map((q) => ({
+          ...q,
+          options: q.options.map((o) => ({ ...o, votes: 0 })),
+        }))
+      )
+    );
   };
 
   // Three tally modes: live public session > announcement > local config.
   const displayOptions = isLive
-    ? options.map((o, i) => ({ ...o, votes: sessionTally[i] ?? 0 }))
-    : _announcementId
-      ? options.map((o, i) => ({ ...o, votes: announcementVotes[i] ?? 0 }))
-      : options;
+    ? liveOptions
+    : isAnnouncement
+      ? activeQuestion.options.map((o, i) => ({
+          ...o,
+          votes: announcementVotes[i] ?? 0,
+        }))
+      : activeQuestion.options;
 
   const total = displayOptions.reduce((sum, o) => sum + o.votes, 0);
 
-  // On-board join link/QR for the live session (gated by anonymous-join).
-  // Memoised so the base64 encode doesn't re-run on every vote snapshot while
-  // the session is live (the widget re-renders on each tally update).
+  // On-board join link/QR/code for the live session (gated by anonymous-join).
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
-  const joinUrl = useMemo(() => {
-    if (!isLive || !user || !canOfferAnonymousJoin || !activePollSessionId) {
-      return '';
-    }
-    return buildPublicPollLink({
-      id: activePollSessionId,
-      question,
-      options: options.map((o) => ({ id: o.id, label: o.label })),
-      teacherUid: user.uid,
-    });
-  }, [
-    isLive,
-    user,
-    canOfferAnonymousJoin,
-    activePollSessionId,
-    question,
-    options,
-  ]);
+  const joinCode =
+    isLive && user && canOfferAnonymousJoin ? (config.joinCode ?? '') : '';
+  const joinUrl = joinCode ? buildPollJoinUrl(joinCode) : '';
   const qrUrl = useMemo(
     () =>
       joinUrl
@@ -171,6 +167,18 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         : '',
     [joinUrl]
   );
+
+  const handleCopy = () => {
+    if (!joinUrl) return;
+    void navigator.clipboard.writeText(joinUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const arrowStyle = {
+    width: 'min(28px, 9cqmin)',
+    height: 'min(28px, 9cqmin)',
+  };
 
   return (
     <WidgetLayout
@@ -185,11 +193,48 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }}
         >
           <div
-            className={`font-black uppercase ${_announcementId ? 'text-white' : 'text-slate-800'} tracking-tight font-${globalStyle.fontFamily}`}
-            style={{ fontSize: 'min(32px, 10cqmin)', lineHeight: 1.1 }}
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
           >
-            {question}
+            {showNavigation && (
+              <button
+                onClick={() => goToQuestion(currentQuestionIndex - 1)}
+                disabled={!canGoPrev}
+                aria-label="Previous question"
+                className="shrink-0 text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+              >
+                <ChevronLeft style={arrowStyle} />
+              </button>
+            )}
+            <div
+              className={`flex-1 min-w-0 font-black uppercase ${isAnnouncement ? 'text-white' : 'text-slate-800'} tracking-tight font-${globalStyle.fontFamily}`}
+              style={{ fontSize: 'min(32px, 10cqmin)', lineHeight: 1.1 }}
+            >
+              {activeQuestion.question}
+            </div>
+            {showNavigation && (
+              <button
+                onClick={() => goToQuestion(currentQuestionIndex + 1)}
+                disabled={!canGoNext}
+                aria-label="Next question"
+                className="shrink-0 text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+              >
+                <ChevronRight style={arrowStyle} />
+              </button>
+            )}
           </div>
+          {showNavigation && (
+            <div
+              data-testid="poll-question-indicator"
+              className="text-center font-bold text-slate-400 font-mono tabular-nums"
+              style={{
+                fontSize: 'min(12px, 4cqmin)',
+                marginTop: 'min(4px, 1cqmin)',
+              }}
+            >
+              {currentQuestionIndex + 1} / {questions.length}
+            </div>
+          )}
         </div>
       }
       content={
@@ -200,9 +245,9 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             gap: 'min(16px, 3cqmin)',
           }}
         >
-          {_announcementId && userVoted !== null && (
+          {isAnnouncement && userVoted !== null && (
             <div
-              className={`text-center font-semibold ${_announcementId ? 'text-emerald-400' : 'text-emerald-600'}`}
+              className="text-center font-semibold text-emerald-400"
               style={{ fontSize: 'min(14px, 4cqmin)' }}
             >
               ✓ Vote recorded!
@@ -216,7 +261,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             const buttonCls = [
               'w-full text-left group',
               isVoted ? 'opacity-100' : '',
-              _announcementId && userVoted !== null && !isVoted
+              isAnnouncement && userVoted !== null && !isVoted
                 ? 'opacity-60'
                 : '',
             ]
@@ -229,14 +274,11 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 onClick={() => {
                   vote(i);
                 }}
-                disabled={
-                  isLive ||
-                  (_announcementId !== undefined && userVoted !== null)
-                }
+                disabled={isLive || (isAnnouncement && userVoted !== null)}
                 className={buttonCls}
               >
                 <div
-                  className={`flex justify-between mb-1 uppercase tracking-wider ${_announcementId ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
+                  className={`flex justify-between mb-1 uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
                   style={{ fontSize: 'min(16px, 5.5cqmin)' }}
                 >
                   <span className="font-bold truncate pr-4">{o.label}</span>
@@ -270,7 +312,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               paddingBottom: 'min(8px, 1.5cqmin)',
             }}
           >
-            {qrUrl ? (
+            {joinCode ? (
               <>
                 <img
                   src={qrUrl}
@@ -284,27 +326,43 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 />
                 <div className="flex flex-col min-w-0">
                   <span
-                    className="flex items-center font-black uppercase text-emerald-600"
-                    style={{
-                      gap: 'min(4px, 1cqmin)',
-                      fontSize: 'min(12px, 4cqmin)',
-                    }}
+                    className="text-slate-500 uppercase font-bold tracking-wider"
+                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
                   >
-                    <Radio
-                      style={{
-                        width: 'min(12px, 4cqmin)',
-                        height: 'min(12px, 4cqmin)',
-                      }}
-                    />
-                    Voting open
+                    Join at {window.location.host}/poll
                   </span>
                   <code
                     data-testid="poll-join-url"
-                    className="truncate text-indigo-500 font-mono"
-                    style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                    className="font-black text-indigo-600 font-mono tracking-[0.15em]"
+                    style={{ fontSize: 'min(28px, 9cqmin)', lineHeight: 1.1 }}
                   >
-                    {joinUrl}
+                    {joinCode}
                   </code>
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center font-bold text-slate-400 hover:text-indigo-600 transition-colors"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.5cqmin)',
+                    }}
+                  >
+                    {copied ? (
+                      <Check
+                        style={{
+                          width: 'min(12px, 3.5cqmin)',
+                          height: 'min(12px, 3.5cqmin)',
+                        }}
+                      />
+                    ) : (
+                      <Copy
+                        style={{
+                          width: 'min(12px, 3.5cqmin)',
+                          height: 'min(12px, 3.5cqmin)',
+                        }}
+                      />
+                    )}
+                    {copied ? 'Copied' : 'Copy link'}
+                  </button>
                 </div>
               </>
             ) : (
@@ -325,7 +383,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </span>
             )}
           </div>
-        ) : !_announcementId ? (
+        ) : !isAnnouncement ? (
           <div
             style={{
               paddingLeft: 'min(16px, 3cqmin)',

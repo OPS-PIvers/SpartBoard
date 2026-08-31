@@ -36,6 +36,7 @@ import type {
   GuidedLearningScoreVisibility,
   GuidedLearningSet,
   GuidedLearningStep,
+  StudentOverride,
 } from '@/types';
 
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
@@ -90,6 +91,15 @@ export interface CreateAssignmentInput {
    *  Stored under `assignmentMode` (not `mode`) to avoid colliding with the
    *  GL session's existing play-mode field. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
+  /** Individual-student targeting (spec §5 B3): `targetMode` and
+   *  `targetStudents` are persisted server-side only, by
+   *  `setAssignmentTargetsV1` — the client never writes them. */
+  targetGroupIds?: string[];
+  /** Keyed by `studentTargetRefKey` — see `utils/studentTargetRef.ts`. */
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  openAt?: number;
+  closeAt?: number;
+  dueAt?: number;
 }
 
 export interface UseGuidedLearningAssignmentsResult {
@@ -208,6 +218,16 @@ export const useGuidedLearningAssignments = (
         source: input.source,
         ...(rosterIds.length > 0 ? { rosterIds } : {}),
         assignmentMode: input.assignmentMode ?? 'submissions',
+        ...(input.targetGroupIds && input.targetGroupIds.length > 0
+          ? { targetGroupIds: input.targetGroupIds }
+          : {}),
+        ...(input.overridesBySourcedId &&
+        Object.keys(input.overridesBySourcedId).length > 0
+          ? { overridesBySourcedId: input.overridesBySourcedId }
+          : {}),
+        ...(input.openAt !== undefined ? { openAt: input.openAt } : {}),
+        ...(input.closeAt !== undefined ? { closeAt: input.closeAt } : {}),
+        ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
       };
       await setDoc(
         doc(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION, input.sessionId),

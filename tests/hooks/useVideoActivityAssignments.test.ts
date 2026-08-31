@@ -15,6 +15,7 @@ import type {
   SharedVideoActivityAssignment,
   VideoActivityAssignmentSettings,
   VideoActivityMetadata,
+  VideoActivityQuestion,
   VideoActivitySession,
   VideoActivitySessionOptions,
 } from '@/types';
@@ -206,6 +207,33 @@ describe('useVideoActivityAssignments — createAssignment persists sessionOptio
       'score-responses-and-answers'
     );
     expect(assignmentPayload.periodNames).toEqual(['Period 1', 'Period 2']);
+  });
+
+  it('dedupes duplicate question ids before writing session.questions (Drive-sync guard)', async () => {
+    const dupQuestion = (id: string): VideoActivityQuestion => ({
+      id,
+      text: 'What?',
+      timestamp: 30,
+      timeLimit: 30,
+      type: 'MC',
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+      points: 1,
+    });
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    const activity = {
+      ...ACTIVITY,
+      questions: [dupQuestion('q1'), dupQuestion('q1'), dupQuestion('q2')],
+    };
+
+    await act(async () => {
+      await result.current.createAssignment(activity, makeSettings());
+    });
+
+    const sessionPayload = batchSet.mock.calls[1][1] as VideoActivitySession;
+    expect(sessionPayload.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
   });
 });
 

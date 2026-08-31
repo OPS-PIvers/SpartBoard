@@ -155,6 +155,7 @@ const makeDriveFilePublic = async (
   }
 };
 
+// Every field this function writes to a submission doc must stay listed in firestore.rules' submissions update hasOnly() whitelist, or a later client update fails closed.
 export const archiveActivityWallPhoto = onCall(
   {
     memory: '512MiB',

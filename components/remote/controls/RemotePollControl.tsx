@@ -1,13 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Minus, QrCode, Radio, RotateCcw, Square } from 'lucide-react';
-import { WidgetData, PollConfig, PollOption, PollVoteDoc } from '@/types';
-import { useAuth } from '@/context/useAuth';
-import { db } from '@/config/firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { buildPublicPollLink } from '@/components/poll/pollLink';
+import React, { useCallback, useState } from 'react';
 import {
-  aggregateVotes,
-  makePollSessionId,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Minus,
+  QrCode,
+  Radio,
+  RotateCcw,
+  Square,
+} from 'lucide-react';
+import { WidgetData, PollConfig } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { buildPollJoinUrl } from '@/utils/pollCode';
+import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
+import { usePollSession } from '@/hooks/usePollSession';
+import {
   startPollSession,
   stopPollSession,
 } from '@/components/poll/pollSession';
@@ -39,60 +46,38 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
 }) => {
   const { user, canAccessFeature } = useAuth();
   const config = widget.config as PollConfig;
-  // Memoised so the array identity is stable across renders — it feeds the
-  // joinUrl useMemo + the votes-subscription effect deps below.
-  const options: PollOption[] = useMemo(
-    () => config.options ?? [],
-    [config.options]
-  );
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
 
-  const activePollSessionId = config.activePollSessionId ?? null;
-  const isLive = !!activePollSessionId;
+  const applyConfig = useCallback(
+    (next: PollConfig) => updateWidget(widget.id, { config: next }),
+    [updateWidget, widget.id]
+  );
+
+  const {
+    questions,
+    currentQuestionIndex,
+    currentQuestion,
+    isLive,
+    displayOptions,
+    canGoPrev,
+    canGoNext,
+    goToQuestion,
+  } = usePollSession({
+    config,
+    teacherUid: user?.uid,
+    onConfigChange: applyConfig,
+  });
+
+  const options = currentQuestion?.options ?? [];
+  const showNavigation = questions.length > 1;
 
   const [showQr, setShowQr] = useState(false);
   const [showResumePopover, setShowResumePopover] = useState(false);
-  const [sessionTally, setSessionTally] = useState<number[]>([]);
 
-  // Subscribe to the live votes subcollection while a session is active.
-  // `options.length` is in the deps, so the effect re-subscribes (with a fresh
-  // closure) if the teacher edits the option count mid-session — no stale count.
-  useEffect(() => {
-    if (!activePollSessionId || !user) return;
-    const sessionId = makePollSessionId(user.uid, activePollSessionId);
-    const unsub = onSnapshot(
-      collection(db, 'poll_sessions', sessionId, 'votes'),
-      (snap) => {
-        const votes = snap.docs.map((d) => d.data() as PollVoteDoc);
-        setSessionTally(aggregateVotes(votes, options.length));
-      }
-    );
-    return () => {
-      unsub();
-      // Clear on teardown so a stopped session's tally doesn't flash on the
-      // board when a fresh session starts before its first snapshot arrives.
-      setSessionTally([]);
-    };
-  }, [activePollSessionId, user, options.length]);
-
-  const joinUrl = useMemo(() => {
-    if (!isLive || !user || !canOfferAnonymousJoin || !activePollSessionId) {
-      return '';
-    }
-    return buildPublicPollLink({
-      id: activePollSessionId,
-      question: config.question ?? 'Vote Now!',
-      options: options.map((o) => ({ id: o.id, label: o.label })),
-      teacherUid: user.uid,
-    });
-  }, [
-    isLive,
-    user,
-    canOfferAnonymousJoin,
-    activePollSessionId,
-    config.question,
-    options,
-  ]);
+  const joinUrl =
+    isLive && canOfferAnonymousJoin && config.joinCode
+      ? buildPollJoinUrl(config.joinCode)
+      : '';
 
   const qrUrl = joinUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
@@ -100,32 +85,38 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
       )}`
     : '';
 
-  const liveOptions = options.map((o, i) => ({
-    ...o,
-    votes: sessionTally[i] ?? 0,
-  }));
-  const liveTotal = liveOptions.reduce((s, o) => s + o.votes, 0);
+  const liveTotal = displayOptions.reduce((s, o) => s + o.votes, 0);
 
   const adjustVote = (index: number, delta: number) => {
-    const updated = options.map((opt, i) =>
-      i === index
-        ? { ...opt, votes: Math.max(0, (opt.votes ?? 0) + delta) }
-        : opt
+    applyConfig(
+      withQuestionAt(config, currentQuestionIndex, {
+        ...currentQuestion,
+        options: options.map((opt, i) =>
+          i === index
+            ? { ...opt, votes: Math.max(0, (opt.votes ?? 0) + delta) }
+            : opt
+        ),
+      })
     );
-    updateWidget(widget.id, { config: { ...config, options: updated } });
   };
 
   const resetVotes = () => {
-    const updated = options.map((opt) => ({ ...opt, votes: 0 }));
-    updateWidget(widget.id, { config: { ...config, options: updated } });
+    applyConfig(
+      withPollQuestions(
+        config,
+        questions.map((q) => ({
+          ...q,
+          options: q.options.map((opt) => ({ ...opt, votes: 0 })),
+        }))
+      )
+    );
   };
 
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
     setShowResumePopover(false);
     try {
-      const next = await startPollSession(config, user.uid, mode);
-      updateWidget(widget.id, { config: next });
+      applyConfig(await startPollSession(config, user.uid, mode));
     } catch (err) {
       // On a flaky phone connection the session write can fail; surface it in
       // logs rather than silently leaving the teacher thinking voting started.
@@ -145,8 +136,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     if (!user) return;
     setShowQr(false);
     try {
-      const next = await stopPollSession(config, user.uid);
-      updateWidget(widget.id, { config: next });
+      applyConfig(await stopPollSession(config, user.uid));
     } catch (err) {
       console.error('[RemotePollControl] stopPollSession failed:', err);
     }
@@ -156,16 +146,45 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Question */}
+      {/* Question + navigation */}
       <div className="px-4 py-3 border-b border-white/10 shrink-0">
-        <div className="text-white/60 text-xs uppercase tracking-widest font-bold mb-1">
-          Poll
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="text-white/60 text-xs uppercase tracking-widest font-bold">
+            Poll
+          </div>
+          {showNavigation && (
+            <div className="text-white/60 text-xs font-bold tabular-nums">
+              {currentQuestionIndex + 1} / {questions.length}
+            </div>
+          )}
         </div>
-        {config.question && (
-          <p className="text-white font-semibold text-sm leading-snug line-clamp-2">
-            {config.question}
+        <div className="flex items-center gap-2">
+          {showNavigation && (
+            <button
+              onClick={() => goToQuestion(currentQuestionIndex - 1)}
+              disabled={!canGoPrev}
+              style={{ touchAction: 'manipulation' }}
+              className="touch-manipulation shrink-0 p-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
+              aria-label="Previous question"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          <p className="flex-1 text-white font-semibold text-sm leading-snug line-clamp-2">
+            {currentQuestion?.question}
           </p>
-        )}
+          {showNavigation && (
+            <button
+              onClick={() => goToQuestion(currentQuestionIndex + 1)}
+              disabled={!canGoNext}
+              style={{ touchAction: 'manipulation' }}
+              className="touch-manipulation shrink-0 p-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
+              aria-label="Next question"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Start / Stop live voting */}
@@ -183,6 +202,9 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/5 border border-white/10">
             <p className="text-white/70 text-sm font-semibold text-center">
               Resume the previous session or start fresh?
+            </p>
+            <p className="text-white/50 text-xs text-center">
+              Starting fresh clears the tallies and issues a new join code.
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -203,7 +225,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
             <button
               onClick={() => setShowResumePopover(false)}
               style={{ touchAction: 'manipulation' }}
-              className="touch-manipulation py-2 text-white/40 hover:text-white/70 text-xs font-semibold"
+              className="touch-manipulation py-2 text-white/50 hover:text-white/70 text-xs font-semibold"
             >
               Cancel
             </button>
@@ -249,18 +271,18 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                   height={220}
                   className="rounded-xl bg-white p-2"
                 />
-                <p className="text-white/50 text-xs text-center">
-                  Scan to vote, or open this link:
+                <p className="text-white/60 text-xs text-center">
+                  Scan to vote, or go to {window.location.host}/poll and enter:
                 </p>
                 <code
                   data-testid="poll-join-url"
-                  className="select-all break-all text-center text-blue-300 text-xs font-mono px-2"
+                  className="select-all text-center text-blue-300 text-2xl font-black font-mono tracking-[0.15em]"
                 >
-                  {joinUrl}
+                  {config.joinCode}
                 </code>
               </>
             ) : (
-              <p className="text-white/40 text-sm text-center">
+              <p className="text-white/50 text-sm text-center">
                 Start voting to generate a join link.
               </p>
             )}
@@ -271,12 +293,12 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
       {/* Tallies */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
         {options.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-white/30 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-white/40 text-sm italic">
             No options — configure in widget settings.
           </div>
         ) : isLive ? (
           // Live mode: read-only aggregated tallies from participant devices.
-          liveOptions.map((opt, i) => {
+          displayOptions.map((opt, i) => {
             const pct = liveTotal > 0 ? (opt.votes / liveTotal) * 100 : 0;
             return (
               <div

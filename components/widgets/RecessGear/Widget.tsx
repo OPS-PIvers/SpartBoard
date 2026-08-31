@@ -97,15 +97,16 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
       ? adminWeatherData
       : localWeatherConfig;
 
+  // Admin only overrides the teacher's toggle when explicitly set, not just when adminConfig exists.
+  const resolvedUseFeelsLike =
+    adminConfig?.useFeelsLike ?? config.useFeelsLike ?? true;
+
   const getRecessGear = () => {
     if (!activeWeatherConfig || activeWeatherConfig.temp === undefined)
       return [];
 
-    const useFeelsLike = adminConfig
-      ? adminConfig.useFeelsLike
-      : config.useFeelsLike;
     const temp =
-      (useFeelsLike ?? true) && activeWeatherConfig.feelsLike !== undefined
+      resolvedUseFeelsLike && activeWeatherConfig.feelsLike !== undefined
         ? activeWeatherConfig.feelsLike
         : activeWeatherConfig.temp;
     const condition = activeWeatherConfig.condition?.toLowerCase() ?? 'sunny';
@@ -199,8 +200,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
   }
 
   const currentTemp = Math.round(
-    ((adminConfig ? adminConfig.useFeelsLike : config.useFeelsLike) ?? true) &&
-      activeWeatherConfig.feelsLike !== undefined
+    resolvedUseFeelsLike && activeWeatherConfig.feelsLike !== undefined
       ? activeWeatherConfig.feelsLike
       : activeWeatherConfig.temp
   );

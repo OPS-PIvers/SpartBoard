@@ -30,6 +30,7 @@ import {
   QuizData,
   QuizConfig,
   ClassRoster,
+  StudentOverride,
 } from '@/types';
 import { db } from '@/config/firebase';
 import { useDialog } from '@/context/useDialog';
@@ -47,7 +48,7 @@ import {
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { Z_INDEX } from '@/config/zIndex';
 import { resolveStimuli } from '@/utils/quizStimuli';
-import { PresentSession } from '../present/PresentSession';
+import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
 import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
@@ -82,6 +83,10 @@ export interface QuizLiveMonitorProps {
   onBack?: () => void;
   /** Hide the scoreboard-sync setting (contexts with no board behind). */
   hideLiveScoreboard?: boolean;
+  /** M17 E2 F2: the active assignment's per-student accommodation overrides
+   *  (teacher's own assignment doc), keyed by `StudentTargetRef` key — used
+   *  by `RosterList` to resolve each row's effective tab-warning threshold. */
+  overridesBySourcedId?: Record<string, StudentOverride> | null;
 }
 
 type Screen =
@@ -120,6 +125,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onHideAnswer,
     onBack,
     hideLiveScoreboard = false,
+    overridesBySourcedId = null,
   } = props;
 
   const { showConfirm } = useDialog();
@@ -576,6 +582,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                   onUnlockResultsForStudent ? handleUnlockResults : undefined
                 }
                 onClearHand={onClearHand ? handleClearHand : undefined}
+                overridesBySourcedId={overridesBySourcedId}
+                targetRefKeyByStudentUid={data.targetRefKeyByStudentUid}
               />
             )}
           </div>

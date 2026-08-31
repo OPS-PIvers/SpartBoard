@@ -4,6 +4,7 @@ import {
   computeVideoActivityScorePct,
   canScoreVideoActivityResponse,
   buildVideoActivityGradeEntries,
+  dedupeQuestionsById,
 } from '@/utils/videoActivityGrading';
 import type { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 
@@ -22,6 +23,24 @@ function q(
     ...overrides,
   };
 }
+
+describe('dedupeQuestionsById', () => {
+  it('keeps the first occurrence and drops later duplicates by id', () => {
+    const first = q({ id: 'q1', points: 1 });
+    const dup = q({ id: 'q1', points: 99 });
+    const unique = q({ id: 'q2' });
+    expect(dedupeQuestionsById([first, dup, unique])).toEqual([first, unique]);
+  });
+
+  it('returns an equivalent array when there are no duplicates', () => {
+    const list = [q({ id: 'q1' }), q({ id: 'q2' }), q({ id: 'q3' })];
+    expect(dedupeQuestionsById(list)).toEqual(list);
+  });
+
+  it('returns an empty array for an empty input', () => {
+    expect(dedupeQuestionsById([])).toEqual([]);
+  });
+});
 
 describe('gradeVideoActivityAnswer — MC', () => {
   it('full credit on exact match', () => {

@@ -189,7 +189,21 @@ export interface ClassRoster extends ClassRosterMeta {
    * unknown" so the UI can show a retry banner instead of "0 students".
    */
   loadError?: string;
+  /** Saved per-roster student groups (M17 A4). Lives in the Drive file, not Firestore. */
+  groups?: RosterGroup[];
+  /** Standing per-student accommodation defaults, keyed by `Student.id` (M17 A4). */
+  defaultOverridesByStudentId?: Record<string, StudentOverride>;
 }
+
+/** A saved subset of a roster's students, editable from `RosterEditorModal` (M17 A4). */
+export interface RosterGroup {
+  id: string;
+  name: string;
+  studentIds: string[];
+}
+
+// `StudentOverride` (M17 spec §2a) is defined below alongside `RubricSnapshot`
+// — this file's placeholder was reconciled away when A1 landed the real type.
 
 // --- PLC (PROFESSIONAL LEARNING COMMUNITY) TYPES ---
 
@@ -1579,15 +1593,25 @@ export interface PollGlobalConfig {
   buildingDefaults: Record<string, BuildingPollDefaults>;
 }
 
-export interface PollConfig {
+/** One question in a multi-question poll. */
+export interface PollQuestion {
+  id: string;
   question: string;
   options: PollOption[];
+}
+
+export interface PollConfig {
+  /** Canonical question list. Read via `getPollQuestions`, never directly. */
+  questions?: PollQuestion[];
+  /** Presentation cursor — the question the board and every phone are on. */
+  currentQuestionIndex?: number;
+  /** Sticky participant join code; rotates only on a "Start fresh" session. */
+  joinCode?: string | null;
   /**
    * Public device-voting session id. When non-null, a public poll session
    * is LIVE: the board shows aggregated tallies from
    * `poll_sessions/{teacherUid}_{activePollSessionId}/votes` and manual ±
-   * voting is disabled. This id is also the `:pollId` route segment of the
-   * participant join link.
+   * voting is disabled. Equal to `joinCode` for code-minted sessions.
    */
   activePollSessionId?: string | null;
   /**
@@ -1596,17 +1620,43 @@ export interface PollConfig {
    * mints a fresh id instead.
    */
   lastPollSessionId?: string | null;
+  /** Legacy single-question shape — read through `getPollQuestions` only. */
+  question?: string;
+  /** Legacy single-question shape — read through `getPollQuestions` only. */
+  options?: PollOption[];
 }
 
 /**
  * A single public-poll vote document
- * (`poll_sessions/{teacherUid}_{pollId}/votes/{participantUid}`). Keyed by the
- * anonymous voter's uid (one vote per device); the Firestore rules enforce the
- * exact `{optionIndex, votedAt}` shape.
+ * (`poll_sessions/{teacherUid}_{code}/votes/{questionIndex}_{participantUid}`).
+ * The composite key keeps one vote per device per question while letting a
+ * single listener cover every question; the rules enforce the exact shape.
  */
 export interface PollVoteDoc {
+  questionIndex: number;
   optionIndex: number;
   votedAt: number;
+}
+
+/** Question shape stored on the session doc — labels only, no vote counts. */
+export interface PollSessionQuestion {
+  id: string;
+  question: string;
+  options: { id: string; label: string }[];
+}
+
+/** The `poll_sessions/{teacherUid}_{code}` document. */
+export interface PollSessionDoc {
+  id: string;
+  teacherUid: string;
+  code: string;
+  questions: PollSessionQuestion[];
+  optionCounts: number[];
+  currentQuestionIndex: number;
+  active: boolean;
+  /** Null until the teacher first opens voting — drives the waiting screen. */
+  startedAt: number | null;
+  updatedAt: number;
 }
 
 export type ActivityWallMode = 'text' | 'photo';
@@ -2006,8 +2056,21 @@ export interface TalkingToolCategory {
   stems: TalkingToolStem[];
 }
 
+/**
+ * Per-building surface-color defaults for the Talking Tool widget. Only
+ * `cardColor`/`cardOpacity` are exposed — `fontFamily`/`fontColor` are
+ * currently dead controls at the user level (see TalkingToolAppearanceSettings)
+ * so seeding them would replicate the ConceptWeb/GraphicOrganizer anti-pattern.
+ */
+export interface BuildingTalkingToolDefaults {
+  buildingId: string;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
 export interface TalkingToolGlobalConfig {
   categories?: TalkingToolCategory[];
+  buildingDefaults?: Record<string, BuildingTalkingToolDefaults>;
 }
 
 export interface WeatherConfig {
@@ -2335,6 +2398,8 @@ export interface MaterialDefinition {
 export interface MaterialsGlobalConfig {
   customMaterials?: MaterialDefinition[];
   buildingDefaults: Record<string, BuildingMaterialsDefaults>;
+  /** When false, teachers cannot create their own materials. Defaults to enabled. */
+  allowTeacherMaterials?: boolean;
 }
 
 export interface CalendarGlobalEvent {
@@ -2597,6 +2662,22 @@ export interface MiniAppSession {
    * sessions; consumers must default to `'submissions'`.
    */
   mode?: AssignmentMode;
+  /** Mirrors `MiniAppAssignment.openAt`/`closeAt`. Absent = always open. */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** Mirrors `MiniAppAssignment.dueAt`. Display-only metadata within the
+   *  open/close window; read by class-wide students on /my-assignments,
+   *  which sources due dates from this session doc, not the archive row. */
+  dueAt?: number | null;
+  /** True when this assignment used per-student targeting (spec §2a). Class
+   *  channel drops these client-side; not a security boundary. */
+  individualTargeting?: boolean;
+  /** M17 E2 F1: the teacher archive's `MiniAppAssignment.id`, which is a
+   *  distinct UUID from the session id for this kind only (unlike
+   *  quiz/VA/GL where they're the same shared UUID). `setAssignmentTargetsV1`
+   *  keys per-student pointer docs by this id — absent on legacy sessions
+   *  created before this field existed. */
+  assignmentId?: string;
 }
 
 /**
@@ -2759,6 +2840,8 @@ export interface MaterialsConfig {
   title?: string;
   titleFont?: string;
   titleColor?: string;
+  /** Definitions of referenced non-built-in materials, so shared/exported boards still render them. */
+  customMaterialSnapshots?: MaterialDefinition[];
 }
 
 export interface CatalystRoutine {
@@ -3258,6 +3341,14 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
   soundEffectsEnabled?: boolean;
+  /**
+   * During-taking tab-switch auto-submit threshold (M17 B4). Distinct from
+   * `protection.tabWarningThreshold` (results-viewing lockout). `'off'`
+   * disables auto-submit-on-tab-switch entirely; absent = default of 3
+   * (pre-existing hardcoded behavior). Per-student override lives on
+   * `StudentOverride.tabWarningThreshold`.
+   */
+  tabWarningThreshold?: number | 'off';
 }
 
 /**
@@ -3375,6 +3466,12 @@ export interface QuizSession {
   // ─── Toggles (Phase 1) ─────────────────────────────────────────────────────
   /** Whether tab-switch detection is active on student devices (default true) */
   tabWarningsEnabled?: boolean;
+  /**
+   * During-taking tab-switch auto-submit threshold (M17 B4). See
+   * `QuizSessionOptions.tabWarningThreshold`; mirrored here at session
+   * creation. Absent = default of 3.
+   */
+  tabWarningThreshold?: number | 'off';
   /**
    * Block copy / cut / paste in the student quiz UI (default false). Mirrored
    * from the assignment's `sessionOptions.blockCopyPaste` so the student
@@ -3528,6 +3625,12 @@ export interface QuizSession {
    * (`maxPoints`) is derived from the quiz at push time, not stored here.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Mirrors `QuizAssignment.openAt`/`closeAt`. Absent = always open. */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** True when this assignment used per-student targeting (spec §2a). Class
+   *  channel drops these client-side; not a security boundary. */
+  individualTargeting?: boolean;
 }
 
 /**
@@ -3672,6 +3775,16 @@ export interface QuizResponse {
   autoSubmitted?: boolean;
   status: QuizResponseStatus;
   answers: QuizResponseAnswer[];
+  /**
+   * Snapshot of the question-id subset actually served to this student
+   * (M17 individual overrides), written by the student app alongside each
+   * answer write and validated by rules against the student's own pointer
+   * doc. `publishAssignmentScores` prefers this over the assignment's live
+   * `overridesByStudentUid` map so removing an override AFTER a student
+   * submits can't re-score their historical answers against the full set.
+   * Absent = the full question set was served.
+   */
+  servedQuestionIds?: string[];
   /**
    * Percentage score 0–100 if computed and persisted, or null if not yet graded.
    * Not currently written by either the student or the teacher app — scoring is
@@ -4169,6 +4282,51 @@ export interface PlcLinkage {
   autoGenerated?: boolean;
 }
 
+// === M17 — Individual assignment targeting (A1) ===
+// Shared per-student targeting/window/override model, added to all four
+// assignment docs (quiz/VA/GL/mini-app) and their paired session docs. See
+// docs/specs/M17-individual-assignments-spec.md §2/§2a for the fan-out
+// architecture (Cloud Function `setAssignmentTargetsV1`, `/student_assignments`).
+
+/** A student a teacher can individually target. sourcedId is PII-adjacent — see spec §2a. */
+export type StudentTargetRef =
+  | { kind: 'classlink'; sourcedId: string }
+  | { kind: 'test'; email: string };
+
+/** Embedded rubric snapshot used by per-student rubric overrides. */
+export type RubricSnapshot = Rubric;
+
+/** Per-student accommodation override. Never stored on session docs (spec §2a). */
+export interface StudentOverride {
+  timeMultiplier?: 1.5 | 2 | 'unlimited';
+  questionIds?: string[]; // quiz only: subset to serve
+  /** Quiz only. Values are option TEXT, not ids (teacher-side translated; never the correct answer). */
+  hiddenOptionIdsByQuestion?: Record<string, string[]>;
+  // quiz only; 'points' means grade this question by raw points, ignoring any rubric
+  rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
+  tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
+  openAt?: number;
+  closeAt?: number; // per-student window shift (epoch ms)
+}
+
+/**
+ * Server-fan-out pointer doc at `/student_assignments/{studentUid}/items/{assignmentId}`.
+ * Written only by the `setAssignmentTargetsV1` Cloud Function. Never queried
+ * grouped across assignments per-student (spec §A3 non-goal).
+ */
+export interface StudentAssignmentPointer {
+  kind: 'quiz' | 'video-activity' | 'guided-learning' | 'mini-app';
+  sessionId: string;
+  teacherUid: string;
+  classId: string;
+  openAt?: number;
+  closeAt?: number;
+  dueAt?: number;
+  override?: StudentOverride;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /**
  * Settings that can be carried between assignments and are shareable in PLCs.
  * These do NOT include the quiz content itself — content is always sourced from the library.
@@ -4309,6 +4467,33 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   classroomAttachment?: ClassroomAttachmentLink;
   /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
   classroomAttachments?: ClassroomAttachmentLink[];
+  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched. */
+  targetMode?: 'class' | 'students';
+  /** Only meaningful when `targetMode === 'students'`. */
+  targetStudents?: StudentTargetRef[];
+  /** Provenance of picked groups (display only); does not drive resolution. */
+  targetGroupIds?: string[];
+  /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /**
+   * Count of student-target refs the most recent `setAssignmentTargetsV1`
+   * call couldn't add (PII-free — a plain number, no names). Persisted so
+   * the "N skipped" list-row marker survives a reload; the toast with names
+   * shown at assign time is ephemeral only.
+   */
+  targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). Kept so a
+   *  removed-but-submitted student's row still renders (marked "removed")
+   *  in the D2 roster instead of vanishing. Pruned only when the underlying
+   *  response is deleted; never grows past `targetSkippedCount`-scale lists. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 /** See `QuizAssignment.sync`. */
@@ -4856,6 +5041,12 @@ export interface VideoActivitySession {
    * view. Mirrors `QuizSession.ltiAttachment`.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Mirrors `VideoActivityAssignment.openAt`/`closeAt`. Absent = always open. */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** True when this assignment used per-student targeting (spec §2a). Class
+   *  channel drops these client-side; not a security boundary. */
+  individualTargeting?: boolean;
 }
 
 /** Per-session sync linkage to `/synced_video_activities/{groupId}`. */
@@ -5783,6 +5974,14 @@ export interface GuidedLearningSession {
    * answer keys to the client.
    */
   revealedAnswers?: Record<string, string>;
+  /** Mirrors `GuidedLearningAssignment.openAt`/`closeAt`. Absent = always open. */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** Mirrors `GuidedLearningAssignment.dueAt` — display metadata only. */
+  dueAt?: number | null;
+  /** True when this assignment used per-student targeting (spec §2a). Class
+   *  channel drops these client-side; not a security boundary. */
+  individualTargeting?: boolean;
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -5923,7 +6122,7 @@ export interface StationsConfig {
   rotationTrigger?: number;
   /**
    * Saved-library snapshot — populated only when this config object is stored
-   * in `savedWidgetConfigs.stations`, never on a live widget instance.
+   * in `savedWidgetPresets.stations`, never on a live widget instance.
    */
   savedLibrary?: SavedStationsPreset[];
   /**
@@ -6289,7 +6488,8 @@ export interface UserRolesConfig {
  *
  * OWNERSHIP CONTRACT — this single document is written by two contexts:
  *  - `AuthContext` owns the account-level/identity fields: `selectedBuildings`,
- *    `language`, `savedWidgetConfigs`, `setupCompleted`, `disableCloseConfirmation`,
+ *    `language`, `savedWidgetConfigs`, `savedWidgetPresets`,
+ *    `savedWidgetConfigsPreV2`, `setupCompleted`, `disableCloseConfirmation`,
  *    `remoteControlEnabled`, `dockPosition`, `quizMonitorColorsEnabled`,
  *    `quizMonitorScoreDisplay`, `favoriteBackgrounds`, `recentBackgrounds`.
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
@@ -6306,8 +6506,24 @@ export interface UserProfile {
   selectedBuildings: string[];
   /** Optional language preference */
   language?: string;
-  /** Global saved widget configs for complex widgets */
+  /**
+   * Account-wide widget appearance defaults, keyed by widget type. Holds ONLY
+   * the keys in `APPEARANCE_CONFIG_KEYS` (utils/widgetConfigPersistence.ts) —
+   * widget content is per-board and must never land here.
+   */
   savedWidgetConfigs?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /**
+   * Opt-in preset libraries the teacher explicitly saved (Stations station
+   * sets, Hotspot Image library). Deliberately account-wide, which is why they
+   * live apart from the appearance defaults above.
+   */
+  savedWidgetPresets?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /**
+   * Pre-migration backup of `savedWidgetConfigs`, written once when the
+   * account-wide store was narrowed to appearance keys. Kept so content
+   * wrongly persisted globally can be recovered if a teacher asks.
+   */
+  savedWidgetConfigsPreV2?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** True after the user has completed the first-time setup wizard */
   setupCompleted?: boolean;
   /**
@@ -7480,6 +7696,32 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   classroomAttachment?: ClassroomAttachmentLink;
   /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
   classroomAttachments?: ClassroomAttachmentLink[];
+  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched.
+   *  Written ONLY by `setAssignmentTargetsV1` (M17 §5 B3 canonical rules) — the
+   *  client never writes this field. */
+  targetMode?: 'class' | 'students';
+  /** Only meaningful when `targetMode === 'students'`. Written ONLY by
+   *  `setAssignmentTargetsV1` — the client never writes this field. */
+  targetStudents?: StudentTargetRef[];
+  /** Provenance of picked groups (display only); does not drive resolution. */
+  targetGroupIds?: string[];
+  /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Plain, PII-free count of refs `setAssignmentTargetsV1` could not target
+   *  (M17 §5 B3 canonical rules) — durable "N skipped" marker for list rows,
+   *  distinct from the ephemeral toast shown at assign time. */
+  targetSkippedCount?: number;
+  /** Optional due date (ms epoch), display metadata within the open/close window. */
+  dueAt?: number | null;
+  /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === MiniApp assignments ===
@@ -7525,6 +7767,30 @@ export interface MiniAppAssignment {
   /** Mirrors `MiniAppSession.mode`. Frozen at creation from the admin
    *  `assignment-modes` setting. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched. */
+  targetMode?: 'class' | 'students';
+  /** Only meaningful when `targetMode === 'students'`. */
+  targetStudents?: StudentTargetRef[];
+  /** Provenance of picked groups (display only); does not drive resolution. */
+  targetGroupIds?: string[];
+  /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Optional due date (ms epoch), display metadata within the open/close window. */
+  dueAt?: number | null;
+  /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** Count of individually-targeted students `setAssignmentTargetsV1` could
+   *  not resolve to a pointer doc (PII-free — names are shown ephemerally
+   *  via a toast at assign time only, never persisted). Drives the "N
+   *  skipped" row marker in the assignments list. */
+  targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === /MiniApp assignments ===
@@ -7575,6 +7841,28 @@ export interface GuidedLearningAssignment {
   /** Epoch ms of the most recent `publishAssignmentScores` call. Cleared
    *  (via `deleteField`) on unpublish. */
   scorePublishedAt?: number;
+  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched. */
+  targetMode?: 'class' | 'students';
+  /** Only meaningful when `targetMode === 'students'`. */
+  targetStudents?: StudentTargetRef[];
+  /** Provenance of picked groups (display only); does not drive resolution. */
+  targetGroupIds?: string[];
+  /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Optional due date (ms epoch), display metadata within the open/close window. */
+  dueAt?: number | null;
+  /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** Count of `setAssignmentTargetsV1` `skipped` refs from the most recent
+   *  targeting save — surfaced as a discreet row marker (spec §5 B3). */
+  targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === Library folders (Wave 3) ===

@@ -24,24 +24,30 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
-const { mockOnSnapshot, mockCollection, mockDoc, mockSetDoc } = vi.hoisted(
-  () => ({
+const { mockOnSnapshot, mockCollection, mockDoc, mockSetDoc, mockGetDocs } =
+  vi.hoisted(() => ({
     mockOnSnapshot: vi.fn(),
     mockCollection: vi.fn(() => 'col'),
     mockDoc: vi.fn((..._args: unknown[]) => ({
       __path: _args.slice(1).join('/'),
     })),
     mockSetDoc: vi.fn(),
-  })
-);
+    mockGetDocs: vi.fn(),
+  }));
 
-let pollSnapshotDocs: Record<string, unknown>[] = [];
+let pollSnapshotDocs: { id: string; data: Record<string, unknown> }[] = [];
 
 vi.mock('firebase/firestore', () => ({
   collection: mockCollection,
   doc: mockDoc,
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
+  getDocs: mockGetDocs,
+  limit: vi.fn((n: number) => ({ __limit: n })),
+  query: vi.fn((...args: unknown[]) => ({ __query: args })),
+  where: vi.fn((field: string, _op: string, value: unknown) => ({
+    __where: [field, value],
+  })),
   increment: (n: number) => ({ __increment: n }),
 }));
 
@@ -89,12 +95,22 @@ describe('PollWidget', () => {
     });
     pollSnapshotDocs = [];
     mockSetDoc.mockResolvedValue(undefined);
+    mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
     mockOnSnapshot.mockImplementation(
       (
         _ref: unknown,
-        cb: (snap: { docs: { data: () => Record<string, unknown> }[] }) => void
+        cb: (snap: {
+          docs: { id: string; data: () => Record<string, unknown> }[];
+          forEach: (fn: (d: unknown) => void) => void;
+        }) => void
       ) => {
-        cb({ docs: pollSnapshotDocs.map((d) => ({ data: () => d })) });
+        const docs = pollSnapshotDocs.map((d) => ({
+          id: d.id,
+          data: () => d.data,
+        }));
+        // The announcement listener iterates with forEach; the session
+        // listener maps over `docs`. Supply both shapes.
+        cb({ docs, forEach: (fn: (d: unknown) => void) => docs.forEach(fn) });
         return vi.fn();
       }
     );
@@ -135,11 +151,17 @@ describe('PollWidget', () => {
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
       config: {
-        question: 'Favorite Color?',
-        options: [
-          { id: 'opt-1', label: 'Red', votes: 3 },
-          { id: 'opt-2', label: 'Blue', votes: 3 },
+        questions: [
+          {
+            id: 'q-1',
+            question: 'Favorite Color?',
+            options: [
+              { id: 'opt-1', label: 'Red', votes: 3 },
+              { id: 'opt-2', label: 'Blue', votes: 3 },
+            ],
+          },
         ],
+        currentQuestionIndex: 0,
       },
     });
   });
@@ -171,11 +193,17 @@ describe('PollWidget', () => {
     await waitFor(() =>
       expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
         config: {
-          question: 'Test',
-          options: [
-            { id: 'opt-1', label: 'A', votes: 0 },
-            { id: 'opt-2', label: 'B', votes: 0 },
+          questions: [
+            {
+              id: 'q-1',
+              question: 'Test',
+              options: [
+                { id: 'opt-1', label: 'A', votes: 0 },
+                { id: 'opt-2', label: 'B', votes: 0 },
+              ],
+            },
           ],
+          currentQuestionIndex: 0,
         },
       })
     );
@@ -183,9 +211,9 @@ describe('PollWidget', () => {
 
   it('shows live aggregated tallies from the session when voting is live', () => {
     pollSnapshotDocs = [
-      { optionIndex: 0 },
-      { optionIndex: 0 },
-      { optionIndex: 1 },
+      { id: '0_a', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '0_b', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '0_c', data: { questionIndex: 0, optionIndex: 1 } },
     ];
     const widget: WidgetData = {
       id: 'poll-1',
@@ -226,14 +254,15 @@ describe('PollWidget', () => {
       config: {
         question: 'Pick one',
         options: [{ id: 'opt-1', label: 'Red', votes: 0 }],
-        activePollSessionId: 'sess-1',
+        activePollSessionId: 'K3F9Q',
+        joinCode: 'K3F9Q',
       },
     };
 
     render(<PollWidget widget={widget} />);
 
     const link = screen.getByTestId('poll-join-url');
-    expect(link.textContent ?? '').toContain('/poll/sess-1');
+    expect(link.textContent ?? '').toBe('K3F9Q');
     const qr = screen.getByAltText(/join qr/i);
     expect(qr.getAttribute('src') ?? '').toContain(
       'https://api.qrserver.com/v1/create-qr-code/'
@@ -291,6 +320,163 @@ describe('PollWidget', () => {
     expect(screen.queryByTestId('poll-join-url')).not.toBeInTheDocument();
     expect(screen.queryByAltText(/join qr/i)).not.toBeInTheDocument();
   });
+
+  const multiQuestionWidget = (
+    overrides: Record<string, unknown> = {}
+  ): WidgetData => ({
+    id: 'poll-1',
+    type: 'poll',
+    w: 2,
+    h: 2,
+    x: 0,
+    y: 0,
+    z: 1,
+    flipped: false,
+    config: {
+      questions: [
+        {
+          id: 'q1',
+          question: 'First question?',
+          options: [{ id: 'o1', label: 'Red', votes: 0 }],
+        },
+        {
+          id: 'q2',
+          question: 'Second question?',
+          options: [{ id: 'o2', label: 'Blue', votes: 0 }],
+        },
+      ],
+      currentQuestionIndex: 0,
+      ...overrides,
+    },
+  });
+
+  it('hides the navigation entirely for a single-question poll', () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Only one',
+        options: [{ id: 'opt-1', label: 'Red', votes: 0 }],
+      },
+    };
+
+    render(<PollWidget widget={widget} />);
+
+    expect(
+      screen.queryByRole('button', { name: /next question/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /previous question/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('poll-question-indicator')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows arrows and a counter for a multi-question poll', () => {
+    render(<PollWidget widget={multiQuestionWidget()} />);
+
+    expect(screen.getByText('First question?')).toBeInTheDocument();
+    expect(screen.getByTestId('poll-question-indicator')).toHaveTextContent(
+      '1 / 2'
+    );
+    expect(
+      screen.getByRole('button', { name: /previous question/i })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /next question/i })
+    ).toBeEnabled();
+  });
+
+  it('advances the presentation cursor with the next arrow', () => {
+    render(<PollWidget widget={multiQuestionWidget()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /next question/i }));
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
+      config: expect.objectContaining({ currentQuestionIndex: 1 }) as unknown,
+    });
+  });
+
+  it('disables the next arrow on the last question', () => {
+    render(
+      <PollWidget widget={multiQuestionWidget({ currentQuestionIndex: 1 })} />
+    );
+
+    expect(screen.getByText('Second question?')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /next question/i })
+    ).toBeDisabled();
+  });
+
+  it('pushes the cursor to the session doc so phones follow in lockstep', async () => {
+    render(
+      <PollWidget
+        widget={multiQuestionWidget({
+          activePollSessionId: 'K3F9Q',
+          joinCode: 'K3F9Q',
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /next question/i }));
+
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ currentQuestionIndex: 1 }),
+        { merge: true }
+      )
+    );
+    expect(mockDoc).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'teacher-1_K3F9Q'
+    );
+  });
+
+  it('tallies only the current question when a session is live', () => {
+    pollSnapshotDocs = [
+      { id: '0_a', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '1_b', data: { questionIndex: 1, optionIndex: 0 } },
+      { id: '1_c', data: { questionIndex: 1, optionIndex: 0 } },
+    ];
+
+    render(
+      <PollWidget
+        widget={multiQuestionWidget({
+          currentQuestionIndex: 1,
+          activePollSessionId: 'K3F9Q',
+          joinCode: 'K3F9Q',
+        })}
+      />
+    );
+
+    // Question 2 has two votes; question 1's single vote must not leak in.
+    expect(screen.getByText(/2 \(100%\)/)).toBeInTheDocument();
+  });
+
+  it('renders only the first question with no arrows inside an announcement', () => {
+    render(
+      <PollWidget
+        widget={multiQuestionWidget({
+          _announcementId: 'ann-1',
+          currentQuestionIndex: 1,
+        })}
+      />
+    );
+
+    expect(screen.getByText('First question?')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /next question/i })
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe('PollSettings', () => {
@@ -344,18 +530,157 @@ describe('PollSettings', () => {
     // Verify updateWidget was called with new config
     expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
       config: {
-        question: 'Magic Question?',
-        options: [
-          expect.objectContaining({ label: 'Opt1', votes: 0 }),
-          expect.objectContaining({ label: 'Opt2', votes: 0 }),
-          expect.objectContaining({ label: 'Opt3', votes: 0 }),
-          expect.objectContaining({ label: 'Opt4', votes: 0 }),
+        questions: [
+          expect.objectContaining({ question: 'Original Question' }),
+          expect.objectContaining({
+            question: 'Magic Question?',
+            options: [
+              expect.objectContaining({ label: 'Opt1', votes: 0 }),
+              expect.objectContaining({ label: 'Opt2', votes: 0 }),
+              expect.objectContaining({ label: 'Opt3', votes: 0 }),
+              expect.objectContaining({ label: 'Opt4', votes: 0 }),
+            ],
+          }),
         ],
+        currentQuestionIndex: 0,
       },
     });
 
     // Verify toast
-    expect(mockAddToast).toHaveBeenCalledWith('Poll generated.', 'success');
+    expect(mockAddToast).toHaveBeenCalledWith('Question added.', 'success');
+  });
+
+  it('associates the "Draft with AI" heading with its fieldset via aria-labelledby', () => {
+    const mockWidget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Original Question',
+        options: [],
+      },
+    };
+
+    render(<PollSettings widget={mockWidget} />);
+
+    expect(
+      screen.getByRole('group', { name: 'Draft with AI' })
+    ).toBeInTheDocument();
+  });
+
+  it('REGRESSION: a join-code mint does not revert an edit made while it was in flight', async () => {
+    // The mint is a getDocs + setDoc round-trip. It used to resolve with the
+    // config snapshot captured at mount and spread the whole thing back, so an
+    // edit landing mid-flight was silently reverted.
+    let releaseMint: (value: { empty: boolean; docs: never[] }) => void = () =>
+      undefined;
+    mockGetDocs.mockReturnValue(
+      new Promise<{ empty: boolean; docs: never[] }>((resolve) => {
+        releaseMint = resolve;
+      })
+    );
+
+    const staleWidget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: { question: 'Before edit', options: [] },
+    };
+
+    const { rerender } = render(<PollSettings widget={staleWidget} />);
+
+    // The teacher edits while the mint is still in flight.
+    const editedWidget: WidgetData = {
+      ...staleWidget,
+      config: { question: 'After edit', options: [] },
+    };
+    rerender(<PollSettings widget={editedWidget} />);
+
+    releaseMint({ empty: true, docs: [] });
+
+    await waitFor(() => {
+      const withCode = mockUpdateWidget.mock.calls.find(
+        ([, update]) =>
+          (update as { config: { joinCode?: string } }).config.joinCode
+      );
+      expect(withCode).toBeDefined();
+      // The mint patches ONLY joinCode, so it carries no stale question to
+      // write back over the edit that landed while it was in flight.
+      const patched = (
+        withCode as [string, { config: Record<string, unknown> }]
+      )[1].config;
+      expect(patched.question).toBeUndefined();
+      expect(Object.keys(patched)).toEqual(['joinCode']);
+    });
+  });
+
+  it('REGRESSION: starting voting mid-mint cannot strand the shown code on a dead session', async () => {
+    // The auto-mint and startPollSession both used to mint independently when
+    // config.joinCode was still empty. The late mint then overwrote joinCode,
+    // leaving the panel showing a code whose session never went live while the
+    // real session answered to a code nobody saw.
+    type Deferred = { empty: boolean; docs: never[] };
+    let releaseMint: (value: Deferred) => void = () => undefined;
+    let releaseStart: (value: Deferred) => void = () => undefined;
+    mockGetDocs
+      .mockReturnValueOnce(
+        new Promise<Deferred>((resolve) => {
+          releaseMint = resolve;
+        })
+      )
+      .mockReturnValueOnce(
+        new Promise<Deferred>((resolve) => {
+          releaseStart = resolve;
+        })
+      );
+
+    const baseConfig = { question: 'Pick one', options: [] };
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: baseConfig,
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    // Teacher clicks Start before the reservation round-trip has resolved.
+    fireEvent.click(
+      screen.getByRole('button', { name: /start device voting/i })
+    );
+
+    // Start's own mint (if it makes one) lands first; the reservation lands after.
+    releaseStart({ empty: true, docs: [] });
+    releaseMint({ empty: true, docs: [] });
+
+    await waitFor(() => {
+      // Replay the shallow merge DashboardContext performs on every call.
+      const merged = mockUpdateWidget.mock.calls.reduce(
+        (acc, [, update]) => ({
+          ...acc,
+          ...(update as { config: Record<string, unknown> }).config,
+        }),
+        { ...baseConfig } as Record<string, unknown>
+      );
+      expect(merged.activePollSessionId).toBeTruthy();
+      // The code on screen must be the code the live session answers to.
+      expect(merged.joinCode).toBe(merged.activePollSessionId);
+    });
   });
 
   it('updates the question on blur', () => {
@@ -382,8 +707,8 @@ describe('PollSettings', () => {
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
       config: {
-        question: 'New Question',
-        options: [],
+        questions: [{ id: 'q-1', question: 'New Question', options: [] }],
+        currentQuestionIndex: 0,
       },
     });
   });
@@ -412,11 +737,16 @@ describe('PollSettings', () => {
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
       config: {
-        question: 'Test',
-        options: [
-          expect.objectContaining({ label: 'Opt 1', votes: 0 }),
-          expect.objectContaining({ label: 'Option 2', votes: 0 }),
+        questions: [
+          expect.objectContaining({
+            question: 'Test',
+            options: [
+              expect.objectContaining({ label: 'Opt 1', votes: 0 }),
+              expect.objectContaining({ label: 'Option 2', votes: 0 }),
+            ],
+          }),
         ],
+        currentQuestionIndex: 0,
       },
     });
 
@@ -427,8 +757,8 @@ describe('PollSettings', () => {
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
       config: {
-        question: 'Test',
-        options: [],
+        questions: [expect.objectContaining({ question: 'Test', options: [] })],
+        currentQuestionIndex: 0,
       },
     });
   });
@@ -472,11 +802,16 @@ describe('PollSettings', () => {
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
       config: {
-        question: 'Who is your favorite?',
-        options: [
-          expect.objectContaining({ label: 'John Doe', votes: 0 }),
-          expect.objectContaining({ label: 'Jane Smith', votes: 0 }),
+        questions: [
+          expect.objectContaining({
+            question: 'Who is your favorite?',
+            options: [
+              expect.objectContaining({ label: 'John Doe', votes: 0 }),
+              expect.objectContaining({ label: 'Jane Smith', votes: 0 }),
+            ],
+          }),
         ],
+        currentQuestionIndex: 0,
       },
     });
     expect(mockAddToast).toHaveBeenCalledWith(
@@ -633,12 +968,17 @@ describe('PollSettings', () => {
     // Session doc is written active, then config gains an activePollSessionId.
     await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
     await waitFor(() => {
-      const lastCall = mockUpdateWidget.mock.calls[
-        mockUpdateWidget.mock.calls.length - 1
-      ] as [string, { config: { activePollSessionId?: string | null } }];
-      expect(lastCall[0]).toBe('poll-1');
-      expect(typeof lastCall[1].config.activePollSessionId).toBe('string');
-      expect(lastCall[1].config.activePollSessionId).toBeTruthy();
+      const calls = mockUpdateWidget.mock.calls as [
+        string,
+        { config: { activePollSessionId?: string | null } },
+      ][];
+      const started = calls.find(
+        ([id, update]) =>
+          id === 'poll-1' &&
+          typeof update.config.activePollSessionId === 'string' &&
+          update.config.activePollSessionId.length > 0
+      );
+      expect(started).toBeDefined();
     });
   });
 
@@ -695,9 +1035,7 @@ describe('PollSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /stop voting/i }));
 
     await waitFor(() => {
-      const lastCall = mockUpdateWidget.mock.calls[
-        mockUpdateWidget.mock.calls.length - 1
-      ] as [
+      const calls = mockUpdateWidget.mock.calls as [
         string,
         {
           config: {
@@ -705,9 +1043,13 @@ describe('PollSettings', () => {
             lastPollSessionId?: string | null;
           };
         },
-      ];
-      expect(lastCall[1].config.activePollSessionId).toBeNull();
-      expect(lastCall[1].config.lastPollSessionId).toBe('sess-9');
+      ][];
+      const stopped = calls.find(
+        ([, update]) =>
+          update.config.activePollSessionId === null &&
+          update.config.lastPollSessionId === 'sess-9'
+      );
+      expect(stopped).toBeDefined();
     });
   });
 

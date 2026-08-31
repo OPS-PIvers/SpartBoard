@@ -1322,6 +1322,8 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
       update: batchUpdate,
       commit: batchCommit,
     });
+    // Assignment doc read by publishAssignmentScores for `overridesByStudentUid`.
+    mockGetDoc.mockResolvedValue({ data: () => ({}) });
   });
 
   it('unpublishAssignmentScores clears flags via deleteField on both docs', async () => {

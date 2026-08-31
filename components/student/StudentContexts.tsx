@@ -61,6 +61,12 @@ const mockAuth: AuthContextType = {
   saveWidgetConfig: () => {
     // No-op
   },
+  savedWidgetPresets: {},
+  saveWidgetPreset: () => {
+    // No-op
+  },
+  customMaterials: [],
+  saveCustomMaterials: () => Promise.resolve(),
   profileLoaded: true,
   setupCompleted: true,
   completeSetup: async () => {
@@ -235,6 +241,7 @@ const mockDashboard: DashboardContextValue = {
   updateWidgets: () => {
     // No-op
   },
+  updateWidgetConfigsAcrossBoards: () => Promise.resolve(),
   selectedWidgetIds: [],
   setSelectedWidgetIds: () => {
     // No-op

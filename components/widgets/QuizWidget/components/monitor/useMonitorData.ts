@@ -59,6 +59,11 @@ export interface MonitorData {
   isGamified: boolean;
   pinToName: Record<string, string>;
   byStudentUid: ReturnType<typeof useAssignmentPseudonymsMulti>['byStudentUid'];
+  /** M17 E2 F2: `studentUid` -> namespaced `StudentTargetRef` key, used to
+   *  resolve per-student tab-warning threshold overrides in `RosterList`. */
+  targetRefKeyByStudentUid: ReturnType<
+    typeof useAssignmentPseudonymsMulti
+  >['targetRefKeyByStudentUid'];
   periodNames: string[];
   selectedPeriods: string[];
   setSelectedPeriods: (periods: string[]) => void;
@@ -95,11 +100,8 @@ export function useMonitorData(
           : [],
     [session.classIds, session.classId]
   );
-  const { byStudentUid: classLinkNames } = useAssignmentPseudonymsMulti(
-    session.id,
-    sessionClassIds,
-    orgId
-  );
+  const { byStudentUid: classLinkNames, targetRefKeyByStudentUid } =
+    useAssignmentPseudonymsMulti(session.id, sessionClassIds, orgId);
   const ltiNames = useLtiSessionNames(session.id, session.ltiNrps === true);
   const byStudentUid = useMemo(() => {
     if (ltiNames.size === 0) return classLinkNames;
@@ -240,6 +242,7 @@ export function useMonitorData(
     isGamified,
     pinToName,
     byStudentUid,
+    targetRefKeyByStudentUid,
     periodNames,
     selectedPeriods,
     setSelectedPeriods,
