@@ -136,6 +136,7 @@ describe('isExternalCaller', () => {
     resolveOrgIdForDomainMock.mockResolvedValue(null);
     const external = await __isExternalCaller(db, {
       email: 'someone@gmail.com',
+      email_verified: true,
     });
     expect(external).toBe(true);
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledWith(
@@ -148,6 +149,7 @@ describe('isExternalCaller', () => {
     resolveOrgIdForDomainMock.mockResolvedValue('orono');
     const external = await __isExternalCaller(db, {
       email: 'teacher@orono.k12.mn.us',
+      email_verified: true,
     });
     expect(external).toBe(false);
   });
@@ -158,6 +160,7 @@ describe('isExternalCaller', () => {
     const external = await __isExternalCaller(db, {
       hd: 'orono.k12.mn.us',
       email: 'teacher@alias-domain.com',
+      email_verified: true,
     });
     expect(external).toBe(false);
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
@@ -174,13 +177,17 @@ describe('isExternalCaller', () => {
     const external = await __isExternalCaller(db, {
       hd: 'alias-domain.com',
       email: 'teacher@orono.k12.mn.us',
+      email_verified: true,
     });
     expect(external).toBe(false);
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(2);
   });
 
   it('fail-safe: missing email → treated as org (NOT external)', async () => {
-    const external = await __isExternalCaller(db, { email: undefined });
+    const external = await __isExternalCaller(db, {
+      email: undefined,
+      email_verified: true,
+    });
     expect(external).toBe(false);
     expect(resolveOrgIdForDomainMock).not.toHaveBeenCalled();
   });
@@ -195,6 +202,7 @@ describe('isExternalCaller', () => {
     resolveOrgIdForDomainMock.mockRejectedValue(new Error('firestore down'));
     const external = await __isExternalCaller(db, {
       email: 'teacher@orono.k12.mn.us',
+      email_verified: true,
     });
     // An org user must NEVER be throttled to the external cap on a transient
     // lookup failure — fail safe toward the org path.
@@ -209,7 +217,10 @@ describe('isExternalCaller', () => {
     resolveOrgIdForDomainMock.mockRejectedValue(lookupError);
 
     await expect(
-      __isExternalCaller(db, { email: 'teacher@orono.k12.mn.us' })
+      __isExternalCaller(db, {
+        email: 'teacher@orono.k12.mn.us',
+        email_verified: true,
+      })
     ).resolves.toBe(false);
 
     expect(warn).toHaveBeenCalledWith(
@@ -221,17 +232,61 @@ describe('isExternalCaller', () => {
 
   it('caches the domain→org resolution across calls (single lookup)', async () => {
     resolveOrgIdForDomainMock.mockResolvedValue('orono');
-    await __isExternalCaller(db, { email: 'a@orono.k12.mn.us' });
-    await __isExternalCaller(db, { email: 'b@orono.k12.mn.us' });
+    await __isExternalCaller(db, {
+      email: 'a@orono.k12.mn.us',
+      email_verified: true,
+    });
+    await __isExternalCaller(db, {
+      email: 'b@orono.k12.mn.us',
+      email_verified: true,
+    });
     // Two callers, same domain → one collectionGroup lookup.
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
   });
 
   it('caches a negative (orgless) resolution too', async () => {
     resolveOrgIdForDomainMock.mockResolvedValue(null);
-    expect(await __isExternalCaller(db, { email: 'x@gmail.com' })).toBe(true);
-    expect(await __isExternalCaller(db, { email: 'y@gmail.com' })).toBe(true);
+    expect(
+      await __isExternalCaller(db, {
+        email: 'x@gmail.com',
+        email_verified: true,
+      })
+    ).toBe(true);
+    expect(
+      await __isExternalCaller(db, {
+        email: 'y@gmail.com',
+        email_verified: true,
+      })
+    ).toBe(true);
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
+  });
+
+  // Regression: an UNVERIFIED email claiming a real org's domain must not be
+  // trusted for org classification. Firebase Auth's public Identity Toolkit
+  // `accounts:signUp` endpoint lets anyone self-register any email address
+  // with `email_verified: false` — without this gate, that fabricated claim
+  // would resolve to the org and grant the higher INTERNAL daily AI cap,
+  // defeating the whole point of the lower external/free-tier cap.
+  it('SECURITY: an unverified email matching a real org domain is treated as EXTERNAL, not internal', async () => {
+    // The domain WOULD resolve to a real org if trusted.
+    resolveOrgIdForDomainMock.mockResolvedValue('orono');
+    const external = await __isExternalCaller(db, {
+      email: 'attacker@orono.k12.mn.us',
+      email_verified: false,
+    });
+    expect(external).toBe(true);
+    // No domain lookup should even run for an unverified email — the
+    // classification is decided before any Firestore hop.
+    expect(resolveOrgIdForDomainMock).not.toHaveBeenCalled();
+  });
+
+  it('SECURITY: a token with no email_verified claim at all is treated as EXTERNAL', async () => {
+    resolveOrgIdForDomainMock.mockResolvedValue('orono');
+    const external = await __isExternalCaller(db, {
+      email: 'someone@orono.k12.mn.us',
+    });
+    expect(external).toBe(true);
+    expect(resolveOrgIdForDomainMock).not.toHaveBeenCalled();
   });
 });
 
@@ -244,7 +299,10 @@ describe('end-to-end limit selection (isExternalCaller → pickOverallLimit)', (
   it('(a) orgless caller is capped at the lower external limit', async () => {
     resolveOrgIdForDomainMock.mockResolvedValue(null);
     const config = { dailyLimit: 20, externalDailyLimit: 5 };
-    const external = await __isExternalCaller(db, { email: 'p@gmail.com' });
+    const external = await __isExternalCaller(db, {
+      email: 'p@gmail.com',
+      email_verified: true,
+    });
     expect(__pickOverallLimit(config, external)).toBe(5);
   });
 
@@ -253,6 +311,7 @@ describe('end-to-end limit selection (isExternalCaller → pickOverallLimit)', (
     const config = { dailyLimit: 20, externalDailyLimit: 5 };
     const external = await __isExternalCaller(db, {
       email: 'p@orono.k12.mn.us',
+      email_verified: true,
     });
     expect(__pickOverallLimit(config, external)).toBe(20);
   });
@@ -261,6 +320,7 @@ describe('end-to-end limit selection (isExternalCaller → pickOverallLimit)', (
     resolveOrgIdForDomainMock.mockResolvedValue('orono');
     const external = await __isExternalCaller(db, {
       email: 'p@orono.k12.mn.us',
+      email_verified: true,
     });
     // org path → DEFAULT_DAILY_LIMIT (20), never the external default (5).
     expect(__pickOverallLimit({}, external)).toBe(__DEFAULT_DAILY_LIMIT);
@@ -337,11 +397,21 @@ describe('org-resolution cache lifecycle (TTL + explicit reset)', () => {
 
   it('serves from cache for the whole TTL window (no second lookup)', async () => {
     resolveOrgIdForDomainMock.mockResolvedValue(null);
-    expect(await __isExternalCaller(db, { email: 'a@gmail.com' })).toBe(true);
+    expect(
+      await __isExternalCaller(db, {
+        email: 'a@gmail.com',
+        email_verified: true,
+      })
+    ).toBe(true);
 
     // Just inside the TTL — still cached.
     vi.advanceTimersByTime(TTL_MS - 1);
-    expect(await __isExternalCaller(db, { email: 'b@gmail.com' })).toBe(true);
+    expect(
+      await __isExternalCaller(db, {
+        email: 'b@gmail.com',
+        email_verified: true,
+      })
+    ).toBe(true);
 
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
   });
@@ -350,7 +420,10 @@ describe('org-resolution cache lifecycle (TTL + explicit reset)', () => {
     // Cold: the domain is not yet registered to any org → external.
     resolveOrgIdForDomainMock.mockResolvedValue(null);
     expect(
-      await __isExternalCaller(db, { email: 'teacher@newschool.org' })
+      await __isExternalCaller(db, {
+        email: 'teacher@newschool.org',
+        email_verified: true,
+      })
     ).toBe(true);
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(1);
 
@@ -360,7 +433,10 @@ describe('org-resolution cache lifecycle (TTL + explicit reset)', () => {
     vi.advanceTimersByTime(TTL_MS);
 
     expect(
-      await __isExternalCaller(db, { email: 'teacher@newschool.org' })
+      await __isExternalCaller(db, {
+        email: 'teacher@newschool.org',
+        email_verified: true,
+      })
     ).toBe(false);
     expect(resolveOrgIdForDomainMock).toHaveBeenCalledTimes(2);
   });

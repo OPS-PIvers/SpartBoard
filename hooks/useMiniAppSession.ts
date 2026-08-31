@@ -44,6 +44,14 @@ export interface CreateMiniAppSessionOptions {
    * can never diverge because callers don't pass `submissionsEnabled` directly.
    */
   mode?: AssignmentMode;
+  /** M17 B3 — assignment-level open/close window (spec Decision 5). Absent = always open. */
+  openAt?: number | null;
+  closeAt?: number | null;
+  /** M17 B3 — display-only due date within the open/close window. Must reach
+   *  the session doc (not just the teacher's archive row) so class-wide
+   *  students see it on /my-assignments, which reads the session, not the
+   *  archive. */
+  dueAt?: number | null;
 }
 
 export interface UseMiniAppSessionTeacherResult {
@@ -110,6 +118,11 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
         submissionsEnabled,
         mode,
+        // `individualTargeting` is written only by `setAssignmentTargetsV1`
+        // (§2a ordering guarantee: flag before pointer docs), never here.
+        ...(options?.openAt != null ? { openAt: options.openAt } : {}),
+        ...(options?.closeAt != null ? { closeAt: options.closeAt } : {}),
+        ...(options?.dueAt != null ? { dueAt: options.dueAt } : {}),
       };
 
       await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);

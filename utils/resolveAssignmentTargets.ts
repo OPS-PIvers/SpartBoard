@@ -18,13 +18,22 @@
  *   4. none          → untargeted (code/PIN-only join).
  */
 
-import type { ClassRoster, Student } from '@/types';
+import type { ClassRoster, Student, StudentTargetRef } from '@/types';
 
 /** Minimal shape of any assignment doc's class-targeting fields. */
 export interface AssignmentTargetInput {
   rosterIds?: string[];
   classIds?: string[];
   periodNames?: string[];
+  /**
+   * M17 individual-student targeting (spec §2a). Purely passed through —
+   * does NOT participate in the class-resolution precedence below. A
+   * `targetMode: 'students'` assignment still carries `rosterIds`/`classIds`
+   * for provenance/display; per-student delivery is handled separately by
+   * the `/student_assignments` fan-out (see `StudentAssignmentPointer`).
+   */
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
 }
 
 export interface ResolvedAssignmentTargets {
@@ -57,6 +66,14 @@ export interface ResolvedAssignmentTargets {
    * we can tell when the legacy paths stop being hit and the code can retire.
    */
   source: 'rosterIds' | 'classIds' | 'periodNames' | 'none';
+  /**
+   * Passed through from `AssignmentTargetInput.targetMode` (default 'class').
+   * Never influences class-target resolution above — individual delivery is
+   * handled by the `/student_assignments` fan-out, not this helper.
+   */
+  targetMode: 'class' | 'students';
+  /** Passed through from `AssignmentTargetInput.targetStudents`, if any. */
+  targetStudents: StudentTargetRef[];
 }
 
 /**
@@ -153,6 +170,9 @@ export function resolveAssignmentTargets(
   assignment: AssignmentTargetInput,
   rosters: ClassRoster[]
 ): ResolvedAssignmentTargets {
+  const targetMode = assignment.targetMode ?? 'class';
+  const targetStudents = assignment.targetStudents ?? [];
+
   // 1. New path: rosterIds on the assignment doc.
   if (assignment.rosterIds && assignment.rosterIds.length > 0) {
     const byId = new Map(rosters.map((r) => [r.id, r]));
@@ -160,7 +180,12 @@ export function resolveAssignmentTargets(
       .map((id) => byId.get(id))
       .filter((r): r is ClassRoster => r !== undefined);
 
-    return { ...deriveTargetsFromRosterList(matched), source: 'rosterIds' };
+    return {
+      ...deriveTargetsFromRosterList(matched),
+      source: 'rosterIds',
+      targetMode,
+      targetStudents,
+    };
   }
 
   // 2. Legacy ClassLink path.
@@ -172,6 +197,8 @@ export function resolveAssignmentTargets(
       classPeriodByClassId: {},
       students: [],
       source: 'classIds',
+      targetMode,
+      targetStudents,
     };
   }
 
@@ -184,6 +211,8 @@ export function resolveAssignmentTargets(
       classPeriodByClassId: {},
       students: [],
       source: 'periodNames',
+      targetMode,
+      targetStudents,
     };
   }
 
@@ -195,6 +224,8 @@ export function resolveAssignmentTargets(
     classPeriodByClassId: {},
     students: [],
     source: 'none',
+    targetMode,
+    targetStudents,
   };
 }
 
