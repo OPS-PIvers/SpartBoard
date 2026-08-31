@@ -824,7 +824,8 @@ function roleIdOf(snap: admin.firestore.DocumentSnapshot): string {
 async function loadTestClassMembership(
   db: admin.firestore.Firestore,
   teacherEmail: string,
-  testClassIds: readonly string[]
+  testClassIds: readonly string[],
+  names?: Map<string, TargetDirectoryName>
 ): Promise<{ membership: Map<string, string>; authorized: boolean }> {
   const out = new Map<string, string>();
   if (testClassIds.length === 0) {
@@ -857,7 +858,14 @@ async function loadTestClassMembership(
     for (const email of memberEmails) {
       if (typeof email === 'string' && email.length > 0) {
         const lower = email.toLowerCase();
-        if (!out.has(lower)) out.set(lower, testClassIds[i]);
+        if (!out.has(lower)) {
+          out.set(lower, testClassIds[i]);
+          // Display name = email local-part, matching the roster import dialog.
+          names?.set(`test:${lower}`, {
+            givenName: lower.split('@')[0] || lower,
+            familyName: '',
+          });
+        }
       }
     }
   }
@@ -869,7 +877,8 @@ async function loadClassLinkMembership(
   ownedClassIds: readonly string[],
   classlinkClientId: string,
   classlinkClientSecret: string,
-  tenantUrl: string
+  tenantUrl: string,
+  names?: Map<string, TargetDirectoryName>
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (ownedClassIds.length === 0) return out;
@@ -934,10 +943,74 @@ async function loadClassLinkMembership(
     for (const student of students) {
       if (student.sourcedId && !out.has(student.sourcedId)) {
         out.set(student.sourcedId, classId);
+        names?.set(`classlink:${student.sourcedId}`, {
+          givenName: student.givenName ?? '',
+          familyName: student.familyName ?? '',
+        });
       }
     }
   }
   return out;
+}
+
+/** Display-name parts for one authorized target, keyed by `refKey()`. */
+export interface TargetDirectoryName {
+  givenName: string;
+  familyName: string;
+}
+
+export interface TargetDirectory {
+  ctx: TargetAuthorizationContext;
+  /** `refKey()` → names. In-memory only; never persisted anywhere. */
+  namesByRefKey: Map<string, TargetDirectoryName>;
+}
+
+export interface ClassLinkCredentials {
+  classlinkClientId: string;
+  classlinkClientSecret: string;
+  tenantUrl: string;
+}
+
+/**
+ * The single authorization source for ref-level targeting. `setAssignmentTargetsV1`
+ * and the ref branch of `getPseudonymsForAssignmentV1` both resolve refs through
+ * this, so a teacher can never name-resolve a student they cannot target.
+ */
+export async function loadTargetDirectory(
+  db: admin.firestore.Firestore,
+  callerUid: string,
+  teacherEmail: string,
+  creds: ClassLinkCredentials,
+  onClassLinkError: (err: unknown) => never
+): Promise<TargetDirectory> {
+  const namesByRefKey = new Map<string, TargetDirectoryName>();
+  const owned = await loadOwnedRosterClasses(db, callerUid);
+  const [testClasses, classIdBySourcedId] = await Promise.all([
+    loadTestClassMembership(
+      db,
+      teacherEmail,
+      owned.testClassIds,
+      namesByRefKey
+    ),
+    creds.classlinkClientId && creds.classlinkClientSecret && creds.tenantUrl
+      ? loadClassLinkMembership(
+          teacherEmail,
+          owned.classlinkClassIds,
+          creds.classlinkClientId,
+          creds.classlinkClientSecret,
+          creds.tenantUrl,
+          namesByRefKey
+        ).catch(onClassLinkError)
+      : new Map<string, string>(),
+  ]);
+  return {
+    ctx: {
+      classIdBySourcedId,
+      classIdByTestEmail: testClasses.membership,
+      testClassAuthorized: testClasses.authorized,
+    },
+    namesByRefKey,
+  };
 }
 
 export const setAssignmentTargetsV1 = onCall(
@@ -973,38 +1046,28 @@ export const setAssignmentTargetsV1 = onCall(
     const db = admin.firestore();
     const callerUid = request.auth.uid;
 
-    const loadContext = async (): Promise<TargetAuthorizationContext> => {
-      const owned = await loadOwnedRosterClasses(db, callerUid);
-      const [testClasses, classIdBySourcedId] = await Promise.all([
-        loadTestClassMembership(db, teacherEmail, owned.testClassIds),
-        classlinkClientId && classlinkClientSecret && tenantUrl
-          ? loadClassLinkMembership(
-              teacherEmail,
-              owned.classlinkClassIds,
-              classlinkClientId,
-              classlinkClientSecret,
-              tenantUrl
-            ).catch((err) => {
-              if (axios.isAxiosError(err)) {
-                console.error(
-                  '[setAssignmentTargetsV1] ClassLink request failed:',
-                  err.response?.status
-                );
-              } else {
-                console.error(
-                  '[setAssignmentTargetsV1] ClassLink lookup failed.'
-                );
-              }
-              throw new HttpsError('internal', 'Roster service unavailable.');
-            })
-          : new Map<string, string>(),
-      ]);
-      return {
-        classIdBySourcedId,
-        classIdByTestEmail: testClasses.membership,
-        testClassAuthorized: testClasses.authorized,
-      };
-    };
+    const loadContext = async (): Promise<TargetAuthorizationContext> =>
+      (
+        await loadTargetDirectory(
+          db,
+          callerUid,
+          teacherEmail,
+          { classlinkClientId, classlinkClientSecret, tenantUrl },
+          (err) => {
+            if (axios.isAxiosError(err)) {
+              console.error(
+                '[setAssignmentTargetsV1] ClassLink request failed:',
+                err.response?.status
+              );
+            } else {
+              console.error(
+                '[setAssignmentTargetsV1] ClassLink lookup failed.'
+              );
+            }
+            throw new HttpsError('internal', 'Roster service unavailable.');
+          }
+        )
+      ).ctx;
 
     return handleSetAssignmentTargets(
       db,
