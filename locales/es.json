@@ -1887,12 +1887,19 @@
     "emptyAction": "Crear una",
     "noFilterMatches": "Ninguna tarea coincide con estos filtros.",
     "selectPrompt": "Selecciona una tarea para ver los detalles.",
-    "detailComingSoon": "El estado por estudiante estará disponible pronto.",
     "status": {
       "notStarted": "Sin comenzar",
       "inProgress": "En progreso",
       "submitted": "Entregada",
       "graded": "Calificada"
+    },
+    "detail": {
+      "emptyRoster": "Todavía no hay estudiantes asignados a esta tarea.",
+      "manualStatus": "PIN/manual — sin estado SSO",
+      "manualCount": "{{count}} manual",
+      "unresolvedStudent": "Estudiante",
+      "modified": "modificado",
+      "modifiedWithCount": "modificado ({{selected}} de {{total}} preguntas)"
     }
   }
 }

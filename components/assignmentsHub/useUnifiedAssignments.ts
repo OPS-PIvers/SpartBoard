@@ -5,7 +5,7 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
-import type { ClassRoster } from '@/types';
+import type { ClassRoster, StudentOverride, StudentTargetRef } from '@/types';
 
 export type AssignmentKind =
   | 'quiz'
@@ -27,6 +27,14 @@ export interface UnifiedAssignmentRow {
   openAt?: number | null;
   closeAt?: number | null;
   createdAt: number;
+  /** Paired session doc id — always `id` (1:1 shared UUID, spec §1). D2 name/status resolution. */
+  sessionId: string;
+  /** Raw targeting fields, passed through for D2's `resolveAssignmentTargets` + pseudonym lookups. */
+  rosterIds?: string[];
+  periodNames?: string[];
+  targetStudents?: StudentTargetRef[];
+  /** Teacher's own per-student overrides, keyed by `studentTargetRefKey` (D2 "modified" marker). */
+  overridesBySourcedId?: Record<string, StudentOverride>;
 }
 
 function resolveClassName(
@@ -71,6 +79,11 @@ export const useUnifiedAssignments = (
       openAt: a.openAt,
       closeAt: a.closeAt,
       createdAt: a.createdAt,
+      sessionId: a.id,
+      rosterIds: a.rosterIds,
+      periodNames: a.periodNames,
+      targetStudents: a.targetStudents,
+      overridesBySourcedId: a.overridesBySourcedId,
     }));
 
     const vaRows: UnifiedAssignmentRow[] = va.assignments.map((a) => ({
@@ -84,6 +97,11 @@ export const useUnifiedAssignments = (
       openAt: a.openAt,
       closeAt: a.closeAt,
       createdAt: a.createdAt,
+      sessionId: a.id,
+      rosterIds: a.rosterIds,
+      periodNames: a.periodNames,
+      targetStudents: a.targetStudents,
+      overridesBySourcedId: a.overridesBySourcedId,
     }));
 
     const glRows: UnifiedAssignmentRow[] = gl.assignments.map((a) => ({
@@ -97,6 +115,10 @@ export const useUnifiedAssignments = (
       openAt: a.openAt,
       closeAt: a.closeAt,
       createdAt: a.createdAt,
+      sessionId: a.sessionId,
+      rosterIds: a.rosterIds,
+      targetStudents: a.targetStudents,
+      overridesBySourcedId: a.overridesBySourcedId,
     }));
 
     const miniAppRows: UnifiedAssignmentRow[] = miniApp.assignments.map(
@@ -115,6 +137,10 @@ export const useUnifiedAssignments = (
         openAt: a.openAt,
         closeAt: a.closeAt,
         createdAt: a.createdAt,
+        sessionId: a.sessionId,
+        rosterIds: a.rosterIds,
+        targetStudents: a.targetStudents,
+        overridesBySourcedId: a.overridesBySourcedId,
       })
     );
 

@@ -1887,12 +1887,19 @@
     "emptyAction": "Go create one",
     "noFilterMatches": "No assignments match these filters.",
     "selectPrompt": "Select an assignment to view details.",
-    "detailComingSoon": "Per-student status is coming soon.",
     "status": {
       "notStarted": "Not started",
       "inProgress": "In progress",
       "submitted": "Submitted",
       "graded": "Graded"
+    },
+    "detail": {
+      "emptyRoster": "No students are targeted by this assignment yet.",
+      "manualStatus": "PIN/manual — no SSO status",
+      "manualCount": "{{count}} manual",
+      "unresolvedStudent": "Student",
+      "modified": "modified",
+      "modifiedWithCount": "modified ({{selected}} of {{total}} Qs)"
     }
   }
 }

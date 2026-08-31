@@ -7,6 +7,8 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
+import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
 
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
@@ -21,6 +23,15 @@ vi.mock('@/hooks/useGuidedLearningAssignments', () => ({
 }));
 vi.mock('@/hooks/useMiniAppAssignments', () => ({
   useMiniAppAssignments: vi.fn(),
+}));
+vi.mock('@/hooks/useAssignmentPseudonyms', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/hooks/useAssignmentPseudonyms')
+  >('@/hooks/useAssignmentPseudonyms');
+  return { ...actual, useAssignmentPseudonymsMulti: vi.fn() };
+});
+vi.mock('@/hooks/useAssignmentRosterStatus', () => ({
+  useAssignmentRosterStatus: vi.fn(),
 }));
 
 const quizAssignment = {
@@ -74,6 +85,20 @@ function setupHooks({
   (
     useMiniAppAssignments as unknown as ReturnType<typeof vi.fn>
   ).mockReturnValue(emptyReturn);
+  (
+    useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
+  ).mockReturnValue({
+    byStudentUid: new Map(),
+    byAssignmentPseudonym: new Map(),
+    targetRefKeyByStudentUid: new Map(),
+  });
+  (
+    useAssignmentRosterStatus as unknown as ReturnType<typeof vi.fn>
+  ).mockReturnValue({
+    statusByUid: new Map(),
+    totalQuestions: null,
+    loading: false,
+  });
 }
 
 describe('AssignmentsHubModal', () => {
@@ -115,11 +140,13 @@ describe('AssignmentsHubModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('renders the status chip legend once a row is selected', () => {
+  it('renders the D2 detail pane once a row is selected', () => {
     setupHooks();
     render(<AssignmentsHubModal onClose={vi.fn()} />);
     fireEvent.click(screen.getByText('Fractions Quiz'));
-    expect(screen.getByText('Not started')).toBeInTheDocument();
-    expect(screen.getByText('Graded')).toBeInTheDocument();
+    // Empty rosters in this test fixture -> the detail pane's empty-roster state.
+    expect(
+      screen.getByText('No students are targeted by this assignment yet.')
+    ).toBeInTheDocument();
   });
 });
