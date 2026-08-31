@@ -725,6 +725,18 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     source: GuidedLearningSet;
     rehosted: GuidedLearningSet;
   } | null>(null);
+  // Guards against onClose deleting uploads while a save is still in flight.
+  const importSaveInFlightRef = useRef(false);
+  const importWizardClosedRef = useRef(false);
+
+  // Best-effort deletion of uploads whose save never succeeded.
+  const cleanupImportRehostCache = () => {
+    const cached = importRehostCacheRef.current;
+    importRehostCacheRef.current = null;
+    for (const path of cached?.rehosted.imagePaths ?? []) {
+      if (path) void deleteFile(path).catch(() => undefined);
+    }
+  };
 
   const handleExport = async (
     setId: string,
@@ -790,8 +802,17 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         { ...rehosted, title: title.trim() || rehosted.title },
         uid
       );
-      await saveSet(prepared);
-      importRehostCacheRef.current = null;
+      importSaveInFlightRef.current = true;
+      try {
+        await saveSet(prepared);
+        importRehostCacheRef.current = null;
+      } catch (err) {
+        // Wizard already closed: its onClose skipped cleanup, so run it now.
+        if (importWizardClosedRef.current) cleanupImportRehostCache();
+        throw err;
+      } finally {
+        importSaveInFlightRef.current = false;
+      }
     },
     renderPreview: (set) => {
       const thumb = pickThumbnailUrl(set);
@@ -938,7 +959,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 onExport={(setId, driveFileId, buildingSet) => {
                   void handleExport(setId, driveFileId, buildingSet);
                 }}
-                onImport={() => setShowImportWizard(true)}
+                onImport={() => {
+                  importWizardClosedRef.current = false;
+                  setShowImportWizard(true);
+                }}
                 importFocusCounter={importFocusCounter}
                 onCreateNewPersonal={handleCreateNew}
                 onCreateNewBuilding={handleCreateNewBuilding}
@@ -1137,12 +1161,9 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         isOpen={showImportWizard}
         onClose={() => {
           setShowImportWizard(false);
-          // Best-effort cleanup of uploads whose save never succeeded.
-          const cached = importRehostCacheRef.current;
-          importRehostCacheRef.current = null;
-          for (const path of cached?.rehosted.imagePaths ?? []) {
-            if (path) void deleteFile(path).catch(() => undefined);
-          }
+          importWizardClosedRef.current = true;
+          // Defer cleanup to the save's settle handler while a save is in flight.
+          if (!importSaveInFlightRef.current) cleanupImportRehostCache();
         }}
         adapter={importAdapter}
         onSaved={(title) => {
