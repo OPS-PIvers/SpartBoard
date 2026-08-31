@@ -1841,5 +1841,24 @@
       "tabWarning": "Aviso de pestaña: {{threshold}}",
       "windowShifted": "Horario ajustado"
     }
+  },
+  "assignTargeting": {
+    "expandAffordance": "+ Estudiantes individuales y adaptaciones",
+    "sectionLabel": "Estudiantes individuales y adaptaciones",
+    "chooseStudents": "Elegir estudiantes",
+    "editStudents": "Editar estudiantes",
+    "selectedCount": "{{count}} seleccionados",
+    "revertToClass": "Asignar a toda la clase",
+    "noStudentsYet": "Aún no se han elegido estudiantes — toda la clase permanece sin segmentar.",
+    "unknownStudent": "Estudiante desconocido",
+    "remove": "Quitar",
+    "removeStudent": "Quitar a {{name}}",
+    "opensAt": "Abre",
+    "closesAt": "Cierra",
+    "dueAt": "Vence",
+    "scheduleLabel": "Horario",
+    "scheduleSummaryBoth": "Abre {{open}} – Cierra {{close}}",
+    "scheduleSummaryOpenOnly": "Abre {{open}}",
+    "scheduleSummaryCloseOnly": "Cierra {{close}}"
   }
 }

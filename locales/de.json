@@ -1841,5 +1841,24 @@
       "tabWarning": "Tab-Warnung: {{threshold}}",
       "windowShifted": "Zeitfenster verschoben"
     }
+  },
+  "assignTargeting": {
+    "expandAffordance": "+ Einzelne Schüler & Anpassungen",
+    "sectionLabel": "Einzelne Schüler & Anpassungen",
+    "chooseStudents": "Schüler auswählen",
+    "editStudents": "Schüler bearbeiten",
+    "selectedCount": "{{count}} ausgewählt",
+    "revertToClass": "Der ganzen Klasse zuweisen",
+    "noStudentsYet": "Noch keine Schüler ausgewählt — die ganze Klasse bleibt untargetiert.",
+    "unknownStudent": "Unbekannter Schüler",
+    "remove": "Entfernen",
+    "removeStudent": "{{name}} entfernen",
+    "opensAt": "Öffnet",
+    "closesAt": "Schließt",
+    "dueAt": "Fällig",
+    "scheduleLabel": "Zeitplan",
+    "scheduleSummaryBoth": "Öffnet {{open}} – Schließt {{close}}",
+    "scheduleSummaryOpenOnly": "Öffnet {{open}}",
+    "scheduleSummaryCloseOnly": "Schließt {{close}}"
   }
 }
