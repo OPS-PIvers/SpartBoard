@@ -1899,7 +1899,15 @@
       "manualCount": "{{count}} manuel",
       "unresolvedStudent": "Élève",
       "modified": "modifié",
-      "modifiedWithCount": "modifié ({{selected}} sur {{total}} questions)"
+      "modifiedWithCount": "modifié ({{selected}} sur {{total}} questions)",
+      "removedStatus": "Retiré — travail conservé",
+      "edit": "Modifier",
+      "closeNow": "Fermer maintenant",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "editSkipped": "{{count}} élève(s) n'ont pas pu être enregistrés pour ce devoir.",
+      "editSaveFailed": "Impossible d'enregistrer les modifications. Réessayez."
     }
   }
 }

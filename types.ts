@@ -4433,6 +4433,11 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * shown at assign time is ephemeral only.
    */
   targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). Kept so a
+   *  removed-but-submitted student's row still renders (marked "removed")
+   *  in the D2 roster instead of vanishing. Pruned only when the underlying
+   *  response is deleted; never grows past `targetSkippedCount`-scale lists. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 /** See `QuizAssignment.sync`. */
@@ -7642,6 +7647,8 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === MiniApp assignments ===
@@ -7709,6 +7716,8 @@ export interface MiniAppAssignment {
    *  via a toast at assign time only, never persisted). Drives the "N
    *  skipped" row marker in the assignments list. */
   targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === /MiniApp assignments ===
@@ -7779,6 +7788,8 @@ export interface GuidedLearningAssignment {
   /** Count of `setAssignmentTargetsV1` `skipped` refs from the most recent
    *  targeting save — surfaced as a discreet row marker (spec §5 B3). */
   targetSkippedCount?: number;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 // === Library folders (Wave 3) ===
