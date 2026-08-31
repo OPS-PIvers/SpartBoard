@@ -33,7 +33,6 @@ import type {
   MiniAppAssignment,
   MiniAppItem,
   StudentOverride,
-  StudentTargetRef,
 } from '@/types';
 
 const ASSIGNMENTS_COLLECTION = 'miniapp_assignments';
@@ -52,12 +51,13 @@ export interface CreateMiniAppAssignmentInput {
    *  Mirrors MiniAppSession.mode. The `submissionsEnabled` field on the
    *  assignment doc is derived from this — callers don't pass it directly. */
   mode?: AssignmentMode;
-  /** M17 B3 — individual-student targeting mode. Default 'class' — legacy behavior untouched. */
+  /**
+   * M17 individual-assignment targeting (spec §5 B3). `targetMode: 'students'`
+   * marks the assignment doc; `targetStudents` itself is NOT written here —
+   * `setAssignmentTargetsV1` is the sole writer of that field (division of
+   * labor, spec §2a). Caller invokes the CF separately after this resolves.
+   */
   targetMode?: 'class' | 'students';
-  /** M17 B3 — only meaningful when `targetMode === 'students'`; mirrors the
-   *  set `setAssignmentTargetsV1` resolves. Provided at creation only when
-   *  non-empty so `targetMode:'class'` assignments never gain the field. */
-  targetStudents?: StudentTargetRef[];
   /** M17 B3 — provenance of picked groups (display only). */
   targetGroupIds?: string[];
   /** M17 B3 — per-student accommodation overrides, keyed by `StudentTargetRef` key. */
@@ -176,11 +176,10 @@ export const useMiniAppAssignments = (
         // Derived from `mode` so the two fields can never diverge.
         submissionsEnabled: mode === 'submissions',
         mode,
+        // `targetStudents` is deliberately absent — `setAssignmentTargetsV1`
+        // is the sole writer of that field; the caller invokes it separately.
         ...(input.targetMode === 'students'
           ? { targetMode: 'students' as const }
-          : {}),
-        ...(input.targetStudents && input.targetStudents.length > 0
-          ? { targetStudents: input.targetStudents }
           : {}),
         ...(input.targetGroupIds && input.targetGroupIds.length > 0
           ? { targetGroupIds: input.targetGroupIds }

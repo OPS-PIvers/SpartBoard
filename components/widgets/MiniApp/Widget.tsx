@@ -634,7 +634,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           mode: assignmentMode,
           openAt: assignTargetingValue.openAt ?? null,
           closeAt: assignTargetingValue.closeAt ?? null,
-          individualTargeting: isIndividualTargeting,
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up
@@ -651,7 +650,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
           targetMode: assignTargetingValue.targetMode,
-          targetStudents: assignTargetingValue.targetStudents,
           targetGroupIds: assignTargetingValue.targetGroupIds,
           overridesBySourcedId: assignTargetingValue.overridesByKey,
           dueAt: assignTargetingValue.dueAt ?? null,

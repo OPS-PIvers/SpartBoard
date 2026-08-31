@@ -47,8 +47,6 @@ export interface CreateMiniAppSessionOptions {
   /** M17 B3 — assignment-level open/close window (spec Decision 5). Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
-  /** M17 B3 — true when this assignment used per-student targeting (spec §2a). */
-  individualTargeting?: boolean;
 }
 
 export interface UseMiniAppSessionTeacherResult {
@@ -115,9 +113,10 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
         submissionsEnabled,
         mode,
+        // `individualTargeting` is written only by `setAssignmentTargetsV1`
+        // (§2a ordering guarantee: flag before pointer docs), never here.
         ...(options?.openAt != null ? { openAt: options.openAt } : {}),
         ...(options?.closeAt != null ? { closeAt: options.closeAt } : {}),
-        ...(options?.individualTargeting ? { individualTargeting: true } : {}),
       };
 
       await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);

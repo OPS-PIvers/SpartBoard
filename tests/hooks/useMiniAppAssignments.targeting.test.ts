@@ -9,7 +9,6 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
-import type { StudentTargetRef } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -36,7 +35,6 @@ const mockSetDoc = setDoc as Mock;
 const mockOrderBy = orderBy as Mock;
 
 const TEACHER_UID = 'teacher-1';
-const ref: StudentTargetRef = { kind: 'classlink', sourcedId: 'sis-1' };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -83,7 +81,7 @@ describe('useMiniAppAssignments — createAssignment targeting fields', () => {
     }
   });
 
-  it('writes targetMode/targetStudents/overrides/window when individually targeted', async () => {
+  it('writes targetMode/targetGroupIds/overrides/window when individually targeted, never targetStudents', async () => {
     const { result } = renderHook(() => useMiniAppAssignments(TEACHER_UID));
 
     await act(async () => {
@@ -92,7 +90,6 @@ describe('useMiniAppAssignments — createAssignment targeting fields', () => {
         app: { id: 'app-1', title: 'App' },
         assignmentName: 'A',
         targetMode: 'students',
-        targetStudents: [ref],
         targetGroupIds: ['group-1'],
         overridesBySourcedId: { 'classlink:sis-1': { timeMultiplier: 2 } },
         dueAt: 5000,
@@ -103,7 +100,8 @@ describe('useMiniAppAssignments — createAssignment targeting fields', () => {
 
     const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(payload.targetMode).toBe('students');
-    expect(payload.targetStudents).toEqual([ref]);
+    // setAssignmentTargetsV1 is the sole writer of targetStudents (spec §2a).
+    expect('targetStudents' in payload).toBe(false);
     expect(payload.targetGroupIds).toEqual(['group-1']);
     expect(payload.overridesBySourcedId).toEqual({
       'classlink:sis-1': { timeMultiplier: 2 },
