@@ -1517,7 +1517,9 @@ const GuidedLearningPreviewPane: React.FC<{
         )}
         <div className="text-xxs text-slate-500">
           Mode:{' '}
-          <span className="font-semibold text-slate-700">{entry.mode}</span>
+          <span className="font-semibold text-slate-700">
+            {MODE_LABELS[entry.mode]}
+          </span>
         </div>
       </div>
     </LibraryPreviewPane>

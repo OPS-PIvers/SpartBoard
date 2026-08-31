@@ -308,6 +308,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
+    // New step starts with a fresh in-step timer/progress (dot-jump semantics).
+    progressRef.current = 0;
+    setProgress(0);
     setCurrentIdx((prev) => {
       const next = Math.min(prev + 1, steps.length - 1);
       setActiveStepId(steps[next]?.id ?? null);
@@ -317,6 +320,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const goPrev = useCallback(() => {
     if (steps.length === 0) return;
+    progressRef.current = 0;
+    setProgress(0);
     setCurrentIdx((prev) => {
       const prevIdx = Math.max(prev - 1, 0);
       setActiveStepId(steps[prevIdx]?.id ?? null);
@@ -328,6 +333,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     progressRef.current = 0;
+    // Reset display progress at step start (also for zero/unlimited durations).
+    setProgress(0);
 
     const duration = applyTimeMultiplier(
       (currentStep?.autoAdvanceDuration ?? 5) * 1000,
@@ -338,7 +345,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     const interval = 100;
     timerRef.current = setInterval(() => {
       progressRef.current += interval / duration;
-      setProgress(progressRef.current);
+      setProgress(Math.min(progressRef.current, 1));
       if (progressRef.current >= 1) {
         if (timerRef.current) clearInterval(timerRef.current);
         // Don't auto-advance if it's a question that hasn't been answered.
@@ -360,8 +367,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (mode === 'guided' && playing) {
       startTimer();
     } else {
+      // Pause freezes in-step progress; resume restarts the step's timer.
       if (timerRef.current) clearInterval(timerRef.current);
-      progressRef.current = 0;
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -411,7 +418,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         return;
       }
 
-      if (mode === 'structured') {
+      if (mode === 'structured' || mode === 'guided') {
         if (event.key === 'ArrowLeft') {
           event.preventDefault();
           goPrev();
@@ -453,6 +460,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     setAnsweredSteps((prev) => new Set([...prev, stepId]));
     onAnswer?.(stepId, answer, isCorrect);
   };
+
+  // Whole-session fraction for the guided footer bar (step + in-step timer).
+  const guidedProgress =
+    steps.length > 0
+      ? Math.min((currentIdx + Math.min(progress, 1)) / steps.length, 1)
+      : 0;
 
   // Single source of truth for the transform the pan-zoom layer renders.
   const renderedTransform = ((): { scale: number; tx: number; ty: number } => {
@@ -597,6 +610,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (type === 'tooltip') {
       return activeStepRendered ? (
         <TooltipInteraction
+          key={activeStepRendered.id}
           step={activeStepRendered}
           containerWidth={containerSize.w}
           containerHeight={containerSize.h}
@@ -612,6 +626,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       const overlay =
         activeStep.showOverlay === 'tooltip' && activeStepRendered ? (
           <TooltipInteraction
+            key={activeStepRendered.id}
             step={activeStepRendered}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
@@ -698,55 +713,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           {set.title}
         </span>
 
-        {mode === 'structured' && steps.length > 0 && (
-          <div
-            className="flex items-center"
-            style={{ gap: 'min(8px, 2cqmin)' }}
-          >
-            <span
-              className="text-slate-300 font-bold"
-              style={{ fontSize: 'min(11px, 3cqmin)' }}
-            >
-              {currentIdx + 1} / {steps.length}
-            </span>
-          </div>
-        )}
-
-        {mode === 'guided' && (
-          <div
-            className="flex items-center"
-            style={{ gap: 'min(8px, 2cqmin)' }}
-          >
-            <button
-              onClick={() => setPlaying((v) => !v)}
-              className="text-white hover:text-indigo-300 transition-colors"
-              aria-label={playing ? 'Pause' : 'Play'}
-            >
-              {playing ? (
-                <Pause
-                  style={{
-                    width: 'min(20px, 5cqmin)',
-                    height: 'min(20px, 5cqmin)',
-                  }}
-                />
-              ) : (
-                <Play
-                  style={{
-                    width: 'min(20px, 5cqmin)',
-                    height: 'min(20px, 5cqmin)',
-                  }}
-                />
-              )}
-            </button>
-            <span
-              className="text-slate-300 font-bold"
-              style={{ fontSize: 'min(11px, 3cqmin)' }}
-            >
-              {currentIdx + 1} / {steps.length}
-            </span>
-          </div>
-        )}
-
         {mode === 'explore' && (
           <div
             className="flex items-center flex-wrap"
@@ -789,19 +755,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           </div>
         )}
       </div>
-
-      {/* Guided progress bar */}
-      {mode === 'guided' && playing && (
-        <div
-          className="bg-slate-700 flex-shrink-0"
-          style={{ height: 'min(3px, 0.8cqmin)' }}
-        >
-          <div
-            className="h-full bg-indigo-500 transition-all duration-100"
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-      )}
 
       {/* Main canvas */}
       <div className="flex-1 relative overflow-hidden bg-slate-950">
@@ -978,49 +931,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             })}
           </div>
 
-          {mode === 'structured' && steps.length > 0 && (
-            <>
-              <button
-                onClick={goPrev}
-                disabled={currentIdx === 0}
-                aria-label="Previous step"
-                className="absolute top-1/2 -translate-y-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 disabled:opacity-40 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-                style={{
-                  left: 'clamp(8px, 2cqmin, 12px)',
-                  width: 'clamp(36px, 7cqmin, 56px)',
-                  height: 'clamp(36px, 7cqmin, 56px)',
-                }}
-              >
-                <ChevronLeft
-                  className="mx-auto text-white"
-                  style={{
-                    width: 'clamp(18px, 4cqmin, 32px)',
-                    height: 'clamp(18px, 4cqmin, 32px)',
-                  }}
-                />
-              </button>
-              <button
-                onClick={goNext}
-                disabled={currentIdx === steps.length - 1}
-                aria-label="Next step"
-                className="absolute top-1/2 -translate-y-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 disabled:opacity-40 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-                style={{
-                  right: 'clamp(8px, 2cqmin, 12px)',
-                  width: 'clamp(36px, 7cqmin, 56px)',
-                  height: 'clamp(36px, 7cqmin, 56px)',
-                }}
-              >
-                <ChevronRight
-                  className="mx-auto text-white"
-                  style={{
-                    width: 'clamp(18px, 4cqmin, 32px)',
-                    height: 'clamp(18px, 4cqmin, 32px)',
-                  }}
-                />
-              </button>
-            </>
-          )}
-
           {/* Reset view — v2 sets only, shown while zoomed in */}
           {schemaV2 && zoomScale > 1 && (
             <button
@@ -1048,34 +958,190 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Step indicator dots for structured/guided */}
-      {mode !== 'explore' && steps.length > 1 && steps.length <= 20 && (
+      {/* Bottom nav footer — structured and guided modes only */}
+      {mode !== 'explore' && steps.length > 0 && (
         <div
-          className="flex items-center justify-center flex-shrink-0 bg-slate-900/50"
-          style={{ gap: 'min(4px, 1cqmin)', padding: 'min(8px, 2cqmin) 0' }}
+          className="flex items-center flex-shrink-0 border-t border-white/10 bg-slate-900/80 backdrop-blur-md"
+          style={{
+            gap: 'min(10px, 2.5cqmin)',
+            padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+          }}
         >
-          {steps.map((s, i) => (
-            <button
-              key={s.id}
-              onClick={() => {
-                setCurrentIdx(i);
-                setActiveStepId(s.id);
-              }}
-              className={`rounded-full transition-all ${
-                i === currentIdx
-                  ? 'bg-indigo-500'
-                  : 'bg-slate-600 hover:bg-slate-500'
-              }`}
-              style={{
-                width:
-                  i === currentIdx
-                    ? 'clamp(20px, 5cqmin, 36px)'
-                    : 'clamp(8px, 2cqmin, 14px)',
-                height: 'clamp(8px, 2cqmin, 14px)',
-              }}
-              aria-label={`Go to step ${i + 1}`}
-            />
-          ))}
+          {mode === 'structured' ? (
+            <>
+              <button
+                onClick={goPrev}
+                disabled={currentIdx === 0}
+                aria-label="Previous step"
+                className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
+                }}
+              >
+                <ChevronLeft
+                  style={{
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
+                  }}
+                />
+              </button>
+              {steps.length > 20 ? (
+                <div
+                  role="progressbar"
+                  aria-label="Step progress"
+                  aria-valuemin={1}
+                  aria-valuemax={steps.length}
+                  aria-valuenow={currentIdx + 1}
+                  className="flex-1 rounded-full bg-white/10 overflow-hidden"
+                  style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
+                >
+                  <div
+                    className="h-full rounded-full bg-indigo-500 transition-all duration-200"
+                    style={{
+                      width: `${((currentIdx + 1) / steps.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              ) : steps.length === 1 ? (
+                <div className="flex-1" />
+              ) : (
+                <div
+                  className="flex-1 flex items-center justify-center flex-wrap"
+                  style={{ gap: 'min(4px, 1cqmin)' }}
+                >
+                  {steps.map((s, i) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setCurrentIdx(i);
+                        setActiveStepId(s.id);
+                      }}
+                      className={`rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+                        i === currentIdx
+                          ? 'bg-indigo-500'
+                          : 'bg-slate-600 hover:bg-slate-500'
+                      }`}
+                      style={{
+                        width:
+                          i === currentIdx
+                            ? 'clamp(20px, 5cqmin, 36px)'
+                            : 'clamp(8px, 2cqmin, 14px)',
+                        height: 'clamp(8px, 2cqmin, 14px)',
+                      }}
+                      aria-label={`Go to step ${i + 1}`}
+                      aria-current={i === currentIdx ? 'step' : undefined}
+                    />
+                  ))}
+                </div>
+              )}
+              <span
+                className="text-slate-300 font-bold tabular-nums"
+                style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+              >
+                {currentIdx + 1} / {steps.length}
+              </span>
+              <button
+                onClick={goNext}
+                disabled={currentIdx === steps.length - 1}
+                aria-label="Next step"
+                className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
+                }}
+              >
+                <ChevronRight
+                  style={{
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
+                  }}
+                />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={goPrev}
+                disabled={currentIdx === 0}
+                aria-label="Previous step"
+                className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
+                }}
+              >
+                <ChevronLeft
+                  style={{
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
+                  }}
+                />
+              </button>
+              <button
+                onClick={() => setPlaying((v) => !v)}
+                aria-label={playing ? 'Pause' : 'Play'}
+                className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
+                }}
+              >
+                {playing ? (
+                  <Pause
+                    style={{
+                      width: 'min(24px, 3.5cqmin)',
+                      height: 'min(24px, 3.5cqmin)',
+                    }}
+                  />
+                ) : (
+                  <Play
+                    style={{
+                      width: 'min(24px, 3.5cqmin)',
+                      height: 'min(24px, 3.5cqmin)',
+                    }}
+                  />
+                )}
+              </button>
+              <div
+                role="progressbar"
+                aria-label="Session progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(guidedProgress * 100)}
+                className="flex-1 rounded-full bg-white/10 overflow-hidden"
+                style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
+              >
+                <div
+                  className="h-full rounded-full bg-indigo-500 transition-all duration-100"
+                  style={{ width: `${guidedProgress * 100}%` }}
+                />
+              </div>
+              <span
+                className="text-slate-300 font-bold tabular-nums"
+                style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+              >
+                {currentIdx + 1} / {steps.length}
+              </span>
+              <button
+                onClick={goNext}
+                disabled={currentIdx === steps.length - 1}
+                aria-label="Next step"
+                className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'min(44px, 6cqmin)',
+                  height: 'min(44px, 6cqmin)',
+                }}
+              >
+                <ChevronRight
+                  style={{
+                    width: 'min(24px, 3.5cqmin)',
+                    height: 'min(24px, 3.5cqmin)',
+                  }}
+                />
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
