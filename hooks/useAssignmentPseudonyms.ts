@@ -38,6 +38,13 @@ export interface StudentName {
 export interface AssignmentPseudonymMaps {
   byStudentUid: Map<string, StudentName>;
   byAssignmentPseudonym: Map<string, StudentName>;
+  /**
+   * `studentUid` -> namespaced `StudentTargetRef` key (`classlink:{sourcedId}`
+   * / `test:{emailLower}`, see `utils/studentTargetRef.ts`). Lets grading
+   * viewers (C4) resolve a response's `overridesBySourcedId` entry on the
+   * teacher's assignment doc without ever seeing the raw sourcedId/email.
+   */
+  targetRefKeyByStudentUid: Map<string, string>;
 }
 
 interface CallableResponse {
@@ -48,6 +55,7 @@ interface CallableResponse {
       assignmentPseudonym?: string;
       givenName?: string;
       familyName?: string;
+      targetRefKey?: string;
     }
   >;
 }
@@ -55,6 +63,7 @@ interface CallableResponse {
 const EMPTY_MAPS: AssignmentPseudonymMaps = {
   byStudentUid: new Map(),
   byAssignmentPseudonym: new Map(),
+  targetRefKeyByStudentUid: new Map(),
 };
 
 let cacheOwnerUid: string | null = null;
@@ -97,6 +106,7 @@ function fetchPseudonymMaps(
     const entries = res.data?.pseudonyms ?? {};
     const byStudentUid = new Map<string, StudentName>();
     const byAssignmentPseudonym = new Map<string, StudentName>();
+    const targetRefKeyByStudentUid = new Map<string, string>();
     for (const v of Object.values(entries)) {
       const name: StudentName = {
         givenName: v.givenName ?? '',
@@ -105,8 +115,10 @@ function fetchPseudonymMaps(
       if (v.studentUid) byStudentUid.set(v.studentUid, name);
       if (v.assignmentPseudonym)
         byAssignmentPseudonym.set(v.assignmentPseudonym, name);
+      if (v.studentUid && v.targetRefKey)
+        targetRefKeyByStudentUid.set(v.studentUid, v.targetRefKey);
     }
-    return { byStudentUid, byAssignmentPseudonym };
+    return { byStudentUid, byAssignmentPseudonym, targetRefKeyByStudentUid };
   });
 
   cache.set(key, promise);
@@ -181,11 +193,14 @@ export function useAssignmentPseudonymsMulti(
         if (cancelled) return;
         const byStudentUid = new Map<string, StudentName>();
         const byAssignmentPseudonym = new Map<string, StudentName>();
+        const targetRefKeyByStudentUid = new Map<string, string>();
         results.forEach((res, i) => {
           if (res.status === 'fulfilled') {
             for (const [k, v] of res.value.byStudentUid) byStudentUid.set(k, v);
             for (const [k, v] of res.value.byAssignmentPseudonym)
               byAssignmentPseudonym.set(k, v);
+            for (const [k, v] of res.value.targetRefKeyByStudentUid)
+              targetRefKeyByStudentUid.set(k, v);
           } else {
             logError('useAssignmentPseudonymsMulti.fetchPerClass', res.reason, {
               assignmentId,
@@ -193,7 +208,14 @@ export function useAssignmentPseudonymsMulti(
             });
           }
         });
-        setResolved({ key, maps: { byStudentUid, byAssignmentPseudonym } });
+        setResolved({
+          key,
+          maps: {
+            byStudentUid,
+            byAssignmentPseudonym,
+            targetRefKeyByStudentUid,
+          },
+        });
       })
       .catch((err) => {
         // `allSettled` itself can't reject, but the `.then` handler body
