@@ -20,7 +20,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, doc } from 'firebase/firestore';
+import { setDoc, getDoc, getDocs, doc, collection } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-inactive-lockout';
 const ORG_ID = 'orono';
@@ -97,6 +97,28 @@ const videoActivityFields = () => ({
   createdAt: 1000,
 });
 
+const APP_ID = 'spart-board';
+
+const starterPackPath = (uid: string) =>
+  `artifacts/${APP_ID}/users/${uid}/starterPacks/sp-1`;
+
+// Mirrors hooks/useStarterPacks.ts's real onSnapshot(query(collection(...))) call — the
+// rule is evaluated as a list, not a get, and Firestore checks these separately.
+const starterPackCollection = (
+  fsCtx: ReturnType<typeof asActive>,
+  uid: string
+) => collection(fsCtx, 'artifacts', APP_ID, 'users', uid, 'starterPacks');
+
+const starterPackFields = () => ({
+  name: 'My Workspace',
+  description: 'Captured workspace',
+  icon: 'Wand2',
+  color: 'indigo',
+  gradeLevels: ['k-2'],
+  isLocked: false,
+  widgets: [],
+});
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -153,6 +175,9 @@ beforeEach(async () => {
       doc(db, videoActivityPath(INACTIVE_UID)),
       videoActivityFields()
     );
+    // Seed starter packs under each uid so reads have a doc to find.
+    await setDoc(doc(db, starterPackPath(ACTIVE_UID)), starterPackFields());
+    await setDoc(doc(db, starterPackPath(INACTIVE_UID)), starterPackFields());
   });
 });
 
@@ -246,6 +271,54 @@ describe('M1 full sign-in lockout — notDeactivated() gate', () => {
         ...videoActivityFields(),
         name: 'Smuggled',
       })
+    );
+  });
+
+  it('active member can read their own starter pack', async () => {
+    await assertSucceeds(getDoc(doc(asActive(), starterPackPath(ACTIVE_UID))));
+  });
+
+  it('active member can write their own starter pack', async () => {
+    await assertSucceeds(
+      setDoc(doc(asActive(), starterPackPath(ACTIVE_UID)), {
+        ...starterPackFields(),
+        name: 'Renamed',
+      })
+    );
+  });
+
+  it('inactive member is DENIED reading their own starter pack', async () => {
+    await assertFails(getDoc(doc(asInactive(), starterPackPath(INACTIVE_UID))));
+  });
+
+  it('inactive member is DENIED writing their own starter pack', async () => {
+    await assertFails(
+      setDoc(doc(asInactive(), starterPackPath(INACTIVE_UID)), {
+        ...starterPackFields(),
+        name: 'Smuggled',
+      })
+    );
+  });
+
+  it('active member can LIST their own starter packs (matches the real onSnapshot(query(collection(...))) client call)', async () => {
+    await assertSucceeds(
+      getDocs(starterPackCollection(asActive(), ACTIVE_UID))
+    );
+  });
+
+  it('inactive member is DENIED LISTing their own starter packs', async () => {
+    await assertFails(
+      getDocs(starterPackCollection(asInactive(), INACTIVE_UID))
+    );
+  });
+
+  it('inactive member can still read their own /users/{userId} doc (documented bootstrap-path exemption)', async () => {
+    await assertSucceeds(getDoc(doc(asInactive(), 'users', INACTIVE_UID)));
+  });
+
+  it('inactive member can still read their own userProfile doc (documented bootstrap-path exemption)', async () => {
+    await assertSucceeds(
+      getDoc(doc(asInactive(), 'users', INACTIVE_UID, 'userProfile', 'profile'))
     );
   });
 

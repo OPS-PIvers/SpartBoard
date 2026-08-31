@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/require-await -- act() is typed to
    accept an async callback; passing synchronous bodies is idiomatic for
    dispatching events that trigger React state updates. */
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   render,
@@ -208,5 +210,29 @@ describe('GuidedLearningAIGenerator — clamp banner', () => {
       expect(onGenerated).toHaveBeenCalledTimes(1);
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('GuidedLearningAIGenerator — cqmin scaling', () => {
+  it('sizes text and icons with cqmin source, never cqh/cqw', () => {
+    // Same jsdom limitation as GuidedLearningResults.test.tsx: the CSS
+    // parser doesn't recognize `min()`/`clamp()`, so React never writes
+    // those inline-style values to the DOM here — assert on the source
+    // instead of the rendered output.
+    const source = readFileSync(
+      resolve(
+        __dirname,
+        '../../../components/widgets/GuidedLearning/components/GuidedLearningAIGenerator.tsx'
+      ),
+      'utf8'
+    );
+    const cqminMatches = source.match(/cqmin/g) ?? [];
+    expect(cqminMatches.length).toBeGreaterThan(20);
+    expect(source).not.toMatch(/\bcqh\b/);
+    expect(source).not.toMatch(/\bcqw\b/);
+    // The per-image caption textarea is text a teacher types into, not
+    // display text — it should floor at a readable size rather than
+    // shrinking unbounded with `min()` on a narrowed widget.
+    expect(source).toMatch(/clamp\(10px, 4cqmin, 11px\)/);
   });
 });
