@@ -114,6 +114,14 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 
 ## Completed
 
+### MEDIUM `activity_wall_sessions/{sessionId}/submissions` create/update had no key whitelist
+
+- **Detected:** 2026-08-31 (nightly debugger routine, Build & Tooling fresh `firestore.rules` pass).
+- **Resolved:** 2026-08-31 — same run, via `nightly/build-tooling-2026-08-31`.
+- **File:** `firestore.rules` — `activity_wall_sessions/{sessionId}/submissions/{submissionId}` create (~:4036) and update (~:4060).
+- **Detail:** Both rules validated each known field individually (`content` size-capped, `status` pinned to the moderation-implied value, a few optional fields type-checked) but never called `hasOnly()` on `request.resource.data.keys()`. Any authenticated caller (including anonymous students) could smuggle arbitrary extra keys onto a submission doc — e.g. a large junk string field toward the 1MB doc cap — past every per-field check, since an unlisted key was simply never inspected. Same bug class as the already-fixed `nextup_sessions` entries (#2580) and quiz `stimulusPlays`/`stimulusErrors` (landed 2026-08-26/27): the parent widget's gallery view (`ActivityWallGalleryView.tsx`) runs an `onSnapshot` on the *entire* submissions collection when the session is `publiclyShared`, so an inflated doc is downloaded by every gallery viewer on every emission — a real bandwidth/cost amplification vector, not just a shape nit.
+- **Resolution:** Added `hasOnly([...])` to both rules — the create-time key set for `create`, and the full create+server-written superset (incl. the Admin-SDK-only `driveFileId`/`archiveError`/`archivedAt`/`archiveStartedAt` fields written by `archiveActivityWallPhoto`) for `update`, since `request.resource.data` on an update is the doc *after* merge. `activityId` (present on every real client write but previously wholly unvalidated) is now type-checked as an optional string rather than required, since it isn't proven required by any single write path and over-constraining it broke unrelated pre-existing update-path test fixtures. Verified against the real client write paths (`ActivityWallStudentApp.tsx`'s `setDoc`, `Widget.tsx`'s two `updateDoc` archive-failure fallbacks, `driveArchive.ts`'s Admin-SDK `.set(..., {merge:true})`). 4 new cases added to `tests/rules/studentRoleClassGate.test.ts` (create/update × extra-field-rejected/whitelisted-fields-accepted) against the real Firestore emulator; confirmed fail-before (both `assertFails` cases actually succeeded against the pre-fix rules) / pass-after. Full `pnpm run test:rules`: 53 files / 1280 tests, all passing.
+
 ### LOW `notDeactivated()` omitted from three owner-scoped rules
 
 - **Detected:** 2026-08-24

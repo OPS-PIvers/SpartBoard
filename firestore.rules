@@ -4130,21 +4130,29 @@ service cloud.firestore {
         // Any authed user (incl. anon) can create a submission (photo subs may
         // carry storage metadata for Drive archiving). studentRole users must be
         // enrolled; uses the Phase-5A compat gate (classIds ?? legacy classId).
+        // hasOnly() closes an unbounded-field-injection gap (same bug class as
+        // the nextup_sessions/quiz stimulusPlays fixes): without it, a caller
+        // could smuggle arbitrary extra keys — incl. a large junk string field
+        // toward the 1MB doc cap — past every per-field check below, and every
+        // gallery viewer's onSnapshot on the whole submissions collection
+        // (publiclyShared) would pay to download it on every emission.
         allow create: if request.auth != null &&
           exists(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)) &&
           passesStudentClassGateCompat(awSessionClassIds(), awSessionClassId()) &&
+          request.resource.data.keys().hasOnly([
+            'id', 'activityId', 'content', 'submittedAt', 'status',
+            'participantLabel', 'storagePath', 'archiveStatus'
+          ]) &&
           request.resource.data.id is string &&
           request.resource.data.content is string &&
           request.resource.data.content.size() > 0 &&
           request.resource.data.content.size() <= 5000 &&
           request.resource.data.submittedAt is int &&
           request.resource.data.status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
+          (!('activityId' in request.resource.data) || request.resource.data.activityId is string) &&
           (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
           (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
-          (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase') &&
-          !('driveFileId' in request.resource.data) &&
-          !('archiveError' in request.resource.data) &&
-          !('archivedAt' in request.resource.data);
+          (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase');
         // Teacher/admins read+delete submissions, EXCEPT a published view-only
         // gallery (publiclyShared == true) is readable by any authed caller (incl.
         // anon gallery viewers). Delete stays teacher/admin-only.
@@ -4154,20 +4162,33 @@ service cloud.firestore {
                              get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('publiclyShared', false) == true);
         allow delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+        // hasOnly() lists every field this doc can ever carry (create-time
+        // fields + the Admin-SDK-written archive fields) since request.resource
+        // .data on an update is the doc AFTER merge — untouched existing fields
+        // (e.g. driveFileId set server-side by archiveActivityWallPhoto) stay
+        // present and must pass the whitelist too. See create's comment above
+        // for why an unbounded extra field matters here.
         allow update: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*')) &&
+                            request.resource.data.keys().hasOnly([
+                              'id', 'activityId', 'content', 'submittedAt', 'status',
+                              'participantLabel', 'storagePath', 'archiveStatus',
+                              'driveFileId', 'archiveError', 'archivedAt', 'archiveStartedAt'
+                            ]) &&
                             request.resource.data.id is string &&
                             request.resource.data.content is string &&
                             request.resource.data.content.size() > 0 &&
                             request.resource.data.content.size() <= 5000 &&
                             request.resource.data.submittedAt is int &&
                             request.resource.data.status in ['approved', 'pending'] &&
+                            (!('activityId' in request.resource.data) || request.resource.data.activityId is string) &&
                             (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
                             (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
                             (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed']) &&
                             (!('driveFileId' in request.resource.data) || request.resource.data.driveFileId is string) &&
                             (!('archiveError' in request.resource.data) || request.resource.data.archiveError is string) &&
-                            (!('archivedAt' in request.resource.data) || request.resource.data.archivedAt is int);
+                            (!('archivedAt' in request.resource.data) || request.resource.data.archivedAt is int) &&
+                            (!('archiveStartedAt' in request.resource.data) || request.resource.data.archiveStartedAt is int);
       }
     }
 
