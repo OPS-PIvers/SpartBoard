@@ -256,6 +256,7 @@ vi.mock('firebase-admin', () => {
 import {
   studentLoginV1,
   getAssignmentPseudonymV1,
+  getPseudonymsForAssignmentV1,
   getStudentClassDirectoryV1,
   commitRosterPinIndexV1,
   pinLoginV1,
@@ -270,6 +271,23 @@ const callGetPseudonym = getAssignmentPseudonymV1 as unknown as (req: {
   auth?: unknown;
   data: unknown;
 }) => { pseudonym: string };
+const callPseudonymsForAssignment =
+  getPseudonymsForAssignmentV1 as unknown as (req: {
+    auth?: unknown;
+    data: unknown;
+  }) => Promise<{
+    pseudonyms: Record<
+      string,
+      {
+        studentUid: string;
+        assignmentPseudonym: string;
+        givenName: string;
+        familyName: string;
+        targetRefKey: string;
+      }
+    >;
+    skipped?: { ref: unknown; reason: string }[];
+  }>;
 const callDirectory = getStudentClassDirectoryV1 as unknown as (req: {
   auth?: unknown;
   data?: unknown;
@@ -920,5 +938,192 @@ describe('pinLoginV1', () => {
       }),
       'internal'
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('getPseudonymsForAssignmentV1', () => {
+  const TEACHER = {
+    uid: 'teacher1',
+    token: { email: 'teacher@orono.k12.mn.us' },
+  };
+  const ASSIGNMENT = 'asn-1';
+
+  // OneRoster stub: the teacher teaches CL1 only (SID-A, SID-B); CL9 is a class
+  // they do NOT teach and enrolls SID-FOREIGN.
+  function seedOneRoster() {
+    h.axiosGet = async (url: string) => {
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'T-1', role: 'teacher' }] } };
+      if (url.endsWith('/users/T-1/classes'))
+        return { data: { classes: [{ sourcedId: 'CL1' }] } };
+      if (url.endsWith('/classes/CL1/students'))
+        return {
+          data: {
+            users: [
+              { sourcedId: 'SID-A', givenName: 'Alex', familyName: 'Lee' },
+              { sourcedId: 'SID-B', givenName: 'Pat', familyName: 'Smith' },
+            ],
+          },
+        };
+      if (url.endsWith('/classes/CL9/students'))
+        return {
+          data: {
+            users: [
+              { sourcedId: 'SID-FOREIGN', givenName: 'Nope', familyName: 'X' },
+            ],
+          },
+        };
+      throw new Error('unexpected url: ' + url);
+    };
+  }
+
+  it('rejects a caller with no assignmentId and no refs', async () => {
+    await expectCode(
+      callPseudonymsForAssignment({ auth: TEACHER, data: {} }),
+      'invalid-argument'
+    );
+  });
+
+  it('rejects a student-role caller', async () => {
+    await expectCode(
+      callPseudonymsForAssignment({
+        auth: { uid: 's', token: { studentRole: true } },
+        data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
+      }),
+      'permission-denied'
+    );
+  });
+
+  it('legacy classId path resolves the whole class and is unchanged by D2', async () => {
+    seedOneRoster();
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
+    });
+    expect(Object.keys(res.pseudonyms).sort()).toEqual(['SID-A', 'SID-B']);
+    expect(res.pseudonyms['SID-A'].studentUid).toBe(
+      computeStudentUid('SID-A', HMAC)
+    );
+    expect(res.pseudonyms['SID-A'].assignmentPseudonym).toBe(
+      assignmentPseudonym(computeStudentUid('SID-A', HMAC), ASSIGNMENT)
+    );
+    expect(res.pseudonyms['SID-A'].targetRefKey).toBe('classlink:SID-A');
+    expect(res.skipped).toBeUndefined();
+  });
+
+  it('refs path resolves only the targeted subset of a class', async () => {
+    seedOneRoster();
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: {
+        assignmentId: ASSIGNMENT,
+        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-B' }],
+      },
+    });
+
+    expect(Object.keys(res.pseudonyms)).toEqual(['SID-B']);
+    expect(res.pseudonyms['SID-B'].givenName).toBe('Pat');
+    expect(res.pseudonyms['SID-B'].studentUid).toBe(
+      computeStudentUid('SID-B', HMAC)
+    );
+    expect(res.pseudonyms['SID-B'].assignmentPseudonym).toBe(
+      assignmentPseudonym(computeStudentUid('SID-B', HMAC), ASSIGNMENT)
+    );
+    expect(res.skipped).toEqual([]);
+  });
+
+  it('never resolves a ref outside the classes the caller teaches', async () => {
+    seedOneRoster();
+    // CL9 forged onto the teacher's own (client-writable) roster doc;
+    // ClassLink re-verification still refuses it.
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    h.docStore.set('users/teacher1/rosters/r2', { classlinkClassId: 'CL9' });
+
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: {
+        assignmentId: ASSIGNMENT,
+        targetStudents: [
+          { kind: 'classlink', sourcedId: 'SID-A' },
+          { kind: 'classlink', sourcedId: 'SID-FOREIGN' },
+        ],
+      },
+    });
+
+    expect(Object.keys(res.pseudonyms)).toEqual(['SID-A']);
+    expect(res.skipped).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: 'SID-FOREIGN' },
+        reason: 'not-in-teacher-classes',
+      },
+    ]);
+  });
+
+  it('skips test refs when the caller is not a test-class authority', async () => {
+    seedOneRoster();
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    h.docStore.set('users/teacher1/rosters/r1', { testClassId: 'tc1' });
+    h.docStore.set('organizations/org-orono/testClasses/tc1', {
+      memberEmails: ['kid@orono.k12.mn.us'],
+    });
+
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: {
+        assignmentId: ASSIGNMENT,
+        targetStudents: [{ kind: 'test', email: 'Kid@orono.k12.mn.us' }],
+      },
+    });
+
+    expect(res.pseudonyms).toEqual({});
+    expect(res.skipped).toEqual([
+      {
+        ref: { kind: 'test', email: 'kid@orono.k12.mn.us' },
+        reason: 'test-class-not-authorized',
+      },
+    ]);
+  });
+
+  it('resolves a test ref for a super admin, keyed by lowercased email', async () => {
+    seedOneRoster();
+    seedDomain('org-orono', '@orono.k12.mn.us');
+    h.docStore.set('admin_settings/user_roles', {
+      superAdmins: ['teacher@orono.k12.mn.us'],
+    });
+    h.docStore.set('users/teacher1/rosters/r1', { testClassId: 'tc1' });
+    h.docStore.set('organizations/org-orono/testClasses/tc1', {
+      memberEmails: ['Kid@orono.k12.mn.us'],
+    });
+
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: {
+        assignmentId: ASSIGNMENT,
+        targetStudents: [{ kind: 'test', email: 'kid@orono.k12.mn.us' }],
+      },
+    });
+
+    const uid = computeStudentUid('test:kid@orono.k12.mn.us', HMAC);
+    expect(res.pseudonyms['kid@orono.k12.mn.us'].studentUid).toBe(uid);
+    expect(res.pseudonyms['kid@orono.k12.mn.us'].givenName).toBe('kid');
+    expect(res.pseudonyms['kid@orono.k12.mn.us'].targetRefKey).toBe(
+      'test:kid@orono.k12.mn.us'
+    );
+  });
+
+  it('ignores malformed refs and falls back to the classId path', async () => {
+    seedOneRoster();
+    const res = await callPseudonymsForAssignment({
+      auth: TEACHER,
+      data: {
+        assignmentId: ASSIGNMENT,
+        classId: 'CL1',
+        targetStudents: [{ kind: 'bogus' }, 'nope'],
+      },
+    });
+    expect(Object.keys(res.pseudonyms).sort()).toEqual(['SID-A', 'SID-B']);
   });
 });

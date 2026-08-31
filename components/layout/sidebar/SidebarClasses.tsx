@@ -19,7 +19,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
-import { ClassRoster, Student } from '@/types';
+import { ClassRoster, RosterGroup, Student } from '@/types';
 import { auth, functions } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
 import { Modal } from '@/components/common/Modal';
@@ -388,11 +388,19 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       ? (rosters.find((r) => r.id === editingRosterId) ?? null)
       : null;
 
-  const handleSaveRoster = async (name: string, students: Student[]) => {
+  const handleSaveRoster = async (
+    name: string,
+    students: Student[],
+    groups?: RosterGroup[]
+  ) => {
     if (editingRosterId === 'new') {
       await addRoster(name, students);
     } else if (editingRosterId) {
-      await updateRoster(editingRosterId, { name, students });
+      await updateRoster(editingRosterId, {
+        name,
+        students,
+        ...(groups !== undefined ? { groups } : {}),
+      });
     }
   };
 

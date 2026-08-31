@@ -5,6 +5,7 @@ import {
   computeCursorAnchoredPan,
   getPanRange,
   getWorldBounds,
+  viewportToWrapper,
 } from '@/utils/zoomPanMath';
 import { ZOOM_MIN } from '@/utils/zoomMapping';
 
@@ -153,6 +154,49 @@ describe('zoomPanMath', () => {
         x: -500,
         y: 0,
       });
+    });
+  });
+
+  describe('viewportToWrapper', () => {
+    it('is the identity at zoom = 1, pan = {0, 0} (screen coords == wrapper coords)', () => {
+      expect(
+        viewportToWrapper({ x: 500, y: 500 }, 1, { x: 0, y: 0 }, 1000, 600)
+      ).toEqual({ x: 500, y: 500 });
+    });
+
+    it('scales a point toward viewport-center as zoom increases (matches the forward transform inverse)', () => {
+      // Forward: viewport_x = vw/2 + (wx − vw/2) × zoom + panX.
+      // A dropped point should map back through the SAME camera the widget
+      // surface is rendered with, so re-projecting the result must return
+      // the original viewport point exactly.
+      const viewportPoint = { x: 900, y: 200 };
+      const zoom = 2;
+      const pan = { x: 30, y: -10 };
+      const vw = 1000;
+      const vh = 600;
+
+      const wrapperPoint = viewportToWrapper(viewportPoint, zoom, pan, vw, vh);
+
+      const reprojected = projectToViewport(
+        wrapperPoint.x,
+        wrapperPoint.y,
+        zoom,
+        pan,
+        vw,
+        vh
+      );
+      expect(reprojected.x).toBeCloseTo(viewportPoint.x, 10);
+      expect(reprojected.y).toBeCloseTo(viewportPoint.y, 10);
+    });
+
+    it('is exactly the inverse formula documented at the top of this module', () => {
+      // wx = vw/2 + (viewport_x − vw/2 − panX) / zoom
+      // vw=1000 vh=600 zoom=2 pan={x:100,y:-50} point={x:900,y:200}
+      // wx = 500 + (900 − 500 − 100) / 2 = 500 + 150 = 650
+      // wy = 300 + (200 − 300 − (-50)) / 2 = 300 + (-25) = 275
+      expect(
+        viewportToWrapper({ x: 900, y: 200 }, 2, { x: 100, y: -50 }, 1000, 600)
+      ).toEqual({ x: 650, y: 275 });
     });
   });
 

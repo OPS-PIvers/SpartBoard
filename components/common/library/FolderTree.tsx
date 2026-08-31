@@ -504,7 +504,11 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
         const count = itemCounts?.[folder.id] ?? 0;
 
         return (
-          <li key={folder.id} role="treeitem" aria-expanded={isExpanded}>
+          <li
+            key={folder.id}
+            role="treeitem"
+            aria-expanded={hasChildren ? isExpanded : undefined}
+          >
             <FolderRow
               folder={folder}
               depth={depth}

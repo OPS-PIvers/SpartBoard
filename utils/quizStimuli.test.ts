@@ -87,6 +87,18 @@ describe('projectSessionStimuli', () => {
       projectSessionStimuli({ questions: [q('a')], stimuli: undefined })
     ).toEqual([]);
   });
+
+  it('dedupes a referenced stimulus id that appears twice in stimuli (Drive-sync race), keeping the first', () => {
+    const projected = projectSessionStimuli({
+      questions: [q('a', ['s1'])],
+      stimuli: [
+        stim('s1', { url: 'https://example.com/first.png' }),
+        stim('s1', { url: 'https://example.com/second.png' }),
+      ],
+    });
+    expect(projected).toHaveLength(1);
+    expect(projected[0].url).toBe('https://example.com/first.png');
+  });
 });
 
 describe('resolveStimuli', () => {
