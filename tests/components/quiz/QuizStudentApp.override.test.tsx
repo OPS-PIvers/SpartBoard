@@ -20,33 +20,38 @@ import type {
 } from '@/types';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 
-const { mockAuth, mockJoinQuizSession, hookState, pointerState } = vi.hoisted(
-  () => {
-    type MockUser = {
-      uid: string;
-      isAnonymous: boolean;
-      getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>;
-    };
-    const state: {
-      session: import('@/types').QuizSession | null;
-      myResponse: import('@/types').QuizResponse | null;
-    } = { session: null, myResponse: null };
-    return {
-      mockAuth: {
-        onAuthStateChanged: vi.fn(),
-        signInWithPopup: vi.fn(),
-        signOut: vi.fn(),
-        authStateReady: vi.fn().mockResolvedValue(undefined),
-        currentUser: null as MockUser | null,
-      },
-      mockJoinQuizSession: vi.fn(),
-      hookState: state,
-      pointerState: {
-        current: null as StudentAssignmentPointer | null,
-      },
-    };
-  }
-);
+const {
+  mockAuth,
+  mockJoinQuizSession,
+  hookState,
+  pointerState,
+  mockSetServedQuestionIds,
+} = vi.hoisted(() => {
+  type MockUser = {
+    uid: string;
+    isAnonymous: boolean;
+    getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>;
+  };
+  const state: {
+    session: import('@/types').QuizSession | null;
+    myResponse: import('@/types').QuizResponse | null;
+  } = { session: null, myResponse: null };
+  return {
+    mockAuth: {
+      onAuthStateChanged: vi.fn(),
+      signInWithPopup: vi.fn(),
+      signOut: vi.fn(),
+      authStateReady: vi.fn().mockResolvedValue(undefined),
+      currentUser: null as MockUser | null,
+    },
+    mockJoinQuizSession: vi.fn(),
+    hookState: state,
+    pointerState: {
+      current: null as StudentAssignmentPointer | null | undefined,
+    },
+    mockSetServedQuestionIds: vi.fn(),
+  };
+});
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: () => pointerState.current,
@@ -81,6 +86,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
     submitAnswer: vi.fn(),
     completeQuiz: vi.fn(),
     reportTabSwitch: vi.fn(),
+    setServedQuestionIds: mockSetServedQuestionIds,
     warningCount: 0,
   }),
   normalizeAnswer: (s: string) => s,
@@ -320,5 +326,24 @@ describe('QuizStudentApp — M17 C3 override materialization', () => {
     render(<QuizStudentApp />);
 
     await waitFor(() => expect(screen.getByText('1 / 3')).toBeInTheDocument());
+  });
+
+  it('does not push a served subset while the pointer is still loading', async () => {
+    pointerState.current = undefined;
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() => expect(screen.getByText('1 / 3')).toBeInTheDocument());
+    expect(mockSetServedQuestionIds).not.toHaveBeenCalled();
+  });
+
+  it('pushes null once the pointer resolves with no override', async () => {
+    pointerState.current = null;
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() =>
+      expect(mockSetServedQuestionIds).toHaveBeenCalledWith(null)
+    );
   });
 });

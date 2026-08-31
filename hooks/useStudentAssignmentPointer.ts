@@ -24,17 +24,21 @@ export function useStudentAssignmentPointer(
   assignmentId: string | null | undefined,
   /** Gate the subscription without changing identity (defaults to on). */
   enabled = true
-): StudentAssignmentPointer | null {
-  const [pointer, setPointer] = useState<StudentAssignmentPointer | null>(null);
+): StudentAssignmentPointer | null | undefined {
+  // Tri-state: `undefined` = subscription active but first snapshot not yet
+  // delivered; `null` = resolved with no pointer doc; object = pointer doc.
+  const [pointer, setPointer] = useState<
+    StudentAssignmentPointer | null | undefined
+  >(undefined);
   const active = enabled && !!studentUid && !!assignmentId;
-  // Adjusting state while rendering (no setState-in-effect): reset to null
-  // the moment the identity/enabled-ness changes, in the same render that
+  // Adjusting state while rendering (no setState-in-effect): reset the
+  // moment the identity/enabled-ness changes, in the same render that
   // observes the change, rather than in a subsequent effect pass.
   const identity = `${active}#${studentUid ?? ''}#${assignmentId ?? ''}`;
   const [seenIdentity, setSeenIdentity] = useState(identity);
   if (seenIdentity !== identity) {
     setSeenIdentity(identity);
-    setPointer(null);
+    setPointer(undefined);
   }
 
   useEffect(() => {
@@ -61,5 +65,6 @@ export function useStudentAssignmentPointer(
     return unsubscribe;
   }, [enabled, studentUid, assignmentId]);
 
-  return pointer;
+  // Inactive gate = confirmed-no-pointer, never "loading".
+  return active ? pointer : null;
 }

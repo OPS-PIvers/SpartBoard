@@ -10,6 +10,7 @@ import {
   isUnsafeBlankDraft,
   isUnsafeStatusDowngrade,
   shouldSnapshotHistory,
+  servedSnapshotPatch,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
 import type {
@@ -38,6 +39,40 @@ describe('normalizeAnswer', () => {
 
   it('returns empty string for all-whitespace input', () => {
     expect(normalizeAnswer('   \t\n ')).toBe('');
+  });
+});
+
+describe('servedSnapshotPatch', () => {
+  it('writes the served ids when the doc has none', () => {
+    expect(servedSnapshotPatch(['q0', 'q1'], undefined)).toEqual({
+      servedQuestionIds: ['q0', 'q1'],
+    });
+  });
+
+  it('rewrites when the doc value differs (override edited mid-attempt)', () => {
+    expect(servedSnapshotPatch(['q0', 'q2'], ['q0', 'q1'])).toEqual({
+      servedQuestionIds: ['q0', 'q2'],
+    });
+  });
+
+  it('is a no-op when the doc already matches', () => {
+    expect(servedSnapshotPatch(['q0', 'q1'], ['q0', 'q1'])).toEqual({});
+  });
+
+  it('clears a stale snapshot when the override is removed mid-attempt', () => {
+    const patch = servedSnapshotPatch(null, ['q0', 'q1']);
+    expect('servedQuestionIds' in patch).toBe(true);
+    expect(firestore.deleteField).toHaveBeenCalled();
+  });
+
+  it('is a no-op when neither side has a subset', () => {
+    expect(servedSnapshotPatch(null, undefined)).toEqual({});
+    expect(servedSnapshotPatch([], undefined)).toEqual({});
+  });
+
+  it('leaves the doc untouched while the pointer is still loading', () => {
+    expect(servedSnapshotPatch(undefined, ['q0', 'q1'])).toEqual({});
+    expect(servedSnapshotPatch(undefined, undefined)).toEqual({});
   });
 });
 

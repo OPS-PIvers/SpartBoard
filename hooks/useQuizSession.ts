@@ -121,6 +121,31 @@ export function quizLedgerKey(
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
+ * Build the `servedQuestionIds` portion of an answer-write patch (M17).
+ * Returns {} when the doc already matches the live served subset, the ids
+ * when it needs (re)writing, or a deleteField() when a mid-attempt override
+ * removal must clear a stale snapshot. `served === undefined` means the
+ * pointer subscription hasn't resolved yet — leave the doc untouched rather
+ * than clearing a valid snapshot mid-load. Exported for unit tests.
+ */
+export function servedSnapshotPatch(
+  served: string[] | null | undefined,
+  onDoc: string[] | undefined
+): { servedQuestionIds?: string[] | ReturnType<typeof deleteField> } {
+  if (served === undefined) return {};
+  if (served && served.length > 0) {
+    const same =
+      Array.isArray(onDoc) &&
+      onDoc.length === served.length &&
+      served.every((id, i) => onDoc[i] === id);
+    return same ? {} : { servedQuestionIds: served };
+  }
+  return Array.isArray(onDoc) && onDoc.length > 0
+    ? { servedQuestionIds: deleteField() }
+    : {};
+}
+
+/**
  * Defensive predicate: refuse a draft autosave that would overwrite a
  * non-empty saved answer with the empty string. Almost always indicates
  * a race (editor briefly emitted '' after a remount or a hydration miss)
@@ -1555,6 +1580,13 @@ export interface UseQuizSessionStudentResult {
   recordStimulusPlay: (playKey: string) => Promise<void>;
   /** Log a stimulus load failure so the monitor roster can flag the student. */
   reportStimulusError: (stimulusId: string) => Promise<void>;
+  /**
+   * Register the question-id subset currently served to this student (M17
+   * pointer override), or null when the full quiz is served. `submitAnswer`
+   * snapshots it onto the response doc so publish-time scoring survives a
+   * later override removal. Safe to call every render — it's a ref write.
+   */
+  setServedQuestionIds: (ids: string[] | null) => void;
   warningCount: number;
 }
 
@@ -1591,6 +1623,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
   const lastHistorySnapshotAtRef = useRef<Map<string, number>>(new Map());
+
+  // Served-subset snapshot source (M17): the student app pushes its live
+  // pointer override's questionIds here; submitAnswer persists it. Ref, not
+  // state — it must be readable inside the stable submitAnswer callback.
+  // Starts `undefined` (pointer not yet resolved) so a submit racing the
+  // pointer load leaves any existing snapshot untouched.
+  const servedQuestionIdsRef = useRef<string[] | null | undefined>(undefined);
+  const setServedQuestionIds = useCallback((ids: string[] | null) => {
+    servedQuestionIdsRef.current = ids && ids.length > 0 ? ids : null;
+  }, []);
 
   // Optimistic local counter state to ensure UI updates immediately.
   // warningCountRef mirrors the state so reportTabSwitch can return the
@@ -2517,6 +2559,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           status: nextStatus,
           answers: updated,
           lastWriteAt: serverTimestamp(),
+          // Snapshot the served subset (M17) only when it differs from what
+          // the doc already carries — rules validate the field against the
+          // student's pointer doc, so an unchanged value skips that get().
+          ...servedSnapshotPatch(
+            servedQuestionIdsRef.current,
+            myResponseRef.current?.servedQuestionIds
+          ),
         }
       );
     },
@@ -2876,6 +2925,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     setHandRaised,
     recordStimulusPlay,
     reportStimulusError,
+    setServedQuestionIds,
     warningCount,
   };
 };

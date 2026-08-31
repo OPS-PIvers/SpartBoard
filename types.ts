@@ -3776,6 +3776,16 @@ export interface QuizResponse {
   status: QuizResponseStatus;
   answers: QuizResponseAnswer[];
   /**
+   * Snapshot of the question-id subset actually served to this student
+   * (M17 individual overrides), written by the student app alongside each
+   * answer write and validated by rules against the student's own pointer
+   * doc. `publishAssignmentScores` prefers this over the assignment's live
+   * `overridesByStudentUid` map so removing an override AFTER a student
+   * submits can't re-score their historical answers against the full set.
+   * Absent = the full question set was served.
+   */
+  servedQuestionIds?: string[];
+  /**
    * Percentage score 0–100 if computed and persisted, or null if not yet graded.
    * Not currently written by either the student or the teacher app — scoring is
    * computed on the fly in the results view using gradeAnswer() against the
