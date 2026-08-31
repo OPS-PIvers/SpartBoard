@@ -364,22 +364,16 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
           }
-          // Wire per-student targeting into the fan-out collection (spec §5
-          // B3). `previous` is always `undefined` here — this is a brand-new
-          // assignment, so every current student/override/window field is
-          // emitted as a diff against nothing. Skipped only when there is
-          // genuinely nothing to sync, to keep the vanilla class-wide path
-          // free of an extra round trip.
-          const payload = buildSetAssignmentTargetsPayload(
-            undefined,
-            targeting
-          );
-          const hasTargetingWork =
-            payload.add.length > 0 ||
-            payload.remove.length > 0 ||
-            Object.keys(payload.overridesBySourcedId).length > 0 ||
-            Object.keys(payload.window).length > 0;
-          if (hasTargetingWork) {
+          // Call the CF strictly when the teacher chose per-student targeting
+          // — a class-wide assignment, even with a Schedule window, never
+          // depends on this callable (window fields already landed on the
+          // session/assignment docs above via createSession/createAssignment),
+          // so a Cloud Functions hiccup can't regress today's plain assign.
+          if (targeting.targetMode === 'students') {
+            const payload = buildSetAssignmentTargetsPayload(
+              undefined,
+              targeting
+            );
             try {
               const callable = httpsCallable<
                 SetAssignmentTargetsCallableInput,
