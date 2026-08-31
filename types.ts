@@ -4418,6 +4418,10 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
@@ -7624,6 +7628,10 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
   /** Plain, PII-free count of refs `setAssignmentTargetsV1` could not target
    *  (M17 §5 B3 canonical rules) — durable "N skipped" marker for list rows,
    *  distinct from the ephemeral toast shown at assign time. */
@@ -7686,6 +7694,10 @@ export interface MiniAppAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
@@ -7754,6 +7766,10 @@ export interface GuidedLearningAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
+   *  so teacher-side scoring can match response docs. Owner-read-only doc only —
+   *  never mirrored onto a session or any shared surface (spec §2a). */
+  overridesByStudentUid?: Record<string, StudentOverride>;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */

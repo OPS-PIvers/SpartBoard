@@ -78,12 +78,28 @@ function applyMerge(
   path: string,
   data: Record<string, unknown>
 ) {
-  const next = { ...(state.docs.get(path) ?? {}) };
+  state.docs.set(path, mergeInto(state.docs.get(path) ?? {}, data));
+}
+
+/** Firestore `{merge: true}` merges nested maps key-by-key, not wholesale. */
+function mergeInto(
+  base: Record<string, unknown>,
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...base };
   for (const [key, value] of Object.entries(data)) {
     if ((value as { __delete?: boolean })?.__delete === true) delete next[key];
+    else if (isPlainObject(value))
+      next[key] = mergeInto(isPlainObject(next[key]) ? next[key] : {}, value);
     else next[key] = value;
   }
-  state.docs.set(path, next);
+  return next;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === 'object' && value !== null && value.constructor === Object
+  );
 }
 
 function makeDb(state: StubState) {
@@ -632,6 +648,97 @@ describe('handleSetAssignmentTargets', () => {
       })
     );
     expect(pointerFor()).toMatchObject({ override: { timeMultiplier: 1.5 } });
+  });
+
+  // C3/C4: the teacher client can't derive pseudonym uids, so scoring reads
+  // this uid-keyed mirror on the teacher's own assignment doc.
+  it('mirrors the override onto the assignment doc keyed by pseudonym uid', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { questionIds: ['q1', 'q2'] },
+        },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    expect(state.docs.get(assignmentPath())).toMatchObject({
+      overridesByStudentUid: { [uid]: { questionIds: ['q1', 'q2'] } },
+    });
+  });
+
+  it('keeps the mirror out of the session doc and off the pointer docs', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    for (const write of state.writes) {
+      if (write.path === assignmentPath()) continue;
+      expect(write.data ?? {}).not.toHaveProperty('overridesByStudentUid');
+    }
+  });
+
+  it('preserves a mirrored override when the payload omits that key', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    await run(baseInput({ overridesBySourcedId: {} }));
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    expect(state.docs.get(assignmentPath())).toMatchObject({
+      overridesByStudentUid: { [uid]: { timeMultiplier: 2 } },
+    });
+  });
+
+  it('clears the mirrored entry on an explicit null for that key', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    await run(
+      baseInput({ overridesBySourcedId: { [`classlink:${SOURCED_A}`]: null } })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const stored = state.docs.get(assignmentPath()) as Record<string, unknown>;
+    expect(
+      uid in ((stored.overridesByStudentUid ?? {}) as Record<string, unknown>)
+    ).toBe(false);
+  });
+
+  it('drops the mirrored entry when the student is untargeted', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const stored = state.docs.get(assignmentPath()) as Record<string, unknown>;
+    expect(
+      uid in ((stored.overridesByStudentUid ?? {}) as Record<string, unknown>)
+    ).toBe(false);
+  });
+
+  it('leaves the mirror absent when no override key is supplied', async () => {
+    await run(baseInput());
+    expect(state.docs.get(assignmentPath())).not.toHaveProperty(
+      'overridesByStudentUid'
+    );
   });
 
   it('preserves stored window fields whose keys the payload omits', async () => {
