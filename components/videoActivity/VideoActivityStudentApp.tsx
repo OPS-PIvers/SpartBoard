@@ -30,6 +30,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
+import { useStudentAssignmentOverride } from '@/hooks/useStudentAssignmentOverride';
 import { VideoActivityQuestion, VideoActivitySession } from '@/types';
 import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 import { VideoPlayer } from './VideoPlayer';
@@ -238,6 +239,20 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
   }, []);
+
+  // M17 C3-va: read the student's own pointer override (`timeMultiplier`
+  // accommodation). VA has no timed elements in its player today (no
+  // per-question countdown, no session time limit) — this is a documented
+  // no-op pass-through wired for when a timed element is added, per spec §5
+  // C3. `enabled: isStudentRole` because only SSO joiners carry the
+  // `studentRole` claim the Firestore rule requires; anon/PIN joiners are
+  // out of scope for individual targeting (spec §6 non-goals).
+  const pointerOverride = useStudentAssignmentOverride(
+    authedUid,
+    session?.id ?? null,
+    isStudentRole
+  );
+  void pointerOverride;
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
