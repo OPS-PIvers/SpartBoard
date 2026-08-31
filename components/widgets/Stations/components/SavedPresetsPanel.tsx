@@ -15,13 +15,13 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
   stations,
   onLoad,
 }) => {
-  const { savedWidgetConfigs, saveWidgetConfig } = useAuth();
+  const { savedWidgetPresets, saveWidgetPreset } = useAuth();
   const { addToast } = useDashboard();
   const { showConfirm, showPrompt } = useDialog();
   const { deleteFile } = useStorage();
 
   const savedLibrary: SavedStationsPreset[] =
-    (savedWidgetConfigs.stations as Partial<StationsConfig> | undefined)
+    (savedWidgetPresets.stations as Partial<StationsConfig> | undefined)
       ?.savedLibrary ?? [];
 
   const handleSave = async () => {
@@ -42,7 +42,7 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
       stations: stations.map((s) => ({ ...s })),
       createdAt: Date.now(),
     };
-    saveWidgetConfig('stations', {
+    saveWidgetPreset('stations', {
       savedLibrary: [...savedLibrary, preset],
     });
     addToast(`Saved "${preset.name}" to your station library.`, 'success');
@@ -90,7 +90,7 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
         if (s.imageUrl) otherPresetUrls.add(s.imageUrl);
       }
     }
-    saveWidgetConfig('stations', {
+    saveWidgetPreset('stations', {
       savedLibrary: savedLibrary.filter((p) => p.id !== preset.id),
     });
     // Destructive cleanup — best-effort. Aggregate failures so the teacher

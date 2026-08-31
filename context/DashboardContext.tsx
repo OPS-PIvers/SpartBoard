@@ -4894,8 +4894,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // so memoized consumers don't re-render on a no-op.
           if (!widgetType) return d;
 
-          // Save config globally so new instances inherit settings.
-          // saveWidgetConfig handles transient-key stripping (including PII fields).
+          // Save appearance globally so new instances inherit the styling.
+          // saveWidgetConfig keeps only APPEARANCE_CONFIG_KEYS — content stays
+          // on this board.
           if (updates.config) {
             saveWidgetConfig(widgetType, updates.config);
           }

@@ -142,10 +142,21 @@ export interface AuthContextType {
    * myaccount.google.com manually.
    */
   disconnectGoogleDrive: () => Promise<void>;
-  /** Global saved configs for complex widgets */
+  /**
+   * Account-wide widget appearance defaults. Only the keys in
+   * `APPEARANCE_CONFIG_KEYS` survive here — widget content stays per-board.
+   */
   savedWidgetConfigs: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
-  /** Save a widget's config globally (debounced Firestore write) */
+  /**
+   * Save a widget's appearance defaults account-wide (debounced Firestore
+   * write). Non-appearance keys are dropped, so this is safe to call with a
+   * whole config object.
+   */
   saveWidgetConfig: (type: WidgetType, config: Partial<WidgetConfig>) => void;
+  /** Opt-in preset libraries the teacher explicitly saved, by widget type */
+  savedWidgetPresets: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /** Save an explicit preset library account-wide (debounced Firestore write) */
+  saveWidgetPreset: (type: WidgetType, preset: Partial<WidgetConfig>) => void;
   /** Teacher-created Materials widget entries, shared across all of the user's boards */
   customMaterials: MaterialDefinition[];
   /** Replace the teacher's custom materials library (immediate Firestore write) */

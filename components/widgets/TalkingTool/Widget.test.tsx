@@ -64,6 +64,10 @@ const mockAuthContext = (
   saveWidgetConfig: () => {
     /* mock */
   },
+  savedWidgetPresets: {},
+  saveWidgetPreset: () => {
+    /* mock */
+  },
   customMaterials: [],
   saveCustomMaterials: async () => {
     /* mock */

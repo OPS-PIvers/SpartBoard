@@ -46,7 +46,7 @@ export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { showConfirm } = useDialog();
-  const { savedWidgetConfigs } = useAuth();
+  const { savedWidgetPresets } = useAuth();
   const { deleteFile } = useStorage();
   const config = widget.config as StationsConfig;
   const stations = useMemo(
@@ -74,7 +74,7 @@ export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
   const protectedImageUrls = useMemo(() => {
     const set = new Set<string>();
     const lib =
-      (savedWidgetConfigs.stations as Partial<StationsConfig> | undefined)
+      (savedWidgetPresets.stations as Partial<StationsConfig> | undefined)
         ?.savedLibrary ?? [];
     for (const preset of lib) {
       for (const s of preset.stations) {
@@ -82,7 +82,7 @@ export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
       }
     }
     return set;
-  }, [savedWidgetConfigs]);
+  }, [savedWidgetPresets]);
 
   const handleAddStation = () => {
     const color =
