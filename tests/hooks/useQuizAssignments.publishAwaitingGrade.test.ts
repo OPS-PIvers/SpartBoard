@@ -10,6 +10,7 @@ import { act, renderHook } from '@testing-library/react';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   writeBatch,
@@ -148,6 +149,8 @@ describe('useQuizAssignments — publishAssignmentScores omits awaiting-grade sc
       update: batchUpdate,
       commit: batchCommit,
     });
+    // Assignment doc read by publishAssignmentScores for `overridesByStudentUid`.
+    (getDoc as Mock).mockResolvedValue({ data: () => ({}) });
   });
 
   async function publishOne(data: Record<string, unknown>) {

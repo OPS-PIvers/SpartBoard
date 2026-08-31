@@ -11,13 +11,6 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const globalStyle = useGlobalStyle();
   const [time, setTime] = useState(new Date());
 
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
-
   const {
     format24 = true,
     showSeconds = true,
@@ -26,6 +19,35 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     clockStyle = 'modern',
     glow = false,
   } = widget.config as ClockConfig;
+
+  // Resync the display the instant showSeconds changes, so a toggle right
+  // after a minute rollover doesn't leave a stale minute up for up to 60s.
+  const [prevShowSeconds, setPrevShowSeconds] = useState(showSeconds);
+  if (prevShowSeconds !== showSeconds) {
+    setPrevShowSeconds(showSeconds);
+    setTime(new Date());
+  }
+
+  // Seconds hidden: tick once a minute instead of every second, re-deriving the
+  // delay from the wall clock each tick so throttling/jank can't accumulate drift.
+  useEffect(() => {
+    if (showSeconds) {
+      const timer = setInterval(() => setTime(new Date()), 1000);
+      return () => clearInterval(timer);
+    }
+    let timeout: ReturnType<typeof setTimeout>;
+    const scheduleNextMinute = () => {
+      timeout = setTimeout(
+        () => {
+          setTime(new Date());
+          scheduleNextMinute();
+        },
+        60_000 - (Date.now() % 60_000)
+      );
+    };
+    scheduleNextMinute();
+    return () => clearTimeout(timeout);
+  }, [showSeconds]);
 
   const hours = time.getHours();
   const displayHours = format24

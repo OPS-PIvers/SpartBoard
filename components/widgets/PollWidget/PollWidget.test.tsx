@@ -358,6 +358,29 @@ describe('PollSettings', () => {
     expect(mockAddToast).toHaveBeenCalledWith('Poll generated.', 'success');
   });
 
+  it('associates the "Draft with AI" heading with its fieldset via aria-labelledby', () => {
+    const mockWidget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Original Question',
+        options: [],
+      },
+    };
+
+    render(<PollSettings widget={mockWidget} />);
+
+    expect(
+      screen.getByRole('group', { name: 'Draft with AI' })
+    ).toBeInTheDocument();
+  });
+
   it('updates the question on blur', () => {
     const mockWidget: WidgetData = {
       id: 'poll-1',
