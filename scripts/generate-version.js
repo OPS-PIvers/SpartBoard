@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,13 +39,30 @@ const readLatestChangelogVersion = () => {
   }
 };
 
+// `version` is the curated release id (drives the What's New modal), so it only
+// moves when a changelog entry is added. `buildId` tracks the deployed commit,
+// so the reload prompt fires on every deploy without needing a changelog entry.
+const readBuildId = () => {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 12);
+  try {
+    return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return null;
+  }
+};
+
 const timestamp = new Date().getTime().toString();
 const version = isDev ? 'dev' : (readLatestChangelogVersion() ?? timestamp);
 const buildDate = isDev ? 'dev' : new Date().toISOString();
+const buildId = isDev ? 'dev' : (readBuildId() ?? timestamp);
 
 const versionInfo = {
   version,
   buildDate,
+  buildId,
 };
 
 try {
