@@ -395,6 +395,7 @@ const StudentExperience: React.FC<{
   // Convert session to a GuidedLearningSet-like object for GuidedLearningPlayer
   const setForPlayer = {
     id: session.id,
+    schemaVersion: session.schemaVersion,
     title: session.title,
     imageUrls: session.imageUrls,
     imageKinds: session.imageKinds,

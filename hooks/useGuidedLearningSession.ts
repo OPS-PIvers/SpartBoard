@@ -355,6 +355,9 @@ export const useGuidedLearningSessionTeacher = (
         ...(assignmentWindow?.dueAt !== undefined
           ? { dueAt: assignmentWindow.dueAt }
           : {}),
+        // Schema version — mirrored so the student player applies matching
+        // zoom/spotlight semantics. Absent on legacy sets/sessions.
+        ...(set.schemaVersion ? { schemaVersion: set.schemaVersion } : {}),
         // Display settings — only mirror when set differs from default so
         // legacy session docs stay free of new fields.
         ...(set.hotspotPulse && set.hotspotPulse !== 'consistent'

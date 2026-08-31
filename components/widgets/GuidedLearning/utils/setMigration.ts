@@ -5,6 +5,16 @@ type LegacyGuidedLearningSet = GuidedLearningSet & {
   imagePath?: string;
 };
 
+/** Schema version stamped on new/re-saved sets (zoom persistence + image-relative spotlight). */
+export const GL_SET_SCHEMA_VERSION = 2;
+
+/** Absent/1 = legacy semantics; existing sets are never rewritten. */
+export function isGuidedLearningSetV2(
+  set: Pick<GuidedLearningSet, 'schemaVersion'>
+): boolean {
+  return (set.schemaVersion ?? 1) >= GL_SET_SCHEMA_VERSION;
+}
+
 export function normalizeGuidedLearningSet(
   input: GuidedLearningSet
 ): GuidedLearningSet {
