@@ -199,9 +199,7 @@ describe('QuizBehaviorSettingsPanel', () => {
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
     );
-    const input = screen.getByLabelText(
-      'Warnings before auto-submit'
-    ) as HTMLInputElement;
+    const input = screen.getByLabelText('Warnings before auto-submit');
     fireEvent.change(input, { target: { value: '5' } });
     fireEvent.blur(input);
 
