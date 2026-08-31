@@ -2071,6 +2071,13 @@ export const useQuizAssignments = (
         questionsById.set(q.id, q);
       }
 
+      // Per-student served subsets, keyed by the pseudonym uid the CF wrote —
+      // an individually-targeted student's denominator must come from their
+      // own subset, not the teacher's full question list.
+      const assignmentSnap = await getDoc(assignmentRef);
+      const overridesByStudentUid = (assignmentSnap.data()
+        ?.overridesByStudentUid ?? {}) as Record<string, StudentOverride>;
+
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
       // thousands of submissions can't pull the whole subcollection in a
@@ -2099,6 +2106,12 @@ export const useQuizAssignments = (
       for (const d of responseDocs) {
         const data = d.data() as QuizResponse;
         const answers = Array.isArray(data.answers) ? data.answers : [];
+        // Absent override (or no subset on it) = the full quiz, unchanged.
+        const subsetIds = overridesByStudentUid[data.studentUid]?.questionIds;
+        const servedIds =
+          Array.isArray(subsetIds) && subsetIds.length > 0
+            ? new Set(subsetIds)
+            : null;
         let pointsEarned = 0;
         let pointsMax = 0;
         // Set when any answered slot is still owed a teacher grade (ungraded
@@ -2139,7 +2152,10 @@ export const useQuizAssignments = (
               : undefined;
           const result = gradeAnswer(q, a.answer, manualGrade);
           if (result.state === 'awaiting-grade') awaitingGrade = true;
-          if (!scoredQuestionIds.has(a.questionId)) {
+          if (
+            !scoredQuestionIds.has(a.questionId) &&
+            (!servedIds || servedIds.has(a.questionId))
+          ) {
             scoredQuestionIds.add(a.questionId);
             pointsEarned += result.pointsEarned;
             pointsMax += result.pointsMax;
@@ -2163,6 +2179,7 @@ export const useQuizAssignments = (
         const answeredQuestionIds = new Set<string>();
         for (const a of answers) answeredQuestionIds.add(a.questionId);
         for (const [qId, q] of questionsById) {
+          if (servedIds && !servedIds.has(qId)) continue;
           if (!answeredQuestionIds.has(qId)) {
             pointsMax += q.points ?? 1;
           }

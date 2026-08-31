@@ -682,6 +682,26 @@ export async function handleSetAssignmentTargets(
   }
   await chunkedCommit(db, ops);
 
+  // Pseudonym-uid mirror of the per-student overrides, so teacher-side scoring
+  // can match a response doc (keyed by the same uid) to its served subset.
+  // Lives ONLY on the teacher's own owner-read-only assignment doc — never on a
+  // session doc or any shared surface (spec §2a unlinkability rule).
+  const overridesByStudentUid: Record<
+    string,
+    StudentOverride | admin.firestore.FieldValue
+  > = {};
+  for (const target of admitted) {
+    const write = mergeWrite(
+      target.key in input.overridesBySourcedId
+        ? input.overridesBySourcedId[target.key]
+        : undefined
+    );
+    if (write !== undefined) overridesByStudentUid[target.uid] = write;
+  }
+  for (const uid of removeUids) {
+    overridesByStudentUid[uid] = admin.firestore.FieldValue.delete();
+  }
+
   // Persisted after the pointer commit so the doc only ever claims targets
   // that actually landed; a failed commit throws and an identical retry
   // converges. Transactional because the merge is a read-compute-write: two
@@ -708,6 +728,9 @@ export async function handleSetAssignmentTargets(
         targetStudents: refs,
         targetMode:
           input.targetMode ?? (refs.length > 0 ? 'students' : 'class'),
+        ...(Object.keys(overridesByStudentUid).length > 0
+          ? { overridesByStudentUid }
+          : {}),
       },
       { merge: true }
     );
