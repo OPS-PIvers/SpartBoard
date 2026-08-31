@@ -38,7 +38,11 @@ import {
 } from 'lucide-react';
 import { auth, db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { MiniAppSession, MiniAppSubmission } from '@/types';
+import {
+  MiniAppSession,
+  MiniAppSubmission,
+  StudentAssignmentPointer,
+} from '@/types';
 
 type SubmissionStatus =
   | { kind: 'idle' }
@@ -216,6 +220,40 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
     return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
   }, []);
 
+  // Per-student accommodation override (M17 C3): the pointer doc lives at
+  // /student_assignments/{auth.uid}/items/{sessionId} keyed by the STABLE
+  // auth uid, not the per-assignment submission pseudonym — the pointer path
+  // is server-fanned-out by setAssignmentTargetsV1 and only readable by the
+  // owning studentRole user (firestore.rules). Legacy/anonymous shared-link
+  // launches never have a pointer doc and get no multiplier.
+  const [timeMultiplier, setTimeMultiplier] = useState<
+    number | 'unlimited' | undefined
+  >(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    const loadOverride = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      try {
+        const tokenResult = await currentUser.getIdTokenResult();
+        if (tokenResult.claims?.studentRole !== true) return;
+        const snap = await getDoc(
+          doc(db, 'student_assignments', currentUser.uid, 'items', session.id)
+        );
+        if (cancelled || !snap.exists()) return;
+        const pointer = snap.data() as StudentAssignmentPointer;
+        const multiplier = pointer.override?.timeMultiplier;
+        if (multiplier !== undefined) setTimeMultiplier(multiplier);
+      } catch {
+        // No pointer doc, or not entitled — treat as no accommodation.
+      }
+    };
+    void loadOverride();
+    return () => {
+      cancelled = true;
+    };
+  }, [session.id, authedUid]);
+
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. The teacher's
   // Shared archive aggregates the count via getCountFromServer(). Best-effort
@@ -270,22 +308,26 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
     target.postMessage(
       {
         type: 'SPART_MINIAPP_INIT',
-        payload: { submissionsEnabled },
+        payload: { submissionsEnabled, timeMultiplier },
       },
       '*'
     );
-  }, [submissionsEnabled]);
+  }, [submissionsEnabled, timeMultiplier]);
 
-  // Re-post INIT whenever submissionsEnabled flips, so a teacher toggling the
-  // assignment mid-session propagates to already-loaded iframes.
+  // Re-post INIT whenever submissionsEnabled or timeMultiplier changes, so a
+  // teacher toggling the assignment (or an accommodation resolving after
+  // load) propagates to already-loaded iframes.
   useEffect(() => {
     const target = iframeRef.current?.contentWindow;
     if (!target) return;
     target.postMessage(
-      { type: 'SPART_MINIAPP_INIT', payload: { submissionsEnabled } },
+      {
+        type: 'SPART_MINIAPP_INIT',
+        payload: { submissionsEnabled, timeMultiplier },
+      },
       '*'
     );
-  }, [submissionsEnabled]);
+  }, [submissionsEnabled, timeMultiplier]);
 
   const submit = useCallback(
     async (payload: unknown) => {
