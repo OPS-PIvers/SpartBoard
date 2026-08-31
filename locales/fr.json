@@ -1805,6 +1805,7 @@
     "emptyRosterSubtitle": "Cette liste ne contient encore aucun élève.",
     "loadErrorTitle": "Impossible de charger les élèves",
     "loadErrorSubtitle": "Rouvrez la liste pour réessayer.",
+    "chooseAnotherRoster": "Choisir une autre classe",
     "needsSso": "L'affectation individuelle nécessite une connexion ClassLink",
     "removeStudent": "Retirer {{name}}",
     "unknownStudent": "Élève inconnu",

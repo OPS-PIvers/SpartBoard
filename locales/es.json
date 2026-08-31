@@ -1805,6 +1805,7 @@
     "emptyRosterSubtitle": "Esta lista todavía no tiene estudiantes.",
     "loadErrorTitle": "No se pudieron cargar los estudiantes",
     "loadErrorSubtitle": "Vuelve a abrir la lista para intentarlo de nuevo.",
+    "chooseAnotherRoster": "Elegir otra clase",
     "needsSso": "La asignación individual requiere inicio de sesión con ClassLink",
     "removeStudent": "Quitar a {{name}}",
     "unknownStudent": "Estudiante desconocido",

@@ -136,6 +136,23 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     }
   };
 
+  // Next roster besides the active one, for the load-error / empty-roster
+  // empty-state actions (spec §4 Design Contract: every empty state needs
+  // an action). Falls back to closing the modal when there's nowhere else
+  // to go.
+  const anotherRosterId = activeRoster
+    ? (rosters.find((r) => r.id !== activeRoster.id)?.id ?? null)
+    : null;
+
+  const switchToAnotherRoster = () => {
+    if (anotherRosterId) {
+      setActiveRosterId(anotherRosterId);
+      setSearch('');
+    } else {
+      onClose();
+    }
+  };
+
   const removeSelected = (key: string) => {
     setDraftSelected((prev) =>
       prev.filter((r) => studentTargetRefKey(r) !== key)
@@ -472,6 +489,19 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                     iconClassName="text-brand-red-primary"
                     titleClassName="text-slate-700"
                     subtitleClassName="text-slate-500"
+                    action={
+                      <button
+                        type="button"
+                        onClick={switchToAnotherRoster}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
+                      >
+                        {anotherRosterId
+                          ? t('assignStudentPicker.chooseAnotherRoster', {
+                              defaultValue: 'Choose another class',
+                            })
+                          : t('common.close', { defaultValue: 'Close' })}
+                      </button>
+                    }
                   />
                 ) : search.trim() ? (
                   <ScaledEmptyState
@@ -509,6 +539,19 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                     iconClassName="text-slate-300"
                     titleClassName="text-slate-700"
                     subtitleClassName="text-slate-500"
+                    action={
+                      <button
+                        type="button"
+                        onClick={switchToAnotherRoster}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
+                      >
+                        {anotherRosterId
+                          ? t('assignStudentPicker.chooseAnotherRoster', {
+                              defaultValue: 'Choose another class',
+                            })
+                          : t('common.close', { defaultValue: 'Close' })}
+                      </button>
+                    }
                   />
                 )}
               </div>

@@ -1805,6 +1805,7 @@
     "emptyRosterSubtitle": "Diese Klassenliste hat noch keine Schüler.",
     "loadErrorTitle": "Schüler konnten nicht geladen werden",
     "loadErrorSubtitle": "Öffne die Klassenliste erneut, um es noch einmal zu versuchen.",
+    "chooseAnotherRoster": "Andere Klasse wählen",
     "needsSso": "Individuelle Zuweisung erfordert ClassLink-Anmeldung",
     "removeStudent": "{{name}} entfernen",
     "unknownStudent": "Unbekannter Schüler",

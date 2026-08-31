@@ -32,6 +32,25 @@ const mixedRoster: ClassRoster = {
   defaultOverridesByStudentId: { s2: { timeMultiplier: 2 } },
 };
 
+const emptyRoster: ClassRoster = {
+  id: 'r2',
+  name: 'Period 3',
+  driveFileId: 'f2',
+  studentCount: 0,
+  createdAt: 0,
+  students: [],
+};
+
+const loadErrorRoster: ClassRoster = {
+  id: 'r3',
+  name: 'Period 4',
+  driveFileId: 'f3',
+  studentCount: 0,
+  createdAt: 0,
+  students: [],
+  loadError: 'network error',
+};
+
 const renderPicker = (
   overrides: Partial<React.ComponentProps<typeof AssignStudentPicker>> = {}
 ) =>
@@ -136,5 +155,45 @@ describe('AssignStudentPicker', () => {
     });
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
     expect(screen.queryByText('Kid Test')).not.toBeInTheDocument();
+  });
+
+  it('offers to switch rosters from the load-error empty state when another roster exists', () => {
+    renderPicker({ rosters: [loadErrorRoster, mixedRoster] });
+
+    expect(screen.getByText("Couldn't load students")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: /choose another class/i })
+    );
+
+    expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+  });
+
+  it('closes the modal from the load-error empty state when it is the only roster', () => {
+    const onClose = vi.fn();
+    renderPicker({ rosters: [loadErrorRoster], onClose });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /close/i })[1]);
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('offers to switch rosters from the empty-roster empty state when another roster exists', () => {
+    renderPicker({ rosters: [emptyRoster, mixedRoster] });
+
+    expect(screen.getByText('No students')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: /choose another class/i })
+    );
+
+    expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+  });
+
+  it('closes the modal from the empty-roster empty state when it is the only roster', () => {
+    const onClose = vi.fn();
+    renderPicker({ rosters: [emptyRoster], onClose });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /close/i })[1]);
+
+    expect(onClose).toHaveBeenCalled();
   });
 });

@@ -1805,6 +1805,7 @@
     "emptyRosterSubtitle": "This roster has no students yet.",
     "loadErrorTitle": "Couldn't load students",
     "loadErrorSubtitle": "Reopen the roster to try again.",
+    "chooseAnotherRoster": "Choose another class",
     "needsSso": "Individual assignment requires ClassLink sign-in",
     "removeStudent": "Remove {{name}}",
     "unknownStudent": "Unknown student",
