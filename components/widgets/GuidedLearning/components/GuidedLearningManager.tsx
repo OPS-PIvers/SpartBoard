@@ -18,7 +18,7 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, { useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useCallback, useMemo, useState, lazy, Suspense } from 'react';
 import {
   Plus,
   Play,
@@ -37,6 +37,8 @@ import {
   CheckSquare,
   EyeOff,
   Send,
+  Download,
+  Upload,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -189,6 +191,16 @@ export interface GuidedLearningManagerProps {
   /** Busy-state probe for the building-set Duplicate kebab. */
   isDuplicatingBuilding?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
+  /** Export a set to a self-contained .gl.json file. Same routing as onPlay. */
+  onExport?: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => void;
+  /** Opens the .gl.json import wizard (header secondary action). */
+  onImport?: () => void;
+  /** Bumped on import success; switches the library to the Personal view. */
+  importFocusCounter?: number;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
   /** Admin-only — opens the standalone AI authoring dialog for building sets. */
@@ -383,6 +395,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onDuplicateBuilding,
   isDuplicatingBuilding,
   onDeleteBuilding,
+  onExport,
+  onImport,
+  importFocusCounter = 0,
   onCreateNewPersonal,
   onCreateNewBuilding,
   onOpenAIAuthoring,
@@ -497,6 +512,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
+
+  // Adjust-during-render: on import success, show the Personal view the set landed in.
+  const [seenImportFocus, setSeenImportFocus] = useState(importFocusCounter);
+  if (importFocusCounter !== seenImportFocus) {
+    setSeenImportFocus(importFocusCounter);
+    if (isBuildingFiltered) {
+      view.toolbarProps.onFilterChange?.('source', 'personal');
+    }
+  }
 
   // ─── Drag-reorder only when viewing personal manually (no search, manual
   // sort, source filter === 'personal' so every card is actually reorderable).
@@ -657,16 +681,24 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onClick: onCreateNewPersonal,
       };
 
-  const secondaryActions =
-    isAdmin && isBuildingFiltered
+  const headerSecondary = [
+    ...(isAdmin && isBuildingFiltered
+      ? [{ label: 'AI', icon: Sparkles, onClick: onOpenAIAuthoring }]
+      : []),
+    ...(onImport
       ? [
           {
-            label: 'AI',
-            icon: Sparkles,
-            onClick: onOpenAIAuthoring,
+            label: 'Import',
+            icon: Upload,
+            onClick: onImport,
+            disabled: !isDriveConnected,
+            disabledReason: 'Connect Google Drive to import activities.',
           },
         ]
-      : undefined;
+      : []),
+  ];
+  const secondaryActions =
+    headerSecondary.length > 0 ? headerSecondary : undefined;
 
   // ─── Drive disconnected banner ────────────────────────────────────────────
   const showDriveBanner =
@@ -722,6 +754,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         label: 'View Results',
         icon: BarChart2,
         onClick: () => onViewResults(recentSessionId),
+      });
+    }
+
+    if (onExport && (entry.driveFileId || entry.buildingSet)) {
+      secondary.push({
+        id: 'export',
+        label: 'Export (.gl.json)',
+        icon: Download,
+        onClick: () => onExport(rawId, entry.driveFileId, entry.buildingSet),
       });
     }
 
