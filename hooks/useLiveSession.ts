@@ -17,7 +17,32 @@ import { LiveSession, LiveStudent, WidgetType, WidgetConfig } from '@/types';
 const SESSIONS_COLLECTION = 'sessions';
 const STUDENTS_COLLECTION = 'students';
 
-const MAX_PIN_LENGTH = 10; // Prevent storage abuse on the PIN field
+const MAX_PIN_LENGTH = 10; // Prevent storage abuse; the sibling #2625 rules-hardening PR adds a matching (not yet merged) server-side size() cap — keep both in sync once it lands
+
+/** Unique 6-char join code generator with collision check against active live sessions. */
+// Relies on the broad `sessions` read permission (firestore.rules: `match
+// /sessions/{userId}`'s Phase-2 TODO) to query across all teachers' sessions.
+async function allocateSessionCode(): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = Math.random()
+      .toString(36)
+      .substring(2, 8)
+      .toUpperCase()
+      .padEnd(6, '0');
+    const snap = await getDocs(
+      query(collection(db, SESSIONS_COLLECTION), where('code', '==', candidate))
+    );
+    const collision = snap.docs.some((d) => (d.data() as LiveSession).isActive);
+    if (!collision) return candidate;
+  }
+  // Last-resort fallback: accept a theoretical collision rather than
+  // blocking the teacher from starting a session (mirrors allocateJoinCode).
+  return Math.random()
+    .toString(36)
+    .substring(2, 8)
+    .toUpperCase()
+    .padEnd(6, '0');
+}
 
 /**
  * Custom hook for managing live classroom sessions.
@@ -285,11 +310,18 @@ export const useLiveSession = (
     const q = query(sessionsRef, where('code', '==', normalizedCode));
     const querySnapshot = await getDocs(q);
 
-    if (querySnapshot.empty) {
+    // A code can still be shared by a stale/ended session left over from
+    // before collision-checking existed at creation time — only an active
+    // session is a valid join target.
+    const activeDocs = querySnapshot.docs.filter(
+      (d) => (d.data() as LiveSession).isActive
+    );
+
+    if (activeDocs.length === 0) {
       throw new Error('Session not found');
     }
 
-    const sessionDoc = querySnapshot.docs[0];
+    const sessionDoc = activeDocs[0];
     const teacherId = sessionDoc.id;
 
     // Sanitize PIN (max length limit, simple trim)
@@ -410,11 +442,7 @@ export const useLiveSession = (
         activeWidgetType: widgetType,
         activeWidgetConfig: config,
         background: background,
-        code: Math.random()
-          .toString(36)
-          .substring(2, 8)
-          .toUpperCase()
-          .padEnd(6, '0'),
+        code: await allocateSessionCode(),
         frozen: false,
         createdAt: Date.now(),
       };

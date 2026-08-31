@@ -310,10 +310,11 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
 
       <div className="mt-4 flex items-center justify-between">
         <div className="text-[11px] text-slate-500">
-          {savedAt
-            ? `Saved ${new Date(savedAt).toLocaleTimeString()}`
-            : dirty
-              ? 'Unsaved changes'
+          {/* dirty first: savedAt is a one-shot flag that stays true across later edits. */}
+          {dirty
+            ? 'Unsaved changes'
+            : savedAt
+              ? `Saved ${new Date(savedAt).toLocaleTimeString()}`
               : ''}
         </div>
         <button
