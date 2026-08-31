@@ -136,6 +136,7 @@
       "classLinkImport": "Importar",
       "classLinkMerge": "Fusionar",
       "duplicatePins": "PIN duplicados: {{pins}}",
+      "saveFailed": "No se pudo guardar esta clase. Tus cambios siguen aquí: comprueba tu conexión con Google Drive e inténtalo de nuevo.",
       "namesOnePerLine": "Nombres (uno por línea)",
       "firstNames": "Nombres",
       "lastNames": "Apellidos",
@@ -178,7 +179,19 @@
       "restrictionsFilter": "Buscar compañeros…",
       "restrictionsEmptyRoster": "Agrega más estudiantes para establecer restricciones.",
       "restrictionsNoMatches": "Sin coincidencias.",
-      "restrictionsFooter": "Las restricciones se aplican a ambos estudiantes automáticamente."
+      "restrictionsFooter": "Las restricciones se aplican a ambos estudiantes automáticamente.",
+      "editorTabsLabel": "Pestañas del editor de clase",
+      "studentsTab": "Estudiantes",
+      "groupsTab": "Grupos ({{count}})",
+      "newGroupName": "Nuevo grupo",
+      "emptyGroupsTitle": "Aún no hay grupos",
+      "emptyGroupsSubtitle": "Guarda un subconjunto de esta clase para asignar rápidamente.",
+      "addGroup": "+ Nuevo grupo",
+      "editGroupMembers": "Editar miembros del grupo",
+      "removeGroup": "Eliminar grupo",
+      "groupMemberCount_one": "{{count}} estudiante",
+      "groupMemberCount_other": "{{count}} estudiantes",
+      "noStudentsToGroup": "Agrega estudiantes primero."
     },
     "plcs": {
       "title": "Mis Comunidades",

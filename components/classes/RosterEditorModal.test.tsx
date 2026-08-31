@@ -152,6 +152,76 @@ describe('RosterEditorModal', () => {
     });
   });
 
+  it('calls onSave exactly once on a plain student edit (no groups touched)', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [],
+      groups: [{ id: 'g1', name: 'Group A', studentIds: [] }],
+      driveFileId: null,
+      studentCount: 0,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /\+ add student/i }));
+    const firstInputs = screen.getAllByPlaceholderText(/^first name$/i);
+    await user.type(firstInputs[0], 'Alice');
+
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+    // No groups arg — legacy path must not touch the groups field.
+    expect(onSave.mock.calls[0]).toHaveLength(2);
+  });
+
+  it('drops a deleted student from the group member count without waiting for a save', async () => {
+    const user = userEvent.setup();
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        { id: 's2', firstName: 'Bob', lastName: 'Jones', pin: '02' },
+      ],
+      groups: [{ id: 'g1', name: 'Group A', studentIds: ['s1', 's2'] }],
+      driveFileId: null,
+      studentCount: 2,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    // Remove Alice from the Students tab...
+    const removeButtons = screen.getAllByRole('button', {
+      name: /remove student/i,
+    });
+    await user.click(removeButtons[0]);
+
+    // ...then the Groups tab badge should already read 1, not the stale 2.
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    expect(screen.getByText('1 student')).toBeInTheDocument();
+  });
+
   it('splits full names when toggling single → dual', async () => {
     const user = userEvent.setup();
     render(
@@ -358,5 +428,34 @@ describe('RosterEditorModal', () => {
         expect.objectContaining({ firstName: 'Bob' }),
       ]);
     });
+  });
+
+  it('keeps the modal open and surfaces an alert when the save rejects', async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, 'error')
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      .mockImplementation(() => {});
+    const onClose = vi.fn();
+    const onSave = vi
+      .fn()
+      .mockRejectedValue(new Error('Failed to save roster changes to Drive'));
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={null}
+        onClose={onClose}
+        onSave={onSave}
+      />
+    );
+
+    await user.type(screen.getByPlaceholderText(/class name/i), 'Doomed');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not save/i);
+    expect(onClose).not.toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });
