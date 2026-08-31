@@ -243,6 +243,99 @@ describe('GuidedLearningPlayer', () => {
     vi.useRealTimers();
   });
 
+  it('scales the guided-mode auto-advance duration by timeMultiplier (M17 C3-gl)', () => {
+    vi.useFakeTimers();
+
+    const set: GuidedLearningSet = {
+      id: 'set-multiplier',
+      title: 'Multiplier Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 10,
+          text: 'Step 1',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Step 2',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} timeMultiplier={2} />);
+    fireEvent.load(screen.getByAltText('Multiplier Test'));
+    fireEvent.click(screen.getByRole('button', { name: /play/i }));
+
+    // At the un-multiplied 10s mark, a 2x student should NOT have advanced.
+    act(() => {
+      vi.advanceTimersByTime(10100);
+    });
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+
+    // Past the doubled 20s mark, they should have advanced.
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+
+    vi.useRealTimers();
+  });
+
+  it('never auto-advances guided mode when timeMultiplier is unlimited', () => {
+    vi.useFakeTimers();
+
+    const set: GuidedLearningSet = {
+      id: 'set-unlimited',
+      title: 'Unlimited Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 5,
+          text: 'Step 1',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Step 2',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} timeMultiplier="unlimited" />);
+    fireEvent.load(screen.getByAltText('Unlimited Test'));
+    fireEvent.click(screen.getByRole('button', { name: /play/i }));
+
+    act(() => {
+      vi.advanceTimersByTime(60000);
+    });
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+
+    vi.useRealTimers();
+  });
+
   it('lets explore mode switch images and keeps pan-zoom spotlight overlays visible', () => {
     const set: GuidedLearningSet = {
       id: 'set-2',

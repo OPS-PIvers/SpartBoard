@@ -27,13 +27,19 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
-import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
+import {
+  GuidedLearningResponse,
+  GuidedLearningSession,
+  StudentAssignmentPointer,
+  StudentOverride,
+} from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
@@ -203,6 +209,35 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   // periods configured, the student chooses one before the experience
   // begins; the value is persisted on their response doc.
   const [classPeriod, setClassPeriod] = useState<string | null>(null);
+  // M17 C3-gl: this student's accommodation override, read from their own
+  // pointer doc (`/student_assignments/{auth.uid}/items/{sessionId}`) — never
+  // a session-side map (spec §5 C3). Absent for class-wide (non-individually-
+  // targeted) assignments and for view-only shares, which is the normal case.
+  const [timeMultiplier, setTimeMultiplier] =
+    useState<StudentOverride['timeMultiplier']>(undefined);
+  useEffect(() => {
+    if (!sessionId || !anonymousUid || isViewOnly) return;
+    let cancelled = false;
+    void getDoc(
+      doc(db, 'student_assignments', anonymousUid, 'items', sessionId)
+    )
+      .then((snap) => {
+        if (cancelled || !snap.exists()) return;
+        const pointer = snap.data() as StudentAssignmentPointer;
+        setTimeMultiplier(pointer.override?.timeMultiplier);
+      })
+      .catch((err) => {
+        // No pointer doc / no permission is the normal class-wide-assignment
+        // path (rules reject reads for uids with no pointer), not an error.
+        logError('GuidedLearningStudentApp.overrideLookup', err, {
+          sessionId,
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, anonymousUid, isViewOnly]);
+
   const startedAt = React.useRef<number>(0);
   useEffect(() => {
     if (startedAt.current === 0) {
@@ -382,6 +417,7 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
           }
           onAnswer={handleAnswer}
           teacherMode={false}
+          timeMultiplier={timeMultiplier}
         />
         <button
           onClick={handleComplete}
