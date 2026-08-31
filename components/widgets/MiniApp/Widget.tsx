@@ -27,6 +27,7 @@ import {
 import { Z_INDEX } from '@/config/zIndex';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { buildMiniAppExportFilename } from './exportFilename';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
@@ -727,10 +728,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               return nameByKey.get(key) ?? key;
             });
             setSkippedStudentNames(names);
-            addToast(
-              `Assignment created, but ${names.length} student${names.length === 1 ? ' was' : 's were'} not targeted — see the assignment dialog.`,
-              'error'
-            );
+            addToast(skippedTargetsToastMessage(names.length), 'error');
           }
         } catch (targetErr) {
           console.error(

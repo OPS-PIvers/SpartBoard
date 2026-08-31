@@ -88,6 +88,7 @@ import {
   useSetAssignmentTargets,
   type SkipReason,
 } from '@/hooks/useSetAssignmentTargets';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import {
   buildSetAssignmentTargetsPayload,
   type AssignTargetingValue,
@@ -1486,7 +1487,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     [assignmentId]: result.skipped,
                   }));
                   addToast(
-                    `${result.skipped.length} student${result.skipped.length === 1 ? '' : 's'} could not be added to this assignment.`,
+                    skippedTargetsToastMessage(result.skipped.length),
                     'warning'
                   );
                   // Skipped-ref durability (canonical rule) — persist the

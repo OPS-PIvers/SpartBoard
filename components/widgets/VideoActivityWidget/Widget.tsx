@@ -56,6 +56,7 @@ import {
 import { writePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { logError } from '@/utils/logError';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { VideoActivityManager } from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
@@ -703,10 +704,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 { merge: true }
               );
               if (skippedCount > 0) {
-                addToast(
-                  `${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be targeted and ${skippedCount === 1 ? 'was' : 'were'} skipped.`,
-                  'info'
-                );
+                addToast(skippedTargetsToastMessage(skippedCount), 'info');
               }
             };
             try {
