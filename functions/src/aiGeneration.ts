@@ -207,23 +207,27 @@ async function resolveOrgIdForToken(
  * collectionGroup read that must not be entangled with a transaction's
  * read/write set (and must not re-run on transaction retries).
  *
- * FAIL-SAFE TOWARD THE ORG PATH: returns `true` (external → lower cap) ONLY
- * when we can affirmatively determine the caller has no org. A missing
- * email/domain, or a lookup that throws, returns `false` (treat as org →
- * normal cap). Misclassifying an org user as external (throttling them to the
- * free-tier cap) is the worse failure, so undefined/error states err toward
- * the normal limit. The trade-off — a transient lookup error lets a genuine
- * external user briefly keep the org cap — is acceptable.
+ * EMAIL MUST BE VERIFIED before its domain is trusted: this project's Auth also
+ * accepts email/password sign-in, so an unverified self-reported `email`/`hd`
+ * claim could otherwise be forged to a real org's domain for the higher cap —
+ * same gate `studentLoginV1` already enforces before its own domain lookup.
+ *
+ * FAIL-SAFE TOWARD THE ORG PATH — WITH ONE EXCEPTION: a missing email/domain or
+ * a lookup error still fails toward the normal (org) limit (no adversarial
+ * signal there), but an unverified email fails the other way, toward `true`
+ * (external), since that's exactly the claim an attacker controls.
  *
  * Admins never reach this — the admin-exempt branch at each call site short-
  * circuits before any limit is computed, exactly as before.
  */
 async function isExternalCaller(
   db: admin.firestore.Firestore,
-  token: { email?: string; hd?: string } | undefined
+  token: { email?: string; hd?: string; email_verified?: boolean } | undefined
 ): Promise<boolean> {
   // No usable token/email → cannot prove "external"; treat as org.
   if (!token || !token.email) return false;
+  // Unverified email can't be trusted to prove org membership — treat as external.
+  if (token.email_verified !== true) return true;
   try {
     const orgId = await resolveOrgIdForToken(db, token);
     return orgId === null; // null org = affirmatively external

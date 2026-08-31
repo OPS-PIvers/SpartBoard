@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 
-declare const __APP_VERSION__: string;
+// The reload prompt keys off __APP_BUILD_ID__ (the deployed commit), not
+// __APP_VERSION__ (the curated changelog release, which only moves when a
+// changelog entry is added and so would miss most deploys).
+declare const __APP_BUILD_ID__: string;
 
 interface VersionInfo {
   version: string;
   buildDate: string;
+  buildId?: string;
 }
 
 type Listener = (updateAvailable: boolean) => void;
@@ -18,14 +22,15 @@ let activeTimeout: ReturnType<typeof setTimeout> | null = null;
 let pollingInitialized = false;
 let pollIntervalMs = 60000;
 
-const fetchVersion = async (): Promise<string | null> => {
+const fetchBuildId = async (): Promise<string | null> => {
   try {
     const response = await fetch(`/version.json?t=${Date.now()}`, {
       cache: 'no-store',
     });
     if (!response.ok) return null;
     const data = (await response.json()) as VersionInfo;
-    return data.version;
+    // A deployment predating buildId can't be compared; keep polling instead.
+    return typeof data.buildId === 'string' ? data.buildId : null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       return null;
@@ -38,8 +43,8 @@ const fetchVersion = async (): Promise<string | null> => {
 const schedulePoll = () => {
   if (activeTimeout) clearTimeout(activeTimeout);
   activeTimeout = setTimeout(async () => {
-    const latestVersion = await fetchVersion();
-    if (latestVersion && latestVersion !== __APP_VERSION__) {
+    const latestBuildId = await fetchBuildId();
+    if (latestBuildId && latestBuildId !== __APP_BUILD_ID__) {
       detectedUpdate = true;
       listeners.forEach((l) => l(true));
       // Stop polling once an update is detected.
@@ -52,7 +57,7 @@ const schedulePoll = () => {
 
 const initPolling = (interval: number) => {
   if (pollingInitialized) return;
-  if (typeof __APP_VERSION__ === 'undefined' || __APP_VERSION__ === 'dev') {
+  if (typeof __APP_BUILD_ID__ === 'undefined' || __APP_BUILD_ID__ === 'dev') {
     return;
   }
   pollingInitialized = true;

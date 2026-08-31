@@ -162,6 +162,47 @@ describe('resolveAssignmentTargets', () => {
     expect(out.rosterIds).toEqual(['r1']);
     expect(out.classPeriodByClassId).toEqual({});
   });
+
+  // M17: targetMode/targetStudents pass through without touching legacy
+  // class-resolution precedence, for every source branch.
+  it('defaults targetMode to "class" and targetStudents to [] when absent (rosterIds branch)', () => {
+    const r1 = roster('r1', 'Period 1', [s1], { classlinkClassId: 'cl-1' });
+    const out = resolveAssignmentTargets({ rosterIds: ['r1'] }, [r1]);
+    expect(out.targetMode).toBe('class');
+    expect(out.targetStudents).toEqual([]);
+    // Legacy resolution fields are untouched.
+    expect(out.source).toBe('rosterIds');
+    expect(out.classIds).toEqual(['cl-1']);
+  });
+
+  it('defaults targetMode/targetStudents when absent on every legacy branch', () => {
+    expect(
+      resolveAssignmentTargets({ classIds: ['cl-legacy'] }, []).targetMode
+    ).toBe('class');
+    expect(
+      resolveAssignmentTargets({ periodNames: ['Period 1'] }, []).targetMode
+    ).toBe('class');
+    expect(resolveAssignmentTargets({}, []).targetMode).toBe('class');
+  });
+
+  it('passes targetMode:"students" and targetStudents through without altering class resolution', () => {
+    const r1 = roster('r1', 'Period 1', [s1, s2], {
+      classlinkClassId: 'cl-1',
+    });
+    const targetStudents = [{ kind: 'classlink' as const, sourcedId: 'sid-1' }];
+    const out = resolveAssignmentTargets(
+      { rosterIds: ['r1'], targetMode: 'students', targetStudents },
+      [r1]
+    );
+    expect(out.targetMode).toBe('students');
+    expect(out.targetStudents).toEqual(targetStudents);
+    // Class-resolution precedence and derived fields are byte-for-byte
+    // identical to the targetMode:'class' case — targeting mode never
+    // influences roster/classId/periodName derivation.
+    expect(out.source).toBe('rosterIds');
+    expect(out.classIds).toEqual(['cl-1']);
+    expect(out.students.map((s) => s.id).sort()).toEqual(['s1', 's2']);
+  });
 });
 
 describe('deriveSessionTargetsFromRosters', () => {

@@ -34,6 +34,25 @@ export type {
   AttemptLimitRowProps,
   ToggleRowProps,
 } from './AssignmentSettingsToggleGroup';
+export { OverrideEditorRow } from './OverrideEditorRow';
+export type {
+  OverrideEditorRowProps,
+  OverrideEditorQuestion,
+  OverrideEditorQuestionOption,
+  OverrideEditorPeer,
+} from './OverrideEditorRow';
+export { AssignStudentPicker } from './AssignStudentPicker';
+export type { AssignStudentPickerProps } from './AssignStudentPicker';
+export {
+  AssignTargetingSection,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+} from './AssignTargetingSection';
+export type {
+  AssignTargetingSectionProps,
+  AssignTargetingValue,
+  AssignTargetingKind,
+  AssignTargetingQuizContext,
+} from './AssignTargetingSection';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
 export { ViewCountBadge } from './ViewCountBadge';
 export { PeriodSelector } from './PeriodSelector';
