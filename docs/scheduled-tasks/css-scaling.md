@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-08-30_
+_Last audited: 2026-08-31_
 _Last action: 2026-08-29 — MEDIUM `GuidedLearningAIGenerator` in-widget overlay (zero container-query units) resolved: converted every hardcoded Tailwind text/icon/spacing/padding/margin/gap utility in the overlay root, header, dropzone, image-count label, `SortableImageRow` list item, prompt textarea, error/clamp-warning banners, and both footer buttons to `cqmin`-capped inline styles, following the MiniApp overlay (2026-08-21) conversion pattern. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, `vitest run tests/components/widgets/GuidedLearningAIGenerator.clampBanner.test.tsx` 2/2 pass. PR opened to dev-paul.
 
 ---

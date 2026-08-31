@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-08-24_
+_Last audited: 2026-08-31_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-08-31: Full audit (Audit E1 — Monday weekly), delegated to a dedicated sub-agent. All 20 tracked Open items re-verified present at (or near, accounting for file-growth line drift) their recorded locations — zero resolved. One new LOW finding: `components/admin/DashboardTemplatesManager.tsx:375-389` is a 4th untracked instance of the admin filter-pill copy-paste pattern already covered by the tracked MEDIUM "~110 lines of filter-pill UI copy-pasted" item — folded into that item's file list rather than filed separately. Bookkeeping-only count updates applied to several existing items (see the dated note below); no standalone action needed. Also noted but not filed as an item: five hooks (`useSubstituteShares.ts`, `useRosters.ts`, `usePlcAutoPullSync.ts`, `useGuidedLearning.ts`, `useGlobalStyleEditor.ts`) have grown from the borderline-6 useState/useRef count to 7-8 — worth revisiting only if any crosses ~10. A 3+-level nested-ternary and 6+-prop passthrough sweep turned up nothing new beyond what's already tracked._
 
 _2026-08-24: Full audit (Audit E1 — Monday weekly), delegated to a dedicated sub-agent. Eight new items filed (3 MEDIUM, 5 LOW) plus count corrections on five existing ones. Step results: **(1)** Zero `Object.assign` calls remain in `context/DashboardContext.tsx` — `mergeWidgetConfig()` (`utils/widgetConfigPersistence.ts:102`) is still the single canonical merge point, called from exactly 2 sites (`DashboardContext.tsx:4442`, `:4546`), and the only `Object.assign` in the whole merge path is inside the helper itself (`:108`). Confirms the Completed item; no extraction warranted. **(2)** 31 `as WidgetConfig` + 150 `as unknown as` across components/context/hooks/utils (excl. tests), classified: **(a) safe ~95** (lucide/audio/GIS structural casts, mock `User`, legacy-shape probes), **(b) masking a real mismatch ~14** (`useFirestore.ts:266/:398/:400`, `smartPaste.ts` ×4, `RandomWidget` ×13 and `useTimeTool` ×6 partial-config, `AnnotationOverlay.tsx:457`), **(c) missing generics ~41** (admin building-config bridge, `BlockRenderer`, `BuildingConfigPanel`, `WIDGET_DEFAULTS`). All class-(b) sites except `AnnotationOverlay.tsx:457` were already tracked. **(3)** All 12 `hooks/` hits with >5 useState/useRef are already tracked or previously logged as borderline-6 — but three high-density editor-state hooks live **outside** `hooks/`, which is why every prior sweep missed them (new MEDIUM below). **(4)** The `MountedBoardsLayer` 13-prop chain is unchanged; one new drilling cluster found in the Spotify view trio. **(5)** 118 windows with 3+ chained ternaries repo-wide; the two worth acting on are filed below. Findings were ranked by impact and capped at the ~10 most valuable rather than dumped exhaustively, and each was verified by reading the code. **Zero existing Open items resolved** — all 20 re-verified as still present, including the `MathTools/Widget.tsx:283-287` dead ternary (both branches still `text-slate-600 group-hover:text-brand-blue-dark`, still awaiting the design decision), the `usePlcTrash`/`usePlcResources` 9-useState hooks, and both MEDIUM cast items (`useFirestore.ts`, `ai_security.ts` — still exactly 7 instances)._
 
@@ -41,7 +43,7 @@ _Nothing currently in progress._
 ### MEDIUM ~110 lines of filter-pill UI copy-pasted verbatim across 3 admin managers
 
 - **Detected:** 2026-08-24
-- **File:** `components/admin/GlobalPermissionsManager.tsx:709-743`, `components/admin/FeaturePermissionsManager.tsx:360-394`, `components/admin/BackgroundManager/index.tsx:640-674`
+- **File:** `components/admin/GlobalPermissionsManager.tsx:709-743`, `components/admin/FeaturePermissionsManager.tsx:360-394`, `components/admin/BackgroundManager/index.tsx:640-674`, `components/admin/DashboardTemplatesManager.tsx:375-389` (4th instance, found 2026-08-31)
 - **Detail:** `btnClass(active)` (6 lines) plus `renderEnabledFilter`/`renderActiveFilter` and `renderAvailabilityFilter` are **byte-identical blocks** in all three files — same markup, same Tailwind strings, same two ternaries. The existing tracked LOW item scopes this as "a duplicated ternary" and proposes extracting a `formatPermissionValue` helper; that fix is far too narrow — it would remove 3 of ~110 duplicated lines and leave the markup triplicated. Note also that `components/common/SegmentedControl.tsx` already exists as the accessible generic pill row, and these hand-rolled copies lack its `role="tablist"`/`aria-selected`, so this is an a11y gap as well. The verbatim ternary (`val === 'all' ? 'All' : val.charAt(0).toUpperCase() + val.slice(1)`) is triplicated at `:740`, `:391`, `:672`.
 - **Fix:** Extract one `AdminFilterPills<T extends string>({ label, options, value, onChange })` into `components/admin/` (preserving the current admin visual style, adding tablist semantics) and replace all six render helpers. Mechanical, no behavior change. Recommend widening the tracked ternary item to this scope rather than treating it separately.
 
@@ -93,6 +95,12 @@ _Nothing currently in progress._
 - **File:** `components/widgets/WidgetRenderer.tsx:147-169`
 - **Detail:** `configJson` exists purely as a stable primitive effect dependency (`JSON.stringify(widget.config)`), then the effect body does `JSON.parse(configJson) as WidgetConfig` to reconstruct the object it already had in scope. The cast is safe (class a), but the parse is a redundant deep-copy on the live-session write path — the hot path the neighboring "BOLT OPTIMIZATION" comment was written to protect.
 - **Fix:** Keep `configJson` as the change token in the dependency array, but pass `widget.config` (mirrored through a render-assigned ref, per CLAUDE.md's ref guidance) to `updateSessionConfig`. Removes both the parse and the cast. Verify first that no caller mutates the object post-write — `updateWidget` appears to always construct fresh config objects, so this looks safe.
+
+### LOW Count corrections on existing tracked items (2026-08-31 audit — no action beyond journal accuracy)
+
+- **Detected:** 2026-08-31
+- **Detail:** Further growth since the 2026-08-24 count correction: `hooks/useQuizSession.ts` **22** (was 20), `hooks/useVideoActivitySession.ts` **19** (was 17), `hooks/useSpotifyWebPlayback.ts` **14** (was 12), `hooks/useScreenRecord.ts` **13** (was 11), `hooks/usePlcTrash.ts` **11** (was 9), `hooks/usePlcResources.ts` **10** (was 9), `components/admin/FeatureConfigurationPanel.tsx` **44** total `as unknown as` (37 component-map casts + 7 config-payload casts — was tracked as "38"), and the three untracked editor-state hooks in the MEDIUM item above grew to 20/18/15 useState/useRef (were 17/14/14).
+- **Fix:** Update the counts on the corresponding items when each is next actioned; no standalone work.
 
 ### LOW Count corrections on existing tracked items (2026-08-24 audit — no action beyond journal accuracy)
 

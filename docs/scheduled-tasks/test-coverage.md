@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-08-24_
+_Last audited: 2026-08-31_
 _Last action: 2026-08-12_
 
 ---
@@ -72,6 +72,27 @@ _Nothing currently in progress._
 - **Detail:** `ensureGis()` (script-load memoization) and `requestAccessToken()` gate every Google Classroom scope grant, including the three composed scope constants (`CLASSROOM_ADDON_TEACHER_SCOPE`, `CLASSROOM_COURSES_READONLY_SCOPE`, `CLASSROOM_COURSEWORK_STUDENTS_SCOPE`) and the "single consent screen" combined-token flow. A silently-wrong scope string means a grade push fails at the API boundary rather than at consent.
 - **Fix:** Stub `window.google.accounts.oauth2`; assert `ensureGis()` injects the script once and de-dups concurrent callers; assert `requestAccessToken` passes the exact scope string, `login_hint`, and `prompt: 'none'` for the silent path; assert `resolve` on `access_token`, `reject(new Error('No access token returned.'))` on an empty response, and rejection on `resp.error`; pin each exported scope constant with an exact-string assertion so a scope typo fails a test rather than a teacher's grade push.
 
+### MEDIUM `useMonitorData.ts` quiz-monitor state derivation has no tests
+
+- **Detected:** 2026-08-31
+- **File:** `components/widgets/QuizWidget/components/monitor/useMonitorData.ts` (248 lines, new since 2026-08-24, no test anywhere)
+- **Detail:** This hook drives the live quiz-monitor view and has real branching logic worth pinning: the period-filter memo (`periodNames.length <= 1` short-circuit vs. `classIdToPeriod` lookup), the ClassLink-name vs. LTI-name merge in `byStudentUid` (LTI names fill gaps but never override ClassLink), the 30s ticker that only arms while `session.status === 'active' && anyInProgress`, the notStarted/inProgress/done bucketing plus `needsHelpCount`/`answeredCurrent` tallies, and the `onQuestion` cap (`min(answers.length+1, totalQuestions)`).
+- **Fix:** Assert bucket counts sum to `totalStudents`; assert `awaitingGrade`/`bandScore` stay `null` for non-scoreable responses; assert duplicate detection flags the right `responseTeamId`s; assert the ticker interval is cleared on unmount/session-end.
+
+### LOW `utils/quizSearchText.ts` untested
+
+- **Detected:** 2026-08-31
+- **File:** `utils/quizSearchText.ts` (27 lines, new since 2026-08-24)
+- **Detail:** `buildQuizSearchText` truncates at 2000 chars and normalizes whitespace/case for quiz-library search, and `quizQuestionDedupeKey` builds a stable JSON key (sorted incorrect-answers array) used for exact-duplicate detection when merging quizzes.
+- **Fix:** Assert truncation at the exact boundary, empty/whitespace-only question text filtered out, and that the dedupe key is order-independent for `incorrectAnswers` but sensitive to `type`/`correctAnswer` differences.
+
+### LOW `utils/rubricPoints.ts` untested
+
+- **Detected:** 2026-08-31
+- **File:** `utils/rubricPoints.ts` (17 lines, new since 2026-08-24)
+- **Detail:** `rubricMaxPoints` sums each criterion's highest-point level (assumes ascending `levels`, could silently give a wrong max if a criterion's max isn't the last entry), and `sumRubricScorePoints` explicitly guards non-finite `points` (`NaN`/`Infinity`) down to 0.
+- **Fix:** Test `rubricMaxPoints` with unsorted levels to confirm/deny the ordering assumption; test `sumRubricScorePoints` with `NaN`/`Infinity` inputs to lock in the corrupted-score defense.
+
 ### LOW PLC sync-group join/leave transaction handlers untested
 
 - **Detected:** 2026-08-24
@@ -86,12 +107,7 @@ _Nothing currently in progress._
 - **Detail:** Untested: the adjusting-state-while-rendering uid-change reset (`prevUid` compare in the render body — a pattern explicitly called out in CLAUDE.md and easy to break), the `createdAt` preservation in `saveSavedWidget` (`existing?.createdAt ?? now` — a re-save must not reset `createdAt`), and the `orderBy('createdAt','asc')` listener.
 - **Fix:** Assert a signed-out mount has `loading:false` and no listener; assert a uid change clears `savedWidgets` and re-enters loading in the same render; assert `saveSavedWidget` throws when signed out, generates a uuid when no id is passed, and preserves `createdAt` while bumping `updatedAt` on re-save; assert `setPinnedToDock`/`deleteSavedWidget` no-op when signed out; assert the listener error path logs and clears `loading`.
 
-### LOW `useNutrislice.ts` menu fetch/parse/cache untested
-
-- **Detected:** 2026-08-24
-- **File:** `components/widgets/LunchCount/useNutrislice.ts` (345 lines)
-- **Detail:** Contains a real parser and a cache-migration state machine: `ALT_MEAL_SECTION_PATTERNS` matching, `toMenuItem` normalization, `isLegacyCachedMenu` detection of the pre-sides/images shape, and — notably — an explicit guard whose comment warns that without it a failed legacy-shape migration would "re-fire `fetchNutrislice` on the next render — pegging the proxy". That anti-hammering guard has no test.
-- **Fix:** Assert `isLegacyCachedMenu` is true for the legacy string shape and false for the current shape and for undefined; assert alt-meal section-name matching including case/whitespace variants; assert a fetch failure on a legacy cache writes `buildEmptyMenu` + a `lastSyncDate` so the effect does NOT re-fire on the next render; assert the same-day cache short-circuits without calling `fetchExternalProxy`; assert `logError` is called with `useNutrislice.fetchNutrislice` and `{widgetId}` on failure.
+_2026-08-31: Weekly coverage audit (Audit A1 — Monday), delegated to a dedicated sub-agent. `pnpm test` exit 0 — **686 files / 7901 tests** (root) all passing (366s), plus `functions/` 43 files / 867 tests passing (6s). Only benign stderr from intentional error-path logging. Zero HIGH severity issues. Three new items filed (1 MEDIUM, 2 LOW): `useMonitorData.ts` (new quiz-monitor hook, 248 lines, zero tests), `utils/quizSearchText.ts`, and `utils/rubricPoints.ts` (both new pure-logic files since the last audit). **One item fully resolved:** `useNutrislice.ts` now has `useNutrislice.test.tsx` (541 lines, 12 tests) covering exactly what the tracked item's Fix line asked for — moved to Completed. **Two items partially resolved:** the hooks/ untested-file count drops from 24 to 21 (`useBuildingSelection`, `useStudentAssignments`, `useAssignmentPseudonyms` now covered), and the widget fully-untested count drops from 11 to 9 (`HotspotImage` and `MathTools` now have test files). All other existing Open items re-verified unchanged._
 
 _2026-08-24: Weekly coverage audit (Audit A1 — Monday), delegated to a dedicated sub-agent. `pnpm test` exit 0 — **638 files / 7514 tests all passing** (up from 620/7429 on 2026-08-17: +18 files, +85 tests), 417s. Only benign stderr (intentional error-path logging in `googleCalendarService.test.ts` and similar). **Zero HIGH severity issues.** Twelve new items filed (8 MEDIUM, 4 LOW). The new findings come from widening the audit beyond the four dimensions the prompt lists (utils/, hooks/, widget dirs, `functions/src/index.ts`): the `functions/src/` sweep was done per-module rather than against the barrel, which surfaced four untested security-relevant Cloud Function modules (`embedProxy`, `driveArchive`, `adminAnalyticsEndpoint`, `classlinkRoster`) that the existing CF item — scoped to `spotifyOAuth.ts` — does not cover; and pure-logic modules living under `components/` rather than `utils/` (`seatingChartLayouts.ts`, `plcAnalyticsAggregate.ts`, `mentionUtils.ts`, `gisOAuth.ts`, `useNutrislice.ts`) fall through every existing dimension. Context providers were also confirmed to be an untracked dimension entirely. **Stale-count corrections applied to the existing items below** (re-derived by script, as those items' own Fix lines requested): utils/ untested count is **16**, not "~20", and three files named in that item now have tests (`firestorePaging.ts`, `imageWorker.ts`, `classroomGradePush.ts`) and were struck; hooks/ untested count is exactly **24**, not "~22", now enumerated in full; `MathToolInstance` is no longer fully untested (it has `Settings.test.tsx`; its `Widget.tsx` remains uncovered), dropping the fully-untested widget set from 9 to 8, and three widget dirs missing from that item's list were added. The MEDIUM Cloud Function item's `spotifyOAuth.test.ts` sub-target was re-confirmed absent and remains accurate. Zero items fully resolved this cycle._
 
@@ -162,6 +178,7 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
 ### LOW widget test coverage — significant improvement, ~26 widgets remain untested
 
 - **Detected:** 2026-04-13
+- **Progress (2026-08-31, audit):** `HotspotImage` (one of the fully-untested-8) now has `components/widgets/HotspotImage/Widget.test.tsx`. `MathTools` (one of the three "missing from this item's list" dirs) now has `components/widgets/MathTools/Settings.test.tsx`, moving it from "fully untested" to "partially covered" (its `Widget.tsx` remains uncovered). Fully-untested count drops from 11 to **9**: BloomsTaxonomy, CarRiderPro, ConceptWeb, NeedDoPutThen, Onboarding, SyntaxFramer, WorkSymbols, Webcam, BlendingBoard.
 - **Progress (2026-08-24, audit):** `MathToolInstance` is no longer fully untested — it now has `components/widgets/MathToolInstance/Settings.test.tsx` (its `Widget.tsx`, 244 lines, remains uncovered, moving it into the "partially covered" bucket with MusicWidget/SpecialistSchedule/etc.). The fully-untested set is therefore **8**, not 9: BloomsTaxonomy, CarRiderPro, ConceptWeb, HotspotImage, NeedDoPutThen, Onboarding, SyntaxFramer, WorkSymbols. A scripted `components/widgets/*/` vs `tests/` + colocated diff also found **three dirs missing from this item's list entirely**: `MathTools/` (Widget 382 + Settings 97), `Webcam/` (Widget 731 + Settings 40), `BlendingBoard/` (Widget 89 + Settings 28 + `hooks/useBlendingBoardConfig.ts` 40) — so the true untested count is 11, not 9. `Webcam/Widget.tsx` is the highest-value of the three at 731 lines: `getUserMedia` lifecycle + `enumerateDevices` camera cycling, dual-mode OCR (Gemini vs Tesseract, branched on `canAccessFeature('gemini-functions')`), and a send-to-notes path that sanitizes extracted text before writing a widget. Suggested Webcam tests: assert the `getUserMedia` constraint shape and that the stream's tracks are stopped on unmount and on device switch; assert `switchCamera` wraps around the device list; assert a `getUserMedia` rejection sets the error state without leaving a live stream; assert the OCR mode branch picks Gemini only when the feature is granted; assert `performSendToNotes` trims and sanitizes before `addWidget`; assert `clearPhotos` only clears after `showConfirm` resolves true. MathTools/BlendingBoard: standard config-round-trip + Settings-writes-config tests.
 - **Progress (2026-08-17, audit):** Of the 17 widgets tracked as of 2026-08-10: three now have a direct widget test (Calendar — `Widget.test.tsx` + `tests/CalendarWidget.test.tsx`; First5 — `Widget.test.tsx`; NextUp — `Widget.test.tsx`). Five are partially covered (Settings/subcomponent/logic tested, but `Widget.tsx` itself still isn't): MusicWidget, SpecialistSchedule, CustomWidget, RevealGrid, StarterPack. Nine remain fully untested: BloomsTaxonomy, CarRiderPro, ConceptWeb, HotspotImage, MathToolInstance, NeedDoPutThen, Onboarding, SyntaxFramer, WorkSymbols. No new widget was added without a test.
 - **Progress (2026-05-04, audit):** Total test suite is 185 files / 1771 tests, all passing. No new widget-level tests added since 2026-04-29. Widget count unchanged at ~26 untested. `useSessionViewCount.ts` (added after 2026-04-29) already has a test in `tests/hooks/useSessionViewCount.test.ts`.
@@ -173,6 +190,7 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
 ### LOW hooks/ coverage — ~22 hook files have no matching test file
 
 - **Detected:** 2026-08-17
+- **Progress (2026-08-31, audit):** Three of the 24 tracked files now have coverage: `useBuildingSelection` (`tests/hooks/useBuildingSelection.test.ts`), `useStudentAssignments` (three colocated `.behavior`/`.viewOnly`/`.listenerCount`/`.parsePublicationFields` test files), and `useAssignmentPseudonyms` (its sole export `useAssignmentPseudonymsMulti` is covered by `tests/hooks/useAssignmentPseudonymsMulti.test.ts` — a naming mismatch, not a real gap). Untested count drops from 24 to **21**.
 - **Progress (2026-08-24, audit):** Exact list re-derived by script as this item's Fix line requested. Count is **24**, not "~22": `useAdminBuildings`, `useAssignmentPseudonyms`, `useBackgrounds`, `useBuildingSelection`, `useCatalystSets`, `useClassLinkEnabled`, `useGuidedLearning`, `useImageUpload`, `useInstructionalRoutines`, `useMiniAppAssignments`, `useOrgSubscriptionReset`, `usePlcLibraryActions`, `usePlcMeetings`, `usePlcPresence`, `usePlcSharedBoards`, `usePlcVideoActivities`, `useScaledFont`, `useScreenshot`, `useSpotifyAuth`, `useSpotifySearch`, `useStudentAssignments`, `useStudentClassDirectory`, `useTestClasses`, `useWidgetBuildingId`. `useOrgSubscriptionReset.ts` is a 36-line wrapper over the already-tested `utils/orgSubscriptionKey` — lowest priority on the list.
 - **File:** hooks/ directory (full list in the 2026-08-24 progress note above)
 - **Detail:** Roughly 22 files in hooks/ have no colocated `*.test.ts`/`*.test.tsx` file and no matching file under `tests/hooks/`. This dimension of coverage wasn't previously tracked as its own item (prior audits tracked hook *state density*, not hook test coverage). Severity LOW since most of these are thin Firestore-listener or API wrapper hooks rather than complex business logic, but some (useSpotifyAuth, usePlcPresence) touch auth/session state worth regression-testing.
@@ -181,6 +199,14 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
 ---
 
 ## Completed
+
+### LOW `useNutrislice.ts` menu fetch/parse/cache untested
+
+- **Detected:** 2026-08-24
+- **Resolved:** 2026-08-31 — resolved outside journal workflow. `components/widgets/LunchCount/useNutrislice.test.tsx` now exists (541 lines, 12 tests).
+- **File:** `components/widgets/LunchCount/useNutrislice.ts` (345 lines)
+- **Detail (original):** Contains a real parser and a cache-migration state machine: `ALT_MEAL_SECTION_PATTERNS` matching, `toMenuItem` normalization, `isLegacyCachedMenu` detection of the pre-sides/images shape, and — notably — an explicit guard whose comment warns that without it a failed legacy-shape migration would "re-fire `fetchNutrislice` on the next render — pegging the proxy". That anti-hammering guard has no test.
+- **Resolution:** `useNutrislice.test.tsx` covers exactly what the Fix line asked for: `isLegacyCachedMenu`/legacy-shape re-fetch, the anti-hammering guard ("does not loop when fetch fails on a legacy-shape config"), alt-meal section-name matching including the ambiguous "Alt Entree" case, same-day cache short-circuit, and bento/hotLunch dedup edge cases.
 
 ### MEDIUM utils/ files with complex logic have no test coverage
 
