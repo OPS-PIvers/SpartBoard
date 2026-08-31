@@ -33,6 +33,7 @@ import {
 import {
   QuizData,
   QuizResponse,
+  StudentOverride,
   WrittenAnswerAnnotation,
   WrittenAnswerGrade,
   WrittenAnswerRubricScore,
@@ -44,6 +45,7 @@ import { RubricScoringPanel } from './RubricScoringPanel';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { sumRubricScorePoints } from '@/utils/rubricPoints';
+import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -63,6 +65,20 @@ interface WrittenResponseGraderProps {
   ) => Promise<void>;
   /** Current teacher uid, stamped as `gradedBy` on each grade. */
   teacherUid: string;
+  /**
+   * Per-student overrides from the teacher's assignment doc, keyed by
+   * namespaced `StudentTargetRef` (`classlink:{sourcedId}` / `test:{emailLower}`,
+   * see `utils/studentTargetRef.ts`). Undefined/empty for assignments with no
+   * individual targeting — grading behaves exactly as it does today (M17 §5 C4).
+   */
+  overridesBySourcedId?: Record<string, StudentOverride> | null;
+  /**
+   * `studentUid` -> namespaced `StudentTargetRef` key, from
+   * `useAssignmentPseudonyms`. Matches a response's `studentUid` (the
+   * pseudonym doc key for quiz responses) to its entry in
+   * `overridesBySourcedId`. Unmatched uids fall back to the base rubric.
+   */
+  targetRefKeyByStudentUid?: Map<string, string>;
   onClose: () => void;
 }
 
@@ -75,6 +91,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   displayNameByResponseKey,
   onSaveGrade,
   teacherUid,
+  overridesBySourcedId,
+  targetRefKeyByStudentUid,
   onClose,
 }) => {
   // Surface only the questions that actually need manual grading.
@@ -154,7 +172,29 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const pointsInputRef = useRef<string>('');
   pointsInputRef.current = pointsInput;
 
-  const rubricCriteriaCount = question?.rubricSnapshot?.criteria.length ?? 0;
+  // Per-student rubric override resolution (M17 §5 C4). Falls back to the
+  // question's base rubric whenever there's no override, no override maps,
+  // or an unmatched studentUid — zero-regression for non-individually-
+  // targeted assignments.
+  const resolvedRubric = useMemo(
+    () =>
+      question
+        ? resolveRubricForResponse(
+            question,
+            response?.studentUid,
+            overridesBySourcedId,
+            targetRefKeyByStudentUid
+          )
+        : { rubric: undefined, isOverridden: false, overrideMode: null },
+    [
+      question,
+      response?.studentUid,
+      overridesBySourcedId,
+      targetRefKeyByStudentUid,
+    ]
+  );
+  const effectiveRubric = resolvedRubric.rubric;
+  const rubricCriteriaCount = effectiveRubric?.criteria.length ?? 0;
   const targetKey = `${responseKey ?? ''}::${question?.id ?? ''}`;
   if (targetKey !== hydrationKey) {
     setHydrationKey(targetKey);
@@ -558,14 +598,24 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         </section>
 
         <aside className="border-l border-slate-200 bg-white p-6 flex flex-col gap-5 overflow-y-auto">
-          {question.rubricSnapshot && (
+          {effectiveRubric && (
             <RubricScoringPanel
               key={targetKey}
-              rubric={question.rubricSnapshot}
+              rubric={effectiveRubric}
               maxPoints={maxPoints}
               initialScores={savedGrade?.rubricScores}
               onChange={handleRubricScoresChange}
+              overrideNote={
+                resolvedRubric.overrideMode === 'rubric'
+                  ? 'Alternate rubric for this student'
+                  : undefined
+              }
             />
+          )}
+          {resolvedRubric.overrideMode === 'points' && (
+            <p className="text-xs text-slate-500 italic -mb-2">
+              Points only for this student — rubric override.
+            </p>
           )}
 
           <div>

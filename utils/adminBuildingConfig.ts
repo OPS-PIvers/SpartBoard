@@ -553,6 +553,13 @@ export const getAdminBuildingConfig = (
     case 'hotspot-image':
       if (raw.popoverTheme) out.popoverTheme = raw.popoverTheme;
       break;
+    case 'talking-tool':
+      // Only cardColor/cardOpacity are seeded — fontFamily/fontColor are
+      // currently dead controls at the user level (Widget.tsx never reads
+      // them), so seeding them would replicate the ConceptWeb anti-pattern.
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (isCardOpacity(raw.cardOpacity)) out.cardOpacity = raw.cardOpacity;
+      break;
     case 'concept-web':
       if (
         typeof raw.defaultNodeWidth === 'number' &&

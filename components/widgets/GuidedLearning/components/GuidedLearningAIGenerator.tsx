@@ -86,19 +86,21 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? Z_INDEX.itemDragging : undefined,
+    gap: 'min(12px, 3cqmin)',
+    padding: 'min(10px, 2.5cqmin)',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`grid grid-cols-[auto_1fr] gap-3 p-2.5 bg-slate-50 border rounded-xl ${
+      className={`grid grid-cols-[auto_1fr] bg-slate-50 border rounded-xl ${
         isDragging
           ? 'border-indigo-300 shadow-lg opacity-80'
           : 'border-slate-200'
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
         <button
           type="button"
           {...(disabled ? {} : attributes)}
@@ -107,23 +109,38 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Drag to reorder"
         >
-          <GripVertical className="w-4 h-4" />
+          <GripVertical
+            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+          />
         </button>
-        <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+        <div
+          className="relative rounded-lg overflow-hidden bg-slate-100 shrink-0"
+          style={{ width: 'min(64px, 16cqmin)', height: 'min(64px, 16cqmin)' }}
+        >
           <img
             src={image.url}
             alt={image.fileName}
             className="w-full h-full object-cover"
           />
-          <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[10px] font-bold bg-black/60 text-white rounded">
+          <span
+            className="absolute top-1 left-1 font-bold bg-black/60 text-white rounded"
+            style={{
+              fontSize: 'min(10px, 3.5cqmin)',
+              padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+            }}
+          >
             {index + 1}
           </span>
         </div>
       </div>
-      <div className="flex flex-col gap-1 min-w-0">
-        <div className="flex items-start gap-2">
+      <div
+        className="flex flex-col min-w-0"
+        style={{ gap: 'min(4px, 1cqmin)' }}
+      >
+        <div className="flex items-start" style={{ gap: 'min(8px, 2cqmin)' }}>
           <span
-            className="text-xs text-slate-700 font-medium truncate flex-1"
+            className="text-slate-700 font-medium truncate flex-1"
+            style={{ fontSize: 'min(11px, 4cqmin)' }}
             title={image.fileName}
           >
             {image.fileName}
@@ -135,7 +152,12 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
             className="p-1 text-slate-400 hover:text-brand-red-primary transition-colors disabled:opacity-50"
             aria-label="Remove image"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2
+              style={{
+                width: 'min(14px, 4.5cqmin)',
+                height: 'min(14px, 4.5cqmin)',
+              }}
+            />
           </button>
         </div>
         <textarea
@@ -144,7 +166,14 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           placeholder="Optional notes for this image…"
           rows={2}
           disabled={disabled}
-          className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none resize-none disabled:opacity-50"
+          className="w-full bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none resize-none disabled:opacity-50"
+          style={{
+            padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+            // Editable text a teacher types into, not display text — floor
+            // it at 10px instead of letting cqmin shrink it unbounded on a
+            // narrowed widget.
+            fontSize: 'clamp(10px, 4cqmin, 11px)',
+          }}
         />
       </div>
     </div>
@@ -368,42 +397,77 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Generate with AI"
-      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col p-6"
+      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col"
+      style={{ padding: 'min(24px, 5cqmin)' }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-          <Sparkles className="w-5 h-5" /> Generate with AI
+      <div
+        className="flex items-center justify-between"
+        style={{ marginBottom: 'min(16px, 3.5cqmin)' }}
+      >
+        <h4
+          className="font-black text-indigo-600 flex items-center uppercase tracking-tight"
+          style={{ fontSize: 'min(16px, 6cqmin)', gap: 'min(8px, 2cqmin)' }}
+        >
+          <Sparkles
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+          />{' '}
+          Generate with AI
         </h4>
         <button
           onClick={onClose}
           className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
           aria-label="Close generator"
         >
-          <X className="w-5 h-5" />
+          <X
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+          />
         </button>
       </div>
 
-      <div className="space-y-3 flex-1 overflow-y-auto">
-        <p className="text-sm text-slate-600">
+      <div
+        className="flex flex-col flex-1 overflow-y-auto"
+        style={{ gap: 'min(12px, 3cqmin)' }}
+      >
+        <p
+          className="text-slate-600"
+          style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+        >
           Add one or more images — upload, paste, or pull from Drive. Gemini
           will analyze them together and draft a guided learning experience with
           hotspots spanning the images you provide.
         </p>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="w-full border-2 border-dashed border-slate-300 rounded-xl py-5 text-center hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border-2 border-dashed border-slate-300 rounded-xl text-center hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ padding: 'min(20px, 5cqmin) 0' }}
           >
-            <Upload className="w-6 h-6 text-slate-400 mx-auto mb-1" />
-            <span className="text-slate-700 text-xs font-medium block">
+            <Upload
+              className="text-slate-400 mx-auto"
+              style={{
+                width: 'min(24px, 6cqmin)',
+                height: 'min(24px, 6cqmin)',
+                marginBottom: 'min(4px, 1cqmin)',
+              }}
+            />
+            <span
+              className="text-slate-700 font-medium block"
+              style={{ fontSize: 'min(11px, 4cqmin)' }}
+            >
               Click to upload, drop here, or paste (Ctrl+V)
             </span>
-            <span className="text-slate-400 text-[11px] mt-0.5 block">
+            <span
+              className="text-slate-400 block"
+              style={{
+                fontSize: 'min(11px, 4cqmin)',
+                marginTop: 'min(2px, 0.5cqmin)',
+              }}
+            >
               PNG, JPG, WebP — multi-select supported
             </span>
           </button>
@@ -416,7 +480,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             onChange={handleFileInput}
           />
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap" style={{ gap: 'min(8px, 2cqmin)' }}>
             <DriveImagePicker
               onImageAdded={handleDriveImageAdded}
               disabled={busy}
@@ -436,16 +500,28 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         </div>
 
         {uploadingImages && (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <div
+            className="flex items-center text-slate-500"
+            style={{ gap: 'min(8px, 2cqmin)', fontSize: 'min(11px, 4cqmin)' }}
+          >
+            <Loader2
+              className="animate-spin"
+              style={{
+                width: 'min(14px, 4.5cqmin)',
+                height: 'min(14px, 4.5cqmin)',
+              }}
+            />
             Uploading images…
           </div>
         )}
 
         {images.length > 0 && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              <label
+                className="font-bold uppercase tracking-widest text-slate-500"
+                style={{ fontSize: 'min(11px, 4cqmin)' }}
+              >
                 {images.length} image{images.length === 1 ? '' : 's'} — drag to
                 reorder
               </label>
@@ -459,7 +535,10 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
                 items={images.map((img) => img.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="flex flex-col gap-2">
+                <div
+                  className="flex flex-col"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
                   {images.map((image, index) => (
                     <SortableImageRow
                       key={image.id}
@@ -477,7 +556,13 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         )}
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">
+          <label
+            className="block font-bold uppercase tracking-widest text-slate-500"
+            style={{
+              fontSize: 'min(11px, 4cqmin)',
+              marginBottom: 'min(4px, 1cqmin)',
+            }}
+          >
             Additional instructions (optional)
           </label>
           <textarea
@@ -485,13 +570,31 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
             placeholder="e.g. Focus on vocabulary, include 3 questions, make it for 5th grade…"
-            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm resize-none focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
+            className="w-full bg-white border border-slate-200 rounded-lg text-slate-800 resize-none focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
+            style={{
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(14px, 5.5cqmin)',
+            }}
           />
         </div>
 
         {error && (
-          <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-start gap-2 text-sm text-brand-red-dark font-bold">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div
+            className="bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-start text-brand-red-dark font-bold"
+            style={{
+              padding: 'min(12px, 3cqmin)',
+              gap: 'min(8px, 2cqmin)',
+              fontSize: 'min(14px, 5.5cqmin)',
+            }}
+          >
+            <AlertTriangle
+              className="shrink-0"
+              style={{
+                width: 'min(16px, 4.5cqmin)',
+                height: 'min(16px, 4.5cqmin)',
+                marginTop: 'min(2px, 0.5cqmin)',
+              }}
+            />
             <span className="whitespace-pre-wrap">{error}</span>
           </div>
         )}
@@ -499,9 +602,21 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         {clampWarning && (
           <div
             role="alert"
-            className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800"
+            className="flex items-start bg-amber-50 border border-amber-200 rounded-xl text-amber-800"
+            style={{
+              padding: 'min(12px, 3cqmin)',
+              gap: 'min(8px, 2cqmin)',
+              fontSize: 'min(14px, 5.5cqmin)',
+            }}
           >
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
+            <AlertTriangle
+              className="flex-shrink-0 text-amber-600"
+              style={{
+                width: 'min(16px, 4.5cqmin)',
+                height: 'min(16px, 4.5cqmin)',
+                marginTop: 'min(2px, 0.5cqmin)',
+              }}
+            />
             <span className="whitespace-pre-wrap">{clampWarning}</span>
           </div>
         )}
@@ -515,25 +630,53 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             setClampWarning('');
             onGenerated(set);
           }}
-          className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
+          style={{
+            marginTop: 'min(16px, 3.5cqmin)',
+            padding: 'min(12px, 3cqmin) 0',
+            fontSize: 'min(11px, 4cqmin)',
+            gap: 'min(8px, 2cqmin)',
+          }}
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles
+            style={{
+              width: 'min(16px, 4.5cqmin)',
+              height: 'min(16px, 4.5cqmin)',
+            }}
+          />
           Open in editor to review
         </button>
       ) : (
         <button
           onClick={handleGenerate}
           disabled={images.length === 0 || busy}
-          className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
+          style={{
+            marginTop: 'min(16px, 3.5cqmin)',
+            padding: 'min(12px, 3cqmin) 0',
+            fontSize: 'min(11px, 4cqmin)',
+            gap: 'min(8px, 2cqmin)',
+          }}
         >
           {generating ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2
+                style={{
+                  width: 'min(16px, 4.5cqmin)',
+                  height: 'min(16px, 4.5cqmin)',
+                }}
+                className="animate-spin"
+              />
               Generating…
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4" />
+              <Sparkles
+                style={{
+                  width: 'min(16px, 4.5cqmin)',
+                  height: 'min(16px, 4.5cqmin)',
+                }}
+              />
               Draft with AI
             </>
           )}

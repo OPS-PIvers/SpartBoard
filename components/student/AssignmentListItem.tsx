@@ -10,6 +10,7 @@ import {
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import { useDialog } from '@/context/useDialog';
 import { logError } from '@/utils/logError';
+import { formatOpensLabel } from '@/utils/assignmentWindow';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -131,6 +132,13 @@ interface AssignmentListItemProps {
    * actually participated.
    */
   pendingVerification?: boolean;
+  /**
+   * M17 C2 (§3a-C): 'upcoming' / 'closed' render the shared muted+lock
+   * treatment (reduced opacity + lock icon + "Opens {day time}" / "Closed"
+   * label) and make the row unclickable — same card component, no new
+   * component (Design Contract §4). Omit/'open' for unrestricted rows.
+   */
+  windowState?: 'open' | 'upcoming' | 'closed';
 }
 
 export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
@@ -140,6 +148,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   hideClassName,
   onCompletionResolved,
   pendingVerification,
+  windowState = 'open',
 }) => {
   const [completion, setCompletion] = useState<CompletionState>('unknown');
   // Only the quiz kind has `resultsLockedOut` on its response doc. Other
@@ -205,6 +214,12 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   ]);
 
   const isCompleted = completion === 'completed';
+  // 'upcoming' rows are always locked (they haven't opened yet). 'closed'
+  // rows lock only until the completion check confirms the student actually
+  // submitted before the window closed — a genuinely-completed-but-closed
+  // assignment shows the normal Completed treatment, not the muted lock.
+  const showWindowLock =
+    windowState === 'upcoming' || (windowState === 'closed' && !isCompleted);
   // Pending verification only renders when the parent has surfaced an
   // ended-channel row before its completion check resolved. Once the
   // check confirms participation the row re-renders with the standard
@@ -270,7 +285,18 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
     });
   };
 
+  const windowLockMessage =
+    windowState === 'upcoming' && assignment.openAt
+      ? `${formatOpensLabel(assignment.openAt)} — not available yet.`
+      : 'This assignment is closed.';
+
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (showWindowLock) {
+      e.preventDefault();
+      e.stopPropagation();
+      void showAlert(windowLockMessage, { title: 'Not open', variant: 'info' });
+      return;
+    }
     if (!lockedOut) return;
     // Quiz results have been locked by the teacher. Block the default
     // navigation, then re-check the live state — the teacher may have
@@ -285,12 +311,21 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   // Enter / Space ourselves so screen-reader / keyboard users get the same
   // re-check-and-alert behavior as mouse users.
   const handleKeyDown = (e: React.KeyboardEvent<HTMLAnchorElement>): void => {
+    if (showWindowLock) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      e.stopPropagation();
+      void showAlert(windowLockMessage, { title: 'Not open', variant: 'info' });
+      return;
+    }
     if (!lockedOut) return;
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
     e.stopPropagation();
     void recheckLockAndProceed();
   };
+
+  const isBlocked = lockedOut || showWindowLock;
 
   return (
     <a
@@ -300,17 +335,19 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
       // click modes, making aria-disabled semantically truthful. We then
       // restore keyboard focusability via tabIndex={0} so the row stays
       // reachable by Tab — see handleKeyDown for Enter/Space handling.
-      href={lockedOut ? undefined : assignment.openHref}
+      href={isBlocked ? undefined : assignment.openHref}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      tabIndex={lockedOut ? 0 : undefined}
-      role={lockedOut ? 'button' : undefined}
+      tabIndex={isBlocked ? 0 : undefined}
+      role={isBlocked ? 'button' : undefined}
       aria-busy={isPending ? true : undefined}
-      aria-disabled={lockedOut ? true : undefined}
+      aria-disabled={isBlocked ? true : undefined}
       className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
-        isPending
-          ? 'border-dashed border-slate-200 bg-slate-50'
-          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+        showWindowLock
+          ? 'border-slate-200 bg-slate-50 opacity-60'
+          : isPending
+            ? 'border-dashed border-slate-200 bg-slate-50'
+            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
       }`}
     >
       <span
@@ -330,7 +367,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
       <div className="min-w-0 flex-1">
         <p
           className={`truncate text-sm font-semibold sm:text-base ${
-            isPending ? 'text-slate-500' : 'text-slate-800'
+            isPending || showWindowLock ? 'text-slate-500' : 'text-slate-800'
           }`}
         >
           {assignment.title}
@@ -348,7 +385,19 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         </p>
       </div>
 
-      {lockedOut && (
+      {showWindowLock && (
+        <span
+          aria-label={windowLockMessage}
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600"
+        >
+          <Lock className="h-3 w-3" />
+          {windowState === 'upcoming' && assignment.openAt
+            ? formatOpensLabel(assignment.openAt)
+            : 'Closed'}
+        </span>
+      )}
+
+      {lockedOut && !showWindowLock && (
         <span
           aria-label="Results locked by your teacher"
           className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-600"
@@ -361,7 +410,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
       {/* Suppress the right-side status chip when locked so the "Locked" pill
           is the single, dominant signal on a locked row — otherwise the chip
           (e.g. "View results") contradicts the badge. */}
-      {!lockedOut && (
+      {!isBlocked && (
         <span
           className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
             { isPending, isCompleted, isGraded }

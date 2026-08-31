@@ -4,6 +4,8 @@ import { ChevronRight } from 'lucide-react';
 interface CollapsibleSectionProps {
   label: string;
   defaultOpen?: boolean;
+  /** Optional inline text shown next to the label in BOTH states (e.g. a collapsed-state summary). */
+  summary?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -23,6 +25,7 @@ interface CollapsibleSectionProps {
 export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   label,
   defaultOpen = false,
+  summary,
   children,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -34,9 +37,16 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={regionId}
-        className="group flex w-full items-center justify-between rounded-md py-1 transition-colors"
+        className="group flex w-full items-center justify-between gap-2 rounded-md py-1 transition-colors"
       >
-        <span className="text-sm font-bold text-brand-blue-dark">{label}</span>
+        <span className="flex items-baseline gap-2 min-w-0">
+          <span className="text-sm font-bold text-brand-blue-dark shrink-0">
+            {label}
+          </span>
+          {summary && (
+            <span className="text-xs text-slate-500 truncate">{summary}</span>
+          )}
+        </span>
         <ChevronRight
           className={`w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-all ${open ? 'rotate-90' : ''}`}
         />

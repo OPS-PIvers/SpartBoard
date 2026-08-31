@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   writeBatch,
@@ -119,6 +120,8 @@ describe('useQuizAssignments — publishAssignmentScores protection mirroring', 
       update: batchUpdate,
       commit: batchCommit,
     });
+    // Assignment doc read by publishAssignmentScores for `overridesByStudentUid`.
+    (getDoc as Mock).mockResolvedValue({ data: () => ({}) });
     // No responses — keep these tests focused on the assignment + session
     // doc writes, where the protection field is mirrored.
     mockGetDocs.mockResolvedValue({ docs: [] });

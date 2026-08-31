@@ -206,6 +206,64 @@ describe('useMiniAppSessionTeacher — createSession', () => {
     expect('classIds' in payload).toBe(false);
     expect('rosterIds' in payload).toBe(false);
   });
+
+  // M17 B3 — assignment-level schedule window. `individualTargeting` is
+  // written only by `setAssignmentTargetsV1` (spec §2a), never client-side.
+  it('includes openAt/closeAt when provided, never individualTargeting', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A', {
+        openAt: 1000,
+        closeAt: 2000,
+      });
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.openAt).toBe(1000);
+    expect(payload.closeAt).toBe(2000);
+    expect('individualTargeting' in payload).toBe(false);
+  });
+
+  it('omits openAt/closeAt/individualTargeting when absent (default class-wide flow untouched)', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A');
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect('openAt' in payload).toBe(false);
+    expect('closeAt' in payload).toBe(false);
+    expect('individualTargeting' in payload).toBe(false);
+  });
+
+  // F1 regression: dueAt must land on the session doc (not just the
+  // teacher's archive row) so class-wide students see it on /my-assignments,
+  // which reads dueAt from the session.
+  it('includes dueAt on the session doc when provided', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A', {
+        dueAt: 3000,
+      });
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.dueAt).toBe(3000);
+  });
+
+  it('omits dueAt when absent (legacy sessions unaffected)', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A');
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect('dueAt' in payload).toBe(false);
+  });
 });
 
 describe('useMiniAppSessionTeacher — subscribeToAppSessions', () => {
