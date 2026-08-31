@@ -66,6 +66,7 @@ const MyAssignmentsPage: React.FC = () => {
   const directory = useStudentClassDirectory({ classIds, pseudonymUid });
   const { loadState, assignments, hasErrors, retry } = useStudentAssignments({
     classIds,
+    studentUid: pseudonymUid,
   });
 
   // Active class selection — null = "All classes" overview.
