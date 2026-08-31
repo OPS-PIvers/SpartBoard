@@ -5768,6 +5768,8 @@ export interface GuidedLearningVideoTrim {
 /** Full set data stored in Google Drive as JSON */
 export interface GuidedLearningSet {
   id: string;
+  /** Absent = legacy rendering semantics; 2+ opts into overhaul behavior. */
+  schemaVersion?: number;
   title: string;
   description?: string;
   /** Firebase Storage URLs for one or more activity images */

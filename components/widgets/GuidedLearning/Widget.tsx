@@ -50,6 +50,16 @@ import { Loader2 } from 'lucide-react';
 // ─── AI generation modal (admin only) ────────────────────────────────────────
 import { GuidedLearningAIGenerator } from './components/GuidedLearningAIGenerator';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
+import { useStorage } from '@/hooks/useStorage';
+import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
+import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
+import {
+  buildGlExportFilename,
+  embedSetImages,
+  prepareImportedSet,
+  rehostImportedSetImages,
+} from './utils/glTransfer';
+import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 
 const GL_PERSONAL_COLLECTION = 'guided_learning';
@@ -705,6 +715,98 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     [user?.uid]
   );
 
+  // ─── .gl.json export / import ────────────────────────────────────────────
+  const { uploadGuidedLearningMedia } = useStorage();
+  const [showImportWizard, setShowImportWizard] = useState(false);
+  const [exportingSetId, setExportingSetId] = useState<string | null>(null);
+
+  const handleExport = async (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => {
+    if (exportingSetId) return;
+    setExportingSetId(setId);
+    try {
+      const data = await loadSet(setId, driveFileId, buildingSet);
+      if (!data) return;
+      const { set: embedded, warnings } = await embedSetImages(
+        data,
+        async (url) => {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+          return res.blob();
+        }
+      );
+      const blob = new Blob([JSON.stringify(embedded, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = buildGlExportFilename(embedded.title, embedded.id);
+      a.click();
+      URL.revokeObjectURL(url);
+      addToast(
+        warnings.length > 0
+          ? `Exported with ${warnings.length} warning${warnings.length === 1 ? '' : 's'} — some media stays linked online.`
+          : 'Activity exported.',
+        warnings.length > 0 ? 'info' : 'success'
+      );
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'Export failed', 'error');
+    } finally {
+      setExportingSetId(null);
+    }
+  };
+
+  // Recreated per render on purpose — the wizard holds its own parsed state,
+  // and useStorage's function identities change every render anyway.
+  const importAdapter = createGuidedLearningImportAdapter({
+    save: async (set, title) => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      const uid = user.uid;
+      const { set: rehosted } = await rehostImportedSetImages(
+        set,
+        (blob, fileName) => uploadGuidedLearningMedia(uid, blob, fileName)
+      );
+      const prepared = prepareImportedSet(
+        { ...rehosted, title: title.trim() || rehosted.title },
+        uid
+      );
+      await saveSet(prepared);
+    },
+    renderPreview: (set) => {
+      const thumb = pickThumbnailUrl(set);
+      return (
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
+            {thumb ? (
+              <img
+                src={thumb}
+                alt=""
+                aria-hidden="true"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-xs text-slate-400">No image</span>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-800">
+              {set.title || 'Untitled activity'}
+            </p>
+            <p className="text-xs text-slate-500">
+              {set.imageUrls.length} slide
+              {set.imageUrls.length === 1 ? '' : 's'} · {set.steps.length} step
+              {set.steps.length === 1 ? '' : 's'} · {set.mode}
+            </p>
+          </div>
+        </div>
+      );
+    },
+  });
+
   const emptySet = (): GuidedLearningSet => ({
     id: crypto.randomUUID(),
     title: '',
@@ -816,6 +918,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 onDeleteBuilding={(setId) => {
                   void handleDeleteBuilding(setId);
                 }}
+                onExport={(setId, driveFileId, buildingSet) => {
+                  void handleExport(setId, driveFileId, buildingSet);
+                }}
+                onImport={() => setShowImportWizard(true)}
                 onCreateNewPersonal={handleCreateNew}
                 onCreateNewBuilding={handleCreateNewBuilding}
                 onOpenAIAuthoring={() => setShowAIGen(true)}
@@ -1008,6 +1114,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           confirmLabel="Assign"
         />
       )}
+
+      <ImportWizard<GuidedLearningSet>
+        isOpen={showImportWizard}
+        onClose={() => setShowImportWizard(false)}
+        adapter={importAdapter}
+        onSaved={(title) => addToast(`"${title}" imported.`, 'success')}
+      />
 
       {viewOnlyShareTarget && (
         <ViewOnlyShareModal

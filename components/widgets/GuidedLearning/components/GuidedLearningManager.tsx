@@ -37,6 +37,8 @@ import {
   CheckSquare,
   EyeOff,
   Send,
+  Download,
+  Upload,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -170,6 +172,14 @@ export interface GuidedLearningManagerProps {
   /** Busy-state probe for the building-set Duplicate kebab. */
   isDuplicatingBuilding?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
+  /** Export a set to a self-contained .gl.json file. Same routing as onPlay. */
+  onExport?: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => void;
+  /** Opens the .gl.json import wizard (header secondary action). */
+  onImport?: () => void;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
   /** Admin-only — opens the standalone AI authoring dialog for building sets. */
@@ -362,6 +372,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onDuplicateBuilding,
   isDuplicatingBuilding,
   onDeleteBuilding,
+  onExport,
+  onImport,
   onCreateNewPersonal,
   onCreateNewBuilding,
   onOpenAIAuthoring,
@@ -636,16 +648,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onClick: onCreateNewPersonal,
       };
 
+  const headerSecondary = [
+    ...(isAdmin && isBuildingFiltered
+      ? [{ label: 'AI', icon: Sparkles, onClick: onOpenAIAuthoring }]
+      : []),
+    ...(onImport ? [{ label: 'Import', icon: Upload, onClick: onImport }] : []),
+  ];
   const secondaryActions =
-    isAdmin && isBuildingFiltered
-      ? [
-          {
-            label: 'AI',
-            icon: Sparkles,
-            onClick: onOpenAIAuthoring,
-          },
-        ]
-      : undefined;
+    headerSecondary.length > 0 ? headerSecondary : undefined;
 
   // ─── Drive disconnected banner ────────────────────────────────────────────
   const showDriveBanner =
@@ -698,6 +708,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         label: 'View Results',
         icon: BarChart2,
         onClick: () => onViewResults(recentSessionId),
+      });
+    }
+
+    if (onExport && (entry.driveFileId || entry.buildingSet)) {
+      secondary.push({
+        id: 'export',
+        label: 'Export (.gl.json)',
+        icon: Download,
+        onClick: () => onExport(rawId, entry.driveFileId, entry.buildingSet),
       });
     }
 

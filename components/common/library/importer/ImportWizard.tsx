@@ -89,6 +89,7 @@ export function ImportWizard<TData>({
 }: ImportWizardProps<TData>): React.ReactElement | null {
   const [step, setStep] = useState<Step>('source');
   const [sheetUrl, setSheetUrl] = useState('');
+  const [pasteText, setPasteText] = useState('');
   const [parsed, setParsed] = useState<TData | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [title, setTitle] = useState(defaultTitle ?? '');
@@ -122,6 +123,7 @@ export function ImportWizard<TData>({
     if (isOpen) {
       setStep('source');
       setSheetUrl('');
+      setPasteText('');
       setParsed(null);
       setWarnings([]);
       setTitle(defaultTitle ?? '');
@@ -146,6 +148,7 @@ export function ImportWizard<TData>({
   const supportsFile = adapter.supportedSources.includes('file');
   const supportsAnyUpload =
     supportsCsv || supportsJson || supportsHtml || supportsFile;
+  const supportsJsonPaste = supportsJson && adapter.supportsJsonPaste === true;
 
   const runParse = async (payload: ImportSourcePayload): Promise<void> => {
     const session = sessionRef.current;
@@ -567,6 +570,32 @@ export function ImportWizard<TData>({
             className="hidden"
             aria-label="Upload import file"
           />
+        </div>
+      )}
+
+      {supportsJsonPaste && (
+        <div className="space-y-2">
+          <label
+            htmlFor="import-wizard-paste-json"
+            className="block text-xs font-black uppercase tracking-widest text-slate-500"
+          >
+            Or paste JSON
+          </label>
+          <textarea
+            id="import-wizard-paste-json"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder='{ "title": "…", "imageUrls": […], "steps": […] }'
+            className="w-full h-24 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-mono text-xs placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors resize-none"
+          />
+          <button
+            type="button"
+            onClick={() => void runParse({ kind: 'json', text: pasteText })}
+            disabled={loading || !pasteText.trim()}
+            className="w-full py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors shadow-sm active:scale-95"
+          >
+            Import pasted JSON
+          </button>
         </div>
       )}
 
