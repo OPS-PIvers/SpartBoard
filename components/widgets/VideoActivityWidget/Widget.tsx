@@ -6,8 +6,14 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
+import {
+  buildSetAssignmentTargetsPayload,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
 import {
   WidgetData,
   VideoActivityConfig,
@@ -554,7 +560,12 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
-        onAssign={async (meta, rosterIds, dueAt) => {
+        onAssign={async (
+          meta,
+          rosterIds,
+          dueAt,
+          targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE
+        ) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
@@ -596,6 +607,106 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             derived.classPeriodByClassId,
             sessionOptions
           );
+
+          // M17 §5 B3 — write the new window fields onto the session doc
+          // (`setAssignmentTargetsV1` only owns the pointer-doc windows /
+          // `individualTargeting`, never the session's own openAt/closeAt)
+          // and create the matching teacher-owned assignment archive doc —
+          // required by `setAssignmentTargetsV1`'s ownership check
+          // (`not-found` if absent) and, as a side benefit, populates the
+          // Archive tab for every assignment, not just PLC imports.
+          if (targeting.openAt != null || targeting.closeAt != null) {
+            await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
+              ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
+              ...(targeting.closeAt != null
+                ? { closeAt: targeting.closeAt }
+                : {}),
+            });
+          }
+          const nowTs = Date.now();
+          const assignmentDoc: VideoActivityAssignment = {
+            id: sessionId,
+            activityId: data.id,
+            activityTitle: data.title,
+            activityDriveFileId: meta.driveFileId,
+            teacherUid: user.uid,
+            status: 'active',
+            createdAt: nowTs,
+            updatedAt: nowTs,
+            className: assignmentName,
+            sessionSettings: defaultSessionSettings,
+            ...(sessionOptions ? { sessionOptions } : {}),
+            ...(derived.periodNames.length > 0
+              ? { periodNames: derived.periodNames }
+              : {}),
+            ...(derived.rosterIds.length > 0
+              ? { rosterIds: derived.rosterIds }
+              : {}),
+            mode: vaAssignmentMode,
+            targetMode: targeting.targetMode,
+            ...(targeting.targetStudents.length > 0
+              ? { targetStudents: targeting.targetStudents }
+              : {}),
+            ...(targeting.targetGroupIds.length > 0
+              ? { targetGroupIds: targeting.targetGroupIds }
+              : {}),
+            ...(Object.keys(targeting.overridesByKey).length > 0
+              ? { overridesBySourcedId: targeting.overridesByKey }
+              : {}),
+            ...(targeting.dueAt != null ? { dueAt: targeting.dueAt } : {}),
+            ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
+            ...(targeting.closeAt != null
+              ? { closeAt: targeting.closeAt }
+              : {}),
+          };
+          await setDoc(
+            doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
+            assignmentDoc
+          );
+
+          // Only call the CF when there's actual targeting/window work — the
+          // default class-wide flow (§3a-G) never depends on this callable,
+          // so a Cloud Functions hiccup can't regress today's plain assign.
+          const targetsPayload = buildSetAssignmentTargetsPayload(
+            undefined,
+            targeting
+          );
+          const hasTargetingWork =
+            targeting.targetMode === 'students' ||
+            targetsPayload.add.length > 0 ||
+            targetsPayload.remove.length > 0 ||
+            Object.keys(targetsPayload.overridesBySourcedId).length > 0 ||
+            Object.keys(targetsPayload.window).length > 0;
+          if (hasTargetingWork) {
+            try {
+              const setAssignmentTargets = httpsCallable(
+                functions,
+                'setAssignmentTargetsV1'
+              );
+              const result = await setAssignmentTargets({
+                assignmentId: sessionId,
+                kind: 'video-activity',
+                sessionId,
+                ...targetsPayload,
+              });
+              const data2 = result.data as {
+                skipped?: { ref: unknown; reason: string }[];
+              };
+              if (data2.skipped && data2.skipped.length > 0) {
+                addToast(
+                  `${data2.skipped.length} student${data2.skipped.length === 1 ? '' : 's'} could not be targeted and ${data2.skipped.length === 1 ? 'was' : 'were'} skipped.`,
+                  'info'
+                );
+              }
+            } catch (err) {
+              addToast(
+                err instanceof Error
+                  ? err.message
+                  : 'Failed to save individual student targeting.',
+                'error'
+              );
+            }
+          }
 
           // Persist per-activity memory of the last roster selection so
           // subsequent launches pre-fill the picker.

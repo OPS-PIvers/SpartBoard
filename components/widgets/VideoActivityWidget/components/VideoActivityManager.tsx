@@ -45,6 +45,11 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignModal } from '@/components/common/library/AssignModal';
+import {
+  AssignTargetingSection,
+  type AssignTargetingValue,
+} from '@/components/common/library/AssignTargetingSection';
+import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
@@ -152,7 +157,9 @@ export interface VideoActivityManagerProps {
     /** Selected roster IDs (unified picker output). */
     rosterIds: string[],
     /** Optional due date (epoch ms). null = no due date. */
-    dueAt: number | null
+    dueAt: number | null,
+    /** M17 B3 — individual targeting/overrides/window (spec §5 B3). */
+    targeting: AssignTargetingValue
   ) => Promise<string>;
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
@@ -489,6 +496,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
     makeEmptyPickerValue()
   );
+  // M17 B3 — individual targeting/overrides/window (spec §5 B3).
+  const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
 
   // Adjust state during render when the assign target changes — avoids the
   // set-state-in-effect anti-pattern while keeping form fields reset per open.
@@ -500,6 +511,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setAssignOptions(defaultSessionSettings);
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignDueAt(null);
+    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setAssignError(null);
     // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
     // maps so teachers upgrading from pre-unification configs don't lose
@@ -726,7 +738,20 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     try {
       // Behavior (sessionOptions, attemptLimit) is now sourced from the
       // activity itself in the Widget handler via getVideoActivityBehavior(meta).
-      await onAssign(assignTarget, validRosterIds, assignDueAt);
+      // Mirror the legacy due-date input onto the new top-level `dueAt` so
+      // individual-targeting pointer docs see the same due date the teacher
+      // already set — no second, competing "Due" field in the Schedule
+      // affordance (AssignTargetingSection renders with `showDueAt={false}`).
+      const targetingWithDue: AssignTargetingValue = {
+        ...assignTargeting,
+        dueAt: assignDueAt ?? undefined,
+      };
+      await onAssign(
+        assignTarget,
+        validRosterIds,
+        assignDueAt,
+        targetingWithDue
+      );
       setAssignTarget(null);
       setAssignDueAt(null);
     } catch (err) {
@@ -751,7 +776,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       // View-only shares: no class targeting (rosterIds=[]) and no due date.
       // The session/assignment carry the org-wide view-only mode so rules
       // block submissions; class targeting has no functional effect here.
-      const sessionId = await onAssign(viewOnlyShareTarget, [], null);
+      const sessionId = await onAssign(
+        viewOnlyShareTarget,
+        [],
+        null,
+        EMPTY_ASSIGN_TARGETING_VALUE
+      );
       setViewOnlyShareLink(
         `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`
       );
@@ -1373,6 +1403,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               rosters={rosters}
               pickerValue={pickerValue}
               onPickerChange={setPickerValue}
+              targeting={assignTargeting}
+              onTargetingChange={setAssignTargeting}
               assignError={assignError}
               onEditInActivity={() => {
                 setAssignTarget(null);
@@ -1429,6 +1461,9 @@ const AssignBehaviorSummaryVA: React.FC<{
   rosters: ClassRoster[];
   pickerValue: AssignClassPickerValue;
   onPickerChange: (next: AssignClassPickerValue) => void;
+  /** M17 B3 — individual targeting/overrides/window (spec §5 B3). */
+  targeting: AssignTargetingValue;
+  onTargetingChange: (next: AssignTargetingValue) => void;
   assignError: string | null;
   onEditInActivity?: () => void;
 }> = ({
@@ -1438,6 +1473,8 @@ const AssignBehaviorSummaryVA: React.FC<{
   rosters,
   pickerValue,
   onPickerChange,
+  targeting,
+  onTargetingChange,
   assignError,
   onEditInActivity,
 }) => {
@@ -1462,6 +1499,14 @@ const AssignBehaviorSummaryVA: React.FC<{
         rosters={rosters}
         value={pickerValue}
         onChange={onPickerChange}
+      />
+
+      <AssignTargetingSection
+        rosters={rosters}
+        value={targeting}
+        onChange={onTargetingChange}
+        kind="video-activity"
+        showDueAt={false}
       />
 
       {assignError && (
