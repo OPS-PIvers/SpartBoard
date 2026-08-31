@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 
@@ -32,6 +33,7 @@ const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockSetDoc = setDoc as Mock;
+const mockUpdateDoc = updateDoc as Mock;
 const mockOrderBy = orderBy as Mock;
 
 const TEACHER_UID = 'teacher-1';
@@ -45,6 +47,7 @@ beforeEach(() => {
     segs.join('/')
   );
   mockSetDoc.mockResolvedValue(undefined);
+  mockUpdateDoc.mockResolvedValue(undefined);
   mockOnSnapshot.mockReturnValue(() => undefined);
   mockOrderBy.mockImplementation((field: string, dir: 'asc' | 'desc') => ({
     __orderBy: { field, dir },
@@ -109,5 +112,21 @@ describe('useMiniAppAssignments — createAssignment targeting fields', () => {
     expect(payload.dueAt).toBe(5000);
     expect(payload.openAt).toBe(1000);
     expect(payload.closeAt).toBe(4000);
+  });
+});
+
+// F2 durability fix: skipped-ref count must persist onto the assignment doc
+// so the "N skipped" row marker survives beyond the create-time toast.
+describe('useMiniAppAssignments — setTargetSkippedCount', () => {
+  it('writes targetSkippedCount as a plain number onto the assignment doc', async () => {
+    const { result } = renderHook(() => useMiniAppAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.setTargetSkippedCount('assign-1', 3);
+    });
+
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const payload = mockUpdateDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.targetSkippedCount).toBe(3);
   });
 });

@@ -90,6 +90,13 @@ export interface UseMiniAppAssignmentsResult {
   reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently remove the archive row (the session doc is left as-is). */
   deleteAssignment: (assignmentId: string) => Promise<void>;
+  /**
+   * Durability for the individual-targeting skipped-ref count (canonical
+   * B3 rule): persists a plain, PII-free number onto the teacher's own
+   * assignment doc so the archive/In-progress row can render a "N skipped"
+   * marker after the create-time toast is gone. Names are never persisted.
+   */
+  setTargetSkippedCount: (assignmentId: string, count: number) => Promise<void>;
 }
 
 export const useMiniAppAssignments = (
@@ -315,6 +322,19 @@ export const useMiniAppAssignments = (
     [userId]
   );
 
+  const setTargetSkippedCount = useCallback<
+    UseMiniAppAssignmentsResult['setTargetSkippedCount']
+  >(
+    async (assignmentId, count) => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(
+        doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId),
+        { targetSkippedCount: count, updatedAt: Date.now() }
+      );
+    },
+    [userId]
+  );
+
   return {
     assignments,
     loading,
@@ -324,5 +344,6 @@ export const useMiniAppAssignments = (
     endAssignment,
     reactivateAssignment,
     deleteAssignment,
+    setTargetSkippedCount,
   };
 };

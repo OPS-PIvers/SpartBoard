@@ -237,6 +237,33 @@ describe('useMiniAppSessionTeacher — createSession', () => {
     expect('closeAt' in payload).toBe(false);
     expect('individualTargeting' in payload).toBe(false);
   });
+
+  // F1 regression: dueAt must land on the session doc (not just the
+  // teacher's archive row) so class-wide students see it on /my-assignments,
+  // which reads dueAt from the session.
+  it('includes dueAt on the session doc when provided', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A', {
+        dueAt: 3000,
+      });
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.dueAt).toBe(3000);
+  });
+
+  it('omits dueAt when absent (legacy sessions unaffected)', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A');
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect('dueAt' in payload).toBe(false);
+  });
 });
 
 describe('useMiniAppSessionTeacher — subscribeToAppSessions', () => {

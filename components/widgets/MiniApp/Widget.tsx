@@ -516,6 +516,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     endAssignment,
     reactivateAssignment,
     deleteAssignment,
+    setTargetSkippedCount,
   } = useMiniAppAssignments(user?.uid);
 
   // Assign flow state
@@ -634,6 +635,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           mode: assignmentMode,
           openAt: assignTargetingValue.openAt ?? null,
           closeAt: assignTargetingValue.closeAt ?? null,
+          dueAt: assignTargetingValue.dueAt ?? null,
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up
@@ -685,6 +687,19 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           });
           const skipped = result.data.skipped ?? [];
           if (skipped.length > 0) {
+            // Durability: persist a plain PII-free count onto the teacher's
+            // own assignment doc so the "N skipped" marker survives beyond
+            // this toast/modal session (canonical B3 skipped-ref rule).
+            // Best-effort — the toast below still surfaces the names now
+            // regardless of whether this write succeeds.
+            try {
+              await setTargetSkippedCount(assignmentId, skipped.length);
+            } catch (persistErr) {
+              console.warn(
+                '[MiniAppWidget] Failed to persist targetSkippedCount',
+                persistErr
+              );
+            }
             // Names, not raw refs — resolve via the same student index the
             // targeting section already built, so the teacher sees who was
             // dropped rather than an opaque sourcedId/email (spec §5 B3(4)).
