@@ -36,6 +36,7 @@ vi.mock('./secrets', () => ({
 import { computeStudentUid } from './classlinkShared';
 import {
   MAX_TARGET_REFS,
+  computeSessionCloseAt,
   handleSetAssignmentTargets,
   isTestClassAuthority,
   targetRefsFromAssignment,
@@ -898,6 +899,305 @@ describe('handleSetAssignmentTargets', () => {
     expect(
       state.docs.get(pointerPath(computeStudentUid(SOURCED_A, HMAC)))
     ).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F1 — pointer refresh for already-targeted students
+//
+// The client sends a strict diff, so an already-targeted student never appears
+// in `add`. Without a refresh pass, a D3 edit to their override or the window
+// would never reach their pointer doc.
+// ---------------------------------------------------------------------------
+
+describe('handleSetAssignmentTargets — already-targeted refresh', () => {
+  const seedTwo = () =>
+    run(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+        window: { openAt: 100, closeAt: 200, dueAt: null },
+      })
+    );
+
+  it('updates an existing pointer when only the override changes', async () => {
+    await seedTwo();
+    const created = pointerFor().createdAt;
+    const result = await run(
+      baseInput({
+        add: [],
+        window: {},
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    expect(result.updated).toBe(1);
+    expect(pointerFor()).toMatchObject({
+      override: { timeMultiplier: 2 },
+      openAt: 100,
+      createdAt: created,
+    });
+  });
+
+  it('leaves unrelated targeted students untouched on an override edit', async () => {
+    await seedTwo();
+    state.writes.length = 0;
+    await run(
+      baseInput({
+        add: [],
+        window: {},
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+        },
+      })
+    );
+    expect('override' in pointerFor(SOURCED_B)).toBe(false);
+    expect(
+      state.writes.filter(
+        (w) => w.path === pointerPath(computeStudentUid(SOURCED_B, HMAC))
+      )
+    ).toHaveLength(0);
+  });
+
+  it('refreshes every current target when only the window changes', async () => {
+    await seedTwo();
+    const result = await run(baseInput({ add: [], window: { closeAt: 999 } }));
+    expect(result.updated).toBe(2);
+    expect(pointerFor().closeAt).toBe(999);
+    expect(pointerFor(SOURCED_B).closeAt).toBe(999);
+    expect(pointerFor().openAt).toBe(100);
+  });
+
+  it('is idempotent — a repeated edit rewrites the same values', async () => {
+    await seedTwo();
+    const edit = () =>
+      run(
+        baseInput({
+          add: [],
+          window: {},
+          overridesBySourcedId: {
+            [`classlink:${SOURCED_A}`]: { timeMultiplier: 2 },
+          },
+        })
+      );
+    await edit();
+    const first = { ...pointerFor() };
+    await edit();
+    expect(pointerFor()).toMatchObject({
+      override: { timeMultiplier: 2 },
+      createdAt: first.createdAt,
+    });
+  });
+
+  it('never creates a pointer for a listed ref that has none', async () => {
+    state.docs.set(assignmentPath(), {
+      id: ASSIGNMENT_ID,
+      targetStudents: [{ kind: 'classlink', sourcedId: SOURCED_B }],
+    });
+    const result = await run(
+      baseInput({
+        add: [],
+        window: { closeAt: 999 },
+      })
+    );
+    expect(result.updated).toBe(0);
+    expect(
+      state.docs.get(pointerPath(computeStudentUid(SOURCED_B, HMAC)))
+    ).toBeUndefined();
+  });
+
+  it('mirrors an existing student override edit onto the assignment doc', async () => {
+    await seedTwo();
+    await run(
+      baseInput({
+        add: [],
+        window: {},
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { questionIds: ['q1'] },
+        },
+      })
+    );
+    expect(state.docs.get(assignmentPath())).toMatchObject({
+      overridesByStudentUid: {
+        [computeStudentUid(SOURCED_A, HMAC)]: { questionIds: ['q1'] },
+      },
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F2 — pointer top-level window IS the per-student effective window
+// ---------------------------------------------------------------------------
+
+describe('handleSetAssignmentTargets — per-student effective window', () => {
+  it('folds a per-student shift onto the pointer top-level window', async () => {
+    await run(
+      baseInput({
+        window: { openAt: 100, closeAt: 200, dueAt: null },
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { openAt: 50, closeAt: 500 },
+        },
+      })
+    );
+    expect(pointerFor()).toMatchObject({ openAt: 50, closeAt: 500 });
+  });
+
+  it('falls back to the assignment window for a student with no shift', async () => {
+    await run(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+        window: { openAt: 100, closeAt: 200, dueAt: null },
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { closeAt: 500 },
+        },
+      })
+    );
+    expect(pointerFor().closeAt).toBe(500);
+    expect(pointerFor(SOURCED_B).closeAt).toBe(200);
+  });
+
+  it('reverts to the assignment window when the shift is cleared', async () => {
+    state.docs.set(assignmentPath(), {
+      id: ASSIGNMENT_ID,
+      openAt: 100,
+      closeAt: 200,
+    });
+    await run(
+      baseInput({
+        window: { openAt: 100, closeAt: 200, dueAt: null },
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { closeAt: 500 },
+        },
+      })
+    );
+    expect(pointerFor().closeAt).toBe(500);
+    await run(
+      baseInput({
+        add: [],
+        window: {},
+        overridesBySourcedId: { [`classlink:${SOURCED_A}`]: null },
+      })
+    );
+    expect(pointerFor().closeAt).toBe(200);
+  });
+
+  it('keeps a stored shift when a later call only moves the assignment window', async () => {
+    await run(
+      baseInput({
+        window: { openAt: 100, closeAt: 200, dueAt: null },
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { closeAt: 500 },
+        },
+      })
+    );
+    await run(baseInput({ add: [], window: { closeAt: 300 } }));
+    expect(pointerFor().closeAt).toBe(500);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F3 — session-level close is the server bound (§3a-E)
+// ---------------------------------------------------------------------------
+
+describe('computeSessionCloseAt', () => {
+  it('leaves an unbounded assignment unbounded', () => {
+    expect(computeSessionCloseAt(null, [500, 900])).toBeNull();
+  });
+
+  it('widens to the furthest per-student extension', () => {
+    expect(computeSessionCloseAt(200, [undefined, 500, 300])).toBe(500);
+  });
+
+  it('ignores per-student closes earlier than the assignment close', () => {
+    expect(computeSessionCloseAt(200, [100, 150])).toBe(200);
+  });
+
+  it('ignores non-finite values', () => {
+    expect(computeSessionCloseAt(200, [NaN, Infinity])).toBe(200);
+  });
+});
+
+describe('handleSetAssignmentTargets — session close bound', () => {
+  const sessionCloseAt = () =>
+    state.docs.get(`quiz_sessions/${ASSIGNMENT_ID}`)?.closeAt;
+
+  it('widens the session close to cover a per-student extension', async () => {
+    await run(
+      baseInput({
+        window: { openAt: null, closeAt: 200, dueAt: null },
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { closeAt: 500 },
+        },
+      })
+    );
+    expect(sessionCloseAt()).toBe(500);
+  });
+
+  it('keeps the session close at the assignment close with no extension', async () => {
+    await run(
+      baseInput({ window: { openAt: null, closeAt: 200, dueAt: null } })
+    );
+    expect(sessionCloseAt()).toBe(200);
+  });
+
+  it('narrows back when the extension is cleared', async () => {
+    state.docs.set(assignmentPath(), {
+      id: ASSIGNMENT_ID,
+      closeAt: 200,
+    });
+    await run(
+      baseInput({
+        window: { openAt: null, closeAt: 200, dueAt: null },
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { closeAt: 500 },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        window: {},
+        overridesBySourcedId: { [`classlink:${SOURCED_A}`]: null },
+      })
+    );
+    expect(sessionCloseAt()).toBe(200);
+  });
+
+  it('never bounds a session whose assignment has no close', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { closeAt: 500 },
+        },
+      })
+    );
+    expect(sessionCloseAt()).toBeUndefined();
+  });
+
+  it('widens the bound before the pointer docs land', async () => {
+    await run(
+      baseInput({
+        window: { openAt: null, closeAt: 200, dueAt: null },
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { closeAt: 500 },
+        },
+      })
+    );
+    const boundIndex = state.writes.findIndex(
+      (w) =>
+        w.path === `quiz_sessions/${ASSIGNMENT_ID}` && w.data?.closeAt === 500
+    );
+    const pointerIndex = state.writes.findIndex((w) =>
+      w.path.startsWith('student_assignments/')
+    );
+    expect(boundIndex).toBeGreaterThanOrEqual(0);
+    expect(boundIndex).toBeLessThan(pointerIndex);
   });
 });
 

@@ -46,6 +46,23 @@
  *     field; an absent key preserves the stored value.
  *   - `createdAt` is always preserved from the existing doc.
  *
+ * The same merge applies to students who are ALREADY targeted and therefore
+ * absent from this call's `add` (the client sends a strict diff): an edit to
+ * their override, or any window change, refreshes their existing pointer doc
+ * alongside the add batch.
+ *
+ * A pointer's TOP-LEVEL `openAt`/`closeAt` is that student's EFFECTIVE window:
+ * their `override.openAt`/`override.closeAt` shift when set, else the
+ * assignment-level window. C1's pointer-wins merge delivers it to
+ * `/my-assignments` and the student apps unchanged.
+ *
+ * Because the response-write rules bound submissions by the SESSION's
+ * `closeAt`, a per-student extension past it would be rejected server-side. So
+ * whenever this function writes windows it keeps
+ * `session.closeAt = max(assignment closeAt, every per-student effective
+ * closeAt)` — spec §3a-E: session-level is the server bound, per-student shifts
+ * are client-enforced within it.
+ *
  * The resolved target set is persisted back onto the teacher's assignment doc
  * (`targetStudents` + `targetMode`) in the same operation — inside a
  * transaction, since that merge is a read-compute-write and a ref lost to a
@@ -151,6 +168,8 @@ export type SkipReason =
 
 export interface SetAssignmentTargetsResult {
   written: number;
+  /** Already-targeted students whose existing pointer this call refreshed. */
+  updated?: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
 }
@@ -532,6 +551,50 @@ function mergeWrite<T>(
   return supplied === null ? admin.firestore.FieldValue.delete() : supplied;
 }
 
+function numberOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+/**
+ * One field of a pointer's TOP-LEVEL effective window (F2). A per-student
+ * shift wins; otherwise the assignment-level window applies. Reverting to the
+ * assignment level is limited to the one case that needs it — a shift the
+ * stored override carried and this call removed — so the ordinary
+ * absent-key-preserves rule still holds everywhere else.
+ */
+export function effectivePointerWindowField(
+  field: 'openAt' | 'closeAt',
+  payload: number | null | undefined,
+  assignmentLevel: number | null,
+  effectiveOverride: StudentOverride | null | undefined,
+  storedOverride: StudentOverride | null | undefined
+): number | null | undefined {
+  const shift = effectiveOverride?.[field];
+  if (typeof shift === 'number' && Number.isFinite(shift)) return shift;
+  if (payload !== undefined) return payload;
+  const prior = storedOverride?.[field];
+  return typeof prior === 'number' ? assignmentLevel : undefined;
+}
+
+/**
+ * The session-level server bound (§3a-E): the assignment's own close, widened
+ * to cover every per-student extension. An unbounded assignment stays
+ * unbounded — a per-student close is a client-enforced shift, never a new bound.
+ */
+export function computeSessionCloseAt(
+  assignmentCloseAt: number | null,
+  perStudentCloseAt: Iterable<number | undefined>
+): number | null {
+  if (assignmentCloseAt === null) return null;
+  let max = assignmentCloseAt;
+  for (const value of perStudentCloseAt) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > max) {
+      max = value;
+    }
+  }
+  return max;
+}
+
 async function chunkedCommit(
   db: admin.firestore.Firestore,
   ops: ((batch: admin.firestore.WriteBatch) => void)[]
@@ -624,6 +687,23 @@ export async function handleSetAssignmentTargets(
     ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
   ].filter((uid) => !addedUids.has(uid));
 
+  // F1: an already-targeted student never appears in `add` (the client sends a
+  // strict diff), so an override edit or a window change would otherwise never
+  // reach their pointer doc. Refresh those pointers in the same batch.
+  const admittedKeys = new Set(admitted.map((t) => t.key));
+  const windowSupplied =
+    input.window.openAt !== undefined ||
+    input.window.closeAt !== undefined ||
+    input.window.dueAt !== undefined;
+  const refreshTargets = [...carriedByKey.entries()]
+    .filter(
+      ([key]) =>
+        !admittedKeys.has(key) &&
+        (windowSupplied || key in input.overridesBySourcedId)
+    )
+    .map(([key, ref]) => ({ key, ref, uid: uidForRef(ref, hmacSecret) }))
+    .filter((t) => !removeUids.includes(t.uid));
+
   // An empty resulting set with no explicit 'students' intent must not leave a
   // stuck `individualTargeting: true` that hides the assignment from everyone.
   // An explicitly-empty 'students' assignment is intentional and stays hidden.
@@ -631,23 +711,115 @@ export async function handleSetAssignmentTargets(
   const wantsIndividual =
     explicitStudents || (input.targetMode !== 'class' && carriedByKey.size > 0);
 
+  // Every override this call sets or clears, keyed by pseudonym uid — the one
+  // source for both the teacher-side mirror and the session-bound recompute.
+  const overrideChangesByUid = new Map<string, StudentOverride | null>();
+  for (const target of [...admitted, ...refreshTargets]) {
+    if (target.key in input.overridesBySourcedId) {
+      overrideChangesByUid.set(
+        target.uid,
+        input.overridesBySourcedId[target.key]
+      );
+    }
+  }
+  for (const uid of removeUids) overrideChangesByUid.set(uid, null);
+
+  const assignmentData = assignmentSnap.data() ?? {};
+  const assignmentWindow = {
+    openAt: numberOrNull(assignmentData.openAt),
+    closeAt: numberOrNull(assignmentData.closeAt),
+  };
+
+  // F3 (§3a-E): the response-write rules bound submissions by the SESSION's
+  // closeAt, so a per-student extension past it would be rejected. Session
+  // level is the server bound; per-student shifts are client-enforced inside it.
+  const sessionCloseAtNow = numberOrNull(sessionSnap.get('closeAt'));
+  const assignmentCloseAt =
+    input.window.closeAt !== undefined
+      ? input.window.closeAt
+      : (assignmentWindow.closeAt ?? sessionCloseAtNow);
+  const effectiveCloseAtByUid = new Map<string, number | undefined>();
+  const storedMirror: unknown = assignmentData.overridesByStudentUid;
+  if (typeof storedMirror === 'object' && storedMirror !== null) {
+    for (const [uid, value] of Object.entries(
+      storedMirror as Record<string, unknown>
+    )) {
+      const closeAt = (value as StudentOverride | null)?.closeAt;
+      effectiveCloseAtByUid.set(uid, numberOrNull(closeAt) ?? undefined);
+    }
+  }
+  for (const [uid, value] of overrideChangesByUid) {
+    effectiveCloseAtByUid.set(uid, numberOrNull(value?.closeAt) ?? undefined);
+  }
+  const desiredSessionCloseAt = computeSessionCloseAt(
+    assignmentCloseAt,
+    effectiveCloseAtByUid.values()
+  );
+  const writesSessionCloseAt =
+    (input.window.closeAt !== undefined || overrideChangesByUid.size > 0) &&
+    desiredSessionCloseAt !== sessionCloseAtNow;
+
   // Session flag first: hiding an individually-targeted assignment from the
   // class channel must never lag the pointer writes (§2a one-sided window).
-  if (wantsIndividual) {
-    await sessionRef.set({ individualTargeting: true }, { merge: true });
+  // The widened bound rides along, so an extended student's pointer never
+  // lands before the rules would accept their submission.
+  const sessionUpdate: Record<string, unknown> = {};
+  if (wantsIndividual) sessionUpdate.individualTargeting = true;
+  if (writesSessionCloseAt) {
+    sessionUpdate.closeAt =
+      desiredSessionCloseAt === null
+        ? admin.firestore.FieldValue.delete()
+        : desiredSessionCloseAt;
+  }
+  if (Object.keys(sessionUpdate).length > 0) {
+    await sessionRef.set(sessionUpdate, { merge: true });
   }
 
-  // Existing pointer docs feed the one part of the merge contract a field-level
-  // write can't express on its own: `createdAt` is preserved, never rewritten.
+  // Existing pointer docs feed the two parts of the merge contract a field-level
+  // write can't express on its own: `createdAt` is preserved, never rewritten,
+  // and an untouched stored `override` still decides the effective window.
   const existingByUid = new Map<string, Record<string, unknown>>();
-  const addRefs = admitted.map((t) => itemsPath(t.uid));
-  for (let i = 0; i < addRefs.length; i += GET_ALL_CHUNK) {
-    const snaps = await db.getAll(...addRefs.slice(i, i + GET_ALL_CHUNK));
+  const readRefs = [...admitted, ...refreshTargets].map((t) =>
+    itemsPath(t.uid)
+  );
+  for (let i = 0; i < readRefs.length; i += GET_ALL_CHUNK) {
+    const snaps = await db.getAll(...readRefs.slice(i, i + GET_ALL_CHUNK));
     for (const snap of snaps) {
       const data = snap.data();
       if (data) existingByUid.set(snap.ref.parent.parent?.id ?? '', data);
     }
   }
+
+  /** The mutable half of a pointer write, shared by adds and refreshes. */
+  const mutableFields = (key: string, uid: string): Record<string, unknown> => {
+    const overrideChanged = key in input.overridesBySourcedId;
+    const storedOverride = (existingByUid.get(uid)?.override ?? undefined) as
+      | StudentOverride
+      | undefined;
+    const effectiveOverride = overrideChanged
+      ? input.overridesBySourcedId[key]
+      : storedOverride;
+    const fields: Record<string, unknown> = {};
+    for (const field of ['openAt', 'closeAt'] as const) {
+      const value = mergeWrite(
+        effectivePointerWindowField(
+          field,
+          input.window[field],
+          assignmentWindow[field],
+          effectiveOverride,
+          storedOverride
+        )
+      );
+      if (value !== undefined) fields[field] = value;
+    }
+    const dueAt = mergeWrite(input.window.dueAt);
+    if (dueAt !== undefined) fields.dueAt = dueAt;
+    const override = mergeWrite(
+      overrideChanged ? input.overridesBySourcedId[key] : undefined
+    );
+    if (override !== undefined) fields.override = override;
+    return fields;
+  };
 
   const now = Date.now();
   const ops: ((batch: admin.firestore.WriteBatch) => void)[] = [];
@@ -660,20 +832,22 @@ export async function handleSetAssignmentTargets(
       classId: target.classId,
       createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
+      ...mutableFields(target.key, target.uid),
     };
-    const openAt = mergeWrite(input.window.openAt);
-    const closeAt = mergeWrite(input.window.closeAt);
-    const dueAt = mergeWrite(input.window.dueAt);
-    const override = mergeWrite(
-      target.key in input.overridesBySourcedId
-        ? input.overridesBySourcedId[target.key]
-        : undefined
-    );
-    if (openAt !== undefined) payload.openAt = openAt;
-    if (closeAt !== undefined) payload.closeAt = closeAt;
-    if (dueAt !== undefined) payload.dueAt = dueAt;
-    if (override !== undefined) payload.override = override;
     const ref = itemsPath(target.uid);
+    ops.push((batch) => batch.set(ref, payload, { merge: true }));
+  }
+  // A refresh only ever edits a pointer this caller already fanned out — it
+  // never creates one, so a ref forged onto `targetStudents` reaches nothing.
+  let updated = 0;
+  for (const target of refreshTargets) {
+    const existing = existingByUid.get(target.uid);
+    if (!existing || existing.teacherUid !== callerUid) continue;
+    const fields = mutableFields(target.key, target.uid);
+    if (Object.keys(fields).length === 0) continue;
+    const ref = itemsPath(target.uid);
+    const payload = { ...fields, updatedAt: now };
+    updated += 1;
     ops.push((batch) => batch.set(ref, payload, { merge: true }));
   }
   for (const uid of removeUids) {
@@ -690,16 +864,9 @@ export async function handleSetAssignmentTargets(
     string,
     StudentOverride | admin.firestore.FieldValue
   > = {};
-  for (const target of admitted) {
-    const write = mergeWrite(
-      target.key in input.overridesBySourcedId
-        ? input.overridesBySourcedId[target.key]
-        : undefined
-    );
-    if (write !== undefined) overridesByStudentUid[target.uid] = write;
-  }
-  for (const uid of removeUids) {
-    overridesByStudentUid[uid] = admin.firestore.FieldValue.delete();
+  for (const [uid, value] of overrideChangesByUid) {
+    overridesByStudentUid[uid] =
+      value === null ? admin.firestore.FieldValue.delete() : value;
   }
 
   // Persisted after the pointer commit so the doc only ever claims targets
@@ -751,6 +918,7 @@ export async function handleSetAssignmentTargets(
 
   return {
     written: admitted.length,
+    updated,
     removed: removeUids.length,
     skipped: [...preSkipped, ...addResult.skipped, ...overLimit],
   };

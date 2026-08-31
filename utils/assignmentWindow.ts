@@ -11,6 +11,12 @@ export interface WindowFields {
   closeAt?: number;
 }
 
+/** Session/pointer docs store an explicitly-cleared window field as `null`. */
+export interface NullableWindowFields {
+  openAt?: number | null;
+  closeAt?: number | null;
+}
+
 export function getWindowState(
   a: WindowFields,
   nowMs: number
@@ -20,6 +26,25 @@ export function getWindowState(
   if (nowMs < openAt) return 'upcoming';
   if (nowMs >= closeAt) return 'closed';
   return 'open';
+}
+
+/**
+ * The student's effective window (M17 F2). `setAssignmentTargetsV1` writes the
+ * per-student shift onto the pointer doc's TOP-LEVEL `openAt`/`closeAt`, so a
+ * present pointer value already IS the effective one and wins over the
+ * session-level window.
+ */
+export function resolveEffectiveWindow(
+  session: NullableWindowFields | null | undefined,
+  pointer: NullableWindowFields | null | undefined
+): WindowFields {
+  const pick = (field: 'openAt' | 'closeAt') => {
+    const shift = pointer?.[field];
+    if (typeof shift === 'number') return shift;
+    const base = session?.[field];
+    return typeof base === 'number' ? base : undefined;
+  };
+  return { openAt: pick('openAt'), closeAt: pick('closeAt') };
 }
 
 /** "Opens {day time}" label for an upcoming-window card. */

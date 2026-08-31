@@ -42,6 +42,8 @@ export type SkipReason =
 
 export interface SetAssignmentTargetsCallResult {
   written: number;
+  /** Already-targeted students whose existing pointer the call refreshed. */
+  updated?: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
 }
