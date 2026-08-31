@@ -7607,14 +7607,21 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   classroomAttachment?: ClassroomAttachmentLink;
   /** Item D part 2 — multi-course attachments (read via getClassroomAttachments). */
   classroomAttachments?: ClassroomAttachmentLink[];
-  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched. */
+  /** Individual-student targeting mode. Default 'class' — legacy behavior untouched.
+   *  Written ONLY by `setAssignmentTargetsV1` (M17 §5 B3 canonical rules) — the
+   *  client never writes this field. */
   targetMode?: 'class' | 'students';
-  /** Only meaningful when `targetMode === 'students'`. */
+  /** Only meaningful when `targetMode === 'students'`. Written ONLY by
+   *  `setAssignmentTargetsV1` — the client never writes this field. */
   targetStudents?: StudentTargetRef[];
   /** Provenance of picked groups (display only); does not drive resolution. */
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Plain, PII-free count of refs `setAssignmentTargetsV1` could not target
+   *  (M17 §5 B3 canonical rules) — durable "N skipped" marker for list rows,
+   *  distinct from the ephemeral toast shown at assign time. */
+  targetSkippedCount?: number;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
