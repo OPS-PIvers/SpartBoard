@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Inbox } from 'lucide-react';
 import { AssignmentListItem, type CompletionState } from './AssignmentListItem';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import type { AssignmentFilterMode } from './AssignmentFilterTabs';
+import { getWindowState } from '@/utils/assignmentWindow';
+import { getServerNow } from '@/utils/serverTime';
 
 /**
  * Renders the Active and/or Completed sections per the selected filter
@@ -21,6 +23,12 @@ import type { AssignmentFilterMode } from './AssignmentFilterTabs';
  *       state render with the muted "Checking…" treatment via
  *       `pendingVerificationKeys` so the student doesn't see a row that
  *       looks like a confirmed completion before the check has resolved.
+ *
+ * M17 C2 (§3a-C): within the Active list, "Open now" and "Upcoming" are
+ * subheaders (not separate top-level sections) — a locked-window row that
+ * hasn't opened yet stays inside `active` (the page-level partition only
+ * moves *closed*-window rows into `completed`). Completed collapses past
+ * 10 items by default (§3a-C).
  */
 
 interface AssignmentSectionsProps {
@@ -43,6 +51,8 @@ interface AssignmentSectionsProps {
   pendingVerificationKeys?: ReadonlySet<string>;
 }
 
+const COMPLETED_COLLAPSE_THRESHOLD = 10;
+
 export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
   mode,
   active,
@@ -53,33 +63,76 @@ export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
   onCompletionResolved,
   pendingVerificationKeys,
 }) => {
+  // Computed once per render against server-offset "now" — never a live
+  // countdown (Design Contract §4).
+  const nowMs = getServerNow();
+
+  const { openNow, upcoming } = useMemo(() => {
+    const openNow: AssignmentSummary[] = [];
+    const upcoming: AssignmentSummary[] = [];
+    for (const a of active) {
+      if (getWindowState(a, nowMs) === 'upcoming') upcoming.push(a);
+      else openNow.push(a);
+    }
+    return { openNow, upcoming };
+  }, [active, nowMs]);
+
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
+
   if (mode === 'active') {
     return (
-      <Section
-        label="Active"
-        count={active.length}
-        empty={
-          <CalmEmpty
-            title="All caught up"
-            body="You're all caught up — no active assignments right now."
-          />
-        }
-      >
-        {active.map((a) => (
-          <AssignmentListItem
-            key={a.compositeId}
-            assignment={a}
-            pseudonymUid={pseudonymUid}
-            classEntry={
-              a.classIds[0] ? directoryById[a.classIds[0]] : undefined
-            }
-            hideClassName={hideClassName}
-            onCompletionResolved={onCompletionResolved}
-          />
-        ))}
-      </Section>
+      <div className="flex flex-col gap-6">
+        <Section
+          label="Open now"
+          count={openNow.length}
+          empty={
+            <CalmEmpty
+              title="All caught up"
+              body="You're all caught up — no active assignments right now."
+            />
+          }
+        >
+          {openNow.map((a) => (
+            <AssignmentListItem
+              key={a.compositeId}
+              assignment={a}
+              pseudonymUid={pseudonymUid}
+              classEntry={
+                a.classIds[0] ? directoryById[a.classIds[0]] : undefined
+              }
+              hideClassName={hideClassName}
+              onCompletionResolved={onCompletionResolved}
+              windowState="open"
+            />
+          ))}
+        </Section>
+
+        {upcoming.length > 0 && (
+          <Section label="Upcoming" count={upcoming.length}>
+            {upcoming.map((a) => (
+              <AssignmentListItem
+                key={a.compositeId}
+                assignment={a}
+                pseudonymUid={pseudonymUid}
+                classEntry={
+                  a.classIds[0] ? directoryById[a.classIds[0]] : undefined
+                }
+                hideClassName={hideClassName}
+                onCompletionResolved={onCompletionResolved}
+                windowState="upcoming"
+              />
+            ))}
+          </Section>
+        )}
+      </div>
     );
   }
+
+  const visibleCompleted =
+    !showAllCompleted && completed.length > COMPLETED_COLLAPSE_THRESHOLD
+      ? completed.slice(0, COMPLETED_COLLAPSE_THRESHOLD)
+      : completed;
+  const hiddenCount = completed.length - visibleCompleted.length;
 
   return (
     <Section
@@ -92,7 +145,7 @@ export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
         />
       }
     >
-      {completed.map((a) => (
+      {visibleCompleted.map((a) => (
         <AssignmentListItem
           key={a.compositeId}
           assignment={a}
@@ -101,8 +154,20 @@ export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
           hideClassName={hideClassName}
           onCompletionResolved={onCompletionResolved}
           pendingVerification={pendingVerificationKeys?.has(a.compositeId)}
+          windowState={
+            getWindowState(a, nowMs) === 'closed' ? 'closed' : 'open'
+          }
         />
       ))}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAllCompleted(true)}
+          className="mt-1 self-start text-xs font-semibold text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700"
+        >
+          Show {hiddenCount} more
+        </button>
+      )}
     </Section>
   );
 };
@@ -110,7 +175,7 @@ export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
 interface SectionProps {
   label: string;
   count: number;
-  empty: React.ReactNode;
+  empty?: React.ReactNode;
   children?: React.ReactNode;
 }
 
