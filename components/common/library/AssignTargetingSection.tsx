@@ -87,6 +87,12 @@ export interface AssignTargetingSectionProps {
   showDueAt?: boolean;
   /** Present only for quiz consumers — unlocks question subset / MC hider / rubric swap in B2 rows. */
   quizContext?: AssignTargetingQuizContext;
+  /**
+   * Fired on first expansion into 'students' mode (F1 fix — the host lazily
+   * loads full quiz content only when the teacher actually opens this
+   * affordance, instead of on every modal open).
+   */
+  onExpand?: () => void;
 }
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
@@ -183,6 +189,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   kind,
   showDueAt = false,
   quizContext,
+  onExpand,
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -223,7 +230,10 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
     patch({ targetStudents: nextStudents, overridesByKey: nextOverrides });
   };
 
-  const expand = () => patch({ targetMode: 'students' });
+  const expand = () => {
+    patch({ targetMode: 'students' });
+    onExpand?.();
+  };
 
   // Reverting to class-wide clears targeting/overrides ONLY — the Schedule
   // affordance is fully independent of targetMode (F1 fix), so a window the

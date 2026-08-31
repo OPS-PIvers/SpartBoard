@@ -535,10 +535,13 @@ describe('Widget.onAssign — createAssignment receives behavior from quiz meta'
     });
     // Crucially, NO mode/sessionOptions/attemptLimit args — behavior is sourced
     // from the quiz meta. The args are (meta, plcOptions, rosterIds, dueAt,
-    // targeting, destination); the chooser pick adds the destination as the
-    // 6th arg (M17 B3 inserted `targeting` before it).
-    expect(onAssign.mock.calls[0]).toHaveLength(6);
+    // targeting, destination, preloadedQuizData); the chooser pick adds the
+    // destination as the 6th arg (M17 B3 inserted `targeting` before it), and
+    // the class-wide path here never expanded individual targeting so the 7th
+    // arg (F1 fix) is null.
+    expect(onAssign.mock.calls[0]).toHaveLength(7);
     expect(onAssign.mock.calls[0][5]).toBe('spartboard');
+    expect(onAssign.mock.calls[0][6]).toBeNull();
   });
 
   it('behavior summary shows the mode from the quiz behavior', async () => {

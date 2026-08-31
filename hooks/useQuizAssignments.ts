@@ -243,6 +243,16 @@ export interface UseQuizAssignmentsResult {
    */
   setAssignmentExportUrl: (assignmentId: string, url: string) => Promise<void>;
   /**
+   * M17 individual-assignment targeting (spec §5 B3) — persists the count of
+   * student-target refs `setAssignmentTargetsV1` couldn't add (PII-free, a
+   * plain number) so the "N skipped" row marker survives a reload; the toast
+   * with names is ephemeral only.
+   */
+  setAssignmentTargetSkippedCount: (
+    assignmentId: string,
+    count: number
+  ) => Promise<void>;
+  /**
    * Persist the set of response keys that have been written to the linked
    * sheet. Powers the "Update Sheet" affordance in QuizResults — the next
    * incremental append filters out responses already in this list so we
@@ -1361,6 +1371,19 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const setAssignmentTargetSkippedCount = useCallback<
+    UseQuizAssignmentsResult['setAssignmentTargetSkippedCount']
+  >(
+    async (assignmentId, count) => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        { targetSkippedCount: count, updatedAt: Date.now() }
+      );
+    },
+    [userId]
+  );
+
   const setAssignmentExportedResponseIds = useCallback<
     UseQuizAssignmentsResult['setAssignmentExportedResponseIds']
   >(
@@ -2283,6 +2306,7 @@ export const useQuizAssignments = (
     updateAssignmentSettings,
     setAssignmentRosters,
     setAssignmentExportUrl,
+    setAssignmentTargetSkippedCount,
     setAssignmentExportedResponseIds,
     shareAssignment,
     peekSharedAssignment,

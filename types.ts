@@ -4417,6 +4417,13 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /**
+   * Count of student-target refs the most recent `setAssignmentTargetsV1`
+   * call couldn't add (PII-free — a plain number, no names). Persisted so
+   * the "N skipped" list-row marker survives a reload; the toast with names
+   * shown at assign time is ephemeral only.
+   */
+  targetSkippedCount?: number;
 }
 
 /** See `QuizAssignment.sync`. */

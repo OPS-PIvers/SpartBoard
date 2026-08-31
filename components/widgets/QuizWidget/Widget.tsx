@@ -223,6 +223,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     updateAssignmentSettings,
     setAssignmentRosters,
     setAssignmentExportUrl,
+    setAssignmentTargetSkippedCount,
     setAssignmentExportedResponseIds,
     shareAssignment,
     publishAssignmentScores,
@@ -1246,9 +1247,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           rosterIds: string[],
           dueAt: number | null,
           targeting: AssignTargetingValue,
-          destination?: AssignDestination
+          destination?: AssignDestination,
+          preloadedQuizData?: QuizData | null
         ) => {
-          const data = await loadQuiz(meta);
+          // F1 fix — reuse the content QuizManager already fetched for the
+          // B2 override editor (when the teacher expanded individual
+          // targeting) instead of hitting Drive a second time. Class-wide
+          // assigns never populate `preloadedQuizData`, so they still fetch
+          // exactly once, here.
+          const data = preloadedQuizData ?? (await loadQuiz(meta));
           if (!data) return;
           // Source behavior (sessionMode, sessionOptions, attemptLimit) from
           // the quiz itself now that it lives on the quiz (Task 9).
@@ -1422,9 +1429,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 mode: quizAssignmentMode,
                 ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
                 // M17 individual-assignment targeting (spec §5 B3). Only the
-                // fields the client owns — `targetStudents` itself is written
-                // by `setAssignmentTargetsV1` below, never here (§2a).
-                targetMode: targeting.targetMode,
+                // fields the client owns — `targetMode` and `targetStudents`
+                // are written by `setAssignmentTargetsV1` below, never here
+                // (canonical rule — absent `targetMode` means class default).
                 targetGroupIds: targeting.targetGroupIds,
                 overridesBySourcedId: targeting.overridesByKey,
                 openAt: targeting.openAt ?? null,
@@ -1462,6 +1469,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     `${result.skipped.length} student${result.skipped.length === 1 ? '' : 's'} could not be added to this assignment.`,
                     'warning'
                   );
+                  // Skipped-ref durability (canonical rule) — persist the
+                  // PII-free count onto the assignment doc so the "N
+                  // skipped" list-row marker survives a reload; the toast
+                  // with names above is ephemeral only. Best-effort: a
+                  // failure here doesn't affect the already-created
+                  // assignment or the in-session toast/marker.
+                  try {
+                    await setAssignmentTargetSkippedCount(
+                      assignmentId,
+                      result.skipped.length
+                    );
+                  } catch (persistErr) {
+                    logError(
+                      'QuizWidget.assignment.setAssignmentTargetSkippedCount',
+                      persistErr,
+                      { assignmentId }
+                    );
+                  }
                 }
               } catch (targetErr) {
                 logError(

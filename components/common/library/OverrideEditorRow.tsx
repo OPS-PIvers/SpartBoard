@@ -24,11 +24,17 @@ export interface OverrideEditorQuestionOption {
   isCorrect: boolean;
 }
 
-/** A question the override editor can target. `options` present ⇒ MC (hider applies); absent ⇒ written (rubric swap applies). */
+/**
+ * A question the override editor can target. `options` present ⇒ MC (hider
+ * applies). `isWritten` true ⇒ short/essay (rubric swap applies). A question
+ * with neither (FIB/Matching/Ordering) is only selectable in the bare
+ * question-subset picker — no per-question hider or rubric swap (F2 fix).
+ */
 export interface OverrideEditorQuestion {
   id: string;
   label: string;
   options?: OverrideEditorQuestionOption[];
+  isWritten?: boolean;
 }
 
 export interface OverrideEditorPeer {
@@ -163,7 +169,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
     });
   };
 
-  const writtenQuestions = questions.filter((q) => !q.options);
+  const writtenQuestions = questions.filter((q) => q.isWritten);
   const mcQuestions = questions.filter((q) => !!q.options);
 
   return (

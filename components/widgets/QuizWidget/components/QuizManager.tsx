@@ -16,13 +16,7 @@
  * only, not functionality.
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   FileUp,
@@ -64,6 +58,7 @@ import {
   QuizData,
   StudentTargetRef,
   SyncedQuizGroup,
+  isWrittenQuestionType,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -208,6 +203,9 @@ function toOverrideEditorQuestions(
             })),
           ]
         : undefined,
+    // F2 fix — only short/essay are rubric-swappable; FIB/Matching/Ordering
+    // are neither MC-hideable nor rubric-swappable, just subset-selectable.
+    isWritten: isWrittenQuestionType(q.type),
   }));
 }
 
@@ -292,7 +290,16 @@ interface QuizManagerProps {
      * the SpartBoard-only flow; 'classroom' = create the SpartBoard assignment
      * THEN open the Google Classroom course picker. Defaults to 'spartboard'.
      */
-    destination?: AssignDestination
+    destination?: AssignDestination,
+    /**
+     * Full quiz content already loaded via `onLoadQuizData` for the B2
+     * override editor (F1 fix) — present whenever the teacher expanded
+     * "+ Individual students & overrides" during this modal session. The
+     * Widget handler reuses this instead of re-fetching from Drive; `null`/
+     * `undefined` means the class-wide path never needed it, so the handler
+     * still fetches once itself.
+     */
+    preloadedQuizData?: QuizData | null
   ) => void;
   /**
    * Loads full quiz content (questions) for the assign modal's B2 override
@@ -740,6 +747,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // fields (question subset / MC-option hider / rubric swap). `QuizMetadata`
   // doesn't carry questions — loaded on demand via `onLoadQuizData`.
   const [assignQuizData, setAssignQuizData] = useState<QuizData | null>(null);
+  // Tracks the quiz id whose full content has been loaded/in-flight for the
+  // current assign modal (F1 fix) — see `handleExpandIndividualTargeting`.
+  const loadedAssignQuizDataForRef = useRef<string | null>(null);
   const { rubrics: assignRubrics } = useRubrics(userId);
 
   // Subscribed at the parent so both AssignPlcSlot (UI) and
@@ -756,6 +766,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       setAssignDueAt(null);
       setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
       setAssignQuizData(null);
+      loadedAssignQuizDataForRef.current = null;
       setAssignOptions(
         buildDefaultAssignOptions(
           config,
@@ -767,22 +778,26 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
   }
 
-  // Loads the assign modal's question data from an external system (Drive),
-  // keyed on the target quiz id — a genuine useEffect use case, not derived
-  // state. Runs after the render-time reset above so a stale in-flight load
-  // for a previously-opened quiz can't clobber the newly-opened one; the
-  // `cancelled` guard drops any response that resolves after the target has
-  // since changed again.
-  useEffect(() => {
+  // Lazily loads the assign modal's question data from an external system
+  // (Drive) — ONLY when the teacher expands "+ Individual students &
+  // overrides" (F1 fix). The class-wide path never touches `onLoadQuizData`,
+  // so a class-wide assign fetches the quiz exactly once (at assign time in
+  // the Widget handler), same as before this feature existed. Re-expanding
+  // the same quiz's targeting section doesn't re-fetch, and the assign
+  // handler below reuses whatever this resolved instead of fetching again.
+  const handleExpandIndividualTargeting = (): void => {
     if (!assignTarget || !onLoadQuizData) return;
-    let cancelled = false;
-    void onLoadQuizData(assignTarget).then((data) => {
-      if (!cancelled) setAssignQuizData(data);
+    if (loadedAssignQuizDataForRef.current === assignTarget.id) return;
+    loadedAssignQuizDataForRef.current = assignTarget.id;
+    const target = assignTarget;
+    void onLoadQuizData(target).then((data) => {
+      // Drop a response for a since-abandoned target (modal reopened on a
+      // different quiz before this resolved).
+      if (loadedAssignQuizDataForRef.current === target.id) {
+        setAssignQuizData(data);
+      }
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [assignTarget, onLoadQuizData]);
+  };
 
   // Live ClassLink fetching is no longer performed at assign time. Imported
   // ClassLink rosters carry their own `classlinkClassId` metadata so the
@@ -1489,7 +1504,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       validRosterIds,
       assignDueAt,
       assignTargeting,
-      assignDestination
+      assignDestination,
+      assignQuizData
     );
     setAssignTarget(null);
     setAssignDueAt(null);
@@ -1964,6 +1980,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   questions: toOverrideEditorQuestions(assignQuizData),
                   rubrics: assignRubrics,
                 }}
+                onExpand={handleExpandIndividualTargeting}
               />
             </>
           }
@@ -2387,6 +2404,10 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   skippedTargets,
 }) => {
   const assignmentIsViewOnly = a.mode === 'view-only';
+  // Skipped-ref durability (canonical rule) — prefer the in-memory names
+  // from this session's `setAssignmentTargetsV1` call; fall back to the
+  // persisted PII-free count so the marker survives a reload.
+  const skippedCount = skippedTargets?.length ?? a.targetSkippedCount ?? 0;
   const { primary, secondaries } = buildActions(a, mode);
   const status = resolveStatus(a.status, assignmentIsViewOnly);
   // Schoology LTI assignments get `periodNames` written onto the assignment doc
@@ -2490,13 +2511,13 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
             {syncBadge.label}
           </span>
         )}
-        {skippedTargets && skippedTargets.length > 0 && (
+        {skippedCount > 0 && (
           <span
-            title={`${skippedTargets.length} student${skippedTargets.length === 1 ? '' : 's'} could not be individually targeted`}
+            title={`${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be individually targeted`}
             className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700"
           >
             <AlertTriangle className="w-2.5 h-2.5" />
-            {skippedTargets.length} skipped
+            {skippedCount} skipped
           </span>
         )}
       </>
