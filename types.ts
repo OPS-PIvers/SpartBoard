@@ -3291,6 +3291,14 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
   soundEffectsEnabled?: boolean;
+  /**
+   * During-taking tab-switch auto-submit threshold (M17 B4). Distinct from
+   * `protection.tabWarningThreshold` (results-viewing lockout). `'off'`
+   * disables auto-submit-on-tab-switch entirely; absent = default of 3
+   * (pre-existing hardcoded behavior). Per-student override lives on
+   * `StudentOverride.tabWarningThreshold`.
+   */
+  tabWarningThreshold?: number | 'off';
 }
 
 /**
@@ -3408,6 +3416,12 @@ export interface QuizSession {
   // ─── Toggles (Phase 1) ─────────────────────────────────────────────────────
   /** Whether tab-switch detection is active on student devices (default true) */
   tabWarningsEnabled?: boolean;
+  /**
+   * During-taking tab-switch auto-submit threshold (M17 B4). See
+   * `QuizSessionOptions.tabWarningThreshold`; mirrored here at session
+   * creation. Absent = default of 3.
+   */
+  tabWarningThreshold?: number | 'off';
   /**
    * Block copy / cut / paste in the student quiz UI (default false). Mirrored
    * from the assignment's `sessionOptions.blockCopyPaste` so the student
