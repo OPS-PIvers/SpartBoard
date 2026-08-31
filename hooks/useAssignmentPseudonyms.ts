@@ -68,6 +68,9 @@ const EMPTY_MAPS: AssignmentPseudonymMaps = {
   targetRefKeyByStudentUid: new Map(),
 };
 
+/** `refsKey` value when `targetStudents` is empty — used for the empty-check guard. */
+const EMPTY_REFS_KEY = '[]';
+
 let cacheOwnerUid: string | null = null;
 let cache: Map<string, Promise<AssignmentPseudonymMaps>> = new Map();
 
@@ -146,13 +149,6 @@ function fetchPseudonymMaps(
   return promise;
 }
 
-/** Inverse of `studentTargetRefKey()` — lets the effect rebuild refs from `refsKey`. */
-function refFromKey(key: string): StudentTargetRef {
-  return key.startsWith('test:')
-    ? { kind: 'test', email: key.slice(5) }
-    : { kind: 'classlink', sourcedId: key.slice('classlink:'.length) };
-}
-
 export function formatStudentName(name: StudentName | undefined): string {
   if (!name) return '';
   const full = `${name.givenName} ${name.familyName}`.trim();
@@ -198,9 +194,18 @@ export function useAssignmentPseudonymsMulti(
     [classIds]
   );
   const orgKey = orgId ?? '';
-  // Value-stable identity for the ref list, same rationale as `classIdsKey`.
+  // Value-stable identity for the ref list's content, same rationale as
+  // `classIdsKey`. Used ONLY as an effect-dependency trigger — never parsed
+  // back into refs (a sourcedId/email containing '|' would mis-split a
+  // joined key). The effect reads the actual refs from the `targetStudents`
+  // prop directly (closed over at effect-run time), not from this key.
   const refsKey = useMemo(
-    () => (targetStudents ?? []).map(studentTargetRefKey).sort().join('|'),
+    () =>
+      JSON.stringify(
+        (targetStudents ?? [])
+          .map(studentTargetRefKey)
+          .sort((a, b) => a.localeCompare(b))
+      ),
     [targetStudents]
   );
   const [resolved, setResolved] = useState<{
@@ -210,10 +215,12 @@ export function useAssignmentPseudonymsMulti(
 
   useEffect(() => {
     if (!assignmentId) return;
-    if (classIdsKey.length === 0 && refsKey.length === 0) return;
+    if (classIdsKey.length === 0 && refsKey === EMPTY_REFS_KEY) return;
     const teacherUid = auth.currentUser?.uid ?? '';
     if (!teacherUid) return;
-    const refsInEffect = refsKey ? refsKey.split('|').map(refFromKey) : [];
+    const refsInEffect = [...(targetStudents ?? [])].sort((a, b) =>
+      studentTargetRefKey(a).localeCompare(studentTargetRefKey(b))
+    );
     const cleanedInEffect =
       refsInEffect.length > 0
         ? ['']
@@ -281,10 +288,13 @@ export function useAssignmentPseudonymsMulti(
     return () => {
       cancelled = true;
     };
+    // `targetStudents` is intentionally excluded below: `refsKey` is its
+    // content-derived identity and is what should retrigger the effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId, classIdsKey, orgKey, refsKey]);
 
   const currentKey =
-    assignmentId && (classIdsKey.length > 0 || refsKey.length > 0)
+    assignmentId && (classIdsKey.length > 0 || refsKey !== EMPTY_REFS_KEY)
       ? `${assignmentId}::${classIdsKey}::${orgKey}::${refsKey}`
       : '';
   return resolved.key === currentKey && currentKey !== ''

@@ -175,6 +175,46 @@ describe('useAssignmentPseudonymsMulti — target refs', () => {
     });
   });
 
+  it('resolves refs when a sourcedId contains the memo-key delimiter', async () => {
+    setHandler(({ targetStudents }) => ({
+      data: {
+        pseudonyms: Object.fromEntries(
+          (targetStudents ?? []).map((ref) => [
+            ref.kind === 'classlink' ? ref.sourcedId : ref.email,
+            entry(
+              `uid-${ref.kind === 'classlink' ? ref.sourcedId : ref.email}`,
+              'Riley',
+              ref.kind === 'classlink'
+                ? `classlink:${ref.sourcedId}`
+                : `test:${ref.email}`
+            ),
+          ])
+        ),
+      },
+    }));
+
+    const pipeSourcedId = 'SID|WITH|PIPES';
+    const refs: StudentTargetRef[] = [
+      { kind: 'classlink', sourcedId: pipeSourcedId },
+    ];
+    const aid = nextAssignmentId();
+    const { result } = renderHook(() =>
+      useAssignmentPseudonymsMulti(aid, [], '', refs)
+    );
+
+    await waitFor(() => {
+      expect(result.current.byStudentUid.size).toBe(1);
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].targetStudents).toEqual(refs);
+    expect(
+      result.current.byStudentUid.get(`uid-${pipeSourcedId}`)?.givenName
+    ).toBe('Riley');
+    expect(
+      result.current.targetRefKeyByStudentUid.get(`uid-${pipeSourcedId}`)
+    ).toBe(`classlink:${pipeSourcedId}`);
+  });
+
   it('reports a failing ref call and leaves the maps empty', async () => {
     setHandler(() => Promise.reject(new Error('permission-denied')));
 
