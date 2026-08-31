@@ -81,6 +81,7 @@
       "configuration": "Configuration",
       "boards": "Tableaux",
       "backgrounds": "Arrière-plans",
+      "assignments": "Devoirs",
       "classes": "Mes Classes",
       "plcs": "Mes CAP",
       "widgets": "Widgets",
@@ -1860,5 +1861,38 @@
     "scheduleSummaryBoth": "Ouvre {{open}} – Ferme {{close}}",
     "scheduleSummaryOpenOnly": "Ouvre {{open}}",
     "scheduleSummaryCloseOnly": "Ferme {{close}}"
+  },
+  "assignmentsHub": {
+    "title": "Devoirs",
+    "close": "Fermer les devoirs",
+    "kind": {
+      "quiz": "Quiz",
+      "videoActivity": "Activité Vidéo",
+      "guidedLearning": "Apprentissage Guidé",
+      "miniApp": "Mini App"
+    },
+    "filterAll": "Tous",
+    "filterAllClasses": "Toutes les classes",
+    "filterAllStatuses": "Tout statut",
+    "statusActive": "Actif",
+    "statusPaused": "En pause",
+    "statusInactive": "Inactif",
+    "individualTag": "Individuel",
+    "skippedCount": "{{count}} ignorés",
+    "windowBoth": "Ouvre {{open}} – Ferme {{close}}",
+    "windowOpenOnly": "Ouvre {{open}}",
+    "windowCloseOnly": "Ferme {{close}}",
+    "loading": "Chargement des devoirs",
+    "emptyBody": "Aucun devoir pour l'instant. Attribuez un quiz ou une activité depuis son éditeur pour le voir ici.",
+    "emptyAction": "En créer un",
+    "noFilterMatches": "Aucun devoir ne correspond à ces filtres.",
+    "selectPrompt": "Sélectionnez un devoir pour voir les détails.",
+    "detailComingSoon": "Le statut par élève arrive bientôt.",
+    "status": {
+      "notStarted": "Pas commencé",
+      "inProgress": "En cours",
+      "submitted": "Soumis",
+      "graded": "Noté"
+    }
   }
 }
