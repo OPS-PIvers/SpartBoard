@@ -643,10 +643,10 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               ? { rosterIds: derived.rosterIds }
               : {}),
             mode: vaAssignmentMode,
-            targetMode: targeting.targetMode,
-            ...(targeting.targetStudents.length > 0
-              ? { targetStudents: targeting.targetStudents }
-              : {}),
+            // `targetMode`/`targetStudents` are deliberately absent — the client
+            // never writes them; `setAssignmentTargetsV1` is the sole writer
+            // (M17 §5 B3 canonical rules), avoiding a doc that claims
+            // students-targeting the CF never actually persisted.
             ...(targeting.targetGroupIds.length > 0
               ? { targetGroupIds: targeting.targetGroupIds }
               : {}),
@@ -664,21 +664,16 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             assignmentDoc
           );
 
-          // Only call the CF when there's actual targeting/window work — the
-          // default class-wide flow (§3a-G) never depends on this callable,
-          // so a Cloud Functions hiccup can't regress today's plain assign.
-          const targetsPayload = buildSetAssignmentTargetsPayload(
-            undefined,
-            targeting
-          );
-          const hasTargetingWork =
-            targeting.targetMode === 'students' ||
-            targetsPayload.add.length > 0 ||
-            targetsPayload.remove.length > 0 ||
-            Object.keys(targetsPayload.overridesBySourcedId).length > 0 ||
-            Object.keys(targetsPayload.window).length > 0;
-          if (hasTargetingWork) {
-            try {
+          // Call the CF strictly when the teacher chose per-student targeting
+          // (§3a-G) — a class-wide assignment, even with a Schedule window,
+          // never depends on this callable, so a Cloud Functions hiccup can't
+          // regress today's plain assign.
+          if (targeting.targetMode === 'students') {
+            const targetsPayload = buildSetAssignmentTargetsPayload(
+              undefined,
+              targeting
+            );
+            const runSetAssignmentTargets = async (): Promise<void> => {
               const setAssignmentTargets = httpsCallable(
                 functions,
                 'setAssignmentTargetsV1'
@@ -692,18 +687,43 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               const data2 = result.data as {
                 skipped?: { ref: unknown; reason: string }[];
               };
-              if (data2.skipped && data2.skipped.length > 0) {
+              const skippedCount = data2.skipped?.length ?? 0;
+              // Durable, PII-free marker for list rows — the toast below is
+              // ephemeral and names nothing, but a teacher who dismisses it
+              // still needs to see "N skipped" later (M17 §5 B3 canonical rules).
+              await setDoc(
+                doc(
+                  db,
+                  'users',
+                  user.uid,
+                  'video_activity_assignments',
+                  sessionId
+                ),
+                { targetSkippedCount: skippedCount },
+                { merge: true }
+              );
+              if (skippedCount > 0) {
                 addToast(
-                  `${data2.skipped.length} student${data2.skipped.length === 1 ? '' : 's'} could not be targeted and ${data2.skipped.length === 1 ? 'was' : 'were'} skipped.`,
+                  `${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be targeted and ${skippedCount === 1 ? 'was' : 'were'} skipped.`,
                   'info'
                 );
               }
+            };
+            try {
+              await runSetAssignmentTargets();
             } catch (err) {
+              // The session/assignment doc were already created above — only
+              // the per-student targeting failed. Say so explicitly and offer
+              // a retry instead of the plain success toast further down.
               addToast(
-                err instanceof Error
-                  ? err.message
-                  : 'Failed to save individual student targeting.',
-                'error'
+                `Assignment created, but individual student targeting failed${
+                  err instanceof Error ? `: ${err.message}` : '.'
+                } Retry targeting?`,
+                'error',
+                {
+                  label: 'Retry',
+                  onClick: () => void runSetAssignmentTargets(),
+                }
               );
             }
           }
