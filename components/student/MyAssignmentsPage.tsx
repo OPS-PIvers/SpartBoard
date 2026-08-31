@@ -21,6 +21,8 @@ import {
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
 import { useStudentClassDirectory } from '@/hooks/useStudentClassDirectory';
+import { getWindowState } from '@/utils/assignmentWindow';
+import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { StudentSidebar } from './StudentSidebar';
 import { StudentOverview } from './StudentOverview';
 import { StudentClassView } from './StudentClassView';
@@ -69,6 +71,12 @@ const MyAssignmentsPage: React.FC = () => {
       classIds,
       studentUid: pseudonymUid,
     });
+
+  // M17 C2 — clock-skew guard for window enforcement (spec §3a-D): window
+  // comparisons use server-offset time, never raw Date.now().
+  useEffect(() => {
+    syncServerTime(pseudonymUid);
+  }, [pseudonymUid]);
 
   // Active class selection — null = "All classes" overview.
   const [activeClassId, setActiveClassId] = useState<string | null>(null);
@@ -187,9 +195,18 @@ const MyAssignmentsPage: React.FC = () => {
     const active: AssignmentSummary[] = [];
     const completed: AssignmentSummary[] = [];
     const pendingVerificationKeys = new Set<string>();
+    // M17 C2 (§3a-C): a window-closed assignment merges into Completed
+    // (muted+lock treatment) even when the student never submitted —
+    // computed once per render against server-offset "now", never a live
+    // countdown (Design Contract §4).
+    const nowMs = getServerNow();
     for (const a of assignments) {
       const completion = completionMap[`${a.kind}:${a.sessionId}`] ?? 'unknown';
       if (completion === 'completed') {
+        completed.push(a);
+        continue;
+      }
+      if (getWindowState(a, nowMs) === 'closed') {
         completed.push(a);
         continue;
       }

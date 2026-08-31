@@ -703,6 +703,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
             assignmentPseudonym: string;
             givenName: string;
             familyName: string;
+            targetRefKey: string;
           }
         > = {};
         for (const rawEmail of memberEmails) {
@@ -721,8 +722,12 @@ export const getPseudonymsForAssignmentV1 = onCall(
           // Key by the lowercased email (no `sourcedId` exists for test
           // students). The client-side hook only iterates `Object.values`
           // and re-keys by `studentUid`, so the key choice is internal.
+          // `targetRefKey` mirrors `studentTargetRefKey()` (utils/studentTargetRef.ts)
+          // so the grader (C4) can resolve `overridesBySourcedId` without
+          // duplicating the namespacing rule client-side.
           pseudonyms[emailLower] = {
             studentUid,
+            targetRefKey: `test:${emailLower}`,
             assignmentPseudonym: computeAssignmentPseudonym(
               studentUid,
               assignmentId,
@@ -821,6 +826,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
           assignmentPseudonym: string;
           givenName: string;
           familyName: string;
+          targetRefKey: string;
         }
       > = {};
       for (const s of students) {
@@ -828,6 +834,10 @@ export const getPseudonymsForAssignmentV1 = onCall(
         const studentUid = computeStudentUid(s.sourcedId, hmacSecret);
         pseudonyms[s.sourcedId] = {
           studentUid,
+          // Mirrors `studentTargetRefKey()` (utils/studentTargetRef.ts) so
+          // the grader (C4) can resolve `overridesBySourcedId` without
+          // duplicating the namespacing rule client-side.
+          targetRefKey: `classlink:${s.sourcedId}`,
           assignmentPseudonym: computeAssignmentPseudonym(
             studentUid,
             assignmentId,
