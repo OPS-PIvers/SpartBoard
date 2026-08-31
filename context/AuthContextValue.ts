@@ -13,6 +13,7 @@ import {
   AssignmentMode,
   AssignmentWidgetKey,
   UserTier,
+  MaterialDefinition,
 } from '@/types';
 import type { BuildingRecord } from '@/types/organization';
 
@@ -156,6 +157,10 @@ export interface AuthContextType {
   savedWidgetPresets: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** Save an explicit preset library account-wide (debounced Firestore write) */
   saveWidgetPreset: (type: WidgetType, preset: Partial<WidgetConfig>) => void;
+  /** Teacher-created Materials widget entries, shared across all of the user's boards */
+  customMaterials: MaterialDefinition[];
+  /** Replace the teacher's custom materials library (immediate Firestore write) */
+  saveCustomMaterials: (materials: MaterialDefinition[]) => Promise<void>;
   /** True once the profile Firestore fetch has resolved (success or error) */
   profileLoaded: boolean;
   /** True after the user completes the first-time setup wizard */

@@ -49,6 +49,7 @@ import {
   AssignmentMode,
   AssignmentWidgetKey,
   UserTier,
+  MaterialDefinition,
 } from '@/types';
 import type { MemberRecord, BuildingRecord } from '@/types/organization';
 import { AuthContext } from './AuthContextValue';
@@ -311,6 +312,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [savedWidgetPresets, setSavedWidgetPresets] = useState<
     Partial<Record<WidgetType, Partial<WidgetConfig>>>
   >({});
+  const [customMaterials, setCustomMaterials] = useState<MaterialDefinition[]>(
+    []
+  );
   // Initialise from i18n.language. If i18n.init() hasn't resolved its async
   // language detection yet, the useEffect below will sync the state once it fires.
   const [language, setLanguageState] = useState<string>(
@@ -1483,6 +1487,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setSetupCompletedState(false);
       setSavedWidgetConfigs({});
       setSavedWidgetPresets({});
+      setCustomMaterials([]);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
       setDockPositionState('bottom');
@@ -1587,6 +1592,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             }).catch((error: unknown) => {
               console.error('Error migrating saved widget configs:', error);
             });
+          }
+
+          // Load teacher-created Materials widget entries
+          if (
+            'customMaterials' in data &&
+            Array.isArray(data.customMaterials)
+          ) {
+            setCustomMaterials(data.customMaterials as MaterialDefinition[]);
+          } else {
+            setCustomMaterials([]);
           }
 
           // Decide setupCompleted. The wizard writes `setupCompleted: true` on
@@ -2172,6 +2187,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  const saveCustomMaterials = useCallback(
+    async (materials: MaterialDefinition[]) => {
+      setCustomMaterials(materials);
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { customMaterials: materials },
+          { merge: true }
+        );
+      } catch (error) {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving custom materials:', error);
+        }
+        throw error;
+      }
+    },
+    [user]
+  );
+
   const RECENT_CAP = 12;
 
   const toggleFavoriteBackground = useCallback(
@@ -2742,6 +2778,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         saveWidgetConfig,
         savedWidgetPresets,
         saveWidgetPreset,
+        customMaterials,
+        saveCustomMaterials,
         profileLoaded,
         setupCompleted,
         completeSetup,
