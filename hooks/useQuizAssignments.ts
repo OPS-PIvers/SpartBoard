@@ -761,6 +761,9 @@ export const useQuizAssignments = (
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
         // Phase 1 toggles
         tabWarningsEnabled: opts.tabWarningsEnabled ?? true,
+        ...(opts.tabWarningThreshold !== undefined
+          ? { tabWarningThreshold: opts.tabWarningThreshold }
+          : {}),
         blockCopyPaste: opts.blockCopyPaste ?? false,
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
@@ -1192,6 +1195,8 @@ export const useQuizAssignments = (
         const o = patch.sessionOptions;
         if (o.tabWarningsEnabled !== undefined)
           sessionPatch.tabWarningsEnabled = o.tabWarningsEnabled;
+        if (o.tabWarningThreshold !== undefined)
+          sessionPatch.tabWarningThreshold = o.tabWarningThreshold;
         if (o.blockCopyPaste !== undefined)
           sessionPatch.blockCopyPaste = o.blockCopyPaste;
         if (o.showResultToStudent !== undefined)
