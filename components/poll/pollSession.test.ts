@@ -120,8 +120,8 @@ const baseConfig: PollConfig = {
 
 describe('ensurePollJoinCode', () => {
   it('mints a code and writes an inert session doc', async () => {
-    const next = await ensurePollJoinCode(baseConfig, 'teacher-1');
-    expect(next.joinCode).toBe('AAAAA');
+    const code = await ensurePollJoinCode(baseConfig, 'teacher-1');
+    expect(code).toBe('AAAAA');
     expect(mockDoc).toHaveBeenCalledWith(
       {},
       'poll_sessions',
@@ -142,8 +142,15 @@ describe('ensurePollJoinCode', () => {
 
   it('is a no-op once a code exists', async () => {
     const config = { ...baseConfig, joinCode: 'K3F9Q' };
-    expect(await ensurePollJoinCode(config, 'teacher-1')).toBe(config);
+    expect(await ensurePollJoinCode(config, 'teacher-1')).toBeNull();
     expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  it('returns only the code, never a config the caller could stale-write', async () => {
+    // Regression: returning `{ ...config, joinCode }` let a mint that resolved
+    // after a concurrent edit revert that edit.
+    const code = await ensurePollJoinCode(baseConfig, 'teacher-1');
+    expect(typeof code).toBe('string');
   });
 
   it('regenerates when the first candidate code is taken', async () => {
@@ -153,8 +160,7 @@ describe('ensurePollJoinCode', () => {
     mockGetDocs
       .mockResolvedValueOnce({ empty: false, docs: [] })
       .mockResolvedValueOnce({ empty: true, docs: [] });
-    const next = await ensurePollJoinCode(baseConfig, 'teacher-1');
-    expect(next.joinCode).toBe('FREE1');
+    expect(await ensurePollJoinCode(baseConfig, 'teacher-1')).toBe('FREE1');
   });
 });
 

@@ -573,6 +573,57 @@ describe('PollSettings', () => {
     ).toBeInTheDocument();
   });
 
+  it('REGRESSION: a join-code mint does not revert an edit made while it was in flight', async () => {
+    // The mint is a getDocs + setDoc round-trip. It used to resolve with the
+    // config snapshot captured at mount and spread the whole thing back, so an
+    // edit landing mid-flight was silently reverted.
+    let releaseMint: (value: { empty: boolean; docs: never[] }) => void = () =>
+      undefined;
+    mockGetDocs.mockReturnValue(
+      new Promise<{ empty: boolean; docs: never[] }>((resolve) => {
+        releaseMint = resolve;
+      })
+    );
+
+    const staleWidget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: { question: 'Before edit', options: [] },
+    };
+
+    const { rerender } = render(<PollSettings widget={staleWidget} />);
+
+    // The teacher edits while the mint is still in flight.
+    const editedWidget: WidgetData = {
+      ...staleWidget,
+      config: { question: 'After edit', options: [] },
+    };
+    rerender(<PollSettings widget={editedWidget} />);
+
+    releaseMint({ empty: true, docs: [] });
+
+    await waitFor(() => {
+      const withCode = mockUpdateWidget.mock.calls.find(
+        ([, update]) =>
+          (update as { config: { joinCode?: string } }).config.joinCode
+      );
+      expect(withCode).toBeDefined();
+      // The mint patches ONLY joinCode, so it carries no stale question to
+      // write back over the edit that landed while it was in flight.
+      const patched = (
+        withCode as [string, { config: Record<string, unknown> }]
+      )[1].config;
+      expect(patched.question).toBeUndefined();
+      expect(Object.keys(patched)).toEqual(['joinCode']);
+    });
+  });
+
   it('updates the question on blur', () => {
     const mockWidget: WidgetData = {
       id: 'poll-1',

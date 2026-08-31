@@ -143,20 +143,22 @@ const writeSessionDoc = async (
 
 /**
  * Reserve the widget's sticky join code, writing an inert (`startedAt: null`)
- * session doc so the link is shareable before voting ever opens. No-op once a
- * code exists.
+ * session doc so the link is shareable before voting ever opens. Returns the
+ * minted code, or null when one already exists. Deliberately returns only the
+ * code rather than a patched config: the caller must merge it onto whatever
+ * config is current when this resolves, or a concurrent edit is lost.
  */
 export const ensurePollJoinCode = async (
   config: PollConfig,
   teacherUid: string
-): Promise<PollConfig> => {
-  if (config.joinCode) return config;
+): Promise<string | null> => {
+  if (config.joinCode) return null;
   const code = await mintUniquePollCode();
   await writeSessionDoc(teacherUid, code, config, {
     active: false,
     startedAt: null,
   });
-  return { ...config, joinCode: code };
+  return code;
 };
 
 /** Resolve a participant-entered code to its session doc. */

@@ -38,8 +38,10 @@ export const getCurrentQuestion = (config: PollConfig): PollQuestion => {
 };
 
 /**
- * Write `questions` as canonical and drop the legacy mirror so the two shapes
- * can never drift. Clamps the presentation cursor when the list shrinks.
+ * Write `questions` as canonical and drop the legacy keys from the patch.
+ * `updateWidget` merges config shallowly, so a stored legacy mirror can
+ * survive this — it stays inert because `getPollQuestions` always prefers
+ * `questions`. Clamps the presentation cursor when the list shrinks.
  */
 export const withPollQuestions = <T extends PollConfig>(
   config: T,

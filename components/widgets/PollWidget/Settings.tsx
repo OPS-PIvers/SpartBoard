@@ -127,7 +127,11 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     mintingRef.current = true;
     void (async () => {
       try {
-        applyConfig(await ensurePollJoinCode(config, user.uid));
+        const code = await ensurePollJoinCode(config, user.uid);
+        // Patch ONLY the minted key. `updateWidget` merges config shallowly, so
+        // writing back a whole snapshot captured before this round-trip would
+        // revert any edit the teacher made while it was in flight.
+        if (code) applyConfig({ joinCode: code });
       } catch (err) {
         logError('PollSettings.ensureJoinCode', err);
         mintingRef.current = false;
