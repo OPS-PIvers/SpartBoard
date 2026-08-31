@@ -64,10 +64,11 @@ const MyAssignmentsPage: React.FC = () => {
   const { classIds, pseudonymUid, firstName, signOut } = useStudentAuth();
 
   const directory = useStudentClassDirectory({ classIds, pseudonymUid });
-  const { loadState, assignments, hasErrors, retry } = useStudentAssignments({
-    classIds,
-    studentUid: pseudonymUid,
-  });
+  const { loadState, assignments, hasErrors, hasClassErrors, retry } =
+    useStudentAssignments({
+      classIds,
+      studentUid: pseudonymUid,
+    });
 
   // Active class selection — null = "All classes" overview.
   const [activeClassId, setActiveClassId] = useState<string | null>(null);
@@ -273,7 +274,7 @@ const MyAssignmentsPage: React.FC = () => {
     );
   }
 
-  if (assignments.length === 0 && hasErrors) {
+  if (assignments.length === 0 && hasClassErrors) {
     return (
       <PageShell onDone={handleDone}>
         <FullEmpty

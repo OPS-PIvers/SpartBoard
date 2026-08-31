@@ -400,8 +400,19 @@ interface UseStudentAssignmentsResult {
   loadState: LoadState;
   /** All assignments, deduped by `(kind, sessionId)`, sorted newest-first. */
   assignments: AssignmentSummary[];
-  /** True when at least one subscription bucket has errored. */
+  /**
+   * True when at least one class-channel bucket OR the pointer/hydration
+   * channel has errored. Drives the (non-blocking) PartialFailureBanner —
+   * assignments already fetched still render underneath it.
+   */
   hasErrors: boolean;
+  /**
+   * True only when a CLASS-channel bucket has errored (M17 C1 §F3). Drives
+   * the full-screen "we couldn't load your assignments" gate — a pointer-
+   * channel-only failure must not blank the page when class channels are
+   * healthy; it degrades to the banner above instead.
+   */
+  hasClassErrors: boolean;
   retry: () => void;
 }
 
@@ -434,7 +445,11 @@ export function useStudentAssignments({
   // `/student_assignments/{uid}/items` collection; `hydratedSessions` caches
   // one-off `getDoc` results for pointers whose session isn't in any
   // class-channel bucket (`undefined` = not yet resolved, `null` = the
-  // session doc is missing and the pointer is dropped).
+  // session doc is CONFIRMED missing and the pointer is dropped — a fetch
+  // *error* is never cached here, see the hydration effect below). Session-
+  // owned fields are frozen at whatever the first successful fetch returned
+  // (hydrates via direct `getDoc`, not a listener) — any liveness upgrade is
+  // the M17 E2 follow-up's concern, not this hook's.
   const [pointerItems, setPointerItems] = useState<
     Record<string, StudentAssignmentPointer>
   >({});
@@ -548,6 +563,15 @@ export function useStudentAssignments({
     let cancelled = false;
     void (async () => {
       const updates: Record<string, AssignmentSummary | null> = {};
+      // A transient getDoc rejection is NOT the same as a confirmed-missing
+      // session (M17 C1 §F1): caching `null` on error would permanently hide
+      // a valid assignment the next time this pointer is seen, with no way
+      // to distinguish it from a real deletion. So a fetch error leaves the
+      // assignmentId unresolved (retried whenever this effect's deps next
+      // change, e.g. via the page's "Try again" retry) and only flips
+      // `pointerErrored` so the existing partial-failure banner/retry path
+      // surfaces it instead of silently dropping the row.
+      let hadFetchError = false;
       for (const [assignmentId, pointer] of toFetch) {
         const config = KIND_CONFIG[pointer.kind];
         try {
@@ -555,7 +579,7 @@ export function useStudentAssignments({
             doc(db, config.collectionName, pointer.sessionId)
           );
           if (!snap.exists()) {
-            updates[assignmentId] = null;
+            updates[assignmentId] = null; // confirmed-missing — drop for real
             continue;
           }
           const data = snap.data();
@@ -572,11 +596,14 @@ export function useStudentAssignments({
             '[useStudentAssignments] pointer session hydration failed',
             err
           );
-          updates[assignmentId] = null;
+          hadFetchError = true;
         }
       }
       if (!cancelled) {
-        setHydratedSessions((prev) => ({ ...prev, ...updates }));
+        if (Object.keys(updates).length > 0) {
+          setHydratedSessions((prev) => ({ ...prev, ...updates }));
+        }
+        if (hadFetchError) setPointerErrored(true);
       }
     })();
     return () => {
@@ -874,6 +901,7 @@ export function useStudentAssignments({
         : 'loading',
     assignments,
     hasErrors: erroredBuckets.size > 0 || pointerErrored,
+    hasClassErrors: erroredBuckets.size > 0,
     retry,
   };
 }

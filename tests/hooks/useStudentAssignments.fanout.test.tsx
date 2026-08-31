@@ -139,12 +139,86 @@ function makeGetDocRig() {
   };
 }
 
+/**
+ * getDoc rig that REJECTS the first N calls for a given path, then resolves
+ * with the given data — for the F1 transient-fetch-error regression test.
+ */
+function makeFlakyGetDocRig() {
+  const byPath: Record<string, FakeDoc | undefined> = {};
+  const rejectRemaining: Record<string, number> = {};
+  vi.mocked(firestore.getDoc).mockImplementation(((ref: unknown) => {
+    const path = (ref as { __docPath?: string }).__docPath ?? '';
+    if ((rejectRemaining[path] ?? 0) > 0) {
+      rejectRemaining[path] -= 1;
+      return Promise.reject(new Error('transient fetch failure'));
+    }
+    const entry = byPath[path];
+    return Promise.resolve({
+      exists: () => entry !== undefined,
+      data: () => entry?.data,
+    });
+  }) as unknown as typeof firestore.getDoc);
+  return {
+    setDoc(path: string, data: Record<string, unknown>) {
+      byPath[path] = { id: path, data };
+    },
+    rejectNextNCalls(path: string, n: number) {
+      rejectRemaining[path] = n;
+    },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
-  it('legacy-unchanged: identical output with/without studentUid when no pointers or individualTargeting flags exist', async () => {
+  // F2: MyAssignmentsPage ALWAYS passes studentUid in production — a test
+  // that only exercises the studentUid-omitted path proves nothing about
+  // what ships. These assert the REAL wiring: studentUid present, zero
+  // pointer docs, no individualTargeting flags anywhere.
+  it('real wiring: studentUid present + zero pointers + no individualTargeting matches the legacy hook output byte-for-byte', async () => {
+    const rig = makeSnapshotRig();
+    makeGetDocRig();
+    rig.setDocs('quiz_sessions', [
+      {
+        id: 'q1',
+        data: {
+          quizTitle: 'Plain Quiz',
+          classIds: ['c1'],
+          status: 'active',
+          createdAt: 100,
+        },
+      },
+    ]);
+    // No student_assignments/student-a/items docs registered — the pointer
+    // listener delivers an empty snapshot, exercising the real production
+    // shape (studentUid always supplied) rather than the omitted path.
+
+    const legacy = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'] })
+    );
+    const real = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
+    );
+
+    await waitFor(() => {
+      expect(legacy.result.current.loadState).toBe('ready');
+      expect(real.result.current.loadState).toBe('ready');
+    });
+
+    expect(real.result.current.assignments).toEqual(
+      legacy.result.current.assignments
+    );
+    expect(real.result.current.hasErrors).toBe(false);
+    expect(real.result.current.hasClassErrors).toBe(false);
+  });
+
+  it('real wiring: loading state does not wait on the pointer channel beyond its own resolution', async () => {
+    // The pointer rig here delivers synchronously just like the class-channel
+    // rig, so `loadState` should reach 'ready' in the same tick as the
+    // studentUid-omitted hook — the pointer channel must not introduce an
+    // extra render pass or artificial delay before the page can render.
     const rig = makeSnapshotRig();
     makeGetDocRig();
     rig.setDocs('quiz_sessions', [
@@ -159,21 +233,35 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
       },
     ]);
 
-    const withoutUid = renderHook(() =>
-      useStudentAssignments({ classIds: ['c1'] })
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
     );
-    const withUid = renderHook(() =>
+
+    // Both the class-channel plan and the pointer listener deliver
+    // synchronously in this rig, so readiness is reachable without any
+    // additional real-timer waits beyond the microtask flush waitFor uses.
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+    });
+    expect(result.current.assignments.map((a) => a.sessionId)).toEqual(['q1']);
+  });
+
+  it('real wiring: opens exactly one additional listener for the pointer channel (16 total for the current KIND_CONFIG + studentUid)', async () => {
+    const rig = makeSnapshotRig();
+    makeGetDocRig();
+    rig.setDocs('quiz_sessions', []);
+
+    const { result } = renderHook(() =>
       useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
     );
 
     await waitFor(() => {
-      expect(withoutUid.result.current.loadState).toBe('ready');
-      expect(withUid.result.current.loadState).toBe('ready');
+      expect(result.current.loadState).toBe('ready');
     });
 
-    expect(withUid.result.current.assignments).toEqual(
-      withoutUid.result.current.assignments
-    );
+    // 15 class-channel listeners (see useStudentAssignments.listenerCount.test.tsx)
+    // + 1 pointer-channel listener on /student_assignments/{uid}/items.
+    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(16);
   });
 
   it('dedupes by the shared assignment UUID, pointer wins window/override, session wins title', async () => {
@@ -346,5 +434,200 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     expect(
       result.current.assignments.some((a) => a.sessionId === 'quiz-deleted')
     ).toBe(false);
+  });
+
+  // F4: both orderings of the individualTargeting-flag/pointer race for a
+  // TARGETED student (one who DOES have a pointer doc for this session) must
+  // converge on the same single, correctly-merged row — never a transient
+  // drop, never a duplicate.
+  it('race (pointer-before-flag): pointer arrives first, individualTargeting flag arrives late — row survives merged', async () => {
+    const rig = makeSnapshotRig();
+    makeGetDocRig();
+    rig.setDocs('quiz_sessions', [
+      {
+        id: 'q-race-2',
+        data: {
+          quizTitle: 'Race Quiz 2',
+          classIds: ['c1'],
+          status: 'active',
+          createdAt: 100,
+          openAt: 1000,
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
+    );
+
+    await waitFor(() => {
+      expect(
+        result.current.assignments.some((a) => a.sessionId === 'q-race-2')
+      ).toBe(true);
+    });
+
+    // Pointer arrives first (this student IS targeted for this session).
+    rig.setDocs('student_assignments/student-a/items', [
+      {
+        id: 'q-race-2',
+        data: {
+          kind: 'quiz',
+          sessionId: 'q-race-2',
+          teacherUid: 't1',
+          classId: 'c1',
+          openAt: 1500,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      },
+    ]);
+
+    await waitFor(() => {
+      const row = result.current.assignments.find(
+        (a) => a.sessionId === 'q-race-2'
+      );
+      expect(row?.openAt).toBe(1500); // pointer already wins
+    });
+
+    // The individualTargeting flag lands late.
+    rig.setDocs('quiz_sessions', [
+      {
+        id: 'q-race-2',
+        data: {
+          quizTitle: 'Race Quiz 2',
+          classIds: ['c1'],
+          status: 'active',
+          createdAt: 100,
+          openAt: 1000,
+          individualTargeting: true,
+        },
+      },
+    ]);
+
+    await waitFor(() => {
+      const rows = result.current.assignments.filter(
+        (a) => a.sessionId === 'q-race-2'
+      );
+      // Converges: exactly one row, still pointer-merged, never dropped —
+      // the pointer keeps it alive via rawByKindSession (unfiltered).
+      expect(rows).toHaveLength(1);
+      expect(rows[0].openAt).toBe(1500);
+      expect(rows[0].title).toBe('Race Quiz 2');
+    });
+  });
+
+  it('race (flag-before-pointer): individualTargeting flag arrives first, pointer arrives late — row appears merged once the pointer lands', async () => {
+    const rig = makeSnapshotRig();
+    makeGetDocRig();
+    // The flag is present from the very first snapshot — the class channel
+    // must exclude it immediately, before this student's pointer exists.
+    rig.setDocs('quiz_sessions', [
+      {
+        id: 'q-race-3',
+        data: {
+          quizTitle: 'Race Quiz 3',
+          classIds: ['c1'],
+          status: 'active',
+          createdAt: 100,
+          openAt: 1000,
+          individualTargeting: true,
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+    });
+    // No pointer yet — the targeted-but-not-yet-pointed row is correctly
+    // absent (not this student's copy, or not delivered yet).
+    expect(
+      result.current.assignments.some((a) => a.sessionId === 'q-race-3')
+    ).toBe(false);
+
+    // The pointer arrives late — this student IS targeted.
+    rig.setDocs('student_assignments/student-a/items', [
+      {
+        id: 'q-race-3',
+        data: {
+          kind: 'quiz',
+          sessionId: 'q-race-3',
+          teacherUid: 't1',
+          classId: 'c1',
+          openAt: 1500,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      },
+    ]);
+
+    await waitFor(() => {
+      const rows = result.current.assignments.filter(
+        (a) => a.sessionId === 'q-race-3'
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].openAt).toBe(1500); // pointer wins window
+      expect(rows[0].title).toBe('Race Quiz 3'); // session wins content
+    });
+  });
+
+  // F1: a transient getDoc REJECTION must never be cached the same way as a
+  // confirmed-missing session — it should surface as a (retryable) error,
+  // not silently and permanently hide the assignment.
+  it('a transient getDoc rejection surfaces as an error and is not cached as missing — retry recovers the row', async () => {
+    const rig = makeSnapshotRig();
+    const getDocRig = makeFlakyGetDocRig();
+    rig.setDocs('guided_learning_sessions', []); // GL has no ended channel
+    getDocRig.setDoc('guided_learning_sessions/gl-transient', {
+      title: 'Transient GL',
+      classIds: ['c1'],
+    });
+    getDocRig.rejectNextNCalls('guided_learning_sessions/gl-transient', 1);
+    rig.setDocs('student_assignments/student-a/items', [
+      {
+        id: 'gl-transient',
+        data: {
+          kind: 'guided-learning',
+          sessionId: 'gl-transient',
+          teacherUid: 't1',
+          classId: 'c1',
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+      // The fetch failed — the error must be surfaced (feeds the existing
+      // partial-failure banner/retry path), not swallowed.
+      expect(result.current.hasErrors).toBe(true);
+    });
+    // Never cached as confirmed-missing: the row stays absent while errored
+    // (not yet resolved), but the failure is visible via hasErrors, and a
+    // full-screen wipe is NOT warranted since this is the pointer channel.
+    expect(
+      result.current.assignments.some((a) => a.sessionId === 'gl-transient')
+    ).toBe(false);
+
+    // Retry re-runs the hydration fetch from a clean slate; this time
+    // getDoc resolves successfully and the row comes back.
+    result.current.retry();
+
+    await waitFor(() => {
+      const row = result.current.assignments.find(
+        (a) => a.sessionId === 'gl-transient'
+      );
+      expect(row).toBeDefined();
+      expect(row?.title).toBe('Transient GL');
+    });
+    expect(result.current.hasErrors).toBe(false);
   });
 });
