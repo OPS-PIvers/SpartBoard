@@ -36,6 +36,7 @@ import {
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
+import { dedupeQuestionsById } from '@/utils/videoActivityGrading';
 import {
   createLeadingTrailingThrottle,
   RESPONSES_THROTTLE_MS,
@@ -213,7 +214,8 @@ export const useVideoActivitySessionTeacher =
               : `${activity.title} ${new Date().toLocaleString()}`,
           teacherUid,
           youtubeUrl: activity.youtubeUrl,
-          questions: activity.questions,
+          // Dedupe so a duplicated question id can't inflate "Question X of N".
+          questions: dedupeQuestionsById(activity.questions),
           settings: sessionSettings,
           status: 'active',
           allowedPins,
