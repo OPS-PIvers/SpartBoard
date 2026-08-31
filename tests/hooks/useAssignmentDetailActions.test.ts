@@ -17,10 +17,14 @@ const mockDoc = vi.hoisted(() => vi.fn((...args: unknown[]) => args.join('/')));
 const mockArrayUnion = vi.hoisted(() =>
   vi.fn((...items: unknown[]) => ({ __arrayUnion: items }))
 );
+const mockDeleteField = vi.hoisted(() =>
+  vi.fn(() => ({ __deleteField: true }))
+);
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   writeBatch: () => ({ set: mockSet, commit: mockCommit }),
   arrayUnion: mockArrayUnion,
+  deleteField: mockDeleteField,
 }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
 
@@ -167,9 +171,59 @@ describe('useAssignmentDetailActions', () => {
 
     const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
     expect(assignmentPatch.closeAt).toBeGreaterThanOrEqual(before);
-    // targeting/overrides are preserved verbatim, not cleared.
-    expect(assignmentPatch.overridesBySourcedId).toEqual(
-      row.overridesBySourcedId
+    // targeting/overrides are preserved verbatim, not cleared — written as the
+    // same per-key dot-path field, not a whole-map replace.
+    const expectedOverride = row.overridesBySourcedId?.['classlink:SID-1'];
+    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual(
+      expectedOverride
     );
+  });
+
+  it('writes overridesBySourcedId as per-key dot-paths, deleteField-ing a cleared key', async () => {
+    const row = makeRow();
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'students',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      targetGroupIds: [],
+      overridesByKey: {}, // override cleared, student still targeted
+    });
+
+    const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
+    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+      __deleteField: true,
+    });
+    // No whole-map replace field is written.
+    expect(assignmentPatch.overridesBySourcedId).toBeUndefined();
+  });
+
+  it('deleteField-s a removed student key, and dot-paths an unchanged override untouched otherwise', async () => {
+    const row = makeRow({
+      targetStudents: [
+        { kind: 'classlink', sourcedId: 'SID-1' },
+        { kind: 'classlink', sourcedId: 'SID-2' },
+      ],
+      overridesBySourcedId: {
+        'classlink:SID-1': { timeMultiplier: 1.5 },
+        'classlink:SID-2': { timeMultiplier: 2 },
+      },
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'students',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }], // SID-2 removed
+      targetGroupIds: [],
+      overridesByKey: { 'classlink:SID-1': { timeMultiplier: 1.5 } },
+    });
+
+    const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
+    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+      timeMultiplier: 1.5,
+    });
+    expect(assignmentPatch['overridesBySourcedId.classlink:SID-2']).toEqual({
+      __deleteField: true,
+    });
   });
 });

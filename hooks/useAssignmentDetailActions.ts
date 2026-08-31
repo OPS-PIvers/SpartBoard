@@ -16,7 +16,11 @@
  * `targetMode`, and `overridesByStudentUid` on the assignment doc — this hook
  * never writes those fields itself, only the client-owned
  * `overridesBySourcedId` / `targetGroupIds` / `targetSkippedCount` /
- * `removedStudentRefs` siblings. The CF is invoked ONLY when targeting
+ * `removedStudentRefs` siblings. `overridesBySourcedId` is written as
+ * per-key dot-path fields (with `deleteField()` for a cleared/removed key),
+ * never as a whole-map replace — Firestore's set-with-merge recurses into
+ * nested maps key-by-key, so a whole-map replace would leave a cleared
+ * override stranded on the doc forever. The CF is invoked ONLY when targeting
  * actually changed (student add/remove/override diff) or `targetMode` is
  * 'students' — a pure window edit on a class-wide assignment never calls it
  * (spec §3a-G: the class-wide flow stays untouched).
@@ -35,7 +39,7 @@
  */
 
 import { useCallback } from 'react';
-import { doc, writeBatch, arrayUnion } from 'firebase/firestore';
+import { doc, writeBatch, arrayUnion, deleteField } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { StudentOverride, StudentTargetRef } from '@/types';
 import {
@@ -151,10 +155,23 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
 
       const assignmentPatch: Record<string, unknown> = {
         updatedAt: Date.now(),
-        // Client-owned siblings the CF never writes (spec §2a division of labor).
-        overridesBySourcedId: next.overridesByKey,
+        // Client-owned sibling the CF never writes (spec §2a division of labor).
+        // `targetGroupIds` is safe to replace wholesale — it isn't a nested map.
         targetGroupIds: next.targetGroupIds,
       };
+      // `overridesBySourcedId` is a nested map: Firestore's set-with-merge
+      // recurses into maps key-by-key, so a whole-map replace here would leave
+      // a cleared override or a removed student's key stranded in the stored
+      // doc forever. Write each key as its own dot-path field instead, and
+      // `deleteField()` any key present in `previous` but absent from `next`.
+      const overrideKeys = new Set([
+        ...Object.keys(previous.overridesByKey),
+        ...Object.keys(next.overridesByKey),
+      ]);
+      for (const key of overrideKeys) {
+        assignmentPatch[`overridesBySourcedId.${key}`] =
+          key in next.overridesByKey ? next.overridesByKey[key] : deleteField();
+      }
       if (callCf) assignmentPatch.targetSkippedCount = skipped.length;
       if ('openAt' in payload.window)
         assignmentPatch.openAt = next.openAt ?? null;
