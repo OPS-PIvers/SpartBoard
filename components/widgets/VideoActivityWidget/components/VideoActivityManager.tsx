@@ -398,6 +398,15 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
           {assignmentIsViewOnly && trackingEnabled && (
             <ViewCountBadge count={count} />
           )}
+          {!!assignment.targetSkippedCount &&
+            assignment.targetSkippedCount > 0 && (
+              <span
+                className="font-semibold text-amber-600"
+                title="These students could not be individually targeted — see PLC/roster changes since assignment"
+              >
+                {assignment.targetSkippedCount} skipped
+              </span>
+            )}
         </>
       }
       primaryAction={

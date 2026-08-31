@@ -7,7 +7,7 @@ import {
   MoreVertical,
   Unlock,
 } from 'lucide-react';
-import { QuizSession, QuizConfig } from '@/types';
+import { QuizSession, QuizConfig, StudentOverride } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
@@ -19,8 +19,8 @@ import {
   matchesFilter,
 } from './monitorUtils';
 import {
-  getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
+  resolveStudentTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
 
 interface RosterListProps {
@@ -34,6 +34,12 @@ interface RosterListProps {
   onUnlockAttempt?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onClearHand?: (key: string) => void;
+  /** M17 E2 F2: the active assignment's per-student overrides, keyed by
+   *  `StudentTargetRef` key. */
+  overridesBySourcedId?: Record<string, StudentOverride> | null;
+  /** M17 E2 F2: `studentUid` -> `StudentTargetRef` key, for resolving the row
+   *  above against `overridesBySourcedId`. */
+  targetRefKeyByStudentUid?: Map<string, string> | null;
 }
 
 const BAND_TINT: Record<ProficiencyBand, string> = {
@@ -73,7 +79,17 @@ const RowMenu: React.FC<{
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
-}> = ({ student, session, onRemove, onUnlockAttempt, onUnlockResults }) => {
+  overridesBySourcedId?: Record<string, StudentOverride> | null;
+  targetRefKeyByStudentUid?: Map<string, string> | null;
+}> = ({
+  student,
+  session,
+  onRemove,
+  onUnlockAttempt,
+  onUnlockResults,
+  overridesBySourcedId,
+  targetRefKeyByStudentUid,
+}) => {
   const [open, setOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const menuRef = React.useRef<HTMLDivElement | null>(null);
@@ -84,8 +100,11 @@ const RowMenu: React.FC<{
 
   const r = student.response;
   const attemptLimit = session.attemptLimit;
-  const tabThreshold = getEffectiveTabWarningThreshold(
-    session.tabWarningThreshold
+  const tabThreshold = resolveStudentTabWarningThreshold(
+    session.tabWarningThreshold,
+    r.studentUid,
+    overridesBySourcedId,
+    targetRefKeyByStudentUid
   );
   const locked =
     !r.unlocked &&
@@ -179,6 +198,8 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUnlockAttempt,
   onUnlockResults,
   onClearHand,
+  overridesBySourcedId = null,
+  targetRefKeyByStudentUid = null,
 }) => {
   const showToolbar = bucket !== 'notStarted';
   const showScores = (config.monitorShowScores ?? false) && bucket === 'done';
@@ -371,8 +392,11 @@ export const RosterList: React.FC<RosterListProps> = ({
       {rest.map((s) => {
         const r = s.response;
         const tint = showProf && s.band ? BAND_TINT[s.band] : 'bg-white';
-        const tabThreshold = getEffectiveTabWarningThreshold(
-          session.tabWarningThreshold
+        const tabThreshold = resolveStudentTabWarningThreshold(
+          session.tabWarningThreshold,
+          r.studentUid,
+          overridesBySourcedId,
+          targetRefKeyByStudentUid
         );
         const locked =
           !r.unlocked &&
@@ -512,6 +536,8 @@ export const RosterList: React.FC<RosterListProps> = ({
                 onRemove={onRemove}
                 onUnlockAttempt={onUnlockAttempt}
                 onUnlockResults={onUnlockResults}
+                overridesBySourcedId={overridesBySourcedId}
+                targetRefKeyByStudentUid={targetRefKeyByStudentUid}
               />
             </div>
           </div>

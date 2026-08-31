@@ -264,6 +264,33 @@ describe('useMiniAppSessionTeacher — createSession', () => {
     const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
     expect('dueAt' in payload).toBe(false);
   });
+
+  // M17 E2 F1: mini-app's archive-row assignment id differs from the
+  // session id — the session doc must carry `assignmentId` so the student
+  // app can resolve its pointer doc (which the CF keys by assignment id).
+  it('includes assignmentId on the session doc when provided', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A', {
+        assignmentId: 'archive-assignment-1',
+      });
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.assignmentId).toBe('archive-assignment-1');
+  });
+
+  it('omits assignmentId when absent (legacy sessions unaffected)', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A');
+    });
+
+    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect('assignmentId' in payload).toBe(false);
+  });
 });
 
 describe('useMiniAppSessionTeacher — subscribeToAppSessions', () => {

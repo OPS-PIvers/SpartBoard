@@ -37,6 +37,7 @@ import {
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
 import type {
   ClassRoster,
+  VideoActivityAssignment,
   VideoActivityMetadata,
   VideoActivityBehaviorSettings,
   VideoActivitySessionSettings,
@@ -154,7 +155,8 @@ function makeVaMeta(
  */
 function renderManager(
   activityMeta: VideoActivityMetadata,
-  onAssignFn: ReturnType<typeof vi.fn> = vi.fn()
+  onAssignFn: ReturnType<typeof vi.fn> = vi.fn(),
+  assignments: VideoActivityAssignment[] = []
 ) {
   const onAssign = onAssignFn as (
     activity: VideoActivityMetadata,
@@ -175,11 +177,27 @@ function renderManager(
       onResults={vi.fn()}
       defaultSessionSettings={DEFAULT_SESSION_SETTINGS}
       rosters={ROSTERS}
-      assignments={[]}
+      assignments={assignments}
       assignmentsLoading={false}
     />
   );
   return { onAssign: onAssignFn };
+}
+
+function makeVaAssignment(
+  overrides: Partial<VideoActivityAssignment> = {}
+): VideoActivityAssignment {
+  return {
+    id: 'assign-1',
+    activityId: 'va-1',
+    activityTitle: 'Cell Division',
+    activityDriveFileId: 'drive-1',
+    teacherUid: 'teacher-1',
+    status: 'active',
+    createdAt: 1000,
+    updatedAt: 2000,
+    ...overrides,
+  } as unknown as VideoActivityAssignment;
 }
 
 // ---------------------------------------------------------------------------
@@ -514,5 +532,36 @@ describe('VideoActivityManager assign modal — individual targeting (M17 B3)', 
       AssignTargetingValue,
     ];
     expect(targeting.dueAt).toBe(dueAt);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — M17 E2 F3: "N skipped" row marker (parity with Quiz/GL/MiniApp)
+// ---------------------------------------------------------------------------
+
+describe('VideoActivityManager — targetSkippedCount row marker (M17 E2 F3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders the "N skipped" marker on an active assignment card', async () => {
+    renderManager(makeVaMeta(), vi.fn(), [
+      makeVaAssignment({ targetSkippedCount: 2 }),
+    ]);
+
+    fireEvent.click(await screen.findByRole('tab', { name: /in progress/i }));
+
+    expect(await screen.findByText('2 skipped')).toBeInTheDocument();
+  });
+
+  it('does not render the marker when targetSkippedCount is 0 or absent', async () => {
+    renderManager(makeVaMeta(), vi.fn(), [
+      makeVaAssignment({ targetSkippedCount: 0 }),
+    ]);
+
+    fireEvent.click(await screen.findByRole('tab', { name: /in progress/i }));
+
+    await screen.findByText('Cell Division');
+    expect(screen.queryByText(/skipped/i)).not.toBeInTheDocument();
   });
 });
