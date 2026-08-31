@@ -1041,6 +1041,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }
           }
         }}
+        overridesBySourcedId={activeAssignment?.overridesBySourcedId ?? null}
         initialExportUrl={activeAssignment?.exportUrl ?? null}
         plcSheetUrl={activeAssignment?.plc?.sheetUrl ?? null}
         plcId={activeAssignment?.plc?.id ?? null}
