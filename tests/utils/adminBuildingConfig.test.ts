@@ -751,6 +751,36 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('talking-tool', () => {
+    it('passes through cardColor and cardOpacity', () => {
+      const perm = makePerm('talking-tool', {
+        high: { cardColor: '#e0f2fe', cardOpacity: 0.75 },
+      });
+      expect(getAdminBuildingConfig('talking-tool', [perm], ['high'])).toEqual({
+        cardColor: '#e0f2fe',
+        cardOpacity: 0.75,
+      });
+    });
+
+    it('rejects invalid cardColor and out-of-range cardOpacity', () => {
+      const perm = makePerm('talking-tool', {
+        high: { cardColor: 'rgb(0,0,0)', cardOpacity: 1.5 },
+      });
+      expect(getAdminBuildingConfig('talking-tool', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('never seeds fontFamily or fontColor — dead controls at the widget level', () => {
+      const perm = makePerm('talking-tool', {
+        high: { fontFamily: 'sans', fontColor: '#000000' },
+      });
+      expect(getAdminBuildingConfig('talking-tool', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+  });
+
   describe('checklist', () => {
     it('passes through scale, items, font family, and appearance fields', () => {
       const perm = makePerm('checklist', {
