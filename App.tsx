@@ -775,8 +775,8 @@ const App: React.FC = () => {
 
   // Public poll voting route — anonymous entry, no teacher auth needed.
   // Mirrors the activity-wall branch: DialogProvider + StudentIdleTimeoutGuard
-  // wrap a lazy participant app. The `?data=` payload carries everything the
-  // app needs to render and route the vote.
+  // wrap a lazy participant app. The `?code=` join code resolves to the
+  // session doc, which carries the questions and the teacher's cursor.
   if (isPollVoteRoute) {
     return (
       <DialogProvider>

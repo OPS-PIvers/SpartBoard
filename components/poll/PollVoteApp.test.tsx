@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { encodePollData, type PollVotePayload } from './pollLink';
+import type { PollSessionDoc } from '@/types';
 
 const {
   mockSignInAnonymously,
@@ -10,6 +10,7 @@ const {
   mockOnSnapshot,
   mockCollection,
   mockDoc,
+  mockLookup,
 } = vi.hoisted(() => ({
   mockSignInAnonymously: vi.fn(),
   mockSetDoc: vi.fn(),
@@ -18,10 +19,11 @@ const {
   mockDoc: vi.fn((..._args: unknown[]) => ({
     __path: _args.slice(1).join('/'),
   })),
+  mockLookup: vi.fn(),
 }));
 
-let snapshotDocs: Record<string, unknown>[] = [];
-let sessionActive = true;
+let snapshotDocs: { id: string; data: Record<string, unknown> }[] = [];
+let sessionDoc: PollSessionDoc;
 
 vi.mock('@/config/firebase', () => ({
   db: {},
@@ -34,37 +36,71 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
 }));
+vi.mock('./pollSession', async () => {
+  const actual =
+    await vi.importActual<typeof import('./pollSession')>('./pollSession');
+  return {
+    ...actual,
+    lookupPollSessionByCode: (code: string) => mockLookup(code) as unknown,
+  };
+});
 
 import { PollVoteApp } from './PollVoteApp';
 
-const payload: PollVotePayload = {
-  id: 'sess-1',
-  question: 'Favorite fruit?',
-  options: [
-    { id: 'o1', label: 'Apple' },
-    { id: 'o2', label: 'Banana' },
-  ],
+const makeSession = (
+  overrides: Partial<PollSessionDoc> = {}
+): PollSessionDoc => ({
+  id: 'K3F9Q',
   teacherUid: 'teacher-1',
-};
+  code: 'K3F9Q',
+  questions: [
+    {
+      id: 'q1',
+      question: 'Favorite fruit?',
+      options: [
+        { id: 'o1', label: 'Apple' },
+        { id: 'o2', label: 'Banana' },
+      ],
+    },
+    {
+      id: 'q2',
+      question: 'Best season?',
+      options: [
+        { id: 'o3', label: 'Summer' },
+        { id: 'o4', label: 'Winter' },
+      ],
+    },
+  ],
+  optionCounts: [2, 2],
+  currentQuestionIndex: 0,
+  active: true,
+  startedAt: 1000,
+  updatedAt: 1000,
+  ...overrides,
+});
 
 const mountWith = (search: string) =>
-  window.history.replaceState({}, '', `/poll/sess-1${search}`);
+  window.history.replaceState({}, '', `/poll${search}`);
 
 beforeEach(() => {
   vi.clearAllMocks();
   snapshotDocs = [];
-  sessionActive = true;
+  sessionDoc = makeSession();
   mockSignInAnonymously.mockResolvedValue(undefined);
   mockSetDoc.mockResolvedValue(undefined);
-  // Two listeners now: the votes collection (ref === 'votes-col' from
-  // mockCollection) and the session doc (a doc ref from mockDoc). Branch so
-  // each gets the snapshot shape it expects.
+  mockLookup.mockImplementation(() =>
+    Promise.resolve({ sessionId: 'teacher-1_K3F9Q', data: sessionDoc })
+  );
+  // Two listeners: the votes collection (ref === 'votes-col' from
+  // mockCollection) and the session doc (a doc ref from mockDoc).
   mockOnSnapshot.mockImplementation(
     (ref: unknown, cb: (snap: unknown) => void) => {
       if (ref === 'votes-col') {
-        cb({ docs: snapshotDocs.map((d) => ({ data: () => d })) });
+        cb({
+          docs: snapshotDocs.map((d) => ({ id: d.id, data: () => d.data })),
+        });
       } else {
-        cb({ exists: () => true, data: () => ({ active: sessionActive }) });
+        cb({ exists: () => true, data: () => sessionDoc });
       }
       return vi.fn();
     }
@@ -76,86 +112,127 @@ afterEach(() => {
 });
 
 describe('PollVoteApp', () => {
-  it('shows an error state when there is no payload', () => {
+  it('shows an error state when the URL carries no code', async () => {
     mountWith('');
     render(<PollVoteApp />);
-    expect(screen.getByText(/isn't available/i)).toBeInTheDocument();
+    expect(await screen.findByText(/isn't available/i)).toBeInTheDocument();
   });
 
-  it('renders the question and option buttons from the payload', () => {
-    mountWith(`?data=${encodePollData(payload)}`);
+  it('shows an error state when the code resolves to nothing', async () => {
+    mockLookup.mockResolvedValue(null);
+    mountWith('?code=NOPE1');
     render(<PollVoteApp />);
-    expect(screen.getByText('Favorite fruit?')).toBeInTheDocument();
+    expect(await screen.findByText(/isn't available/i)).toBeInTheDocument();
+  });
+
+  it('renders the current question and its options', async () => {
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    expect(await screen.findByText('Favorite fruit?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Apple/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Banana/i })).toBeInTheDocument();
+    expect(screen.getByText('Question 1 of 2')).toBeInTheDocument();
   });
 
-  it('casts a vote to the uid-keyed doc and shows confirmation', async () => {
-    mountWith(`?data=${encodePollData(payload)}`);
+  it('accepts a lowercase, punctuated code', async () => {
+    mountWith('?code=k3f-9q');
     render(<PollVoteApp />);
-
-    await userEvent.click(screen.getByRole('button', { name: /Banana/i }));
-
-    await waitFor(() => {
-      expect(mockSetDoc).toHaveBeenCalledWith(
-        { __path: 'poll_sessions/teacher-1_sess-1/votes/voter-1' },
-        { optionIndex: 1, votedAt: expect.any(Number) as unknown }
-      );
-    });
-    expect(await screen.findByText(/your vote is in/i)).toBeInTheDocument();
+    await screen.findByText('Favorite fruit?');
+    expect(mockLookup).toHaveBeenCalledWith('K3F9Q');
   });
 
-  it('renders the live tally from the votes subscription', async () => {
-    snapshotDocs = [{ optionIndex: 0 }, { optionIndex: 0 }, { optionIndex: 1 }];
-    mountWith(`?data=${encodePollData(payload)}`);
+  it('waits for the teacher when the session has not started', async () => {
+    sessionDoc = makeSession({ startedAt: null, active: false });
+    mountWith('?code=K3F9Q');
     render(<PollVoteApp />);
-
-    // Apple shows 2, Banana shows 1 once a vote is cast (tally is revealed
-    // after voting). Vote, then assert.
-    await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
-    expect(await screen.findByText(/your vote is in/i)).toBeInTheDocument();
-    expect(screen.getByTestId('poll-tally-0')).toHaveTextContent('2');
-    expect(screen.getByTestId('poll-tally-1')).toHaveTextContent('1');
-  });
-
-  it('shows a closed state when the vote write is rejected', async () => {
-    mockSetDoc.mockRejectedValueOnce(new Error('permission-denied'));
-    mountWith(`?data=${encodePollData(payload)}`);
-    render(<PollVoteApp />);
-
-    await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
-    expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
-  });
-
-  it('does not contradict itself when a re-vote is rejected after a successful vote', async () => {
-    // First vote succeeds, then the poll closes and the change-vote attempt
-    // is rejected. The confirmation must NOT keep inviting another tap while
-    // also saying voting is closed.
-    mockSetDoc
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('permission-denied'));
-    mountWith(`?data=${encodePollData(payload)}`);
-    render(<PollVoteApp />);
-
-    await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
-    expect(await screen.findByText(/your vote is in/i)).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: /Banana/i }));
-    expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
     expect(
-      screen.queryByText(/tap another option to change it/i)
+      await screen.findByText(/waiting for your teacher/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Apple/i })
     ).not.toBeInTheDocument();
   });
 
-  it('reflects a closed session reactively from the session doc (no vote attempt needed)', async () => {
-    // The participant loaded the page after the teacher stopped voting. The
-    // session-doc listener (active === false) drives the closed banner +
-    // disabled buttons without the participant having to attempt a failing vote.
-    sessionActive = false;
-    mountWith(`?data=${encodePollData(payload)}`);
+  it('shows the closed banner once a started session goes inactive', async () => {
+    sessionDoc = makeSession({ active: false });
+    mountWith('?code=K3F9Q');
     render(<PollVoteApp />);
-
     expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Apple/i })).toBeDisabled();
+  });
+
+  it('follows the teacher’s question cursor', async () => {
+    sessionDoc = makeSession({ currentQuestionIndex: 1 });
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    expect(await screen.findByText('Best season?')).toBeInTheDocument();
+    expect(screen.getByText('Question 2 of 2')).toBeInTheDocument();
+  });
+
+  it('writes a question-keyed vote doc', async () => {
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    await screen.findByText('Favorite fruit?');
+    await userEvent.click(screen.getByRole('button', { name: /Banana/i }));
+
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    expect(mockDoc).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'teacher-1_K3F9Q',
+      'votes',
+      '0_voter-1'
+    );
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ questionIndex: 0, optionIndex: 1 })
+    );
+  });
+
+  it('keys the vote to the question the teacher is showing', async () => {
+    sessionDoc = makeSession({ currentQuestionIndex: 1 });
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    await screen.findByText('Best season?');
+    await userEvent.click(screen.getByRole('button', { name: /Winter/i }));
+
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    expect(mockDoc).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'teacher-1_K3F9Q',
+      'votes',
+      '1_voter-1'
+    );
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ questionIndex: 1, optionIndex: 1 })
+    );
+  });
+
+  it('shows this question’s tallies once the voter has voted', async () => {
+    snapshotDocs = [
+      { id: '0_voter-1', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '0_voter-2', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '0_voter-3', data: { questionIndex: 0, optionIndex: 1 } },
+      { id: '1_voter-9', data: { questionIndex: 1, optionIndex: 1 } },
+    ];
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    await screen.findByText('Favorite fruit?');
+
+    // Question 1's votes only — the question-2 vote must not leak in.
+    expect(await screen.findByTestId('poll-tally-0')).toHaveTextContent(
+      '2 (67%)'
+    );
+    expect(screen.getByTestId('poll-tally-1')).toHaveTextContent('1 (33%)');
+  });
+
+  it('shows the closed state when the vote write is rejected', async () => {
+    mockSetDoc.mockRejectedValue(new Error('permission-denied'));
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    await screen.findByText('Favorite fruit?');
+    await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
+    expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
   });
 });

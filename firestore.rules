@@ -4184,27 +4184,37 @@ service cloud.firestore {
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       allow delete: if false;
 
-      match /votes/{participantUid} {
+      // Vote doc id is the composite `{questionIndex}_{uid}` so one listener
+      // covers every question in a multi-question poll while still holding the
+      // one-vote-per-device-per-question invariant.
+      match /votes/{voteId} {
         // Reads the parent session once (let-bound), reused for the active-gate
-        // and optionIndex range check. Same-path reads are cached per evaluation,
-        // so the preceding exists() isn't double-billed. Invoked only after the
-        // allow rule confirmed the doc exists and optionIndex is an int.
+        // and the per-question optionIndex range check. Same-path reads are
+        // cached per evaluation, so the preceding exists() isn't double-billed.
+        // Invoked only after the allow rule confirmed both indices are ints.
         function voteTargetsActiveInRangeOption() {
           let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          let counts = session.get('optionCounts', []);
+          let questionIndex = request.resource.data.questionIndex;
           return session.get('active', false) == true &&
+            questionIndex >= 0 &&
+            questionIndex < counts.size() &&
             request.resource.data.optionIndex >= 0 &&
-            request.resource.data.optionIndex < session.get('optionCount', 0);
+            request.resource.data.optionIndex < counts[questionIndex];
         }
 
         // Any authed user (incl. anon) may create/update ONLY the vote doc whose
-        // id == their uid. Exactly {optionIndex, votedAt}; optionIndex int in
-        // [0, optionCount); only while active. Re-voting overwrites (one/device).
+        // id == `{questionIndex}_{their uid}`. Exactly the three declared keys;
+        // questionIndex int in [0, optionCounts.size()); optionIndex int in
+        // [0, optionCounts[questionIndex]); only while active. Re-voting the
+        // same question overwrites (one per device per question).
         allow create, update: if request.auth != null &&
-          request.auth.uid == participantUid &&
-          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
-          request.resource.data.keys().hasOnly(['optionIndex', 'votedAt']) &&
+          request.resource.data.keys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
+          request.resource.data.questionIndex is int &&
           request.resource.data.optionIndex is int &&
           request.resource.data.votedAt is int &&
+          voteId == string(request.resource.data.questionIndex) + '_' + request.auth.uid &&
+          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
           voteTargetsActiveInRangeOption();
 
         // Reads open to any authed user — vote docs are anonymous tallies

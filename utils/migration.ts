@@ -123,9 +123,32 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
     }
   }
 
-  // Ensure poll options have stable IDs (legacy data may lack them)
+  // Ensure poll questions/options have stable IDs (legacy data may lack them)
   if (type === 'poll') {
     const pollConfig = w.config as PollConfig;
+    const questions = pollConfig.questions;
+    if (Array.isArray(questions)) {
+      const needsIds = questions.some(
+        (q) => !q.id || q.options.some((opt: PollOption) => !opt.id)
+      );
+      if (needsIds) {
+        return {
+          ...w,
+          config: {
+            ...pollConfig,
+            questions: questions.map((q) => ({
+              ...q,
+              id: q.id || crypto.randomUUID(),
+              options: q.options.map((opt: PollOption) => ({
+                ...opt,
+                id: opt.id || crypto.randomUUID(),
+              })),
+            })),
+          },
+        };
+      }
+      return w;
+    }
     const options = pollConfig.options ?? [];
     const needsMigration = options.some((opt: PollOption) => !opt.id);
     if (needsMigration) {
