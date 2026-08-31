@@ -1,12 +1,4 @@
-/**
- * useUnifiedAssignments — normalizes the four per-teacher assignment
- * collections (quiz/VA/GL/mini-app) into one flat, sortable list for the
- * Assignments hub (spec §5 D1). Read-only: this hook never writes.
- *
- * Class-name resolution: prefers each assignment's own `className` field
- * (quiz/VA); falls back to joining roster names via `rosterIds` (GL/mini-app,
- * and quiz/VA legacy rows with no `className`); "—" when neither resolves.
- */
+// useUnifiedAssignments — normalizes the four per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
 
 import { useMemo } from 'react';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
@@ -21,8 +13,8 @@ export type AssignmentKind =
   | 'guided-learning'
   | 'mini-app';
 
-/** Collapsed lifecycle status for the hub's status filter chip. */
-export type UnifiedAssignmentStatus = 'active' | 'inactive';
+/** Lifecycle status for the hub's status filter chip; 'paused' only applies to quiz/video-activity kinds. */
+export type UnifiedAssignmentStatus = 'active' | 'paused' | 'inactive';
 
 export interface UnifiedAssignmentRow {
   id: string;
@@ -73,7 +65,7 @@ export const useUnifiedAssignments = (
       kind: 'quiz',
       title: a.quizTitle,
       className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
-      status: a.status === 'inactive' ? 'inactive' : 'active',
+      status: a.status,
       targetMode: a.targetMode === 'students' ? 'students' : 'class',
       targetSkippedCount: a.targetSkippedCount ?? 0,
       openAt: a.openAt,
@@ -86,7 +78,7 @@ export const useUnifiedAssignments = (
       kind: 'video-activity',
       title: a.activityTitle,
       className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
-      status: a.status === 'inactive' ? 'inactive' : 'active',
+      status: a.status,
       targetMode: a.targetMode === 'students' ? 'students' : 'class',
       targetSkippedCount: a.targetSkippedCount ?? 0,
       openAt: a.openAt,
@@ -101,7 +93,7 @@ export const useUnifiedAssignments = (
       className: resolveClassName(undefined, a.rosterIds, rosterNamesById),
       status: a.status === 'archived' ? 'inactive' : 'active',
       targetMode: a.targetMode === 'students' ? 'students' : 'class',
-      targetSkippedCount: 0,
+      targetSkippedCount: a.targetSkippedCount ?? 0,
       openAt: a.openAt,
       closeAt: a.closeAt,
       createdAt: a.createdAt,

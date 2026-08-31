@@ -1,14 +1,4 @@
-/**
- * AssignmentsHubModal — the central Assignments hub (spec §5 D1, Decision 13).
- * Sidebar entry → full-screen modal, cloned from
- * `components/settingsModal/SettingsModal.tsx` (header chrome, backdrop,
- * escape-to-close, animate-in). Unlike Settings' left-rail-of-sections
- * pattern, this modal's two panes are LIST (left, filterable) + DETAIL
- * (right, placeholder — filled in by D2).
- *
- * Deliberately carries no badge/count on its Sidebar entry point (Decision-8-
- * consistent zero-ambient-signal tradeoff, stated in the PR description).
- */
+// AssignmentsHubModal — central Assignments hub (spec §5 D1, Decision 13); LIST (left, filterable) + DETAIL (right, placeholder — filled in by D2).
 
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -145,22 +135,25 @@ const AssignmentRow: React.FC<{
         <span className="text-sm font-semibold text-slate-800 truncate">
           {row.title}
         </span>
-        {row.targetMode === 'students' && (
-          <span className="shrink-0 rounded-full bg-brand-blue-lighter px-2 py-0.5 text-xxs font-bold text-brand-blue-primary">
-            {t('assignmentsHub.individualTag', {
-              defaultValue: 'Individual',
-            })}
-          </span>
-        )}
       </div>
       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-6 text-xs text-slate-500">
         <span>{t(meta.labelKey, { defaultValue: meta.fallback })}</span>
         <span aria-hidden="true">·</span>
         <span className="truncate">{row.className}</span>
+        {row.targetMode === 'students' && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span>
+              {t('assignmentsHub.individualTag', {
+                defaultValue: 'Individual',
+              })}
+            </span>
+          </>
+        )}
         {row.targetSkippedCount > 0 && (
           <>
             <span aria-hidden="true">·</span>
-            <span className="font-medium text-amber-600">
+            <span className="font-medium text-brand-red-primary">
               {t('assignmentsHub.skippedCount', {
                 defaultValue: '{{count}} skipped',
                 count: row.targetSkippedCount,
@@ -230,6 +223,11 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
 
   const classNames = useMemo(
     () => Array.from(new Set(rows.map((r) => r.className))).sort(),
+    [rows]
+  );
+
+  const hasPausableKind = useMemo(
+    () => rows.some((r) => r.kind === 'quiz' || r.kind === 'video-activity'),
     [rows]
   );
 
@@ -347,6 +345,16 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                     defaultValue: 'Active',
                   })}
                 </FilterChip>
+                {hasPausableKind && (
+                  <FilterChip
+                    isActive={statusFilter === 'paused'}
+                    onClick={() => setStatusFilter('paused')}
+                  >
+                    {t('assignmentsHub.statusPaused', {
+                      defaultValue: 'Paused',
+                    })}
+                  </FilterChip>
+                )}
                 <FilterChip
                   isActive={statusFilter === 'inactive'}
                   onClick={() => setStatusFilter('inactive')}

@@ -1875,6 +1875,7 @@
     "filterAllClasses": "Todas las clases",
     "filterAllStatuses": "Cualquier estado",
     "statusActive": "Activa",
+    "statusPaused": "Pausada",
     "statusInactive": "Inactiva",
     "individualTag": "Individual",
     "skippedCount": "{{count}} omitidos",

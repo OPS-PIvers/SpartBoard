@@ -1,14 +1,4 @@
-/**
- * AssignmentStatusChip — the ONE shared per-student status chip (spec §5 D1,
- * §4 Design Contract: "one shared AssignmentStatusChip component, defined
- * once, used everywhere"). Colors for the four statuses are defined ONCE
- * here; no other surface should hand-roll its own status pill.
- *
- * This is a per-STUDENT status (Not started / In progress / Submitted /
- * Graded) — the detail-pane roster (D2) is the primary consumer. It is
- * unrelated to an assignment's own lifecycle status (active/paused/inactive/
- * archived), which the hub list (this PR) filters on separately.
- */
+// AssignmentStatusChip — the ONE shared per-student status chip (spec §5 D1, §4 Design Contract); unrelated to an assignment's own lifecycle status.
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';

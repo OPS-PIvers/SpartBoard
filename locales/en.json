@@ -1875,6 +1875,7 @@
     "filterAllClasses": "All classes",
     "filterAllStatuses": "Any status",
     "statusActive": "Active",
+    "statusPaused": "Paused",
     "statusInactive": "Inactive",
     "individualTag": "Individual",
     "skippedCount": "{{count}} skipped",
