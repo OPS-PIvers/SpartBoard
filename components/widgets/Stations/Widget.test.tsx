@@ -4,6 +4,7 @@ import { StationsWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, StationsConfig } from '@/types';
 import { mockPointerEvent } from '@/tests/testHelpers/mocks';
+import { getLocalIsoDate } from '@/utils/localDate';
 
 vi.mock('@/context/useDashboard');
 
@@ -224,5 +225,76 @@ describe('StationsWidget', () => {
     // station capacity.
     expect(updatePayload.config.assignments.s1).toBeNull();
     expect(updatePayload.config.assignments).not.toHaveProperty('s2');
+  });
+
+  it("preserves an absent student's station assignment across Shuffle", async () => {
+    // Regression test: Shuffle only knows about today's present roster, so it
+    // must merge into the existing assignments map — not replace it — or an
+    // absent student's station is silently deleted and they don't "snap
+    // back" to it when marked present again (contract documented above
+    // `activeRoster`'s absent-filter in Widget.tsx).
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'John', lastName: 'Doe' },
+            { id: 's2', firstName: 'Jane', lastName: 'Smith' },
+          ],
+          absent: { date: getLocalIsoDate(), studentIds: ['s2'] },
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { s1: 'st-a', s2: 'st-b' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+    await screen.findByText('John Doe');
+    expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Shuffle students into stations'));
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    expect(updatePayload.config.assignments.s2).toBe('st-b');
+  });
+
+  it("preserves an absent student's station assignment across Reset All", async () => {
+    // Reset All only sees today's present roster, so it must merge, not replace (same bug class as #2640).
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          id: 'roster-1',
+          name: 'Class 1A',
+          students: [
+            { id: 's1', firstName: 'John', lastName: 'Doe' },
+            { id: 's2', firstName: 'Jane', lastName: 'Smith' },
+          ],
+          absent: { date: getLocalIsoDate(), studentIds: ['s2'] },
+        },
+      ],
+    });
+
+    const widget = createWidget({
+      assignments: { s1: 'st-a', s2: 'st-b' },
+    });
+
+    render(<StationsWidget widget={widget} />);
+    await screen.findByText('John Doe');
+    expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Reset all'));
+
+    const [, updatePayload] = mockDashboardContext.updateWidget.mock.calls.at(
+      -1
+    ) as [string, { config: StationsConfig }];
+    expect(updatePayload.config.assignments.s1).toBeNull();
+    expect(updatePayload.config.assignments.s2).toBe('st-b');
   });
 });

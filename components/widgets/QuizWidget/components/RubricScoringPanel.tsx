@@ -16,6 +16,8 @@ interface RubricScoringPanelProps {
   maxPoints: number;
   initialScores?: WrittenAnswerRubricScore[];
   onChange: (scores: WrittenAnswerRubricScore[], derivedPoints: number) => void;
+  /** Discreet teacher-facing note (e.g. "Alternate rubric for this student", M17 §5 C4). */
+  overrideNote?: string;
 }
 
 export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
@@ -23,6 +25,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
   maxPoints,
   initialScores,
   onChange,
+  overrideNote,
 }) => {
   const [scores, setScores] = useState<WrittenAnswerRubricScore[]>(
     () => initialScores ?? []
@@ -128,6 +131,9 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
           <p className="text-xs text-slate-600 leading-relaxed mt-1">
             {rubric.description}
           </p>
+        )}
+        {overrideNote && (
+          <p className="text-xs text-slate-600 italic mt-1">{overrideNote}</p>
         )}
       </header>
 

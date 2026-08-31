@@ -52,6 +52,7 @@ import { auth, db } from '@/config/firebase';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
+import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
@@ -90,6 +91,10 @@ import { ResultsWatermark } from './ResultsWatermark';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
+import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -505,6 +510,13 @@ const QuizJoinFlow: React.FC<{
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
   }, []);
+
+  // M17 C2 (§3a-D) — clock-skew guard for the mid-attempt window-close
+  // auto-submit below: window comparisons use server-offset time, not raw
+  // Date.now().
+  useEffect(() => {
+    syncServerTime(authedUid);
+  }, [authedUid]);
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
@@ -1026,6 +1038,8 @@ const ActiveQuiz: React.FC<{
   warningCount: number;
   onRecordStimulusPlay: (playKey: string) => Promise<void>;
   onReportStimulusError: (stimulusId: string) => Promise<void>;
+  /** Per-student pointer override (M17 B4); wired by C3. Absent = session value applies. */
+  pointerTabWarningThreshold?: number | 'off';
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -1039,6 +1053,7 @@ const ActiveQuiz: React.FC<{
   warningCount,
   onRecordStimulusPlay,
   onReportStimulusError,
+  pointerTabWarningThreshold,
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
@@ -1085,7 +1100,7 @@ const ActiveQuiz: React.FC<{
       const message =
         reason === 'post-unlock'
           ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the quiz 3 times. Your quiz is being auto-submitted.';
+          : 'You have left the quiz too many times. Your quiz is being auto-submitted.';
       // Ask the inner question view to flush any pending written-response
       // autosave before we mark the response complete. Listened for in
       // `StudentQuestionView`'s flush handler. Without this, a strike-3
@@ -1102,8 +1117,67 @@ const ActiveQuiz: React.FC<{
     [showAlert, onComplete]
   );
 
+  // M17 C2 (§3a-D) — mid-attempt window close: when `closeAt` passes while
+  // the student has an attempt open, auto-submit what's answered with a
+  // brief NON-BLOCKING notice (never a silent rules rejection — the write
+  // still lands inside the rules' post-closeAt grace window). Polls on an
+  // interval rather than a countdown (Design Contract §4 forbids
+  // countdowns) — this only needs to notice the boundary was crossed, not
+  // display it.
+  const [closeAutoSubmitted, setCloseAutoSubmitted] = useState(false);
+  const [closeAutoSubmitFailed, setCloseAutoSubmitFailed] = useState(false);
+  const [closeAutoSubmitInFlight, setCloseAutoSubmitInFlight] = useState(false);
+  const closeAutoSubmitTriggeredRef = useRef(false);
+
+  // `onComplete` must be awaited and its rejection handled — a rules
+  // rejection (e.g. the tab was suspended past the post-closeAt grace
+  // window) or a network failure must never render the success banner,
+  // or the student sees a false "submitted" state while their response
+  // stays in-progress with no way to retry. On failure we reset the
+  // trigger ref so both the next poll tick and the banner's retry button
+  // can attempt the write again.
+  const attemptCloseAutoSubmit = useCallback(async () => {
+    closeAutoSubmitTriggeredRef.current = true;
+    setCloseAutoSubmitInFlight(true);
+    document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
+    try {
+      await onComplete();
+      setCloseAutoSubmitted(true);
+      setCloseAutoSubmitFailed(false);
+    } catch (err) {
+      console.error(
+        '[QuizStudentApp] mid-attempt close auto-submit failed:',
+        err
+      );
+      closeAutoSubmitTriggeredRef.current = false;
+      setCloseAutoSubmitFailed(true);
+    } finally {
+      setCloseAutoSubmitInFlight(false);
+    }
+  }, [onComplete]);
+
+  useEffect(() => {
+    const closeAt = session.closeAt;
+    if (typeof closeAt !== 'number') return;
+    if (myResponse?.status === 'completed') return;
+    if (closeAutoSubmitTriggeredRef.current) return;
+    const check = () => {
+      if (closeAutoSubmitTriggeredRef.current) return;
+      if (getServerNow() < closeAt) return;
+      void attemptCloseAutoSubmit();
+    };
+    check();
+    const id = window.setInterval(check, 5000);
+    return () => window.clearInterval(id);
+  }, [session.closeAt, myResponse?.status, attemptCloseAutoSubmit]);
+
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
+  // Effective auto-submit threshold (M17 B4): per-student override > session > default 3.
+  const effectiveTabWarningThreshold = getEffectiveTabWarningThreshold(
+    session.tabWarningThreshold,
+    pointerTabWarningThreshold
+  );
 
   // Test integrity: when the teacher enabled "Block Copy & Paste", suppress
   // copy/cut/paste — and drag-and-drop, the other channel for importing text
@@ -1169,7 +1243,12 @@ const ActiveQuiz: React.FC<{
           }
 
           setShowCheatWarning(true);
-          if (newTotal >= 3) {
+          if (
+            hasReachedTabWarningThreshold(
+              newTotal,
+              effectiveTabWarningThreshold
+            )
+          ) {
             // Use a slight delay so the UI can update before the dialog
             setTimeout(() => void handleAutoSubmit(), 100);
           }
@@ -1198,6 +1277,7 @@ const ActiveQuiz: React.FC<{
     };
   }, [
     tabWarningsEnabled,
+    effectiveTabWarningThreshold,
     session.status,
     reportTabSwitch,
     handleAutoSubmit,
@@ -2241,6 +2321,48 @@ const ActiveQuiz: React.FC<{
         </div>
       )}
 
+      {/* Mid-attempt window close (M17 C2 §3a-D) — non-blocking notice, not
+          a modal, so the student isn't gated behind an extra tap after
+          their work has already been auto-submitted. */}
+      {closeAutoSubmitted && !closeAutoSubmitFailed && (
+        <div
+          role="status"
+          className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
+        >
+          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            This assignment&apos;s window closed — your answered questions were
+            submitted automatically.
+          </span>
+        </div>
+      )}
+
+      {/* Auto-submit failed (offline, or the post-closeAt grace window
+          passed before the write landed). Honest, non-blocking, with a
+          retry the student can act on — the response is still
+          in-progress, not silently marked complete. */}
+      {closeAutoSubmitFailed && (
+        <div
+          role="alert"
+          className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="flex-1">
+            We couldn&apos;t submit automatically — check your connection and
+            try again. If the window has been closed for a while, ask your
+            teacher to grant an extension.
+          </span>
+          <button
+            type="button"
+            onClick={() => void attemptCloseAutoSubmit()}
+            disabled={closeAutoSubmitInFlight}
+            className="shrink-0 px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
+          >
+            {closeAutoSubmitInFlight ? 'Retrying…' : 'Retry'}
+          </button>
+        </div>
+      )}
+
       {/* Persistent "one strike and you're out" banner — visible for the
           duration of the resumed attempt so the rule stays top-of-mind. */}
       {myResponse?.unlocked && !showResumeModal && (
@@ -2267,8 +2389,9 @@ const ActiveQuiz: React.FC<{
             You navigated away from the quiz. This incident has been logged.
             <br />
             <br />
-            <strong>Warning {warningCount} of 3.</strong> If you reach 3
-            warnings, your quiz will automatically submit.
+            <strong>Warning {warningCount}.</strong>{' '}
+            {effectiveTabWarningThreshold !== 'off' &&
+              'Repeated tab switches will automatically submit your quiz.'}
           </p>
           <button
             onClick={() => {
@@ -4029,7 +4152,13 @@ const QuizSubmittedWaitScreen: React.FC<{
   // (the cron-set flag for idle-finalized responses). This banner is
   // tab-switch-specific; the cron-finalized case has no banner yet
   // (deferred UI surface).
-  const tabSwitchAutoSubmitted = (myResponse.tabSwitchWarnings ?? 0) >= 3;
+  const effectiveTabWarningThreshold = getEffectiveTabWarningThreshold(
+    session.tabWarningThreshold
+  );
+  const tabSwitchAutoSubmitted = hasReachedTabWarningThreshold(
+    myResponse.tabSwitchWarnings ?? 0,
+    effectiveTabWarningThreshold
+  );
   const scoreSuffix = getScoreSuffix(session);
 
   return (
@@ -4058,7 +4187,7 @@ const QuizSubmittedWaitScreen: React.FC<{
 
       {tabSwitchAutoSubmitted && (
         <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
-          Auto-submitted because you left the quiz tab 3 times.
+          Auto-submitted because you left the quiz tab too many times.
         </div>
       )}
 

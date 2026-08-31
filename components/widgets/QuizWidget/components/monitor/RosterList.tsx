@@ -18,6 +18,10 @@ import {
   compareStudents,
   matchesFilter,
 } from './monitorUtils';
+import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
 
 interface RosterListProps {
   bucket: BucketKey;
@@ -80,9 +84,13 @@ const RowMenu: React.FC<{
 
   const r = student.response;
   const attemptLimit = session.attemptLimit;
+  const tabThreshold = getEffectiveTabWarningThreshold(
+    session.tabWarningThreshold
+  );
   const locked =
     !r.unlocked &&
-    ((r.status === 'completed' && (r.tabSwitchWarnings ?? 0) >= 3) ||
+    ((r.status === 'completed' &&
+      hasReachedTabWarningThreshold(r.tabSwitchWarnings ?? 0, tabThreshold)) ||
       (typeof attemptLimit === 'number' &&
         attemptLimit > 0 &&
         (r.completedAttempts ?? 0) >= attemptLimit));
@@ -363,9 +371,16 @@ export const RosterList: React.FC<RosterListProps> = ({
       {rest.map((s) => {
         const r = s.response;
         const tint = showProf && s.band ? BAND_TINT[s.band] : 'bg-white';
+        const tabThreshold = getEffectiveTabWarningThreshold(
+          session.tabWarningThreshold
+        );
         const locked =
           !r.unlocked &&
-          ((r.status === 'completed' && (r.tabSwitchWarnings ?? 0) >= 3) ||
+          ((r.status === 'completed' &&
+            hasReachedTabWarningThreshold(
+              r.tabSwitchWarnings ?? 0,
+              tabThreshold
+            )) ||
             (typeof session.attemptLimit === 'number' &&
               session.attemptLimit > 0 &&
               (r.completedAttempts ?? 0) >= session.attemptLimit));

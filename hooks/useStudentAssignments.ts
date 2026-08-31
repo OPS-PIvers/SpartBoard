@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
+  doc,
+  getDoc,
   limit as firestoreLimit,
   onSnapshot,
   orderBy,
@@ -19,6 +21,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { db, isAuthBypass } from '@/config/firebase';
+import type { StudentAssignmentPointer, StudentOverride } from '@/types';
 
 /**
  * useStudentAssignments
@@ -80,6 +83,14 @@ export interface AssignmentSummary {
    * doesn't promise a score is waiting.
    */
   gradingState: 'not-graded' | 'graded';
+  /** True when the session used per-student targeting (M17 spec §2a). */
+  individualTargeting?: boolean;
+  /** Window/due fields, session-level; pointer-fan-out values win when present (M17 C1). */
+  openAt?: number;
+  closeAt?: number;
+  dueAt?: number;
+  /** This student's accommodation override, from their own pointer doc (M17 C1). */
+  override?: StudentOverride;
 }
 
 export type LoadState = 'loading' | 'ready';
@@ -283,6 +294,78 @@ export const SESSION_KINDS: readonly SessionKind[] = [
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
+ * (rather than a closure inside the subscription effect) so the fan-out
+ * hydration path (M17 C1) can build the same shape from a one-off `getDoc`.
+ */
+function buildAssignmentSummary(
+  kind: SessionKind,
+  channel: AssignmentChannel,
+  config: KindConfig,
+  docId: string,
+  data: DocumentData,
+  studentClassIds: ReadonlySet<string>
+): AssignmentSummary {
+  const record = data as Record<string, unknown>;
+  const createdAtRaw: unknown = record.createdAt;
+  const endedAtRaw: unknown = record.endedAt;
+
+  // Compute the intersection of session classIds with student claims so
+  // multi-class assignments fan out under each matching class. Falls
+  // back to the legacy single-class field when classIds is absent.
+  const sessionClassIds: string[] = Array.isArray(record.classIds)
+    ? (record.classIds as unknown[]).filter(
+        (c): c is string => typeof c === 'string'
+      )
+    : [];
+  const legacyClassId =
+    typeof record.classId === 'string' ? record.classId : '';
+  const candidates =
+    sessionClassIds.length > 0
+      ? sessionClassIds
+      : legacyClassId
+        ? [legacyClassId]
+        : [];
+  const intersected = candidates.filter((c) => studentClassIds.has(c));
+
+  return {
+    compositeId: `${kind}:${docId}`,
+    kind,
+    sessionId: docId,
+    title: config.titleFrom(data),
+    openHref: config.hrefFrom(docId, data),
+    channel,
+    classIds: intersected,
+    createdAt: typeof createdAtRaw === 'number' ? createdAtRaw : undefined,
+    endedAt: typeof endedAtRaw === 'number' ? endedAtRaw : undefined,
+    gradingState: config.gradingStateFrom(data),
+    individualTargeting: record.individualTargeting === true ? true : undefined,
+    openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
+    closeAt: typeof record.closeAt === 'number' ? record.closeAt : undefined,
+    dueAt: typeof record.dueAt === 'number' ? record.dueAt : undefined,
+  };
+}
+
+/**
+ * Best-effort active/ended classification for a directly-hydrated session
+ * doc (M17 C1) — kinds without an ended-status concept always read active.
+ */
+function channelForHydratedData(
+  config: KindConfig,
+  data: DocumentData
+): AssignmentChannel {
+  if (config.endedFilter === null) return 'active';
+  const status = (data as Record<string, unknown>).status;
+  if (typeof status !== 'string') return 'active';
+  const filter = config.endedFilter;
+  const matches =
+    'valueIn' in filter
+      ? filter.valueIn.includes(status)
+      : status === filter.value;
+  return matches ? 'ended' : 'active';
+}
+
 interface SubscriptionPlan {
   kind: SessionKind;
   channel: AssignmentChannel;
@@ -317,17 +400,35 @@ interface UseStudentAssignmentsResult {
   loadState: LoadState;
   /** All assignments, deduped by `(kind, sessionId)`, sorted newest-first. */
   assignments: AssignmentSummary[];
-  /** True when at least one subscription bucket has errored. */
+  /**
+   * True when at least one class-channel bucket OR the pointer/hydration
+   * channel has errored. Drives the (non-blocking) PartialFailureBanner —
+   * assignments already fetched still render underneath it.
+   */
   hasErrors: boolean;
+  /**
+   * True only when a CLASS-channel bucket has errored (M17 C1 §F3). Drives
+   * the full-screen "we couldn't load your assignments" gate — a pointer-
+   * channel-only failure must not blank the page when class channels are
+   * healthy; it degrades to the banner above instead.
+   */
+  hasClassErrors: boolean;
   retry: () => void;
 }
 
 interface UseStudentAssignmentsArgs {
   classIds: readonly string[];
+  /**
+   * The signed-in student's own uid (== `request.auth.uid` /
+   * `StudentAuthContext.pseudonymUid`). Gates the `/student_assignments/{uid}/items`
+   * fan-out listener (M17 C1); omit to keep today's class-channel-only behavior.
+   */
+  studentUid?: string | null;
 }
 
 export function useStudentAssignments({
   classIds,
+  studentUid,
 }: UseStudentAssignmentsArgs): UseStudentAssignmentsResult {
   const [byKindChannel, setByKindChannel] = useState<
     Record<string, AssignmentSummary[]>
@@ -339,6 +440,26 @@ export function useStudentAssignments({
     () => new Set()
   );
   const [retryNonce, setRetryNonce] = useState(0);
+
+  // M17 C1 — fan-out channel state. `pointerItems` mirrors the student's own
+  // `/student_assignments/{uid}/items` collection; `hydratedSessions` caches
+  // one-off `getDoc` results for pointers whose session isn't in any
+  // class-channel bucket (`undefined` = not yet resolved, `null` = the
+  // session doc is CONFIRMED missing and the pointer is dropped — a fetch
+  // *error* is never cached here, see the hydration effect below). Session-
+  // owned fields are frozen at whatever the first successful fetch returned
+  // (hydrates via direct `getDoc`, not a listener) — any liveness upgrade is
+  // the M17 E2 follow-up's concern, not this hook's.
+  const [pointerItems, setPointerItems] = useState<
+    Record<string, StudentAssignmentPointer>
+  >({});
+  const [pointerLoadState, setPointerLoadState] = useState<LoadState>(() =>
+    isAuthBypass || !studentUid ? 'ready' : 'loading'
+  );
+  const [pointerErrored, setPointerErrored] = useState(false);
+  const [hydratedSessions, setHydratedSessions] = useState<
+    Record<string, AssignmentSummary | null>
+  >({});
 
   const classIdsKey = useMemo(
     () => classIds.slice().sort().join('|'),
@@ -364,6 +485,131 @@ export function useStudentAssignments({
       isAuthBypass || classIdsKey.length === 0 ? 'ready' : 'loading'
     );
   }
+
+  // Same render-time reset pattern for the pointer channel, keyed on its own
+  // identity (studentUid + retry) so a uid change or manual retry re-fetches
+  // pointers and re-runs hydration from a clean slate.
+  const [resetPointerIdentity, setResetPointerIdentity] = useState<string>(
+    `${studentUid ?? ''}#${retryNonce}`
+  );
+  const currentPointerIdentity = `${studentUid ?? ''}#${retryNonce}`;
+  if (resetPointerIdentity !== currentPointerIdentity) {
+    setResetPointerIdentity(currentPointerIdentity);
+    setPointerItems({});
+    setHydratedSessions({});
+    setPointerErrored(false);
+    setPointerLoadState(isAuthBypass || !studentUid ? 'ready' : 'loading');
+  }
+
+  // Fan-out listener: the student's own pointer docs (M17 C1). Gated purely
+  // on `studentUid` — omitting it (or auth-bypass) keeps legacy behavior.
+  useEffect(() => {
+    if (isAuthBypass || !studentUid) return;
+    const ref = collection(db, 'student_assignments', studentUid, 'items');
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const next: Record<string, StudentAssignmentPointer> = {};
+        for (const d of snap.docs) {
+          next[d.id] = d.data() as StudentAssignmentPointer;
+        }
+        setPointerItems(next);
+        setPointerErrored(false);
+        setPointerLoadState('ready');
+      },
+      (err) => {
+        console.error('[useStudentAssignments] pointer snapshot failed', err);
+        setPointerItems({});
+        setPointerErrored(true);
+        setPointerLoadState('ready');
+      }
+    );
+    return () => unsub();
+  }, [studentUid, retryNonce]);
+
+  const studentClassIdsSet = useMemo(
+    () => new Set(classIdsKey ? classIdsKey.split('|').filter(Boolean) : []),
+    [classIdsKey]
+  );
+
+  // Every session already known through a class-channel bucket, unfiltered
+  // (includes individually-targeted docs) — the pointer merge below reuses
+  // these instead of re-fetching when a session is already in hand.
+  const rawByKindSession = useMemo(() => {
+    const map = new Map<string, AssignmentSummary>();
+    for (const kind of SESSION_KINDS) {
+      for (const channel of ['active', 'ended'] as const) {
+        const rows = byKindChannel[`${kind}:${channel}`] ?? [];
+        for (const row of rows) map.set(`${kind}:${row.sessionId}`, row);
+      }
+    }
+    return map;
+  }, [byKindChannel]);
+
+  // Direct-hydration fallback: a pointer whose session isn't in any
+  // class-channel bucket (ended-cap fallout, or GL's missing ended channel)
+  // is fetched once via `getDoc`; a missing session doc drops the pointer.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    const toFetch: Array<[string, StudentAssignmentPointer]> = [];
+    for (const [assignmentId, pointer] of Object.entries(pointerItems)) {
+      const rawKey = `${pointer.kind}:${pointer.sessionId}`;
+      if (rawByKindSession.has(rawKey)) continue;
+      if (Object.prototype.hasOwnProperty.call(hydratedSessions, assignmentId))
+        continue;
+      toFetch.push([assignmentId, pointer]);
+    }
+    if (toFetch.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const updates: Record<string, AssignmentSummary | null> = {};
+      // A transient getDoc rejection is NOT the same as a confirmed-missing
+      // session (M17 C1 §F1): caching `null` on error would permanently hide
+      // a valid assignment the next time this pointer is seen, with no way
+      // to distinguish it from a real deletion. So a fetch error leaves the
+      // assignmentId unresolved (retried whenever this effect's deps next
+      // change, e.g. via the page's "Try again" retry) and only flips
+      // `pointerErrored` so the existing partial-failure banner/retry path
+      // surfaces it instead of silently dropping the row.
+      let hadFetchError = false;
+      for (const [assignmentId, pointer] of toFetch) {
+        const config = KIND_CONFIG[pointer.kind];
+        try {
+          const snap = await getDoc(
+            doc(db, config.collectionName, pointer.sessionId)
+          );
+          if (!snap.exists()) {
+            updates[assignmentId] = null; // confirmed-missing — drop for real
+            continue;
+          }
+          const data = snap.data();
+          updates[assignmentId] = buildAssignmentSummary(
+            pointer.kind,
+            channelForHydratedData(config, data),
+            config,
+            pointer.sessionId,
+            data,
+            studentClassIdsSet
+          );
+        } catch (err) {
+          console.error(
+            '[useStudentAssignments] pointer session hydration failed',
+            err
+          );
+          hadFetchError = true;
+        }
+      }
+      if (!cancelled) {
+        if (Object.keys(updates).length > 0) {
+          setHydratedSessions((prev) => ({ ...prev, ...updates }));
+        }
+        if (hadFetchError) setPointerErrored(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pointerItems, rawByKindSession, hydratedSessions, studentClassIdsSet]);
 
   useEffect(() => {
     // Bypass mode renders the layout against an empty assignment list so the
@@ -427,52 +673,6 @@ export function useStudentAssignments({
 
     // Local copy of the student's classIds for fast intersection.
     const studentClassIds = new Set(ids);
-
-    const docToSummary = (
-      kind: SessionKind,
-      channel: AssignmentChannel,
-      config: KindConfig,
-      d: QuerySnapshot<DocumentData>['docs'][number],
-      data: DocumentData
-    ): AssignmentSummary => {
-      const createdAtRaw: unknown = (data as Record<string, unknown>).createdAt;
-      const endedAtRaw: unknown = (data as Record<string, unknown>).endedAt;
-
-      // Compute the intersection of session classIds with student claims so
-      // multi-class assignments fan out under each matching class. Falls
-      // back to the legacy single-class field when classIds is absent.
-      const sessionClassIds: string[] = Array.isArray(
-        (data as Record<string, unknown>).classIds
-      )
-        ? ((data as Record<string, unknown>).classIds as unknown[]).filter(
-            (c): c is string => typeof c === 'string'
-          )
-        : [];
-      const legacyClassId =
-        typeof (data as Record<string, unknown>).classId === 'string'
-          ? ((data as Record<string, unknown>).classId as string)
-          : '';
-      const candidates =
-        sessionClassIds.length > 0
-          ? sessionClassIds
-          : legacyClassId
-            ? [legacyClassId]
-            : [];
-      const intersected = candidates.filter((c) => studentClassIds.has(c));
-
-      return {
-        compositeId: `${kind}:${d.id}`,
-        kind,
-        sessionId: d.id,
-        title: config.titleFrom(data),
-        openHref: config.hrefFrom(d.id, data),
-        channel,
-        classIds: intersected,
-        createdAt: typeof createdAtRaw === 'number' ? createdAtRaw : undefined,
-        endedAt: typeof endedAtRaw === 'number' ? endedAtRaw : undefined,
-        gradingState: config.gradingStateFrom(data),
-      };
-    };
 
     const emit = (kind: SessionKind, channel: AssignmentChannel) => {
       // Merge across every shape bucket for this kind+channel. Dual-query
@@ -568,7 +768,16 @@ export function useStudentAssignments({
               return [];
             }
           }
-          return [docToSummary(plan.kind, plan.channel, config, d, data)];
+          return [
+            buildAssignmentSummary(
+              plan.kind,
+              plan.channel,
+              config,
+              d.id,
+              data,
+              studentClassIds
+            ),
+          ];
         })
       );
       emit(plan.kind, plan.channel);
@@ -628,15 +837,51 @@ export function useStudentAssignments({
     // Dedupe by (kind, sessionId): a row may show up in both Active and
     // Ended during a brief status transition. Prefer the Ended copy
     // because it carries `endedAt` for sorting.
+    //
+    // M17 C1: individually-targeted sessions (`individualTargeting: true`)
+    // are dropped from the class channel here — recomputed on every render,
+    // so a flag that arrives after initial render removes an already-shown
+    // row instead of leaving it stranded. Pointer fan-out below is what
+    // brings the targeted student's own copy back.
     const merged = new Map<string, AssignmentSummary>();
     for (const kind of SESSION_KINDS) {
       const activeKey = `${kind}:active`;
       const endedKey = `${kind}:ended`;
       const active = byKindChannel[activeKey] ?? [];
       const ended = byKindChannel[endedKey] ?? [];
-      for (const a of active) merged.set(`${kind}:${a.sessionId}`, a);
-      for (const a of ended) merged.set(`${kind}:${a.sessionId}`, a); // Ended overrides
+      for (const a of active) {
+        if (a.individualTargeting) continue;
+        merged.set(`${kind}:${a.sessionId}`, a);
+      }
+      for (const a of ended) {
+        if (a.individualTargeting) continue;
+        merged.set(`${kind}:${a.sessionId}`, a); // Ended overrides
+      }
     }
+
+    // M17 C1: pointer fan-out. Dedupe key is the shared assignment/session
+    // UUID (`pointer.sessionId`, scoped by kind); pointer wins openAt/closeAt
+    // /dueAt/override, session wins title/status/content (the spread base).
+    for (const [assignmentId, pointer] of Object.entries(pointerItems)) {
+      const rawKey = `${pointer.kind}:${pointer.sessionId}`;
+      const fromRaw = rawByKindSession.get(rawKey);
+      const fromHydration = Object.prototype.hasOwnProperty.call(
+        hydratedSessions,
+        assignmentId
+      )
+        ? hydratedSessions[assignmentId]
+        : undefined;
+      const base = fromRaw ?? fromHydration;
+      if (base === null || base === undefined) continue; // missing or not yet resolved
+      merged.set(rawKey, {
+        ...base,
+        openAt: pointer.openAt ?? base.openAt,
+        closeAt: pointer.closeAt ?? base.closeAt,
+        dueAt: pointer.dueAt ?? base.dueAt,
+        override: pointer.override,
+      });
+    }
+
     const out = Array.from(merged.values());
     out.sort((a, b) => {
       const at = a.endedAt ?? a.createdAt ?? 0;
@@ -645,14 +890,18 @@ export function useStudentAssignments({
       return a.title.localeCompare(b.title);
     });
     return out;
-  }, [byKindChannel]);
+  }, [byKindChannel, pointerItems, rawByKindSession, hydratedSessions]);
 
   const retry = useCallback(() => setRetryNonce((n) => n + 1), []);
 
   return {
-    loadState,
+    loadState:
+      loadState === 'ready' && pointerLoadState === 'ready'
+        ? 'ready'
+        : 'loading',
     assignments,
-    hasErrors: erroredBuckets.size > 0,
+    hasErrors: erroredBuckets.size > 0 || pointerErrored,
+    hasClassErrors: erroredBuckets.size > 0,
     retry,
   };
 }
