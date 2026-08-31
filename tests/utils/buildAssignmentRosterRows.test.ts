@@ -203,4 +203,76 @@ describe('buildAssignmentRosterRows', () => {
     expect(rows[0].displayName).toBe('Jamie Fox');
     expect(rows[0].status).toBe('submitted');
   });
+
+  it('keeps a removed-but-submitted student visible, marked removed (M17 D3)', () => {
+    const pseudonyms = emptyMaps();
+    pseudonyms.targetRefKeyByStudentUid.set('uid-9', 'test:kid@school.org');
+    pseudonyms.byStudentUid.set('uid-9', {
+      givenName: 'Sam',
+      familyName: 'Lee',
+    });
+
+    const rows = buildAssignmentRosterRows({
+      kind: 'guided-learning',
+      targetMode: 'students',
+      targetStudents: [], // removed from current targeting
+      matchedRosters: [],
+      overridesBySourcedId: undefined,
+      totalQuestions: null,
+      pseudonyms,
+      statusByUid: new Map([['uid-9', 'submitted']]),
+      removedStudentRefs: [{ kind: 'test', email: 'kid@school.org' }],
+      t,
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].displayName).toBe('Sam Lee');
+    expect(rows[0].removed).toBe(true);
+    expect(rows[0].status).toBe('submitted');
+  });
+
+  it('drops a removed student with no submission entirely', () => {
+    const pseudonyms = emptyMaps();
+    pseudonyms.targetRefKeyByStudentUid.set('uid-9', 'test:kid@school.org');
+
+    const rows = buildAssignmentRosterRows({
+      kind: 'guided-learning',
+      targetMode: 'students',
+      targetStudents: [],
+      matchedRosters: [],
+      overridesBySourcedId: undefined,
+      totalQuestions: null,
+      pseudonyms,
+      statusByUid: new Map(), // never submitted
+      removedStudentRefs: [{ kind: 'test', email: 'kid@school.org' }],
+      t,
+    });
+
+    expect(rows).toHaveLength(0);
+  });
+
+  it('does not re-surface a removed ref that was re-added', () => {
+    const pseudonyms = emptyMaps();
+    pseudonyms.targetRefKeyByStudentUid.set('uid-9', 'test:kid@school.org');
+    pseudonyms.byStudentUid.set('uid-9', {
+      givenName: 'Sam',
+      familyName: 'Lee',
+    });
+
+    const rows = buildAssignmentRosterRows({
+      kind: 'guided-learning',
+      targetMode: 'students',
+      targetStudents: [{ kind: 'test', email: 'kid@school.org' }],
+      matchedRosters: [],
+      overridesBySourcedId: undefined,
+      totalQuestions: null,
+      pseudonyms,
+      statusByUid: new Map([['uid-9', 'submitted']]),
+      removedStudentRefs: [{ kind: 'test', email: 'kid@school.org' }],
+      t,
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].removed).toBe(false);
+  });
 });

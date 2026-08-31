@@ -35,6 +35,9 @@ export interface UnifiedAssignmentRow {
   targetStudents?: StudentTargetRef[];
   /** Teacher's own per-student overrides, keyed by `studentTargetRefKey` (D2 "modified" marker). */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Individually-targeted refs removed via the hub (M17 §5 D3) — kept so a
+   *  removed-but-submitted student's row still renders, marked "removed". */
+  removedStudentRefs?: StudentTargetRef[];
 }
 
 function resolveClassName(
@@ -84,6 +87,7 @@ export const useUnifiedAssignments = (
       periodNames: a.periodNames,
       targetStudents: a.targetStudents,
       overridesBySourcedId: a.overridesBySourcedId,
+      removedStudentRefs: a.removedStudentRefs,
     }));
 
     const vaRows: UnifiedAssignmentRow[] = va.assignments.map((a) => ({
@@ -102,6 +106,7 @@ export const useUnifiedAssignments = (
       periodNames: a.periodNames,
       targetStudents: a.targetStudents,
       overridesBySourcedId: a.overridesBySourcedId,
+      removedStudentRefs: a.removedStudentRefs,
     }));
 
     const glRows: UnifiedAssignmentRow[] = gl.assignments.map((a) => ({
@@ -119,6 +124,7 @@ export const useUnifiedAssignments = (
       rosterIds: a.rosterIds,
       targetStudents: a.targetStudents,
       overridesBySourcedId: a.overridesBySourcedId,
+      removedStudentRefs: a.removedStudentRefs,
     }));
 
     const miniAppRows: UnifiedAssignmentRow[] = miniApp.assignments.map(
@@ -141,6 +147,7 @@ export const useUnifiedAssignments = (
         rosterIds: a.rosterIds,
         targetStudents: a.targetStudents,
         overridesBySourcedId: a.overridesBySourcedId,
+        removedStudentRefs: a.removedStudentRefs,
       })
     );
 

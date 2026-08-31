@@ -1899,7 +1899,15 @@
       "manualCount": "{{count}} manual",
       "unresolvedStudent": "Student",
       "modified": "modified",
-      "modifiedWithCount": "modified ({{selected}} of {{total}} Qs)"
+      "modifiedWithCount": "modified ({{selected}} of {{total}} Qs)",
+      "removedStatus": "Removed — work retained",
+      "edit": "Edit",
+      "closeNow": "Close now",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "editSkipped": "{{count}} student(s) could not be saved to this assignment.",
+      "editSaveFailed": "Could not save changes. Try again."
     }
   }
 }

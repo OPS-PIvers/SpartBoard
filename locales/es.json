@@ -1899,7 +1899,15 @@
       "manualCount": "{{count}} manual",
       "unresolvedStudent": "Estudiante",
       "modified": "modificado",
-      "modifiedWithCount": "modificado ({{selected}} de {{total}} preguntas)"
+      "modifiedWithCount": "modificado ({{selected}} de {{total}} preguntas)",
+      "removedStatus": "Eliminado — trabajo conservado",
+      "edit": "Editar",
+      "closeNow": "Cerrar ahora",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "editSkipped": "No se pudieron guardar {{count}} estudiante(s) en esta tarea.",
+      "editSaveFailed": "No se pudieron guardar los cambios. Inténtalo de nuevo."
     }
   }
 }

@@ -25,6 +25,8 @@ export interface AssignmentRosterRow {
   status: AssignmentStudentStatus | null;
   manual: boolean;
   modifiedNote: string | null;
+  /** True for a student removed via the hub (M17 §5 D3) whose submitted work is retained. */
+  removed: boolean;
 }
 
 export function buildAssignmentRosterRows(params: {
@@ -38,6 +40,8 @@ export function buildAssignmentRosterRows(params: {
   pseudonyms: AssignmentPseudonymMaps;
   /** Response/submission doc id -> status. Mini-app doc ids are assignmentPseudonyms; all other kinds are studentUids (spec's `useAssignmentPseudonyms.ts:5-13` contract). */
   statusByUid: Map<string, AssignmentStudentStatus>;
+  /** Refs removed via the hub (M17 §5 D3) — surfaced as a "removed" row only when they have submitted work; otherwise they simply vanish. */
+  removedStudentRefs?: StudentTargetRef[];
   t: TFunction;
 }): AssignmentRosterRow[] {
   const {
@@ -49,6 +53,7 @@ export function buildAssignmentRosterRows(params: {
     totalQuestions,
     pseudonyms,
     statusByUid,
+    removedStudentRefs,
     t,
   } = params;
 
@@ -87,6 +92,7 @@ export function buildAssignmentRosterRows(params: {
       status: docId ? (statusByUid.get(docId) ?? 'not-started') : 'not-started',
       manual: false,
       modifiedNote: studentOverrideModifiedNote(override, totalQuestions, t),
+      removed: false,
     };
   };
 
@@ -108,12 +114,44 @@ export function buildAssignmentRosterRows(params: {
             status: null,
             manual: true,
             modifiedNote: null,
+            removed: false,
           });
           continue;
         }
         rows.push(rowForRef(ref, fallbackName));
       }
     }
+  }
+
+  // Removed-but-submitted rows (M17 §5 D3, Decision 17): a student removed
+  // from targeting still shows up here if they have submitted work, so the
+  // teacher never loses sight of a graded response. A removed ref with no
+  // submission simply never appears — it was never targeted from the
+  // student's perspective once the pointer doc was deleted.
+  const currentKeys = new Set(
+    targetStudents.map((ref) => studentTargetRefKey(ref))
+  );
+  for (const ref of removedStudentRefs ?? []) {
+    const refKey = studentTargetRefKey(ref);
+    if (currentKeys.has(refKey)) continue; // re-added since removal
+    const docId = docIdByRefKey.get(refKey);
+    const status = docId ? statusByUid.get(docId) : undefined;
+    if (
+      !docId ||
+      status == null ||
+      (status !== 'submitted' && status !== 'graded')
+    ) {
+      continue;
+    }
+    const name = formatStudentName(nameByDocId.get(docId)) || unresolvedLabel;
+    rows.push({
+      key: docId,
+      displayName: name,
+      status,
+      manual: false,
+      modifiedNote: null,
+      removed: true,
+    });
   }
 
   return rows.sort((a, b) => a.displayName.localeCompare(b.displayName));

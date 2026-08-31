@@ -1899,7 +1899,15 @@
       "manualCount": "{{count}} manuell",
       "unresolvedStudent": "Schüler",
       "modified": "angepasst",
-      "modifiedWithCount": "angepasst ({{selected}} von {{total}} Fragen)"
+      "modifiedWithCount": "angepasst ({{selected}} von {{total}} Fragen)",
+      "removedStatus": "Entfernt — Arbeit bleibt erhalten",
+      "edit": "Bearbeiten",
+      "closeNow": "Jetzt schließen",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…",
+      "editSkipped": "{{count}} Schüler konnten dieser Aufgabe nicht zugewiesen werden.",
+      "editSaveFailed": "Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen."
     }
   }
 }

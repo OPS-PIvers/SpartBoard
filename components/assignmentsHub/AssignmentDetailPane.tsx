@@ -5,18 +5,24 @@
 // only (useAssignmentPseudonyms.ts contract) — mini-app doesn't need a name
 // map keyed by uid since its submissions ARE keyed by the resolved pseudonym.
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users } from 'lucide-react';
+import { Users, Lock } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
+import {
+  useAssignmentDetailActions,
+  assignmentRowToTargetingValue,
+} from '@/hooks/useAssignmentDetailActions';
 import { resolveAssignmentTargets } from '@/utils/resolveAssignmentTargets';
 import {
   buildAssignmentRosterRows,
   type AssignmentRosterRow,
 } from '@/utils/buildAssignmentRosterRows';
+import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
+import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import { AssignmentStatusChip } from './AssignmentStatusChip';
 import type { UnifiedAssignmentRow } from './useUnifiedAssignments';
 
@@ -39,7 +45,13 @@ const RosterRow: React.FC<{ row: AssignmentRosterRow }> = ({ row }) => {
           <p className="text-xs text-slate-400">{row.modifiedNote}</p>
         )}
       </div>
-      {row.manual ? (
+      {row.removed ? (
+        <span className="shrink-0 text-xs font-medium text-slate-400">
+          {t('assignmentsHub.detail.removedStatus', {
+            defaultValue: 'Removed — work retained',
+          })}
+        </span>
+      ) : row.manual ? (
         <span className="shrink-0 text-xs text-slate-400">
           {t('assignmentsHub.detail.manualStatus', {
             defaultValue: 'PIN/manual — no SSO status',
@@ -56,8 +68,64 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
   row,
 }) => {
   const { t } = useTranslation();
-  const { orgId } = useAuth();
+  const { user, orgId } = useAuth();
   const { rosters } = useDashboard();
+  const { saveEdit, closeNow } = useAssignmentDetailActions();
+
+  // Edit-in-place (M17 §5 D3). "Adjusting state while rendering" (CLAUDE.md)
+  // resets the draft + closes the editor whenever the selected assignment
+  // changes, instead of an effect that would cause a redundant extra render.
+  const [prevRowId, setPrevRowId] = useState(row.id);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<AssignTargetingValue>(() =>
+    assignmentRowToTargetingValue(row)
+  );
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  if (prevRowId !== row.id) {
+    setPrevRowId(row.id);
+    setEditing(false);
+    setDraft(assignmentRowToTargetingValue(row));
+    setSaveError(null);
+  }
+
+  const handleSave = async () => {
+    if (!user?.uid) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await saveEdit(row, user.uid, draft);
+      if (result.skipped.length > 0) {
+        setSaveError(
+          t('assignmentsHub.detail.editSkipped', {
+            defaultValue:
+              '{{count}} student(s) could not be saved to this assignment.',
+            count: result.skipped.length,
+          })
+        );
+      } else {
+        setEditing(false);
+      }
+    } catch {
+      setSaveError(
+        t('assignmentsHub.detail.editSaveFailed', {
+          defaultValue: 'Could not save changes. Try again.',
+        })
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCloseNow = async () => {
+    if (!user?.uid) return;
+    setSaving(true);
+    try {
+      await closeNow(row, user.uid);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const targeting = useMemo(
     () =>
@@ -107,6 +175,7 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
         totalQuestions,
         pseudonyms,
         statusByUid,
+        removedStudentRefs: row.removedStudentRefs,
         t,
       }),
     [
@@ -118,6 +187,7 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
       totalQuestions,
       pseudonyms,
       statusByUid,
+      row.removedStudentRefs,
       t,
     ]
   );
@@ -165,9 +235,35 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="shrink-0 px-4 py-3 border-b border-slate-100">
-        <h3 className="text-sm font-bold text-slate-800 truncate">
-          {row.title}
-        </h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-bold text-slate-800 truncate">
+            {row.title}
+          </h3>
+          {!editing && (
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCloseNow}
+                disabled={
+                  saving || (row.closeAt != null && row.closeAt <= Date.now())
+                }
+                className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-brand-red-primary transition-colors disabled:opacity-40 disabled:hover:text-slate-500"
+              >
+                <Lock className="w-3 h-3" aria-hidden="true" />
+                {t('assignmentsHub.detail.closeNow', {
+                  defaultValue: 'Close now',
+                })}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-xs font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+              >
+                {t('assignmentsHub.detail.edit', { defaultValue: 'Edit' })}
+              </button>
+            </div>
+          )}
+        </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {STATUS_ORDER.map((status) => (
             <span
@@ -187,6 +283,48 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
             </span>
           )}
         </div>
+        {editing && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
+            <AssignTargetingSection
+              rosters={matchedRosters}
+              value={draft}
+              onChange={setDraft}
+              kind={row.kind}
+              showDueAt={row.kind === 'quiz'}
+            />
+            {saveError && (
+              <p className="text-xs font-medium text-brand-red-primary">
+                {saveError}
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setDraft(assignmentRowToTargetingValue(row));
+                  setSaveError(null);
+                }}
+                disabled={saving}
+                className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-40"
+              >
+                {t('assignmentsHub.detail.cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
+              >
+                {saving
+                  ? t('assignmentsHub.detail.saving', {
+                      defaultValue: 'Saving…',
+                    })
+                  : t('assignmentsHub.detail.save', { defaultValue: 'Save' })}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
         {rosterRows.map((r) => (
