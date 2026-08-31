@@ -65,7 +65,11 @@ interface SetAssignmentTargetsCallableInput {
   add: StudentTargetRef[];
   remove: StudentTargetRef[];
   overridesBySourcedId: Record<string, StudentOverride | null>;
-  window: { openAt?: number | null; closeAt?: number | null; dueAt?: number | null };
+  window: {
+    openAt?: number | null;
+    closeAt?: number | null;
+    dueAt?: number | null;
+  };
   targetMode?: 'class' | 'students';
 }
 interface SetAssignmentTargetsCallableResult {
@@ -554,7 +558,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     );
     const { set, source, originSetId } = assignTarget;
     setAssignTarget(null);
-    await performAssign(set, source, originSetId, validRosterIds, targetingValue);
+    await performAssign(
+      set,
+      source,
+      originSetId,
+      validRosterIds,
+      targetingValue
+    );
   };
 
   const handleViewResultsForRecent = async (sessionId: string) => {

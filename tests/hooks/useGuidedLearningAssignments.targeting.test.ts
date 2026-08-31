@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { doc, setDoc } from 'firebase/firestore';
+import { setDoc } from 'firebase/firestore';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import type { StudentOverride, StudentTargetRef } from '@/types';
 
@@ -40,7 +40,9 @@ beforeEach(() => {
 
 describe('useGuidedLearningAssignments.createAssignment — targeting fields', () => {
   it('omits targeting/window fields for a plain class-wide assignment', async () => {
-    const { result } = renderHook(() => useGuidedLearningAssignments('teacher-1'));
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments('teacher-1')
+    );
     await act(async () => {
       await result.current.createAssignment({
         sessionId: 'session-1',
@@ -65,7 +67,9 @@ describe('useGuidedLearningAssignments.createAssignment — targeting fields', (
     const overridesBySourcedId: Record<string, StudentOverride> = {
       'classlink:abc123': { timeMultiplier: 2 },
     };
-    const { result } = renderHook(() => useGuidedLearningAssignments('teacher-1'));
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments('teacher-1')
+    );
     await act(async () => {
       await result.current.createAssignment({
         sessionId: 'session-1',
@@ -80,7 +84,7 @@ describe('useGuidedLearningAssignments.createAssignment — targeting fields', (
         dueAt: 1500,
       });
     });
-    const written = mockSetDoc.mock.calls[0][1];
+    const written = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
     expect(written.targetMode).toBe('students');
     expect(written.targetStudents).toEqual(targetStudents);
     expect(written.targetGroupIds).toEqual(['group-1']);

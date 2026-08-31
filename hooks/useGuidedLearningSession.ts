@@ -324,9 +324,15 @@ export const useGuidedLearningSessionTeacher = (
         assignmentMode,
         // Open/close/due window (spec §5 B3) — only mirrored when set so
         // legacy session docs stay free of new fields.
-        ...(assignmentWindow?.openAt !== undefined ? { openAt: assignmentWindow.openAt } : {}),
-        ...(assignmentWindow?.closeAt !== undefined ? { closeAt: assignmentWindow.closeAt } : {}),
-        ...(assignmentWindow?.dueAt !== undefined ? { dueAt: assignmentWindow.dueAt } : {}),
+        ...(assignmentWindow?.openAt !== undefined
+          ? { openAt: assignmentWindow.openAt }
+          : {}),
+        ...(assignmentWindow?.closeAt !== undefined
+          ? { closeAt: assignmentWindow.closeAt }
+          : {}),
+        ...(assignmentWindow?.dueAt !== undefined
+          ? { dueAt: assignmentWindow.dueAt }
+          : {}),
         // Display settings — only mirror when set differs from default so
         // legacy session docs stay free of new fields.
         ...(set.hotspotPulse && set.hotspotPulse !== 'consistent'

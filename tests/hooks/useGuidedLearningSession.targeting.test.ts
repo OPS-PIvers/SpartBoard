@@ -61,16 +61,13 @@ describe('useGuidedLearningSessionTeacher.createSession — window fields', () =
       useGuidedLearningSessionTeacher('teacher-1')
     );
     await act(async () => {
-      await result.current.createSession(
-        baseSet(),
-        [],
-        [],
-        [],
-        'submissions',
-        { openAt: 1000, closeAt: undefined, dueAt: 2000 }
-      );
+      await result.current.createSession(baseSet(), [], [], [], 'submissions', {
+        openAt: 1000,
+        closeAt: undefined,
+        dueAt: 2000,
+      });
     });
-    const written = mockSetDoc.mock.calls[0][1];
+    const written = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
     expect(written.openAt).toBe(1000);
     expect(written).not.toHaveProperty('closeAt');
     expect(written.dueAt).toBe(2000);
