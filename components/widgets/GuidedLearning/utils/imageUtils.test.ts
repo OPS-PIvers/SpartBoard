@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateImageFootprint,
   computePanZoomTranslate,
+  computeZoomExtentRect,
   toContainerCoords,
   toContainerSpotlightRadiusPct,
   toImageOffset,
@@ -91,5 +92,27 @@ describe('imageUtils', () => {
       tx: 200,
       ty: 100,
     });
+  });
+
+  it('computes the zoom extent rect centered on the hotspot', () => {
+    // 2× zoom on a centered hotspot frames the middle quarter.
+    expect(computeZoomExtentRect(50, 50, 2, 400, 200)).toEqual({
+      left: 100,
+      top: 50,
+      width: 200,
+      height: 100,
+    });
+    // Off-center hotspot: extent still centered on it (player does not clamp).
+    expect(computeZoomExtentRect(30, 30, 2, 400, 200)).toEqual({
+      left: 20,
+      top: 10,
+      width: 200,
+      height: 100,
+    });
+  });
+
+  it('returns null extent when unzoomed or unmeasured', () => {
+    expect(computeZoomExtentRect(50, 50, 1, 400, 200)).toBeNull();
+    expect(computeZoomExtentRect(50, 50, 2, 0, 200)).toBeNull();
   });
 });

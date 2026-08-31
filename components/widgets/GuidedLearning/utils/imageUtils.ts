@@ -130,3 +130,27 @@ export function computePanZoomTranslate(
     ty: containerHeight / 2 - (yPct / 100) * containerHeight * scale,
   };
 }
+
+/** Unzoomed-container px rect a pan-zoom step will frame; null when not zoomed. */
+export function computeZoomExtentRect(
+  xPct: number,
+  yPct: number,
+  scale: number,
+  containerWidth: number,
+  containerHeight: number
+): { left: number; top: number; width: number; height: number } | null {
+  if (scale <= 1 || containerWidth === 0 || containerHeight === 0) return null;
+  const { tx, ty } = computePanZoomTranslate(
+    xPct,
+    yPct,
+    scale,
+    containerWidth,
+    containerHeight
+  );
+  return {
+    left: -tx / scale,
+    top: -ty / scale,
+    width: containerWidth / scale,
+    height: containerHeight / scale,
+  };
+}

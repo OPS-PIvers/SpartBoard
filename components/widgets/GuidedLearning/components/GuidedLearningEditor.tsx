@@ -38,7 +38,14 @@ import { Z_INDEX } from '@/config/zIndex';
 import { GL_MEDIA_ACCEPT } from '@/utils/guidedLearningMedia';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { ScreenCaptureModal, type CaptureMode } from './ScreenCaptureModal';
-import { calculateImageFootprint } from '../utils/imageUtils';
+import { SpotlightInteraction } from './interactions/SpotlightInteraction';
+import {
+  calculateImageFootprint,
+  computeZoomExtentRect,
+  toContainerCoords,
+  toContainerSpotlightRadiusPct,
+  toImageOffset,
+} from '../utils/imageUtils';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
 
 /**
@@ -485,6 +492,18 @@ export const GuidedLearningEditorContextPane = React.memo(
         updateStep({ ...step, xPct, yPct }),
       [updateStep]
     );
+    // In-flight drag position (image-%) so the interaction preview overlay
+    // tracks the marker live; cleared on pointer-up.
+    const [dragPreview, setDragPreview] = useState<{
+      stepId: string;
+      xPct: number;
+      yPct: number;
+    } | null>(null);
+    const handleMarkerDragPreview = useCallback(
+      (stepId: string, pos: { xPct: number; yPct: number } | null) =>
+        setDragPreview(pos ? { stepId, ...pos } : null),
+      []
+    );
 
     const currentImageUrl = imageUrls[currentImageIndex] ?? '';
     const currentKind = imageKinds[currentImageIndex] ?? 'image';
@@ -508,6 +527,8 @@ export const GuidedLearningEditorContextPane = React.memo(
       offsetTop: number;
       width: number;
       height: number;
+      containerWidth: number;
+      containerHeight: number;
     } | null>(null);
 
     const measureImage = useCallback(() => {
@@ -526,13 +547,22 @@ export const GuidedLearningEditorContextPane = React.memo(
         media instanceof HTMLVideoElement
           ? media.videoHeight
           : media.naturalHeight;
+      const rect = imageContainerRef.current.getBoundingClientRect();
       const footprint = calculateImageFootprint(
         naturalW,
         naturalH,
-        imageContainerRef.current.getBoundingClientRect().width,
-        imageContainerRef.current.getBoundingClientRect().height
+        rect.width,
+        rect.height
       );
-      setImgBounds(footprint);
+      setImgBounds(
+        footprint
+          ? {
+              ...footprint,
+              containerWidth: rect.width,
+              containerHeight: rect.height,
+            }
+          : null
+      );
     }, []);
 
     useEffect(() => {
@@ -796,6 +826,17 @@ export const GuidedLearningEditorContextPane = React.memo(
                     onLoad={measureImage}
                   />
                 )}
+                <InteractionPreviewOverlay
+                  step={
+                    steps.find(
+                      (s) =>
+                        s.id === selectedStepId &&
+                        s.imageIndex === currentImageIndex
+                    ) ?? null
+                  }
+                  dragPreview={dragPreview}
+                  imgBounds={imgBounds}
+                />
                 {currentImageSteps.map((s) => (
                   <HotspotMarker
                     key={s.id}
@@ -806,6 +847,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                     containerRef={imageContainerRef}
                     onSelect={setSelectedStepId}
                     onMove={handleMarkerMove}
+                    onDragPreview={handleMarkerDragPreview}
                   />
                 ))}
                 {addingStep && (
@@ -1565,6 +1607,106 @@ const StepNavigator: React.FC<StepNavigatorProps> = ({
   );
 };
 
+// ─── Live interaction preview (spotlight + zoom extent) ──────────────────────
+
+interface InteractionPreviewOverlayProps {
+  step: GuidedLearningStep | null;
+  dragPreview: { stepId: string; xPct: number; yPct: number } | null;
+  imgBounds: {
+    offsetLeft: number;
+    offsetTop: number;
+    width: number;
+    height: number;
+    containerWidth: number;
+    containerHeight: number;
+  } | null;
+}
+
+/**
+ * Live-renders the selected step's player visuals on the editor canvas:
+ * the actual spotlight overlay (v2 image-relative radius — the editor
+ * stamps schemaVersion 2 on save) and a dashed outline of exactly what a
+ * pan-zoom step will frame. Same math as the player's renderedTransform.
+ */
+const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
+  step,
+  dragPreview,
+  imgBounds,
+}) => {
+  if (!step || !imgBounds) return null;
+  const type = step.interactionType;
+  const showSpotlight = type === 'spotlight' || type === 'pan-zoom-spotlight';
+  const showZoom = type === 'pan-zoom' || type === 'pan-zoom-spotlight';
+  if (!showSpotlight && !showZoom) return null;
+
+  const { containerWidth, containerHeight } = imgBounds;
+  const imgOffset = toImageOffset(imgBounds, containerWidth, containerHeight);
+  const livePos =
+    dragPreview && dragPreview.stepId === step.id
+      ? { xPct: dragPreview.xPct, yPct: dragPreview.yPct }
+      : { xPct: step.xPct, yPct: step.yPct };
+  const containerPos = toContainerCoords(livePos.xPct, livePos.yPct, imgOffset);
+  if (!containerPos) return null;
+
+  const zoomScale = step.panZoomScale ?? 2.5;
+  const extent = showZoom
+    ? computeZoomExtentRect(
+        containerPos.xPct,
+        containerPos.yPct,
+        zoomScale,
+        containerWidth,
+        containerHeight
+      )
+    : null;
+
+  return (
+    // zIndex 0 traps the spotlight SVG's z-20 inside this stacking context
+    // so hotspot markers (later in DOM order) stay clickable above it.
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: 0 }}
+      aria-hidden="true"
+      data-testid="gl-editor-interaction-preview"
+    >
+      {showSpotlight && (
+        <SpotlightInteraction
+          step={{
+            id: step.id,
+            xPct: containerPos.xPct,
+            yPct: containerPos.yPct,
+            imageIndex: step.imageIndex,
+            interactionType: step.interactionType,
+            spotlightRadius: toContainerSpotlightRadiusPct(
+              step.spotlightRadius ?? 25,
+              imgOffset,
+              containerWidth,
+              containerHeight
+            ),
+          }}
+          containerWidth={containerWidth}
+          containerHeight={containerHeight}
+        />
+      )}
+      {extent && (
+        <div
+          className="absolute border-2 border-dashed border-white/90 rounded-md shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+          data-testid="gl-editor-zoom-extent"
+          style={{
+            left: extent.left,
+            top: extent.top,
+            width: extent.width,
+            height: extent.height,
+          }}
+        >
+          <span className="absolute left-1.5 top-1.5 rounded bg-slate-900/70 px-1.5 py-0.5 text-xxs font-bold text-white backdrop-blur-sm">
+            Zoom {zoomScale}×
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Draggable hotspot marker ────────────────────────────────────────────────
 
 interface HotspotMarkerProps {
@@ -1580,6 +1722,10 @@ interface HotspotMarkerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onSelect: (id: string) => void;
   onMove: (step: GuidedLearningStep, xPct: number, yPct: number) => void;
+  onDragPreview: (
+    stepId: string,
+    pos: { xPct: number; yPct: number } | null
+  ) => void;
 }
 
 const DRAG_THRESHOLD_PX = 4;
@@ -1596,6 +1742,7 @@ const HotspotMarker = React.memo(function HotspotMarker({
   containerRef,
   onSelect,
   onMove,
+  onDragPreview,
 }: HotspotMarkerProps) {
   // Local position used during a drag so the marker tracks the cursor without
   // a parent re-render per pointer move. Cleared on pointer-up; the next
@@ -1642,6 +1789,7 @@ const HotspotMarker = React.memo(function HotspotMarker({
       lastXPct = next.xPct;
       lastYPct = next.yPct;
       setDragPos(next);
+      onDragPreview(step.id, next);
     };
 
     const onUpEvt = (ev: PointerEvent) => {
@@ -1656,6 +1804,7 @@ const HotspotMarker = React.memo(function HotspotMarker({
       if (dragged) {
         onMove(step, lastXPct, lastYPct);
         setDragPos(null);
+        onDragPreview(step.id, null);
       } else {
         onSelect(step.id);
       }
