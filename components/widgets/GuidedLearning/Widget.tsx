@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import {
   AssignmentMode,
   WidgetData,
@@ -7,8 +8,10 @@ import {
   GuidedLearningSet,
   GuidedLearningSetMetadata,
   GuidedLearningAssignment,
+  StudentOverride,
+  StudentTargetRef,
 } from '@/types';
-import { db } from '@/config/firebase';
+import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
@@ -18,7 +21,12 @@ import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignmen
 import { useFolders } from '@/hooks/useFolders';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { AssignModal, ViewOnlyShareModal } from '@/components/common/library';
+import {
+  AssignModal,
+  AssignTargetingSection,
+  ViewOnlyShareModal,
+  type AssignTargetingValue,
+} from '@/components/common/library';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
@@ -29,6 +37,10 @@ import {
   deriveSessionTargetsFromRosters,
   mapLegacyClassIdsToRosterIds,
 } from '@/utils/resolveAssignmentTargets';
+import {
+  buildSetAssignmentTargetsPayload,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+} from '@/utils/studentTargetRef';
 import { GuidedLearningManager } from './components/GuidedLearningManager';
 import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
 import { GuidedLearningPlayer } from './components/GuidedLearningPlayer';
@@ -40,6 +52,27 @@ import { GuidedLearningAIGenerator } from './components/GuidedLearningAIGenerato
 import { normalizeGuidedLearningSet } from './utils/setMigration';
 
 const GL_PERSONAL_COLLECTION = 'guided_learning';
+
+/**
+ * Mirrors `functions/src/studentAssignmentTargets.ts`'s
+ * `SetAssignmentTargetsInput`/`Result` — `functions/` isn't resolvable from
+ * the client bundle, so the shape is duplicated here (spec §5 B3).
+ */
+interface SetAssignmentTargetsCallableInput {
+  assignmentId: string;
+  kind: 'guided-learning';
+  sessionId: string;
+  add: StudentTargetRef[];
+  remove: StudentTargetRef[];
+  overridesBySourcedId: Record<string, StudentOverride | null>;
+  window: { openAt?: number | null; closeAt?: number | null; dueAt?: number | null };
+  targetMode?: 'class' | 'students';
+}
+interface SetAssignmentTargetsCallableResult {
+  written: number;
+  removed: number;
+  skipped: { ref: StudentTargetRef; reason: string }[];
+}
 
 /**
  * Pending Assign-dialog target (Phase 3C). Holds the already-loaded set
@@ -137,6 +170,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
     makeEmptyPickerValue()
   );
+  // Individual students & overrides + window (spec §5 B3) — always resets to
+  // 'class' mode for a fresh assign dialog; there is no persisted-preference
+  // path here (unlike roster memory below), matching the acceptance
+  // criterion that class-wide assign stays the unchanged default.
+  const [targetingValue, setTargetingValue] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
 
   // Reset the picker when the dialog re-opens for a different set
   // (adjust-state-while-rendering pattern — no effect needed).
@@ -144,6 +184,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     useState<AssignDialogTarget | null>(null);
   if (assignTarget !== prevAssignTarget) {
     setPrevAssignTarget(assignTarget);
+    setTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
     if (assignTarget) {
       // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
       // maps so teachers upgrading from pre-unification configs don't lose
@@ -277,6 +318,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       source: 'personal' | 'building',
       originSetId: string,
       rosterIds: string[],
+      targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE,
       options?: { silent?: boolean }
     ): Promise<string | null> => {
       const silent = options?.silent === true;
@@ -288,7 +330,12 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           derived.classIds,
           derived.periodNames,
           derived.rosterIds,
-          assignmentMode
+          assignmentMode,
+          {
+            openAt: targeting.openAt,
+            closeAt: targeting.closeAt,
+            dueAt: targeting.dueAt,
+          }
         );
         const sessionId = url.split('/').pop() ?? '';
         setRecentSessionIds((prev) => ({
@@ -304,9 +351,71 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               source,
               rosterIds: derived.rosterIds,
               assignmentMode,
+              targetMode: targeting.targetMode,
+              targetStudents: targeting.targetStudents,
+              targetGroupIds: targeting.targetGroupIds,
+              overridesBySourcedId: targeting.overridesByKey,
+              openAt: targeting.openAt,
+              closeAt: targeting.closeAt,
+              dueAt: targeting.dueAt,
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
+          }
+          // Wire per-student targeting into the fan-out collection (spec §5
+          // B3). `previous` is always `undefined` here — this is a brand-new
+          // assignment, so every current student/override/window field is
+          // emitted as a diff against nothing. Skipped only when there is
+          // genuinely nothing to sync, to keep the vanilla class-wide path
+          // free of an extra round trip.
+          const payload = buildSetAssignmentTargetsPayload(
+            undefined,
+            targeting
+          );
+          const hasTargetingWork =
+            payload.add.length > 0 ||
+            payload.remove.length > 0 ||
+            Object.keys(payload.overridesBySourcedId).length > 0 ||
+            Object.keys(payload.window).length > 0;
+          if (hasTargetingWork) {
+            try {
+              const callable = httpsCallable<
+                SetAssignmentTargetsCallableInput,
+                SetAssignmentTargetsCallableResult
+              >(functions, 'setAssignmentTargetsV1');
+              const res = await callable({
+                assignmentId: sessionId,
+                kind: 'guided-learning',
+                sessionId,
+                ...payload,
+              });
+              const skippedCount = res.data.skipped?.length ?? 0;
+              if (skippedCount > 0) {
+                addToast(
+                  `${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be targeted — check the assignment.`,
+                  'error'
+                );
+                await updateDoc(
+                  doc(
+                    db,
+                    'users',
+                    user?.uid ?? '',
+                    'guided_learning_assignments',
+                    sessionId
+                  ),
+                  { targetSkippedCount: skippedCount }
+                );
+              }
+            } catch (err) {
+              console.warn(
+                '[GuidedLearning] Failed to apply individual targeting:',
+                err
+              );
+              addToast(
+                'Could not apply individual targeting. Try editing the assignment again.',
+                'error'
+              );
+            }
           }
         }
         // Persist the teacher's last-used roster selection per set.
@@ -355,6 +464,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       widget.id,
       assignmentMode,
       isViewOnly,
+      user?.uid,
     ]
   );
 
@@ -408,9 +518,14 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     setViewOnlyShareError(null);
     try {
       const { set, source, originSetId } = viewOnlyShareTarget;
-      const url = await performAssign(set, source, originSetId, [], {
-        silent: true,
-      });
+      const url = await performAssign(
+        set,
+        source,
+        originSetId,
+        [],
+        EMPTY_ASSIGN_TARGETING_VALUE,
+        { silent: true }
+      );
       if (url) setViewOnlyShareLink(url);
     } catch (err) {
       setViewOnlyShareError(
@@ -439,7 +554,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     );
     const { set, source, originSetId } = assignTarget;
     setAssignTarget(null);
-    await performAssign(set, source, originSetId, validRosterIds);
+    await performAssign(set, source, originSetId, validRosterIds, targetingValue);
   };
 
   const handleViewResultsForRecent = async (sessionId: string) => {
@@ -873,11 +988,20 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           options={pickerValue}
           onOptionsChange={setPickerValue}
           extraSlot={
-            <AssignClassPicker
-              rosters={rosters}
-              value={pickerValue}
-              onChange={setPickerValue}
-            />
+            <div className="space-y-3">
+              <AssignClassPicker
+                rosters={rosters}
+                value={pickerValue}
+                onChange={setPickerValue}
+              />
+              <AssignTargetingSection
+                rosters={rosters}
+                value={targetingValue}
+                onChange={setTargetingValue}
+                kind="guided-learning"
+                showDueAt
+              />
+            </div>
           }
           onAssign={() => handleAssignConfirm()}
           confirmLabel="Assign"

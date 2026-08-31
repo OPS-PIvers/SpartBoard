@@ -260,7 +260,10 @@ export interface UseGuidedLearningSessionTeacherResult {
     rosterIds?: string[],
     /** Org-wide assignment mode frozen onto the session. Defaults to
      *  `'submissions'`. */
-    assignmentMode?: AssignmentMode
+    assignmentMode?: AssignmentMode,
+    /** Open/close/due window (epoch ms), spec §5 B3. Applies regardless of
+     *  targeting mode — every field is optional and independently mirrored. */
+    assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number }
   ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
@@ -283,7 +286,8 @@ export const useGuidedLearningSessionTeacher = (
       classIds: string[] = [],
       periodNames: string[] = [],
       rosterIds: string[] = [],
-      assignmentMode: AssignmentMode = 'submissions'
+      assignmentMode: AssignmentMode = 'submissions',
+      assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number }
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
@@ -318,6 +322,11 @@ export const useGuidedLearningSessionTeacher = (
         // Frozen at creation. Stored under `assignmentMode` (not `mode`) so
         // it doesn't collide with the GL play-mode field above.
         assignmentMode,
+        // Open/close/due window (spec §5 B3) — only mirrored when set so
+        // legacy session docs stay free of new fields.
+        ...(assignmentWindow?.openAt !== undefined ? { openAt: assignmentWindow.openAt } : {}),
+        ...(assignmentWindow?.closeAt !== undefined ? { closeAt: assignmentWindow.closeAt } : {}),
+        ...(assignmentWindow?.dueAt !== undefined ? { dueAt: assignmentWindow.dueAt } : {}),
         // Display settings — only mirror when set differs from default so
         // legacy session docs stay free of new fields.
         ...(set.hotspotPulse && set.hotspotPulse !== 'consistent'

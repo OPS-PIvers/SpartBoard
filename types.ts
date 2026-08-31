@@ -5900,6 +5900,8 @@ export interface GuidedLearningSession {
   /** Mirrors `GuidedLearningAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Mirrors `GuidedLearningAssignment.dueAt` — display metadata only. */
+  dueAt?: number | null;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
@@ -7734,6 +7736,9 @@ export interface GuidedLearningAssignment {
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Count of `setAssignmentTargetsV1` `skipped` refs from the most recent
+   *  targeting save — surfaced as a discreet row marker (spec §5 B3). */
+  targetSkippedCount?: number;
 }
 
 // === Library folders (Wave 3) ===
