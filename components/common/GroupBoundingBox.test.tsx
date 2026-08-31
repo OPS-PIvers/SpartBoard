@@ -390,4 +390,71 @@ describe('GroupBoundingBox', () => {
     // committed height should land exactly on the world's bottom edge.
     expect(call.changes.h).toBeCloseTo(bounds.maxY, 3);
   });
+
+  it('caps the committed scale to world bounds even when the minScale floor exceeds it', () => {
+    // A small 50x50 widget positioned just 55px from the world's SE corner.
+    // minScale from the hardcoded 150x100 floor (max(150/50, 100/50) = 3)
+    // would force 3x growth regardless of drag distance, but there's only
+    // 1.1x worth of room (55px) before the SE corner hits the world edge.
+    // The clamp order must let maxScale (1.1) win over minScale (3) here —
+    // the old `Math.max(minScale, Math.min(maxScale, scale))` order let
+    // minScale silently override the world-bounds cap on conflict.
+    const bounds = getWorldBounds(window.innerWidth, window.innerHeight);
+    const widget: WidgetData = {
+      id: 'w1',
+      type: 'clock',
+      x: bounds.maxX - 55,
+      y: bounds.maxY - 55,
+      w: 50,
+      h: 50,
+      z: 1,
+      flipped: false,
+      config: {},
+    };
+
+    render(
+      <DashboardContext.Provider value={mockContextValue}>
+        <GroupBoundingBox groupWidgets={[widget]} zoom={1} />
+      </DashboardContext.Provider>
+    );
+
+    const seHandleEl = document.querySelector<HTMLElement>(
+      '[data-testid="group-resize-handle-se"]'
+    );
+    if (!seHandleEl) throw new Error('SE handle not found');
+    seHandleEl.setPointerCapture = vi.fn();
+    seHandleEl.hasPointerCapture = vi.fn().mockReturnValue(false);
+    seHandleEl.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(seHandleEl, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+    });
+    // A tiny 1px drag — the requested scale is ~1, well below minScale (3),
+    // so only the minScale floor (not the drag itself) can push past bounds.
+    fireEvent.pointerMove(window, {
+      clientX: 201,
+      clientY: 201,
+      pointerId: 1,
+    });
+
+    act(() => {
+      fireEvent.pointerUp(window, {
+        clientX: 201,
+        clientY: 201,
+        pointerId: 1,
+      });
+    });
+
+    expect(mockUpdateWidgets).toHaveBeenCalledTimes(1);
+    const committed = mockUpdateWidgets.mock.calls[0][0] as CommittedChange[];
+    const call = committed[0];
+    if (!call) throw new Error('No committed changes');
+
+    const farX = call.changes.x + call.changes.w;
+    const farY = call.changes.y + call.changes.h;
+    expect(farX).toBeLessThanOrEqual(bounds.maxX + 0.01);
+    expect(farY).toBeLessThanOrEqual(bounds.maxY + 0.01);
+  });
 });

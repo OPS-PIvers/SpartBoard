@@ -185,8 +185,11 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             rs.bboxH,
             getWorldBounds(window.innerWidth, window.innerHeight)
           );
+          // minScale is capped at maxScale first so the world-bounds cap
+          // always wins when the two floors conflict (mirrors DraggableWindow's
+          // availableW/availableH clamp for the same single-widget case).
           const scale = Math.max(
-            minScale,
+            Math.min(minScale, maxScale),
             Math.min(
               maxScale,
               Math.sqrt(Math.max(0, scaleX) * Math.max(0, scaleY))
@@ -280,8 +283,10 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         // arithmetic mean ((fScaleX + fScaleY) / 2) differed from the
         // geometric mean (√(fScaleX · fScaleY)) by up to ~6% on
         // non-proportional drags, causing a visible widget jump on release.
+        // minFinalScale is capped at maxFinalScale first so the world-bounds
+        // cap always wins on conflict, same as onMove's scale above.
         const finalScale = Math.max(
-          minFinalScale,
+          Math.min(minFinalScale, maxFinalScale),
           Math.min(
             maxFinalScale,
             Math.sqrt(Math.max(0, fScaleX) * Math.max(0, fScaleY))
