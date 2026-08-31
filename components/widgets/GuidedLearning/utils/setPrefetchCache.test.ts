@@ -58,6 +58,54 @@ describe('SetPrefetchCache', () => {
     expect(ok).toHaveBeenCalledTimes(1);
   });
 
+  it('refetches when the version changes (stale metadata updatedAt)', async () => {
+    const cache = new SetPrefetchCache<string>();
+    await cache.fetch('s1', vi.fn().mockResolvedValue('v1'), 100);
+    const f2 = vi.fn().mockResolvedValue('v2');
+    await expect(cache.fetch('s1', f2, 200)).resolves.toBe('v2');
+    expect(f2).toHaveBeenCalledTimes(1);
+    const f3 = vi.fn().mockResolvedValue('v3');
+    await expect(cache.fetch('s1', f3, 200)).resolves.toBe('v2');
+    expect(f3).not.toHaveBeenCalled();
+  });
+
+  it('reuses the cached entry when no version is supplied', async () => {
+    const cache = new SetPrefetchCache<string>();
+    await cache.fetch('s1', vi.fn().mockResolvedValue('v1'), 100);
+    const f2 = vi.fn().mockResolvedValue('v2');
+    await expect(cache.fetch('s1', f2)).resolves.toBe('v1');
+    expect(f2).not.toHaveBeenCalled();
+  });
+
+  it('does not evict a newer in-flight entry when a stale cached fetch rejects', async () => {
+    const cache = new SetPrefetchCache<string>();
+    let reject!: (e: Error) => void;
+    const pending = new Promise<string>((_, rej) => {
+      reject = rej;
+    });
+    const first = cache.fetch('s1', () => pending, 100);
+    // Newer version replaces the entry while the old promise is still pending.
+    const second = cache.fetch('s1', vi.fn().mockResolvedValue('fresh'), 200);
+    reject(new Error('boom'));
+    await expect(first).rejects.toThrow('boom');
+    expect(cache.has('s1')).toBe(true);
+    await expect(second).resolves.toBe('fresh');
+  });
+
+  it('returns the newer entry when awaiting a rejected stale entry', async () => {
+    const cache = new SetPrefetchCache<string>();
+    let reject!: (e: Error) => void;
+    const pending = new Promise<string>((_, rej) => {
+      reject = rej;
+    });
+    void cache.fetch('s1', () => pending).catch(() => undefined);
+    // Second caller awaits the same pending entry.
+    const fallback = vi.fn().mockResolvedValue('replacement');
+    const second = cache.fetch('s1', fallback);
+    reject(new Error('boom'));
+    await expect(second).resolves.toBe('replacement');
+  });
+
   it('invalidate() forces a refetch on the next call', async () => {
     const cache = new SetPrefetchCache<string>();
     await cache.fetch('s1', vi.fn().mockResolvedValue('v1'));

@@ -696,14 +696,17 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         id: 'edit',
         label: 'Edit',
         icon: Pencil,
-        onClick: () =>
+        onClick: () => {
+          // Close the preview so it can't show pre-edit content after save.
+          setPreviewEntryId(null);
           onEdit(
             entry.source === 'personal'
               ? entry.id.slice('personal:'.length)
               : entry.id.slice('building:'.length),
             entry.driveFileId,
             entry.buildingSet
-          ),
+          );
+        },
       });
     }
 
@@ -832,7 +835,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         }}
         onDoubleClick={
           canEdit
-            ? () => onEdit(rawId, entry.driveFileId, entry.buildingSet)
+            ? () => {
+                // Close the preview so it can't show pre-edit content after save.
+                setPreviewEntryId(null);
+                onEdit(rawId, entry.driveFileId, entry.buildingSet);
+              }
             : undefined
         }
         sortable={isPersonal && enableCardDrag && !selectionMode}
@@ -1406,7 +1413,10 @@ const GuidedLearningPreviewPane: React.FC<{
     >
       <div className="flex flex-col gap-3 text-sm text-slate-700">
         {previewState === 'playing' && previewSet ? (
-          <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-900">
+          <div
+            className="relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-900"
+            style={{ containerType: 'size' }}
+          >
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">

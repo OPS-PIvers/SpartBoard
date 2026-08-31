@@ -91,6 +91,23 @@ const LazySpinner: React.FC = () => (
   </div>
 );
 
+// Absolute overlay spinner for lazily-loaded modal/dialog surfaces.
+const LazyOverlaySpinner: React.FC = () => (
+  <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/30">
+    <Loader2
+      className="text-white animate-spin"
+      style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
+    />
+  </div>
+);
+
+// Visible fixed overlay while the editor modal chunk loads (no dead clicks).
+const ModalChunkFallback: React.FC = () => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
+    <Loader2 className="h-8 w-8 animate-spin text-white" />
+  </div>
+);
+
 /**
  * Mirrors `functions/src/studentAssignmentTargets.ts`'s
  * `SetAssignmentTargetsInput`/`Result` — `functions/` isn't resolvable from
@@ -271,11 +288,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     ): Promise<GuidedLearningSet | null> => {
       if (buildingSet) return normalizeGuidedLearningSet(buildingSet);
       if (!driveFileId) return null;
-      return prefetchCacheRef.current.fetch(setId, () =>
-        loadSetData(driveFileId).then(normalizeGuidedLearningSet)
+      // Version by the realtime metadata updatedAt so edits elsewhere refetch.
+      const version = sets.find((s) => s.id === setId)?.updatedAt;
+      return prefetchCacheRef.current.fetch(
+        setId,
+        () => loadSetData(driveFileId).then(normalizeGuidedLearningSet),
+        version
       );
     },
-    [loadSetData]
+    [loadSetData, sets]
   );
 
   // Fire-and-forget warmup on card select so Play is instant.
@@ -835,7 +856,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         contentClassName="flex-1 min-h-0"
         content={
-          <div className="h-full w-full">
+          <div className="relative h-full w-full">
             {config.view === 'library' && (
               <Suspense fallback={<LazySpinner />}>
                 <GuidedLearningManager
@@ -1032,7 +1053,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               })()}
 
             {showAIGen && (
-              <Suspense fallback={<LazySpinner />}>
+              <Suspense fallback={<LazyOverlaySpinner />}>
                 <GuidedLearningAIGenerator
                   onClose={() => setShowAIGen(false)}
                   onGenerated={(set) => {
@@ -1047,7 +1068,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         }
       />
       {editingSet && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ModalChunkFallback />}>
           <GuidedLearningEditorModal
             isOpen
             set={editingSet}
