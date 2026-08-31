@@ -37,7 +37,6 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   StudentOverride,
-  StudentTargetRef,
 } from '@/types';
 
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
@@ -92,9 +91,9 @@ export interface CreateAssignmentInput {
    *  Stored under `assignmentMode` (not `mode`) to avoid colliding with the
    *  GL session's existing play-mode field. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
-  /** Individual-student targeting (spec §5 B3). Default 'class'. */
-  targetMode?: 'class' | 'students';
-  targetStudents?: StudentTargetRef[];
+  /** Individual-student targeting (spec §5 B3): `targetMode` and
+   *  `targetStudents` are persisted server-side only, by
+   *  `setAssignmentTargetsV1` — the client never writes them. */
   targetGroupIds?: string[];
   /** Keyed by `studentTargetRefKey` — see `utils/studentTargetRef.ts`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
@@ -219,10 +218,6 @@ export const useGuidedLearningAssignments = (
         source: input.source,
         ...(rosterIds.length > 0 ? { rosterIds } : {}),
         assignmentMode: input.assignmentMode ?? 'submissions',
-        ...(input.targetMode ? { targetMode: input.targetMode } : {}),
-        ...(input.targetStudents && input.targetStudents.length > 0
-          ? { targetStudents: input.targetStudents }
-          : {}),
         ...(input.targetGroupIds && input.targetGroupIds.length > 0
           ? { targetGroupIds: input.targetGroupIds }
           : {}),

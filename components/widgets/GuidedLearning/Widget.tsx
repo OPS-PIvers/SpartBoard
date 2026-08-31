@@ -355,8 +355,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               source,
               rosterIds: derived.rosterIds,
               assignmentMode,
-              targetMode: targeting.targetMode,
-              targetStudents: targeting.targetStudents,
               targetGroupIds: targeting.targetGroupIds,
               overridesBySourcedId: targeting.overridesByKey,
               openAt: targeting.openAt,
@@ -399,6 +397,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   `${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be targeted — check the assignment.`,
                   'error'
                 );
+                // D3 edit-in-place must also refresh targetSkippedCount on re-assign.
                 await updateDoc(
                   doc(
                     db,

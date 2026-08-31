@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { setDoc } from 'firebase/firestore';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
-import type { StudentOverride, StudentTargetRef } from '@/types';
+import type { StudentOverride } from '@/types';
 
 // M17 §5 B3-gl — createAssignment persists the new targeting/window fields
 // onto the teacher's assignment doc, omitting anything unset so legacy
@@ -60,10 +60,7 @@ describe('useGuidedLearningAssignments.createAssignment — targeting fields', (
     expect(written).not.toHaveProperty('dueAt');
   });
 
-  it('persists targeting, overrides, and window fields when provided', async () => {
-    const targetStudents: StudentTargetRef[] = [
-      { kind: 'classlink', sourcedId: 'abc123' },
-    ];
+  it('persists overrides, group ids, and window fields when provided (targetMode/targetStudents are CF-only)', async () => {
     const overridesBySourcedId: Record<string, StudentOverride> = {
       'classlink:abc123': { timeMultiplier: 2 },
     };
@@ -75,8 +72,6 @@ describe('useGuidedLearningAssignments.createAssignment — targeting fields', (
         sessionId: 'session-1',
         setId: 'set-1',
         setTitle: 'Test Set',
-        targetMode: 'students',
-        targetStudents,
         targetGroupIds: ['group-1'],
         overridesBySourcedId,
         openAt: 1000,
@@ -85,8 +80,8 @@ describe('useGuidedLearningAssignments.createAssignment — targeting fields', (
       });
     });
     const written = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
-    expect(written.targetMode).toBe('students');
-    expect(written.targetStudents).toEqual(targetStudents);
+    expect(written).not.toHaveProperty('targetMode');
+    expect(written).not.toHaveProperty('targetStudents');
     expect(written.targetGroupIds).toEqual(['group-1']);
     expect(written.overridesBySourcedId).toEqual(overridesBySourcedId);
     expect(written.openAt).toBe(1000);
