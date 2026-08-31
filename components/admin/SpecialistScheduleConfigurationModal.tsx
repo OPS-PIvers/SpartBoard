@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   SpecialistScheduleGlobalConfig,
@@ -65,6 +69,8 @@ export const SpecialistScheduleConfigurationModal: React.FC<
   const [saving, setSaving] = useState(false);
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  // Canonicalize once so all buildingDefaults reads/writes agree on one key, even if selectedBuildingId is a legacy long-form ID.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [newOption, setNewOption] = useState('');
 
@@ -123,9 +129,13 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     }
   };
 
-  const currentBuildingConfig = useMemo(
-    () =>
-      config.buildingDefaults?.[selectedBuildingId] ?? {
+  const currentBuildingConfig = useMemo(() => {
+    // Canonicalize the whole record so a legacy-long-form-keyed entry is still found under the canonical id.
+    const buildingDefaults = canonicalizeBuildingKeyedRecord(
+      config.buildingDefaults ?? {}
+    );
+    return (
+      buildingDefaults[canonicalId] ?? {
         cycleLength: 6,
         startDate: toDateStr(new Date()),
         schoolDays: [],
@@ -133,14 +143,14 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         customDayNames: {},
         blocks: [],
         specialistOptions:
-          selectedBuildingId === 'schumann-elementary'
+          canonicalId === 'schumann'
             ? SCHUMANN_DEFAULT_OPTIONS
-            : selectedBuildingId === 'orono-intermediate-school'
+            : canonicalId === 'intermediate'
               ? INTERMEDIATE_DEFAULT_OPTIONS
               : [],
-      },
-    [config.buildingDefaults, selectedBuildingId]
-  );
+      }
+    );
+  }, [config.buildingDefaults, canonicalId]);
 
   const updateBuilding = (
     updates: Partial<SpecialistScheduleBuildingConfig>
@@ -148,8 +158,8 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     setConfig((prev) => ({
       ...prev,
       buildingDefaults: {
-        ...prev.buildingDefaults,
-        [selectedBuildingId]: {
+        ...canonicalizeBuildingKeyedRecord(prev.buildingDefaults ?? {}),
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },

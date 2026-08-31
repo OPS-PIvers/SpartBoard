@@ -103,9 +103,16 @@ export function projectSessionStimuli(
   for (const q of quiz.questions) {
     for (const id of q.stimulusIds ?? []) referenced.add(id);
   }
-  return (quiz.stimuli ?? [])
-    .filter((s) => referenced.has(s.id))
-    .map((s) => ({ ...s, label: '' }));
+  // Drive-sync/arrayUnion races can write the same stimulus id twice into
+  // `stimuli` (same bug class as dedupeQuestionsById) — fence it here too.
+  const seen = new Set<string>();
+  const out: QuizStimulus[] = [];
+  for (const s of quiz.stimuli ?? []) {
+    if (!referenced.has(s.id) || seen.has(s.id)) continue;
+    seen.add(s.id);
+    out.push({ ...s, label: '' });
+  }
+  return out;
 }
 
 /** Resolve a question's stimuli against a session/quiz stimulus array. */
