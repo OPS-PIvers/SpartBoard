@@ -202,6 +202,12 @@ export interface AssignmentSettingsToggleGroupProps {
    */
   showCopyPasteToggle?: boolean;
   /**
+   * Optional content rendered directly under the Tab Switch Detection row
+   * (still inside the integrity section). Quiz uses this for the M17 B4
+   * during-taking auto-submit threshold control; VA leaves it unset.
+   */
+  afterTabWarningsSlot?: React.ReactNode;
+  /**
    * Optional content rendered after the standard sections. Quiz uses this
    * for the gamification block; VA uses this for rewind/penalty/score
    * visibility. The trailing block can use the exported `SectionHeader`
@@ -224,6 +230,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   trailingSlot,
   integritySectionLabel,
   showCopyPasteToggle = false,
+  afterTabWarningsSlot,
 }) => {
   const update = <K extends keyof BaseSessionOptions>(
     key: K,
@@ -264,6 +271,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
             onChange={(v) => update('tabWarningsEnabled', v)}
             hint="Warn students who leave the assignment tab"
           />
+          {afterTabWarningsSlot}
           {showCopyPasteToggle && (
             <ToggleRow
               label="Block Copy & Paste"

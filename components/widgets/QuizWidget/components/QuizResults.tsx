@@ -232,6 +232,16 @@ interface QuizResultsProps {
    * boundary (the wire format hasn't changed).
    */
   onExportedResponseIdsSaved?: (ids: ResponseDocKey[]) => Promise<void> | void;
+  /**
+   * Per-student rubric overrides from the active assignment doc
+   * (`assignment.overridesBySourcedId`), passed through to the written-
+   * response grader (M17 §5 C4). Undefined for assignments with no
+   * individual targeting — grading is unaffected.
+   */
+  overridesBySourcedId?: Record<
+    string,
+    import('@/types').StudentOverride
+  > | null;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -251,6 +261,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   onExportUrlSaved,
   initialExportedResponseIds,
   onExportedResponseIdsSaved,
+  overridesBySourcedId,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
@@ -379,11 +390,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       return session.classIds;
     return session?.classId ? [session.classId] : [];
   }, [session?.classIds, session?.classId]);
-  const { byStudentUid: classLinkNames } = useAssignmentPseudonymsMulti(
-    session?.id ?? null,
-    sessionClassIds,
-    orgId
-  );
+  const { byStudentUid: classLinkNames, targetRefKeyByStudentUid } =
+    useAssignmentPseudonymsMulti(session?.id ?? null, sessionClassIds, orgId);
   // Schoology LTI students aren't in any ClassLink roster — resolve their names
   // on-read via NRPS and merge in (ClassLink wins on the rare uid collision).
   // Gated on `ltiNrps` so non-LTI sessions never make the call.
@@ -1788,6 +1796,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           displayNameByResponseKey={displayNameByResponseKey}
           teacherUid={user.uid}
           onSaveGrade={saveWrittenGrade}
+          overridesBySourcedId={overridesBySourcedId}
+          targetRefKeyByStudentUid={targetRefKeyByStudentUid}
           onClose={() => setShowGrader(false)}
         />
       )}
