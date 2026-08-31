@@ -34,6 +34,13 @@ export type {
   AttemptLimitRowProps,
   ToggleRowProps,
 } from './AssignmentSettingsToggleGroup';
+export { OverrideEditorRow } from './OverrideEditorRow';
+export type {
+  OverrideEditorRowProps,
+  OverrideEditorQuestion,
+  OverrideEditorQuestionOption,
+  OverrideEditorPeer,
+} from './OverrideEditorRow';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
 export { ViewCountBadge } from './ViewCountBadge';
 export { PeriodSelector } from './PeriodSelector';

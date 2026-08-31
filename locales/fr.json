@@ -1787,5 +1787,36 @@
     "emptySubtitle": "Il n'y a aucune autre CAP dans votre établissement pour le moment.",
     "noOrgTitle": "Annuaire de l'établissement indisponible",
     "noOrgSubtitle": "Votre compte n'est pas encore associé à un établissement, nous ne pouvons donc pas afficher les CAP à proximité."
+  },
+  "studentOverride": {
+    "noAccommodations": "Aucun aménagement",
+    "copyFromLabel": "Copier les aménagements de",
+    "copy": "Copier",
+    "timeMultiplier": "Temps supplémentaire",
+    "tabWarningThreshold": "Seuil d'avertissement d'onglet",
+    "default": "Par défaut",
+    "off": "Désactivé",
+    "windowShift": "Décalage de fenêtre",
+    "opensAt": "Ouvre",
+    "closesAt": "Ferme",
+    "questionSubset": "Sous-ensemble de questions",
+    "hideOptions": "Masquer les options de réponse",
+    "rubricSwap": "Changer de grille",
+    "rubricDefault": "Par défaut",
+    "rubricPoints": "Mode points",
+    "timeMultiplierNone": "Aucun",
+    "timeMultiplierUnlimited": "Illimité",
+    "chip": {
+      "unlimitedTime": "Temps illimité",
+      "extendedTime": "{{multiplier}}x temps",
+      "questionSubset": "{{selected}}/{{total}} questions",
+      "hiddenOptions_one": "{{count}} option masquée",
+      "hiddenOptions_other": "{{count}} options masquées",
+      "rubricSwaps_one": "{{count}} changement de grille",
+      "rubricSwaps_other": "{{count}} changements de grille",
+      "tabWarningsOff": "Avertissements d'onglet désactivés",
+      "tabWarning": "Avertissement d'onglet : {{threshold}}",
+      "windowShifted": "Fenêtre décalée"
+    }
   }
 }
