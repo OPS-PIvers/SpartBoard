@@ -27,19 +27,14 @@ import {
   addDoc,
   collection,
   doc,
-  getDoc,
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
-import {
-  GuidedLearningResponse,
-  GuidedLearningSession,
-  StudentAssignmentPointer,
-  StudentOverride,
-} from '@/types';
+import { useStudentAssignmentOverride } from '@/hooks/useStudentAssignmentOverride';
+import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
@@ -69,6 +64,11 @@ export const GuidedLearningStudentApp: React.FC = () => {
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
   const [anonymousUid, setAnonymousUid] = useState<string | null>(null);
+  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
+  // minted by `studentLoginV1`. Anonymous/PIN joiners (the majority of GL
+  // traffic) stay `false` — they never hold this claim, so the pointer-doc
+  // read must be gated on it (see M17 C3-gl fix note below).
+  const [isStudentRole, setIsStudentRole] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -82,7 +82,16 @@ export const GuidedLearningStudentApp: React.FC = () => {
           const cred = await signInAnonymously(auth);
           setAnonymousUid(cred.user.uid);
         } else {
-          setAnonymousUid(auth.currentUser.uid);
+          const user = auth.currentUser;
+          setAnonymousUid(user.uid);
+          if (!user.isAnonymous) {
+            // Probe custom claims once — stale is fine for this read-only
+            // gate; Firestore rules re-validate on every read regardless.
+            const tokenResult = await user.getIdTokenResult();
+            if (tokenResult.claims?.studentRole === true) {
+              setIsStudentRole(true);
+            }
+          }
         }
       } catch (err) {
         console.warn('[GuidedLearningStudentApp] Anonymous auth failed:', err);
@@ -101,14 +110,20 @@ export const GuidedLearningStudentApp: React.FC = () => {
     );
   if (!anonymousUid) return <FullPageLoader />;
 
-  return <StudentExperience anonymousUid={anonymousUid} />;
+  return (
+    <StudentExperience
+      anonymousUid={anonymousUid}
+      isStudentRole={isStudentRole}
+    />
+  );
 };
 
 // ─── Main experience ──────────────────────────────────────────────────────────
 
-const StudentExperience: React.FC<{ anonymousUid: string }> = ({
-  anonymousUid,
-}) => {
+const StudentExperience: React.FC<{
+  anonymousUid: string;
+  isStudentRole: boolean;
+}> = ({ anonymousUid, isStudentRole }) => {
   const sessionId =
     window.location.pathname.split('/guided-learning/')[1] ?? '';
   const { session, loading, error, submitResponse } =
@@ -213,30 +228,15 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   // pointer doc (`/student_assignments/{auth.uid}/items/{sessionId}`) — never
   // a session-side map (spec §5 C3). Absent for class-wide (non-individually-
   // targeted) assignments and for view-only shares, which is the normal case.
-  const [timeMultiplier, setTimeMultiplier] =
-    useState<StudentOverride['timeMultiplier']>(undefined);
-  useEffect(() => {
-    if (!sessionId || !anonymousUid || isViewOnly) return;
-    let cancelled = false;
-    void getDoc(
-      doc(db, 'student_assignments', anonymousUid, 'items', sessionId)
-    )
-      .then((snap) => {
-        if (cancelled || !snap.exists()) return;
-        const pointer = snap.data() as StudentAssignmentPointer;
-        setTimeMultiplier(pointer.override?.timeMultiplier);
-      })
-      .catch((err) => {
-        // No pointer doc / no permission is the normal class-wide-assignment
-        // path (rules reject reads for uids with no pointer), not an error.
-        logError('GuidedLearningStudentApp.overrideLookup', err, {
-          sessionId,
-        });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, anonymousUid, isViewOnly]);
+  // Firestore rules require the `studentRole` claim to read this doc, so the
+  // read is gated on `isStudentRole` — anonymous/PIN joiners (the majority of
+  // GL traffic) never attempt it, avoiding a permission-denied on every join.
+  const pointerOverride = useStudentAssignmentOverride(
+    isStudentRole ? anonymousUid : null,
+    sessionId || null,
+    isStudentRole && !isViewOnly
+  );
+  const timeMultiplier = pointerOverride?.timeMultiplier;
 
   const startedAt = React.useRef<number>(0);
   useEffect(() => {
