@@ -1593,15 +1593,25 @@ export interface PollGlobalConfig {
   buildingDefaults: Record<string, BuildingPollDefaults>;
 }
 
-export interface PollConfig {
+/** One question in a multi-question poll. */
+export interface PollQuestion {
+  id: string;
   question: string;
   options: PollOption[];
+}
+
+export interface PollConfig {
+  /** Canonical question list. Read via `getPollQuestions`, never directly. */
+  questions?: PollQuestion[];
+  /** Presentation cursor — the question the board and every phone are on. */
+  currentQuestionIndex?: number;
+  /** Sticky participant join code; rotates only on a "Start fresh" session. */
+  joinCode?: string | null;
   /**
    * Public device-voting session id. When non-null, a public poll session
    * is LIVE: the board shows aggregated tallies from
    * `poll_sessions/{teacherUid}_{activePollSessionId}/votes` and manual ±
-   * voting is disabled. This id is also the `:pollId` route segment of the
-   * participant join link.
+   * voting is disabled. Equal to `joinCode` for code-minted sessions.
    */
   activePollSessionId?: string | null;
   /**
@@ -1610,17 +1620,43 @@ export interface PollConfig {
    * mints a fresh id instead.
    */
   lastPollSessionId?: string | null;
+  /** Legacy single-question shape — read through `getPollQuestions` only. */
+  question?: string;
+  /** Legacy single-question shape — read through `getPollQuestions` only. */
+  options?: PollOption[];
 }
 
 /**
  * A single public-poll vote document
- * (`poll_sessions/{teacherUid}_{pollId}/votes/{participantUid}`). Keyed by the
- * anonymous voter's uid (one vote per device); the Firestore rules enforce the
- * exact `{optionIndex, votedAt}` shape.
+ * (`poll_sessions/{teacherUid}_{code}/votes/{questionIndex}_{participantUid}`).
+ * The composite key keeps one vote per device per question while letting a
+ * single listener cover every question; the rules enforce the exact shape.
  */
 export interface PollVoteDoc {
+  questionIndex: number;
   optionIndex: number;
   votedAt: number;
+}
+
+/** Question shape stored on the session doc — labels only, no vote counts. */
+export interface PollSessionQuestion {
+  id: string;
+  question: string;
+  options: { id: string; label: string }[];
+}
+
+/** The `poll_sessions/{teacherUid}_{code}` document. */
+export interface PollSessionDoc {
+  id: string;
+  teacherUid: string;
+  code: string;
+  questions: PollSessionQuestion[];
+  optionCounts: number[];
+  currentQuestionIndex: number;
+  active: boolean;
+  /** Null until the teacher first opens voting — drives the waiting screen. */
+  startedAt: number | null;
+  updatedAt: number;
 }
 
 export type ActivityWallMode = 'text' | 'photo';

@@ -8,6 +8,7 @@ import { WidgetData } from '@/types';
 const {
   mockOnSnapshot,
   mockSetDoc,
+  mockGetDocs,
   mockCollection,
   mockDoc,
   mockUser,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => ({
   mockOnSnapshot: vi.fn(),
   mockSetDoc: vi.fn(),
+  mockGetDocs: vi.fn(),
   mockCollection: vi.fn(() => 'votes-col'),
   mockDoc: vi.fn((..._args: unknown[]) => ({
     __path: _args.slice(1).join('/'),
@@ -23,7 +25,7 @@ const {
   mockCanAccessFeature: vi.fn(() => true),
 }));
 
-let snapshotDocs: Record<string, unknown>[] = [];
+let snapshotDocs: { id: string; data: Record<string, unknown> }[] = [];
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: mockUser, canAccessFeature: mockCanAccessFeature }),
@@ -34,6 +36,12 @@ vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
+  getDocs: mockGetDocs,
+  limit: vi.fn((n: number) => ({ __limit: n })),
+  query: vi.fn((...args: unknown[]) => ({ __query: args })),
+  where: vi.fn((field: string, _op: string, value: unknown) => ({
+    __where: [field, value],
+  })),
 }));
 
 const idleWidget: WidgetData = {
@@ -56,7 +64,30 @@ const idleWidget: WidgetData = {
 
 const liveWidget: WidgetData = {
   ...idleWidget,
-  config: { ...idleWidget.config, activePollSessionId: 'sess-1' },
+  config: {
+    ...idleWidget.config,
+    activePollSessionId: 'K3F9Q',
+    joinCode: 'K3F9Q',
+  },
+} as WidgetData;
+
+const multiQuestionWidget: WidgetData = {
+  ...idleWidget,
+  config: {
+    questions: [
+      {
+        id: 'q1',
+        question: 'First question?',
+        options: [{ id: 'o1', label: 'Red', votes: 0 }],
+      },
+      {
+        id: 'q2',
+        question: 'Second question?',
+        options: [{ id: 'o2', label: 'Blue', votes: 0 }],
+      },
+    ],
+    currentQuestionIndex: 0,
+  },
 } as WidgetData;
 
 beforeEach(() => {
@@ -64,12 +95,17 @@ beforeEach(() => {
   snapshotDocs = [];
   mockCanAccessFeature.mockReturnValue(true);
   mockSetDoc.mockResolvedValue(undefined);
+  mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
   mockOnSnapshot.mockImplementation(
     (
       _ref: unknown,
-      cb: (snap: { docs: { data: () => Record<string, unknown> }[] }) => void
+      cb: (snap: {
+        docs: { id: string; data: () => Record<string, unknown> }[];
+      }) => void
     ) => {
-      cb({ docs: snapshotDocs.map((d) => ({ data: () => d })) });
+      cb({
+        docs: snapshotDocs.map((d) => ({ id: d.id, data: () => d.data })),
+      });
       return vi.fn();
     }
   );
@@ -103,9 +139,7 @@ describe('RemotePollControl', () => {
     expect(qr.getAttribute('src') ?? '').toContain(
       'https://api.qrserver.com/v1/create-qr-code/'
     );
-    expect(screen.getByTestId('poll-join-url').textContent ?? '').toContain(
-      '/poll/sess-1'
-    );
+    expect(screen.getByTestId('poll-join-url').textContent ?? '').toBe('K3F9Q');
   });
 
   it('starts a fresh session and persists the active id', async () => {
@@ -129,7 +163,11 @@ describe('RemotePollControl', () => {
   });
 
   it('shows live tallies (not manual +/-) when a session is live', () => {
-    snapshotDocs = [{ optionIndex: 0 }, { optionIndex: 0 }, { optionIndex: 1 }];
+    snapshotDocs = [
+      { id: '0_a', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '0_b', data: { questionIndex: 0, optionIndex: 0 } },
+      { id: '0_c', data: { questionIndex: 0, optionIndex: 1 } },
+    ];
     render(<RemotePollControl widget={liveWidget} updateWidget={vi.fn()} />);
     // Manual +/- are gone while live.
     expect(
@@ -138,6 +176,34 @@ describe('RemotePollControl', () => {
     // Live counts surface (Red 2, Blue 1).
     expect(screen.getByTestId('poll-remote-tally-0')).toHaveTextContent('2');
     expect(screen.getByTestId('poll-remote-tally-1')).toHaveTextContent('1');
+  });
+
+  it('hides the question arrows for a single-question poll', () => {
+    render(<RemotePollControl widget={idleWidget} updateWidget={vi.fn()} />);
+    expect(
+      screen.queryByRole('button', { name: /next question/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('advances the presentation cursor from the remote', async () => {
+    const updateWidget = vi.fn();
+    render(
+      <RemotePollControl
+        widget={multiQuestionWidget}
+        updateWidget={updateWidget}
+      />
+    );
+
+    expect(screen.getByText('First question?')).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: /next question/i })
+    );
+
+    expect(updateWidget).toHaveBeenCalledWith('poll-1', {
+      config: expect.objectContaining({
+        currentQuestionIndex: 1,
+      }) as unknown,
+    });
   });
 
   it('stops a live session and clears the active id', async () => {

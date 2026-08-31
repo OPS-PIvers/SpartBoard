@@ -1,13 +1,15 @@
 // Firestore security-rules tests for public-poll voting
-// (poll_sessions/{sessionId}/votes/{participantUid}).
+// (poll_sessions/{sessionId}/votes/{questionIndex}_{participantUid}).
 //
 // Contract under test:
 //   - Session doc: any authed user reads; only a non-anonymous teacher whose
 //     uid prefixes the sessionId (or an admin) creates/updates; no client delete.
-//   - votes/{participantUid}: an authed (incl. anonymous) user may create/update
-//     ONLY the doc whose id == their own uid, with exactly {optionIndex, votedAt},
-//     optionIndex an int in [0, optionCount), and only while the session is
-//     active. Reads are open to any authed user (anonymous tallies, no PII).
+//   - votes/{voteId}: an authed (incl. anonymous) user may create/update ONLY
+//     the doc whose id == `{questionIndex}_{their own uid}`, with exactly
+//     {questionIndex, optionIndex, votedAt}, questionIndex an int in
+//     [0, optionCounts.size()), optionIndex an int in
+//     [0, optionCounts[questionIndex]), and only while the session is active.
+//     Reads are open to any authed user (anonymous tallies, no PII).
 //     Delete (reset) is teacher/admin-only.
 //
 // Requires a running Firestore emulator. Invoke via: pnpm run test:rules
@@ -31,6 +33,10 @@ const ACTIVE_SESSION_ID = `${TEACHER_UID}_${ACTIVE_POLL_ID}`;
 const CLOSED_SESSION_ID = `${TEACHER_UID}_${CLOSED_POLL_ID}`;
 const VOTER_UID = 'voter-anon';
 const OTHER_UID = 'voter-other';
+
+// Question 0 has three options, question 1 has two — so a per-question range
+// check is distinguishable from a single global optionCount.
+const OPTION_COUNTS = [3, 2];
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -89,35 +95,52 @@ beforeEach(async () => {
     await setDoc(doc(db, `poll_sessions/${ACTIVE_SESSION_ID}`), {
       id: ACTIVE_POLL_ID,
       teacherUid: TEACHER_UID,
-      optionCount: 3,
+      code: 'ABCDE',
+      optionCounts: OPTION_COUNTS,
+      currentQuestionIndex: 0,
       active: true,
+      startedAt: 1000,
       updatedAt: 1000,
     });
     await setDoc(doc(db, `poll_sessions/${CLOSED_SESSION_ID}`), {
       id: CLOSED_POLL_ID,
       teacherUid: TEACHER_UID,
-      optionCount: 3,
+      code: 'FGHJK',
+      optionCounts: OPTION_COUNTS,
+      currentQuestionIndex: 0,
       active: false,
+      startedAt: 1000,
       updatedAt: 1000,
     });
     // A pre-existing vote so read/delete tests have a target.
     await setDoc(
-      doc(db, `poll_sessions/${ACTIVE_SESSION_ID}/votes/${OTHER_UID}`),
-      { optionIndex: 0, votedAt: 1000 }
+      doc(db, `poll_sessions/${ACTIVE_SESSION_ID}/votes/0_${OTHER_UID}`),
+      { questionIndex: 0, optionIndex: 0, votedAt: 1000 }
     );
   });
 });
 
 const voteRef = (
   db: ReturnType<typeof asAnonVoter>,
-  uid: string,
+  voteId: string,
   session = ACTIVE_SESSION_ID
-) => doc(db, `poll_sessions/${session}/votes/${uid}`);
+) => doc(db, `poll_sessions/${session}/votes/${voteId}`);
 
 describe('poll votes — create/update', () => {
   it('control: anon voter writes their own vote with valid payload', async () => {
     await assertSucceeds(
-      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
+        optionIndex: 1,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('accepts a vote on a later question', async () => {
+    await assertSucceeds(
+      setDoc(voteRef(asAnonVoter(), `1_${VOTER_UID}`), {
+        questionIndex: 1,
         optionIndex: 1,
         votedAt: 2000,
       })
@@ -126,8 +149,49 @@ describe('poll votes — create/update', () => {
 
   it('rejects writing another participant’s vote doc', async () => {
     await assertFails(
-      setDoc(voteRef(asAnonVoter(), OTHER_UID), {
+      setDoc(voteRef(asAnonVoter(), `0_${OTHER_UID}`), {
+        questionIndex: 0,
         optionIndex: 1,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a doc id whose question prefix disagrees with the payload', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `1_${VOTER_UID}`), {
+        questionIndex: 0,
+        optionIndex: 1,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a bare-uid doc id (the pre-multi-question key)', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+        questionIndex: 0,
+        optionIndex: 1,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects an out-of-range questionIndex', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `2_${VOTER_UID}`), {
+        questionIndex: 2,
+        optionIndex: 0,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a negative questionIndex', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `-1_${VOTER_UID}`), {
+        questionIndex: -1,
+        optionIndex: 0,
         votedAt: 2000,
       })
     );
@@ -135,8 +199,27 @@ describe('poll votes — create/update', () => {
 
   it('rejects an out-of-range optionIndex', async () => {
     await assertFails(
-      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
         optionIndex: 3,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('range-checks optionIndex against THIS question’s option count', async () => {
+    // optionIndex 2 is valid for question 0 (3 options) but not question 1 (2).
+    await assertSucceeds(
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
+        optionIndex: 2,
+        votedAt: 2000,
+      })
+    );
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `1_${VOTER_UID}`), {
+        questionIndex: 1,
+        optionIndex: 2,
         votedAt: 2000,
       })
     );
@@ -144,7 +227,8 @@ describe('poll votes — create/update', () => {
 
   it('rejects a negative optionIndex', async () => {
     await assertFails(
-      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
         optionIndex: -1,
         votedAt: 2000,
       })
@@ -154,15 +238,29 @@ describe('poll votes — create/update', () => {
   it('rejects a vote against a non-existent session', async () => {
     await assertFails(
       setDoc(
-        voteRef(asAnonVoter(), VOTER_UID, `${TEACHER_UID}_does-not-exist`),
-        { optionIndex: 0, votedAt: 2000 }
+        voteRef(
+          asAnonVoter(),
+          `0_${VOTER_UID}`,
+          `${TEACHER_UID}_does-not-exist`
+        ),
+        { questionIndex: 0, optionIndex: 0, votedAt: 2000 }
       )
     );
   });
 
-  it('rejects extra fields beyond optionIndex/votedAt', async () => {
+  it('rejects a payload missing questionIndex', async () => {
     await assertFails(
-      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        optionIndex: 1,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects extra fields beyond the three declared keys', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
         optionIndex: 1,
         votedAt: 2000,
         teacherUid: TEACHER_UID,
@@ -172,22 +270,25 @@ describe('poll votes — create/update', () => {
 
   it('rejects a vote when the session is not active', async () => {
     await assertFails(
-      setDoc(voteRef(asAnonVoter(), VOTER_UID, CLOSED_SESSION_ID), {
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`, CLOSED_SESSION_ID), {
+        questionIndex: 0,
         optionIndex: 1,
         votedAt: 2000,
       })
     );
   });
 
-  it('allows a voter to overwrite their own vote', async () => {
+  it('allows a voter to overwrite their own vote on the same question', async () => {
     await assertSucceeds(
-      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
         optionIndex: 0,
         votedAt: 2000,
       })
     );
     await assertSucceeds(
-      setDoc(voteRef(asAnonVoter(), VOTER_UID), {
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
         optionIndex: 2,
         votedAt: 3000,
       })
@@ -197,33 +298,34 @@ describe('poll votes — create/update', () => {
 
 describe('poll votes — read', () => {
   it('any authed user can read a vote doc (live tally)', async () => {
-    await assertSucceeds(getDoc(voteRef(asAnonVoter(), OTHER_UID)));
+    await assertSucceeds(getDoc(voteRef(asAnonVoter(), `0_${OTHER_UID}`)));
   });
 
   it('an unauthenticated caller cannot read a vote doc', async () => {
-    await assertFails(getDoc(voteRef(asUnauthed(), OTHER_UID)));
+    await assertFails(getDoc(voteRef(asUnauthed(), `0_${OTHER_UID}`)));
   });
 });
 
 describe('poll votes — delete (reset)', () => {
   it('teacher can delete a vote', async () => {
-    await assertSucceeds(deleteDoc(voteRef(asTeacher(), OTHER_UID)));
+    await assertSucceeds(deleteDoc(voteRef(asTeacher(), `0_${OTHER_UID}`)));
   });
 
   it('a participant cannot delete another participant’s vote', async () => {
-    await assertFails(deleteDoc(voteRef(asAnonVoter(), OTHER_UID)));
+    await assertFails(deleteDoc(voteRef(asAnonVoter(), `0_${OTHER_UID}`)));
   });
 
   it('a voter cannot delete their own vote', async () => {
     // Delete is teacher/admin-only — participants never delete, even their own.
-    await assertFails(deleteDoc(voteRef(asAnonVoter(), VOTER_UID)));
+    await assertFails(deleteDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`)));
   });
 });
 
 describe('poll votes — unauthenticated write', () => {
   it('an unauthenticated caller cannot cast a vote', async () => {
     await assertFails(
-      setDoc(voteRef(asUnauthed(), VOTER_UID), {
+      setDoc(voteRef(asUnauthed(), `0_${VOTER_UID}`), {
+        questionIndex: 0,
         optionIndex: 1,
         votedAt: 2000,
       })
@@ -237,8 +339,11 @@ describe('poll session doc', () => {
       setDoc(doc(asTeacher(), `poll_sessions/${TEACHER_UID}_new-poll`), {
         id: 'new-poll',
         teacherUid: TEACHER_UID,
-        optionCount: 2,
+        code: 'MNPQR',
+        optionCounts: [2],
+        currentQuestionIndex: 0,
         active: true,
+        startedAt: 4000,
         updatedAt: 4000,
       })
     );
@@ -249,8 +354,11 @@ describe('poll session doc', () => {
       setDoc(doc(asAnonVoter(), `poll_sessions/${VOTER_UID}_x`), {
         id: 'x',
         teacherUid: VOTER_UID,
-        optionCount: 2,
+        code: 'TUVWX',
+        optionCounts: [2],
+        currentQuestionIndex: 0,
         active: true,
+        startedAt: 4000,
         updatedAt: 4000,
       })
     );
@@ -261,8 +369,11 @@ describe('poll session doc', () => {
       setDoc(doc(asOtherTeacher(), `poll_sessions/${TEACHER_UID}_foreign`), {
         id: 'foreign',
         teacherUid: TEACHER_UID,
-        optionCount: 2,
+        code: 'YACDE',
+        optionCounts: [2],
+        currentQuestionIndex: 0,
         active: true,
+        startedAt: 4000,
         updatedAt: 4000,
       })
     );
@@ -273,8 +384,11 @@ describe('poll session doc', () => {
       setDoc(doc(asOtherTeacher(), `poll_sessions/${ACTIVE_SESSION_ID}`), {
         id: ACTIVE_POLL_ID,
         teacherUid: TEACHER_UID,
-        optionCount: 3,
+        code: 'ABCDE',
+        optionCounts: OPTION_COUNTS,
+        currentQuestionIndex: 0,
         active: false,
+        startedAt: 1000,
         updatedAt: 5000,
       })
     );
