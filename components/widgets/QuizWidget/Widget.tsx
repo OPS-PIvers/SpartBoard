@@ -84,6 +84,15 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { getQuizBehavior } from '@/utils/quizBehavior';
+import {
+  useSetAssignmentTargets,
+  type SkipReason,
+} from '@/hooks/useSetAssignmentTargets';
+import {
+  buildSetAssignmentTargetsPayload,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
+import type { StudentTargetRef } from '@/types';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -220,6 +229,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     unpublishAssignmentScores,
     syncAssignmentToLatest,
   } = useQuizAssignments(user?.uid);
+
+  // M17 individual-assignment targeting (spec §5 B3). Skipped refs from the
+  // most recent `setAssignmentTargetsV1` call, keyed by assignment id, so the
+  // archive row can carry a discreet marker (never silently dropped — spec
+  // requires toast + row markers).
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const [assignSkippedByAssignmentId, setAssignSkippedByAssignmentId] =
+    useState<
+      Record<string, { ref: StudentTargetRef; reason: SkipReason }[]>
+    >({});
 
   // Folders are managed by QuizManager separately; this duplicate binding is
   // used only so the editor modal can surface a folder picker and commit
@@ -1193,6 +1212,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
         onReorderQuizzes={user?.uid ? handleReorderQuizzes : undefined}
+        onLoadQuizData={loadQuiz}
+        skippedTargetsByAssignmentId={assignSkippedByAssignmentId}
         onNew={() => {
           const now = Date.now();
           setEditingQuiz({
@@ -1223,6 +1244,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           plcOptions: PlcOptions,
           rosterIds: string[],
           dueAt: number | null,
+          targeting: AssignTargetingValue,
           destination?: AssignDestination
         ) => {
           const data = await loadQuiz(meta);
@@ -1398,8 +1420,61 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 classPeriodByClassId: derived.classPeriodByClassId,
                 mode: quizAssignmentMode,
                 ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
+                // M17 individual-assignment targeting (spec §5 B3). Only the
+                // fields the client owns — `targetStudents` itself is written
+                // by `setAssignmentTargetsV1` below, never here (§2a).
+                targetMode: targeting.targetMode,
+                targetGroupIds: targeting.targetGroupIds,
+                overridesBySourcedId: targeting.overridesByKey,
+                openAt: targeting.openAt ?? null,
+                closeAt: targeting.closeAt ?? null,
               }
             );
+
+            // M17 B3 acceptance criterion: class-wide (`targetMode: 'class'`)
+            // assignments never invoke the CF — zero behavior change from
+            // today. Individual targeting fans the pick-list out to
+            // `/student_assignments` pointer docs; skipped refs are surfaced,
+            // never silently dropped.
+            if (targeting.targetMode === 'students') {
+              try {
+                const payload = buildSetAssignmentTargetsPayload(
+                  undefined,
+                  targeting
+                );
+                const result = await setAssignmentTargets({
+                  assignmentId,
+                  kind: 'quiz',
+                  sessionId: assignmentId,
+                  targetMode: payload.targetMode,
+                  add: payload.add,
+                  remove: payload.remove,
+                  overridesBySourcedId: payload.overridesBySourcedId,
+                  window: payload.window,
+                });
+                if (result.skipped.length > 0) {
+                  setAssignSkippedByAssignmentId((prev) => ({
+                    ...prev,
+                    [assignmentId]: result.skipped,
+                  }));
+                  addToast(
+                    `${result.skipped.length} student${result.skipped.length === 1 ? '' : 's'} could not be added to this assignment.`,
+                    'warning'
+                  );
+                }
+              } catch (targetErr) {
+                logError(
+                  'QuizWidget.assignment.setAssignmentTargets',
+                  targetErr,
+                  { assignmentId }
+                );
+                addToast(
+                  'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
+                  'error'
+                );
+              }
+            }
+
             // Persist the teacher's last-used rosters per quiz so
             // re-launching the same quiz pre-selects the same classes.
             const prevMap = config.lastRosterIdsByQuizId ?? {};

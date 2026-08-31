@@ -54,6 +54,7 @@ import type {
   QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
+  StudentOverride,
 } from '@/types';
 import { projectSessionStimuli } from '@/utils/quizStimuli';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
@@ -135,6 +136,21 @@ export interface CreateAssignmentOptions {
    * `handleShareWithPlc` path, which has Drive content already loaded).
    */
   plcTemplateSyncGroupId?: string;
+  /**
+   * M17 individual-assignment targeting (spec §5 B3). `targetMode: 'students'`
+   * marks the assignment doc so the CF's `individualTargeting` session flag
+   * makes sense downstream; `targetStudents` itself is NOT written here —
+   * `setAssignmentTargetsV1` is the sole writer of that field (division of
+   * labor, spec §2a). Caller invokes the CF separately after `createAssignment`
+   * resolves, passing the same `assignmentId` (== the returned `id`, == the
+   * session id) as `sessionId`.
+   */
+  targetMode?: 'class' | 'students';
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Open/close window (epoch ms), mirrored onto both assignment + session docs. */
+  openAt?: number | null;
+  closeAt?: number | null;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -666,6 +682,11 @@ export const useQuizAssignments = (
         mode: assignmentMode = 'submissions',
         skipPlcTemplateWrite = false,
         plcTemplateSyncGroupId,
+        targetMode,
+        targetGroupIds,
+        overridesBySourcedId,
+        openAt,
+        closeAt,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       // Defensive sanitization at the hook boundary: drop empty/non-string
@@ -723,6 +744,18 @@ export const useQuizAssignments = (
         // back the assignment doc.
         ...(syncedFrom ? { sync: syncedFrom } : {}),
         mode: assignmentMode,
+        // M17 individual-assignment targeting (spec §5 B3/A1). `targetStudents`
+        // is deliberately absent — `setAssignmentTargetsV1` is the sole writer
+        // of that field; the caller invokes it separately after this commits.
+        ...(targetMode ? { targetMode } : {}),
+        ...(targetGroupIds && targetGroupIds.length > 0
+          ? { targetGroupIds }
+          : {}),
+        ...(overridesBySourcedId && Object.keys(overridesBySourcedId).length > 0
+          ? { overridesBySourcedId }
+          : {}),
+        ...(openAt != null ? { openAt } : {}),
+        ...(closeAt != null ? { closeAt } : {}),
       };
 
       const mode = settings.sessionMode;
@@ -797,6 +830,10 @@ export const useQuizAssignments = (
           : {}),
         attemptLimit: settings.attemptLimit ?? null,
         mode: assignmentMode,
+        // M17 window (spec §5 A1/B3). `individualTargeting` is written only
+        // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
+        ...(openAt != null ? { openAt } : {}),
+        ...(closeAt != null ? { closeAt } : {}),
       };
 
       const batch = writeBatch(db);

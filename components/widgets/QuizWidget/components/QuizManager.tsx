@@ -16,7 +16,13 @@
  * only, not functionality.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Plus,
   FileUp,
@@ -55,6 +61,8 @@ import {
   QuizConfig,
   ClassRoster,
   QuizAssignment,
+  QuizData,
+  StudentTargetRef,
   SyncedQuizGroup,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
@@ -88,6 +96,9 @@ import {
   useSortableReorder,
   BulkActionBar,
   buildDuplicateAction,
+  AssignTargetingSection,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  type AssignTargetingValue,
   type BulkAction,
   type LibraryMenuAction,
   type LibrarySortOption,
@@ -96,6 +107,8 @@ import {
   type LibraryBadgeTone,
   type LibrarySelectionApi,
 } from '@/components/common/library';
+import type { OverrideEditorQuestion } from '@/components/common/library/OverrideEditorRow';
+import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
   type AssignDestination,
@@ -170,6 +183,34 @@ function resolveEffectivePeriodNames(
   return resolveAssignmentTargets(picker, rosters).periodNames;
 }
 
+/**
+ * Projects loaded quiz questions into the shape `OverrideEditorRow`'s B2
+ * question subset / MC-option hider needs (spec §5 B2). `options` is present
+ * only for MC — Matching/Ordering/FIB/written types have no per-option hider,
+ * they're still selectable in the subset picker via the bare question label.
+ * Returns `[]` while the quiz's full content hasn't loaded yet.
+ */
+function toOverrideEditorQuestions(
+  data: QuizData | null
+): OverrideEditorQuestion[] {
+  if (!data) return [];
+  return data.questions.map((q) => ({
+    id: q.id,
+    label: q.text || `Question ${data.questions.indexOf(q) + 1}`,
+    options:
+      q.type === 'MC'
+        ? [
+            { id: `${q.id}-correct`, text: q.correctAnswer, isCorrect: true },
+            ...q.incorrectAnswers.map((text, i) => ({
+              id: `${q.id}-incorrect-${i}`,
+              text,
+              isCorrect: false,
+            })),
+          ]
+        : undefined,
+  }));
+}
+
 function buildDefaultAssignOptions(
   config: QuizConfig,
   quizId: string | undefined,
@@ -239,12 +280,38 @@ interface QuizManagerProps {
     /** Optional due date (epoch ms). null = no due date. */
     dueAt: number | null,
     /**
+     * M17 individual-assignment targeting (spec §5 B3) — target mode, picked
+     * students/groups, per-student overrides, and the assignment-level
+     * open/close window. `targetMode: 'class'` (the default) is the unchanged
+     * legacy flow; the Widget handler only invokes `setAssignmentTargetsV1`
+     * when `targetMode === 'students'`.
+     */
+    targeting: AssignTargetingValue,
+    /**
      * Where the teacher chose to assign (library-row chooser). 'spartboard' =
      * the SpartBoard-only flow; 'classroom' = create the SpartBoard assignment
      * THEN open the Google Classroom course picker. Defaults to 'spartboard'.
      */
     destination?: AssignDestination
   ) => void;
+  /**
+   * Loads full quiz content (questions) for the assign modal's B2 override
+   * editor (question subset / MC-option hider / rubric swap need question
+   * data the lightweight `QuizMetadata` doesn't carry). Omitted in test
+   * harnesses that don't exercise individual targeting — the "+ Individual
+   * students & overrides" affordance still renders, just with an empty
+   * question list until this resolves.
+   */
+  onLoadQuizData?: (quiz: QuizMetadata) => Promise<QuizData | null>;
+  /**
+   * M17 individual-assignment targeting (spec §5 B3) — skipped-ref counts
+   * from the most recent `setAssignmentTargetsV1` call, keyed by assignment
+   * id. Renders a discreet row marker so a skipped student is never silent.
+   */
+  skippedTargetsByAssignmentId?: Record<
+    string,
+    { ref: StudentTargetRef; reason: string }[]
+  >;
   /**
    * View-only Share callback — invoked when the org-wide assignment mode
    * for Quiz is `'view-only'` and the teacher clicks the Share button.
@@ -502,6 +569,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onEdit,
   onPreview,
   onAssign,
+  onLoadQuizData,
+  skippedTargetsByAssignmentId,
   onResults,
   onDelete,
   onDuplicate,
@@ -662,6 +731,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   // Due date for the current assign modal (epoch ms or null = no due date).
   const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
+  // M17 individual-assignment targeting state (spec §5 B3). Default
+  // 'class' mode renders none of B1/B2 — see `AssignTargetingSection`.
+  const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
+  // Full quiz content for the current assign modal's question-override
+  // fields (question subset / MC-option hider / rubric swap). `QuizMetadata`
+  // doesn't carry questions — loaded on demand via `onLoadQuizData`.
+  const [assignQuizData, setAssignQuizData] = useState<QuizData | null>(null);
+  const { rubrics: assignRubrics } = useRubrics(userId);
 
   // Subscribed at the parent so both AssignPlcSlot (UI) and
   // handleAssignConfirm (effective-id resolution) read the same source.
@@ -675,6 +754,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
       setAssignDueAt(null);
+      setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+      setAssignQuizData(null);
       setAssignOptions(
         buildDefaultAssignOptions(
           config,
@@ -685,6 +766,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       );
     }
   }
+
+  // Loads the assign modal's question data from an external system (Drive),
+  // keyed on the target quiz id — a genuine useEffect use case, not derived
+  // state. Runs after the render-time reset above so a stale in-flight load
+  // for a previously-opened quiz can't clobber the newly-opened one; the
+  // `cancelled` guard drops any response that resolves after the target has
+  // since changed again.
+  useEffect(() => {
+    if (!assignTarget || !onLoadQuizData) return;
+    let cancelled = false;
+    void onLoadQuizData(assignTarget).then((data) => {
+      if (!cancelled) setAssignQuizData(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignTarget, onLoadQuizData]);
 
   // Live ClassLink fetching is no longer performed at assign time. Imported
   // ClassLink rosters carry their own `classlinkClassId` metadata so the
@@ -1390,10 +1488,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       plcOptions,
       validRosterIds,
       assignDueAt,
+      assignTargeting,
       assignDestination
     );
     setAssignTarget(null);
     setAssignDueAt(null);
+    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setAssignQuizData(null);
     setAssignDestination('spartboard');
   };
 
@@ -1756,6 +1857,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           mode="active"
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
+          skippedTargetsByAssignmentId={skippedTargetsByAssignmentId}
           emptyTitle={
             isViewOnly ? 'No active shares' : 'No quizzes in progress'
           }
@@ -1821,6 +1923,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={() => {
             setAssignTarget(null);
             setAssignDueAt(null);
+            setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+            setAssignQuizData(null);
             // Reset the destination so a cancelled 'classroom' pick can't leak
             // into a later open (every exit path leaves clean state; the
             // confirm path already resets it).
@@ -1830,24 +1934,38 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           options={assignOptions}
           onOptionsChange={setAssignOptions}
           extraSlot={
-            <AssignBehaviorSummary
-              meta={assignTarget}
-              dueAt={assignDueAt}
-              onDueAtChange={setAssignDueAt}
-              rosters={rosters}
-              options={assignOptions}
-              onChange={setAssignOptions}
-              onEditInQuiz={() => {
-                // Close the assign modal and open the editor.
-                // The editor defaults to the Questions tab; the teacher
-                // can switch to Settings from there. (Task 9 — initialTab
-                // 'settings' wiring is a follow-up for Task 12.)
-                setAssignTarget(null);
-                setAssignDueAt(null);
-                setAssignDestination('spartboard');
-                onEdit(assignTarget);
-              }}
-            />
+            <>
+              <AssignBehaviorSummary
+                meta={assignTarget}
+                dueAt={assignDueAt}
+                onDueAtChange={setAssignDueAt}
+                rosters={rosters}
+                options={assignOptions}
+                onChange={setAssignOptions}
+                onEditInQuiz={() => {
+                  // Close the assign modal and open the editor.
+                  // The editor defaults to the Questions tab; the teacher
+                  // can switch to Settings from there. (Task 9 — initialTab
+                  // 'settings' wiring is a follow-up for Task 12.)
+                  setAssignTarget(null);
+                  setAssignDueAt(null);
+                  setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+                  setAssignQuizData(null);
+                  setAssignDestination('spartboard');
+                  onEdit(assignTarget);
+                }}
+              />
+              <AssignTargetingSection
+                rosters={rosters}
+                value={assignTargeting}
+                onChange={setAssignTargeting}
+                kind="quiz"
+                quizContext={{
+                  questions: toOverrideEditorQuestions(assignQuizData),
+                  rubrics: assignRubrics,
+                }}
+              />
+            </>
           }
           plcSlot={
             <AssignPlcSlot
@@ -2181,6 +2299,10 @@ const AssignmentsList: React.FC<{
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  skippedTargetsByAssignmentId?: Record<
+    string,
+    { ref: StudentTargetRef; reason: string }[]
+  >;
   emptyTitle: string;
   emptySub: string;
 }> = ({
@@ -2189,6 +2311,7 @@ const AssignmentsList: React.FC<{
   mode,
   buildActions,
   syncedGroups,
+  skippedTargetsByAssignmentId,
   emptyTitle,
   emptySub,
 }) => {
@@ -2215,6 +2338,7 @@ const AssignmentsList: React.FC<{
           mode={mode}
           buildActions={buildActions}
           syncedGroups={syncedGroups}
+          skippedTargets={skippedTargetsByAssignmentId?.[a.id]}
         />
       ))}
     </div>
@@ -2245,6 +2369,8 @@ interface QuizArchiveRowProps {
    * legacy "no sync indicator" rendering.
    */
   syncedGroups?: Map<string, SyncedQuizGroup>;
+  /** M17 skipped-ref row marker (spec §5 B3) — see `skippedTargetsByAssignmentId`. */
+  skippedTargets?: { ref: StudentTargetRef; reason: string }[];
 }
 
 /**
@@ -2258,6 +2384,7 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   mode,
   buildActions,
   syncedGroups,
+  skippedTargets,
 }) => {
   const assignmentIsViewOnly = a.mode === 'view-only';
   const { primary, secondaries } = buildActions(a, mode);
@@ -2361,6 +2488,15 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           >
             <Cloud className="w-2.5 h-2.5" />
             {syncBadge.label}
+          </span>
+        )}
+        {skippedTargets && skippedTargets.length > 0 && (
+          <span
+            title={`${skippedTargets.length} student${skippedTargets.length === 1 ? '' : 's'} could not be individually targeted`}
+            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700"
+          >
+            <AlertTriangle className="w-2.5 h-2.5" />
+            {skippedTargets.length} skipped
           </span>
         )}
       </>
