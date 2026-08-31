@@ -687,6 +687,9 @@ export async function handleSetAssignmentTargets(
   // concurrent calls reading the same stale `targetStudents` would each write
   // their own view, and the loser's pointer docs — already committed above —
   // would be invisible to the A2b deletion trigger forever.
+  // Concurrent remove+add of the SAME ref from two calls can still leave a ref
+  // listed with no pointer doc (the pointer batches commit outside this tx); the
+  // next edit call for that ref re-resolves it and self-heals.
   const finalRefs = await db.runTransaction(async (tx) => {
     const fresh = await tx.get(assignmentRef);
     const byKey = new Map<string, StudentTargetRef>();
@@ -769,28 +772,53 @@ export async function loadOwnedRosterClasses(
   };
 }
 
+// Operator org — the fixed path the rules' isMemberSuperAdmin() reads, since
+// CEL cannot resolve the caller's own org dynamically.
+const OPERATOR_ORG_ID = 'orono';
+
 /**
- * Mirrors the `testClasses` rules gate (`isSuperAdmin() || isDomainAdmin(org)`):
- * only someone who may legitimately read/write those docs may target their
- * members. Same-org membership alone is NOT enough — roster docs are
+ * Mirrors the `testClasses` rules gate (`isSuperAdmin() || isDomainAdmin(org)`)
+ * exactly: only someone who may legitimately read/write those docs may target
+ * their members. Same-org membership alone is NOT enough — roster docs are
  * client-writable, so a plain teacher could otherwise forge a `testClassId`
  * onto their own roster and reach any test-class student in the org.
+ *
+ * `isSuperAdmin()` accepts EITHER source the rules accept: the legacy
+ * `admin_settings/user_roles.superAdmins[]` list, or an operator-org member doc
+ * with `roleId == 'super_admin'`. An `/admins/{email}` doc is deliberately NOT
+ * a source — `organizationMembersSync` mirrors building_admins into it too, and
+ * the rules gate excludes building admins.
  */
 export async function isTestClassAuthority(
   db: admin.firestore.Firestore,
   teacherEmailLower: string,
   orgId: string
 ): Promise<boolean> {
-  const [adminDoc, memberDoc] = await Promise.all([
-    db.collection('admins').doc(teacherEmailLower).get(),
+  const [legacyDoc, operatorMemberDoc, memberDoc] = await Promise.all([
+    db.doc('admin_settings/user_roles').get(),
+    db
+      .doc(`organizations/${OPERATOR_ORG_ID}/members/${teacherEmailLower}`)
+      .get(),
     db.doc(`organizations/${orgId}/members/${teacherEmailLower}`).get(),
   ]);
-  if (adminDoc.exists) return true;
-  const roleId: unknown = memberDoc.exists ? memberDoc.get('roleId') : null;
-  return (
-    typeof roleId === 'string' &&
-    (roleId.trim() === 'super_admin' || roleId.trim() === 'domain_admin')
-  );
+  const legacyList: unknown = legacyDoc.exists
+    ? legacyDoc.get('superAdmins')
+    : null;
+  if (
+    Array.isArray(legacyList) &&
+    legacyList.some(
+      (e) => typeof e === 'string' && e.toLowerCase() === teacherEmailLower
+    )
+  ) {
+    return true;
+  }
+  if (roleIdOf(operatorMemberDoc) === 'super_admin') return true;
+  return roleIdOf(memberDoc) === 'domain_admin';
+}
+
+function roleIdOf(snap: admin.firestore.DocumentSnapshot): string {
+  const roleId: unknown = snap.exists ? snap.get('roleId') : null;
+  return typeof roleId === 'string' ? roleId.trim() : '';
 }
 
 async function loadTestClassMembership(

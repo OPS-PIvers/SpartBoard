@@ -928,8 +928,25 @@ describe('isTestClassAuthority', () => {
     await expect(check()).resolves.toBe(true);
   });
 
-  it('allows a legacy super admin via /admins/{email}', async () => {
+  it('denies a building admin even though the sync mirrors an /admins doc', async () => {
     state.docs.set(`admins/${EMAIL}`, {});
+    state.docs.set(`organizations/${ORG}/members/${EMAIL}`, {
+      roleId: 'building_admin',
+    });
+    await expect(check()).resolves.toBe(false);
+  });
+
+  it('allows a super admin listed only in the legacy user_roles list', async () => {
+    state.docs.set('admin_settings/user_roles', {
+      superAdmins: ['Teacher@Orono.k12.mn.us'],
+    });
+    await expect(check()).resolves.toBe(true);
+  });
+
+  it('allows an operator-org member with roleId super_admin', async () => {
+    state.docs.set(`organizations/orono/members/${EMAIL}`, {
+      roleId: 'super_admin',
+    });
     await expect(check()).resolves.toBe(true);
   });
 });
