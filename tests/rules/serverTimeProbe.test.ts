@@ -95,4 +95,26 @@ describe('/server_time_probe/{uid}', () => {
       setDoc(doc(db, 'server_time_probe', 'user-a'), { at: serverTimestamp() })
     );
   });
+
+  it('rejects a write with an extra field beyond `at`', async () => {
+    const db = asUser('user-a');
+    await assertFails(
+      setDoc(doc(db, 'server_time_probe', 'user-a'), {
+        at: serverTimestamp(),
+        extra: 'nope',
+      })
+    );
+  });
+
+  it('rejects a write where `at` is not server-stamped', async () => {
+    const db = asUser('user-a');
+    await assertFails(
+      setDoc(doc(db, 'server_time_probe', 'user-a'), { at: Date.now() })
+    );
+  });
+
+  it('rejects a write missing `at` entirely', async () => {
+    const db = asUser('user-a');
+    await assertFails(setDoc(doc(db, 'server_time_probe', 'user-a'), {}));
+  });
 });

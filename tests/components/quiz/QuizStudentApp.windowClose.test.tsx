@@ -205,4 +205,65 @@ describe('QuizStudentApp — mid-attempt window close', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
   });
+
+  it('shows a retry error (not a false success) when the auto-submit write rejects', async () => {
+    hookState.session = buildSession({ closeAt: Date.now() - 5_000 });
+    mockCompleteQuiz.mockRejectedValueOnce(new Error('offline'));
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockCompleteQuiz).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      await screen.findByText(/couldn.t submit automatically/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/window closed.*submitted automatically/i)
+    ).not.toBeInTheDocument();
+
+    // The trigger ref must be reset on failure so a retry can succeed.
+    mockCompleteQuiz.mockResolvedValueOnce(undefined);
+    const retryButton = screen.getByRole('button', { name: /retry/i });
+    retryButton.click();
+
+    await waitFor(() => {
+      expect(mockCompleteQuiz).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      await screen.findByText(/window closed.*submitted automatically/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/couldn.t submit automatically/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the honest retry error when the tab was suspended past the grace window (permission-denied)', async () => {
+    hookState.session = buildSession({ closeAt: Date.now() - 5_000 });
+    const permissionDenied = Object.assign(new Error('Missing permissions'), {
+      code: 'permission-denied',
+    });
+    mockCompleteQuiz.mockRejectedValueOnce(permissionDenied);
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockCompleteQuiz).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      await screen.findByText(/couldn.t submit automatically/i)
+    ).toBeInTheDocument();
+    // Honest copy: work is not submitted, and points to the existing
+    // teacher-unlock/extension flow rather than implying success.
+    expect(screen.getByText(/ask your teacher/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/window closed.*submitted automatically/i)
+    ).not.toBeInTheDocument();
+  });
 });

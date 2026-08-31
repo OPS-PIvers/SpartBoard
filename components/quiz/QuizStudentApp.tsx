@@ -1125,7 +1125,37 @@ const ActiveQuiz: React.FC<{
   // countdowns) — this only needs to notice the boundary was crossed, not
   // display it.
   const [closeAutoSubmitted, setCloseAutoSubmitted] = useState(false);
+  const [closeAutoSubmitFailed, setCloseAutoSubmitFailed] = useState(false);
+  const [closeAutoSubmitInFlight, setCloseAutoSubmitInFlight] = useState(false);
   const closeAutoSubmitTriggeredRef = useRef(false);
+
+  // `onComplete` must be awaited and its rejection handled — a rules
+  // rejection (e.g. the tab was suspended past the post-closeAt grace
+  // window) or a network failure must never render the success banner,
+  // or the student sees a false "submitted" state while their response
+  // stays in-progress with no way to retry. On failure we reset the
+  // trigger ref so both the next poll tick and the banner's retry button
+  // can attempt the write again.
+  const attemptCloseAutoSubmit = useCallback(async () => {
+    closeAutoSubmitTriggeredRef.current = true;
+    setCloseAutoSubmitInFlight(true);
+    document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
+    try {
+      await onComplete();
+      setCloseAutoSubmitted(true);
+      setCloseAutoSubmitFailed(false);
+    } catch (err) {
+      console.error(
+        '[QuizStudentApp] mid-attempt close auto-submit failed:',
+        err
+      );
+      closeAutoSubmitTriggeredRef.current = false;
+      setCloseAutoSubmitFailed(true);
+    } finally {
+      setCloseAutoSubmitInFlight(false);
+    }
+  }, [onComplete]);
+
   useEffect(() => {
     const closeAt = session.closeAt;
     if (typeof closeAt !== 'number') return;
@@ -1134,15 +1164,12 @@ const ActiveQuiz: React.FC<{
     const check = () => {
       if (closeAutoSubmitTriggeredRef.current) return;
       if (getServerNow() < closeAt) return;
-      closeAutoSubmitTriggeredRef.current = true;
-      document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
-      setCloseAutoSubmitted(true);
-      void onComplete();
+      void attemptCloseAutoSubmit();
     };
     check();
     const id = window.setInterval(check, 5000);
     return () => window.clearInterval(id);
-  }, [session.closeAt, myResponse?.status, onComplete]);
+  }, [session.closeAt, myResponse?.status, attemptCloseAutoSubmit]);
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
@@ -2297,7 +2324,7 @@ const ActiveQuiz: React.FC<{
       {/* Mid-attempt window close (M17 C2 §3a-D) — non-blocking notice, not
           a modal, so the student isn't gated behind an extra tap after
           their work has already been auto-submitted. */}
-      {closeAutoSubmitted && (
+      {closeAutoSubmitted && !closeAutoSubmitFailed && (
         <div
           role="status"
           className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
@@ -2307,6 +2334,32 @@ const ActiveQuiz: React.FC<{
             This assignment&apos;s window closed — your answered questions were
             submitted automatically.
           </span>
+        </div>
+      )}
+
+      {/* Auto-submit failed (offline, or the post-closeAt grace window
+          passed before the write landed). Honest, non-blocking, with a
+          retry the student can act on — the response is still
+          in-progress, not silently marked complete. */}
+      {closeAutoSubmitFailed && (
+        <div
+          role="alert"
+          className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="flex-1">
+            We couldn&apos;t submit automatically — check your connection and
+            try again. If the window has been closed for a while, ask your
+            teacher to grant an extension.
+          </span>
+          <button
+            type="button"
+            onClick={() => void attemptCloseAutoSubmit()}
+            disabled={closeAutoSubmitInFlight}
+            className="shrink-0 px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
+          >
+            {closeAutoSubmitInFlight ? 'Retrying…' : 'Retry'}
+          </button>
         </div>
       )}
 
