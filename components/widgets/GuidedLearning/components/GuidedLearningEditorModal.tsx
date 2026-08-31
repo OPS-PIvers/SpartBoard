@@ -24,7 +24,14 @@ import {
   GuidedLearningEditorContextPane,
   GuidedLearningEditorDetailPane,
 } from './GuidedLearningEditor';
-import { GL_SET_SCHEMA_VERSION } from '../utils/setMigration';
+import {
+  GL_SET_SCHEMA_VERSION,
+  SlideMeasurement,
+  convertLegacySpotlightRadii,
+  isGuidedLearningSetV2,
+  stepUsesSpotlight,
+} from '../utils/setMigration';
+import { calculateImageFootprint, toImageOffset } from '../utils/imageUtils';
 import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
@@ -135,6 +142,23 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
     if (!questionsEqual(sa.question, sb.question)) return false;
   }
   return true;
+}
+
+/** Load an image URL's natural dimensions; null on failure. */
+function loadNaturalImageSize(
+  url: string
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () =>
+      resolve(
+        img.naturalWidth > 0 && img.naturalHeight > 0
+          ? { width: img.naturalWidth, height: img.naturalHeight }
+          : null
+      );
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
 // ─── Modal ──────────────────────────────────────────────────────────────────
@@ -250,16 +274,73 @@ export const GuidedLearningEditorModal: React.FC<
     originalSteps,
   ]);
 
+  // Per-slide footprints for the legacy radius migration; null when any
+  // spotlight step's slide can't be measured.
+  const gatherLegacyMeasurements = async (): Promise<Map<
+    number,
+    SlideMeasurement
+  > | null> => {
+    const measurements = new Map<number, SlideMeasurement>();
+    const needed = new Set(
+      editorState.steps.filter(stepUsesSpotlight).map((s) => s.imageIndex)
+    );
+    if (needed.size === 0) return measurements;
+    const canvas = editorState.canvasMeasurementsRef.current;
+    if (!canvas) return null;
+    for (const i of needed) {
+      const url = editorState.imageUrls[i];
+      if (!url) return null;
+      let dims = canvas.naturalDims.get(url) ?? null;
+      if (!dims && (editorState.imageKinds[i] ?? 'image') === 'image') {
+        dims = await loadNaturalImageSize(url);
+      }
+      if (!dims) return null;
+      const imgOffset = toImageOffset(
+        calculateImageFootprint(
+          dims.width,
+          dims.height,
+          canvas.containerWidth,
+          canvas.containerHeight
+        ),
+        canvas.containerWidth,
+        canvas.containerHeight
+      );
+      if (!imgOffset) return null;
+      measurements.set(i, {
+        imgOffset,
+        containerWidth: canvas.containerWidth,
+        containerHeight: canvas.containerHeight,
+      });
+    }
+    return measurements;
+  };
+
   const handleSave = async () => {
     if (!set) return;
     setSaving(true);
     try {
+      // Re-saving opts the set into v2 semantics (zoom persistence,
+      // image-relative spotlight); legacy radii are converted one-time so
+      // rendered sizes are preserved. If conversion isn't possible, the set
+      // stays on legacy semantics instead of silently reinterpreting radii.
+      let steps = editorState.steps;
+      let schemaVersion = set.schemaVersion;
+      if (isGuidedLearningSetV2(set)) {
+        schemaVersion = GL_SET_SCHEMA_VERSION;
+      } else {
+        const measurements = await gatherLegacyMeasurements();
+        const converted = measurements
+          ? convertLegacySpotlightRadii(steps, measurements)
+          : null;
+        if (converted) {
+          steps = converted;
+          schemaVersion = GL_SET_SCHEMA_VERSION;
+        }
+      }
       const now = Date.now();
       const builtSet: GuidedLearningSet = {
         id: set.id,
-        // Re-saving opts the set into v2 semantics (zoom persistence,
-        // image-relative spotlight).
-        schemaVersion: GL_SET_SCHEMA_VERSION,
+        ...(schemaVersion !== undefined ? { schemaVersion } : {}),
         title: editorState.title.trim(),
         description: editorState.description.trim() || undefined,
         imageUrls: editorState.imageUrls,
@@ -273,7 +354,7 @@ export const GuidedLearningEditorModal: React.FC<
         ...(editorState.videoTrims.some(Boolean)
           ? { videoTrims: editorState.videoTrims }
           : {}),
-        steps: editorState.steps,
+        steps,
         mode: editorState.mode,
         createdAt: set.createdAt,
         updatedAt: now,

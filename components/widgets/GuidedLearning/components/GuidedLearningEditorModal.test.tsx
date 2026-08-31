@@ -176,6 +176,52 @@ describe('GuidedLearningEditorModal save payload', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a legacy set on legacy semantics when a spotlight step slide is unmeasured', async () => {
+    const set = buildSet();
+    set.steps = [
+      {
+        id: 'step-1',
+        xPct: 10,
+        yPct: 20,
+        imageIndex: 0,
+        interactionType: 'spotlight',
+        showOverlay: 'none',
+        spotlightRadius: 30,
+      },
+    ];
+    const { onSave } = renderModal(set);
+
+    // Panes are mocked out, so the canvas never measures — the one-time
+    // radius conversion is impossible and v2 must NOT be stamped.
+    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
+    expect('schemaVersion' in saved).toBe(false);
+    expect(saved.steps[0].spotlightRadius).toBe(30);
+  });
+
+  it('re-stamps an already-v2 set without touching radii', async () => {
+    const set = { ...buildSet(), schemaVersion: 2 };
+    set.steps = [
+      {
+        id: 'step-1',
+        xPct: 10,
+        yPct: 20,
+        imageIndex: 0,
+        interactionType: 'spotlight',
+        showOverlay: 'none',
+        spotlightRadius: 40,
+      },
+    ];
+    const { onSave } = renderModal(set);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
+    expect(saved.schemaVersion).toBe(2);
+    expect(saved.steps[0].spotlightRadius).toBe(40);
+  });
+
   it('saves the live (trimmed) title after an edit', async () => {
     const { onSave } = renderModal(buildSet());
 

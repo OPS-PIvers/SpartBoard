@@ -911,8 +911,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       importSaveInFlightRef.current = true;
       try {
         await saveSet(prepared);
-        // Imported content invalidates any prefetched copy.
-        prefetchCacheRef.current.invalidate(prepared.id);
         importRehostCacheRef.current = null;
       } catch (err) {
         // Wizard already closed: its onClose skipped cleanup, so run it now.

@@ -44,6 +44,7 @@ Required fields:
   "mode": "structured", // "structured" | "guided" | "explore"
   "createdAt": 0, // ms epoch; regenerated on import
   "updatedAt": 0,
+  "schemaVersion": 2, // always stamp 2 — matches this doc's image-relative coordinate model
 }
 ```
 
@@ -51,8 +52,12 @@ Optional set-level fields: `description` (string), `imageKinds`
 (`("image"|"video")[]` aligned with `imageUrls`; omit unless a slide is a
 video), `hotspotPulse` (`"consistent"|"reminder"|"off"`), `imageTransition`
 (`"none"|"slide"|"fade"`), `welcomeEnabled` (boolean) + `welcomeMessage`
-(string), `schemaVersion` (number — **omit it**; it version-gates renderer
-behavior and absent means the stable legacy semantics).
+(string).
+
+`schemaVersion` is **required and must be `2`**: it version-gates renderer
+behavior, and only v2 uses the image-relative coordinate model this doc
+describes (omitting it would make spotlights render with legacy
+container-relative semantics).
 
 Do NOT include: `imagePaths`, `isBuilding`, `authorUid` (all
 importer-specific; stripped or rewritten on import).
@@ -80,15 +85,15 @@ importer-specific; stripped or rewritten on import).
 
 `interactionType` options and their extra fields:
 
-| Type                 | Purpose                              | Extra fields                                                                    |
-| -------------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
-| `tooltip`            | Small anchored card (default choice) | `text`, `tooltipPosition` (`above/below/left/right/auto`), `tooltipOffset` (px) |
-| `text-popover`       | Larger centered text card            | `text`                                                                          |
-| `pan-zoom`           | Zoom into the hotspot                | `panZoomScale` (default 2.5), optional `showOverlay` + `text`                   |
-| `spotlight`          | Dim everything but a circle          | `spotlightRadius` (default 25), optional `showOverlay` + `text`                 |
-| `pan-zoom-spotlight` | Zoom + spotlight combined            | both of the above                                                               |
-| `audio` / `video`    | Play linked media                    | `audioUrl` / `videoUrl` (YouTube or https URL)                                  |
-| `question`           | Check for understanding              | `question` object (below)                                                       |
+| Type                 | Purpose                              | Extra fields                                                                                        |
+| -------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `tooltip`            | Small anchored card (default choice) | `text`, `tooltipPosition` (`above/below/left/right/auto`), `tooltipOffset` (px)                     |
+| `text-popover`       | Larger centered text card            | `text`                                                                                              |
+| `pan-zoom`           | Zoom into the hotspot                | `panZoomScale` (default 2.5), optional `showOverlay` + `text`                                       |
+| `spotlight`          | Dim everything but a circle          | `spotlightRadius` (% of the image's smaller dimension, default 25), optional `showOverlay` + `text` |
+| `pan-zoom-spotlight` | Zoom + spotlight combined            | both of the above                                                                                   |
+| `audio` / `video`    | Play linked media                    | `audioUrl` / `videoUrl` (YouTube or https URL)                                                      |
+| `question`           | Check for understanding              | `question` object (below)                                                                           |
 
 `showOverlay`: `"none" | "popover" | "tooltip" | "banner"` (with
 `bannerTone: "blue" | "red" | "neutral"`). Other optional step fields:
@@ -124,7 +129,9 @@ uses `sortingItems: ["first", "second", …]` in the correct order.
 
 Author-side rules the importer does not check but the player relies on:
 multiple-choice `correctAnswer` must appear verbatim in `choices`;
-matching/sorting arrays must be non-empty.
+matching/sorting arrays must be non-empty; `schemaVersion` must be `2`
+(the importer passes it through, and without it spotlights render with
+legacy container-relative semantics).
 
 ## Round-trip guarantee
 

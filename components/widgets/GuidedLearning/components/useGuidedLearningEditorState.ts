@@ -27,6 +27,13 @@ export interface SlideUploadProgress {
   percent: number | null;
 }
 
+/** Canvas container size + per-slide-URL natural dims, written by the canvas as slides render. */
+export interface GuidedLearningCanvasMeasurements {
+  containerWidth: number;
+  containerHeight: number;
+  naturalDims: Map<string, { width: number; height: number }>;
+}
+
 interface UseGuidedLearningEditorStateProps {
   existingSet: GuidedLearningSet | null;
   existingMeta: GuidedLearningSetMetadata | null;
@@ -92,6 +99,8 @@ export interface GuidedLearningEditorController {
   // Derived data
   selectedStep: GuidedLearningStep | null;
   currentImageSteps: GuidedLearningStep[];
+  /** Written by the canvas on measure; read at save for legacy radius migration. */
+  canvasMeasurementsRef: React.MutableRefObject<GuidedLearningCanvasMeasurements | null>;
 }
 
 /** Normalize a set's persisted kinds array to align with its imageUrls. */
@@ -408,6 +417,10 @@ export function useGuidedLearningEditorState({
     setSteps(next);
   }, []);
 
+  const canvasMeasurementsRef = useRef<GuidedLearningCanvasMeasurements | null>(
+    null
+  );
+
   const selectedStep = useMemo(
     () => steps.find((s) => s.id === selectedStepId) ?? null,
     [steps, selectedStepId]
@@ -462,5 +475,6 @@ export function useGuidedLearningEditorState({
     onFolderChange,
     selectedStep,
     currentImageSteps,
+    canvasMeasurementsRef,
   };
 }

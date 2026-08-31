@@ -476,6 +476,7 @@ export const GuidedLearningEditorContextPane = React.memo(
       steps,
       updateStep,
       currentImageSteps,
+      canvasMeasurementsRef,
     } = state;
 
     // O(1) step-number lookup + stable marker callbacks so HotspotMarker's
@@ -554,6 +555,18 @@ export const GuidedLearningEditorContextPane = React.memo(
         rect.width,
         rect.height
       );
+      // Record slide dims + container size for legacy radius migration at save.
+      const naturalDims =
+        canvasMeasurementsRef.current?.naturalDims ??
+        new Map<string, { width: number; height: number }>();
+      if (naturalW > 0 && naturalH > 0 && currentImageUrl) {
+        naturalDims.set(currentImageUrl, { width: naturalW, height: naturalH });
+      }
+      canvasMeasurementsRef.current = {
+        containerWidth: rect.width,
+        containerHeight: rect.height,
+        naturalDims,
+      };
       setImgBounds(
         footprint
           ? {
@@ -563,7 +576,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             }
           : null
       );
-    }, []);
+    }, [canvasMeasurementsRef, currentImageUrl]);
 
     useEffect(() => {
       if (!imageContainerRef.current) return;
