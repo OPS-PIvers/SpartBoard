@@ -223,9 +223,15 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {canAccessFeature('smart-poll') && (
         <fieldset
           disabled={isLive}
+          aria-labelledby={`pollwidget-ai-draft-label-${widget.id}`}
           className="min-w-0 m-0 border-0 p-0 disabled:opacity-50"
         >
-          <SettingsLabel>Draft with AI</SettingsLabel>
+          <SettingsLabel
+            as="span"
+            id={`pollwidget-ai-draft-label-${widget.id}`}
+          >
+            Draft with AI
+          </SettingsLabel>
           {canAccessFeature('ai-file-context') && (
             <DriveFileAttachment
               onFileContent={(content, name) => {

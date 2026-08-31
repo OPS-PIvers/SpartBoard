@@ -107,9 +107,9 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Handle resolution
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    // Reassigning canvas.width/height resets the bitmap even at the same value, so compare first (matches DrawingWidget/useDrawingCanvas.ts).
+    if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
+    if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
 
     draw(ctx, paths, currentPath);
   }, [paths, currentPath, canvasWidth, canvasHeight, draw]);
