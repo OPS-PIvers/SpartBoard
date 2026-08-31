@@ -21,16 +21,12 @@ import { WidgetLayout } from '../WidgetLayout';
 
 export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const { updateWidget } = useDashboardActions();
-  const { featurePermissions } = useAuth();
+  const { featurePermissions, customMaterials } = useAuth();
   const globalStyle = useGlobalStyle();
   const config = widget.config as MaterialsConfig;
   const isFocused = useIsWidgetSelected(widget.id);
   const permission = featurePermissions.find(
     (item) => item.widgetType === 'materials'
-  );
-  const materialMap = React.useMemo(
-    () => getMaterialMap(permission?.config as Partial<MaterialsGlobalConfig>),
-    [permission?.config]
   );
 
   const {
@@ -39,7 +35,19 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     title = 'What you need',
     titleFont = 'global',
     titleColor = '#2d3f89', // brand-blue
+    customMaterialSnapshots,
   } = config;
+
+  // Snapshots are a fallback only — a live definition always wins over the copy
+  // stored on the widget, so shared and imported boards still render.
+  const materialMap = React.useMemo(
+    () =>
+      getMaterialMap(permission?.config as Partial<MaterialsGlobalConfig>, {
+        teacherMaterials: customMaterials,
+        snapshots: customMaterialSnapshots,
+      }),
+    [customMaterialSnapshots, customMaterials, permission?.config]
+  );
 
   const activeSet = React.useMemo(() => new Set(activeItems), [activeItems]);
 
