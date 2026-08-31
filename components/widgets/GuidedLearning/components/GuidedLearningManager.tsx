@@ -1346,7 +1346,7 @@ const GuidedLearningPreviewPane: React.FC<{
           <img
             src={entry.imageUrl}
             alt=""
-            className="w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
+            className="w-full rounded-lg border border-slate-200 bg-slate-100 object-cover shadow-sm"
             loading="lazy"
           />
         ) : (
@@ -1361,7 +1361,9 @@ const GuidedLearningPreviewPane: React.FC<{
         )}
         <div className="text-xxs text-slate-500">
           Mode:{' '}
-          <span className="font-semibold text-slate-700">{entry.mode}</span>
+          <span className="font-semibold text-slate-700">
+            {MODE_LABELS[entry.mode]}
+          </span>
         </div>
       </div>
     </LibraryPreviewPane>

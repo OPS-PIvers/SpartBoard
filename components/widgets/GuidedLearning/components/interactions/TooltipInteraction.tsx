@@ -7,7 +7,7 @@ interface Props {
   containerHeight: number;
 }
 
-/** Text overlay that blends directly onto the image at the hotspot location */
+/** Glass tooltip card anchored to the hotspot with a connector line */
 export const TooltipInteraction: React.FC<Props> = ({
   step,
   containerWidth,
@@ -15,10 +15,10 @@ export const TooltipInteraction: React.FC<Props> = ({
 }) => {
   const x = (step.xPct / 100) * containerWidth;
   const y = (step.yPct / 100) * containerHeight;
-  const tooltipWidth = Math.min(280, containerWidth * 0.42);
-  const tooltipHeight = Math.max(68, containerHeight * 0.15);
+  const tooltipWidth = Math.min(340, containerWidth * 0.5);
+  const tooltipHeight = Math.max(76, containerHeight * 0.16);
   const viewportPadding = 16;
-  const offset = Math.max(0, step.tooltipOffset ?? 12);
+  const offset = Math.max(0, step.tooltipOffset ?? 16);
   const desiredPosition = step.tooltipPosition ?? 'auto';
 
   let position = desiredPosition;
@@ -89,41 +89,88 @@ export const TooltipInteraction: React.FC<Props> = ({
     resolvedPosition === 'left'
       ? 'items-end text-right'
       : 'items-start text-left';
-  const arrowClassByPosition = {
-    above:
-      'absolute left-1/2 -bottom-[5px] -translate-x-1/2 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-black/80',
-    below:
-      'absolute left-1/2 -top-[5px] -translate-x-1/2 border-l-[6px] border-r-[6px] border-b-[6px] border-l-transparent border-r-transparent border-b-black/80',
-    left: 'absolute top-1/2 -right-[5px] -translate-y-1/2 border-y-[6px] border-l-[6px] border-y-transparent border-l-black/80',
-    right:
-      'absolute top-1/2 -left-[5px] -translate-y-1/2 border-y-[6px] border-r-[6px] border-y-transparent border-r-black/80',
-  } as const;
+
+  // Connector line spanning the gap between the hotspot and the card edge.
+  const connectorStyleByPosition: Record<
+    ResolvedTooltipPosition,
+    React.CSSProperties
+  > = {
+    above: {
+      left: '50%',
+      bottom: -offset,
+      height: offset,
+      width: 2,
+      transform: 'translateX(-50%)',
+    },
+    below: {
+      left: '50%',
+      top: -offset,
+      height: offset,
+      width: 2,
+      transform: 'translateX(-50%)',
+    },
+    left: {
+      top: '50%',
+      right: -offset,
+      width: offset,
+      height: 2,
+      transform: 'translateY(-50%)',
+    },
+    right: {
+      top: '50%',
+      left: -offset,
+      width: offset,
+      height: 2,
+      transform: 'translateY(-50%)',
+    },
+  };
 
   return (
     <div
       className="absolute pointer-events-none z-20"
       style={{
         ...anchorStyles[resolvedPosition],
-        maxWidth: 'min(280px, 42cqw)',
+        maxWidth: 'min(340px, 50cqw)',
       }}
     >
       <div
-        className={`relative flex flex-col ${bubbleAlignment} bg-black/80 backdrop-blur-md text-white rounded-xl leading-relaxed shadow-xl border border-white/15`}
+        className={`relative flex flex-col ${bubbleAlignment} bg-slate-900/90 backdrop-blur-xl text-white rounded-2xl leading-relaxed shadow-2xl border border-white/20 ring-1 ring-black/40 animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none`}
         style={{
-          padding: 'min(10px, 2.3cqmin) min(12px, 3cqmin)',
-          fontSize: 'min(13px, 3.1cqmin)',
+          padding: 'min(12px, 2.8cqmin) min(16px, 3.6cqmin)',
+          fontSize: 'min(16px, 4cqmin)',
         }}
       >
-        <span className={arrowClassByPosition[resolvedPosition]} />
+        {offset > 2 && (
+          <span
+            aria-hidden="true"
+            className="absolute bg-white/60"
+            style={connectorStyleByPosition[resolvedPosition]}
+          />
+        )}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute rounded-full bg-white shadow"
+          style={{
+            width: 6,
+            height: 6,
+            ...(resolvedPosition === 'above'
+              ? { left: '50%', bottom: -offset - 3, marginLeft: -3 }
+              : resolvedPosition === 'below'
+                ? { left: '50%', top: -offset - 3, marginLeft: -3 }
+                : resolvedPosition === 'left'
+                  ? { top: '50%', right: -offset - 3, marginTop: -3 }
+                  : { top: '50%', left: -offset - 3, marginTop: -3 }),
+          }}
+        />
         {step.label && (
           <div
-            className="font-bold mb-0.5"
-            style={{ fontSize: 'min(12px, 3.3cqmin)' }}
+            className="font-bold text-white mb-1 tracking-tight"
+            style={{ fontSize: 'min(15px, 4.2cqmin)' }}
           >
             {step.label}
           </div>
         )}
-        {step.text}
+        <div className="text-slate-100">{step.text}</div>
       </div>
     </div>
   );

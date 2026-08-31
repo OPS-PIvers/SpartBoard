@@ -625,6 +625,145 @@ describe('GuidedLearningPlayer', () => {
     expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
   });
 
+  it('navigates structured mode via the footer prev/next buttons', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-footer-nav',
+      title: 'Footer Nav Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 10,
+          yPct: 80,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'One',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Two',
+        },
+      ],
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Footer Nav Test'));
+
+    const prev = screen.getByRole('button', { name: /previous step/i });
+    const next = screen.getByRole('button', { name: /next step/i });
+    expect(prev).toBeDisabled();
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('30,80');
+
+    fireEvent.click(next);
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+    expect(next).toBeDisabled();
+
+    fireEvent.click(prev);
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('30,80');
+
+    // Footer dots jump directly to a step.
+    fireEvent.click(screen.getByRole('button', { name: /go to step 2/i }));
+    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+  });
+
+  it('replaces footer dots with a progress bar when a structured set exceeds 20 steps', () => {
+    const set: GuidedLearningSet = {
+      id: 'set-many-steps',
+      title: 'Many Steps Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: Array.from({ length: 25 }, (_, i) => ({
+        id: `step-${i + 1}`,
+        xPct: 50,
+        yPct: 50,
+        imageIndex: 0,
+        interactionType: 'tooltip' as const,
+        text: `Step ${i + 1}`,
+      })),
+      mode: 'structured',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Many Steps Test'));
+
+    expect(
+      screen.queryByRole('button', { name: /go to step 1/i })
+    ).not.toBeInTheDocument();
+    const bar = screen.getByRole('progressbar', { name: /step progress/i });
+    expect(bar).toHaveAttribute('aria-valuenow', '1');
+    expect(bar).toHaveAttribute('aria-valuemax', '25');
+
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(bar).toHaveAttribute('aria-valuenow', '2');
+  });
+
+  it('renders guided-mode play/pause and session progress in the footer', () => {
+    vi.useFakeTimers();
+
+    const set: GuidedLearningSet = {
+      id: 'set-guided-footer',
+      title: 'Guided Footer Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 10,
+          text: 'One',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Two',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Guided Footer Test'));
+
+    // No structured nav in guided mode.
+    expect(
+      screen.queryByRole('button', { name: /next step/i })
+    ).not.toBeInTheDocument();
+
+    const bar = screen.getByRole('progressbar', { name: /session progress/i });
+    expect(bar).toHaveAttribute('aria-valuenow', '0');
+
+    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+    expect(
+      screen.getByRole('button', { name: /^pause$/i })
+    ).toBeInTheDocument();
+
+    // Half of a 10s step across 2 steps = 25% of the session.
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '25');
+
+    fireEvent.click(screen.getByRole('button', { name: /^pause$/i }));
+    expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
   it('renders video slides in a <video> element and skips them when preloading', () => {
     // Record every Image preload by spying on the prototype src setter.
     // Not forwarding to the real setter — jsdom would try (and fail) to
