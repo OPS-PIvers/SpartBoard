@@ -52,6 +52,8 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
 
   const selectedCount = value.rosterIds.length;
   const totalCount = rosters.length;
+  // Excludes loadError rosters (selectAll does too) so the button can reach 0 remaining.
+  const selectableCount = rosters.filter((r) => !r.loadError).length;
 
   return (
     <div
@@ -94,13 +96,13 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
               : `${selectedCount} of ${totalCount} selected.`}
           </span>
           <div className="flex items-center gap-2">
-            {selectedCount < totalCount && (
+            {selectedCount < selectableCount && (
               <button
                 type="button"
                 onClick={selectAll}
                 className="font-bold text-brand-blue-primary hover:text-brand-blue-dark"
               >
-                Select all ({totalCount})
+                Select all ({selectableCount})
               </button>
             )}
             {selectedCount > 0 && (
