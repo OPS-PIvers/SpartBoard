@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-08-25_
+_Last audited: 2026-09-01_
 _Last action: 2026-07-09 — MEDIUM SpecialistSchedule Appearance.tsx/co-located-Settings pattern documented + stale `.agents/` reference row corrected in new-widget skill (both mirrors)_
 
 ---
