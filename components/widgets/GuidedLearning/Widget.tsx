@@ -899,8 +899,8 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       if (cached && cached.source === set && cached.complete) {
         rehosted = cached.rehosted;
       } else {
-        // A stale incomplete cache is about to be superseded by a fresh re-upload; clean up its orphans first.
-        if (cached && !cached.complete) {
+        // Any superseded cache (incomplete, or complete for a different source) is abandoned; clean up its orphans first.
+        if (cached) {
           for (const path of cached.rehosted.imagePaths ?? []) {
             if (path) void deleteFile(path).catch(() => undefined);
           }
