@@ -183,6 +183,16 @@ describe('resolveRotationDayNumber', () => {
     ).toBeNull();
   });
 
+  it('falls back to raw ordering when startDate is undefined', () => {
+    // Legacy building docs predate the field, so it can be absent at runtime.
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 6, startDate: undefined, schoolDays: SEPT },
+        '2026-09-01'
+      )
+    ).toBe(1);
+  });
+
   it('falls back to raw ordering when no start date is set', () => {
     expect(
       resolveRotationDayNumber(
@@ -230,6 +240,7 @@ describe('countPreStartSchoolDays', () => {
 
   it('returns 0 when no start date is set', () => {
     expect(countPreStartSchoolDays(['2026-08-31'], '')).toBe(0);
+    expect(countPreStartSchoolDays(['2026-08-31'], undefined)).toBe(0);
   });
 });
 

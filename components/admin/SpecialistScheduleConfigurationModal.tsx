@@ -479,7 +479,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         </span>
                         <input
                           type="date"
-                          value={currentBuildingConfig.startDate}
+                          value={currentBuildingConfig.startDate ?? ''}
                           onChange={(e) =>
                             updateBuilding({ startDate: e.target.value })
                           }

@@ -5338,7 +5338,8 @@ export interface NumberLineGlobalConfig {
 
 export interface SpecialistScheduleBuildingConfig {
   cycleLength: 6 | 10;
-  startDate: string; // YYYY-MM-DD
+  /** Optional at runtime: docs written before this field existed omit it. */
+  startDate?: string; // YYYY-MM-DD
   /** List of dates (YYYY-MM-DD) that are school days and should count in the rotation. */
   schoolDays: string[];
   /** Custom label for "Day" (e.g., "Day" for Schumann, "Block" for Intermediate) */
