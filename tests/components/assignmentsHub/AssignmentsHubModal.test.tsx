@@ -115,20 +115,121 @@ describe('AssignmentsHubModal', () => {
     expect(screen.getByText('2 skipped')).toBeInTheDocument();
   });
 
-  it('filters by assignment kind', () => {
+  it('filters by assignment kind and keeps the multi-select open', () => {
     setupHooks();
     render(<AssignmentsHubModal onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Quiz' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Quiz' }));
+    expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
+    expect(screen.queryByText('Volcano Video')).not.toBeInTheDocument();
+
+    // Still open — a second type widens the selection rather than replacing it.
+    fireEvent.click(screen.getByRole('option', { name: 'Video Activity' }));
+    expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
+    expect(screen.getByText('Volcano Video')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Filter by type' })
+    ).toHaveTextContent('Type: 2 selected');
+  });
+
+  it('filters by status and closes the single-select on pick', () => {
+    setupHooks();
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
+    expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
+    expect(screen.getByText('Volcano Video')).toBeInTheDocument();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('filters by class via the multi-select once more than one class exists', () => {
+    setupHooks();
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by class' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Period 3' }));
+    expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
+    expect(screen.getByText('Volcano Video')).toBeInTheDocument();
+  });
+
+  it('clears every filter with the clear action', () => {
+    setupHooks();
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
+    expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Search assignments' }),
+      { target: { value: 'volcano' } }
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(
+      screen.getByRole('searchbox', { name: 'Search assignments' })
+    ).toHaveValue('');
+    expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
+    expect(screen.getByText('Volcano Video')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Clear filters' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('searches across assignment titles and class names', () => {
+    setupHooks();
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    const box = screen.getByRole('searchbox', { name: 'Search assignments' });
+
+    fireEvent.change(box, { target: { value: 'volcano' } });
+    expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
+    expect(screen.getByText('Volcano Video')).toBeInTheDocument();
+
+    fireEvent.change(box, { target: { value: 'period 2' } });
+    expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
+    expect(screen.queryByText('Volcano Video')).not.toBeInTheDocument();
+
+    fireEvent.change(box, { target: { value: 'nothing here' } });
+    expect(
+      screen.getByText('No assignments match these filters.')
+    ).toBeInTheDocument();
+  });
+
+  it('combines the search box with the dropdown filters', () => {
+    setupHooks();
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Search assignments' }),
+      { target: { value: 'o' } }
+    );
+    expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
+    expect(screen.getByText('Volcano Video')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Quiz' }));
     expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
     expect(screen.queryByText('Volcano Video')).not.toBeInTheDocument();
   });
 
-  it('filters by status', () => {
+  it('escape clears a non-empty search box without closing the modal', () => {
     setupHooks();
-    render(<AssignmentsHubModal onClose={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Inactive' }));
-    expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
-    expect(screen.getByText('Volcano Video')).toBeInTheDocument();
+    const onClose = vi.fn();
+    render(<AssignmentsHubModal onClose={onClose} />);
+    const box = screen.getByRole('searchbox', { name: 'Search assignments' });
+    fireEvent.change(box, { target: { value: 'volcano' } });
+
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(box).toHaveValue('');
+    expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('escape closes an open dropdown without closing the modal', () => {
+    setupHooks();
+    const onClose = vi.fn();
+    render(<AssignmentsHubModal onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('shows the empty state with an action when there are no assignments', () => {
