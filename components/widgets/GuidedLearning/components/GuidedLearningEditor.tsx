@@ -1022,7 +1022,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                 )}
                 <button
                   onClick={() => deleteImage(currentImageIndex)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-700 hover:text-red-700 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
                   aria-label="Delete current slide"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1577,7 +1577,7 @@ const StepPill = React.memo(function StepPill({
         <span
           className={`text-xxs font-mono px-1 rounded ${
             isSelected
-              ? 'bg-brand-blue-dark text-white/80'
+              ? 'bg-brand-blue-dark text-white'
               : 'bg-slate-100 text-slate-500'
           }`}
           aria-hidden

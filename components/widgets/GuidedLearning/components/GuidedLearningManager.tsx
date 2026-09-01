@@ -1405,6 +1405,7 @@ const GuidedLearningPreviewPane: React.FC<{
   const [previewState, setPreviewState] = React.useState<
     'idle' | 'loading' | 'playing' | 'error'
   >('idle');
+  const [previewStale, setPreviewStale] = React.useState(false);
   // Rapid-click guard; entry changes remount the pane via `key` at the call site.
   const requestIdRef = React.useRef(0);
 
@@ -1418,6 +1419,7 @@ const GuidedLearningPreviewPane: React.FC<{
     const token = requestIdRef.current + 1;
     requestIdRef.current = token;
     setPreviewState('loading');
+    setPreviewStale(false);
     void loadSet(rawId, entry.driveFileId, entry.buildingSet).then((data) => {
       // Ignore stale results from rapid selection changes.
       if (token !== requestIdRef.current) return;
@@ -1429,6 +1431,22 @@ const GuidedLearningPreviewPane: React.FC<{
       }
     });
   };
+
+  // Flag (don't auto-reload) if a cross-device edit bumps updatedAt mid-play.
+  const lastLoadedUpdatedAtRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (previewState !== 'playing') {
+      setPreviewStale(false);
+      return;
+    }
+    if (lastLoadedUpdatedAtRef.current === null) {
+      lastLoadedUpdatedAtRef.current = entry.updatedAt;
+      return;
+    }
+    if (lastLoadedUpdatedAtRef.current === entry.updatedAt) return;
+    lastLoadedUpdatedAtRef.current = entry.updatedAt;
+    setPreviewStale(true);
+  }, [entry.updatedAt, previewState]);
 
   return (
     <LibraryPreviewPane
@@ -1471,6 +1489,17 @@ const GuidedLearningPreviewPane: React.FC<{
                 teacherMode
               />
             </Suspense>
+            {previewStale && (
+              <div className="absolute inset-x-0 bottom-0 flex justify-center p-2">
+                <button
+                  type="button"
+                  onClick={handlePlayPreview}
+                  className="rounded-full border border-white/20 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-100 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900/85"
+                >
+                  Updated — reload preview
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="relative">
