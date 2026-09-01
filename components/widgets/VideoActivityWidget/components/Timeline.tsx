@@ -291,10 +291,11 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      {/* Player shrinks first when the pane is short — YouTube letterboxes inside. */}
       <div
         ref={playerContainerRef}
-        className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-black"
+        className="relative w-full min-h-0 shrink overflow-hidden rounded-xl border border-slate-200 bg-black"
         style={{ aspectRatio: '16 / 9' }}
       >
         <div id={playerElementId} className="w-full h-full" />
@@ -306,7 +307,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       </div>
 
       {/* Custom scrubber + question markers + add-at-playhead pill */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 shrink-0">
         <div className="flex items-center justify-between text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
           <span>Timeline</span>
           <span>

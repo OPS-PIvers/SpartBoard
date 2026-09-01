@@ -143,7 +143,7 @@ export const VideoActivityEditorContextPane = React.memo(
               onDurationChange={setVideoDurationSeconds}
             />
           ) : (
-            <div className="aspect-video w-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
+            <div className="aspect-video w-full max-h-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
               <Youtube className="w-8 h-8 text-red-400 mb-2" />
               <p className="text-sm font-bold text-slate-700">
                 Paste a YouTube URL above
