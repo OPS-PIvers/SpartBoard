@@ -216,7 +216,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="w-full h-full overflow-hidden rounded-2xl bg-black">
+          <div className="w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] bg-black">
             <iframe
               src={spotifyEmbedUrl}
               title={`Spotify: ${activeStation.title}`}
@@ -261,7 +261,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`w-full h-full rounded-2xl overflow-hidden relative select-none transition-all duration-500 ${
+          className={`w-full h-full rounded-[var(--window-radius,0px)] overflow-hidden relative select-none transition-all duration-500 ${
             layout === 'default' && !isTransparent ? 'shadow-inner' : ''
           }`}
           style={{

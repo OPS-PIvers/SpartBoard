@@ -1,6 +1,7 @@
 import React, {
   useState,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   lazy,
@@ -358,6 +359,38 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     [fetchSetCached, addToast]
   );
 
+  // Maximize/spotlight portal the window and remount this widget, dropping
+  // activeSet while config still says 'player' — reload it from playerSetId.
+  const rehydratingSetIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (config.view !== 'player' || activeSet || loading || buildingLoading)
+      return;
+    const setId = config.playerSetId;
+    if (!setId) {
+      setView('library');
+      return;
+    }
+    if (rehydratingSetIdRef.current === setId) return;
+    rehydratingSetIdRef.current = setId;
+    const meta = sets.find((s) => s.id === setId);
+    const buildingSet = buildingSets.find((s) => s.id === setId);
+    void loadSet(setId, meta?.driveFileId, buildingSet).then((loaded) => {
+      rehydratingSetIdRef.current = null;
+      if (loaded) setActiveSet(loaded);
+      else setView('library');
+    });
+  }, [
+    config.view,
+    config.playerSetId,
+    activeSet,
+    loading,
+    buildingLoading,
+    sets,
+    buildingSets,
+    loadSet,
+    setView,
+  ]);
+
   const handlePlay = async (
     setId: string,
     driveFileId?: string,
@@ -366,7 +399,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     const data = await loadSet(setId, driveFileId, buildingSet);
     if (!data) return;
     setActiveSet(data);
-    setView('player');
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        view: 'player',
+        playerSetId: setId,
+      } as GuidedLearningConfig,
+    });
   };
 
   const handleEdit = async (
@@ -822,7 +861,12 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   // ─── .gl.json export / import ────────────────────────────────────────────
-  const { uploadGuidedLearningMedia, deleteFile } = useStorage();
+  const {
+    uploadGuidedLearningMedia,
+    uploadGuidedLearningImage,
+    deleteFile,
+    deleteDriveFile,
+  } = useStorage();
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [exportingSetId, setExportingSetId] = useState<string | null>(null);
   const [importFocusCounter, setImportFocusCounter] = useState(0);
@@ -830,6 +874,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const importRehostCacheRef = useRef<{
     source: GuidedLearningSet;
     rehosted: GuidedLearningSet;
+    driveFileIds: string[];
     complete: boolean;
   } | null>(null);
   // Guards against onClose deleting uploads while a save is still in flight.
@@ -837,12 +882,21 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const importWizardClosedRef = useRef(false);
 
   // Best-effort deletion of uploads whose save never succeeded.
+  const discardRehostedUploads = (cached: {
+    rehosted: GuidedLearningSet;
+    driveFileIds: string[];
+  }) => {
+    for (const path of cached.rehosted.imagePaths ?? []) {
+      if (path) void deleteFile(path).catch(() => undefined);
+    }
+    for (const id of cached.driveFileIds) {
+      void deleteDriveFile(id).catch(() => undefined);
+    }
+  };
   const cleanupImportRehostCache = () => {
     const cached = importRehostCacheRef.current;
     importRehostCacheRef.current = null;
-    for (const path of cached?.rehosted.imagePaths ?? []) {
-      if (path) void deleteFile(path).catch(() => undefined);
-    }
+    if (cached) discardRehostedUploads(cached);
   };
 
   const handleExport = async (
@@ -900,29 +954,33 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         rehosted = cached.rehosted;
       } else {
         // Any superseded cache (incomplete, or complete for a different source) is abandoned; clean up its orphans first.
-        if (cached) {
-          for (const path of cached.rehosted.imagePaths ?? []) {
-            if (path) void deleteFile(path).catch(() => undefined);
-          }
-        }
-        // Mutated in place as each upload resolves, so a mid-way throw still leaves the cache pointing at every path actually written to Storage.
+        if (cached) discardRehostedUploads(cached);
+        // Mutated in place as each upload resolves, so a mid-way throw still leaves the cache pointing at every upload actually written.
         const partial: GuidedLearningSet = { ...set, imagePaths: [] };
+        const driveFileIds: string[] = [];
         importRehostCacheRef.current = {
           source: set,
           rehosted: partial,
+          driveFileIds,
           complete: false,
         };
+        // Image slides go to Drive (the app's primary media store); video stays in Storage.
         const result = await rehostImportedSetImages(
           set,
-          (blob, fileName) => uploadGuidedLearningMedia(uid, blob, fileName),
-          (storagePath) => {
+          (blob, fileName) =>
+            blob.type.startsWith('image/')
+              ? uploadGuidedLearningImage(uid, blob, fileName)
+              : uploadGuidedLearningMedia(uid, blob, fileName),
+          (storagePath, driveFileId) => {
             partial.imagePaths = [...(partial.imagePaths ?? []), storagePath];
+            if (driveFileId) driveFileIds.push(driveFileId);
           }
         );
         rehosted = result.set;
         importRehostCacheRef.current = {
           source: set,
           rehosted,
+          driveFileIds: result.driveFileIds,
           complete: true,
         };
       }
@@ -1150,7 +1208,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               <Suspense fallback={<LazySpinner />}>
                 <GuidedLearningPlayer
                   set={activeSet}
-                  onClose={() => setView('library')}
+                  onClose={() =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        view: 'library',
+                        playerSetId: null,
+                      } as GuidedLearningConfig,
+                    })
+                  }
                   teacherMode
                 />
               </Suspense>

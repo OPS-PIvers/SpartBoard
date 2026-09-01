@@ -187,4 +187,112 @@ describe('SpecialistScheduleConfigurationModal', () => {
       payload.config.buildingDefaults['schumann-elementary']
     ).toBeUndefined();
   });
+
+  it('renders one date-range card per configured block count in blocks mode', async () => {
+    mockIsAuthBypass = false;
+    mockUseAdminBuildings.mockReturnValue(building('intermediate'));
+    vi.mocked(getDoc).mockResolvedValue(
+      snapshot({
+        exists: () => true,
+        data: () => ({
+          config: {
+            buildingDefaults: {
+              intermediate: {
+                cycleLength: 15,
+                rotationMode: 'blocks',
+                schoolDays: [],
+                dayLabel: 'Block',
+                customDayNames: {},
+                blocks: [],
+                specialistOptions: [],
+              },
+            },
+          },
+        }),
+      })
+    );
+
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+
+    expect(await screen.findByLabelText('Number of Blocks')).toHaveValue(15);
+    expect(
+      screen.getByLabelText('Start Date', {
+        selector: '#specialist-block-start-date-14',
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Start Date', {
+        selector: '#specialist-block-start-date-15',
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it('treats a legacy 10-length config without a mode as blocks', () => {
+    mockUseAdminBuildings.mockReturnValue(building('intermediate'));
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Date Blocks' }));
+    expect(screen.getByLabelText('Number of Blocks')).toHaveValue(6);
+    expect(
+      screen.getByText(/each of the 6 rotation blocks/)
+    ).toBeInTheDocument();
+  });
+
+  it('keeps populated block dates when the count is typed through a smaller intermediate value', async () => {
+    mockIsAuthBypass = false;
+    mockUseAdminBuildings.mockReturnValue(building('intermediate'));
+    const blocks = Array.from({ length: 10 }, (_, i) => ({
+      dayNumber: i + 1,
+      startDate: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      endDate: `2026-09-${String(i + 1).padStart(2, '0')}`,
+    }));
+    vi.mocked(getDoc).mockResolvedValue(
+      snapshot({
+        exists: () => true,
+        data: () => ({
+          config: {
+            buildingDefaults: {
+              intermediate: {
+                cycleLength: 10,
+                rotationMode: 'blocks',
+                schoolDays: [],
+                dayLabel: 'Block',
+                customDayNames: {},
+                blocks,
+                specialistOptions: [],
+              },
+            },
+          },
+        }),
+      })
+    );
+
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+    const input = await screen.findByLabelText('Number of Blocks');
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.change(input, { target: { value: '15' } });
+
+    expect(
+      document.getElementById('specialist-block-start-date-9')
+    ).toHaveValue('2026-09-10');
+  });
+
+  it('resizes the block list and day-name grid when the block count changes', () => {
+    mockUseAdminBuildings.mockReturnValue(building('intermediate'));
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Date Blocks' }));
+    fireEvent.change(screen.getByLabelText('Number of Blocks'), {
+      target: { value: '15' },
+    });
+
+    expect(
+      screen.getByText(/each of the 15 rotation blocks/)
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Block 15')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Block 16')).not.toBeInTheDocument();
+    expect(
+      document.getElementById('specialist-block-end-date-14')
+    ).not.toBeNull();
+  });
 });

@@ -219,7 +219,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   return (
     <section
       ref={rootRef}
-      className="flex flex-col h-full min-h-0 text-brand-gray-dark bg-white rounded-2xl overflow-hidden"
+      className="flex flex-col h-full min-h-0 text-brand-gray-dark bg-white rounded-[var(--window-radius,0px)] overflow-hidden"
       aria-label={`${widgetLabel} library`}
     >
       {/* Single chrome bar: segmented tab control on the left, header

@@ -120,7 +120,10 @@ export const useStorage = () => {
     setUploading(true);
     try {
       const storageRef = ref(storage, path);
-      const task = uploadBytesResumable(storageRef, blob);
+      // Paths are timestamped, so slides can be cached as immutable.
+      const task = uploadBytesResumable(storageRef, blob, {
+        cacheControl: 'public, max-age=31536000, immutable',
+      });
       await new Promise<void>((resolve, reject) => {
         task.on(
           'state_changed',
@@ -159,6 +162,38 @@ export const useStorage = () => {
     const storagePath = `users/${userId}/hotspot_images/${Date.now()}-${fileName}`;
     const url = await uploadFileWithProgress(storagePath, blob, onProgress);
     return { url, storagePath };
+  };
+
+  // Drive-first image slide upload for imported sets; Storage only when Drive is unavailable.
+  const uploadGuidedLearningImage = async (
+    userId: string,
+    blob: Blob,
+    fileName: string
+  ): Promise<{ url: string; storagePath: string; driveFileId?: string }> => {
+    if (driveService) {
+      setUploading(true);
+      try {
+        const driveFile = await driveService.uploadFile(
+          blob,
+          `hotspot-${Date.now()}-${fileName}`,
+          'Assets/HotspotImages'
+        );
+        await driveService.makePublic(driveFile.id, undefined);
+        return {
+          url: `https://lh3.googleusercontent.com/d/${driveFile.id}`,
+          storagePath: '',
+          driveFileId: driveFile.id,
+        };
+      } finally {
+        setUploading(false);
+      }
+    }
+    return uploadGuidedLearningMedia(userId, blob, fileName);
+  };
+
+  const deleteDriveFile = async (fileId: string): Promise<void> => {
+    if (!driveService) return;
+    await driveService.deleteFile(fileId);
   };
 
   const uploadHotspotImage = async (
@@ -409,6 +444,8 @@ export const useStorage = () => {
     uploadFile,
     uploadFileWithProgress,
     uploadGuidedLearningMedia,
+    uploadGuidedLearningImage,
+    deleteDriveFile,
     uploadBackgroundImage,
     uploadSticker,
     uploadDisplayImage,

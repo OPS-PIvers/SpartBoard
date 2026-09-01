@@ -190,6 +190,9 @@ export const useGuidedLearning = (
         createdAt: set.createdAt,
         updatedAt: updatedSet.updatedAt,
       };
+      // Mirrored so the Storage GC function can see which slides a set owns.
+      const imagePaths = (updatedSet.imagePaths ?? []).filter(Boolean);
+      if (imagePaths.length > 0) metadata.imagePaths = imagePaths;
 
       await setDoc(doc(db, 'users', userId, GL_COLLECTION, set.id), metadata);
 

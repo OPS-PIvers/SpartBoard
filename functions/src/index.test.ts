@@ -3056,6 +3056,9 @@ describe('index barrel — deployed export set', () => {
     'aggregatePlcAssessment',
     'migratePlcs',
     'mirrorPlcIndex',
+    // Guided Learning Storage slide GC
+    'gcGuidedLearningMedia',
+    'gcBuildingGuidedLearningMedia',
     // Admin analytics snapshot + maintenance
     'recomputeAdminAnalytics',
     'expireSubShares',
