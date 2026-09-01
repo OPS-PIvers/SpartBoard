@@ -11,7 +11,13 @@
  */
 
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { GuidedLearningEditorModal } from './GuidedLearningEditorModal';
@@ -38,11 +44,48 @@ vi.mock('@/hooks/useStorage', () => ({
   }),
 }));
 
-// The panes are exercised elsewhere (GuidedLearningPlayer.test.tsx and the
-// perf harness); here we only test the modal's own dirty/save logic.
+// Pane stand-ins: the context pane optionally simulates a canvas measurement
+// (driving the load-time legacy radius conversion) and exposes the
+// spotlightRadiiV2 flag the real preview gates on; the detail pane exposes a
+// radius-edit button. The real panes are exercised elsewhere.
+const paneConfig = vi.hoisted(() => ({
+  measure: null as {
+    containerWidth: number;
+    containerHeight: number;
+    naturalDims: [string, { width: number; height: number }][];
+  } | null,
+}));
 vi.mock('./GuidedLearningEditor', () => ({
-  GuidedLearningEditorContextPane: () => null,
-  GuidedLearningEditorDetailPane: () => null,
+  GuidedLearningEditorContextPane: ({
+    state,
+  }: {
+    state: import('./useGuidedLearningEditorState').GuidedLearningEditorController;
+  }) => {
+    React.useEffect(() => {
+      if (!paneConfig.measure) return;
+      state.canvasMeasurementsRef.current = {
+        containerWidth: paneConfig.measure.containerWidth,
+        containerHeight: paneConfig.measure.containerHeight,
+        naturalDims: new Map(paneConfig.measure.naturalDims),
+      };
+      state.notifyCanvasMeasured();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return <div data-testid="radii-v2">{String(state.spotlightRadiiV2)}</div>;
+  },
+  GuidedLearningEditorDetailPane: ({
+    state,
+  }: {
+    state: import('./useGuidedLearningEditorState').GuidedLearningEditorController;
+  }) => (
+    <button
+      onClick={() =>
+        state.updateStep({ ...state.steps[0], spotlightRadius: 40 })
+      }
+    >
+      Set Radius 40
+    </button>
+  ),
 }));
 
 // Override the global useDialog mock with a controllable showConfirm so the
@@ -99,6 +142,7 @@ function renderModal(set: GuidedLearningSet) {
 
 beforeEach(() => {
   showConfirmMock.mockReset().mockResolvedValue(false);
+  paneConfig.measure = null;
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -174,6 +218,135 @@ describe('GuidedLearningEditorModal save payload', () => {
     });
     expect(typeof saved.updatedAt).toBe('number');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('converts legacy spotlight radii once at load and saves them without re-converting', async () => {
+    // 200x100 image in a 500x500 canvas → footprint 500x250 → factor 2.
+    paneConfig.measure = {
+      containerWidth: 500,
+      containerHeight: 500,
+      naturalDims: [
+        ['https://example.com/slide-1.png', { width: 200, height: 100 }],
+      ],
+    };
+    const set = buildSet();
+    set.steps = [
+      {
+        id: 'step-1',
+        xPct: 10,
+        yPct: 20,
+        imageIndex: 0,
+        interactionType: 'spotlight',
+        showOverlay: 'none',
+        spotlightRadius: 25,
+      },
+    ];
+    const { onSave } = renderModal(set);
+
+    // Conversion happens at load (flag flips), not at save.
+    await waitFor(() =>
+      expect(screen.getByTestId('radii-v2')).toHaveTextContent('true')
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
+    expect(saved.schemaVersion).toBe(2);
+    expect(saved.steps[0].spotlightRadius).toBe(50);
+
+    // Double-save idempotency: re-opening the converted set and saving again
+    // must not convert a second time.
+    cleanup();
+    const { onSave: onSaveAgain } = renderModal(saved);
+    await waitFor(() =>
+      expect(screen.getByTestId('radii-v2')).toHaveTextContent('true')
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    await waitFor(() => expect(onSaveAgain).toHaveBeenCalledTimes(1));
+    const [resaved] = onSaveAgain.mock.calls[0] as [GuidedLearningSet];
+    expect(resaved.schemaVersion).toBe(2);
+    expect(resaved.steps[0].spotlightRadius).toBe(50);
+  });
+
+  it('does not convert a radius edited after the load-time conversion', async () => {
+    paneConfig.measure = {
+      containerWidth: 500,
+      containerHeight: 500,
+      naturalDims: [
+        ['https://example.com/slide-1.png', { width: 200, height: 100 }],
+      ],
+    };
+    const set = buildSet();
+    set.steps = [
+      {
+        id: 'step-1',
+        xPct: 10,
+        yPct: 20,
+        imageIndex: 0,
+        interactionType: 'spotlight',
+        showOverlay: 'none',
+        spotlightRadius: 25,
+      },
+    ];
+    const { onSave } = renderModal(set);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('radii-v2')).toHaveTextContent('true')
+    );
+    // Post-conversion edit is already image-relative; save must keep it as-is.
+    fireEvent.click(screen.getByRole('button', { name: 'Set Radius 40' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
+    expect(saved.schemaVersion).toBe(2);
+    expect(saved.steps[0].spotlightRadius).toBe(40);
+  });
+
+  it('keeps a legacy set on legacy semantics when a spotlight step slide is unmeasured', async () => {
+    const set = buildSet();
+    set.steps = [
+      {
+        id: 'step-1',
+        xPct: 10,
+        yPct: 20,
+        imageIndex: 0,
+        interactionType: 'spotlight',
+        showOverlay: 'none',
+        spotlightRadius: 30,
+      },
+    ];
+    const { onSave } = renderModal(set);
+
+    // Panes are mocked out, so the canvas never measures — the one-time
+    // radius conversion is impossible and v2 must NOT be stamped.
+    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
+    expect('schemaVersion' in saved).toBe(false);
+    expect(saved.steps[0].spotlightRadius).toBe(30);
+    // The preview gate stays legacy for the whole session.
+    expect(screen.getByTestId('radii-v2')).toHaveTextContent('false');
+  });
+
+  it('re-stamps an already-v2 set without touching radii', async () => {
+    const set = { ...buildSet(), schemaVersion: 2 };
+    set.steps = [
+      {
+        id: 'step-1',
+        xPct: 10,
+        yPct: 20,
+        imageIndex: 0,
+        interactionType: 'spotlight',
+        showOverlay: 'none',
+        spotlightRadius: 40,
+      },
+    ];
+    const { onSave } = renderModal(set);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
+    expect(saved.schemaVersion).toBe(2);
+    expect(saved.steps[0].spotlightRadius).toBe(40);
   });
 
   it('saves the live (trimmed) title after an edit', async () => {

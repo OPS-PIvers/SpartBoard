@@ -84,6 +84,11 @@ const makeState = (): GuidedLearningEditorController => ({
   reorderSteps: vi.fn(),
   selectedStep: null,
   currentImageSteps: [],
+  canvasMeasurementsRef: { current: null },
+  canvasMeasuredTick: 0,
+  notifyCanvasMeasured: vi.fn(),
+  spotlightRadiiV2: true,
+  markSpotlightRadiiV2: vi.fn(),
 });
 
 describe('GuidedLearningEditorContextPane — SettingChip Escape closes popover', () => {

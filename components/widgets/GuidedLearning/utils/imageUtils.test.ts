@@ -6,6 +6,7 @@ import {
   toContainerCoords,
   toContainerSpotlightRadiusPct,
   toImageOffset,
+  toImageSpotlightRadiusPct,
 } from './imageUtils';
 
 describe('imageUtils', () => {
@@ -67,6 +68,28 @@ describe('imageUtils', () => {
     expect(toContainerSpotlightRadiusPct(20, wide, 300, 400)).toBeCloseTo(
       (20 * 168.75) / 300
     );
+  });
+
+  it('inverts container-relative radii back to image-relative', () => {
+    const wide = toImageOffset(
+      calculateImageFootprint(1600, 900, 300, 400),
+      300,
+      400
+    );
+    // Image min dim 168.75, container min dim 300 → radius grows.
+    expect(toImageSpotlightRadiusPct(20, wide, 300, 400)).toBeCloseTo(
+      (20 * 300) / 168.75
+    );
+    // Round-trip with toContainerSpotlightRadiusPct is identity.
+    expect(
+      toContainerSpotlightRadiusPct(
+        toImageSpotlightRadiusPct(20, wide, 300, 400),
+        wide,
+        300,
+        400
+      )
+    ).toBeCloseTo(20);
+    expect(toImageSpotlightRadiusPct(25, null, 400, 200)).toBe(25);
   });
 
   it('falls back to the raw radius when unmeasured', () => {

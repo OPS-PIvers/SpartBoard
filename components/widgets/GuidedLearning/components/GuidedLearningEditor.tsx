@@ -429,7 +429,8 @@ const glContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.imageError === next.state.imageError &&
   prev.state.addingStep === next.state.addingStep &&
   prev.state.selectedStepId === next.state.selectedStepId &&
-  prev.state.steps === next.state.steps;
+  prev.state.steps === next.state.steps &&
+  prev.state.spotlightRadiiV2 === next.state.spotlightRadiiV2;
 
 export const GuidedLearningEditorContextPane = React.memo(
   function GuidedLearningEditorContextPane({ state }: PaneProps) {
@@ -476,6 +477,9 @@ export const GuidedLearningEditorContextPane = React.memo(
       steps,
       updateStep,
       currentImageSteps,
+      canvasMeasurementsRef,
+      notifyCanvasMeasured,
+      spotlightRadiiV2,
     } = state;
 
     // O(1) step-number lookup + stable marker callbacks so HotspotMarker's
@@ -554,6 +558,19 @@ export const GuidedLearningEditorContextPane = React.memo(
         rect.width,
         rect.height
       );
+      // Record slide dims + container size for the load-time legacy radius migration.
+      const naturalDims =
+        canvasMeasurementsRef.current?.naturalDims ??
+        new Map<string, { width: number; height: number }>();
+      if (naturalW > 0 && naturalH > 0 && currentImageUrl) {
+        naturalDims.set(currentImageUrl, { width: naturalW, height: naturalH });
+      }
+      canvasMeasurementsRef.current = {
+        containerWidth: rect.width,
+        containerHeight: rect.height,
+        naturalDims,
+      };
+      notifyCanvasMeasured();
       setImgBounds(
         footprint
           ? {
@@ -563,7 +580,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             }
           : null
       );
-    }, []);
+    }, [canvasMeasurementsRef, notifyCanvasMeasured, currentImageUrl]);
 
     useEffect(() => {
       if (!imageContainerRef.current) return;
@@ -835,6 +852,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                     ) ?? null
                   }
                   dragPreview={dragPreview}
+                  radiiAreV2={spotlightRadiiV2}
                   imgBounds={imgBounds}
                 />
                 {currentImageSteps.map((s) => (
@@ -1612,6 +1630,7 @@ const StepNavigator: React.FC<StepNavigatorProps> = ({
 interface InteractionPreviewOverlayProps {
   step: GuidedLearningStep | null;
   dragPreview: { stepId: string; xPct: number; yPct: number } | null;
+  radiiAreV2: boolean;
   imgBounds: {
     offsetLeft: number;
     offsetTop: number;
@@ -1624,14 +1643,16 @@ interface InteractionPreviewOverlayProps {
 
 /**
  * Live-renders the selected step's player visuals on the editor canvas:
- * the actual spotlight overlay (v2 image-relative radius — the editor
- * stamps schemaVersion 2 on save) and a dashed outline approximating what a
- * pan-zoom step will frame — exact only when the player container matches
- * this canvas's aspect ratio. Same math as the player's renderedTransform.
+ * the spotlight overlay (image-relative radius once the load-time v2
+ * conversion has run, legacy container-relative until/unless it does — so
+ * the preview always matches what save will persist) and a dashed outline
+ * approximating what a pan-zoom step will frame — exact only when the
+ * player container matches this canvas's aspect ratio.
  */
 const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
   step,
   dragPreview,
+  radiiAreV2,
   imgBounds,
 }) => {
   if (!step || !imgBounds) return null;
@@ -1678,12 +1699,14 @@ const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
             imageIndex: step.imageIndex,
             interactionType: step.interactionType,
             label: step.label,
-            spotlightRadius: toContainerSpotlightRadiusPct(
-              step.spotlightRadius ?? 25,
-              imgOffset,
-              containerWidth,
-              containerHeight
-            ),
+            spotlightRadius: radiiAreV2
+              ? toContainerSpotlightRadiusPct(
+                  step.spotlightRadius ?? 25,
+                  imgOffset,
+                  containerWidth,
+                  containerHeight
+                )
+              : (step.spotlightRadius ?? 25),
           }}
           containerWidth={containerWidth}
           containerHeight={containerHeight}

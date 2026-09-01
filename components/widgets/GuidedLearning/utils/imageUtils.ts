@@ -117,6 +117,28 @@ export function toContainerSpotlightRadiusPct(
   return containerMin === 0 ? radiusPct : (radiusPct * imageMin) / containerMin;
 }
 
+/**
+ * Exact inverse of `toContainerSpotlightRadiusPct`: converts a
+ * container-relative spotlight radius to an image-relative one.
+ * Falls back to the input when unmeasured.
+ */
+export function toImageSpotlightRadiusPct(
+  radiusPct: number,
+  imgOffset: ImageOffset | null,
+  containerWidth: number,
+  containerHeight: number
+): number {
+  if (!imgOffset || containerWidth === 0 || containerHeight === 0) {
+    return radiusPct;
+  }
+  const imageMin = Math.min(
+    containerWidth * imgOffset.scaleX,
+    containerHeight * imgOffset.scaleY
+  );
+  const containerMin = Math.min(containerWidth, containerHeight);
+  return imageMin === 0 ? radiusPct : (radiusPct * containerMin) / imageMin;
+}
+
 /** Translation (px, pre-scale-division) that centers a container-relative point at the given zoom scale. */
 export function computePanZoomTranslate(
   xPct: number,
