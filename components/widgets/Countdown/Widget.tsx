@@ -146,7 +146,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center w-full h-full overflow-hidden rounded-3xl ${fontClass}`}
+          className={`flex flex-col items-center justify-center w-full h-full overflow-hidden rounded-[inherit] ${fontClass}`}
           style={{
             containerType: 'size',
             padding: 'min(16px, 4cqmin)',

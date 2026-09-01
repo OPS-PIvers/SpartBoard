@@ -381,7 +381,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden rounded-xl select-none ${fontClassName}`}
+      className={`relative w-full h-full overflow-hidden rounded-[inherit] select-none ${fontClassName}`}
       style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
     >
       {!isReadOnly && (

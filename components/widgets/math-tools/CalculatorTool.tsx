@@ -310,7 +310,7 @@ export const CalculatorTool: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col w-full h-full rounded-2xl overflow-hidden bg-slate-900/80 shadow-lg border border-slate-700">
+    <div className="flex flex-col w-full h-full rounded-[inherit] overflow-hidden bg-slate-900/80 shadow-lg border border-slate-700">
       {/* Display */}
       <div
         className="bg-slate-900/80 shrink-0 flex flex-col justify-end"
