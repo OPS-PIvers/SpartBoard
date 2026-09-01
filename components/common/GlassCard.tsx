@@ -2,6 +2,17 @@ import React, { forwardRef } from 'react';
 import { DEFAULT_GLOBAL_STYLE, GlobalStyle } from '@/types';
 import { hexToRgba } from '@/utils/styles';
 
+const WINDOW_RADIUS_PX: Record<string, string> = {
+  none: '0px',
+  sm: '2px',
+  md: '6px',
+  lg: '8px',
+  xl: '12px',
+  '2xl': '16px',
+  '3xl': '24px',
+  full: '9999px',
+};
+
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
@@ -47,6 +58,10 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
         ? 'rounded-none'
         : `rounded-${globalStyle.windowBorderRadius}`;
 
+    const radiusKey = propCornerRadius ?? globalStyle.windowBorderRadius;
+    // Exposed as a CSS variable so nested widget roots can match the frame corners
+    const radiusPx = WINDOW_RADIUS_PX[radiusKey] ?? WINDOW_RADIUS_PX['2xl'];
+
     // Scale intensity of glass effects based on transparency
     // We normalize to the default transparency so it looks consistent at 80%
     const factor = finalTransparency / DEFAULT_GLOBAL_STYLE.windowTransparency;
@@ -57,6 +72,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
         ref={ref}
         className={`${finalRadiusClass} ${bgClass ?? ''} ${className}`}
         style={{
+          ['--window-radius' as string]: radiusPx,
           backgroundColor: bgClass
             ? undefined
             : hexToRgba(bgHex, finalTransparency),

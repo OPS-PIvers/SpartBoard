@@ -49,7 +49,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
 
   return (
     <div
-      className="flex h-full w-full select-none overflow-hidden rounded-[inherit]"
+      className="flex h-full w-full select-none overflow-hidden rounded-[var(--window-radius,0px)]"
       style={{ backgroundColor: surfaceBg }}
     >
       {/* Sidebar Navigation */}
