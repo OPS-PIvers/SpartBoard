@@ -204,6 +204,8 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     await saveCustomMaterials(
       customMaterials.filter((item) => item.id !== materialId)
     );
+    // updateWidgetConfigsAcrossBoards handles and toasts its own save
+    // failures internally (see DashboardContext.tsx) — it never rejects.
     await updateWidgetConfigsAcrossBoards('materials', (widgetConfig) => {
       const materialsWidgetConfig = widgetConfig as MaterialsConfig;
       const selected = materialsWidgetConfig.selectedItems ?? [];

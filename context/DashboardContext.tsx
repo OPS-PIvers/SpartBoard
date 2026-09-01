@@ -1272,6 +1272,38 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // --- DRIVE WRAPPERS & CALLBACKS ---
 
+  // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
+  const backupDashboardPIIToDrive = useCallback(
+    async (dashboard: Dashboard): Promise<void> => {
+      if (!driveService || !dashboardHasPII(dashboard)) return;
+
+      const pii = extractDashboardPII(dashboard);
+      const blob = new Blob([JSON.stringify(pii)], {
+        type: 'application/json',
+      });
+      const existingPiiFileId = piiDriveFileIdRef.current.get(dashboard.id);
+      try {
+        if (existingPiiFileId) {
+          await driveService.updateFileContent(existingPiiFileId, blob);
+        } else {
+          const file = await driveService.uploadFile(
+            blob,
+            `${dashboard.id}-pii.json`,
+            'Data/Dashboards'
+          );
+          piiDriveFileIdRef.current.set(dashboard.id, file.id);
+        }
+      } catch (e) {
+        console.error('[PII] Failed to save PII supplement to Drive:', e);
+        // Rejecting stops callers' success toasts/ref updates/localStorage removal from firing.
+        throw new Error(
+          '[PII] Aborted dashboard save because PII supplement could not be saved to Drive'
+        );
+      }
+    },
+    [driveService]
+  );
+
   const saveDashboard = useCallback(
     async (dashboard: Dashboard): Promise<number> => {
       // Always save to Firestore for real-time sync
@@ -1288,38 +1320,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      // Save PII supplement to Drive for ALL users (including admins) to prevent
-      // data loss. PII scrubbing below is unconditional, so without this backup
-      // admin users who use custom roster features would permanently lose student names.
-      // Update in-place when the file already exists to avoid orphaned duplicates.
-      if (driveService && dashboardHasPII(dashboard)) {
-        const pii = extractDashboardPII(dashboard);
-        const blob = new Blob([JSON.stringify(pii)], {
-          type: 'application/json',
-        });
-        const existingPiiFileId = piiDriveFileIdRef.current.get(dashboard.id);
-        try {
-          if (existingPiiFileId) {
-            await driveService.updateFileContent(existingPiiFileId, blob);
-          } else {
-            const file = await driveService.uploadFile(
-              blob,
-              `${dashboard.id}-pii.json`,
-              'Data/Dashboards'
-            );
-            piiDriveFileIdRef.current.set(dashboard.id, file.id);
-          }
-        } catch (e) {
-          // Abort Firestore save to avoid losing PII when Drive is temporarily unavailable.
-          console.error('[PII] Failed to save PII supplement to Drive:', e);
-          // Reject so callers treat this as a genuine failure rather than a
-          // silent success — prevents success toasts, ref updates, and
-          // localStorage removal in migration from happening on an aborted save.
-          throw new Error(
-            '[PII] Aborted dashboard save because PII supplement could not be saved to Drive'
-          );
-        }
-      }
+      await backupDashboardPIIToDrive(dashboard);
 
       // CRITICAL: Strip all student PII before writing to Firestore.
       // Custom widget names (firstNames, lastNames, completedNames, etc.) must
@@ -1331,11 +1332,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         driveFileId,
       });
     },
-    [isAdmin, driveService, saveDashboardFirestore]
+    [isAdmin, driveService, saveDashboardFirestore, backupDashboardPIIToDrive]
   );
 
   const saveDashboards = useCallback(
     async (dashboardsToSave: Dashboard[]) => {
+      // Must run before the scrub below — admins never get the background export further down.
+      await Promise.all(dashboardsToSave.map(backupDashboardPIIToDrive));
+
       // For plural saves (like reordering), we'll do Firestore first.
       // CRITICAL: Scrub PII from every dashboard before writing to Firestore.
       await saveDashboardsFirestore(dashboardsToSave.map(scrubDashboardPII));
@@ -1356,7 +1360,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })();
       }
     },
-    [isAdmin, driveService, saveDashboardsFirestore]
+    [isAdmin, driveService, saveDashboardsFirestore, backupDashboardPIIToDrive]
   );
 
   const handleDeleteDashboard = useCallback(
@@ -3912,6 +3916,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (ids: string[]) => {
       if (!user) return;
 
+      const previousDashboards = dashboards;
       const updatedDashboards: Dashboard[] = [];
       ids.forEach((id, index) => {
         const db = dashboards.find((d) => d.id === id);
@@ -3942,9 +3947,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         await saveDashboards(updatedDashboards);
       } catch (err) {
         console.error('Failed to save reordered dashboards:', err);
+        addToast('Failed to save the new board order', 'error');
+        // Revert only the `order` field via the functional form — the save can
+        // take a while, and a stale full-array revert would blow away any
+        // other update (onSnapshot, rename, delete) that landed meanwhile.
+        setDashboards((prev) =>
+          prev
+            .map((d) => {
+              const original = previousDashboards.find((p) => p.id === d.id);
+              return original ? { ...d, order: original.order } : d;
+            })
+            .sort((a, b) => {
+              const orderA = a.order ?? 0;
+              const orderB = b.order ?? 0;
+              if (orderA !== orderB) return orderA - orderB;
+              if (a.isDefault && !b.isDefault) return -1;
+              if (!a.isDefault && b.isDefault) return 1;
+              return (b.createdAt || 0) - (a.createdAt || 0);
+            })
+        );
       }
     },
-    [user, dashboards, saveDashboards]
+    [user, dashboards, saveDashboards, addToast]
   );
 
   // `options.silent` suppresses the success + error toast surfaced by the
@@ -4947,10 +4971,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         (d) => d.id !== activeIdRef.current
       );
       if (otherBoards.length > 0) {
-        await saveDashboards(otherBoards);
+        // Snapshot only the boards actually being saved — the active board's
+        // update isn't part of this save (it rides the normal autosave) and
+        // must not be reverted if this save fails.
+        const previousOtherById = new Map(
+          otherBoards.map((d) => [
+            d.id,
+            dashboardsRef.current.find((prev) => prev.id === d.id),
+          ])
+        );
+        try {
+          await saveDashboards(otherBoards);
+        } catch (err) {
+          console.error('Failed to save widget config across boards:', err);
+          addToast(
+            'Change saved locally, but syncing it to other boards failed.',
+            'error'
+          );
+          // Revert only the boards this save touched via the functional form —
+          // a stale full-array revert could clobber a concurrent update.
+          setDashboards((prev) =>
+            prev.map((d) => previousOtherById.get(d.id) ?? d)
+          );
+        }
       }
     },
-    [saveDashboards]
+    [saveDashboards, addToast]
   );
 
   // --- Widget grouping ---
