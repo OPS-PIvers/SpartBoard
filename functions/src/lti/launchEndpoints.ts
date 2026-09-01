@@ -21,6 +21,7 @@ import {
 import { verifyLaunchJwt, launchRedirectTarget } from './jwt';
 import type { NrpsEndpoint } from './jwt';
 import { ltiStudentUid } from './identity';
+import { resolveClasslinkIdentity } from './classlinkBridge';
 import { persistLtiLaunchContext } from './nrpsStore';
 import {
   putOidcState,
@@ -38,6 +39,13 @@ import {
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
 );
+
+// Secrets are keyed by NAME, so re-defining here (the canonical defs live in
+// classroomAddonAuth.ts) binds the same values. Needed by the ClassLink identity
+// bridge below.
+const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
+const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
+const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');
 
 function mergedParams(req: {
   query?: Record<string, unknown>;
@@ -222,7 +230,12 @@ export const ltiExchange = onCall(
     region: 'us-central1',
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
-    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    secrets: [
+      STUDENT_PSEUDONYM_HMAC_SECRET,
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+    ],
   },
   async (request) => {
     const data = (request.data ?? {}) as { code?: unknown };
@@ -270,14 +283,43 @@ export const ltiExchange = onCall(
     if (!hmacSecret) {
       throw new HttpsError('internal', 'Server not configured.');
     }
-    const uid = ltiStudentUid(launch.sub, hmacSecret);
+    const subUid = ltiStudentUid(launch.sub, hmacSecret);
 
     let orgId: string | null = null;
     if (launch.email) {
       const domain = normalizeEmailDomain(launch.email);
       if (domain) orgId = await resolveOrgIdForDomain(db, domain);
     }
-    const classIds = launch.contextId ? [`schoology:${launch.contextId}`] : [];
+    const sectionClassIds = launch.contextId
+      ? [`schoology:${launch.contextId}`]
+      : [];
+
+    // ClassLink identity bridge. When the section is linked and the launch email
+    // matches a OneRoster roster entry, the student launches under the SAME uid
+    // their ClassLink SSO mints — which is what M17's per-student pointer docs
+    // (`student_assignments/{uid}/items/{id}`) are keyed by, so targeting and
+    // overrides finally reach Schoology-launched students. A miss is normal and
+    // silent: they keep the sub-derived pseudonym and take the assignment as
+    // before, just without per-student overrides.
+    const bridged = await resolveClasslinkIdentity(db, {
+      contextId: launch.contextId,
+      email: launch.email,
+      subUid,
+      hmacSecret,
+      classlink: {
+        tenantUrl: CLASSLINK_TENANT_URL.value(),
+        clientId: CLASSLINK_CLIENT_ID.value(),
+        clientSecret: CLASSLINK_CLIENT_SECRET.value(),
+      },
+    });
+    const uid = bridged ? bridged.uid : subUid;
+    // Carry BOTH ids when bridged: the ClassLink class id so /my-assignments
+    // class-channel discovery and the rules class-gate see this student as a
+    // roster member, and `schoology:<contextId>` so any session targeted only by
+    // section still overlaps — a bridge must never NARROW what a student reaches.
+    const classIds = bridged
+      ? [bridged.classlinkClassId, ...sectionClassIds]
+      : sectionClassIds;
 
     let customToken: string;
     try {

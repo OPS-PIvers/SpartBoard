@@ -799,6 +799,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // PII-free sticky identity bridge (Schoology sub pseudonym -> ClassLink
+    // pseudonym), written and read ONLY by the launch exchange CF via the Admin
+    // SDK, which bypasses these rules. It exists so a OneRoster blip or an
+    // unlinked section can't re-identify a student mid-assignment. Both sides
+    // are HMAC pseudonyms and neither is a secret on its own, but the mapping
+    // LINKS a student's two identities — exactly the correlation the pseudonym
+    // design avoids — so deny all client access.
+    match /lti_identity_bridge/{pseudonymUid} {
+      allow read, write: if false;
+    }
+
     // PII-free NRPS membership endpoints, keyed by quiz session → context. The
     // launch-exchange CF writes the context's `context_memberships_url` here and
     // the name-resolver CF reads it — BOTH via the Admin SDK, which bypasses
