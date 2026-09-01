@@ -33,6 +33,11 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDashboard } from '@/context/useDashboard';
 import {
   resolveRotationDayNumber,
+  resolveRotationMode,
+  clampCycleLength,
+  normalizeBlocks,
+  MIN_CYCLE_LENGTH,
+  MAX_CYCLE_LENGTH,
   formatRotationDayLabel,
   countPreStartSchoolDays,
 } from '@/components/widgets/SpecialistSchedule/utils';
@@ -158,6 +163,9 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     );
   }, [config.buildingDefaults, canonicalId]);
 
+  const rotationMode = resolveRotationMode(currentBuildingConfig);
+  const isBlockMode = rotationMode === 'blocks';
+
   const updateBuilding = (
     updates: Partial<SpecialistScheduleBuildingConfig>
   ) => {
@@ -178,17 +186,38 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     field: 'startDate' | 'endDate' | 'dayNumber',
     value: string | number
   ) => {
-    const newBlocks = [...(currentBuildingConfig.blocks ?? [])];
-    if (newBlocks.length < 10) {
-      // Initialize blocks if empty
-      for (let i = 0; i < 10; i++) {
-        if (!newBlocks[i]) {
-          newBlocks[i] = { dayNumber: i + 1, startDate: '', endDate: '' };
-        }
-      }
-    }
+    const newBlocks = normalizeBlocks(
+      currentBuildingConfig.blocks,
+      currentBuildingConfig.cycleLength
+    );
     newBlocks[index] = { ...newBlocks[index], [field]: value };
     updateBuilding({ blocks: newBlocks });
+  };
+
+  const setRotationMode = (mode: 'calendar' | 'blocks') => {
+    if (mode === 'calendar') {
+      updateBuilding({ rotationMode: 'calendar', dayLabel: 'Day', blocks: [] });
+      return;
+    }
+    updateBuilding({
+      rotationMode: 'blocks',
+      dayLabel: 'Block',
+      blocks: normalizeBlocks(
+        currentBuildingConfig.blocks,
+        currentBuildingConfig.cycleLength
+      ),
+    });
+  };
+
+  const setCycleLength = (raw: number) => {
+    const cycleLength = clampCycleLength(raw);
+    updateBuilding({
+      cycleLength,
+      rotationMode,
+      blocks: isBlockMode
+        ? normalizeBlocks(currentBuildingConfig.blocks, cycleLength)
+        : [],
+    });
   };
 
   const updateDayName = (dayNumber: number, name: string) => {
@@ -420,41 +449,43 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-700">
-                        Rotation Cycle
+                        Rotation Type
                       </span>
                       <div className="flex bg-white rounded-lg p-1 border border-slate-200">
                         <button
-                          onClick={() =>
-                            updateBuilding({
-                              cycleLength: 6,
-                              dayLabel: 'Day',
-                              blocks: [],
-                            })
-                          }
-                          className={`px-3 py-1 text-xs font-bold rounded ${currentBuildingConfig.cycleLength === 6 ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                          onClick={() => setRotationMode('calendar')}
+                          aria-pressed={!isBlockMode}
+                          className={`px-3 py-1 text-xs font-bold rounded ${!isBlockMode ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
                         >
-                          6-Day
+                          Day Cycle
                         </button>
                         <button
-                          onClick={() =>
-                            updateBuilding({
-                              cycleLength: 10,
-                              dayLabel: 'Block',
-                              blocks:
-                                currentBuildingConfig.blocks?.length === 10
-                                  ? currentBuildingConfig.blocks
-                                  : Array.from({ length: 10 }, (_, i) => ({
-                                      dayNumber: i + 1,
-                                      startDate: '',
-                                      endDate: '',
-                                    })),
-                            })
-                          }
-                          className={`px-3 py-1 text-xs font-bold rounded ${currentBuildingConfig.cycleLength === 10 ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                          onClick={() => setRotationMode('blocks')}
+                          aria-pressed={isBlockMode}
+                          className={`px-3 py-1 text-xs font-bold rounded ${isBlockMode ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
                         >
-                          10-Block
+                          Date Blocks
                         </button>
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="specialist-cycle-length"
+                        className="text-sm font-medium text-slate-700"
+                      >
+                        {isBlockMode ? 'Number of Blocks' : 'Days in Cycle'}
+                      </label>
+                      <input
+                        id="specialist-cycle-length"
+                        type="number"
+                        min={MIN_CYCLE_LENGTH}
+                        max={MAX_CYCLE_LENGTH}
+                        step={1}
+                        value={currentBuildingConfig.cycleLength}
+                        onChange={(e) => setCycleLength(e.target.valueAsNumber)}
+                        className="w-24 px-2 py-1 text-sm border border-slate-200 rounded-lg text-right font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                      />
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -472,7 +503,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       />
                     </div>
 
-                    {currentBuildingConfig.cycleLength === 6 && (
+                    {!isBlockMode && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-700">
                           Start Date
@@ -488,29 +519,28 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       </div>
                     )}
 
-                    {currentBuildingConfig.cycleLength === 6 &&
-                      preStartDayCount > 0 && (
-                        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                          <AlertTriangle
-                            className="w-4 h-4 text-amber-600 shrink-0 mt-0.5"
-                            aria-hidden="true"
-                          />
-                          <div className="flex-1 space-y-2">
-                            <p className="text-xs text-amber-800 leading-snug">
-                              {preStartDayCount} marked school{' '}
-                              {preStartDayCount === 1 ? 'day' : 'days'} fall
-                              before the start date and are excluded from the
-                              rotation count.
-                            </p>
-                            <button
-                              onClick={clearPreStartDays}
-                              className="text-xxs font-black uppercase tracking-wider text-amber-700 hover:text-amber-900 underline"
-                            >
-                              Unmark them
-                            </button>
-                          </div>
+                    {!isBlockMode && preStartDayCount > 0 && (
+                      <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <AlertTriangle
+                          className="w-4 h-4 text-amber-600 shrink-0 mt-0.5"
+                          aria-hidden="true"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <p className="text-xs text-amber-800 leading-snug">
+                            {preStartDayCount} marked school{' '}
+                            {preStartDayCount === 1 ? 'day' : 'days'} fall
+                            before the start date and are excluded from the
+                            rotation count.
+                          </p>
+                          <button
+                            onClick={clearPreStartDays}
+                            className="text-xxs font-black uppercase tracking-wider text-amber-700 hover:text-amber-900 underline"
+                          >
+                            Unmark them
+                          </button>
                         </div>
-                      )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Custom Day Names */}
@@ -633,7 +663,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
                 {/* Right: Calendar Marking or Block Selection */}
                 <div className="space-y-4">
-                  {currentBuildingConfig.cycleLength === 10 ? (
+                  {isBlockMode ? (
                     <Card
                       rounded="2xl"
                       padding="none"
@@ -649,68 +679,64 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         </p>
                       </div>
                       <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                        {Array.from({ length: 10 }, (_, i) => i + 1).map(
-                          (num, i) => (
-                            <div
-                              key={num}
-                              className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-black text-teal-700 uppercase tracking-widest">
-                                  {currentBuildingConfig.customDayNames?.[
-                                    num
-                                  ] ?? `Block ${num}`}
-                                </span>
+                        {Array.from(
+                          { length: currentBuildingConfig.cycleLength },
+                          (_, i) => i + 1
+                        ).map((num, i) => (
+                          <div
+                            key={num}
+                            className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-teal-700 uppercase tracking-widest">
+                                {currentBuildingConfig.customDayNames?.[num] ??
+                                  `${currentBuildingConfig.dayLabel ?? 'Block'} ${num}`}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <label
+                                  htmlFor={`specialist-block-start-date-${i}`}
+                                  className="text-xxxs font-black text-slate-400 uppercase tracking-widest"
+                                >
+                                  Start Date
+                                </label>
+                                <input
+                                  id={`specialist-block-start-date-${i}`}
+                                  type="date"
+                                  value={
+                                    currentBuildingConfig.blocks?.[i]
+                                      ?.startDate ?? ''
+                                  }
+                                  onChange={(e) =>
+                                    updateBlock(i, 'startDate', e.target.value)
+                                  }
+                                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
+                                />
                               </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-1">
-                                  <label
-                                    htmlFor={`specialist-block-start-date-${i}`}
-                                    className="text-xxxs font-black text-slate-400 uppercase tracking-widest"
-                                  >
-                                    Start Date
-                                  </label>
-                                  <input
-                                    id={`specialist-block-start-date-${i}`}
-                                    type="date"
-                                    value={
-                                      currentBuildingConfig.blocks?.[i]
-                                        ?.startDate ?? ''
-                                    }
-                                    onChange={(e) =>
-                                      updateBlock(
-                                        i,
-                                        'startDate',
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label
-                                    htmlFor={`specialist-block-end-date-${i}`}
-                                    className="text-xxxs font-black text-slate-400 uppercase tracking-widest"
-                                  >
-                                    End Date
-                                  </label>
-                                  <input
-                                    id={`specialist-block-end-date-${i}`}
-                                    type="date"
-                                    value={
-                                      currentBuildingConfig.blocks?.[i]
-                                        ?.endDate ?? ''
-                                    }
-                                    onChange={(e) =>
-                                      updateBlock(i, 'endDate', e.target.value)
-                                    }
-                                    className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
-                                  />
-                                </div>
+                              <div className="space-y-1">
+                                <label
+                                  htmlFor={`specialist-block-end-date-${i}`}
+                                  className="text-xxxs font-black text-slate-400 uppercase tracking-widest"
+                                >
+                                  End Date
+                                </label>
+                                <input
+                                  id={`specialist-block-end-date-${i}`}
+                                  type="date"
+                                  value={
+                                    currentBuildingConfig.blocks?.[i]
+                                      ?.endDate ?? ''
+                                  }
+                                  onChange={(e) =>
+                                    updateBlock(i, 'endDate', e.target.value)
+                                  }
+                                  className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
+                                />
                               </div>
                             </div>
-                          )
-                        )}
+                          </div>
+                        ))}
                       </div>
                     </Card>
                   ) : (
@@ -796,7 +822,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                     </Card>
                   )}
 
-                  {currentBuildingConfig.cycleLength !== 10 && (
+                  {!isBlockMode && (
                     <div className="flex gap-2">
                       <Button
                         variant="secondary"
@@ -816,8 +842,8 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                   )}
 
                   <p className="text-xs text-slate-400 italic text-center px-4 leading-tight">
-                    {currentBuildingConfig.cycleLength === 10
-                      ? 'Set explicit date ranges for each of the 10 rotation blocks.'
+                    {isBlockMode
+                      ? `Set explicit date ranges for each of the ${currentBuildingConfig.cycleLength} rotation blocks.`
                       : 'Click dates to mark them as school days. The rotation only advances on marked days.'}
                   </p>
                 </div>

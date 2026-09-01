@@ -5336,8 +5336,13 @@ export interface NumberLineGlobalConfig {
   buildingDefaults?: Record<string, BuildingNumberLineDefaults>;
 }
 
+export type SpecialistScheduleRotationMode = 'calendar' | 'blocks';
+
 export interface SpecialistScheduleBuildingConfig {
-  cycleLength: 6 | 10;
+  /** Number of days/blocks in the rotation (admin-configurable). */
+  cycleLength: number;
+  /** 'calendar' counts marked school days; 'blocks' uses explicit date ranges. Legacy docs omit it (10 => blocks). */
+  rotationMode?: SpecialistScheduleRotationMode;
   /** Optional at runtime: docs written before this field existed omit it. */
   startDate?: string; // YYYY-MM-DD
   /** List of dates (YYYY-MM-DD) that are school days and should count in the rotation. */
@@ -5346,7 +5351,7 @@ export interface SpecialistScheduleBuildingConfig {
   dayLabel?: string;
   /** Custom names for each day in the cycle (e.g., { 1: "Day 1", 2: "Music Day" }) */
   customDayNames?: Record<number, string>;
-  /** Explicit date blocks for 10-block rotation (Intermediate School) */
+  /** Explicit date blocks for block-range rotation (e.g. Intermediate School) */
   blocks?: { dayNumber: number; startDate: string; endDate: string }[];
   /** Predefined specialist options for this building (e.g., ["🎵 Music", "👟 PE"]) */
   specialistOptions?: string[];
