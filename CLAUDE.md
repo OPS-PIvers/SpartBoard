@@ -29,9 +29,13 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 /
 ├── components/           # All React components
 │   ├── admin/           # Admin panel (Analytics, Announcements, BackgroundManager, UserManagement, WidgetBuilder)
+│   ├── assignmentsHub/  # Teacher assignments hub
 │   ├── auth/            # Authentication UI (SignInPage, AuthShell)
+│   ├── classroomAddon/  # Google Classroom add-on (/classroom-addon)
 │   ├── common/          # Shared components (DraggableWindow, ScaledEmptyState, TypographySettings, etc.)
+│   ├── landing/, legal/ # Public /about + legal pages (auth-free, prerendered)
 │   ├── layout/          # Layout components (Sidebar, Dock, DashboardView)
+│   ├── lti/             # LTI launch flow (/lti)
 │   ├── widgets/         # All widget implementations + WidgetRegistry
 │   ├── student/         # Student-facing apps (StudentApp, StudentLobby, NextUpStudentApp)
 │   ├── remote/          # Mobile remote control
@@ -43,6 +47,7 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 │   ├── announcements/   # Announcement system
 │   ├── classes/         # Roster / class management UI
 │   ├── plc/             # PLC (professional learning community) sharing UI
+│   ├── poll/            # Student poll voting page (/poll)
 │   ├── subs/            # Substitute teacher portal (/subs)
 │   ├── converter/       # SMART Notebook → .spartnb converter (/convert)
 │   ├── spotify/         # Spotify OAuth + library integration
@@ -57,6 +62,9 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 │   ├── SavedWidgetsContext.tsx   # User's saved/pinned widget configs
 │   ├── DialogContext.tsx         # Dialog/modal management
 │   ├── StudentAuthContext.tsx    # SSO student session lifecycle (/my-assignments)
+│   ├── PlcContext.tsx            # PLC routes (/plc) — usePlcContext
+│   ├── ToolVisibilityContextValue.ts # useToolVisibility — only mounted by DashboardProvider
+│   ├── dashboardCanvasStore.ts   # Mount-stable actions + hot-path state slice for the canvas
 │   └── *.ts files               # Context value types + hook exports (useAuth, useDashboard, useCustomWidgets, useSavedWidgets, useDialog, useStudentAuth)
 ├── hooks/               # Custom React hooks (see directory for full list)
 ├── config/              # Configuration files (see directory for full list)
@@ -109,6 +117,13 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 - **Run E2E tests**: `pnpm run test:e2e`
 - **Run Firestore rules tests**: `pnpm run test:rules` (boots the Firestore emulator and runs `vitest.rules.config.ts` against `tests/rules/`)
 - **Run all unit tests (root + functions)**: `pnpm run test:all`
+- **Test-count guard**: `pnpm run test:counts` (fails if Vitest silently collected fewer suites than baseline; runs inside `validate` and `test:all`)
+- **Perf tests**: `pnpm run test:perf` (`vitest.perf.config.ts`, `tests/perf/`)
+- **Draft changelog**: `pnpm run changelog:draft` (prints a draft entry for `public/changelog.json`; rewrite before committing)
+
+### Claude Code dev servers (`.claude/launch.json`)
+
+- `vite-dev` (port 3000), `vite-dev-bypass` (port 56300, `VITE_AUTH_BYPASS=true`), `functions-emulator` (port 5001)
 - **Watch mode**: `pnpm run test:watch`
 - **Coverage report**: `pnpm run test:coverage`
 
@@ -206,7 +221,8 @@ App.tsx (root — manual pathname switch)
 │   ├── /spotify-callback   → SpotifyCallback (popup; posts code to window.opener)
 │   ├── /convert            → ConverterPage (SMART Notebook → .spartnb, client-only)
 │   ├── /about              → AboutPage (public product page; prerendered, auth-free)
-│   └── /notebook-editor-dev → NotebookEditorDevHarness (DEV builds only)
+│   ├── /notebook-editor-dev → NotebookEditorDevHarness (DEV builds only)
+│   └── /library-dev, /session-views-dev → DEV-only harnesses
 ├── Student routes (lazy-loaded, wrapped in DialogProvider only):
 │   ├── /join               → StudentApp (lobby & live session)
 │   ├── /quiz               → QuizStudentApp (self-handles anonymous/custom-token auth)
@@ -215,12 +231,16 @@ App.tsx (root — manual pathname switch)
 │   ├── /guided-learning    → GuidedLearningStudentApp
 │   ├── /miniapp/...        → MiniAppStudentApp
 │   ├── /nextup             → NextUpStudentApp
+│   ├── /poll               → Poll voting page
+│   ├── /classroom-addon/...→ Google Classroom add-on
+│   ├── /lti/...            → LTI launch
 │   ├── /student/login      → StudentLoginPage (PII-free GIS sign-in)
 │   └── /my-assignments     → StudentAuthProvider → RequireStudentAuth → MyAssignmentsPage
 ├── Auth-only routes (AuthProvider, no DashboardProvider):
 │   ├── /invite/...         → InviteAcceptance (org invite)
 │   ├── /plc-invite/...     → PlcInviteAcceptance
-│   └── /subs               → SubsApp (substitute teacher portal)
+│   ├── /subs               → SubsApp (substitute teacher portal)
+│   └── /plc/...            → PlcProvider → PLC dashboard
 ├── /remote                 → AuthProvider → AuthenticatedApp (isRemote) → MobileRemoteView
 └── / → Teacher app:
     └── DialogProvider
@@ -442,6 +462,8 @@ function MyComponent() {
 
 ## Adding a New Widget
 
+**Use the `new-widget` skill** (`.claude/skills/new-widget`) — it carries the full checklist and templates. Admin-level widget config modals use the `admin-widget-config` skill. Summary below:
+
 ### 1. Define the Widget Type
 
 In `types.ts`:
@@ -472,7 +494,7 @@ export const TOOLS: ToolMetadata[] = [
 
 ### 2. Create Widget Component
 
-In `components/widgets/YourNewWidget.tsx`:
+In `components/widgets/YourNewWidget/Widget.tsx` (widgets live in per-widget folders; only 4 legacy widgets are flat files):
 
 **IMPORTANT - Content Scaling:** Widgets with `skipScaling: true` in `WidgetRegistry.ts` use **CSS Container Queries** for responsive sizing. All text, icons, spacing, and sizing in widget front-face content **must** use container query units via inline `style={{}}` props - never hardcoded Tailwind size classes like `text-sm`, `text-xs`, `w-12 h-12`, or `size={24}`.
 
@@ -504,17 +526,8 @@ export const YourNewWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
 };
 
-// Optional: Settings panel (shown when widget is flipped)
-// Settings panels do NOT need container query scaling - use normal Tailwind classes
-export const YourNewWidgetSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { updateWidget } = useDashboard();
-
-  return (
-    <div className="p-4">
-      {/* Settings UI - normal Tailwind classes are fine here */}
-    </div>
-  );
-};
+// Optional: export YourNewWidgetSettings (shown when flipped).
+// Settings panels do NOT need container query scaling - normal Tailwind classes are fine.
 ```
 
 ### 3. Add Default Config
@@ -830,7 +843,7 @@ See `metadata.json` for manifest configuration.
 - All dashboards are stored in Firestore under `/users/{userId}/dashboards/`
 - Real-time sync via `onSnapshot` listeners
 - Automatic migration from localStorage on first sign-in
-- Supports multiple users sharing the same dashboard (future feature)
+- Sharing goes through `/shared_boards` and `/shared_collections` (see Firestore section)
 
 ### localStorage (Fallback)
 
@@ -878,8 +891,8 @@ The app uses Firebase Authentication with admin role management through Firestor
 ### Admin Features
 
 - **Feature Permissions Manager**: Control widget access levels
-- **User Management**: View and manage user accounts (future)
-- **Analytics**: Usage statistics (future)
+- **User Management**: `components/admin/UserManagement`
+- **Analytics**: `components/admin/Analytics/AnalyticsManager.tsx`
 
 ### Using Admin Status in Components
 
@@ -924,6 +937,10 @@ function MyComponent() {
 
 - Container image build pipeline used to build/verify the Docker image (see workflow file for triggers and build details).
 
+**5. Claude PR Review** (`.github/workflows/claude-review.yml`)
+
+- Automated review comment on PRs; skips docs-only PRs.
+
 See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md) for development branch workflow.
 
 ### Pre-commit Hooks
@@ -961,6 +978,8 @@ See [docs/LINTING_SETUP.md](docs/LINTING_SETUP.md) for complete linting document
   isolation" under Persistence.
 - The `flipped` state is managed by DraggableWindow, not individual widgets
 - Audio contexts must be resumed on user interaction (see Timer/Stopwatch unlock patterns)
+- `useToolVisibility()` throws outside `DashboardProvider`. Subs portal and student apps don't mount it — guard or avoid it there.
+- Canvas hot path (BoardCanvas → WidgetRenderer → DraggableWindow) must use `DashboardActionsContext` / the canvas store from `context/dashboardCanvasStore.ts`, not the full `useDashboard()` value, which re-renders on every provider commit.
 - **useEffect is an escape hatch, not a default**: Only use `useEffect` to synchronize with an external system (Firestore, Firebase Auth, DOM events, timers, Web Audio API, localStorage, etc.). Do NOT use it to compute derived state, sync refs, reset state on prop changes, or chain state updates — these all cause extra render passes and subtle bugs. Instead:
   - Compute derived values inline during render (or with `useMemo` if expensive).
   - Assign refs directly in the render body: `myRef.current = value` — no effect needed.
@@ -1086,7 +1105,7 @@ Test directories (note: many `*.test.ts(x)` files also live colocated next to th
 
 ---
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-09-01
 **Version**: 2.1.0
 
 ## Widget Appearance Standard (Visual System)
