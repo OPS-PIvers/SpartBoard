@@ -1,6 +1,10 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { CountdownGlobalConfig, BuildingCountdownDefaults } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
@@ -16,12 +20,18 @@ export const CountdownConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can hand back a legacy long-form id (e.g.
+  // `orono-high-school`) when an org's building doc predates the short-id
+  // migration, so buildingDefaults reads/writes must key off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const currentBuildingConfig: BuildingCountdownDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
-    buildingId: selectedBuildingId,
+    buildingId: canonicalId,
   };
 
   const handleUpdateBuilding = (
@@ -31,7 +41,7 @@ export const CountdownConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },
