@@ -97,6 +97,16 @@ describe('validateGuidedLearningImport', () => {
     expect(result.errors.join(' ')).toMatch(/blob/);
   });
 
+  it('rejects a non-string imageUrls entry with a friendly message, not a crash', () => {
+    const result = validateGuidedLearningImport(
+      makeSet({
+        imageUrls: [123 as unknown as string],
+      })
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/must be a string/);
+  });
+
   it('rejects an unknown mode', () => {
     const result = validateGuidedLearningImport(
       makeSet({ mode: 'freestyle' as GuidedLearningSet['mode'] })

@@ -5,6 +5,7 @@ import {
   blobToDataUri,
   embedSetImages,
   extensionForMime,
+  GlExportBudgetExceededError,
   parseDataUri,
   parseGuidedLearningJson,
   prepareImportedSet,
@@ -129,6 +130,41 @@ describe('embedSetImages', () => {
     const { warnings } = await embedSetImages(set, vi.fn());
     expect(warnings.join(' ')).toMatch(/audio\/video/);
   });
+
+  it('aborts the whole export once the total embed budget is exceeded', async () => {
+    // Each slide is under the per-file 25MB cap, but five of them together
+    // exceed the 100MB total budget.
+    const perSlideBytes = 21 * 1024 * 1024;
+    const set = makeSet({
+      imageUrls: Array.from(
+        { length: 5 },
+        (_, i) => `https://example.com/${i}.png`
+      ),
+    });
+    const fetchMedia = vi
+      .fn()
+      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' } as Blob);
+    await expect(embedSetImages(set, fetchMedia)).rejects.toThrow(
+      GlExportBudgetExceededError
+    );
+  });
+
+  it('accounts for base64 inflation when checking the total embed budget', async () => {
+    // Raw bytes alone stay under 100MB, but base64 (~4/3x) pushes them over.
+    const perSlideBytes = 19 * 1024 * 1024;
+    const set = makeSet({
+      imageUrls: Array.from(
+        { length: 4 },
+        (_, i) => `https://example.com/${i}.png`
+      ),
+    });
+    const fetchMedia = vi
+      .fn()
+      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' } as Blob);
+    await expect(embedSetImages(set, fetchMedia)).rejects.toThrow(
+      GlExportBudgetExceededError
+    );
+  });
 });
 
 describe('rehostImportedSetImages', () => {
@@ -157,6 +193,48 @@ describe('rehostImportedSetImages', () => {
     expect(out.imageUrls).toEqual(['https://example.com/a.png']);
     expect(out.imagePaths).toBeUndefined();
     expect(warnings).toHaveLength(1);
+  });
+
+  it('reports each successful upload incrementally via onUploaded', async () => {
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce({
+        url: 'https://storage/1.png',
+        storagePath: 'users/u/1.png',
+      })
+      .mockResolvedValueOnce({
+        url: 'https://storage/2.png',
+        storagePath: 'users/u/2.png',
+      });
+    const onUploaded = vi.fn();
+    await rehostImportedSetImages(
+      makeSet({ imageUrls: [PNG_DATA_URI, PNG_DATA_URI] }),
+      upload,
+      onUploaded
+    );
+    expect(onUploaded).toHaveBeenCalledTimes(2);
+    expect(onUploaded).toHaveBeenNthCalledWith(1, 'users/u/1.png');
+    expect(onUploaded).toHaveBeenNthCalledWith(2, 'users/u/2.png');
+  });
+
+  it('still reports prior successful uploads when a later one throws', async () => {
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce({
+        url: 'https://storage/1.png',
+        storagePath: 'users/u/1.png',
+      })
+      .mockRejectedValueOnce(new Error('upload failed'));
+    const onUploaded = vi.fn();
+    await expect(
+      rehostImportedSetImages(
+        makeSet({ imageUrls: [PNG_DATA_URI, PNG_DATA_URI] }),
+        upload,
+        onUploaded
+      )
+    ).rejects.toThrow('upload failed');
+    expect(onUploaded).toHaveBeenCalledOnce();
+    expect(onUploaded).toHaveBeenCalledWith('users/u/1.png');
   });
 });
 
@@ -218,6 +296,13 @@ describe('parseGuidedLearningJson', () => {
   it('uses source-neutral copy for invalid JSON', () => {
     expect(() => parseGuidedLearningJson('not json')).toThrow(
       /Paste or upload/
+    );
+  });
+
+  it('rejects a non-string imageUrls entry with a friendly message', () => {
+    const bad = { ...makeSet(), imageUrls: [123] };
+    expect(() => parseGuidedLearningJson(JSON.stringify(bad))).toThrow(
+      /imageUrls must be a string/
     );
   });
 

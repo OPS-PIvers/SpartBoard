@@ -826,10 +826,11 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [exportingSetId, setExportingSetId] = useState<string | null>(null);
   const [importFocusCounter, setImportFocusCounter] = useState(0);
-  // Caches the rehosted set so a save retry reuses uploads instead of re-uploading.
+  // Caches the rehosted set so a retry reuses uploads; `complete` gates reuse so a mid-way failure isn't treated as done.
   const importRehostCacheRef = useRef<{
     source: GuidedLearningSet;
     rehosted: GuidedLearningSet;
+    complete: boolean;
   } | null>(null);
   // Guards against onClose deleting uploads while a save is still in flight.
   const importSaveInFlightRef = useRef(false);
@@ -895,14 +896,35 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       const uid = user.uid;
       const cached = importRehostCacheRef.current;
       let rehosted: GuidedLearningSet;
-      if (cached && cached.source === set) {
+      if (cached && cached.source === set && cached.complete) {
         rehosted = cached.rehosted;
       } else {
-        const result = await rehostImportedSetImages(set, (blob, fileName) =>
-          uploadGuidedLearningMedia(uid, blob, fileName)
+        // Any superseded cache (incomplete, or complete for a different source) is abandoned; clean up its orphans first.
+        if (cached) {
+          for (const path of cached.rehosted.imagePaths ?? []) {
+            if (path) void deleteFile(path).catch(() => undefined);
+          }
+        }
+        // Mutated in place as each upload resolves, so a mid-way throw still leaves the cache pointing at every path actually written to Storage.
+        const partial: GuidedLearningSet = { ...set, imagePaths: [] };
+        importRehostCacheRef.current = {
+          source: set,
+          rehosted: partial,
+          complete: false,
+        };
+        const result = await rehostImportedSetImages(
+          set,
+          (blob, fileName) => uploadGuidedLearningMedia(uid, blob, fileName),
+          (storagePath) => {
+            partial.imagePaths = [...(partial.imagePaths ?? []), storagePath];
+          }
         );
         rehosted = result.set;
-        importRehostCacheRef.current = { source: set, rehosted };
+        importRehostCacheRef.current = {
+          source: set,
+          rehosted,
+          complete: true,
+        };
       }
       const prepared = prepareImportedSet(
         { ...rehosted, title: title.trim() || rehosted.title },

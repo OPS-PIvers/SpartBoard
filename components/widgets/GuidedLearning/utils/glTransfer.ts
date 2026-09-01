@@ -8,6 +8,12 @@ export const GL_EXPORT_EXTENSION = '.gl.json';
 // Per-slide embed ceiling — larger media stays linked online.
 export const GL_MAX_EMBED_BYTES = 25 * 1024 * 1024;
 
+// Whole-export embed ceiling — aborts the export before a giant/unusable file is produced.
+export const GL_MAX_TOTAL_EMBED_BYTES = 100 * 1024 * 1024;
+
+// Thrown when the running total of embedded slide bytes exceeds the export budget.
+export class GlExportBudgetExceededError extends Error {}
+
 // Matches guidedLearningDriveService's file naming.
 export function sanitizeGlFileName(title: string): string {
   return title.replace(/[/\\:*?"<>|]/g, '_').trim() || 'untitled';
@@ -73,6 +79,7 @@ export async function embedSetImages(
   fetchMedia: (url: string) => Promise<Blob>
 ): Promise<GlTransferResult> {
   const warnings: string[] = [];
+  let totalEmbeddedBytes = 0;
   const imageUrls = await Promise.all(
     set.imageUrls.map(async (url, index) => {
       if (url.startsWith('data:')) return url;
@@ -88,8 +95,16 @@ export async function embedSetImages(
           );
           return url;
         }
+        // Checked before conversion, using base64-inflated size so the budget bounds the actual .gl.json file.
+        totalEmbeddedBytes += Math.ceil(blob.size / 3) * 4;
+        if (totalEmbeddedBytes > GL_MAX_TOTAL_EMBED_BYTES) {
+          throw new GlExportBudgetExceededError(
+            `This activity's embedded media exceeds the ${Math.round(GL_MAX_TOTAL_EMBED_BYTES / 1024 / 1024)}MB export limit. Remove some slides or shrink the media before exporting.`
+          );
+        }
         return await blobToDataUri(blob);
-      } catch {
+      } catch (err) {
+        if (err instanceof GlExportBudgetExceededError) throw err;
         warnings.push(
           `Slide ${index + 1} could not be embedded and keeps its online link.`
         );
@@ -116,10 +131,11 @@ export type GlMediaUploader = (
   fileName: string
 ) => Promise<{ url: string; storagePath: string }>;
 
-// Upload data-URI slides to the importer's storage; remote urls stay as-is with a warning.
+// Upload data-URI slides to storage; `onUploaded` lets a caller track orphans on a mid-way throw.
 export async function rehostImportedSetImages(
   set: GuidedLearningSet,
-  upload: GlMediaUploader
+  upload: GlMediaUploader,
+  onUploaded?: (storagePath: string) => void
 ): Promise<GlTransferResult> {
   const warnings: string[] = [];
   const imagePaths: string[] = [];
@@ -145,6 +161,7 @@ export async function rehostImportedSetImages(
     imageUrls.push(uploaded.url);
     imagePaths.push(uploaded.storagePath);
     uploadedAny = true;
+    onUploaded?.(uploaded.storagePath);
   }
   const rehosted: GuidedLearningSet = { ...set, imageUrls };
   if (uploadedAny) {
@@ -193,6 +210,12 @@ export function parseGuidedLearningJson(text: string): GlTransferResult {
     throw new Error(
       'This does not look like a Guided Learning export (missing images or steps).'
     );
+  }
+  if (
+    Array.isArray(candidate.imageUrls) &&
+    candidate.imageUrls.some((u) => typeof u !== 'string')
+  ) {
+    throw new Error('Every entry in imageUrls must be a string URL.');
   }
   if (candidate.steps.some((s) => s === null || typeof s !== 'object')) {
     throw new Error('Every step must be an object — check the steps array.');
