@@ -62,12 +62,14 @@ const setup = (options: SetupOptions = {}) => {
   const updateWidget = vi.fn();
   const saveCustomMaterials = vi.fn().mockResolvedValue(undefined);
   const updateWidgetConfigsAcrossBoards = vi.fn().mockResolvedValue(undefined);
+  const addToast = vi.fn();
   const showConfirm = vi.fn().mockResolvedValue(options.confirmResult ?? true);
 
   mockedUseDashboard.mockReturnValue({
     updateWidget,
     dashboards: options.dashboards ?? [],
     updateWidgetConfigsAcrossBoards,
+    addToast,
   } as unknown as ReturnType<typeof useDashboard>);
   mockedUseAuth.mockReturnValue({
     featurePermissions: options.featurePermissions ?? [],
@@ -83,6 +85,7 @@ const setup = (options: SetupOptions = {}) => {
     updateWidget,
     saveCustomMaterials,
     updateWidgetConfigsAcrossBoards,
+    addToast,
     showConfirm,
   };
 };
@@ -301,6 +304,30 @@ describe('MaterialsSettings — teacher custom materials', () => {
     expect(
       transform({ selectedItems: ['pencil'], activeItems: [] })
     ).toBeNull();
+  });
+
+  it('surfaces an error toast (not an unhandled rejection) when removing a deleted material from other boards fails', async () => {
+    const user = userEvent.setup();
+    const { updateWidgetConfigsAcrossBoards, addToast, saveCustomMaterials } =
+      setup({ customMaterials: [GLUE] });
+    updateWidgetConfigsAcrossBoards.mockRejectedValueOnce(
+      new Error('network error')
+    );
+    render(<MaterialsSettings widget={widget} />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit Glue Sticks' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Delete Glue Sticks' })
+    );
+
+    // The material is already gone from the library regardless of what
+    // happens next — the toast is the only way the teacher learns other
+    // boards may still reference it.
+    expect(saveCustomMaterials).toHaveBeenCalledWith([]);
+    expect(addToast).toHaveBeenCalledWith(
+      expect.stringContaining('may still appear elsewhere'),
+      'error'
+    );
   });
 
   it('leaves the library alone when the delete is cancelled', async () => {

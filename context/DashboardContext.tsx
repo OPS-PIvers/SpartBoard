@@ -3916,6 +3916,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (ids: string[]) => {
       if (!user) return;
 
+      const previousDashboards = dashboards;
       const updatedDashboards: Dashboard[] = [];
       ids.forEach((id, index) => {
         const db = dashboards.find((d) => d.id === id);
@@ -3946,9 +3947,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         await saveDashboards(updatedDashboards);
       } catch (err) {
         console.error('Failed to save reordered dashboards:', err);
+        addToast('Failed to save the new board order', 'error');
+        // Revert — otherwise the teacher sees an order that was never persisted.
+        setDashboards(previousDashboards);
       }
     },
-    [user, dashboards, saveDashboards]
+    [user, dashboards, saveDashboards, addToast]
   );
 
   // `options.silent` suppresses the success + error toast surfaced by the

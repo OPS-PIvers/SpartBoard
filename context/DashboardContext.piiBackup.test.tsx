@@ -3,7 +3,7 @@ import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
-import { Dashboard, WidgetData } from '@/types';
+import { Dashboard, Toast, WidgetData } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors DashboardContext.immediate.test.tsx)
@@ -157,6 +157,7 @@ interface ContextSnapshot {
   activeDashboard: Dashboard | null;
   loading: boolean;
   reorderDashboards: (ids: string[]) => Promise<void>;
+  toasts: Toast[];
 }
 
 const TestConsumer: React.FC<{
@@ -169,6 +170,7 @@ const TestConsumer: React.FC<{
       activeDashboard: ctx.activeDashboard,
       loading: ctx.loading,
       reorderDashboards: ctx.reorderDashboards,
+      toasts: ctx.toasts,
     };
   });
   return null;
@@ -284,5 +286,41 @@ describe('DashboardContext plural saveDashboards PII backup', () => {
     const uploadOrder = uploadFileMock.mock.invocationCallOrder[0];
     const firestoreOrder = saveDashboardsMock.mock.invocationCallOrder[0];
     expect(uploadOrder).toBeLessThan(firestoreOrder);
+  });
+});
+
+describe('DashboardContext reorderDashboards rollback', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    exportDashboardMock.mockClear();
+    listFilesMock.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reverts the local order and toasts an error when the Firestore save fails', async () => {
+    const stateRef = setup();
+    const dash1 = makeDashboard('dash-1', []);
+    const dash2 = makeDashboard('dash-2', []);
+    await settleSnapshot(stateRef, [dash1, dash2]);
+    const orderBefore = stateRef.current?.dashboards.map((d) => d.id);
+    saveDashboardsMock.mockRejectedValueOnce(new Error('offline'));
+
+    await act(async () => {
+      await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
+    });
+
+    // Without a revert, the teacher would see an order that was never
+    // persisted — it would silently snap back only on the next reload.
+    expect(stateRef.current?.dashboards.map((d) => d.id)).toEqual(orderBefore);
+    const errorToast = stateRef.current?.toasts.find((t) => t.type === 'error');
+    expect(errorToast?.message).toContain('Failed to save');
   });
 });
