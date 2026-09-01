@@ -1,5 +1,5 @@
 /**
- * Tests for the two teacher-side LTI service callables:
+ * Tests for the teacher-side LTI service callables:
  *
  *   ltiResolveNamesForAssignmentV1 — NRPS name resolution. The security-critical
  *   invariant is the gate: names go ONLY to the teacher who owns the session.
@@ -11,7 +11,13 @@
  *   resource link is taken from the session's server-captured `ltiAttachment`
  *   (never the client) and each score is clamped to [0, maxPoints].
  *
- * Both are `kind`-aware (quiz_sessions vs video_activity_sessions).
+ *   ltiSignDeepLinkResponseV1 — signs a tool-signed LtiDeepLinkingResponse.
+ *   Gated on the caller being a signed-in teacher (Regression: this callable
+ *   was `invoker: 'public'` with NO `request.auth` check at all, unlike its
+ *   siblings above — any unauthenticated caller could mint a signed deep-link
+ *   response for an arbitrary Schoology return URL).
+ *
+ * The session-gated two are `kind`-aware (quiz_sessions vs video_activity_sessions).
  */
 
 /* eslint-disable @typescript-eslint/require-await -- mock async handlers mirror
@@ -88,6 +94,8 @@ vi.mock('./config', async (orig) => ({
   ...(await orig<typeof import('./config')>()),
   getLtiPlatformConfig: vi.fn().mockResolvedValue({
     clientId: 'client-1',
+    deploymentId: 'deployment-1',
+    issuer: 'https://schoology.schoology.com',
     tokenUrl: 'https://lms/token',
   }),
 }));
@@ -99,10 +107,18 @@ vi.mock('./ags', async (orig) => ({
   postScore: postScoreMock,
 }));
 
+// Real RSA signing is irrelevant to the auth-gate + payload-shaping tests
+// below — stub it so the fake secret value doesn't need to be a real PEM.
+const { signToolJwtMock } = vi.hoisted(() => ({
+  signToolJwtMock: vi.fn().mockResolvedValue('signed.jwt.value'),
+}));
+vi.mock('./toolKey', () => ({ signToolJwt: signToolJwtMock }));
+
 // Imported AFTER the mocks so the module picks them up.
 import {
   ltiResolveNamesForAssignmentV1,
   ltiPushGradesForAssignmentV1,
+  ltiSignDeepLinkResponseV1,
 } from './serviceEndpoints';
 import { ltiStudentUid } from './identity';
 import { nrpsNet } from './nrps';
@@ -124,6 +140,15 @@ const callPush = ltiPushGradesForAssignmentV1 as unknown as (req: {
   auth?: { uid: string; token: Record<string, unknown> };
   data: unknown;
 }) => Promise<PushResult>;
+
+interface SignResult {
+  jwt: string;
+  returnUrl: string;
+}
+const callSign = ltiSignDeepLinkResponseV1 as unknown as (req: {
+  auth?: { uid: string; token: Record<string, unknown> };
+  data: unknown;
+}) => Promise<SignResult>;
 
 const TEACHER = { uid: 'teacher-1', token: { email: 't@orono.k12.mn.us' } };
 
@@ -511,5 +536,62 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
       }),
       'invalid-argument'
     );
+  });
+});
+
+describe('ltiSignDeepLinkResponseV1 — security gate', () => {
+  const goodData = {
+    returnUrl: 'https://schoology.schoology.com/lti/deep_link_return',
+    kind: 'quiz',
+    quizCode: 'ABC123',
+    title: 'Fractions Quiz',
+  };
+
+  // Regression: this callable had NO `request.auth` check at all — any
+  // unauthenticated caller could reach signToolJwt and mint a tool-signed
+  // deep-link response for an arbitrary Schoology return URL. Before the fix
+  // this call resolved successfully instead of rejecting.
+  it('rejects an unauthenticated caller', async () => {
+    await expectCode(callSign({ data: goodData }), 'unauthenticated');
+    expect(signToolJwtMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a studentRole token', async () => {
+    await expectCode(
+      callSign({
+        auth: { uid: 'kid', token: { studentRole: true } },
+        data: goodData,
+      }),
+      'permission-denied'
+    );
+    expect(signToolJwtMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a token with no email (defense-in-depth teacher gate)', async () => {
+    await expectCode(
+      callSign({ auth: { uid: 'teacher-1', token: {} }, data: goodData }),
+      'permission-denied'
+    );
+    expect(signToolJwtMock).not.toHaveBeenCalled();
+  });
+
+  it('signs and returns a JWT for a properly authenticated teacher', async () => {
+    const res = await callSign({ auth: TEACHER, data: goodData });
+    expect(res).toEqual({
+      jwt: 'signed.jwt.value',
+      returnUrl: goodData.returnUrl,
+    });
+    expect(signToolJwtMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still rejects a non-Schoology return URL for an authenticated teacher', async () => {
+    await expectCode(
+      callSign({
+        auth: TEACHER,
+        data: { ...goodData, returnUrl: 'https://evil.example.com/return' },
+      }),
+      'invalid-argument'
+    );
+    expect(signToolJwtMock).not.toHaveBeenCalled();
   });
 });
