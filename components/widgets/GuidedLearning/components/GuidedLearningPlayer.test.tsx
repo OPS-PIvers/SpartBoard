@@ -931,6 +931,67 @@ describe('GuidedLearningPlayer', () => {
     vi.useRealTimers();
   });
 
+  it('holds the session progress bar at 100% once the final step completes', () => {
+    vi.useFakeTimers();
+
+    const set: GuidedLearningSet = {
+      id: 'set-guided-final',
+      title: 'Guided Final Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 10,
+          text: 'One',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          autoAdvanceDuration: 10,
+          text: 'Two',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Guided Final Test'));
+
+    const bar = screen.getByRole('progressbar', { name: /session progress/i });
+
+    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+    // First step's 10s timer completes and auto-advances into the second
+    // (final) step, resetting in-step progress for the new step.
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '50');
+
+    // Final step's timer expiring must not clamp progress back down —
+    // the bar should reach and hold 100% instead of dropping.
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '100');
+
+    // Holds at 100% rather than resetting on further ticks.
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '100');
+
+    vi.useRealTimers();
+  });
+
   it('renders video slides in a <video> element and skips them when preloading', () => {
     // Record every Image preload by spying on the prototype src setter.
     // Not forwarding to the real setter — jsdom would try (and fail) to

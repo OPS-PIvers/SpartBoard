@@ -308,6 +308,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
+    // Already on the final step — nothing to advance to. Bail out instead of
+    // resetting progress to 0, so a completed session's bar holds at 100%
+    // rather than dropping back down (auto-advance timer, Continue button,
+    // and ArrowRight can all reach this once the last step is done).
+    if (currentIdx >= steps.length - 1) return;
     // New step starts with a fresh in-step timer/progress (dot-jump semantics).
     progressRef.current = 0;
     setProgress(0);
@@ -316,7 +321,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       setActiveStepId(steps[next]?.id ?? null);
       return next;
     });
-  }, [steps]);
+  }, [steps, currentIdx]);
 
   const goPrev = useCallback(() => {
     if (steps.length === 0) return;
@@ -931,12 +936,19 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             })}
           </div>
 
-          {/* Reset view — v2 sets only, shown while zoomed in */}
-          {schemaV2 && zoomScale > 1 && (
+          {/* Reset view — v2 sets only, shown only while a non-identity zoom
+              is actually rendered. Gated on the rendered transform (not raw
+              zoomScale) because zoomScale can stay >1 after a mode switch
+              (e.g. structured -> explore) even though renderedTransform
+              resolves to identity once there's no target step to focus —
+              checking the raw value would leave a stray button over an
+              unzoomed view. z-40 keeps it above all interaction overlays
+              (Banner included), which top out at z-30. */}
+          {schemaV2 && renderedTransform.scale > 1 && (
             <button
               onClick={() => setZoomScale(1)}
               aria-label="Reset view"
-              className="absolute left-1/2 -translate-x-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+              className="absolute left-1/2 -translate-x-1/2 z-40 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
               style={{
                 top: 'clamp(8px, 2cqmin, 12px)',
                 width: 'clamp(36px, 7cqmin, 56px)',
