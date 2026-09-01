@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Plus,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -30,6 +31,11 @@ import { Card } from '@/components/common/Card';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDashboard } from '@/context/useDashboard';
+import {
+  resolveRotationDayNumber,
+  formatRotationDayLabel,
+  countPreStartSchoolDays,
+} from '@/components/widgets/SpecialistSchedule/utils';
 
 interface SpecialistScheduleConfigurationModalProps {
   isOpen: boolean;
@@ -270,32 +276,39 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
   // Rotation Preview
   const currentPreviewDay = useMemo(() => {
-    const todayStr = toDateStr(new Date());
-
-    // Check blocks first (Intermediate)
-    if (currentBuildingConfig.blocks?.length) {
-      const activeBlock = currentBuildingConfig.blocks.find(
-        (b) => todayStr >= b.startDate && todayStr <= b.endDate
-      );
-      if (activeBlock) {
-        const customName =
-          currentBuildingConfig.customDayNames?.[activeBlock.dayNumber];
-        return (
-          customName ??
-          `${currentBuildingConfig.dayLabel} ${activeBlock.dayNumber}`
-        );
-      }
+    if (
+      !currentBuildingConfig.blocks?.length &&
+      !currentBuildingConfig.schoolDays.length
+    ) {
+      return null;
     }
-
-    if (!currentBuildingConfig.schoolDays.length) return null;
-    const sorted = [...currentBuildingConfig.schoolDays].sort();
-    const index = sorted.indexOf(todayStr);
-    if (index === -1) return 'No School';
-
-    const dayNumber = (index % currentBuildingConfig.cycleLength) + 1;
-    const customName = currentBuildingConfig.customDayNames?.[dayNumber];
-    return customName ?? `${currentBuildingConfig.dayLabel} ${dayNumber}`;
+    const dayNumber = resolveRotationDayNumber(
+      currentBuildingConfig,
+      toDateStr(new Date())
+    );
+    if (dayNumber === null) return 'No School';
+    return formatRotationDayLabel(
+      dayNumber,
+      currentBuildingConfig.customDayNames,
+      currentBuildingConfig.dayLabel
+    );
   }, [currentBuildingConfig]);
+
+  // Marked days before the start date are ignored — surface them so a stray click is fixable.
+  const preStartDayCount = countPreStartSchoolDays(
+    currentBuildingConfig.schoolDays,
+    currentBuildingConfig.startDate
+  );
+
+  const clearPreStartDays = () => {
+    const startDate = currentBuildingConfig.startDate;
+    if (!startDate) return;
+    updateBuilding({
+      schoolDays: currentBuildingConfig.schoolDays.filter(
+        (d) => d >= startDate
+      ),
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -466,7 +479,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         </span>
                         <input
                           type="date"
-                          value={currentBuildingConfig.startDate}
+                          value={currentBuildingConfig.startDate ?? ''}
                           onChange={(e) =>
                             updateBuilding({ startDate: e.target.value })
                           }
@@ -474,6 +487,30 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         />
                       </div>
                     )}
+
+                    {currentBuildingConfig.cycleLength === 6 &&
+                      preStartDayCount > 0 && (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                          <AlertTriangle
+                            className="w-4 h-4 text-amber-600 shrink-0 mt-0.5"
+                            aria-hidden="true"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <p className="text-xs text-amber-800 leading-snug">
+                              {preStartDayCount} marked school{' '}
+                              {preStartDayCount === 1 ? 'day' : 'days'} fall
+                              before the start date and are excluded from the
+                              rotation count.
+                            </p>
+                            <button
+                              onClick={clearPreStartDays}
+                              className="text-xxs font-black uppercase tracking-wider text-amber-700 hover:text-amber-900 underline"
+                            >
+                              Unmark them
+                            </button>
+                          </div>
+                        </div>
+                      )}
                   </div>
 
                   {/* Custom Day Names */}
