@@ -3,7 +3,9 @@
  *
  * The NRPS analogue of `useAssignmentPseudonymsMulti`. A Schoology student's
  * response doc is keyed by a `schoology-sub` pseudonym uid that lives in no
- * ClassLink roster, so the ClassLink resolver can't name them. Instead this
+ * ClassLink roster, so the ClassLink resolver can't name them. (A student whose
+ * section IS linked launches under their ClassLink uid instead — the ClassLink
+ * resolver names those, and this hook covers the rest.) Instead this
  * hook calls `ltiResolveNamesForAssignmentV1`, which fetches the session's
  * Schoology context roster over NRPS and returns `{ uid → name }` — resolved
  * ON READ, never stored. The result merges into the monitor's existing

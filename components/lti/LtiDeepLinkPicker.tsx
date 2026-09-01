@@ -1196,9 +1196,11 @@ const LtiDeepLinkFlow: React.FC = () => {
                 />
                 {assignTargeting.targetMode === 'students' && (
                   <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                    Per-student overrides reach students once this Schoology
-                    section is linked to its ClassLink class. Schedule windows
-                    apply to everyone either way.
+                    Per-student overrides reach students in a Schoology section
+                    that&apos;s linked to its ClassLink class. If this one
+                    isn&apos;t linked yet, link it from Classes in the
+                    SpartBoard sidebar. Schedule windows apply to everyone
+                    either way.
                   </p>
                 )}
               </div>

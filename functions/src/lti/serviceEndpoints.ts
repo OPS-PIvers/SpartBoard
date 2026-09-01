@@ -32,6 +32,7 @@ import {
 import { getAgsAccessToken, postScore } from './ags';
 import { fetchNrpsMembers } from './nrps';
 import { ltiStudentUid } from './identity';
+import { LTI_IDENTITY_BRIDGE_COLLECTION } from './classlinkBridge';
 import {
   QUIZ_SESSIONS_COLLECTION,
   VIDEO_ACTIVITY_SESSIONS_COLLECTION,
@@ -332,6 +333,34 @@ export const ltiPushGradesForAssignmentV1 = onCall(
   }
 );
 
+/**
+ * Add a second entry for every NRPS-resolved uid that has a sticky ClassLink
+ * bridge, keyed by the bridged uid. Best-effort and additive: a read failure
+ * leaves the sub-keyed entries untouched, so names degrade exactly as they did
+ * before the bridge existed rather than disappearing.
+ */
+async function aliasBridgedUids(
+  db: admin.firestore.Firestore,
+  names: Record<string, { givenName: string; familyName: string }>
+): Promise<void> {
+  const subUids = Object.keys(names);
+  if (subUids.length === 0) return;
+  try {
+    const refs = subUids.map((u) =>
+      db.doc(`${LTI_IDENTITY_BRIDGE_COLLECTION}/${u}`)
+    );
+    const snaps = await db.getAll(...refs);
+    snaps.forEach((snap, i) => {
+      const classlinkUid = snap.data()?.classlinkUid as unknown;
+      if (typeof classlinkUid === 'string' && classlinkUid) {
+        names[classlinkUid] = names[subUids[i]];
+      }
+    });
+  } catch (err) {
+    console.warn('[ltiResolveNames] bridged-uid alias lookup failed:', err);
+  }
+}
+
 // ── ltiResolveNamesForAssignmentV1 ──────────────────────────────────────────
 //
 // Teacher-side name resolution for Schoology students — the NRPS analogue of
@@ -466,7 +495,18 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
       );
     }
 
+    // Alias every name onto the student's BRIDGED uid too. A student whose
+    // section is linked to a ClassLink class launches under their ClassLink
+    // pseudonym (classlinkBridge.ts), so their response doc is NOT keyed by the
+    // sub-derived uid this map was built with — and the ClassLink name resolver
+    // can't reach them either, because a Schoology-created session's classIds
+    // hold `schoology:<contextId>`, not a real ClassLink class id. Without this
+    // alias every bridged student renders as "Student". The bridge docs hold
+    // only pseudonym-to-pseudonym mappings, so no PII is read here.
+    // Counted BEFORE aliasing: the alias adds a second key per bridged student,
+    // which would silently inflate the member count in the diagnostics below.
     const total = Object.keys(names).length;
+    await aliasBridgedUids(db, names);
     // Members present but ZERO names = the platform connected yet is WITHHOLDING
     // names (the NRPS name-release / privacy config — the one unknown this whole
     // feature depends on). Warn (not info) so it's greppable/alertable: the fix

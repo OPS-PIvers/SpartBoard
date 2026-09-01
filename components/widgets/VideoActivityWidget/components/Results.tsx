@@ -377,7 +377,9 @@ export const Results: React.FC<ResultsProps> = ({
   // matches the gradebook column exactly — mirroring the quiz path (which posts
   // against quizMaxPoints) and the Classroom VA push (which scales onto the
   // frozen attachment points). Students map to their Schoology grade by
-  // `r.studentUid` (the `schoology-sub` pseudonym the AGS line item is keyed on).
+  // `r.studentUid` — whichever pseudonym their launch minted (`schoology-sub`,
+  // or their ClassLink uid when the section is linked); the launch writes the
+  // grade-sync key under that same uid, so either resolves.
   const ltiAttachment = session?.ltiAttachment ?? null;
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment) return;

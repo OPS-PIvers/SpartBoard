@@ -82,11 +82,18 @@ vi.mock('firebase-admin', () => ({
       throw new Error(`unexpected collection ${name}`);
     },
     doc: (path: string) => ({
+      path,
       get: async () => ({
         exists: gradeLinks.has(path),
         data: () => gradeLinks.get(path),
       }),
     }),
+    // Backs the bridged-uid alias lookup; `docStore` doubles as its store.
+    getAll: async (...refs: { path: string }[]) =>
+      refs.map((r) => ({
+        exists: gradeLinks.has(r.path),
+        data: () => gradeLinks.get(r.path),
+      })),
   })),
 }));
 
@@ -248,6 +255,38 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     const uidB = ltiStudentUid('sub-B', 'test-hmac-secret');
     expect(res.names[uidA]).toEqual({ givenName: 'Ada', familyName: 'L' });
     expect(res.names[uidB]).toEqual({ givenName: 'Bob', familyName: 'H' });
+  });
+
+  it('also keys names on the BRIDGED uid so linked-section students are named', async () => {
+    // A student whose section is linked launches under their ClassLink uid, so
+    // their response doc is not keyed by the sub-derived uid NRPS yields. The
+    // resolver must emit both, or the monitor renders them as "Student".
+    contextDocs = [
+      {
+        id: 'ctx-1',
+        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+      },
+    ];
+    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
+      ok: true,
+      status: 200,
+      members: [{ user_id: 'sub-A', given_name: 'Ada', family_name: 'L' }],
+      nextUrl: null,
+      isRedirect: false,
+    });
+    const subUid = ltiStudentUid('sub-A', 'test-hmac-secret');
+    gradeLinks.set(`lti_identity_bridge/${subUid}`, {
+      classlinkUid: 'classlink-uid-A',
+    });
+
+    const res = await callResolve({ auth: TEACHER, data: { sessionId: 's1' } });
+
+    expect(res.names['classlink-uid-A']).toEqual({
+      givenName: 'Ada',
+      familyName: 'L',
+    });
+    // The sub-keyed entry stays: an unbridged relaunch still resolves.
+    expect(res.names[subUid]).toEqual({ givenName: 'Ada', familyName: 'L' });
   });
 
   it('throws `unavailable` when every context fetch fails (real NRPS outage, not empty)', async () => {
