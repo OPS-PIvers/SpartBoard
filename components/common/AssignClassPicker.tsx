@@ -50,10 +50,17 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
     onChange({ rosterIds: [] });
   };
 
-  const selectedCount = value.rosterIds.length;
   const totalCount = rosters.length;
   // Excludes loadError rosters (selectAll does too) so the button can reach 0 remaining.
   const selectableCount = rosters.filter((r) => !r.loadError).length;
+  // Intersected with the selectable set, not a raw length: rosterIds can hold ids
+  // that went unavailable or were deleted, which would inflate the tally past
+  // selectableCount and hide Select all while selectable classes sit unchecked.
+  const selectedCount = rosters.filter(
+    (r) => !r.loadError && value.rosterIds.includes(r.id)
+  ).length;
+  // Raw, so unavailable or dangling selections stay clearable.
+  const hasSelection = value.rosterIds.length > 0;
 
   return (
     <div
@@ -91,7 +98,7 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
       {totalCount > 0 && (
         <div className="flex items-center justify-between text-xxs text-slate-500">
           <span>
-            {selectedCount === 0
+            {!hasSelection
               ? 'None selected — students join with the code only.'
               : totalCount > selectableCount
                 ? `${selectedCount} of ${selectableCount} selected (${totalCount - selectableCount} unavailable).`
@@ -107,7 +114,7 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
                 Select all ({selectableCount})
               </button>
             )}
-            {selectedCount > 0 && (
+            {hasSelection && (
               <button
                 type="button"
                 onClick={clearAll}
