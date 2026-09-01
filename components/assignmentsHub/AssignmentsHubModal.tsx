@@ -8,12 +8,17 @@ import {
   Film,
   Compass,
   Blocks,
+  Search,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { AssignmentDetailPane } from './AssignmentDetailPane';
+import {
+  AssignmentFilterSelect,
+  type AssignmentFilterOption,
+} from './AssignmentFilterSelect';
 import {
   useUnifiedAssignments,
   type AssignmentKind,
@@ -88,26 +93,6 @@ function formatWindowSummary(
     close: fmt(closeAt as number),
   });
 }
-
-/** Chip-style filter toggle shared by the type/class/status filter rows. */
-const FilterChip: React.FC<{
-  isActive: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}> = ({ isActive, onClick, children }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-pressed={isActive}
-    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-      isActive
-        ? 'bg-brand-blue-primary text-white'
-        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-    }`}
-  >
-    {children}
-  </button>
-);
 
 const AssignmentRow: React.FC<{
   row: UnifiedAssignmentRow;
@@ -204,11 +189,13 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   const { rosters } = useDashboard();
   const { rows, loading } = useUnifiedAssignments(user?.uid, rosters);
 
-  const [kindFilter, setKindFilter] = useState<AssignmentKind | 'all'>('all');
-  const [classFilter, setClassFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<
-    UnifiedAssignmentStatus | 'all'
-  >('all');
+  const [search, setSearch] = useState('');
+  // Empty arrays mean "no filter" for the two multi-selects.
+  const [kindFilter, setKindFilter] = useState<AssignmentKind[]>([]);
+  const [classFilter, setClassFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<UnifiedAssignmentStatus[]>(
+    []
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -231,16 +218,101 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     [rows]
   );
 
+  // Drop selections whose option has disappeared (roster renamed, last quiz
+  // deleted) so a stale filter can't silently empty the list.
+  const activeClassFilter = useMemo(
+    () => classFilter.filter((name) => classNames.includes(name)),
+    [classFilter, classNames]
+  );
+  const activeStatusFilter = useMemo(
+    () => statusFilter.filter((s) => s !== 'paused' || hasPausableKind),
+    [statusFilter, hasPausableKind]
+  );
+
+  const searchTerm = search.trim().toLowerCase();
+
   const filteredRows = useMemo(
     () =>
       rows.filter(
         (row) =>
-          (kindFilter === 'all' || row.kind === kindFilter) &&
-          (classFilter === 'all' || row.className === classFilter) &&
-          (statusFilter === 'all' || row.status === statusFilter)
+          (kindFilter.length === 0 || kindFilter.includes(row.kind)) &&
+          (activeClassFilter.length === 0 ||
+            activeClassFilter.includes(row.className)) &&
+          (activeStatusFilter.length === 0 ||
+            activeStatusFilter.includes(row.status)) &&
+          (searchTerm === '' ||
+            row.title.toLowerCase().includes(searchTerm) ||
+            row.className.toLowerCase().includes(searchTerm))
       ),
-    [rows, kindFilter, classFilter, statusFilter]
+    [rows, kindFilter, activeClassFilter, activeStatusFilter, searchTerm]
   );
+
+  const kindOptions: AssignmentFilterOption[] = KIND_ORDER.map((kind) => ({
+    value: kind,
+    label: t(KIND_META[kind].labelKey, {
+      defaultValue: KIND_META[kind].fallback,
+    }),
+  }));
+
+  const classOptions: AssignmentFilterOption[] = classNames.map((name) => ({
+    value: name,
+    label: name,
+  }));
+
+  const statusOptions: AssignmentFilterOption[] = (
+    [
+      ['active', 'assignmentsHub.statusActive', 'Active'],
+      ['paused', 'assignmentsHub.statusPaused', 'Paused'],
+      ['inactive', 'assignmentsHub.statusInactive', 'Inactive'],
+    ] as const
+  )
+    .filter(([value]) => value !== 'paused' || hasPausableKind)
+    .map(([value, key, fallback]) => ({
+      value,
+      label: t(key, { defaultValue: fallback }),
+    }));
+
+  /** Trigger text: the sole selection's label, or an "N selected" roll-up. */
+  const summarize = (
+    selected: string[],
+    options: AssignmentFilterOption[],
+    prefixKey: string,
+    prefixFallback: string,
+    allLabel: string
+  ): string => {
+    if (selected.length === 0) return allLabel;
+    const value =
+      selected.length === 1
+        ? (options.find((o) => o.value === selected[0])?.label ?? selected[0])
+        : t('assignmentsHub.filterSelectedCount', {
+            defaultValue: '{{count}} selected',
+            count: selected.length,
+          });
+    return t(prefixKey, { defaultValue: prefixFallback, value });
+  };
+
+  const allTypesLabel = t('assignmentsHub.filterAllTypes', {
+    defaultValue: 'All types',
+  });
+  const allClassesLabel = t('assignmentsHub.filterAllClasses', {
+    defaultValue: 'All classes',
+  });
+  const anyStatusLabel = t('assignmentsHub.filterAllStatuses', {
+    defaultValue: 'Any status',
+  });
+
+  const hasActiveFilter =
+    searchTerm !== '' ||
+    kindFilter.length > 0 ||
+    activeClassFilter.length > 0 ||
+    activeStatusFilter.length > 0;
+
+  const clearFilters = () => {
+    setSearch('');
+    setKindFilter([]);
+    setClassFilter([]);
+    setStatusFilter([]);
+  };
 
   const selectedRow =
     filteredRows.find((r) => r.id === selectedId) ??
@@ -286,87 +358,107 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
 
         <div className="flex-1 flex overflow-hidden">
           {/* Left: filters + list */}
-          <div className="w-full md:w-[380px] shrink-0 border-r border-slate-200 flex flex-col overflow-hidden">
-            <div className="p-3 border-b border-slate-100 flex flex-col gap-2">
-              <div className="flex flex-wrap gap-1.5">
-                <FilterChip
-                  isActive={kindFilter === 'all'}
-                  onClick={() => setKindFilter('all')}
-                >
-                  {t('assignmentsHub.filterAll', { defaultValue: 'All' })}
-                </FilterChip>
-                {KIND_ORDER.map((kind) => (
-                  <FilterChip
-                    key={kind}
-                    isActive={kindFilter === kind}
-                    onClick={() => setKindFilter(kind)}
-                  >
-                    {t(KIND_META[kind].labelKey, {
-                      defaultValue: KIND_META[kind].fallback,
-                    })}
-                  </FilterChip>
-                ))}
+          {/* No overflow-hidden here — the filter dropdowns overlay the list. */}
+          <div className="w-full md:w-[380px] shrink-0 border-r border-slate-200 flex flex-col min-h-0">
+            <div className="relative z-10 p-3 border-b border-slate-100 flex flex-col gap-2">
+              <div className="relative">
+                <Search
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  // Escape clears the box instead of bubbling to the hub's
+                  // document handler and closing the whole modal.
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Escape' || search === '') return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSearch('');
+                  }}
+                  aria-label={t('assignmentsHub.searchLabel', {
+                    defaultValue: 'Search assignments',
+                  })}
+                  placeholder={t('assignmentsHub.searchPlaceholder', {
+                    defaultValue: 'Search assignments…',
+                  })}
+                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary/40 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/20"
+                />
               </div>
-              {classNames.length > 1 && (
-                <div className="flex flex-wrap gap-1.5">
-                  <FilterChip
-                    isActive={classFilter === 'all'}
-                    onClick={() => setClassFilter('all')}
-                  >
-                    {t('assignmentsHub.filterAllClasses', {
-                      defaultValue: 'All classes',
-                    })}
-                  </FilterChip>
-                  {classNames.map((name) => (
-                    <FilterChip
-                      key={name}
-                      isActive={classFilter === name}
-                      onClick={() => setClassFilter(name)}
-                    >
-                      {name}
-                    </FilterChip>
-                  ))}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1.5">
-                <FilterChip
-                  isActive={statusFilter === 'all'}
-                  onClick={() => setStatusFilter('all')}
-                >
-                  {t('assignmentsHub.filterAllStatuses', {
-                    defaultValue: 'Any status',
+              <div className="grid grid-cols-2 gap-2">
+                <AssignmentFilterSelect
+                  label={t('assignmentsHub.filterByType', {
+                    defaultValue: 'Filter by type',
                   })}
-                </FilterChip>
-                <FilterChip
-                  isActive={statusFilter === 'active'}
-                  onClick={() => setStatusFilter('active')}
-                >
-                  {t('assignmentsHub.statusActive', {
-                    defaultValue: 'Active',
+                  summary={summarize(
+                    kindFilter,
+                    kindOptions,
+                    'assignmentsHub.filterTypeSummary',
+                    'Type: {{value}}',
+                    allTypesLabel
+                  )}
+                  options={kindOptions}
+                  selected={kindFilter}
+                  onChange={(next) => setKindFilter(next as AssignmentKind[])}
+                  allLabel={allTypesLabel}
+                  multiple
+                />
+                <AssignmentFilterSelect
+                  label={t('assignmentsHub.filterByStatus', {
+                    defaultValue: 'Filter by status',
                   })}
-                </FilterChip>
-                {hasPausableKind && (
-                  <FilterChip
-                    isActive={statusFilter === 'paused'}
-                    onClick={() => setStatusFilter('paused')}
-                  >
-                    {t('assignmentsHub.statusPaused', {
-                      defaultValue: 'Paused',
-                    })}
-                  </FilterChip>
+                  summary={summarize(
+                    activeStatusFilter,
+                    statusOptions,
+                    'assignmentsHub.filterStatusSummary',
+                    'Status: {{value}}',
+                    anyStatusLabel
+                  )}
+                  options={statusOptions}
+                  selected={activeStatusFilter}
+                  onChange={(next) =>
+                    setStatusFilter(next as UnifiedAssignmentStatus[])
+                  }
+                  allLabel={anyStatusLabel}
+                />
+                {classNames.length > 1 && (
+                  <div className="col-span-2">
+                    <AssignmentFilterSelect
+                      label={t('assignmentsHub.filterByClass', {
+                        defaultValue: 'Filter by class',
+                      })}
+                      summary={summarize(
+                        activeClassFilter,
+                        classOptions,
+                        'assignmentsHub.filterClassSummary',
+                        'Class: {{value}}',
+                        allClassesLabel
+                      )}
+                      options={classOptions}
+                      selected={activeClassFilter}
+                      onChange={setClassFilter}
+                      allLabel={allClassesLabel}
+                      multiple
+                    />
+                  </div>
                 )}
-                <FilterChip
-                  isActive={statusFilter === 'inactive'}
-                  onClick={() => setStatusFilter('inactive')}
-                >
-                  {t('assignmentsHub.statusInactive', {
-                    defaultValue: 'Inactive',
-                  })}
-                </FilterChip>
               </div>
+              {hasActiveFilter && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="self-start text-xs font-semibold text-slate-500 hover:text-brand-blue-primary transition-colors"
+                >
+                  {t('assignmentsHub.filterClear', {
+                    defaultValue: 'Clear filters',
+                  })}
+                </button>
+              )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2">
+            <div className="flex-1 min-h-0 overflow-y-auto p-2">
               {loading ? (
                 <div
                   className="space-y-2 p-1"
