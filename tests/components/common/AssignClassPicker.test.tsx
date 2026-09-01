@@ -60,4 +60,26 @@ describe('AssignClassPicker', () => {
       screen.queryByRole('button', { name: /Select all/ })
     ).not.toBeInTheDocument();
   });
+
+  it('shows the "N of M selected" status against the selectable count, not the raw total', () => {
+    const rosters: ClassRoster[] = [
+      makeRoster('r1', 'Period 1'),
+      makeRoster('r2', 'Period 2', 'Failed to load students'),
+    ];
+
+    // r1 (the only selectable roster) is already selected.
+    render(
+      <AssignClassPicker
+        rosters={rosters}
+        value={{ rosterIds: ['r1'] }}
+        onChange={vi.fn()}
+      />
+    );
+
+    // Against the raw total this would misleadingly read "1 of 2 selected"
+    // even though every selectable roster is already checked.
+    expect(
+      screen.getByText('1 of 1 selected (1 unavailable).')
+    ).toBeInTheDocument();
+  });
 });

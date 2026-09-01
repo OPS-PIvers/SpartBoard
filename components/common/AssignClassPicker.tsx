@@ -93,7 +93,9 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
           <span>
             {selectedCount === 0
               ? 'None selected — students join with the code only.'
-              : `${selectedCount} of ${totalCount} selected.`}
+              : totalCount > selectableCount
+                ? `${selectedCount} of ${selectableCount} selected (${totalCount - selectableCount} unavailable).`
+                : `${selectedCount} of ${selectableCount} selected.`}
           </span>
           <div className="flex items-center gap-2">
             {selectedCount < selectableCount && (
