@@ -58,6 +58,7 @@ import {
   QuizData,
   StudentTargetRef,
   SyncedQuizGroup,
+  QuizBehaviorSettings,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -91,6 +92,8 @@ import {
   BulkActionBar,
   buildDuplicateAction,
   AssignTargetingSection,
+  QuizBehaviorSettingsPanel,
+  CollapsibleSection,
   EMPTY_ASSIGN_TARGETING_VALUE,
   toOverrideEditorQuestions,
   type AssignTargetingValue,
@@ -146,10 +149,9 @@ export interface PlcOptions {
 /* ─── Assign-modal options shape (internal) ───────────────────────────────── */
 
 /**
- * Slimmed assign-modal options shape (Task 9).
- * Behavior settings (mode, toggles, gamification, attemptLimit) are now
- * on the quiz itself and sourced via `getQuizBehavior(meta)` at confirm time.
- * This shape only carries the targeting / PLC state that varies per-assign.
+ * Slimmed assign-modal options shape. Behavior settings live in separate
+ * `assignBehavior` state (seeded from the quiz, editable per-assignment);
+ * this shape only carries the targeting / PLC state that varies per-assign.
  */
 interface QuizAssignOptions {
   plcMode: boolean;
@@ -231,15 +233,13 @@ interface QuizManagerProps {
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /**
-   * Slimmed assign callback (Task 9). Behavior settings (mode, toggles,
-   * gamification, attemptLimit) are now sourced from `getQuizBehavior(quiz)`
-   * inside the Widget handler — they are NOT passed here any more.
-   *
-   * Args: quiz meta, PLC options, selected roster IDs, optional due-date
-   * (epoch ms) or null.
+   * Assign callback. `behavior` is the per-assignment behavior snapshot —
+   * seeded from the quiz's saved settings and possibly overridden by the
+   * teacher inside the assign modal; the quiz doc itself is not modified.
    */
   onAssign: (
     quiz: QuizMetadata,
+    behavior: QuizBehaviorSettings,
     plcOptions: PlcOptions,
     /** Selected roster IDs (unified picker output). */
     rosterIds: string[],
@@ -675,6 +675,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         return;
       }
       setAssignDestination(destination);
+      // Deep-copy: the shared DEFAULT_QUIZ_BEHAVIOR fallback is frozen.
+      setAssignBehavior(structuredClone(getQuizBehavior(quiz)));
       setAssignTarget(quiz);
     },
     [chooserTarget]
@@ -706,6 +708,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   // Due date for the current assign modal (epoch ms or null = no due date).
   const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
+  // Per-assignment behavior overrides, seeded from the quiz's saved settings
+  // when the modal opens. Edits here never write back to the quiz doc.
+  const [assignBehavior, setAssignBehavior] =
+    useState<QuizBehaviorSettings | null>(null);
   // M17 individual-assignment targeting state (spec §5 B3). Default
   // 'class' mode renders none of B1/B2 — see `AssignTargetingSection`.
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
@@ -1438,16 +1444,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
+    const behavior =
+      assignBehavior ?? structuredClone(getQuizBehavior(assignTarget));
     // M17 C3 F5 — per-student overrides are only honored in self-paced mode
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
     // accommodations that would never take effect.
     if (
       assignTargeting.targetMode === 'students' &&
-      getQuizBehavior(assignTarget).sessionMode !== 'student'
+      behavior.sessionMode !== 'student'
     ) {
       setTargetingPacingError(
-        'Individual student targeting requires Self-paced mode. Open the quiz’s Settings and switch pacing to Self-paced, or assign to the whole class.'
+        'Individual student targeting requires Self-paced mode. Switch Session Settings below to Self-paced, or assign to the whole class.'
       );
       return;
     }
@@ -1483,10 +1491,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       plcSheetUrl: assignOptions.plcSheetUrl || undefined,
       plcId: effectivePlcId || undefined,
     };
-    // Behavior (sessionMode, sessionOptions, attemptLimit) is now sourced
-    // from the quiz itself in the Widget handler via getQuizBehavior(meta).
     onAssign(
       assignTarget,
+      behavior,
       plcOptions,
       validRosterIds,
       assignDueAt,
@@ -1496,6 +1503,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     );
     setAssignTarget(null);
     setAssignDueAt(null);
+    setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setTargetingPacingError(null);
     setAssignQuizData(null);
@@ -1927,6 +1935,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClose={() => {
             setAssignTarget(null);
             setAssignDueAt(null);
+            setAssignBehavior(null);
             setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
             setTargetingPacingError(null);
             setAssignQuizData(null);
@@ -1940,26 +1949,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onOptionsChange={setAssignOptions}
           extraSlot={
             <>
-              <AssignBehaviorSummary
-                meta={assignTarget}
-                dueAt={assignDueAt}
-                onDueAtChange={setAssignDueAt}
+              {/* Who — classes, then optional per-student targeting */}
+              <AssignClassPicker
                 rosters={rosters}
-                options={assignOptions}
-                onChange={setAssignOptions}
-                onEditInQuiz={() => {
-                  // Close the assign modal and open the editor.
-                  // The editor defaults to the Questions tab; the teacher
-                  // can switch to Settings from there. (Task 9 — initialTab
-                  // 'settings' wiring is a follow-up for Task 12.)
-                  setAssignTarget(null);
-                  setAssignDueAt(null);
-                  setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
-                  setTargetingPacingError(null);
-                  setAssignQuizData(null);
-                  setAssignDestination('spartboard');
-                  onEdit(assignTarget);
-                }}
+                value={assignOptions.picker}
+                onChange={(picker) =>
+                  setAssignOptions({ ...assignOptions, picker })
+                }
               />
               <AssignTargetingSection
                 rosters={rosters}
@@ -1982,6 +1978,36 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 >
                   {targetingPacingError}
                 </p>
+              )}
+
+              {/* When */}
+              <AssignDueDateField
+                dueAt={assignDueAt}
+                onDueAtChange={setAssignDueAt}
+              />
+
+              {/* How — per-assignment behavior, pre-filled from the quiz */}
+              {assignBehavior && (
+                <CollapsibleSection
+                  label="Session Settings"
+                  summary={
+                    <span data-testid="quiz-behavior-summary">
+                      {formatBehaviorSummary(assignBehavior)}
+                    </span>
+                  }
+                >
+                  <p className="text-xxs text-slate-400">
+                    Pre-filled from the quiz&rsquo;s saved settings. Changes
+                    apply to this assignment only.
+                  </p>
+                  <QuizBehaviorSettingsPanel
+                    value={assignBehavior}
+                    onChange={(next) => {
+                      setTargetingPacingError(null);
+                      setAssignBehavior(next);
+                    }}
+                  />
+                </CollapsibleSection>
               )}
             </>
           }
@@ -2552,36 +2578,12 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
 /* ─── Assign modal slot components ───────────────────────────────────────── */
 
 /**
- * AssignBehaviorSummary — slimmed extraSlot for the standalone Quiz assign
- * modal (Task 9).
- *
- * Renders:
- *   1. The class/period picker (AssignClassPicker).
- *   2. A due-date date input.
- *   3. A read-only behavior summary derived from `getQuizBehavior(meta)`,
- *      plus an "Edit in quiz" button. The button calls `onEditInQuiz` so
- *      the parent can open the editor on its Settings tab.
+ * AssignDueDateField — due-date input for the standalone Quiz assign modal.
  */
-const AssignBehaviorSummary: React.FC<{
-  meta: QuizMetadata;
+const AssignDueDateField: React.FC<{
   dueAt: number | null;
   onDueAtChange: (dueAt: number | null) => void;
-  rosters: ClassRoster[];
-  options: QuizAssignOptions;
-  onChange: (next: QuizAssignOptions) => void;
-  onEditInQuiz?: () => void;
-}> = ({
-  meta,
-  dueAt,
-  onDueAtChange,
-  rosters,
-  options,
-  onChange,
-  onEditInQuiz,
-}) => {
-  const behavior = getQuizBehavior(meta);
-  const summary = formatBehaviorSummary(behavior);
-
+}> = ({ dueAt, onDueAtChange }) => {
   // Use local-time helpers so the picker date matches the school's timezone (not UTC).
   const dateInputValue = splitDueAtToInputs(dueAt, true).date;
 
@@ -2595,53 +2597,22 @@ const AssignBehaviorSummary: React.FC<{
   };
 
   return (
-    <>
-      <AssignClassPicker
-        rosters={rosters}
-        value={options.picker}
-        onChange={(picker) => onChange({ ...options, picker })}
+    <div>
+      <label
+        htmlFor="assign-due-date-input"
+        className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
+      >
+        Due Date <span className="font-normal">(optional)</span>
+      </label>
+      <input
+        id="assign-due-date-input"
+        type="date"
+        data-testid="assign-due-date"
+        value={dateInputValue}
+        onChange={handleDateChange}
+        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
       />
-
-      {/* Due date */}
-      <div>
-        <label
-          htmlFor="assign-due-date-input"
-          className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-        >
-          Due Date <span className="font-normal">(optional)</span>
-        </label>
-        <input
-          id="assign-due-date-input"
-          type="date"
-          data-testid="assign-due-date"
-          value={dateInputValue}
-          onChange={handleDateChange}
-          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-        />
-      </div>
-
-      {/* Read-only behavior summary */}
-      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-            Behavior
-          </p>
-          <button
-            type="button"
-            onClick={onEditInQuiz}
-            className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
-          >
-            Edit in quiz
-          </button>
-        </div>
-        <p
-          data-testid="quiz-behavior-summary"
-          className="text-sm text-slate-600 leading-snug"
-        >
-          {summary}
-        </p>
-      </div>
-    </>
+    </div>
   );
 };
 
