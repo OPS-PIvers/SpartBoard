@@ -306,6 +306,76 @@ describe('useHoldAccelerate', () => {
     expect(onTick).not.toHaveBeenCalled();
   });
 
+  // Regression: OS key-repeat must not re-fire onTick while Enter/Space is held.
+  it('ignores OS key-repeat keydown events on Enter, firing only once per press', () => {
+    const onTick = vi.fn();
+    const { result } = renderHook(() => useHoldAccelerate(onTick));
+
+    const firstPress = {
+      key: 'Enter',
+      repeat: false,
+      preventDefault: vi.fn(),
+    } as unknown as React.KeyboardEvent;
+    const repeatPress = {
+      key: 'Enter',
+      repeat: true,
+      preventDefault: vi.fn(),
+    } as unknown as React.KeyboardEvent;
+
+    act(() => {
+      result.current.onKeyDown(firstPress);
+      // Simulates OS auto-repeat re-dispatching keydown while held.
+      result.current.onKeyDown(repeatPress);
+      result.current.onKeyDown(repeatPress);
+      result.current.onKeyDown(repeatPress);
+    });
+
+    expect(onTick).toHaveBeenCalledTimes(1);
+    expect(onTick).toHaveBeenCalledWith(1);
+  });
+
+  it('ignores OS key-repeat keydown events on Space, firing only once per press', () => {
+    const onTick = vi.fn();
+    const { result } = renderHook(() => useHoldAccelerate(onTick));
+
+    const firstPress = {
+      key: ' ',
+      repeat: false,
+      preventDefault: vi.fn(),
+    } as unknown as React.KeyboardEvent;
+    const repeatPress = {
+      key: ' ',
+      repeat: true,
+      preventDefault: vi.fn(),
+    } as unknown as React.KeyboardEvent;
+
+    act(() => {
+      result.current.onKeyDown(firstPress);
+      result.current.onKeyDown(repeatPress);
+      result.current.onKeyDown(repeatPress);
+    });
+
+    expect(onTick).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires again on a genuinely new (non-repeat) keydown after the key is released', () => {
+    const onTick = vi.fn();
+    const { result } = renderHook(() => useHoldAccelerate(onTick));
+
+    const press = {
+      key: 'Enter',
+      repeat: false,
+      preventDefault: vi.fn(),
+    } as unknown as React.KeyboardEvent;
+
+    act(() => {
+      result.current.onKeyDown(press);
+      result.current.onKeyDown(press);
+    });
+
+    expect(onTick).toHaveBeenCalledTimes(2);
+  });
+
   // ── ref-currency contract (regression for inline ref sync) ──────────────────
   //
   // This test verifies that after a rerender with a new onTick callback, the
