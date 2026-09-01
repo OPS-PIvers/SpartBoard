@@ -6,7 +6,7 @@
  * for the currently-selected hotspot.
  */
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Folder as FolderIcon, Inbox, Sparkles } from 'lucide-react';
 import {
   GuidedLearningMode,
@@ -28,7 +28,6 @@ import {
   GL_SET_SCHEMA_VERSION,
   SlideMeasurement,
   convertLegacySpotlightRadii,
-  isGuidedLearningSetV2,
   stepUsesSpotlight,
 } from '../utils/setMigration';
 import { calculateImageFootprint, toImageOffset } from '../utils/imageUtils';
@@ -144,19 +143,25 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
   return true;
 }
 
-/** Load an image URL's natural dimensions; null on failure. */
+/** Load an image URL's natural dimensions; null on failure or 10s timeout. */
 function loadNaturalImageSize(
   url: string
 ): Promise<{ width: number; height: number } | null> {
   return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), 10_000);
     const img = new Image();
-    img.onload = () =>
+    img.onload = () => {
+      clearTimeout(timer);
       resolve(
         img.naturalWidth > 0 && img.naturalHeight > 0
           ? { width: img.naturalWidth, height: img.naturalHeight }
           : null
       );
-    img.onerror = () => resolve(null);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(null);
+    };
     img.src = url;
   });
 }
@@ -210,9 +215,10 @@ export const GuidedLearningEditorModal: React.FC<
     () => (set ? set.imageUrls.map((_, i) => set.videoTrims?.[i] ?? null) : []),
     [set]
   );
-  const originalSteps = useMemo(
-    () => (set ? structuredClone(set.steps) : []),
-    [set]
+  // State (not memo): the legacy radius conversion rebases it so an
+  // untouched-but-converted set still reads as clean.
+  const [originalSteps, setOriginalSteps] = useState<GuidedLearningStep[]>(
+    () => (set ? structuredClone(set.steps) : [])
   );
 
   // Reset modal-local state when set prop identity changes (the editor hook
@@ -222,6 +228,7 @@ export const GuidedLearningEditorModal: React.FC<
     setPrevSet(set);
     setSaving(false);
     setShowAiGen(false);
+    setOriginalSteps(set ? structuredClone(set.steps) : []);
   }
 
   // The hook is called inside this component, so the modal already re-renders
@@ -274,69 +281,107 @@ export const GuidedLearningEditorModal: React.FC<
     originalSteps,
   ]);
 
-  // Per-slide footprints for the legacy radius migration; null when any
-  // spotlight step's slide can't be measured.
-  const gatherLegacyMeasurements = async (): Promise<Map<
-    number,
-    SlideMeasurement
-  > | null> => {
-    const measurements = new Map<number, SlideMeasurement>();
-    const needed = new Set(
-      editorState.steps.filter(stepUsesSpotlight).map((s) => s.imageIndex)
-    );
-    if (needed.size === 0) return measurements;
-    const canvas = editorState.canvasMeasurementsRef.current;
-    if (!canvas) return null;
-    for (const i of needed) {
-      const url = editorState.imageUrls[i];
-      if (!url) return null;
-      let dims = canvas.naturalDims.get(url) ?? null;
-      if (!dims && (editorState.imageKinds[i] ?? 'image') === 'image') {
-        dims = await loadNaturalImageSize(url);
-      }
-      if (!dims) return null;
-      const imgOffset = toImageOffset(
-        calculateImageFootprint(
-          dims.width,
-          dims.height,
+  // One-time v1→v2 radius conversion at editor load: convert every spotlight
+  // radius to image-relative as soon as measurements exist (retried on each
+  // canvas measurement), then flip spotlightRadiiV2 so the preview and save
+  // both use v2 semantics. Until then the preview renders legacy semantics,
+  // and an unmeasurable set stays legacy on save.
+  const {
+    steps: draftSteps,
+    setSteps,
+    imageUrls,
+    imageKinds,
+    canvasMeasurementsRef,
+    canvasMeasuredTick,
+    spotlightRadiiV2,
+    markSpotlightRadiiV2,
+  } = editorState;
+  useEffect(() => {
+    if (!isOpen || !set || spotlightRadiiV2) return;
+    let cancelled = false;
+    // Per-slide footprints; null when any spotlight step's slide is unmeasured.
+    const gather = async (): Promise<Map<number, SlideMeasurement> | null> => {
+      const measurements = new Map<number, SlideMeasurement>();
+      const needed = new Set(
+        [...draftSteps, ...originalSteps]
+          .filter(stepUsesSpotlight)
+          .map((s) => s.imageIndex)
+      );
+      if (needed.size === 0) return measurements;
+      const canvas = canvasMeasurementsRef.current;
+      if (!canvas) return null;
+      for (const i of needed) {
+        const url = imageUrls[i];
+        if (!url) return null;
+        let dims = canvas.naturalDims.get(url) ?? null;
+        if (!dims && (imageKinds[i] ?? 'image') === 'image') {
+          dims = await loadNaturalImageSize(url);
+        }
+        if (!dims) return null;
+        const imgOffset = toImageOffset(
+          calculateImageFootprint(
+            dims.width,
+            dims.height,
+            canvas.containerWidth,
+            canvas.containerHeight
+          ),
           canvas.containerWidth,
           canvas.containerHeight
-        ),
-        canvas.containerWidth,
-        canvas.containerHeight
+        );
+        if (!imgOffset) return null;
+        measurements.set(i, {
+          imgOffset,
+          containerWidth: canvas.containerWidth,
+          containerHeight: canvas.containerHeight,
+        });
+      }
+      return measurements;
+    };
+    void (async () => {
+      const measurements = await gather();
+      if (cancelled || !measurements) return;
+      const convertedDraft = convertLegacySpotlightRadii(
+        draftSteps,
+        measurements
       );
-      if (!imgOffset) return null;
-      measurements.set(i, {
-        imgOffset,
-        containerWidth: canvas.containerWidth,
-        containerHeight: canvas.containerHeight,
-      });
-    }
-    return measurements;
-  };
+      const convertedOriginal = convertLegacySpotlightRadii(
+        originalSteps,
+        measurements
+      );
+      if (!convertedDraft || !convertedOriginal) return;
+      setSteps(convertedDraft);
+      setOriginalSteps(convertedOriginal);
+      markSpotlightRadiiV2();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isOpen,
+    set,
+    spotlightRadiiV2,
+    canvasMeasuredTick,
+    draftSteps,
+    originalSteps,
+    imageUrls,
+    imageKinds,
+    canvasMeasurementsRef,
+    setSteps,
+    markSpotlightRadiiV2,
+  ]);
 
   const handleSave = async () => {
     if (!set) return;
     setSaving(true);
     try {
-      // Re-saving opts the set into v2 semantics (zoom persistence,
-      // image-relative spotlight); legacy radii are converted one-time so
-      // rendered sizes are preserved. If conversion isn't possible, the set
-      // stays on legacy semantics instead of silently reinterpreting radii.
-      let steps = editorState.steps;
-      let schemaVersion = set.schemaVersion;
-      if (isGuidedLearningSetV2(set)) {
-        schemaVersion = GL_SET_SCHEMA_VERSION;
-      } else {
-        const measurements = await gatherLegacyMeasurements();
-        const converted = measurements
-          ? convertLegacySpotlightRadii(steps, measurements)
-          : null;
-        if (converted) {
-          steps = converted;
-          schemaVersion = GL_SET_SCHEMA_VERSION;
-        }
-      }
+      // Radii were already converted (if possible) at editor load, so saving
+      // only stamps v2 when in-editor semantics are v2 (or no step reads a
+      // radius); otherwise the set stays legacy — matching the preview.
+      const steps = editorState.steps;
+      const schemaVersion =
+        editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
+          ? GL_SET_SCHEMA_VERSION
+          : set.schemaVersion;
       const now = Date.now();
       const builtSet: GuidedLearningSet = {
         id: set.id,
