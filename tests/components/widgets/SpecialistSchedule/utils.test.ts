@@ -5,6 +5,11 @@ import {
   resolveRotationDayNumber,
   countPreStartSchoolDays,
   formatRotationDayLabel,
+  resolveRotationMode,
+  clampCycleLength,
+  normalizeBlocks,
+  padBlocks,
+  trimBuildingBlocks,
 } from '@/components/widgets/SpecialistSchedule/utils';
 
 describe('parseTime', () => {
@@ -218,6 +223,48 @@ describe('resolveRotationDayNumber', () => {
     ).toBe(4);
   });
 
+  it('resolves any block count in blocks mode, not just 10', () => {
+    const blocks = Array.from({ length: 15 }, (_, i) => ({
+      dayNumber: i + 1,
+      startDate: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      endDate: `2026-09-${String(i + 1).padStart(2, '0')}`,
+    }));
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 15, rotationMode: 'blocks', schoolDays: [], blocks },
+        '2026-09-15'
+      )
+    ).toBe(15);
+  });
+
+  it('returns null in blocks mode when no block covers the date', () => {
+    expect(
+      resolveRotationDayNumber(
+        {
+          cycleLength: 15,
+          rotationMode: 'blocks',
+          schoolDays: SEPT,
+          blocks: [{ dayNumber: 1, startDate: '', endDate: '' }],
+        },
+        '2026-09-01'
+      )
+    ).toBeNull();
+  });
+
+  it('uses the school-day count in calendar mode even at cycle length 10', () => {
+    expect(
+      resolveRotationDayNumber(
+        {
+          cycleLength: 10,
+          rotationMode: 'calendar',
+          startDate: '2026-09-01',
+          schoolDays: SEPT,
+        },
+        '2026-09-02'
+      )
+    ).toBe(2);
+  });
+
   it('returns null for a non-positive cycle length', () => {
     expect(
       resolveRotationDayNumber(
@@ -255,5 +302,81 @@ describe('formatRotationDayLabel', () => {
 
   it('falls back to "Day" when no label is configured', () => {
     expect(formatRotationDayLabel(3, undefined, undefined)).toBe('Day 3');
+  });
+});
+
+describe('resolveRotationMode', () => {
+  it('treats a legacy 10-length config without a mode as blocks', () => {
+    expect(resolveRotationMode({ cycleLength: 10 })).toBe('blocks');
+  });
+
+  it('treats a legacy 6-length config without a mode as calendar', () => {
+    expect(resolveRotationMode({ cycleLength: 6 })).toBe('calendar');
+  });
+
+  it('honors an explicit mode over the legacy inference', () => {
+    expect(
+      resolveRotationMode({ cycleLength: 10, rotationMode: 'calendar' })
+    ).toBe('calendar');
+    expect(
+      resolveRotationMode({ cycleLength: 15, rotationMode: 'blocks' })
+    ).toBe('blocks');
+  });
+});
+
+describe('clampCycleLength', () => {
+  it('clamps into the allowed range and rounds', () => {
+    expect(clampCycleLength(0)).toBe(1);
+    expect(clampCycleLength(99)).toBe(30);
+    expect(clampCycleLength(14.6)).toBe(15);
+  });
+
+  it('falls back to 6 for NaN', () => {
+    expect(clampCycleLength(Number.NaN)).toBe(6);
+  });
+});
+
+describe('normalizeBlocks', () => {
+  it('pads a shorter list with empty blocks', () => {
+    const out = normalizeBlocks(
+      [{ dayNumber: 1, startDate: '2026-09-01', endDate: '2026-09-05' }],
+      3
+    );
+    expect(out).toEqual([
+      { dayNumber: 1, startDate: '2026-09-01', endDate: '2026-09-05' },
+      { dayNumber: 2, startDate: '', endDate: '' },
+      { dayNumber: 3, startDate: '', endDate: '' },
+    ]);
+  });
+
+  it('trims a longer list', () => {
+    expect(normalizeBlocks(normalizeBlocks(undefined, 10), 2)).toHaveLength(2);
+  });
+});
+
+describe('padBlocks', () => {
+  it('never drops populated blocks when the target length is smaller', () => {
+    const ten = normalizeBlocks(undefined, 10).map((b) => ({
+      ...b,
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+    }));
+    expect(padBlocks(ten, 1)).toEqual(ten);
+    expect(padBlocks(ten, 15)).toHaveLength(15);
+  });
+});
+
+describe('trimBuildingBlocks', () => {
+  it('trims blocks-mode buildings to cycleLength and leaves calendar buildings alone', () => {
+    const out = trimBuildingBlocks({
+      a: {
+        cycleLength: 2,
+        rotationMode: 'blocks' as const,
+        blocks: normalizeBlocks(undefined, 5),
+      },
+      b: { cycleLength: 6, blocks: normalizeBlocks(undefined, 3) },
+    });
+    expect(out.a.blocks).toHaveLength(2);
+    expect(out.b.blocks).toHaveLength(3);
   });
 });

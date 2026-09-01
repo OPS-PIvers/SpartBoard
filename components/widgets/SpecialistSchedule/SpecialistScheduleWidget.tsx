@@ -73,6 +73,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   const {
     cycleLength = 6,
+    rotationMode,
     startDate = '',
     schoolDays = [],
     dayLabel = 'Day',
@@ -106,7 +107,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   // Determine the current Day Number and Label
   const { currentDayNumber, currentDayLabel, isSchoolDay } = useMemo(() => {
     const num = resolveRotationDayNumber(
-      { cycleLength, startDate, schoolDays, blocks },
+      { cycleLength, rotationMode, startDate, schoolDays, blocks },
       todayStr
     );
 
@@ -128,6 +129,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     startDate,
     todayStr,
     cycleLength,
+    rotationMode,
     blocks,
     customDayNames,
     dayLabel,

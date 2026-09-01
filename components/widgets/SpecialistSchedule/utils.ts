@@ -46,10 +46,62 @@ export interface RotationBlock {
 
 export interface RotationConfigInput {
   cycleLength: number;
+  rotationMode?: 'calendar' | 'blocks';
   startDate?: string;
   schoolDays?: string[];
   blocks?: RotationBlock[];
 }
+
+export const MIN_CYCLE_LENGTH = 1;
+export const MAX_CYCLE_LENGTH = 30;
+
+/** Clamps an admin-entered cycle length to a sane integer range. */
+export const clampCycleLength = (value: number): number => {
+  if (!Number.isFinite(value)) return 6;
+  return Math.min(
+    MAX_CYCLE_LENGTH,
+    Math.max(MIN_CYCLE_LENGTH, Math.round(value))
+  );
+};
+
+/** Resolves the rotation mode; legacy docs without one used blocks only at cycleLength 10. */
+export const resolveRotationMode = (
+  config: Pick<RotationConfigInput, 'cycleLength' | 'rotationMode'>
+): 'calendar' | 'blocks' =>
+  config.rotationMode ?? (config.cycleLength === 10 ? 'blocks' : 'calendar');
+
+/** Pads blocks up to `length` without dropping any existing entries (safe mid-edit). */
+export const padBlocks = (
+  blocks: RotationBlock[] | undefined,
+  length: number
+): RotationBlock[] =>
+  normalizeBlocks(blocks, Math.max(length, blocks?.length ?? 0));
+
+/** Trims every blocks-mode building to its cycleLength; the modal calls this only on save. */
+export const trimBuildingBlocks = <
+  T extends RotationConfigInput & { cycleLength: number },
+>(
+  buildingDefaults: Record<string, T>
+): Record<string, T> =>
+  Object.fromEntries(
+    Object.entries(buildingDefaults).map(([id, b]) => [
+      id,
+      resolveRotationMode(b) === 'blocks'
+        ? { ...b, blocks: normalizeBlocks(b.blocks, b.cycleLength) }
+        : b,
+    ])
+  ) as Record<string, T>;
+
+/** Returns a blocks array padded/trimmed to exactly `length` entries. */
+export const normalizeBlocks = (
+  blocks: RotationBlock[] | undefined,
+  length: number
+): RotationBlock[] =>
+  Array.from({ length }, (_, i) => ({
+    dayNumber: i + 1,
+    startDate: blocks?.[i]?.startDate ?? '',
+    endDate: blocks?.[i]?.endDate ?? '',
+  }));
 
 /** School days that actually drive the rotation: deduped, on/after startDate, sorted. */
 export const rotationSchoolDays = (
@@ -75,7 +127,7 @@ export const countPreStartSchoolDays = (
 
 /**
  * Resolves the rotation day number for a date. Returns null when the date is
- * not a school day. 10-block buildings use explicit date ranges; 6-day
+ * not a school day. Block-mode buildings use explicit date ranges; calendar-mode
  * buildings count marked school days from startDate forward.
  */
 export const resolveRotationDayNumber = (
@@ -84,11 +136,15 @@ export const resolveRotationDayNumber = (
 ): number | null => {
   const { cycleLength, startDate, schoolDays, blocks } = config;
 
-  if (blocks && blocks.length > 0) {
-    const activeBlock = blocks.find(
-      (b) => dateStr >= b.startDate && dateStr <= b.endDate
+  if (resolveRotationMode(config) === 'blocks') {
+    const activeBlock = (blocks ?? []).find(
+      (b) =>
+        b.startDate !== '' &&
+        b.endDate !== '' &&
+        dateStr >= b.startDate &&
+        dateStr <= b.endDate
     );
-    if (activeBlock) return activeBlock.dayNumber;
+    return activeBlock ? activeBlock.dayNumber : null;
   }
 
   if (!Number.isFinite(cycleLength) || cycleLength < 1) return null;
