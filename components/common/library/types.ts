@@ -542,6 +542,12 @@ export interface ImportAdapter<TData> {
   widgetLabel: string;
   supportedSources: ImportSourceKind[];
   /**
+   * When true (and `'json'` is supported), the wizard also renders a
+   * paste-JSON textarea on the source step alongside file upload. Optional
+   * and additive — existing adapters are unaffected.
+   */
+  supportsJsonPaste?: boolean;
+  /**
    * Optional Google Picker entry point for the `'sheet'` source. When present
    * (and `'sheet'` is supported), the wizard renders a "Choose Google Sheet
    * from Drive" button INSTEAD of a paste-URL field: this resolves with the

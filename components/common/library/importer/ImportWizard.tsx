@@ -89,6 +89,7 @@ export function ImportWizard<TData>({
 }: ImportWizardProps<TData>): React.ReactElement | null {
   const [step, setStep] = useState<Step>('source');
   const [sheetUrl, setSheetUrl] = useState('');
+  const [pasteText, setPasteText] = useState('');
   const [parsed, setParsed] = useState<TData | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [title, setTitle] = useState(defaultTitle ?? '');
@@ -122,6 +123,7 @@ export function ImportWizard<TData>({
     if (isOpen) {
       setStep('source');
       setSheetUrl('');
+      setPasteText('');
       setParsed(null);
       setWarnings([]);
       setTitle(defaultTitle ?? '');
@@ -146,6 +148,7 @@ export function ImportWizard<TData>({
   const supportsFile = adapter.supportedSources.includes('file');
   const supportsAnyUpload =
     supportsCsv || supportsJson || supportsHtml || supportsFile;
+  const supportsJsonPaste = supportsJson && adapter.supportsJsonPaste === true;
 
   const runParse = async (payload: ImportSourcePayload): Promise<void> => {
     const session = sessionRef.current;
@@ -340,6 +343,12 @@ export function ImportWizard<TData>({
     }
   };
 
+  // Ignore close attempts (Escape, backdrop click, X) while a save is in flight.
+  const handleClose = (): void => {
+    if (saving) return;
+    onClose();
+  };
+
   const stepIndicator = (
     <ol
       aria-label="Import progress"
@@ -392,8 +401,9 @@ export function ImportWizard<TData>({
       </div>
       <button
         type="button"
-        onClick={onClose}
-        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"
+        onClick={handleClose}
+        disabled={saving}
+        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         aria-label="Close import wizard"
       >
         <X size={20} />
@@ -570,6 +580,32 @@ export function ImportWizard<TData>({
         </div>
       )}
 
+      {supportsJsonPaste && (
+        <div className="space-y-2">
+          <label
+            htmlFor="import-wizard-paste-json"
+            className="block text-xs font-black uppercase tracking-widest text-slate-500"
+          >
+            Or paste JSON
+          </label>
+          <textarea
+            id="import-wizard-paste-json"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder='{ "title": "…", "imageUrls": […], "steps": […] }'
+            className="w-full h-24 px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-mono text-xs placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors resize-none"
+          />
+          <button
+            type="button"
+            onClick={() => void runParse({ kind: 'json', text: pasteText })}
+            disabled={loading || !pasteText.trim()}
+            className="w-full py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors shadow-sm active:scale-95"
+          >
+            Import pasted JSON
+          </button>
+        </div>
+      )}
+
       {loading && (
         <div className="flex items-center justify-center gap-2 py-2 text-brand-blue-primary font-bold text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -676,7 +712,7 @@ export function ImportWizard<TData>({
       {step === 'source' ? (
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
         >
           Cancel
@@ -689,7 +725,8 @@ export function ImportWizard<TData>({
             setValidationErrors([]);
             setStep(step === 'confirm' ? 'preview' : 'source');
           }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+          disabled={saving}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
@@ -741,7 +778,7 @@ export function ImportWizard<TData>({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       customHeader={customHeader}
       footer={footer}
       footerClassName="shrink-0 border-t border-slate-200 rounded-b-2xl"

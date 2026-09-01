@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateImageFootprint,
+  computePanZoomTranslate,
+  computeZoomExtentRect,
   toContainerCoords,
+  toContainerSpotlightRadiusPct,
   toImageOffset,
+  toImageSpotlightRadiusPct,
 } from './imageUtils';
 
 describe('imageUtils', () => {
@@ -38,5 +42,100 @@ describe('imageUtils', () => {
       xPct: 30,
       yPct: 80,
     });
+  });
+
+  it('returns null from toContainerCoords when the footprint is unmeasured', () => {
+    expect(toContainerCoords(10, 80, null)).toBeNull();
+  });
+
+  it('converts an image-relative spotlight radius to container-relative', () => {
+    // Square image in a 400x200 container: footprint 200x200, scaleX 0.5.
+    const offset = toImageOffset(
+      calculateImageFootprint(1000, 1000, 400, 200),
+      400,
+      200
+    );
+    // Image min dim 200 == container min dim 200 → unchanged.
+    expect(toContainerSpotlightRadiusPct(25, offset, 400, 200)).toBe(25);
+
+    // Wide image letterboxed in a tall container: footprint 300x168.75.
+    const wide = toImageOffset(
+      calculateImageFootprint(1600, 900, 300, 400),
+      300,
+      400
+    );
+    // Image min dim 168.75, container min dim 300 → radius shrinks.
+    expect(toContainerSpotlightRadiusPct(20, wide, 300, 400)).toBeCloseTo(
+      (20 * 168.75) / 300
+    );
+  });
+
+  it('inverts container-relative radii back to image-relative', () => {
+    const wide = toImageOffset(
+      calculateImageFootprint(1600, 900, 300, 400),
+      300,
+      400
+    );
+    // Image min dim 168.75, container min dim 300 → radius grows.
+    expect(toImageSpotlightRadiusPct(20, wide, 300, 400)).toBeCloseTo(
+      (20 * 300) / 168.75
+    );
+    // Round-trip with toContainerSpotlightRadiusPct is identity.
+    expect(
+      toContainerSpotlightRadiusPct(
+        toImageSpotlightRadiusPct(20, wide, 300, 400),
+        wide,
+        300,
+        400
+      )
+    ).toBeCloseTo(20);
+    expect(toImageSpotlightRadiusPct(25, null, 400, 200)).toBe(25);
+  });
+
+  it('falls back to the raw radius when unmeasured', () => {
+    expect(toContainerSpotlightRadiusPct(25, null, 400, 200)).toBe(25);
+    expect(
+      toContainerSpotlightRadiusPct(
+        25,
+        { left: 0, top: 0, scaleX: 1, scaleY: 1 },
+        0,
+        0
+      )
+    ).toBe(25);
+  });
+
+  it('computes the translation that centers a hotspot at a given scale', () => {
+    // Centered hotspot needs no pan beyond the scale-induced shift.
+    expect(computePanZoomTranslate(50, 50, 2, 400, 200)).toEqual({
+      tx: 200 - 400,
+      ty: 100 - 200,
+    });
+    // Top-left hotspot pans toward container center.
+    expect(computePanZoomTranslate(0, 0, 2.5, 400, 200)).toEqual({
+      tx: 200,
+      ty: 100,
+    });
+  });
+
+  it('computes the zoom extent rect centered on the hotspot', () => {
+    // 2× zoom on a centered hotspot frames the middle quarter.
+    expect(computeZoomExtentRect(50, 50, 2, 400, 200)).toEqual({
+      left: 100,
+      top: 50,
+      width: 200,
+      height: 100,
+    });
+    // Off-center hotspot: extent still centered on it (player does not clamp).
+    expect(computeZoomExtentRect(30, 30, 2, 400, 200)).toEqual({
+      left: 20,
+      top: 10,
+      width: 200,
+      height: 100,
+    });
+  });
+
+  it('returns null extent when unzoomed or unmeasured', () => {
+    expect(computeZoomExtentRect(50, 50, 1, 400, 200)).toBeNull();
+    expect(computeZoomExtentRect(50, 50, 2, 0, 200)).toBeNull();
   });
 });

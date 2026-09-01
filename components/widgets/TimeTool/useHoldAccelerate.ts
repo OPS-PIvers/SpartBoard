@@ -65,10 +65,11 @@ export const useHoldAccelerate = (onTick: (multiplier: number) => void) => {
   // explicitly because pointer events don't fire for keyboard activation, and
   // we suppress the native click default to avoid a double-fire after pointerup
   // synthesises a click.
+  // `e.repeat` guard: OS key-repeat re-fires keydown unbounded/un-throttled while held, unlike the ramped pointer-hold path.
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      onTickRef.current(1);
+      if (!e.repeat) onTickRef.current(1);
     }
   }, []);
 

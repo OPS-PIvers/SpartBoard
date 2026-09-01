@@ -38,7 +38,14 @@ import { Z_INDEX } from '@/config/zIndex';
 import { GL_MEDIA_ACCEPT } from '@/utils/guidedLearningMedia';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { ScreenCaptureModal, type CaptureMode } from './ScreenCaptureModal';
-import { calculateImageFootprint } from '../utils/imageUtils';
+import { SpotlightInteraction } from './interactions/SpotlightInteraction';
+import {
+  calculateImageFootprint,
+  computeZoomExtentRect,
+  toContainerCoords,
+  toContainerSpotlightRadiusPct,
+  toImageOffset,
+} from '../utils/imageUtils';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
 
 /**
@@ -422,7 +429,8 @@ const glContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.imageError === next.state.imageError &&
   prev.state.addingStep === next.state.addingStep &&
   prev.state.selectedStepId === next.state.selectedStepId &&
-  prev.state.steps === next.state.steps;
+  prev.state.steps === next.state.steps &&
+  prev.state.spotlightRadiiV2 === next.state.spotlightRadiiV2;
 
 export const GuidedLearningEditorContextPane = React.memo(
   function GuidedLearningEditorContextPane({ state }: PaneProps) {
@@ -469,6 +477,9 @@ export const GuidedLearningEditorContextPane = React.memo(
       steps,
       updateStep,
       currentImageSteps,
+      canvasMeasurementsRef,
+      notifyCanvasMeasured,
+      spotlightRadiiV2,
     } = state;
 
     // O(1) step-number lookup + stable marker callbacks so HotspotMarker's
@@ -484,6 +495,18 @@ export const GuidedLearningEditorContextPane = React.memo(
       (step: GuidedLearningStep, xPct: number, yPct: number) =>
         updateStep({ ...step, xPct, yPct }),
       [updateStep]
+    );
+    // In-flight drag position (image-%) so the interaction preview overlay
+    // tracks the marker live; cleared on pointer-up.
+    const [dragPreview, setDragPreview] = useState<{
+      stepId: string;
+      xPct: number;
+      yPct: number;
+    } | null>(null);
+    const handleMarkerDragPreview = useCallback(
+      (stepId: string, pos: { xPct: number; yPct: number } | null) =>
+        setDragPreview(pos ? { stepId, ...pos } : null),
+      []
     );
 
     const currentImageUrl = imageUrls[currentImageIndex] ?? '';
@@ -508,6 +531,8 @@ export const GuidedLearningEditorContextPane = React.memo(
       offsetTop: number;
       width: number;
       height: number;
+      containerWidth: number;
+      containerHeight: number;
     } | null>(null);
 
     const measureImage = useCallback(() => {
@@ -526,14 +551,36 @@ export const GuidedLearningEditorContextPane = React.memo(
         media instanceof HTMLVideoElement
           ? media.videoHeight
           : media.naturalHeight;
+      const rect = imageContainerRef.current.getBoundingClientRect();
       const footprint = calculateImageFootprint(
         naturalW,
         naturalH,
-        imageContainerRef.current.getBoundingClientRect().width,
-        imageContainerRef.current.getBoundingClientRect().height
+        rect.width,
+        rect.height
       );
-      setImgBounds(footprint);
-    }, []);
+      // Record slide dims + container size for the load-time legacy radius migration.
+      const naturalDims =
+        canvasMeasurementsRef.current?.naturalDims ??
+        new Map<string, { width: number; height: number }>();
+      if (naturalW > 0 && naturalH > 0 && currentImageUrl) {
+        naturalDims.set(currentImageUrl, { width: naturalW, height: naturalH });
+      }
+      canvasMeasurementsRef.current = {
+        containerWidth: rect.width,
+        containerHeight: rect.height,
+        naturalDims,
+      };
+      notifyCanvasMeasured();
+      setImgBounds(
+        footprint
+          ? {
+              ...footprint,
+              containerWidth: rect.width,
+              containerHeight: rect.height,
+            }
+          : null
+      );
+    }, [canvasMeasurementsRef, notifyCanvasMeasured, currentImageUrl]);
 
     useEffect(() => {
       if (!imageContainerRef.current) return;
@@ -796,6 +843,18 @@ export const GuidedLearningEditorContextPane = React.memo(
                     onLoad={measureImage}
                   />
                 )}
+                <InteractionPreviewOverlay
+                  step={
+                    steps.find(
+                      (s) =>
+                        s.id === selectedStepId &&
+                        s.imageIndex === currentImageIndex
+                    ) ?? null
+                  }
+                  dragPreview={dragPreview}
+                  radiiAreV2={spotlightRadiiV2}
+                  imgBounds={imgBounds}
+                />
                 {currentImageSteps.map((s) => (
                   <HotspotMarker
                     key={s.id}
@@ -806,6 +865,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                     containerRef={imageContainerRef}
                     onSelect={setSelectedStepId}
                     onMove={handleMarkerMove}
+                    onDragPreview={handleMarkerDragPreview}
                   />
                 ))}
                 {addingStep && (
@@ -962,7 +1022,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                 )}
                 <button
                   onClick={() => deleteImage(currentImageIndex)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-700 hover:text-red-700 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
                   aria-label="Delete current slide"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1517,7 +1577,7 @@ const StepPill = React.memo(function StepPill({
         <span
           className={`text-xxs font-mono px-1 rounded ${
             isSelected
-              ? 'bg-brand-blue-dark text-white/80'
+              ? 'bg-brand-blue-dark text-white'
               : 'bg-slate-100 text-slate-500'
           }`}
           aria-hidden
@@ -1565,6 +1625,113 @@ const StepNavigator: React.FC<StepNavigatorProps> = ({
   );
 };
 
+// ─── Live interaction preview (spotlight + zoom extent) ──────────────────────
+
+interface InteractionPreviewOverlayProps {
+  step: GuidedLearningStep | null;
+  dragPreview: { stepId: string; xPct: number; yPct: number } | null;
+  radiiAreV2: boolean;
+  imgBounds: {
+    offsetLeft: number;
+    offsetTop: number;
+    width: number;
+    height: number;
+    containerWidth: number;
+    containerHeight: number;
+  } | null;
+}
+
+/**
+ * Live-renders the selected step's player visuals on the editor canvas:
+ * the spotlight overlay (image-relative radius once the load-time v2
+ * conversion has run, legacy container-relative until/unless it does — so
+ * the preview always matches what save will persist) and a dashed outline
+ * approximating what a pan-zoom step will frame — exact only when the
+ * player container matches this canvas's aspect ratio.
+ */
+const InteractionPreviewOverlay: React.FC<InteractionPreviewOverlayProps> = ({
+  step,
+  dragPreview,
+  radiiAreV2,
+  imgBounds,
+}) => {
+  if (!step || !imgBounds) return null;
+  const type = step.interactionType;
+  const showSpotlight = type === 'spotlight' || type === 'pan-zoom-spotlight';
+  const showZoom = type === 'pan-zoom' || type === 'pan-zoom-spotlight';
+  if (!showSpotlight && !showZoom) return null;
+
+  const { containerWidth, containerHeight } = imgBounds;
+  const imgOffset = toImageOffset(imgBounds, containerWidth, containerHeight);
+  const livePos =
+    dragPreview && dragPreview.stepId === step.id
+      ? { xPct: dragPreview.xPct, yPct: dragPreview.yPct }
+      : { xPct: step.xPct, yPct: step.yPct };
+  const containerPos = toContainerCoords(livePos.xPct, livePos.yPct, imgOffset);
+  if (!containerPos) return null;
+
+  const zoomScale = step.panZoomScale ?? 2.5;
+  const extent = showZoom
+    ? computeZoomExtentRect(
+        containerPos.xPct,
+        containerPos.yPct,
+        zoomScale,
+        containerWidth,
+        containerHeight
+      )
+    : null;
+
+  return (
+    // zIndex 0 traps the spotlight SVG's z-20 inside this stacking context
+    // so hotspot markers (later in DOM order) stay clickable above it.
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: 0 }}
+      aria-hidden="true"
+      data-testid="gl-editor-interaction-preview"
+    >
+      {showSpotlight && (
+        <SpotlightInteraction
+          step={{
+            id: step.id,
+            xPct: containerPos.xPct,
+            yPct: containerPos.yPct,
+            imageIndex: step.imageIndex,
+            interactionType: step.interactionType,
+            label: step.label,
+            spotlightRadius: radiiAreV2
+              ? toContainerSpotlightRadiusPct(
+                  step.spotlightRadius ?? 25,
+                  imgOffset,
+                  containerWidth,
+                  containerHeight
+                )
+              : (step.spotlightRadius ?? 25),
+          }}
+          containerWidth={containerWidth}
+          containerHeight={containerHeight}
+        />
+      )}
+      {extent && (
+        <div
+          className="absolute border-2 border-dashed border-white/90 rounded-md shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+          data-testid="gl-editor-zoom-extent"
+          style={{
+            left: extent.left,
+            top: extent.top,
+            width: extent.width,
+            height: extent.height,
+          }}
+        >
+          <span className="absolute left-1.5 top-1.5 rounded bg-slate-900/70 px-1.5 py-0.5 text-xxs font-bold text-white backdrop-blur-sm">
+            Zoom {zoomScale}× (approx frame)
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Draggable hotspot marker ────────────────────────────────────────────────
 
 interface HotspotMarkerProps {
@@ -1580,6 +1747,10 @@ interface HotspotMarkerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onSelect: (id: string) => void;
   onMove: (step: GuidedLearningStep, xPct: number, yPct: number) => void;
+  onDragPreview: (
+    stepId: string,
+    pos: { xPct: number; yPct: number } | null
+  ) => void;
 }
 
 const DRAG_THRESHOLD_PX = 4;
@@ -1596,15 +1767,21 @@ const HotspotMarker = React.memo(function HotspotMarker({
   containerRef,
   onSelect,
   onMove,
+  onDragPreview,
 }: HotspotMarkerProps) {
-  // Local position used during a drag so the marker tracks the cursor without
-  // a parent re-render per pointer move. Cleared on pointer-up; the next
-  // render reads from the persisted step.
+  // Local position used during a drag so the marker tracks the cursor; steps
+  // without a live preview skip onDragPreview, avoiding parent re-renders.
+  // Cleared on pointer-up; the next render reads from the persisted step.
   const [dragPos, setDragPos] = useState<{ xPct: number; yPct: number } | null>(
     null
   );
   const xPct = dragPos?.xPct ?? step.xPct;
   const yPct = dragPos?.yPct ?? step.yPct;
+  // Only these interaction types render a live preview overlay while dragging.
+  const hasLivePreview =
+    step.interactionType === 'spotlight' ||
+    step.interactionType === 'pan-zoom' ||
+    step.interactionType === 'pan-zoom-spotlight';
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -1637,11 +1814,14 @@ const HotspotMarker = React.memo(function HotspotMarker({
         const dy = ev.clientY - startY;
         if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
         dragged = true;
+        // Select on drag-start so the dragged step's preview renders live.
+        onSelect(step.id);
       }
       const next = computePct(ev.clientX, ev.clientY);
       lastXPct = next.xPct;
       lastYPct = next.yPct;
       setDragPos(next);
+      if (hasLivePreview) onDragPreview(step.id, next);
     };
 
     const onUpEvt = (ev: PointerEvent) => {
@@ -1656,6 +1836,7 @@ const HotspotMarker = React.memo(function HotspotMarker({
       if (dragged) {
         onMove(step, lastXPct, lastYPct);
         setDragPos(null);
+        if (hasLivePreview) onDragPreview(step.id, null);
       } else {
         onSelect(step.id);
       }

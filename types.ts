@@ -5746,7 +5746,7 @@ export interface GuidedLearningStep {
   videoStoragePath?: string;
   /** Zoom scale for pan-zoom interaction (default 2.5) */
   panZoomScale?: number;
-  /** Spotlight radius as % of container cqmin (default 25) */
+  /** Spotlight radius as % of image min-dimension (schemaVersion 2; legacy sets: % of container cqmin) — default 25 */
   spotlightRadius?: number;
   /** Banner color tone for banner overlay (default 'blue') */
   bannerTone?: 'blue' | 'red' | 'neutral';
@@ -5768,6 +5768,8 @@ export interface GuidedLearningVideoTrim {
 /** Full set data stored in Google Drive as JSON */
 export interface GuidedLearningSet {
   id: string;
+  /** Absent/1 = legacy semantics (per-step zoom reset, container-relative spotlight); 2+ = zoom persistence + image-relative spotlight. */
+  schemaVersion?: number;
   title: string;
   description?: string;
   /** Firebase Storage URLs for one or more activity images */
@@ -5951,6 +5953,8 @@ export interface GuidedLearningSession {
    * Mini App) store it as `mode`.
    */
   assignmentMode?: AssignmentMode;
+  /** Mirrors `GuidedLearningSet.schemaVersion` so the student player applies matching semantics. */
+  schemaVersion?: number;
   /** Mirrors `GuidedLearningSet.hotspotPulse` so the student app sees it. */
   hotspotPulse?: 'consistent' | 'reminder' | 'off';
   /** Mirrors `GuidedLearningSet.imageTransition`. */

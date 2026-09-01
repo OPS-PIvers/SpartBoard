@@ -9,6 +9,7 @@ import {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
+import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import {
   getMediaKind,
   prepareImageForUpload,
@@ -25,6 +26,13 @@ export interface SlideUploadProgress {
   fileName: string;
   /** 0–100 within the current file; null when the backend can't report. */
   percent: number | null;
+}
+
+/** Canvas container size + per-slide-URL natural dims, written by the canvas as slides render. */
+export interface GuidedLearningCanvasMeasurements {
+  containerWidth: number;
+  containerHeight: number;
+  naturalDims: Map<string, { width: number; height: number }>;
 }
 
 interface UseGuidedLearningEditorStateProps {
@@ -92,6 +100,14 @@ export interface GuidedLearningEditorController {
   // Derived data
   selectedStep: GuidedLearningStep | null;
   currentImageSteps: GuidedLearningStep[];
+  /** Written by the canvas on measure; read at load for legacy radius migration. */
+  canvasMeasurementsRef: React.MutableRefObject<GuidedLearningCanvasMeasurements | null>;
+  /** Bumped by the canvas after each measurement write so the modal can retry conversion. */
+  canvasMeasuredTick: number;
+  notifyCanvasMeasured: () => void;
+  /** True once in-editor spotlight radii use v2 image-relative semantics. */
+  spotlightRadiiV2: boolean;
+  markSpotlightRadiiV2: () => void;
 }
 
 /** Normalize a set's persisted kinds array to align with its imageUrls. */
@@ -159,6 +175,10 @@ export function useGuidedLearningEditorState({
   const [welcomeMessage, setWelcomeMessage] = useState<string>(
     existingSet?.welcomeMessage ?? ''
   );
+  const [canvasMeasuredTick, setCanvasMeasuredTick] = useState(0);
+  const [spotlightRadiiV2, setSpotlightRadiiV2] = useState<boolean>(() =>
+    existingSet ? isGuidedLearningSetV2(existingSet) : true
+  );
 
   // Reset all draft state when the underlying set identity changes (parent
   // swapped to a different set). Uses the "adjust state while rendering"
@@ -183,6 +203,9 @@ export function useGuidedLearningEditorState({
     setImageTransition(existingSet?.imageTransition ?? 'none');
     setWelcomeEnabled(Boolean(existingSet?.welcomeEnabled));
     setWelcomeMessage(existingSet?.welcomeMessage ?? '');
+    setSpotlightRadiiV2(
+      existingSet ? isGuidedLearningSetV2(existingSet) : true
+    );
   }
 
   // Render-synced mirror of imageUrls.length so the sequential upload loop
@@ -408,6 +431,17 @@ export function useGuidedLearningEditorState({
     setSteps(next);
   }, []);
 
+  const canvasMeasurementsRef = useRef<GuidedLearningCanvasMeasurements | null>(
+    null
+  );
+
+  const notifyCanvasMeasured = useCallback(
+    () => setCanvasMeasuredTick((t) => t + 1),
+    []
+  );
+
+  const markSpotlightRadiiV2 = useCallback(() => setSpotlightRadiiV2(true), []);
+
   const selectedStep = useMemo(
     () => steps.find((s) => s.id === selectedStepId) ?? null,
     [steps, selectedStepId]
@@ -462,5 +496,10 @@ export function useGuidedLearningEditorState({
     onFolderChange,
     selectedStep,
     currentImageSteps,
+    canvasMeasurementsRef,
+    canvasMeasuredTick,
+    notifyCanvasMeasured,
+    spotlightRadiiV2,
+    markSpotlightRadiiV2,
   };
 }

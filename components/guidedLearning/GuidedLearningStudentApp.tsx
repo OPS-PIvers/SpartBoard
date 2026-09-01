@@ -38,6 +38,8 @@ import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
+// Clearance above the Player's bottom nav footer (max 61px tall).
+const NAV_FOOTER_CLEARANCE_PX = 68;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -395,6 +397,7 @@ const StudentExperience: React.FC<{
   // Convert session to a GuidedLearningSet-like object for GuidedLearningPlayer
   const setForPlayer = {
     id: session.id,
+    schemaVersion: session.schemaVersion,
     title: session.title,
     imageUrls: session.imageUrls,
     imageKinds: session.imageKinds,
@@ -423,7 +426,11 @@ const StudentExperience: React.FC<{
           onClick={handleComplete}
           className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
           style={{
-            bottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)',
+            // Explore mode renders no nav footer, so only safe-area clearance is needed.
+            bottom:
+              session.mode === 'explore'
+                ? 'max(env(safe-area-inset-bottom, 0px), 0.75rem)'
+                : `calc(max(env(safe-area-inset-bottom, 0px), 0.75rem) + ${NAV_FOOTER_CLEARANCE_PX}px)`,
           }}
         >
           I&apos;m Done

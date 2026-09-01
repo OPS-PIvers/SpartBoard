@@ -1,11 +1,15 @@
-// Schoology LTI 1.3 — Advantage service callables (Deep Linking + AGS).
+// Schoology LTI 1.3 — Advantage service callables (Deep Linking + AGS + NRPS).
 //
 //   ltiSignDeepLinkResponseV1     — sign the LtiDeepLinkingResponse the picker POSTs
-//                                   back to Schoology to attach a quiz.
+//                                   back to Schoology to attach a quiz. Gated on the
+//                                   caller being a signed-in teacher (no session to
+//                                   own yet at this point in the flow).
 //   ltiPushGradesForAssignmentV1  — push AGS scores for an assignment, gated to the
 //                                   teacher who launched it.
+//   ltiResolveNamesForAssignmentV1 — NRPS name resolution, gated to the teacher who
+//                                   launched the session.
 //
-// Both sign/authenticate with the tool private key (Secret Manager).
+// All three sign/authenticate with the tool private key (Secret Manager).
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
@@ -56,6 +60,18 @@ export const ltiSignDeepLinkResponseV1 = onCall(
     secrets: [LTI_TOOL_PRIVATE_KEY],
   },
   async (request) => {
+    // SECURITY: the picker only calls this after Google/Firebase sign-in
+    // (LtiDeepLinkPicker gates on `teacherReady`) — require and validate auth
+    // the same way as the sibling callables, or any unauthenticated caller
+    // could mint a tool-signed deep-link response for an arbitrary Schoology
+    // return URL.
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+      throw new HttpsError('permission-denied', 'Teacher account required.');
+    }
+
     const data = (request.data ?? {}) as {
       returnUrl?: unknown;
       dlData?: unknown;
