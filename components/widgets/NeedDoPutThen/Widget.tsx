@@ -641,7 +641,7 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
       content={
         <div
           ref={setCentralRef}
-          className={`h-full w-full flex flex-col rounded-2xl overflow-hidden ${fontClass}`}
+          className={`h-full w-full flex flex-col rounded-[inherit] overflow-hidden ${fontClass}`}
           style={{
             background,
             padding: 'min(10px, 2.5cqmin)',

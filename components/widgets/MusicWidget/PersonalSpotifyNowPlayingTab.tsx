@@ -101,7 +101,7 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
   const displayArtist = currentTrack?.artist ?? '';
 
   return (
-    <div className="w-full h-full rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-800 to-green-950 flex flex-col">
+    <div className="w-full h-full rounded-[inherit] overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-800 to-green-950 flex flex-col">
       <div
         className="flex-1 min-h-0 flex flex-col items-center justify-center text-center"
         style={{

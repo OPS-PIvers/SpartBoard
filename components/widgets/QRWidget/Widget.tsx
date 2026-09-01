@@ -117,7 +117,7 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           style={{ padding: 'min(8px, 1.5cqmin)' }}
         >
           <div
-            className="bg-white rounded-2xl shadow-inner w-full h-full flex items-center justify-center border border-slate-100 overflow-hidden"
+            className="bg-white rounded-[inherit] shadow-inner w-full h-full flex items-center justify-center border border-slate-100 overflow-hidden"
             style={{ padding: 'min(8px, 1.5cqmin)' }}
           >
             <img

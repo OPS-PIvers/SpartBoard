@@ -163,7 +163,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
       content={
         <div
           ref={containerRef}
-          className="h-full w-full flex flex-col relative rounded-xl overflow-hidden"
+          className="h-full w-full flex flex-col relative rounded-[inherit] overflow-hidden"
           style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
         >
           <div className="flex-1 overflow-visible">
