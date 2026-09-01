@@ -1,6 +1,7 @@
 import React, {
   useState,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   lazy,
@@ -358,6 +359,38 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     [fetchSetCached, addToast]
   );
 
+  // Maximize/spotlight portal the window and remount this widget, dropping
+  // activeSet while config still says 'player' — reload it from playerSetId.
+  const rehydratingSetIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (config.view !== 'player' || activeSet || loading || buildingLoading)
+      return;
+    const setId = config.playerSetId;
+    if (!setId) {
+      setView('library');
+      return;
+    }
+    if (rehydratingSetIdRef.current === setId) return;
+    rehydratingSetIdRef.current = setId;
+    const meta = sets.find((s) => s.id === setId);
+    const buildingSet = buildingSets.find((s) => s.id === setId);
+    void loadSet(setId, meta?.driveFileId, buildingSet).then((loaded) => {
+      rehydratingSetIdRef.current = null;
+      if (loaded) setActiveSet(loaded);
+      else setView('library');
+    });
+  }, [
+    config.view,
+    config.playerSetId,
+    activeSet,
+    loading,
+    buildingLoading,
+    sets,
+    buildingSets,
+    loadSet,
+    setView,
+  ]);
+
   const handlePlay = async (
     setId: string,
     driveFileId?: string,
@@ -366,7 +399,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     const data = await loadSet(setId, driveFileId, buildingSet);
     if (!data) return;
     setActiveSet(data);
-    setView('player');
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        view: 'player',
+        playerSetId: setId,
+      } as GuidedLearningConfig,
+    });
   };
 
   const handleEdit = async (
@@ -1150,7 +1189,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               <Suspense fallback={<LazySpinner />}>
                 <GuidedLearningPlayer
                   set={activeSet}
-                  onClose={() => setView('library')}
+                  onClose={() =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        view: 'library',
+                        playerSetId: null,
+                      } as GuidedLearningConfig,
+                    })
+                  }
                   teacherMode
                 />
               </Suspense>

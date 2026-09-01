@@ -120,7 +120,10 @@ export const useStorage = () => {
     setUploading(true);
     try {
       const storageRef = ref(storage, path);
-      const task = uploadBytesResumable(storageRef, blob);
+      // Paths are timestamped, so slides can be cached as immutable.
+      const task = uploadBytesResumable(storageRef, blob, {
+        cacheControl: 'public, max-age=31536000, immutable',
+      });
       await new Promise<void>((resolve, reject) => {
         task.on(
           'state_changed',

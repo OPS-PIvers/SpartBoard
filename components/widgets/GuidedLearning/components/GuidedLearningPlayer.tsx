@@ -303,6 +303,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       if ((set.imageKinds?.[i] ?? 'image') === 'video') return;
       const image = new Image();
       image.src = url;
+      // Decode ahead of time so a slide swap paints immediately.
+      void image.decode?.().catch(() => undefined);
     });
   }, [set.imageUrls, set.imageKinds]);
 
@@ -628,13 +630,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       type === 'spotlight' ||
       type === 'pan-zoom-spotlight'
     ) {
-      const overlay =
+      const renderOverlay = (keepOutRadius?: number) =>
         activeStep.showOverlay === 'tooltip' && activeStepRendered ? (
           <TooltipInteraction
             key={activeStepRendered.id}
             step={activeStepRendered}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
+            keepOutRadius={keepOutRadius}
           />
         ) : activeStep.showOverlay === 'popover' ? (
           <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
@@ -670,6 +673,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 ) * renderedTransform.scale,
             }
           : activeStepRendered;
+        // Keep the tooltip card outside the lit circle so it never covers the target.
+        const spotlightPx =
+          (Math.min(containerSize.w, containerSize.h) *
+            (spotlightStep.spotlightRadius ?? 25)) /
+          100;
         return (
           <>
             <SpotlightInteraction
@@ -677,12 +685,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
             />
-            {overlay}
+            {renderOverlay(spotlightPx)}
           </>
         );
       }
 
-      return overlay;
+      return renderOverlay();
     }
 
     return null;
