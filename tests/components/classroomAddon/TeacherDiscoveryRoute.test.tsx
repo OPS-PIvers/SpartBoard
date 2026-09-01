@@ -12,6 +12,8 @@ const mockCallable = vi.fn((_params: { maxPoints: number }) => ({
 vi.mock('@/config/firebase', () => ({
   db: {},
   functions: {},
+  // useRosters (mounted for the M17 targeting picker) reads this flag.
+  isAuthBypass: false,
 }));
 
 vi.mock('firebase/functions', () => ({
@@ -22,6 +24,15 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
   getDoc: vi.fn(() => ({ exists: () => false })),
   updateDoc: vi.fn(() => undefined),
+  setDoc: vi.fn(() => undefined),
+}));
+
+// The M17 targeting picker mounts these; neither is under test here.
+vi.mock('@/hooks/useRosters', () => ({
+  useRosters: () => ({ rosters: [] }),
+}));
+vi.mock('@/hooks/useRubrics', () => ({
+  useRubrics: () => ({ rubrics: [] }),
 }));
 
 vi.mock('@/components/classroomAddon/gisOAuth', () => ({

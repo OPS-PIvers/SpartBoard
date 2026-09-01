@@ -53,6 +53,7 @@ export type {
   AssignTargetingKind,
   AssignTargetingQuizContext,
 } from './AssignTargetingSection';
+export { toOverrideEditorQuestions } from './toOverrideEditorQuestions';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
 export { ViewCountBadge } from './ViewCountBadge';
 export { PeriodSelector } from './PeriodSelector';

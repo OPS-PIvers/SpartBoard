@@ -58,7 +58,6 @@ import {
   QuizData,
   StudentTargetRef,
   SyncedQuizGroup,
-  isWrittenQuestionType,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -93,6 +92,7 @@ import {
   buildDuplicateAction,
   AssignTargetingSection,
   EMPTY_ASSIGN_TARGETING_VALUE,
+  toOverrideEditorQuestions,
   type AssignTargetingValue,
   type BulkAction,
   type LibraryMenuAction,
@@ -102,7 +102,6 @@ import {
   type LibraryBadgeTone,
   type LibrarySelectionApi,
 } from '@/components/common/library';
-import type { OverrideEditorQuestion } from '@/components/common/library/OverrideEditorRow';
 import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
@@ -176,37 +175,6 @@ function resolveEffectivePeriodNames(
   rosters: ClassRoster[]
 ): string[] {
   return resolveAssignmentTargets(picker, rosters).periodNames;
-}
-
-/**
- * Projects loaded quiz questions into the shape `OverrideEditorRow`'s B2
- * question subset / MC-option hider needs (spec §5 B2). `options` is present
- * only for MC — Matching/Ordering/FIB/written types have no per-option hider,
- * they're still selectable in the subset picker via the bare question label.
- * Returns `[]` while the quiz's full content hasn't loaded yet.
- */
-function toOverrideEditorQuestions(
-  data: QuizData | null
-): OverrideEditorQuestion[] {
-  if (!data) return [];
-  return data.questions.map((q) => ({
-    id: q.id,
-    label: q.text || `Question ${data.questions.indexOf(q) + 1}`,
-    options:
-      q.type === 'MC'
-        ? [
-            { id: `${q.id}-correct`, text: q.correctAnswer, isCorrect: true },
-            ...q.incorrectAnswers.map((text, i) => ({
-              id: `${q.id}-incorrect-${i}`,
-              text,
-              isCorrect: false,
-            })),
-          ]
-        : undefined,
-    // F2 fix — only short/essay are rubric-swappable; FIB/Matching/Ordering
-    // are neither MC-hideable nor rubric-swappable, just subset-selectable.
-    isWritten: isWrittenQuestionType(q.type),
-  }));
 }
 
 function buildDefaultAssignOptions(
