@@ -307,8 +307,8 @@ describe('DashboardContext reorderDashboards rollback', () => {
 
   it('reverts the local order and toasts an error when the Firestore save fails', async () => {
     const stateRef = setup();
-    const dash1 = makeDashboard('dash-1', []);
-    const dash2 = makeDashboard('dash-2', []);
+    const dash1 = { ...makeDashboard('dash-1', []), order: 0 };
+    const dash2 = { ...makeDashboard('dash-2', []), order: 1 };
     await settleSnapshot(stateRef, [dash1, dash2]);
     const orderBefore = stateRef.current?.dashboards.map((d) => d.id);
     saveDashboardsMock.mockRejectedValueOnce(new Error('offline'));
@@ -322,5 +322,36 @@ describe('DashboardContext reorderDashboards rollback', () => {
     expect(stateRef.current?.dashboards.map((d) => d.id)).toEqual(orderBefore);
     const errorToast = stateRef.current?.toasts.find((t) => t.type === 'error');
     expect(errorToast?.message).toContain('Failed to save');
+  });
+
+  it('does not clobber a dashboard added by a concurrent snapshot while the save is in flight', async () => {
+    const stateRef = setup();
+    const dash1 = { ...makeDashboard('dash-1', []), order: 0 };
+    const dash2 = { ...makeDashboard('dash-2', []), order: 1 };
+    await settleSnapshot(stateRef, [dash1, dash2]);
+
+    // Hold the save pending so a concurrent snapshot can land mid-flight.
+    let rejectSave: (err: Error) => void = () => undefined;
+    saveDashboardsMock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectSave = reject;
+      })
+    );
+
+    const reorderPromise = act(async () => {
+      await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
+    });
+
+    // A brand-new dashboard arrives via the live onSnapshot listener before
+    // the reorder's save has settled — e.g. created from another tab.
+    const dash3 = { ...makeDashboard('dash-3', []), order: 2 };
+    await pushSnapshot([dash1, dash2, dash3]);
+
+    rejectSave(new Error('offline'));
+    await reorderPromise;
+
+    // A stale full-array revert (setDashboards(previousDashboards), captured
+    // before dash-3 existed) would have wiped dash-3 out entirely.
+    expect(stateRef.current?.dashboards.map((d) => d.id)).toContain('dash-3');
   });
 });

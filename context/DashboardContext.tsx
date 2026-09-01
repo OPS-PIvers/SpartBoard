@@ -3948,8 +3948,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (err) {
         console.error('Failed to save reordered dashboards:', err);
         addToast('Failed to save the new board order', 'error');
-        // Revert — otherwise the teacher sees an order that was never persisted.
-        setDashboards(previousDashboards);
+        // Revert only the `order` field via the functional form — the save can
+        // take a while, and a stale full-array revert would blow away any
+        // other update (onSnapshot, rename, delete) that landed meanwhile.
+        setDashboards((prev) =>
+          prev
+            .map((d) => {
+              const original = previousDashboards.find((p) => p.id === d.id);
+              return original ? { ...d, order: original.order } : d;
+            })
+            .sort((a, b) => {
+              const orderA = a.order ?? 0;
+              const orderB = b.order ?? 0;
+              if (orderA !== orderB) return orderA - orderB;
+              if (a.isDefault && !b.isDefault) return -1;
+              if (!a.isDefault && b.isDefault) return 1;
+              return (b.createdAt || 0) - (a.createdAt || 0);
+            })
+        );
       }
     },
     [user, dashboards, saveDashboards, addToast]
