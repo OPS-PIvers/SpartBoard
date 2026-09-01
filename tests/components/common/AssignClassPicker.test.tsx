@@ -82,4 +82,72 @@ describe('AssignClassPicker', () => {
       screen.getByText('1 of 1 selected (1 unavailable).')
     ).toBeInTheDocument();
   });
+
+  it('keeps "Select all" available when a selected roster has since gone unavailable', () => {
+    const rosters: ClassRoster[] = [
+      makeRoster('r1', 'Period 1'),
+      makeRoster('r2', 'Period 2', 'Failed to load students'),
+      makeRoster('r3', 'Period 3'),
+    ];
+
+    // r2 was selected while healthy and only later failed to load. Counting it
+    // raw made selected(2) meet selectable(2), hiding the button while r3 sat
+    // unchecked and unreachable via "Select all".
+    render(
+      <AssignClassPicker
+        rosters={rosters}
+        value={{ rosterIds: ['r1', 'r2'] }}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Select all/ })
+    ).toHaveTextContent('Select all (2)');
+    expect(
+      screen.getByText('1 of 2 selected (1 unavailable).')
+    ).toBeInTheDocument();
+  });
+
+  it('ignores ids for rosters that no longer exist', () => {
+    const rosters: ClassRoster[] = [
+      makeRoster('r1', 'Period 1'),
+      makeRoster('r2', 'Period 2'),
+    ];
+
+    // A saved picker value can outlive the roster it points at; the dangling id
+    // must not count toward the tally that gates "Select all".
+    render(
+      <AssignClassPicker
+        rosters={rosters}
+        value={{ rosterIds: ['r1', 'deleted-roster'] }}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Select all/ })
+    ).toHaveTextContent('Select all (2)');
+    expect(screen.getByText('1 of 2 selected.')).toBeInTheDocument();
+  });
+
+  it('still offers "Clear" when only an unavailable roster is selected', () => {
+    const onChange = vi.fn();
+    const rosters: ClassRoster[] = [
+      makeRoster('r1', 'Period 1', 'Failed to load students'),
+    ];
+
+    // Nothing selectable is selected, but the value is non-empty — the teacher
+    // must still be able to drop it.
+    render(
+      <AssignClassPicker
+        rosters={rosters}
+        value={{ rosterIds: ['r1'] }}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Clear/ }));
+    expect(onChange).toHaveBeenCalledWith({ rosterIds: [] });
+  });
 });
