@@ -424,9 +424,12 @@ const StudentExperience: React.FC<{
           onClick={handleComplete}
           className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
           style={{
-            // Cleared above the player's nav footer (max 61px tall) so tapping Next can never hit this.
+            // Explore mode renders no nav footer, so only safe-area clearance is needed there;
+            // structured/guided modes keep the +68px clearance above the player's footer (max 61px tall).
             bottom:
-              'calc(max(env(safe-area-inset-bottom, 0px), 0.75rem) + 68px)',
+              session.mode === 'explore'
+                ? 'max(env(safe-area-inset-bottom, 0px), 0.75rem)'
+                : 'calc(max(env(safe-area-inset-bottom, 0px), 0.75rem) + 68px)',
           }}
         >
           I&apos;m Done

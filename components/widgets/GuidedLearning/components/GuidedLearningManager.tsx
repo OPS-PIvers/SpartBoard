@@ -1430,6 +1430,22 @@ const GuidedLearningPreviewPane: React.FC<{
     });
   };
 
+  // Re-fetch while the pane is open if a cross-device edit bumps updatedAt —
+  // the prefetch cache is already versioned by updatedAt, so this just needs
+  // to re-trigger the load; loadSet transparently skips the stale cache entry.
+  const lastLoadedUpdatedAtRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (previewState !== 'playing') return;
+    if (lastLoadedUpdatedAtRef.current === null) {
+      lastLoadedUpdatedAtRef.current = entry.updatedAt;
+      return;
+    }
+    if (lastLoadedUpdatedAtRef.current === entry.updatedAt) return;
+    lastLoadedUpdatedAtRef.current = entry.updatedAt;
+    handlePlayPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry.updatedAt, previewState]);
+
   return (
     <LibraryPreviewPane
       isOpen={true}
