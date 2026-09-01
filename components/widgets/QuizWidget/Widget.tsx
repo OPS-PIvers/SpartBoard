@@ -364,6 +364,22 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [loadQuizData, addToast]
   );
 
+  // Quiet fetch for the assign modal's lazy question load — must not touch
+  // loadingQuizData (the full-pane spinner would unmount QuizManager and the
+  // open assign modal with it) or loadedQuizData (which could swap the view).
+  const loadQuizQuietly = useCallback(
+    async (meta: QuizMetadata): Promise<QuizData | null> => {
+      try {
+        return await loadQuizData(meta.driveFileId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to load quiz';
+        addToast(msg, 'error');
+        return null;
+      }
+    },
+    [loadQuizData, addToast]
+  );
+
   /**
    * Phase 2 — share an existing personal quiz with a chosen PLC.
    *
@@ -1224,7 +1240,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
         onReorderQuizzes={user?.uid ? handleReorderQuizzes : undefined}
-        onLoadQuizData={loadQuiz}
+        onLoadQuizData={loadQuizQuietly}
         skippedTargetsByAssignmentId={assignSkippedByAssignmentId}
         onNew={() => {
           const now = Date.now();
