@@ -379,8 +379,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         ) : (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
             <p>
-              Settings saved with the quiz. They become the default when you
-              assign it.
+              Settings saved with the quiz are the defaults for live sessions
+              and new assignments — you can adjust them per assignment in the
+              Assign dialog.
             </p>
           </div>
         )

@@ -1,22 +1,19 @@
 /**
- * Tests for the slimmed Quiz Assign flow — Task 9.
+ * Tests for the Quiz Assign flow.
  *
- * Goal: After the change the standalone Quiz AssignModal no longer contains
- * a mode picker, integrity/feedback/randomization toggles, gamification
- * controls, or an attempt-limit control.  Instead it shows:
- *   - The class/period picker (AssignClassPicker)
+ * The standalone Quiz AssignModal shows:
+ *   - The class/period picker (AssignClassPicker) + individual targeting
  *   - A due-date date input
- *   - A read-only behavior summary derived from getQuizBehavior(meta)
- *   - An "Edit in quiz" affordance
+ *   - A collapsed "Session Settings" section, pre-filled from
+ *     getQuizBehavior(meta), expandable to a fully editable
+ *     QuizBehaviorSettingsPanel (per-assignment overrides — never written
+ *     back to the quiz doc)
  *   - The PLC "Share with PLC" slot
  *
- * The `onAssign` callback must receive:
- *   - `rosterIds` from the picker (unchanged)
- *   - `plcOptions`  from the PLC slot (unchanged)
- *   - `dueAt`       from the due-date input (new)
- *   — behavior values (`sessionMode`, `sessionOptions`, `attemptLimit`) are
- *     now sourced from `getQuizBehavior(meta)` inside the handler, so they
- *     are NOT passed through `onAssign` any more.
+ * The `onAssign` callback signature:
+ *   (meta, behavior, plcOptions, rosterIds, dueAt, targeting,
+ *    destination, preloadedQuizData)
+ * where `behavior` is the (possibly overridden) per-assignment snapshot.
  *
  * Mocking strategy:
  *   - Heavy hooks (usePlcs, useAuth, useFolders, useSessionViewCount) are
@@ -155,9 +152,10 @@ function renderManager(
   extra: { canAssignToClassroom?: boolean } = {}
 ) {
   // Cast: QuizManagerProps['onAssign'] signature is
-  //   (quiz, plcOptions, rosterIds, dueAt) => void
+  //   (quiz, behavior, plcOptions, rosterIds, dueAt, ...) => void
   const onAssign = onAssignFn as (
     quiz: QuizMetadata,
+    behavior: QuizBehaviorSettings,
     plcOptions: import('@/components/widgets/QuizWidget/components/QuizManager').PlcOptions,
     rosterIds: string[],
     dueAt: number | null
@@ -210,53 +208,45 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     ).toBeInTheDocument();
   });
 
-  it('does NOT render a mode picker (Teacher-paced / Auto-progress / Self-paced cards)', async () => {
+  it('Session Settings starts collapsed — no mode picker or toggles until expanded', async () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
-    // Phase 2: the library-row Assign opens a destination chooser first; pick
-    // "SpartBoard Only" to continue into the standard assign modal.
     fireEvent.click(
       await screen.findByRole('button', { name: /SpartBoard Only/i })
     );
-    // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
+    // Collapsed: header + summary only, no editable controls yet.
+    expect(screen.getByText('Session Settings')).toBeInTheDocument();
     expect(screen.queryByText('Session Mode')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /teacher-paced/i })
+      screen.queryByRole('button', { name: /^teacher-paced/i })
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /auto-progress/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /self-paced/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Speed Bonus Points')).not.toBeInTheDocument();
   });
 
-  it('does NOT render integrity/feedback/gamification toggle controls', async () => {
+  it('expanding Session Settings reveals the editable behavior panel', async () => {
     renderManager(makeQuizMeta());
-    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
-    fireEvent.click(assignBtn);
-    // Phase 2: the library-row Assign opens a destination chooser first; pick
-    // "SpartBoard Only" to continue into the standard assign modal.
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
     fireEvent.click(
       await screen.findByRole('button', { name: /SpartBoard Only/i })
     );
-    // Wait for the assign modal dialog to appear
-    await screen.findByRole('dialog', { name: /chapter 5 review/i });
-    // Interactive toggle labels that used to appear in the assign modal should be gone.
-    // The behavior summary shows a compact text line — not editable controls.
-    expect(screen.queryByText('Speed Bonus Points')).not.toBeInTheDocument();
-    expect(screen.queryByText('Streak Bonuses')).not.toBeInTheDocument();
-    expect(screen.queryByText('Gamification')).not.toBeInTheDocument();
-    // "Shuffle Questions" was a standalone toggle label (editable control).
-    expect(screen.queryByText('Shuffle Questions')).not.toBeInTheDocument();
-    // There should be no attempt-limit picker UI element — the value
-    // is shown read-only in the behavior summary.
-    expect(screen.queryByLabelText(/attempt limit/i)).not.toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    expect(within(dialog).getByText('Session Mode')).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: /^teacher-paced/i })
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: /^self-paced/i })
+    ).toBeInTheDocument();
   });
 
-  it('renders a read-only behavior summary in the assign modal', async () => {
+  it('renders a behavior summary in the assign modal', async () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
@@ -271,20 +261,30 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     expect(screen.getByTestId('quiz-behavior-summary')).toBeInTheDocument();
   });
 
-  it('renders an "Edit in quiz" button in the assign modal', async () => {
-    renderManager(makeQuizMeta());
-    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
-    fireEvent.click(assignBtn);
-    // Phase 2: the library-row Assign opens a destination chooser first; pick
-    // "SpartBoard Only" to continue into the standard assign modal.
+  it('overriding session mode in the modal passes the override to onAssign', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign); // default → teacher-paced
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
     fireEvent.click(
       await screen.findByRole('button', { name: /SpartBoard Only/i })
     );
-    // Wait for the assign modal dialog to appear
-    await screen.findByRole('dialog', { name: /chapter 5 review/i });
-    expect(
-      screen.getByRole('button', { name: /edit in quiz/i })
-    ).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^self-paced/i })
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const behavior = onAssign.mock.calls[0][1] as QuizBehaviorSettings;
+    expect(behavior.sessionMode).toBe('student');
+    // The quiz meta itself is untouched — overrides are per-assignment only.
+    const calledMeta = onAssign.mock.calls[0][0] as QuizMetadata;
+    expect(calledMeta.behavior).toBeUndefined();
   });
 
   it('renders a due-date input in the assign modal', async () => {
@@ -351,12 +351,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const args = onAssign.mock.calls[0];
-    // Signature: (meta, plcOptions, rosterIds, dueAt, targeting)
-    const dueAt = args[3];
+    // Signature: (meta, behavior, plcOptions, rosterIds, dueAt, targeting)
+    const dueAt = args[4];
     expect(dueAt).toBeNull();
     // M17 §3a-G: the unmodified class-wide flow must emit the empty/default
     // targeting value — no individual students, no overrides.
-    expect(args[4]).toEqual({
+    expect(args[5]).toEqual({
       targetMode: 'class',
       targetStudents: [],
       targetGroupIds: [],
@@ -443,8 +443,50 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    const targeting = onAssign.mock.calls[0][4] as AssignTargetingValue;
+    const targeting = onAssign.mock.calls[0][5] as AssignTargetingValue;
     expect(targeting.targetMode).toBe('students');
+  });
+
+  it('M17 C3 F5: pacing block is fixable in-modal by switching to Self-paced', async () => {
+    const onAssign = vi.fn();
+    renderManager(
+      makeQuizMeta({
+        behavior: { ...DEFAULT_QUIZ_BEHAVIOR, sessionMode: 'teacher' },
+      }),
+      onAssign
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: /\+ Individual students & overrides/i,
+      })
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    expect(onAssign).not.toHaveBeenCalled();
+    await within(dialog).findByRole('alert');
+
+    // Fix it without leaving the modal: expand Session Settings, go self-paced.
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^self-paced/i })
+    );
+    // Changing behavior clears the inline error.
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const behavior = onAssign.mock.calls[0][1] as QuizBehaviorSettings;
+    expect(behavior.sessionMode).toBe('student');
   });
 
   it('calls onAssign with dueAt as epoch ms when a date is entered', async () => {
@@ -475,7 +517,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const args = onAssign.mock.calls[0];
-    const dueAt = args[3];
+    const dueAt = args[4];
     // Should be a positive epoch ms number
     expect(typeof dueAt).toBe('number');
     expect(dueAt).toBeGreaterThan(0);
@@ -539,8 +581,8 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const args = onAssign.mock.calls[0];
-    // Signature: (meta, plcOptions, rosterIds, dueAt)
-    const rosterIds = args[2];
+    // Signature: (meta, behavior, plcOptions, rosterIds, dueAt)
+    const rosterIds = args[3];
     expect(rosterIds).toContain('r1');
   });
 });
@@ -549,16 +591,8 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 // Tests — Widget-level: behavior sourced from getQuizBehavior(meta)
 // ---------------------------------------------------------------------------
 
-describe('Widget.onAssign — createAssignment receives behavior from quiz meta', () => {
-  it('sources sessionMode from the quiz behavior (non-default)', async () => {
-    /**
-     * This test exercises the Widget-level onAssign handler indirectly by
-     * checking that the onAssign prop QuizManager calls receives the meta
-     * with the custom behavior — then the Widget handler calls
-     * getQuizBehavior(meta) to derive sessionMode etc. For this test we
-     * verify the contract: QuizManager's onAssign signature no longer
-     * includes mode/sessionOptions/attemptLimit; the meta IS the first arg.
-     */
+describe('Widget.onAssign — behavior snapshot passed through onAssign', () => {
+  it('seeds the behavior arg from the quiz behavior (non-default)', async () => {
     const customBehavior: QuizBehaviorSettings = {
       ...DEFAULT_QUIZ_BEHAVIOR,
       sessionMode: 'student',
@@ -586,22 +620,18 @@ describe('Widget.onAssign — createAssignment receives behavior from quiz meta'
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    const calledMeta = onAssign.mock.calls[0][0] as QuizMetadata;
-    // Behavior must come from the meta — the Widget handler will call
-    // getQuizBehavior(calledMeta) which returns the custom behavior.
-    expect(calledMeta.behavior).toMatchObject({
+    // Untouched modal → the behavior arg equals the quiz's saved behavior.
+    const behavior = onAssign.mock.calls[0][1] as QuizBehaviorSettings;
+    expect(behavior).toMatchObject({
       sessionMode: 'student',
       attemptLimit: 3,
     });
-    // Crucially, NO mode/sessionOptions/attemptLimit args — behavior is sourced
-    // from the quiz meta. The args are (meta, plcOptions, rosterIds, dueAt,
-    // targeting, destination, preloadedQuizData); the chooser pick adds the
-    // destination as the 6th arg (M17 B3 inserted `targeting` before it), and
-    // the class-wide path here never expanded individual targeting so the 7th
-    // arg (F1 fix) is null.
-    expect(onAssign.mock.calls[0]).toHaveLength(7);
-    expect(onAssign.mock.calls[0][5]).toBe('spartboard');
-    expect(onAssign.mock.calls[0][6]).toBeNull();
+    // Args: (meta, behavior, plcOptions, rosterIds, dueAt, targeting,
+    // destination, preloadedQuizData). Class-wide path never expanded
+    // individual targeting so the last arg (F1 fix) is null.
+    expect(onAssign.mock.calls[0]).toHaveLength(8);
+    expect(onAssign.mock.calls[0][6]).toBe('spartboard');
+    expect(onAssign.mock.calls[0][7]).toBeNull();
   });
 
   it('behavior summary shows the mode from the quiz behavior', async () => {
@@ -674,7 +704,7 @@ describe('QuizManager assign — destination chooser (Phase 2)', () => {
     );
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    expect(onAssign.mock.calls[0][5]).toBe('classroom');
+    expect(onAssign.mock.calls[0][6]).toBe('classroom');
   });
 
   it('re-picks the destination on each assign (Classroom then SpartBoard-only)', async () => {
@@ -695,7 +725,7 @@ describe('QuizManager assign — destination chooser (Phase 2)', () => {
       })
     );
     await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(1));
-    expect(onAssign.mock.calls[0][5]).toBe('classroom');
+    expect(onAssign.mock.calls[0][6]).toBe('classroom');
 
     // Second assign → SpartBoard Only must NOT inherit the prior 'classroom'.
     fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
@@ -705,7 +735,7 @@ describe('QuizManager assign — destination chooser (Phase 2)', () => {
     dialog = await screen.findByRole('dialog', { name: /chapter 5 review/i });
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
     await waitFor(() => expect(onAssign).toHaveBeenCalledTimes(2));
-    expect(onAssign.mock.calls[1][5]).toBe('spartboard');
+    expect(onAssign.mock.calls[1][6]).toBe('spartboard');
   });
 
   it('picking "Schoology" shows the how-to and does NOT create an assignment', async () => {

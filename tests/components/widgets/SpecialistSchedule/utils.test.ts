@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   parseTime,
   computeIsPast,
+  resolveRotationDayNumber,
+  countPreStartSchoolDays,
+  formatRotationDayLabel,
 } from '@/components/widgets/SpecialistSchedule/utils';
 
 describe('parseTime', () => {
@@ -87,5 +90,170 @@ describe('computeIsPast', () => {
   it('returns false at midnight (nowMinutes = 0) even when time is 00:00', () => {
     // 00:00 means 0 minutes; 0 < 0 is false — item at midnight is not past at midnight
     expect(computeIsPast('00:00', '00:00', false, 0)).toBe(false);
+  });
+});
+
+describe('resolveRotationDayNumber', () => {
+  const SEPT = [
+    '2026-09-01',
+    '2026-09-02',
+    '2026-09-03',
+    '2026-09-04',
+    '2026-09-07',
+    '2026-09-08',
+  ];
+
+  it('starts the rotation at day 1 on the start date', () => {
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 6, startDate: '2026-09-01', schoolDays: SEPT },
+        '2026-09-01'
+      )
+    ).toBe(1);
+  });
+
+  it('ignores marked school days that fall before the start date', () => {
+    // The reported bug: one leftover August day shifted every day by one.
+    expect(
+      resolveRotationDayNumber(
+        {
+          cycleLength: 6,
+          startDate: '2026-09-01',
+          schoolDays: ['2026-08-31', ...SEPT],
+        },
+        '2026-09-01'
+      )
+    ).toBe(1);
+  });
+
+  it('ignores a whole prior school year of marked days', () => {
+    expect(
+      resolveRotationDayNumber(
+        {
+          cycleLength: 6,
+          startDate: '2026-09-01',
+          schoolDays: ['2025-09-02', '2025-09-03', '2026-06-05', ...SEPT],
+        },
+        '2026-09-02'
+      )
+    ).toBe(2);
+  });
+
+  it('advances only on marked days, skipping weekends', () => {
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 6, startDate: '2026-09-01', schoolDays: SEPT },
+        '2026-09-07'
+      )
+    ).toBe(5);
+  });
+
+  it('wraps back to day 1 after a full cycle', () => {
+    expect(
+      resolveRotationDayNumber(
+        {
+          cycleLength: 6,
+          startDate: '2026-09-01',
+          schoolDays: [...SEPT, '2026-09-09'],
+        },
+        '2026-09-09'
+      )
+    ).toBe(1);
+  });
+
+  it('is unaffected by duplicate entries', () => {
+    expect(
+      resolveRotationDayNumber(
+        {
+          cycleLength: 6,
+          startDate: '2026-09-01',
+          schoolDays: ['2026-09-01', '2026-09-01', ...SEPT],
+        },
+        '2026-09-02'
+      )
+    ).toBe(2);
+  });
+
+  it('returns null for an unmarked date', () => {
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 6, startDate: '2026-09-01', schoolDays: SEPT },
+        '2026-09-05'
+      )
+    ).toBeNull();
+  });
+
+  it('falls back to raw ordering when startDate is undefined', () => {
+    // Legacy building docs predate the field, so it can be absent at runtime.
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 6, startDate: undefined, schoolDays: SEPT },
+        '2026-09-01'
+      )
+    ).toBe(1);
+  });
+
+  it('falls back to raw ordering when no start date is set', () => {
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 6, schoolDays: ['2026-08-31', ...SEPT] },
+        '2026-09-01'
+      )
+    ).toBe(2);
+  });
+
+  it('prefers an explicit block over the school-day count', () => {
+    expect(
+      resolveRotationDayNumber(
+        {
+          cycleLength: 10,
+          startDate: '2026-09-01',
+          schoolDays: SEPT,
+          blocks: [
+            { dayNumber: 4, startDate: '2026-09-01', endDate: '2026-09-30' },
+          ],
+        },
+        '2026-09-02'
+      )
+    ).toBe(4);
+  });
+
+  it('returns null for a non-positive cycle length', () => {
+    expect(
+      resolveRotationDayNumber(
+        { cycleLength: 0, startDate: '2026-09-01', schoolDays: SEPT },
+        '2026-09-01'
+      )
+    ).toBeNull();
+  });
+});
+
+describe('countPreStartSchoolDays', () => {
+  it('counts unique marked days before the start date', () => {
+    expect(
+      countPreStartSchoolDays(
+        ['2026-08-30', '2026-08-31', '2026-08-31', '2026-09-01'],
+        '2026-09-01'
+      )
+    ).toBe(2);
+  });
+
+  it('returns 0 when no start date is set', () => {
+    expect(countPreStartSchoolDays(['2026-08-31'], '')).toBe(0);
+    expect(countPreStartSchoolDays(['2026-08-31'], undefined)).toBe(0);
+  });
+});
+
+describe('formatRotationDayLabel', () => {
+  it('uses the custom day name when present', () => {
+    expect(formatRotationDayLabel(1, { 1: 'Loon' }, 'Day')).toBe('Loon');
+  });
+
+  it('falls back to the day label for a blank custom name', () => {
+    expect(formatRotationDayLabel(2, { 2: '   ' }, 'Day')).toBe('Day 2');
+  });
+
+  it('falls back to "Day" when no label is configured', () => {
+    expect(formatRotationDayLabel(3, undefined, undefined)).toBe('Day 3');
   });
 });

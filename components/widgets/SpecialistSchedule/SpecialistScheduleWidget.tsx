@@ -16,7 +16,12 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { hexToRgba } from '@/utils/styles';
-import { parseTime, computeIsPast } from './utils';
+import {
+  parseTime,
+  computeIsPast,
+  resolveRotationDayNumber,
+  formatRotationDayLabel,
+} from './utils';
 import {
   REFERENCE_VIEWPORT,
   computeWidgetPixelRect,
@@ -68,6 +73,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   const {
     cycleLength = 6,
+    startDate = '',
     schoolDays = [],
     dayLabel = 'Day',
     customDayNames = {} as Record<number, string>,
@@ -99,32 +105,12 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Determine the current Day Number and Label
   const { currentDayNumber, currentDayLabel, isSchoolDay } = useMemo(() => {
-    // Check for explicit blocks first (Intermediate School style)
-    if (blocks && blocks.length > 0) {
-      const activeBlock = blocks.find(
-        (b) => todayStr >= b.startDate && todayStr <= b.endDate
-      );
-      if (activeBlock) {
-        const customName = customDayNames?.[activeBlock.dayNumber];
-        return {
-          currentDayNumber: activeBlock.dayNumber,
-          currentDayLabel: customName ?? `${dayLabel} ${activeBlock.dayNumber}`,
-          isSchoolDay: true,
-        };
-      }
-    }
+    const num = resolveRotationDayNumber(
+      { cycleLength, startDate, schoolDays, blocks },
+      todayStr
+    );
 
-    if (!schoolDays.length)
-      return {
-        currentDayNumber: null,
-        currentDayLabel: 'Non-School Day',
-        isSchoolDay: false,
-      };
-
-    const sortedSchoolDays = [...schoolDays].sort();
-    const todayIndex = sortedSchoolDays.indexOf(todayStr);
-
-    if (todayIndex === -1) {
+    if (num === null) {
       return {
         currentDayNumber: null,
         currentDayLabel: 'Non-School Day',
@@ -132,14 +118,20 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       };
     }
 
-    const num = (todayIndex % cycleLength) + 1;
-    const customName = customDayNames?.[num];
     return {
       currentDayNumber: num,
-      currentDayLabel: customName ?? `${dayLabel} ${num}`,
+      currentDayLabel: formatRotationDayLabel(num, customDayNames, dayLabel),
       isSchoolDay: true,
     };
-  }, [schoolDays, todayStr, cycleLength, blocks, customDayNames, dayLabel]);
+  }, [
+    schoolDays,
+    startDate,
+    todayStr,
+    cycleLength,
+    blocks,
+    customDayNames,
+    dayLabel,
+  ]);
 
   // Merge rotation items, daily items, and weekly items
   const currentItems = useMemo(() => {

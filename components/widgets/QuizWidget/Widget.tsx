@@ -12,6 +12,7 @@ import {
   QuizData,
   QuizQuestion,
   ScoreboardTeam,
+  QuizBehaviorSettings,
 } from '@/types';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { useDashboard } from '@/context/useDashboard';
@@ -1269,6 +1270,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         config={config}
         onAssign={async (
           meta,
+          behavior: QuizBehaviorSettings,
           plcOptions: PlcOptions,
           rosterIds: string[],
           dueAt: number | null,
@@ -1283,13 +1285,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
           if (!data) return;
-          // Source behavior (sessionMode, sessionOptions, attemptLimit) from
-          // the quiz itself now that it lives on the quiz (Task 9).
-          const {
-            sessionMode: mode,
-            sessionOptions,
-            attemptLimit,
-          } = getQuizBehavior(meta);
+          // Behavior comes from the assign modal — the quiz's saved settings
+          // plus any per-assignment overrides the teacher made there.
+          const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;
 
           // M17 C3 F1 — the B2 editor's structured option ids
           // (`{questionId}-correct` / `-incorrect-N`) must never reach a
