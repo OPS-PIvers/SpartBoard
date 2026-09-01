@@ -28,6 +28,12 @@ interface GradeLinkDoc {
   updatedAt?: number;
 }
 const gradeLinkStore = new Map<string, GradeLinkDoc>();
+const mintedTokens: { uid: string; claims: Record<string, unknown> }[] = [];
+let nextBridged: {
+  uid: string;
+  classlinkClassId: string;
+  live: boolean;
+} | null = null;
 
 vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
@@ -49,7 +55,10 @@ vi.mock('firebase-admin', () => ({
     batch: () => ({ set: vi.fn(), commit: async () => {} }),
   })),
   auth: vi.fn(() => ({
-    createCustomToken: async () => 'custom-token',
+    createCustomToken: async (uid: string, claims: Record<string, unknown>) => {
+      mintedTokens.push({ uid, claims });
+      return 'custom-token';
+    },
   })),
 }));
 
@@ -96,6 +105,12 @@ vi.mock('./nrpsStore', () => ({
 }));
 
 vi.mock('./identity', () => ({ ltiStudentUid: () => 'uid-student' }));
+
+// The ClassLink bridge has its own unit suite (classlinkBridge.test.ts); here we
+// only drive its two outcomes to assert what the exchange does with each.
+vi.mock('./classlinkBridge', () => ({
+  resolveClasslinkIdentity: vi.fn(async () => nextBridged),
+}));
 
 vi.mock('../classlinkShared', () => ({
   ALLOWED_ORIGINS: [],
@@ -156,7 +171,9 @@ function makeLaunch(
 
 beforeEach(() => {
   gradeLinkStore.clear();
+  mintedTokens.length = 0;
   nextLaunch = null;
+  nextBridged = null;
 });
 
 describe('ltiExchange — lti_grade_links null-clobber regression', () => {
@@ -192,5 +209,53 @@ describe('ltiExchange — lti_grade_links null-clobber regression', () => {
     const path = 'lti_grade_links/uid-student/resources/rl-1';
     // No stored value → null is the legitimate initial value.
     expect(gradeLinkStore.get(path)?.contextId).toBeNull();
+  });
+});
+
+describe('ltiExchange — ClassLink identity bridge', () => {
+  it('launches under the sub-derived uid when no bridge applies', async () => {
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].uid).toBe('uid-student');
+    expect(mintedTokens[0].claims.classIds).toEqual(['schoology:ctx-original']);
+    expect(
+      gradeLinkStore.has('lti_grade_links/uid-student/resources/rl-1')
+    ).toBe(true);
+  });
+
+  it('launches under the ClassLink uid and carries BOTH class ids when bridged', async () => {
+    nextBridged = { uid: 'sid-uid', classlinkClassId: 'class-7', live: true };
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].uid).toBe('sid-uid');
+    // The ClassLink id is what M17 pointer docs key on; the schoology id keeps
+    // section-targeted sessions overlapping. Losing either would narrow access.
+    expect(mintedTokens[0].claims.classIds).toEqual([
+      'class-7',
+      'schoology:ctx-original',
+    ]);
+  });
+
+  it('keys the grade-sync link on the bridged uid so passback still resolves', async () => {
+    nextBridged = { uid: 'sid-uid', classlinkClassId: 'class-7', live: true };
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(
+      gradeLinkStore.get('lti_grade_links/sid-uid/resources/rl-1')?.sub
+    ).toBe('sub-1');
+    expect(
+      gradeLinkStore.has('lti_grade_links/uid-student/resources/rl-1')
+    ).toBe(false);
+  });
+
+  it('omits the section class id when the platform strips the context claim', async () => {
+    nextBridged = { uid: 'sid-uid', classlinkClassId: 'class-7', live: false };
+    nextLaunch = makeLaunch({ contextId: null });
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(mintedTokens[0].claims.classIds).toEqual(['class-7']);
   });
 });
