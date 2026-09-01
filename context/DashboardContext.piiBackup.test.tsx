@@ -3,7 +3,13 @@ import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
-import { Dashboard, Toast, WidgetData } from '@/types';
+import {
+  Dashboard,
+  Toast,
+  WidgetConfig,
+  WidgetData,
+  WidgetType,
+} from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors DashboardContext.immediate.test.tsx)
@@ -157,6 +163,10 @@ interface ContextSnapshot {
   activeDashboard: Dashboard | null;
   loading: boolean;
   reorderDashboards: (ids: string[]) => Promise<void>;
+  updateWidgetConfigsAcrossBoards: (
+    type: WidgetType,
+    transform: (config: WidgetConfig) => WidgetConfig | null
+  ) => Promise<void>;
   toasts: Toast[];
 }
 
@@ -170,6 +180,7 @@ const TestConsumer: React.FC<{
       activeDashboard: ctx.activeDashboard,
       loading: ctx.loading,
       reorderDashboards: ctx.reorderDashboards,
+      updateWidgetConfigsAcrossBoards: ctx.updateWidgetConfigsAcrossBoards,
       toasts: ctx.toasts,
     };
   });
@@ -353,5 +364,84 @@ describe('DashboardContext reorderDashboards rollback', () => {
     // A stale full-array revert (setDashboards(previousDashboards), captured
     // before dash-3 existed) would have wiped dash-3 out entirely.
     expect(stateRef.current?.dashboards.map((d) => d.id)).toContain('dash-3');
+  });
+});
+
+function makeMaterialsWidget(id: string, selectedItems: string[]): WidgetData {
+  return {
+    id,
+    type: 'materials',
+    x: 0,
+    y: 0,
+    w: 1,
+    h: 1,
+    z: 1,
+    flipped: false,
+    config: { selectedItems, activeItems: [] } as unknown as WidgetConfig,
+  };
+}
+
+describe('DashboardContext updateWidgetConfigsAcrossBoards rollback', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    exportDashboardMock.mockClear();
+    listFilesMock.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reverts the optimistic config update on other boards and toasts when the save fails', async () => {
+    const stateRef = setup();
+    // dash-1 becomes the active board (first loaded); the other two are the
+    // "other boards" this call batches into a single saveDashboards write.
+    const dashActive = makeDashboard('dash-1', []);
+    const dash2 = makeDashboard('dash-2', [makeMaterialsWidget('w2', ['m1'])]);
+    const dash3 = makeDashboard('dash-3', [makeMaterialsWidget('w3', ['m1'])]);
+    await settleSnapshot(stateRef, [dashActive, dash2, dash3]);
+    saveDashboardsMock.mockRejectedValueOnce(new Error('offline'));
+
+    await act(async () => {
+      await stateRef.current?.updateWidgetConfigsAcrossBoards(
+        'materials',
+        (config) => {
+          const materialsConfig = config as unknown as {
+            selectedItems: string[];
+            activeItems: string[];
+          };
+          if (!materialsConfig.selectedItems.includes('m1')) return null;
+          return {
+            ...materialsConfig,
+            selectedItems: materialsConfig.selectedItems.filter(
+              (id) => id !== 'm1'
+            ),
+          } as unknown as WidgetConfig;
+        }
+      );
+    });
+
+    // Without a revert, the teacher's own UI would show "m1" as already
+    // removed from dash-2/dash-3 even though nothing was ever persisted.
+    const reverted2 = stateRef.current?.dashboards
+      .find((d) => d.id === 'dash-2')
+      ?.widgets.find((w) => w.id === 'w2')?.config as unknown as {
+      selectedItems: string[];
+    };
+    const reverted3 = stateRef.current?.dashboards
+      .find((d) => d.id === 'dash-3')
+      ?.widgets.find((w) => w.id === 'w3')?.config as unknown as {
+      selectedItems: string[];
+    };
+    expect(reverted2.selectedItems).toEqual(['m1']);
+    expect(reverted3.selectedItems).toEqual(['m1']);
+
+    const errorToast = stateRef.current?.toasts.find((t) => t.type === 'error');
+    expect(errorToast?.message).toContain('syncing it to other boards failed');
   });
 });
