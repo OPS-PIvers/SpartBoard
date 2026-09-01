@@ -29,12 +29,8 @@ type FormState =
 export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const {
-    updateWidget,
-    dashboards,
-    updateWidgetConfigsAcrossBoards,
-    addToast,
-  } = useDashboard();
+  const { updateWidget, dashboards, updateWidgetConfigsAcrossBoards } =
+    useDashboard();
   const { featurePermissions, customMaterials, saveCustomMaterials } =
     useAuth();
   const { showConfirm } = useDialog();
@@ -208,35 +204,28 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     await saveCustomMaterials(
       customMaterials.filter((item) => item.id !== materialId)
     );
-    try {
-      await updateWidgetConfigsAcrossBoards('materials', (widgetConfig) => {
-        const materialsWidgetConfig = widgetConfig as MaterialsConfig;
-        const selected = materialsWidgetConfig.selectedItems ?? [];
-        const active = materialsWidgetConfig.activeItems ?? [];
-        const snapshots = materialsWidgetConfig.customMaterialSnapshots ?? [];
-        const isReferenced =
-          selected.includes(materialId) ||
-          active.includes(materialId) ||
-          snapshots.some((snapshot) => snapshot.id === materialId);
-        if (!isReferenced) return null;
+    // updateWidgetConfigsAcrossBoards handles and toasts its own save
+    // failures internally (see DashboardContext.tsx) — it never rejects.
+    await updateWidgetConfigsAcrossBoards('materials', (widgetConfig) => {
+      const materialsWidgetConfig = widgetConfig as MaterialsConfig;
+      const selected = materialsWidgetConfig.selectedItems ?? [];
+      const active = materialsWidgetConfig.activeItems ?? [];
+      const snapshots = materialsWidgetConfig.customMaterialSnapshots ?? [];
+      const isReferenced =
+        selected.includes(materialId) ||
+        active.includes(materialId) ||
+        snapshots.some((snapshot) => snapshot.id === materialId);
+      if (!isReferenced) return null;
 
-        return {
-          ...materialsWidgetConfig,
-          selectedItems: selected.filter((id) => id !== materialId),
-          activeItems: active.filter((id) => id !== materialId),
-          customMaterialSnapshots: snapshots.filter(
-            (snapshot) => snapshot.id !== materialId
-          ),
-        } as WidgetConfig;
-      });
-    } catch {
-      // The material is already deleted from the library; surface the failure
-      // so the teacher knows other boards may still reference it.
-      addToast(
-        'Material deleted, but removing it from boards failed. It may still appear elsewhere.',
-        'error'
-      );
-    }
+      return {
+        ...materialsWidgetConfig,
+        selectedItems: selected.filter((id) => id !== materialId),
+        activeItems: active.filter((id) => id !== materialId),
+        customMaterialSnapshots: snapshots.filter(
+          (snapshot) => snapshot.id !== materialId
+        ),
+      } as WidgetConfig;
+    });
   };
 
   const editingMaterial =

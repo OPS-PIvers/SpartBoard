@@ -397,11 +397,14 @@ describe('DashboardContext updateWidgetConfigsAcrossBoards rollback', () => {
     vi.useRealTimers();
   });
 
-  it('reverts the optimistic config update on other boards and toasts when the save fails', async () => {
+  it('reverts the optimistic config update on other boards, but not the active board, and toasts when the save fails', async () => {
     const stateRef = setup();
-    // dash-1 becomes the active board (first loaded); the other two are the
-    // "other boards" this call batches into a single saveDashboards write.
-    const dashActive = makeDashboard('dash-1', []);
+    // dash-1 becomes the active board (first loaded) and rides the normal
+    // autosave, not this call's saveDashboards batch — its own optimistic
+    // update must survive even though the other boards' save fails.
+    const dashActive = makeDashboard('dash-1', [
+      makeMaterialsWidget('w1', ['m1']),
+    ]);
     const dash2 = makeDashboard('dash-2', [makeMaterialsWidget('w2', ['m1'])]);
     const dash3 = makeDashboard('dash-3', [makeMaterialsWidget('w3', ['m1'])]);
     await settleSnapshot(stateRef, [dashActive, dash2, dash3]);
@@ -440,6 +443,16 @@ describe('DashboardContext updateWidgetConfigsAcrossBoards rollback', () => {
     };
     expect(reverted2.selectedItems).toEqual(['m1']);
     expect(reverted3.selectedItems).toEqual(['m1']);
+
+    // The active board's update was never part of the failed save — it must
+    // NOT be reverted, or a local, already-independently-persisted change
+    // would visibly snap back in the UI for an unrelated failure.
+    const activeConfig = stateRef.current?.dashboards
+      .find((d) => d.id === 'dash-1')
+      ?.widgets.find((w) => w.id === 'w1')?.config as unknown as {
+      selectedItems: string[];
+    };
+    expect(activeConfig.selectedItems).toEqual([]);
 
     const errorToast = stateRef.current?.toasts.find((t) => t.type === 'error');
     expect(errorToast?.message).toContain('syncing it to other boards failed');

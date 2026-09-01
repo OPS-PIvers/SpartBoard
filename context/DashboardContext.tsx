@@ -4964,13 +4964,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (changedById.size === 0) return;
 
-      const previousById = new Map(
-        Array.from(changedById.keys(), (id) => [
-          id,
-          dashboardsRef.current.find((d) => d.id === id),
-        ])
-      );
-
       lastLocalUpdateAt.current = Date.now();
       setDashboards((prev) => prev.map((d) => changedById.get(d.id) ?? d));
 
@@ -4978,6 +4971,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         (d) => d.id !== activeIdRef.current
       );
       if (otherBoards.length > 0) {
+        // Snapshot only the boards actually being saved — the active board's
+        // update isn't part of this save (it rides the normal autosave) and
+        // must not be reverted if this save fails.
+        const previousOtherById = new Map(
+          otherBoards.map((d) => [
+            d.id,
+            dashboardsRef.current.find((prev) => prev.id === d.id),
+          ])
+        );
         try {
           await saveDashboards(otherBoards);
         } catch (err) {
@@ -4986,9 +4988,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             'Change saved locally, but syncing it to other boards failed.',
             'error'
           );
-          // Revert only the boards this call touched via the functional form —
+          // Revert only the boards this save touched via the functional form —
           // a stale full-array revert could clobber a concurrent update.
-          setDashboards((prev) => prev.map((d) => previousById.get(d.id) ?? d));
+          setDashboards((prev) =>
+            prev.map((d) => previousOtherById.get(d.id) ?? d)
+          );
         }
       }
     },
