@@ -827,9 +827,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [exportingSetId, setExportingSetId] = useState<string | null>(null);
   const [importFocusCounter, setImportFocusCounter] = useState(0);
   // Caches the rehosted set so a save retry reuses uploads instead of re-uploading.
+  // `complete` is false while uploads are still in flight — cleanup uses the
+  // (possibly partial) imagePaths either way, but only a `complete` cache is
+  // reused for a retry so a mid-way failure doesn't get treated as done.
   const importRehostCacheRef = useRef<{
     source: GuidedLearningSet;
     rehosted: GuidedLearningSet;
+    complete: boolean;
   } | null>(null);
   // Guards against onClose deleting uploads while a save is still in flight.
   const importSaveInFlightRef = useRef(false);
@@ -895,14 +899,31 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       const uid = user.uid;
       const cached = importRehostCacheRef.current;
       let rehosted: GuidedLearningSet;
-      if (cached && cached.source === set) {
+      if (cached && cached.source === set && cached.complete) {
         rehosted = cached.rehosted;
       } else {
-        const result = await rehostImportedSetImages(set, (blob, fileName) =>
-          uploadGuidedLearningMedia(uid, blob, fileName)
+        // Mutated in place as each upload resolves, so a mid-way throw still
+        // leaves the cache (and cleanupImportRehostCache) pointing at every
+        // path actually written to Storage — no orphans on partial failure.
+        const partial: GuidedLearningSet = { ...set, imagePaths: [] };
+        importRehostCacheRef.current = {
+          source: set,
+          rehosted: partial,
+          complete: false,
+        };
+        const result = await rehostImportedSetImages(
+          set,
+          (blob, fileName) => uploadGuidedLearningMedia(uid, blob, fileName),
+          (storagePath) => {
+            partial.imagePaths = [...(partial.imagePaths ?? []), storagePath];
+          }
         );
         rehosted = result.set;
-        importRehostCacheRef.current = { source: set, rehosted };
+        importRehostCacheRef.current = {
+          source: set,
+          rehosted,
+          complete: true,
+        };
       }
       const prepared = prepareImportedSet(
         { ...rehosted, title: title.trim() || rehosted.title },

@@ -343,6 +343,12 @@ export function ImportWizard<TData>({
     }
   };
 
+  // Ignore close attempts (Escape, backdrop click, X) while a save is in flight.
+  const handleClose = (): void => {
+    if (saving) return;
+    onClose();
+  };
+
   const stepIndicator = (
     <ol
       aria-label="Import progress"
@@ -395,8 +401,9 @@ export function ImportWizard<TData>({
       </div>
       <button
         type="button"
-        onClick={onClose}
-        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"
+        onClick={handleClose}
+        disabled={saving}
+        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         aria-label="Close import wizard"
       >
         <X size={20} />
@@ -705,7 +712,7 @@ export function ImportWizard<TData>({
       {step === 'source' ? (
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
         >
           Cancel
@@ -770,7 +777,7 @@ export function ImportWizard<TData>({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       customHeader={customHeader}
       footer={footer}
       footerClassName="shrink-0 border-t border-slate-200 rounded-b-2xl"

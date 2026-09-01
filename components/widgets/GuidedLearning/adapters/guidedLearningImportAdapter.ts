@@ -64,6 +64,8 @@ export function validateGuidedLearningImport(
   }
   if (!Array.isArray(data.imageUrls) || data.imageUrls.length === 0) {
     errors.push('At least one image is required.');
+  } else if (data.imageUrls.some((u) => typeof u !== 'string')) {
+    errors.push('Every image URL must be a string.');
   } else if (data.imageUrls.some((u) => u.startsWith('blob:'))) {
     errors.push(
       'Slides use temporary blob: URLs that only work in the authoring browser. Re-export with embedded images.'
