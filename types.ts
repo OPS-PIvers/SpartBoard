@@ -3628,6 +3628,10 @@ export interface QuizSession {
   /** Mirrors `QuizAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Mirrors `QuizAssignment.dueAt` — display-only metadata within the
+   *  open/close window; read by class-wide students on /my-assignments,
+   *  which sources due dates from this session doc, not the archive row. */
+  dueAt?: number | null;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;
@@ -5044,6 +5048,10 @@ export interface VideoActivitySession {
   /** Mirrors `VideoActivityAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Mirrors `VideoActivityAssignment.dueAt` — display-only metadata within the
+   *  open/close window; read by class-wide students on /my-assignments,
+   *  which sources due dates from this session doc, not the archive row. */
+  dueAt?: number | null;
   /** True when this assignment used per-student targeting (spec §2a). Class
    *  channel drops these client-side; not a security boundary. */
   individualTargeting?: boolean;

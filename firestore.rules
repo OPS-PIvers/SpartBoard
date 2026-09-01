@@ -68,6 +68,13 @@ service cloud.firestore {
       return 120000;
     }
 
+    /* M17 open-window grace (ms). Mirrors the close grace so a student whose
+       clock (or the round trip) runs slightly ahead of openAt isn't bounced
+       at the moment the assignment opens. */
+    function assignmentOpenGraceMs() {
+      return 120000;
+    }
+
     // Phase 5A compat: post-5A sessions write a `classIds` list, pre-5A sessions
     // write a single `classId`. Picks the list gate when `classIds` is non-empty,
     // else the legacy single-class gate. Callers pass get(...) defaults so an
@@ -3208,6 +3215,14 @@ service cloud.firestore {
           return sessionData().get('closeAt', null) == null ||
                  request.time.toMillis() < sessionData().closeAt + assignmentCloseGraceMs();
         }
+        // M17 session-level open window, the mirror of the close gate above.
+        // Gates CREATE only: a student holding a direct code/link must not
+        // start before openAt, but an attempt that legitimately started must
+        // never be bricked by the teacher moving openAt later.
+        function withinSessionOpenWindow() {
+          return sessionData().get('openAt', null) == null ||
+                 request.time.toMillis() >= sessionData().openAt - assignmentOpenGraceMs();
+        }
         // Two pre-existing student flows legitimately write AFTER closeAt and
         // must not regress: the published-results anti-screenshot counters, and
         // a teacher-granted extension (`unlocked: true`, cleared by the student
@@ -3265,6 +3280,8 @@ service cloud.firestore {
           sessionMode() == 'submissions' &&
           // Block joins after the assignment's close time (M17).
           withinSessionCloseWindow() &&
+          // Block joins before the assignment's open time (M17).
+          withinSessionOpenWindow() &&
           (isStudentRoleUser()
             ? responseKey == request.auth.uid
             : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -3782,6 +3799,12 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('closeAt', null) == null ||
                  request.time.toMillis() < get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.closeAt + assignmentCloseGraceMs();
         }
+        /* M17 session-level open window (create-only mirror of the close gate;
+           absent openAt = always open). */
+        function vaWithinSessionOpenWindow() {
+          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('openAt', null) == null ||
+                 request.time.toMillis() >= get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.openAt - assignmentOpenGraceMs();
+        }
 
         // Student branch allows resource == null so the join flow can probe via
         // getDoc() before create (else a Null-value throw on studentUid). Mirrors
@@ -3809,6 +3832,8 @@ service cloud.firestore {
           vaSessionMode() == 'submissions' &&
           // Block joins after the assignment's close time (M17).
           vaWithinSessionCloseWindow() &&
+          // Block joins before the assignment's open time (M17).
+          vaWithinSessionOpenWindow() &&
           (isStudentRoleUser()
             ? responseDocId == request.auth.uid
             : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -3932,6 +3957,15 @@ service cloud.firestore {
           return maSessionData().get('closeAt', null) == null ||
                  request.time.toMillis() < maSessionData().closeAt + assignmentCloseGraceMs();
         }
+        /* M17 session-level open window. Create and update share one rule here,
+           so this is scoped to the CREATE case (`resource == null`) — an
+           already-started submission must never be bricked by a teacher moving
+           openAt later. Absent openAt = always open. */
+        function maWithinSessionOpenWindow() {
+          return resource != null ||
+                 maSessionData().get('openAt', null) == null ||
+                 request.time.toMillis() >= maSessionData().openAt - assignmentOpenGraceMs();
+        }
 
         // Teacher + admins read all submissions; a student reads their own (the
         // /my-assignments completion badge). Identity is the studentUid field
@@ -3964,6 +3998,8 @@ service cloud.firestore {
           maSessionData().get('mode', 'submissions') == 'submissions' &&
           // Block submissions after the assignment's close time (M17).
           maWithinSessionCloseWindow() &&
+          // Block a first submission before the assignment's open time (M17).
+          maWithinSessionOpenWindow() &&
           (
             maSessionData().get('submissionsEnabled', false) == true ||
             (request.resource.data.payload.keys().hasOnly(['completed']) &&
@@ -4045,6 +4081,12 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('closeAt', null) == null ||
                  request.time.toMillis() < get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.closeAt + assignmentCloseGraceMs();
         }
+        /* M17 session-level open window (create-only mirror of the close gate;
+           absent openAt = always open). */
+        function glWithinSessionOpenWindow() {
+          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('openAt', null) == null ||
+                 request.time.toMillis() >= get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.openAt - assignmentOpenGraceMs();
+        }
 
         // Teacher can read all responses; students can only read their own
         allow read: if request.auth != null && (
@@ -4063,7 +4105,9 @@ service cloud.firestore {
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions' &&
           // Block joins after the assignment's close time (M17).
-          glWithinSessionCloseWindow();
+          glWithinSessionCloseWindow() &&
+          // Block joins before the assignment's open time (M17).
+          glWithinSessionOpenWindow();
         // Two disjoint branches: TEACHER (owning teacher/admin writes score +
         // per-answer isCorrect on publishAssignmentScores, clears on unpublish;
         // teacherUid is the sole gate, unconstrained payload so publish fields

@@ -616,12 +616,21 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // required by `setAssignmentTargetsV1`'s ownership check
           // (`not-found` if absent) and, as a side benefit, populates the
           // Archive tab for every assignment, not just PLC imports.
-          if (targeting.openAt != null || targeting.closeAt != null) {
+          // `dueAt` rides along: /my-assignments reads it top-level off the
+          // session doc, where VA previously only carried it under
+          // `sessionOptions`.
+          const sessionDueAt = dueAt ?? targeting.dueAt ?? null;
+          if (
+            targeting.openAt != null ||
+            targeting.closeAt != null ||
+            sessionDueAt != null
+          ) {
             await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
               ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
               ...(targeting.closeAt != null
                 ? { closeAt: targeting.closeAt }
                 : {}),
+              ...(sessionDueAt != null ? { dueAt: sessionDueAt } : {}),
             });
           }
           const nowTs = Date.now();

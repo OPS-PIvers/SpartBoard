@@ -39,6 +39,7 @@ import React, {
   useState,
 } from 'react';
 import { httpsCallable } from 'firebase/functions';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   ClipboardList,
   Video,
@@ -46,18 +47,31 @@ import {
   Send,
   type LucideIcon,
 } from 'lucide-react';
-import { functions } from '@/config/firebase';
+import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
+import { useRosters } from '@/hooks/useRosters';
+import { useRubrics } from '@/hooks/useRubrics';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import type {
   PlcLinkage,
+  QuizData,
   VideoActivitySessionOptions,
   VideoActivitySessionSettings,
 } from '@/types';
+import {
+  AssignTargetingSection,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  toOverrideEditorQuestions,
+  type AssignTargetingValue,
+} from '@/components/common/library';
+import { buildSetAssignmentTargetsPayload } from '@/utils/studentTargetRef';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
 import {
   getVideoActivityBehavior,
@@ -292,7 +306,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     loadQuizData,
     loading: quizzesLoading,
   } = useQuiz(libraryUid);
-  const { createAssignment } = useQuizAssignments(libraryUid);
+  const { createAssignment, setAssignmentTargetSkippedCount } =
+    useQuizAssignments(libraryUid);
   const {
     activities,
     loadActivityData,
@@ -303,6 +318,12 @@ const LtiDeepLinkFlow: React.FC = () => {
   // PLC list for the "Share with PLC" picker. usePlcs() reads `useAuth` (mounted
   // on this route) — no DashboardProvider required.
   const { plcs } = usePlcs();
+  // M17 targeting needs the teacher's rosters (student pick-list) and rubrics
+  // (per-student rubric swap). Both are keyed off the same first-party Google
+  // session the library is; `null` before it's ready keeps them inert.
+  const { rosters } = useRosters(teacherReady ? user : null);
+  const { rubrics } = useRubrics(libraryUid);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
 
   // ── Per-assignment settings (parity with the normal SpartBoard assign flow
   // and the Classroom add-on). All optional. Class targeting is NOT here; it's
@@ -327,6 +348,63 @@ const LtiDeepLinkFlow: React.FC = () => {
   const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDueAt(localEndOfDayMs(e.target?.value ?? ''));
   };
+
+  // M17 individual targeting + schedule window. Default 'class' mode renders
+  // only the collapsed Schedule + "+ Individual students" affordances, so the
+  // class-wide click-count is unchanged.
+  const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
+  // Full quiz content backing the per-student override editor (question
+  // subset / MC-option hider). Loaded lazily on first expand, cached per quiz.
+  const [targetingQuizData, setTargetingQuizData] = useState<QuizData | null>(
+    null
+  );
+  const targetingQuizCacheRef = useRef<Map<string, QuizData>>(new Map());
+  const loadedTargetingForRef = useRef<string | null>(null);
+
+  // Reset targeting when the teacher picks a different activity (adjusting
+  // state while rendering — no effect needed).
+  const selectionKey = `${kind}:${kind === 'quiz' ? selectedQuizId : selectedActivityId}`;
+  const [prevSelectionKey, setPrevSelectionKey] = useState(selectionKey);
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
+    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setTargetingQuizData(
+      targetingQuizCacheRef.current.get(selectedQuizId) ?? null
+    );
+    loadedTargetingForRef.current = null;
+  }
+
+  // Lazily fetch the selected quiz's body from Drive — only once the teacher
+  // actually opens "+ Individual students & overrides". A class-wide add never
+  // touches this, so it still fetches exactly once (at Add time).
+  const handleExpandIndividualTargeting = useCallback(() => {
+    if (kind !== 'quiz' || !selectedQuizId) return;
+    const meta = quizzes.find((q) => q.id === selectedQuizId);
+    if (!meta) return;
+    const cached = targetingQuizCacheRef.current.get(meta.id);
+    if (cached) {
+      setTargetingQuizData(cached);
+      return;
+    }
+    if (loadedTargetingForRef.current === meta.id) return;
+    loadedTargetingForRef.current = meta.id;
+    void loadQuizData(meta.driveFileId).then(
+      (data) => {
+        targetingQuizCacheRef.current.set(meta.id, data);
+        // Drop a response for a since-abandoned selection.
+        if (loadedTargetingForRef.current === meta.id)
+          setTargetingQuizData(data);
+      },
+      (err) => {
+        loadedTargetingForRef.current = null;
+        logError('LtiDeepLinkFlow.loadQuizDataForTargeting', err, {
+          quizId: meta.id,
+        });
+      }
+    );
+  }, [kind, selectedQuizId, quizzes, loadQuizData]);
 
   const selectedQuiz = useMemo(
     () => quizzes.find((q) => q.id === selectedQuizId),
@@ -529,7 +607,25 @@ const LtiDeepLinkFlow: React.FC = () => {
       const cacheKey = `quiz:${selectedQuiz.id}`;
       let created = createdRef.current.get(cacheKey);
       if (!created) {
-        const quizData = await loadQuizData(selectedQuiz.driveFileId);
+        const quizData =
+          targetingQuizCacheRef.current.get(selectedQuiz.id) ??
+          (await loadQuizData(selectedQuiz.driveFileId));
+
+        // M17 C3 F1 — the override editor's structured option ids
+        // (`{questionId}-correct` / `-incorrect-N`) must never reach a
+        // student-readable pointer doc. Resolve them to option TEXT here,
+        // where the full quiz body is in hand; the student side matches on text.
+        const hiddenOptions = translateHiddenOptionIdsToText(
+          quizData.questions,
+          assignTargeting.overridesByKey
+        );
+        const resolvedTargeting: AssignTargetingValue = {
+          ...assignTargeting,
+          overridesByKey: hiddenOptions.overridesByKey,
+        };
+        if (hiddenOptions.warnings.length > 0) {
+          setErrorMsg(`Note: ${hiddenOptions.warnings.join(' ')}`);
+        }
 
         // Gradebook scale = the quiz's total points, so a 17/20 quiz reads 17/20
         // in Schoology (not a percentage). Shared with the Results push via
@@ -563,7 +659,7 @@ const LtiDeepLinkFlow: React.FC = () => {
             ? { [`schoology:${contextId}`]: contextTitle }
             : undefined;
 
-        const { code: quizCode } = await createAssignment(
+        const { id: assignmentId, code: quizCode } = await createAssignment(
           {
             id: selectedQuiz.id,
             title: selectedQuiz.title,
@@ -590,8 +686,56 @@ const LtiDeepLinkFlow: React.FC = () => {
             classIds: [`schoology:${contextId}`],
             initialStatus: 'active',
             ...(classPeriodByClassId ? { classPeriodByClassId } : {}),
+            // M17 targeting — `targetMode`/`targetStudents` are written only
+            // by `setAssignmentTargetsV1` below, never here.
+            targetGroupIds: resolvedTargeting.targetGroupIds,
+            overridesBySourcedId: resolvedTargeting.overridesByKey,
+            openAt: resolvedTargeting.openAt ?? null,
+            closeAt: resolvedTargeting.closeAt ?? null,
           }
         );
+
+        // Individual targeting only (§3a-G): a class-wide add never depends on
+        // the callable, so a Cloud Functions hiccup can't regress today's flow.
+        // Inside the once-only create block so a sign/POST retry can't re-fan.
+        if (resolvedTargeting.targetMode === 'students') {
+          try {
+            const payload = buildSetAssignmentTargetsPayload(
+              undefined,
+              resolvedTargeting
+            );
+            const result = await setAssignmentTargets({
+              assignmentId,
+              kind: 'quiz',
+              sessionId: assignmentId,
+              ...payload,
+            });
+            if (result.skipped.length > 0) {
+              setErrorMsg(skippedTargetsToastMessage(result.skipped.length));
+              try {
+                await setAssignmentTargetSkippedCount(
+                  assignmentId,
+                  result.skipped.length
+                );
+              } catch (persistErr) {
+                logError(
+                  'LtiDeepLinkFlow.setAssignmentTargetSkippedCount',
+                  persistErr,
+                  { assignmentId }
+                );
+              }
+            }
+          } catch (targetErr) {
+            // Non-fatal: the assignment exists and the class can still take it.
+            logError('LtiDeepLinkFlow.setAssignmentTargets', targetErr, {
+              assignmentId,
+            });
+            setErrorMsg(
+              'Added for the whole class, but individual student targeting ' +
+                'failed to save. Adjust it from the SpartBoard assignment.'
+            );
+          }
+        }
         created = { kind: 'quiz', quizCode, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
       }
@@ -609,6 +753,9 @@ const LtiDeepLinkFlow: React.FC = () => {
       dueAt,
       resolvePlcLinkage,
       signAndReturn,
+      assignTargeting,
+      setAssignmentTargets,
+      setAssignmentTargetSkippedCount,
     ]
   );
 
@@ -679,6 +826,89 @@ const LtiDeepLinkFlow: React.FC = () => {
           [`schoology:${contextId}`],
           periodNames
         );
+        // VA's createAssignment has no targeting/window channel, so the M17
+        // fields are written post-create — the same pattern the in-app VA
+        // assign path uses (session doc owns openAt/closeAt/dueAt; the
+        // teacher archive doc owns targetGroupIds/overridesBySourcedId).
+        if (
+          assignTargeting.openAt != null ||
+          assignTargeting.closeAt != null ||
+          dueAt != null
+        ) {
+          await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
+            ...(assignTargeting.openAt != null
+              ? { openAt: assignTargeting.openAt }
+              : {}),
+            ...(assignTargeting.closeAt != null
+              ? { closeAt: assignTargeting.closeAt }
+              : {}),
+            ...(dueAt != null ? { dueAt } : {}),
+          });
+        }
+        if (user?.uid) {
+          await setDoc(
+            doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
+            {
+              ...(assignTargeting.targetGroupIds.length > 0
+                ? { targetGroupIds: assignTargeting.targetGroupIds }
+                : {}),
+              ...(Object.keys(assignTargeting.overridesByKey).length > 0
+                ? { overridesBySourcedId: assignTargeting.overridesByKey }
+                : {}),
+              ...(assignTargeting.openAt != null
+                ? { openAt: assignTargeting.openAt }
+                : {}),
+              ...(assignTargeting.closeAt != null
+                ? { closeAt: assignTargeting.closeAt }
+                : {}),
+              ...(dueAt != null ? { dueAt } : {}),
+            },
+            { merge: true }
+          );
+        }
+
+        // Individual targeting only (§3a-G); inside the once-only create block
+        // so a sign/POST retry can't re-fan the pointer docs.
+        if (assignTargeting.targetMode === 'students') {
+          try {
+            const payload = buildSetAssignmentTargetsPayload(
+              undefined,
+              assignTargeting
+            );
+            const result = await setAssignmentTargets({
+              assignmentId: sessionId,
+              kind: 'video-activity',
+              sessionId,
+              ...payload,
+            });
+            if (user?.uid) {
+              await setDoc(
+                doc(
+                  db,
+                  'users',
+                  user.uid,
+                  'video_activity_assignments',
+                  sessionId
+                ),
+                { targetSkippedCount: result.skipped.length },
+                { merge: true }
+              );
+            }
+            if (result.skipped.length > 0) {
+              setErrorMsg(skippedTargetsToastMessage(result.skipped.length));
+            }
+          } catch (targetErr) {
+            // Non-fatal: the session/assignment docs already exist.
+            logError('LtiDeepLinkFlow.setAssignmentTargets', targetErr, {
+              sessionId,
+            });
+            setErrorMsg(
+              'Added for the whole class, but individual student targeting ' +
+                'failed to save. Adjust it from the SpartBoard assignment.'
+            );
+          }
+        }
+
         created = { kind: 'va', sessionId, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
       }
@@ -696,6 +926,9 @@ const LtiDeepLinkFlow: React.FC = () => {
       dueAt,
       resolvePlcLinkage,
       signAndReturn,
+      assignTargeting,
+      setAssignmentTargets,
+      user,
     ]
   );
 
@@ -939,6 +1172,35 @@ const LtiDeepLinkFlow: React.FC = () => {
                   disabled={busy}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
                 />
+              </div>
+
+              {/* M17 schedule window + individual-student targeting. The
+                  standalone "Due date" field above stays the single source of
+                  dueAt, so the section's own due picker is off. */}
+              <div className="border-t border-slate-200 pt-4">
+                <AssignTargetingSection
+                  rosters={rosters}
+                  value={assignTargeting}
+                  onChange={setAssignTargeting}
+                  kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
+                  {...(kind === 'quiz'
+                    ? {
+                        quizContext: {
+                          questions:
+                            toOverrideEditorQuestions(targetingQuizData),
+                          rubrics,
+                        },
+                      }
+                    : {})}
+                  onExpand={handleExpandIndividualTargeting}
+                />
+                {assignTargeting.targetMode === 'students' && (
+                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                    Per-student overrides reach students once this Schoology
+                    section is linked to its ClassLink class. Schedule windows
+                    apply to everyone either way.
+                  </p>
+                )}
               </div>
 
               {/* PLC sharing applies to BOTH quizzes and video activities —

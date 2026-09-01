@@ -23,9 +23,9 @@
  *        - Quiz → `/classroom-addon/student?code=<code>`
  *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
-import React, { useCallback, useId, useMemo, useState } from 'react';
+import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
@@ -33,11 +33,24 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { usePlcs } from '@/hooks/usePlcs';
+import { useRosters } from '@/hooks/useRosters';
+import { useRubrics } from '@/hooks/useRubrics';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import type {
   PlcLinkage,
+  QuizData,
   VideoActivitySessionOptions,
   VideoActivitySessionSettings,
 } from '@/types';
+import {
+  AssignTargetingSection,
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  toOverrideEditorQuestions,
+  type AssignTargetingValue,
+} from '@/components/common/library';
+import { buildSetAssignmentTargetsPayload } from '@/utils/studentTargetRef';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
 import {
   getVideoActivityBehavior,
@@ -149,7 +162,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const { user, signInWithGoogle, googleAccessToken, ensureGoogleScope } =
     useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
-  const { createAssignment } = useQuizAssignments(user?.uid);
+  const { createAssignment, setAssignmentTargetSkippedCount } =
+    useQuizAssignments(user?.uid);
   const {
     activities,
     loadActivityData,
@@ -160,6 +174,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // PLC list for the quiz "Share with PLC" picker. usePlcs() reads `useAuth`
   // (mounted on this route) — no DashboardProvider required.
   const { plcs } = usePlcs();
+  // M17 targeting needs the teacher's rosters (student pick-list) and rubrics
+  // (per-student rubric swap). Both wait on the Drive-backed teacher session.
+  const { rosters } = useRosters(user && googleAccessToken ? user : null);
+  const { rubrics } = useRubrics(user?.uid);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
 
   // User-facing progress line (the latest step) + a sticky error banner. These
   // replace the spike's always-visible scrolling log; no raw diagnostics are
@@ -195,6 +214,65 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const append = useCallback((line: string) => {
     setStatusMsg(line);
   }, []);
+
+  // M17 individual targeting + schedule window. Default 'class' mode renders
+  // only the collapsed Schedule + "+ Individual students" affordances, so the
+  // class-wide click-count is unchanged. `showDueAt` stays off: the due date
+  // belongs to Classroom's own composer (see the settings note above).
+  const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
+  // Full quiz content backing the per-student override editor (question
+  // subset / MC-option hider). Loaded lazily on first expand, cached per quiz.
+  const [targetingQuizData, setTargetingQuizData] = useState<QuizData | null>(
+    null
+  );
+  const targetingQuizCacheRef = useRef<Map<string, QuizData>>(new Map());
+  const loadedTargetingForRef = useRef<string | null>(null);
+
+  // Reset targeting when the teacher picks a different activity (adjusting
+  // state while rendering — no effect needed).
+  const selectionKey = `${kind}:${kind === 'quiz' ? selectedQuizId : selectedActivityId}`;
+  const [prevSelectionKey, setPrevSelectionKey] = useState(selectionKey);
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
+    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setTargetingQuizData(
+      targetingQuizCacheRef.current.get(selectedQuizId) ?? null
+    );
+    loadedTargetingForRef.current = null;
+  }
+
+  // Lazily fetch the selected quiz's body from Drive — only once the teacher
+  // actually opens "+ Individual students & overrides". A class-wide attach
+  // never touches this, so it still fetches exactly once (at attach time).
+  const handleExpandIndividualTargeting = useCallback(() => {
+    if (kind !== 'quiz' || !selectedQuizId) return;
+    const meta = quizzes.find((q) => q.id === selectedQuizId);
+    if (!meta) return;
+    const cached = targetingQuizCacheRef.current.get(meta.id);
+    if (cached) {
+      setTargetingQuizData(cached);
+      return;
+    }
+    if (loadedTargetingForRef.current === meta.id) return;
+    loadedTargetingForRef.current = meta.id;
+    void loadQuizData(meta.driveFileId).then(
+      (data) => {
+        targetingQuizCacheRef.current.set(meta.id, data);
+        // Drop a response for a since-abandoned selection.
+        if (loadedTargetingForRef.current === meta.id) {
+          setTargetingQuizData(data);
+        }
+      },
+      (err) => {
+        loadedTargetingForRef.current = null;
+        logError('TeacherDiscoveryRoute.loadQuizDataForTargeting', err, {
+          quizId: meta.id,
+        });
+      }
+    );
+  }, [kind, selectedQuizId, quizzes, loadQuizData]);
 
   const selectedQuiz = useMemo(
     () => quizzes.find((q) => q.id === selectedQuizId),
@@ -412,7 +490,25 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     }
 
     append(`Loading "${selectedQuiz.title}"…`);
-    const quizData = await loadQuizData(selectedQuiz.driveFileId);
+    const quizData =
+      targetingQuizCacheRef.current.get(selectedQuiz.id) ??
+      (await loadQuizData(selectedQuiz.driveFileId));
+
+    // M17 C3 F1 — the override editor's structured option ids
+    // (`{questionId}-correct` / `-incorrect-N`) must never reach a
+    // student-readable pointer doc. Resolve them to option TEXT here, where the
+    // full quiz body is in hand; the student side matches on text.
+    const hiddenOptions = translateHiddenOptionIdsToText(
+      Array.isArray(quizData?.questions) ? quizData.questions : [],
+      assignTargeting.overridesByKey
+    );
+    const resolvedTargeting: AssignTargetingValue = {
+      ...assignTargeting,
+      overridesByKey: hiddenOptions.overridesByKey,
+    };
+    for (const warning of hiddenOptions.warnings) {
+      append(`Note: ${warning}`);
+    }
 
     // Classroom grade scale = quiz's total points (e.g. 17/20), not a percentage.
     // loadQuizData returns the raw Drive JSON blob unvalidated (no normalizer),
@@ -475,9 +571,56 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         ...(Object.keys(targeting.classPeriodByClassId).length > 0
           ? { classPeriodByClassId: targeting.classPeriodByClassId }
           : {}),
+        // M17 targeting — `targetMode`/`targetStudents` are written only by
+        // `setAssignmentTargetsV1` below, never here.
+        targetGroupIds: resolvedTargeting.targetGroupIds,
+        overridesBySourcedId: resolvedTargeting.overridesByKey,
+        openAt: resolvedTargeting.openAt ?? null,
+        closeAt: resolvedTargeting.closeAt ?? null,
       }
     );
     append(`Assignment created (join code ${code}).`);
+
+    // Individual targeting only (§3a-G): a class-wide attach never depends on
+    // the callable, so a Cloud Functions hiccup can't regress today's flow.
+    if (resolvedTargeting.targetMode === 'students') {
+      try {
+        const payload = buildSetAssignmentTargetsPayload(
+          undefined,
+          resolvedTargeting
+        );
+        const result = await setAssignmentTargets({
+          assignmentId: sessionId,
+          kind: 'quiz',
+          sessionId,
+          ...payload,
+        });
+        if (result.skipped.length > 0) {
+          append(skippedTargetsToastMessage(result.skipped.length));
+          try {
+            await setAssignmentTargetSkippedCount(
+              sessionId,
+              result.skipped.length
+            );
+          } catch (persistErr) {
+            logError(
+              'TeacherDiscoveryRoute.setAssignmentTargetSkippedCount',
+              persistErr,
+              { sessionId }
+            );
+          }
+        }
+      } catch (targetErr) {
+        // Non-fatal: the assignment exists and the class can still take it.
+        logError('TeacherDiscoveryRoute.setAssignmentTargets', targetErr, {
+          sessionId,
+        });
+        append(
+          'Note: individual student targeting failed to save. The assignment ' +
+            'is still available to the whole class.'
+        );
+      }
+    }
 
     // Pass the quiz total so the Classroom attachment's maxPoints matches the
     // quiz exactly — the grade scale pushed grades are later capped to.
@@ -548,6 +691,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     kind,
     teacherName,
     defaultTeacherName,
+    assignTargeting,
+    setAssignmentTargets,
+    setAssignmentTargetSkippedCount,
   ]);
 
   const attachVideoActivity = useCallback(async () => {
@@ -624,6 +770,88 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     );
     append(`Video-activity session created (sessionId ${sessionId}).`);
 
+    // VA's createAssignment has no targeting/window channel, so the M17 fields
+    // are written post-create — the same pattern the in-app VA assign path
+    // uses (session doc owns openAt/closeAt; the teacher archive doc owns
+    // targetGroupIds/overridesBySourcedId).
+    if (assignTargeting.openAt != null || assignTargeting.closeAt != null) {
+      await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
+        ...(assignTargeting.openAt != null
+          ? { openAt: assignTargeting.openAt }
+          : {}),
+        ...(assignTargeting.closeAt != null
+          ? { closeAt: assignTargeting.closeAt }
+          : {}),
+      });
+      if (user?.uid) {
+        await setDoc(
+          doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
+          {
+            ...(assignTargeting.openAt != null
+              ? { openAt: assignTargeting.openAt }
+              : {}),
+            ...(assignTargeting.closeAt != null
+              ? { closeAt: assignTargeting.closeAt }
+              : {}),
+          },
+          { merge: true }
+        );
+      }
+    }
+    if (
+      user?.uid &&
+      (assignTargeting.targetGroupIds.length > 0 ||
+        Object.keys(assignTargeting.overridesByKey).length > 0)
+    ) {
+      await setDoc(
+        doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
+        {
+          ...(assignTargeting.targetGroupIds.length > 0
+            ? { targetGroupIds: assignTargeting.targetGroupIds }
+            : {}),
+          ...(Object.keys(assignTargeting.overridesByKey).length > 0
+            ? { overridesBySourcedId: assignTargeting.overridesByKey }
+            : {}),
+        },
+        { merge: true }
+      );
+    }
+
+    // Individual targeting only (§3a-G).
+    if (assignTargeting.targetMode === 'students') {
+      try {
+        const payload = buildSetAssignmentTargetsPayload(
+          undefined,
+          assignTargeting
+        );
+        const result = await setAssignmentTargets({
+          assignmentId: sessionId,
+          kind: 'video-activity',
+          sessionId,
+          ...payload,
+        });
+        if (user?.uid) {
+          await setDoc(
+            doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
+            { targetSkippedCount: result.skipped.length },
+            { merge: true }
+          );
+        }
+        if (result.skipped.length > 0) {
+          append(skippedTargetsToastMessage(result.skipped.length));
+        }
+      } catch (targetErr) {
+        // Non-fatal: the session/assignment docs already exist.
+        logError('TeacherDiscoveryRoute.setAssignmentTargets', targetErr, {
+          sessionId,
+        });
+        append(
+          'Note: individual student targeting failed to save. The activity ' +
+            'is still available to the whole class.'
+        );
+      }
+    }
+
     // Pass the activity total so the Classroom attachment's maxPoints matches
     // the activity exactly — the grade scale pushed grades are later capped to.
     const attachmentId = await createAttachment(
@@ -693,6 +921,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     kind,
     teacherName,
     defaultTeacherName,
+    assignTargeting,
+    setAssignmentTargets,
   ]);
 
   const runAttach = useCallback(async () => {
@@ -894,6 +1124,27 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   placeholder={defaultTeacherName || 'Teacher name'}
                   disabled={busy}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+
+              {/* M17 schedule window + individual-student targeting. No due
+                  picker here — Classroom's own composer owns the due date. */}
+              <div className="border-t border-slate-200 pt-4">
+                <AssignTargetingSection
+                  rosters={rosters}
+                  value={assignTargeting}
+                  onChange={setAssignTargeting}
+                  kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
+                  {...(kind === 'quiz'
+                    ? {
+                        quizContext: {
+                          questions:
+                            toOverrideEditorQuestions(targetingQuizData),
+                          rubrics,
+                        },
+                      }
+                    : {})}
+                  onExpand={handleExpandIndividualTargeting}
                 />
               </div>
 

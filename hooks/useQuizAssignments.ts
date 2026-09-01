@@ -844,6 +844,10 @@ export const useQuizAssignments = (
         // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
         ...(openAt != null ? { openAt } : {}),
         ...(closeAt != null ? { closeAt } : {}),
+        // /my-assignments reads the due date off the SESSION doc for class-wide
+        // students, so mirror it here alongside the window (the archive doc
+        // above already carries it).
+        ...(settings.dueAt != null ? { dueAt: settings.dueAt } : {}),
       };
 
       const batch = writeBatch(db);
