@@ -148,6 +148,23 @@ describe('embedSetImages', () => {
       GlExportBudgetExceededError
     );
   });
+
+  it('accounts for base64 inflation when checking the total embed budget', async () => {
+    // Raw bytes alone stay under 100MB, but base64 (~4/3x) pushes them over.
+    const perSlideBytes = 19 * 1024 * 1024;
+    const set = makeSet({
+      imageUrls: Array.from(
+        { length: 4 },
+        (_, i) => `https://example.com/${i}.png`
+      ),
+    });
+    const fetchMedia = vi
+      .fn()
+      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' } as Blob);
+    await expect(embedSetImages(set, fetchMedia)).rejects.toThrow(
+      GlExportBudgetExceededError
+    );
+  });
 });
 
 describe('rehostImportedSetImages', () => {

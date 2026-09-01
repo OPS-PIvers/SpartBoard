@@ -826,10 +826,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [exportingSetId, setExportingSetId] = useState<string | null>(null);
   const [importFocusCounter, setImportFocusCounter] = useState(0);
-  // Caches the rehosted set so a save retry reuses uploads instead of re-uploading.
-  // `complete` is false while uploads are still in flight — cleanup uses the
-  // (possibly partial) imagePaths either way, but only a `complete` cache is
-  // reused for a retry so a mid-way failure doesn't get treated as done.
+  // Caches the rehosted set so a retry reuses uploads; `complete` gates reuse so a mid-way failure isn't treated as done.
   const importRehostCacheRef = useRef<{
     source: GuidedLearningSet;
     rehosted: GuidedLearningSet;
@@ -902,9 +899,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       if (cached && cached.source === set && cached.complete) {
         rehosted = cached.rehosted;
       } else {
-        // Mutated in place as each upload resolves, so a mid-way throw still
-        // leaves the cache (and cleanupImportRehostCache) pointing at every
-        // path actually written to Storage — no orphans on partial failure.
+        // A stale incomplete cache is about to be superseded by a fresh re-upload; clean up its orphans first.
+        if (cached && !cached.complete) {
+          for (const path of cached.rehosted.imagePaths ?? []) {
+            if (path) void deleteFile(path).catch(() => undefined);
+          }
+        }
+        // Mutated in place as each upload resolves, so a mid-way throw still leaves the cache pointing at every path actually written to Storage.
         const partial: GuidedLearningSet = { ...set, imagePaths: [] };
         importRehostCacheRef.current = {
           source: set,

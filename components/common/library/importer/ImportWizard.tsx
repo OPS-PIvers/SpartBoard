@@ -725,7 +725,8 @@ export function ImportWizard<TData>({
             setValidationErrors([]);
             setStep(step === 'confirm' ? 'preview' : 'source');
           }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+          disabled={saving}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ArrowLeft className="w-4 h-4" />
           Back

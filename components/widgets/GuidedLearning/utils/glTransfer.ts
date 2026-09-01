@@ -95,8 +95,8 @@ export async function embedSetImages(
           );
           return url;
         }
-        // Checked before conversion so a mid-export overage aborts before any file is produced.
-        totalEmbeddedBytes += blob.size;
+        // Checked before conversion, using base64-inflated size so the budget bounds the actual .gl.json file.
+        totalEmbeddedBytes += Math.ceil(blob.size / 3) * 4;
         if (totalEmbeddedBytes > GL_MAX_TOTAL_EMBED_BYTES) {
           throw new GlExportBudgetExceededError(
             `This activity's embedded media exceeds the ${Math.round(GL_MAX_TOTAL_EMBED_BYTES / 1024 / 1024)}MB export limit. Remove some slides or shrink the media before exporting.`
@@ -131,9 +131,7 @@ export type GlMediaUploader = (
   fileName: string
 ) => Promise<{ url: string; storagePath: string }>;
 
-// Upload data-URI slides to the importer's storage; remote urls stay as-is with a warning.
-// `onUploaded` fires after each successful upload so a caller can track orphans if a
-// later slide in the same import throws mid-way (partial-failure cleanup).
+// Upload data-URI slides to storage; `onUploaded` lets a caller track orphans on a mid-way throw.
 export async function rehostImportedSetImages(
   set: GuidedLearningSet,
   upload: GlMediaUploader,
