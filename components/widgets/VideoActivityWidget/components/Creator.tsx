@@ -281,7 +281,10 @@ export const Creator: React.FC<CreatorProps> = ({
             <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                  <label
+                    className="block font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1"
+                    style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+                  >
                     Activity Title
                   </label>
                   <input
@@ -295,7 +298,10 @@ export const Creator: React.FC<CreatorProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                  <label
+                    className="block font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1"
+                    style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+                  >
                     YouTube Video
                   </label>
                   {/* Discover-tab selector */}
@@ -767,7 +773,10 @@ const SearchTab: React.FC<SearchTabProps> = ({
                   {r.channelTitle}
                 </p>
                 {r.durationSeconds > 0 && (
-                  <p className="text-xxs text-slate-400 font-mono mt-1">
+                  <p
+                    className="text-slate-400 font-mono mt-1"
+                    style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+                  >
                     {formatDuration(r.durationSeconds)}
                   </p>
                 )}
