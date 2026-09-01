@@ -260,7 +260,9 @@ export const Creator: React.FC<CreatorProps> = ({
           onClick={step === 'info' ? onBack : () => setStep('info')}
           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft
+            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+          />
         </button>
         <span
           className="font-black text-brand-blue-dark uppercase tracking-tight"
@@ -351,7 +353,13 @@ export const Creator: React.FC<CreatorProps> = ({
 
                   {discoverTab === 'paste' && (
                     <div className="relative">
-                      <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+                      <Youtube
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500"
+                        style={{
+                          width: 'min(20px, 5cqmin)',
+                          height: 'min(20px, 5cqmin)',
+                        }}
+                      />
                       <input
                         type="url"
                         value={url}
@@ -393,8 +401,17 @@ export const Creator: React.FC<CreatorProps> = ({
               </div>
 
               {error && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div
+                  className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 font-medium"
+                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                >
+                  <AlertCircle
+                    className="shrink-0 mt-0.5"
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
+                  />
                   <span>{error}</span>
                 </div>
               )}
@@ -411,7 +428,10 @@ export const Creator: React.FC<CreatorProps> = ({
 
           {step === 'source' && (
             <div className="grid gap-3 animate-in fade-in zoom-in-95 duration-300">
-              <p className="text-center text-slate-500 text-xs font-medium mb-2">
+              <p
+                className="text-center text-slate-500 font-medium mb-2"
+                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+              >
                 How would you like to add questions to this video?
               </p>
 
@@ -421,17 +441,32 @@ export const Creator: React.FC<CreatorProps> = ({
                   className="group relative p-5 bg-white border-2 border-slate-200 hover:border-indigo-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Sparkles className="w-12 h-12 text-indigo-600" />
+                    <Sparkles
+                      className="text-indigo-600"
+                      style={{
+                        width: 'min(48px, 12cqmin)',
+                        height: 'min(48px, 12cqmin)',
+                      }}
+                    />
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
-                      <Sparkles className="w-6 h-6 text-indigo-600" />
+                      <Sparkles
+                        className="text-indigo-600"
+                        style={{
+                          width: 'min(24px, 6cqmin)',
+                          height: 'min(24px, 6cqmin)',
+                        }}
+                      />
                     </div>
                     <div>
                       <h4 className="font-bold text-slate-800">
                         Draft with AI
                       </h4>
-                      <p className="text-xs text-slate-500 leading-relaxed">
+                      <p
+                        className="text-slate-500 leading-relaxed"
+                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                      >
                         Generate questions automatically using Gemini&apos;s
                         video understanding.
                       </p>
@@ -445,17 +480,32 @@ export const Creator: React.FC<CreatorProps> = ({
                 className="group relative p-5 bg-white border-2 border-slate-200 hover:border-emerald-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
               >
                 <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <FileSpreadsheet className="w-12 h-12 text-emerald-600" />
+                  <FileSpreadsheet
+                    className="text-emerald-600"
+                    style={{
+                      width: 'min(48px, 12cqmin)',
+                      height: 'min(48px, 12cqmin)',
+                    }}
+                  />
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-                    <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                    <FileSpreadsheet
+                      className="text-emerald-600"
+                      style={{
+                        width: 'min(24px, 6cqmin)',
+                        height: 'min(24px, 6cqmin)',
+                      }}
+                    />
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-800">
                       Import from Sheets
                     </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">
+                    <p
+                      className="text-slate-500 leading-relaxed"
+                      style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                    >
                       Paste CSV data from a Google Sheet or Gemini Gem.
                     </p>
                   </div>
@@ -467,15 +517,30 @@ export const Creator: React.FC<CreatorProps> = ({
                 className="group relative p-5 bg-white border-2 border-slate-200 hover:border-brand-blue-primary hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
               >
                 <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <PlusCircle className="w-12 h-12 text-brand-blue-primary" />
+                  <PlusCircle
+                    className="text-brand-blue-primary"
+                    style={{
+                      width: 'min(48px, 12cqmin)',
+                      height: 'min(48px, 12cqmin)',
+                    }}
+                  />
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-brand-blue-lighter/50 rounded-xl group-hover:bg-brand-blue-lighter transition-colors">
-                    <PlusCircle className="w-6 h-6 text-brand-blue-primary" />
+                    <PlusCircle
+                      className="text-brand-blue-primary"
+                      style={{
+                        width: 'min(24px, 6cqmin)',
+                        height: 'min(24px, 6cqmin)',
+                      }}
+                    />
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-800">Manual Entry</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">
+                    <p
+                      className="text-slate-500 leading-relaxed"
+                      style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                    >
                       Start from scratch and add your own questions.
                     </p>
                   </div>
@@ -488,14 +553,26 @@ export const Creator: React.FC<CreatorProps> = ({
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-3">
-                  <Sparkles className="w-5 h-5 text-indigo-600" />
-                  <span className="font-bold text-indigo-900 text-sm">
+                  <Sparkles
+                    className="text-indigo-600"
+                    style={{
+                      width: 'min(20px, 5cqmin)',
+                      height: 'min(20px, 5cqmin)',
+                    }}
+                  />
+                  <span
+                    className="font-bold text-indigo-900"
+                    style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                  >
                     AI Configuration
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs font-bold text-indigo-700/60 uppercase">
+                  <div
+                    className="flex justify-between items-center font-bold text-indigo-700/60 uppercase"
+                    style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                  >
                     <span>Target Question Count</span>
                     <span>{questionCount}</span>
                   </div>
@@ -509,15 +586,27 @@ export const Creator: React.FC<CreatorProps> = ({
                   />
                 </div>
 
-                <div className="text-xs text-indigo-600/70 italic leading-relaxed">
+                <div
+                  className="text-indigo-600/70 italic leading-relaxed"
+                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                >
                   Note: AI generation uses Gemini&apos;s video understanding to
                   analyze the content and generate questions.
                 </div>
               </div>
 
               {error && (
-                <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium leading-relaxed">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div
+                  className="flex items-start gap-2 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 font-medium leading-relaxed"
+                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                >
+                  <AlertCircle
+                    className="shrink-0 mt-0.5"
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
+                  />
                   <span>{error}</span>
                 </div>
               )}
@@ -530,12 +619,23 @@ export const Creator: React.FC<CreatorProps> = ({
               >
                 {isGenerating ? (
                   <>
-                    <Loader2 className="animate-spin w-5 h-5" />
+                    <Loader2
+                      className="animate-spin"
+                      style={{
+                        width: 'min(20px, 5cqmin)',
+                        height: 'min(20px, 5cqmin)',
+                      }}
+                    />
                     Generating Activity...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles
+                      style={{
+                        width: 'min(20px, 5cqmin)',
+                        height: 'min(20px, 5cqmin)',
+                      }}
+                    />
                     Generate with Gemini
                   </>
                 )}
@@ -576,7 +676,10 @@ const SearchTab: React.FC<SearchTabProps> = ({
   <div className="space-y-3">
     <div className="flex gap-2">
       <div className="relative flex-1">
-        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <SearchIcon
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+        />
         <input
           type="text"
           value={query}
@@ -596,19 +699,35 @@ const SearchTab: React.FC<SearchTabProps> = ({
         className="px-4 py-2.5 bg-brand-blue-primary text-white rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-brand-blue-dark transition-colors shadow-sm"
         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
-        {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+        {searching ? (
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+          />
+        ) : (
+          'Search'
+        )}
       </button>
     </div>
 
     {error && (
-      <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 text-xs font-medium">
-        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+      <div
+        className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 font-medium"
+        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+      >
+        <AlertCircle
+          className="shrink-0 mt-0.5"
+          style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+        />
         <span>{error}</span>
       </div>
     )}
 
     {!error && hasSearched && !searching && results.length === 0 && (
-      <p className="text-xs text-slate-500 text-center py-4">
+      <p
+        className="text-slate-500 text-center py-4"
+        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+      >
         No results. Try different keywords.
       </p>
     )}
@@ -635,10 +754,16 @@ const SearchTab: React.FC<SearchTabProps> = ({
                 style={{ aspectRatio: '16 / 9' }}
               />
               <div className="flex-1 min-w-0 py-1">
-                <p className="font-bold text-slate-800 text-sm leading-snug line-clamp-2">
+                <p
+                  className="font-bold text-slate-800 leading-snug line-clamp-2"
+                  style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                >
                   {r.title}
                 </p>
-                <p className="text-xs text-slate-500 mt-1 truncate">
+                <p
+                  className="text-slate-500 mt-1 truncate"
+                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                >
                   {r.channelTitle}
                 </p>
                 {r.durationSeconds > 0 && (
@@ -648,7 +773,13 @@ const SearchTab: React.FC<SearchTabProps> = ({
                 )}
               </div>
               {picked && (
-                <Check className="w-5 h-5 text-emerald-600 shrink-0 self-center" />
+                <Check
+                  className="text-emerald-600 shrink-0 self-center"
+                  style={{
+                    width: 'min(20px, 5cqmin)',
+                    height: 'min(20px, 5cqmin)',
+                  }}
+                />
               )}
             </button>
           );
@@ -702,18 +833,37 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
       >
         {recommending ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Asking Gemini…
+            <Loader2
+              className="animate-spin"
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+            />{' '}
+            Asking Gemini…
           </>
         ) : (
           <>
-            <Wand2 className="w-4 h-4" /> Suggest a video
+            <Wand2
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+            />{' '}
+            Suggest a video
           </>
         )}
       </button>
 
       {error && (
-        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 text-xs font-medium">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+        <div
+          className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 font-medium"
+          style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+        >
+          <AlertCircle
+            className="shrink-0 mt-0.5"
+            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+          />
           <span>{error}</span>
         </div>
       )}
@@ -734,10 +884,16 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
               style={{ aspectRatio: '16 / 9' }}
             />
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-slate-800 text-sm leading-snug">
+              <p
+                className="font-bold text-slate-800 leading-snug"
+                style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+              >
                 {recommendation.title || 'Recommended video'}
               </p>
-              <p className="text-xs text-slate-500 mt-1 italic line-clamp-3">
+              <p
+                className="text-slate-500 mt-1 italic line-clamp-3"
+                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+              >
                 {recommendation.rationale}
               </p>
             </div>
@@ -746,7 +902,8 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
             type="button"
             onClick={onAccept}
             disabled={accepted}
-            className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors"
+            className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-lg font-bold uppercase tracking-wider transition-colors"
+            style={{ fontSize: 'min(12px, 3.5cqmin)' }}
           >
             {accepted ? '✓ Selected' : 'Use this video'}
           </button>
