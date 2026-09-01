@@ -1,6 +1,6 @@
 ---
 name: guided-learning-author
-description: Author importable SpartBoard Guided Learning activities (.gl.json) from an image plus a learning-goal description. Use when asked to create, generate, or convert a guided learning activity, hotspot lesson, labeled-diagram walkthrough, or .gl.json file. Covers the exact schema, hotspot coordinate rules, and validation requirements so the output imports cleanly via the Guided Learning widget's Import wizard.
+description: Author or fill in importable SpartBoard Guided Learning activities (.gl.json) from images plus a learning-goal description. Use when asked to create, generate, or convert a guided learning activity, hotspot lesson, labeled-diagram walkthrough, app-screenshot walkthrough, or .gl.json file, or to configure the empty hotspots in an exported one. Covers the exact schema, hotspot coordinate rules, interaction choice, and validation requirements so the output imports cleanly via the Guided Learning widget's Import wizard.
 ---
 
 # Guided Learning Author
@@ -13,21 +13,52 @@ data URIs.
 
 ## Workflow
 
-1. **Read the source image(s).** Actually look at the image before placing
-   hotspots — coordinates must land on the real features.
-2. **Plan steps from the learning goal.** One hotspot per concept the teacher
-   wants students to notice. 4–10 steps is the sweet spot.
+1. **Read the source image(s) at full resolution.** Look at every slide
+   before placing hotspots — coordinates must land on the real features.
+   When starting from an exported file, decode each `imageUrls` entry and
+   overlay its existing pins (numbered circles) so you can see what the
+   author meant.
+2. **Plan steps from the learning goal.** One hotspot per concept the
+   audience must notice. 4–10 steps for a diagram; up to ~16 for an app
+   walkthrough. Add pins for controls the story needs (a Save button, an
+   "active" toggle) even if the author skipped them.
 3. **Place coordinates.** `xPct`/`yPct` are percentages (0–100) **of the
    image itself**, not the screen: `xPct = 100 * x_pixels / image_width`,
-   `yPct = 100 * y_pixels / image_height`. Place the point at the center of
-   the feature. Double-check by describing what sits at that spot.
-4. **Write tooltip text.** 1–3 sentences, student-facing, grade-appropriate,
-   directly serving the stated learning goal. No meta-commentary.
-5. **Embed images.** Convert each image to a base64 data URI
+   `yPct = 100 * y_pixels / image_height`. Measure pixels on the
+   full-resolution image, never on a thumbnail; place the point at the
+   center of the feature.
+4. **Verify placement.** Render each slide with the pins overlaid and look
+   at it. Every pin sits on its target before you move on; estimated pins
+   miss small icons about half the time.
+5. **Choose the interaction per step** (see Interaction choice below) and
+   write the text: 1–3 sentences, audience-facing, directly serving the
+   learning goal. Every step gets a `label` — it is the only visible caption
+   while a step is live.
+6. **Embed images.** Convert each image to a base64 data URI
    (`data:image/png;base64,…` or `image/jpeg`). Put them in `imageUrls` in
-   slide order. Remote `https:` URLs import too, but embedded is preferred.
-6. **Validate** against the rules below, then save as
+   slide order. Remote `https:` URLs import too, but embedded is preferred;
+   the importer re-hosts data URIs to Storage.
+7. **Validate** against the rules below, then save as
    `<Title>.<first-8-of-id>.gl.json`.
+
+## Interaction choice
+
+- **"Click this" steps** (buttons, icons, tabs): `spotlight` with
+  `showOverlay: "tooltip"`. The player pushes the tooltip outside the lit
+  circle and clamps it inside the canvas, so leave `tooltipPosition` at
+  `auto` — explicit `left`/`right` end up covering the target.
+  `spotlightRadius` is % of the image's smaller side: 8–10 for a small
+  icon, 12–15 for a button or tab, 20–25 for a panel.
+- **Concept steps** (what a setting means, why a feature exists):
+  `text-popover`, no spotlight.
+- **Free-standing notes** on a wide area (a table column, a modal):
+  `tooltip`.
+- While a step is live the player hides its numbered pin; the tooltip's
+  anchor dot and the `label` under the spotlight are the only markers.
+
+Exported files default every hotspot to `text-popover` with empty `text`;
+when configuring an export, reassign the type per step rather than keeping
+the default.
 
 ## File schema (GuidedLearningSet)
 
@@ -60,7 +91,8 @@ describes (omitting it would make spotlights render with legacy
 container-relative semantics).
 
 Do NOT include: `imagePaths`, `isBuilding`, `authorUid` (all
-importer-specific; stripped or rewritten on import).
+importer-specific; stripped or rewritten on import). Exports carry
+`authorUid` — drop it when editing one.
 
 ### Modes
 
