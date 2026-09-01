@@ -146,7 +146,7 @@ export const StickerItemWidget: React.FC<StickerItemWidgetProps> = ({
     return (
       <DraggableSticker widget={widget}>
         <div
-          className={`w-full h-full flex flex-col items-center justify-center rounded-[inherit] border-[6px] ${theme.border} bg-white ${theme.shadow} shadow-2xl relative p-2`}
+          className={`w-full h-full flex flex-col items-center justify-center rounded-3xl border-[6px] ${theme.border} bg-white ${theme.shadow} shadow-2xl relative p-2`}
         >
           {/* Icon Container */}
           <div
