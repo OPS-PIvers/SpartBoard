@@ -43,6 +43,12 @@ export { archiveActivityWallPhoto } from './driveArchive';
 // ── Admin analytics HTTP endpoint (snapshot read) ──────────────────────────
 export { adminAnalytics } from './adminAnalyticsEndpoint';
 
+// ── Guided Learning Storage slide GC (on set delete) ───────────────────────
+export {
+  gcGuidedLearningMedia,
+  gcBuildingGuidedLearningMedia,
+} from './gcGuidedLearningMedia';
+
 // ── Student identity (ClassLink-via-Google SSO) + PIN→SSO unification ───────
 export {
   studentLoginV1,

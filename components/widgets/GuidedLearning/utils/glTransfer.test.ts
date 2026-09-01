@@ -183,6 +183,26 @@ describe('rehostImportedSetImages', () => {
     expect(warnings).toEqual([]);
   });
 
+  it('tracks Drive-hosted slides and omits imagePaths when nothing hit Storage', async () => {
+    const upload = vi.fn().mockResolvedValue({
+      url: 'https://lh3.googleusercontent.com/d/drive-1',
+      storagePath: '',
+      driveFileId: 'drive-1',
+    });
+    const onUploaded = vi.fn();
+    const { set: out, driveFileIds } = await rehostImportedSetImages(
+      makeSet({ imageUrls: [PNG_DATA_URI] }),
+      upload,
+      onUploaded
+    );
+    expect(out.imageUrls).toEqual([
+      'https://lh3.googleusercontent.com/d/drive-1',
+    ]);
+    expect(out.imagePaths).toBeUndefined();
+    expect(driveFileIds).toEqual(['drive-1']);
+    expect(onUploaded).toHaveBeenCalledWith('', 'drive-1');
+  });
+
   it('keeps remote urls with a warning and skips upload', async () => {
     const upload = vi.fn();
     const { set: out, warnings } = await rehostImportedSetImages(

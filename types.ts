@@ -5851,6 +5851,8 @@ export interface GuidedLearningSetMetadata {
   driveFileId: string;
   createdAt: number;
   updatedAt: number;
+  /** Storage paths of slides this set owns; read by the slide GC function on delete. */
+  imagePaths?: string[];
   /**
    * Optional manual sort order, written by the Library "Manual order" reorder
    * flow. Omitted for sets that have never been manually reordered.

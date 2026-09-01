@@ -164,6 +164,38 @@ export const useStorage = () => {
     return { url, storagePath };
   };
 
+  // Drive-first image slide upload for imported sets; Storage only when Drive is unavailable.
+  const uploadGuidedLearningImage = async (
+    userId: string,
+    blob: Blob,
+    fileName: string
+  ): Promise<{ url: string; storagePath: string; driveFileId?: string }> => {
+    if (driveService) {
+      setUploading(true);
+      try {
+        const driveFile = await driveService.uploadFile(
+          blob,
+          `hotspot-${Date.now()}-${fileName}`,
+          'Assets/HotspotImages'
+        );
+        await driveService.makePublic(driveFile.id, undefined);
+        return {
+          url: `https://lh3.googleusercontent.com/d/${driveFile.id}`,
+          storagePath: '',
+          driveFileId: driveFile.id,
+        };
+      } finally {
+        setUploading(false);
+      }
+    }
+    return uploadGuidedLearningMedia(userId, blob, fileName);
+  };
+
+  const deleteDriveFile = async (fileId: string): Promise<void> => {
+    if (!driveService) return;
+    await driveService.deleteFile(fileId);
+  };
+
   const uploadHotspotImage = async (
     userId: string,
     file: File
@@ -412,6 +444,8 @@ export const useStorage = () => {
     uploadFile,
     uploadFileWithProgress,
     uploadGuidedLearningMedia,
+    uploadGuidedLearningImage,
+    deleteDriveFile,
     uploadBackgroundImage,
     uploadSticker,
     uploadDisplayImage,

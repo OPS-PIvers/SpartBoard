@@ -28,6 +28,11 @@ export interface GlTransferResult {
   warnings: string[];
 }
 
+export interface GlRehostResult extends GlTransferResult {
+  // Drive file ids created for image slides, for cleanup on a cancelled import.
+  driveFileIds: string[];
+}
+
 export function blobToDataUri(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -126,20 +131,21 @@ export async function embedSetImages(
   return { set: exported, warnings };
 }
 
+// Drive-hosted uploads return an empty storagePath plus the Drive file id.
 export type GlMediaUploader = (
   blob: Blob,
   fileName: string
-) => Promise<{ url: string; storagePath: string }>;
+) => Promise<{ url: string; storagePath: string; driveFileId?: string }>;
 
-// Upload data-URI slides to storage; `onUploaded` lets a caller track orphans on a mid-way throw.
+// Upload data-URI slides; `onUploaded` lets a caller track orphans on a mid-way throw.
 export async function rehostImportedSetImages(
   set: GuidedLearningSet,
   upload: GlMediaUploader,
-  onUploaded?: (storagePath: string) => void
-): Promise<GlTransferResult> {
+  onUploaded?: (storagePath: string, driveFileId?: string) => void
+): Promise<GlRehostResult> {
   const warnings: string[] = [];
   const imagePaths: string[] = [];
-  let uploadedAny = false;
+  const driveFileIds: string[] = [];
   const imageUrls: string[] = [];
   for (let index = 0; index < set.imageUrls.length; index++) {
     const url = set.imageUrls[index];
@@ -160,16 +166,20 @@ export async function rehostImportedSetImages(
     const uploaded = await upload(blob, fileName);
     imageUrls.push(uploaded.url);
     imagePaths.push(uploaded.storagePath);
-    uploadedAny = true;
-    onUploaded?.(uploaded.storagePath);
+    if (uploaded.driveFileId) driveFileIds.push(uploaded.driveFileId);
+    if (uploaded.driveFileId) {
+      onUploaded?.(uploaded.storagePath, uploaded.driveFileId);
+    } else {
+      onUploaded?.(uploaded.storagePath);
+    }
   }
   const rehosted: GuidedLearningSet = { ...set, imageUrls };
-  if (uploadedAny) {
+  if (imagePaths.some(Boolean)) {
     rehosted.imagePaths = imagePaths;
   } else {
     delete rehosted.imagePaths;
   }
-  return { set: rehosted, warnings };
+  return { set: rehosted, warnings, driveFileIds };
 }
 
 // Mint fresh identity; schemaVersion passes through so legacy files keep legacy semantics.
