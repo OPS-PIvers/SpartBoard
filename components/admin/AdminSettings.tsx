@@ -212,71 +212,83 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       aria-labelledby="admin-settings-title"
     >
       <div className="bg-white w-full h-full overflow-hidden flex flex-col">
-        {/* Header — title + close only (tabs now live in the left rail) */}
-        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center justify-between shadow-sm shrink-0">
+        {/* Mobile-only header — back button + current section title. Desktop closes from the rail. */}
+        <div className="md:hidden bg-brand-blue-dark text-white h-14 px-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 overflow-hidden min-w-0">
-            {/* Mobile back button — only while a panel is drilled into */}
             {!showMobileMenu && (
               <button
                 onClick={() => setShowMobileMenu(true)}
-                className="md:hidden p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2"
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2"
                 aria-label="Back to menu"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
             )}
-            <Settings className="w-4 h-4 text-white/70 shrink-0 hidden md:block" />
             <h2
               id="admin-settings-title"
               className="text-lg font-bold truncate"
             >
-              <span className="md:hidden">{mobileTitle}</span>
-              <span className="hidden md:inline">Admin Settings</span>
+              {mobileTitle}
             </h2>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 md:p-1.5 hover:bg-white/20 rounded-lg transition-colors shrink-0 -mr-2 md:mr-0"
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -mr-2"
             aria-label="Close settings"
           >
-            <X className="w-6 h-6 md:w-5 md:h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Body — dark rail (desktop) + light content panel */}
         <div className="flex-1 flex overflow-hidden">
           {/* Vertical rail (desktop/tablet): icon+label at lg, icon-only at md */}
-          <nav
-            role="tablist"
-            aria-orientation="vertical"
-            aria-label="Admin sections"
-            className="hidden md:flex flex-col md:w-[76px] lg:w-60 shrink-0 bg-brand-blue-dark overflow-y-auto py-2"
-          >
-            {TAB_GROUPS.map((group) => (
-              <div key={group.id} className="mb-1">
-                <div className="px-4 pt-3 pb-1">
-                  <span className="hidden lg:block text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">
-                    {group.label}
-                  </span>
-                  {/* Icon-only mode: a hairline keeps groups visually distinct */}
-                  <div className="lg:hidden mx-auto w-7 border-t border-white/10" />
+          <div className="hidden md:flex flex-col md:w-[76px] lg:w-60 shrink-0 bg-brand-blue-dark text-white">
+            <div className="flex items-center justify-between h-14 px-3 lg:px-4 shrink-0">
+              <span className="hidden lg:flex items-center gap-2 text-base font-bold truncate">
+                <Settings className="w-4 h-4 text-white/70 shrink-0" />
+                Admin Settings
+              </span>
+              <button
+                onClick={onClose}
+                className="p-2 mx-auto lg:mx-0 hover:bg-white/20 rounded-lg transition-colors shrink-0"
+                aria-label="Close settings"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav
+              role="tablist"
+              aria-orientation="vertical"
+              aria-label="Admin sections"
+              className="flex flex-col flex-1 overflow-y-auto py-2"
+            >
+              {TAB_GROUPS.map((group) => (
+                <div key={group.id} className="mb-1">
+                  <div className="px-4 pt-3 pb-1">
+                    <span className="hidden lg:block text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">
+                      {group.label}
+                    </span>
+                    {/* Icon-only mode: a hairline keeps groups visually distinct */}
+                    <div className="lg:hidden mx-auto w-7 border-t border-white/10" />
+                  </div>
+                  <div className="flex flex-col gap-0.5 px-2">
+                    {group.tabs.map((tab) => (
+                      <RailTab
+                        key={tab.id}
+                        id={tab.id}
+                        isActive={activeTab === tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        icon={<tab.icon className="w-5 h-5 shrink-0" />}
+                        label={tab.label}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-col gap-0.5 px-2">
-                  {group.tabs.map((tab) => (
-                    <RailTab
-                      key={tab.id}
-                      id={tab.id}
-                      isActive={activeTab === tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      icon={<tab.icon className="w-5 h-5 shrink-0" />}
-                      label={tab.label}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </nav>
+              ))}
+            </nav>
+          </div>
 
           {/* Content column */}
           <div className="flex-1 min-w-0 overflow-y-auto overscroll-none touch-pan-y bg-slate-50">
