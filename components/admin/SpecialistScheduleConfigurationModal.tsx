@@ -35,7 +35,8 @@ import {
   resolveRotationDayNumber,
   resolveRotationMode,
   clampCycleLength,
-  normalizeBlocks,
+  padBlocks,
+  trimBuildingBlocks,
   MIN_CYCLE_LENGTH,
   MAX_CYCLE_LENGTH,
   formatRotationDayLabel,
@@ -117,14 +118,16 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     setSaving(true);
     try {
       const docRef = doc(db, 'feature_permissions', 'specialist-schedule');
+      const source = updatedConfig ?? config;
+      const toSave: SpecialistScheduleGlobalConfig = {
+        ...source,
+        buildingDefaults: trimBuildingBlocks(source.buildingDefaults ?? {}),
+      };
       await setDoc(
         docRef,
         {
           type: 'specialist-schedule',
-          config: (updatedConfig ?? config) as unknown as Record<
-            string,
-            unknown
-          >,
+          config: toSave as unknown as Record<string, unknown>,
           updatedAt: Date.now(),
         },
         { merge: true }
@@ -186,7 +189,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     field: 'startDate' | 'endDate' | 'dayNumber',
     value: string | number
   ) => {
-    const newBlocks = normalizeBlocks(
+    const newBlocks = padBlocks(
       currentBuildingConfig.blocks,
       currentBuildingConfig.cycleLength
     );
@@ -202,7 +205,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     updateBuilding({
       rotationMode: 'blocks',
       dayLabel: 'Block',
-      blocks: normalizeBlocks(
+      blocks: padBlocks(
         currentBuildingConfig.blocks,
         currentBuildingConfig.cycleLength
       ),
@@ -215,7 +218,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       cycleLength,
       rotationMode,
       blocks: isBlockMode
-        ? normalizeBlocks(currentBuildingConfig.blocks, cycleLength)
+        ? padBlocks(currentBuildingConfig.blocks, cycleLength)
         : [],
     });
   };

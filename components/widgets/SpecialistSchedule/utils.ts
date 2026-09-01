@@ -70,6 +70,28 @@ export const resolveRotationMode = (
 ): 'calendar' | 'blocks' =>
   config.rotationMode ?? (config.cycleLength === 10 ? 'blocks' : 'calendar');
 
+/** Pads blocks up to `length` without dropping any existing entries (safe mid-edit). */
+export const padBlocks = (
+  blocks: RotationBlock[] | undefined,
+  length: number
+): RotationBlock[] =>
+  normalizeBlocks(blocks, Math.max(length, blocks?.length ?? 0));
+
+/** Trims every blocks-mode building to its cycleLength; the modal calls this only on save. */
+export const trimBuildingBlocks = <
+  T extends RotationConfigInput & { cycleLength: number },
+>(
+  buildingDefaults: Record<string, T>
+): Record<string, T> =>
+  Object.fromEntries(
+    Object.entries(buildingDefaults).map(([id, b]) => [
+      id,
+      resolveRotationMode(b) === 'blocks'
+        ? { ...b, blocks: normalizeBlocks(b.blocks, b.cycleLength) }
+        : b,
+    ])
+  ) as Record<string, T>;
+
 /** Returns a blocks array padded/trimmed to exactly `length` entries. */
 export const normalizeBlocks = (
   blocks: RotationBlock[] | undefined,

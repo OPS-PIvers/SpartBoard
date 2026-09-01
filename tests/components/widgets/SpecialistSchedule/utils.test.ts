@@ -8,6 +8,8 @@ import {
   resolveRotationMode,
   clampCycleLength,
   normalizeBlocks,
+  padBlocks,
+  trimBuildingBlocks,
 } from '@/components/widgets/SpecialistSchedule/utils';
 
 describe('parseTime', () => {
@@ -349,5 +351,32 @@ describe('normalizeBlocks', () => {
 
   it('trims a longer list', () => {
     expect(normalizeBlocks(normalizeBlocks(undefined, 10), 2)).toHaveLength(2);
+  });
+});
+
+describe('padBlocks', () => {
+  it('never drops populated blocks when the target length is smaller', () => {
+    const ten = normalizeBlocks(undefined, 10).map((b) => ({
+      ...b,
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+    }));
+    expect(padBlocks(ten, 1)).toEqual(ten);
+    expect(padBlocks(ten, 15)).toHaveLength(15);
+  });
+});
+
+describe('trimBuildingBlocks', () => {
+  it('trims blocks-mode buildings to cycleLength and leaves calendar buildings alone', () => {
+    const out = trimBuildingBlocks({
+      a: {
+        cycleLength: 2,
+        rotationMode: 'blocks' as const,
+        blocks: normalizeBlocks(undefined, 5),
+      },
+      b: { cycleLength: 6, blocks: normalizeBlocks(undefined, 3) },
+    });
+    expect(out.a.blocks).toHaveLength(2);
+    expect(out.b.blocks).toHaveLength(3);
   });
 });

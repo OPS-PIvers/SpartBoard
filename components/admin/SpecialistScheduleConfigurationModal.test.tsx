@@ -238,6 +238,45 @@ describe('SpecialistScheduleConfigurationModal', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps populated block dates when the count is typed through a smaller intermediate value', async () => {
+    mockIsAuthBypass = false;
+    mockUseAdminBuildings.mockReturnValue(building('intermediate'));
+    const blocks = Array.from({ length: 10 }, (_, i) => ({
+      dayNumber: i + 1,
+      startDate: `2026-09-${String(i + 1).padStart(2, '0')}`,
+      endDate: `2026-09-${String(i + 1).padStart(2, '0')}`,
+    }));
+    vi.mocked(getDoc).mockResolvedValue(
+      snapshot({
+        exists: () => true,
+        data: () => ({
+          config: {
+            buildingDefaults: {
+              intermediate: {
+                cycleLength: 10,
+                rotationMode: 'blocks',
+                schoolDays: [],
+                dayLabel: 'Block',
+                customDayNames: {},
+                blocks,
+                specialistOptions: [],
+              },
+            },
+          },
+        }),
+      })
+    );
+
+    render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
+    const input = await screen.findByLabelText('Number of Blocks');
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.change(input, { target: { value: '15' } });
+
+    expect(
+      document.getElementById('specialist-block-start-date-9')
+    ).toHaveValue('2026-09-10');
+  });
+
   it('resizes the block list and day-name grid when the block count changes', () => {
     mockUseAdminBuildings.mockReturnValue(building('intermediate'));
     render(<SpecialistScheduleConfigurationModal isOpen onClose={vi.fn()} />);
