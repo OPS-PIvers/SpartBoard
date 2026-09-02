@@ -40,6 +40,11 @@ import {
   type MediaGradingStateKey,
 } from './MediaGradingDevView';
 import {
+  ResultsPlaybackDevView,
+  RESULTS_PLAYBACK_STATES,
+  type ResultsPlaybackStateKey,
+} from './ResultsPlaybackDevView';
+import {
   makeQuizSession,
   makeQuizResponses,
   makeQuizData,
@@ -55,7 +60,8 @@ type ViewKey =
   | 'va-monitor'
   | 'va-results'
   | 'audio-capture'
-  | 'media-grading';
+  | 'media-grading'
+  | 'results-playback';
 type StateKey =
   | 'waiting'
   | 'live'
@@ -66,7 +72,8 @@ type StateKey =
   | 'populated'
   | 'empty'
   | AudioCaptureStateKey
-  | MediaGradingStateKey;
+  | MediaGradingStateKey
+  | ResultsPlaybackStateKey;
 
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
@@ -76,6 +83,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'va-results', label: 'VA Results' },
   { key: 'audio-capture', label: 'Audio capture' },
   { key: 'media-grading', label: 'Media grading' },
+  { key: 'results-playback', label: 'Results playback' },
 ];
 
 // State keys are partitioned by view family: monitors use the lifecycle
@@ -98,6 +106,10 @@ const STATES: { key: StateKey; label: string }[] = [
   ...MEDIA_GRADING_STATES.map((key) => ({
     key: key as StateKey,
     label: `Grading: ${key}`,
+  })),
+  ...RESULTS_PLAYBACK_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Playback: ${key}`,
   })),
 ];
 
@@ -132,6 +144,15 @@ const SessionView: React.FC<{
       ? (state as MediaGradingStateKey)
       : 'queue';
     return <MediaGradingDevView state={gradingState} />;
+  }
+
+  if (view === 'results-playback') {
+    const playbackState = (
+      RESULTS_PLAYBACK_STATES as readonly string[]
+    ).includes(state)
+      ? (state as ResultsPlaybackStateKey)
+      : 'playable';
+    return <ResultsPlaybackDevView state={playbackState} />;
   }
 
   if (view === 'quiz-monitor') {

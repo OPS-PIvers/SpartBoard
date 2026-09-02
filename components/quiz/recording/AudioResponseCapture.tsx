@@ -13,8 +13,6 @@ import {
   Loader2,
   Mic,
   MicOff,
-  Pause,
-  Play,
   RotateCcw,
   Square,
   Trash2,
@@ -30,6 +28,8 @@ import {
   RecordingConsentNotice,
   RecordingNoticeReminder,
 } from './RecordingConsentNotice';
+import { TakeReviewPlayer } from './TakeReviewPlayer';
+import { formatClock } from './formatClock';
 
 export type CommitState = 'idle' | 'committing' | 'retrying' | 'archive-failed';
 
@@ -56,88 +56,10 @@ export interface AudioResponseCaptureProps {
   commitStateOverride?: CommitState;
 }
 
-function formatClock(totalSeconds: number): string {
-  const s = Math.max(0, Math.round(totalSeconds));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
 const cardCls =
   'rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur-sm';
 const primaryBtn =
   'inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
-
-const TakeReviewPlayer: React.FC<{ src: string; durationMs: number }> = ({
-  src,
-  durationMs,
-}) => {
-  const { t } = useTranslation();
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const totalMs = Math.max(durationMs, 1);
-  const pct = Math.min(100, Math.round((elapsedMs / totalMs) * 100));
-
-  const toggle = () => {
-    const el = audioRef.current;
-    if (!el) return;
-    if (el.paused) void el.play();
-    else el.pause();
-  };
-
-  return (
-    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-      {/* Hidden native element: playback engine only, no browser chrome. */}
-      <audio
-        ref={audioRef}
-        src={src}
-        className="hidden"
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => {
-          setPlaying(false);
-          setElapsedMs(totalMs);
-        }}
-        onTimeUpdate={(e) => setElapsedMs(e.currentTarget.currentTime * 1000)}
-      />
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={
-          playing
-            ? t('quizMediaResponse.capture.pausePlayback')
-            : t('quizMediaResponse.capture.playPlayback')
-        }
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
-      >
-        {playing ? (
-          <Pause aria-hidden className="h-4 w-4" />
-        ) : (
-          <Play aria-hidden className="h-4 w-4" />
-        )}
-      </button>
-      <div
-        role="progressbar"
-        aria-label={t('quizMediaResponse.capture.playbackPosition')}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={pct}
-        aria-valuetext={t('quizMediaResponse.capture.playbackValueText', {
-          elapsed: formatClock(elapsedMs / 1000),
-          total: formatClock(totalMs / 1000),
-        })}
-        className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200"
-      >
-        <div
-          className="h-full rounded-full bg-brand-blue-primary motion-safe:transition-[width] motion-safe:duration-150"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="font-mono text-xs tabular-nums text-slate-600">
-        {formatClock(elapsedMs / 1000)} / {formatClock(totalMs / 1000)}
-      </span>
-    </div>
-  );
-};
 
 const FOCUSABLE =
   'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';

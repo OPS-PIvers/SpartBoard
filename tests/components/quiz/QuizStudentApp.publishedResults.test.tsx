@@ -169,6 +169,46 @@ describe('QuizStudentApp — published results on an active (self-paced) session
     expect(screen.queryByText('Quiz Submitted!')).not.toBeInTheDocument();
   });
 
+  it('does not call a recorded answer "no response"', async () => {
+    // The take IS the answer; the text slot is empty by design.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      mediaResponseEnabled: true,
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      _responseKey: 'resp-1',
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 3,
+          takeIndex: 1,
+          artifacts: [
+            {
+              id: 'artifact-1',
+              slot: 'primary',
+              kind: 'audio',
+              durationMs: 5000,
+              uploadState: 'uploaded',
+            },
+          ],
+        },
+      ],
+      artifactArchive: {
+        'artifact-1': { archiveStatus: 'archived', driveFileId: 'drive-1' },
+      },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your recorded answer|quizMediaResponse.playback.label/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/no response/)).not.toBeInTheDocument();
+  });
+
   it('keeps a completed student on the submitted-wait screen until scores are published', async () => {
     // scoreVisibility absent (defaults to 'none') → not yet published.
     hookState.session = buildSession();
@@ -267,5 +307,106 @@ describe('QuizStudentApp — published results on an active (self-paced) session
 
     expect(await screen.findByText('Results locked')).toBeInTheDocument();
     expect(screen.queryByText('Your Results')).not.toBeInTheDocument();
+  });
+});
+
+// Brief 3.6 — playback exists only on the published-results screen, and the
+// score is marked provisional while a recording still owes a grade.
+describe('QuizStudentApp — recorded-answer playback on published results', () => {
+  const RECORDING_RESPONSE: Partial<QuizResponse> = {
+    status: 'completed',
+    _responseKey: 'sso-uid-1',
+    answers: [
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 5,
+        takeIndex: 1,
+        artifacts: [
+          {
+            id: 'artifact-1',
+            slot: 'primary',
+            kind: 'audio',
+            durationMs: 4000,
+            uploadState: 'uploaded',
+          },
+        ],
+      },
+    ],
+    artifactArchive: {
+      'artifact-1': { archiveStatus: 'archived', driveFileId: 'drive-1' },
+    },
+  };
+
+  it('renders no playback control while results are unpublished', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse(RECORDING_RESPONSE);
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Quiz Submitted!')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Play your recording' })
+    ).toBeNull();
+  });
+
+  it('renders the playback control once the teacher publishes responses', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      mediaResponseEnabled: true,
+    });
+    hookState.myResponse = buildResponse(RECORDING_RESPONSE);
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Play your recording' })
+    ).toBeInTheDocument();
+    // Lazy by design: nothing is fetched until the student presses play.
+    expect(screen.queryByRole('progressbar')).toBeNull();
+  });
+
+  it('renders no playback control on a session without the media marker', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+    });
+    hookState.myResponse = buildResponse(RECORDING_RESPONSE);
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Play your recording' })
+    ).toBeNull();
+  });
+
+  it('marks the score provisional while a recording has no grade', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      mediaResponseEnabled: true,
+    });
+    hookState.myResponse = buildResponse(RECORDING_RESPONSE);
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.getByText(/^Provisional —/)).toBeInTheDocument();
+  });
+
+  it('drops the provisional marker once the recording is graded', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      mediaResponseEnabled: true,
+    });
+    hookState.myResponse = buildResponse({
+      ...RECORDING_RESPONSE,
+      grading: { q1: { pointsAwarded: 1, gradedAt: 9, gradedBy: 'teacher-1' } },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.queryByText(/^Provisional —/)).toBeNull();
   });
 });

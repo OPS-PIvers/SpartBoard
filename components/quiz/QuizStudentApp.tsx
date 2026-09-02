@@ -87,6 +87,11 @@ import {
   isRecordingSlotClosed,
 } from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
+import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
+import {
+  hasUngradedRecording,
+  selectPlaybackTake,
+} from '@/utils/responseArtifacts';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
@@ -3811,7 +3816,7 @@ const ResultsScreen: React.FC<{
 // student device can't manufacture a "correct" badge that isn't on the
 // authoritative response doc.
 
-const PublishedScoreReview: React.FC<{
+export const PublishedScoreReview: React.FC<{
   session: QuizSession;
   myResponse: NonNullable<
     ReturnType<typeof useQuizSessionStudent>['myResponse']
@@ -3840,6 +3845,7 @@ const PublishedScoreReview: React.FC<{
   watermarkNameOverride,
   override,
 }) => {
+  const { t } = useTranslation();
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
   // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
   // teacher-paced quiz that has ended keeps the dark, immersive treatment.
@@ -3923,6 +3929,18 @@ const PublishedScoreReview: React.FC<{
       )
     );
   });
+
+  // A committed recording with no grade entry is still owed a teacher grade,
+  // so the score is provisional whether or not the student presses play.
+  // Interim rule until Brief 3.4's per-slot GradeResult lands.
+  const mediaEnabled = session.mediaResponseEnabled === true;
+  const recordingAwaitingGrade =
+    mediaEnabled &&
+    hasUngradedRecording(
+      myResponse.answers,
+      myResponse.grading,
+      publicQuestions.map((q) => q.id)
+    );
 
   // Watermark overlay — rendered above content via fixed positioning, below
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
@@ -4101,12 +4119,23 @@ const PublishedScoreReview: React.FC<{
                   this score will change.
                 </p>
               )}
+              {recordingAwaitingGrade && (
+                <p
+                  className={`mt-2 text-sm font-semibold ${
+                    light ? 'text-amber-700' : 'text-amber-300'
+                  }`}
+                >
+                  {t('quizMediaResponse.playback.provisionalScore')}
+                </p>
+              )}
             </>
           ) : (
             <p className={`text-sm ${prepText}`}>
               {awaitingGrade
                 ? 'Your written response is still being graded. Check back soon.'
-                : 'Your score is being prepared. Check back soon.'}
+                : recordingAwaitingGrade
+                  ? t('quizMediaResponse.playback.provisionalScore')
+                  : 'Your score is being prepared. Check back soon.'}
             </p>
           )}
         </section>
@@ -4144,6 +4173,11 @@ const PublishedScoreReview: React.FC<{
                   ? false
                   : ans?.isCorrect === false;
                 const correctAnswer = session.revealedAnswers?.[q.id];
+                // A recorded answer IS the response; "no response" would lie.
+                const hasRecordedTake =
+                  mediaEnabled &&
+                  !!responseKey &&
+                  selectPlaybackTake(myResponse.answers, q.id) !== null;
                 return (
                   <article
                     key={q.id}
@@ -4193,25 +4227,31 @@ const PublishedScoreReview: React.FC<{
                           maxPoints={q.points ?? 1}
                           rubricSnapshot={q.rubricSnapshot}
                           light={light}
+                          hideEmptyResponse={hasRecordedTake}
                         />
                       ) : (
                         <>
-                          <p className={`text-xs ${subtleText}`}>
-                            Your answer:{' '}
-                            <span
-                              className={`font-mono ${
-                                isCorrect
-                                  ? answerCorrectText
-                                  : isIncorrect
-                                    ? answerIncorrectText
-                                    : answerNeutralText
-                              }`}
-                            >
-                              {studentAnswer
-                                ? formatAnswerForDisplay(studentAnswer, q.type)
-                                : '— no response'}
-                            </span>
-                          </p>
+                          {(studentAnswer || !hasRecordedTake) && (
+                            <p className={`text-xs ${subtleText}`}>
+                              Your answer:{' '}
+                              <span
+                                className={`font-mono ${
+                                  isCorrect
+                                    ? answerCorrectText
+                                    : isIncorrect
+                                      ? answerIncorrectText
+                                      : answerNeutralText
+                                }`}
+                              >
+                                {studentAnswer
+                                  ? formatAnswerForDisplay(
+                                      studentAnswer,
+                                      q.type
+                                    )
+                                  : '— no response'}
+                              </span>
+                            </p>
+                          )}
                           {showAnswers && correctAnswer && (
                             <p className={`text-xs ${subtleText}`}>
                               Correct answer:{' '}
@@ -4223,6 +4263,24 @@ const PublishedScoreReview: React.FC<{
                             </p>
                           )}
                         </>
+                      )}
+                      {mediaEnabled && responseKey && (
+                        <ResponsePlaybackCard
+                          sessionId={session.id}
+                          responseKey={responseKey}
+                          questionId={q.id}
+                          answers={myResponse.answers}
+                          artifactArchive={myResponse.artifactArchive}
+                          gradedTakeIndex={
+                            // Brief 3.4's field; absent until that lands.
+                            (
+                              myResponse.grading?.[q.id] as unknown as
+                                | { gradedTakeIndex?: number }
+                                | undefined
+                            )?.gradedTakeIndex
+                          }
+                          light={light}
+                        />
                       )}
                     </div>
                   </article>
@@ -4401,6 +4459,8 @@ export const WrittenAnswerReview: React.FC<{
   rubricSnapshot?: Rubric;
   /** LIGHT for the async/self-paced review; dark for a live-ended quiz. */
   light?: boolean;
+  /** Set when a recorded take is the response, so "no response" would lie. */
+  hideEmptyResponse?: boolean;
 }> = ({
   studentAnswer,
   grade,
@@ -4408,6 +4468,7 @@ export const WrittenAnswerReview: React.FC<{
   maxPoints,
   rubricSnapshot,
   light = false,
+  hideEmptyResponse = false,
 }) => {
   if (!showResponse) {
     return null;
@@ -4427,7 +4488,7 @@ export const WrittenAnswerReview: React.FC<{
           annotations={annotations}
           light={light}
         />
-      ) : (
+      ) : hideEmptyResponse ? null : (
         <p className="text-xs text-slate-500 italic">— no response</p>
       )}
       {hasGrade && (
