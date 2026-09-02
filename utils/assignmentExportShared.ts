@@ -14,7 +14,12 @@
  * `submittedAt` + derive a `status` string.
  */
 
-import type { GradeResult, Rubric, WrittenAnswerRubricScore } from '@/types';
+import type {
+  GradeResult,
+  Rubric,
+  UnrespondedReason,
+  WrittenAnswerRubricScore,
+} from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
@@ -40,8 +45,8 @@ export interface ExportableResponse {
     takeIndex?: number;
     /** Dedup tiebreak input when `takeIndex` ties. */
     answeredAt?: number;
-    /** Brief 2.2's marker — present means the student did not respond. */
-    unresponded?: unknown;
+    /** Present means the student did not respond; absent on VA responses. */
+    unresponded?: UnrespondedReason;
   }[];
   /** 'completed' | 'in-progress' | other widget-specific status string. */
   status: string;

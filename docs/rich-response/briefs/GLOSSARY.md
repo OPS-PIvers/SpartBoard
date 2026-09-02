@@ -210,6 +210,14 @@ completeness check every student-facing progress/count site routes through.
 Unaffected by `takeIndex`/takes (3.2): any committed take fills a slot,
 regardless of count.
 
+## Deploy-safety markers
+
+`completenessModel: number` on the `quiz_sessions/{id}` doc, written as `1` by the
+teacher client at session creation (`hooks/useQuizAssignments.ts`); the server-side
+always-write of `unresponded: 'abandoned'` entries in
+`functions/src/finalizeIdleQuizAttempts.ts` is gated on `>= 1`, so sessions created by
+production clients that predate the marker are finalized exactly as before.
+
 ## i18n namespace/key prefix — none of the nine briefs commits to one; established here
 
 No brief specifies a concrete i18n key prefix beyond `CONVENTIONS.md`'s

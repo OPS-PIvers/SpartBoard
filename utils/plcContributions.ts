@@ -85,11 +85,7 @@ function buildContributionResponse(
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
   // Dedup by questionId: same take/answeredAt tiebreak as getEarnedPoints and export.
-  type ContributionAnswerEntry = QuizResponse['answers'][number] & {
-    unresponded?: unknown;
-  };
-  const responseAnswers: ContributionAnswerEntry[] = response.answers;
-  const answerByQuestionId = selectRepresentativeAnswers(responseAnswers);
+  const answerByQuestionId = selectRepresentativeAnswers(response.answers);
 
   const pointsByQuestionId: Record<string, number> = {};
   let pointsEarned = 0;

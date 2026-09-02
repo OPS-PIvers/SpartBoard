@@ -94,9 +94,18 @@ export const RESPONSE_PAGE_SIZE = 500;
  */
 const WAITING_ABANDONED_AGE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Cloud-Functions-local mirror of `QuizResponseAnswer` in the app's root
+ * `types.ts` (no shared import between the two type surfaces — keep them in
+ * sync by hand). Only the fields this sweep reads or writes are declared.
+ */
 interface QuizAnswer {
   questionId?: string;
+  answer?: string;
+  answeredAt?: number;
   status?: string;
+  /** Mirrors `UnrespondedReason`; absent means the student responded. */
+  unresponded?: 'passed' | 'expired' | 'abandoned' | 'capture-unavailable';
 }
 
 interface QuizResponseDoc {
@@ -109,6 +118,10 @@ interface QuizResponseDoc {
 interface QuizSessionDoc {
   status?: string;
   createdAt?: admin.firestore.Timestamp | number;
+  /** Student-safe question list; only `id` is read here. */
+  publicQuestions?: { id?: unknown }[];
+  /** Opt-in marker; only sessions created by a client that understands `unresponded` carry it. */
+  completenessModel?: number;
 }
 
 type Firestore = admin.firestore.Firestore;
@@ -311,6 +324,10 @@ export async function runFinalizeIdleQuizAttempts(
   interface CachedSession {
     status: string | undefined;
     createdAtMs: number | null;
+    /** Question ids from the already-fetched doc; no extra read. */
+    questionIds: string[];
+    /** 0 for legacy sessions; >= 1 opts into the unresponded completeness model. */
+    completenessModel: number;
   }
   const sessionMetaBySid = new Map<string, CachedSession>();
   if (sessionRefs.length > 0) {
@@ -329,7 +346,19 @@ export async function runFinalizeIdleQuizAttempts(
       } else if (typeof data.createdAt === 'number') {
         createdAtMs = data.createdAt;
       }
-      sessionMetaBySid.set(sessionDoc.id, { status, createdAtMs });
+      const questionIds = Array.isArray(data.publicQuestions)
+        ? data.publicQuestions
+            .map((q) => (q && typeof q.id === 'string' ? q.id : null))
+            .filter((id): id is string => !!id)
+        : [];
+      const completenessModel =
+        typeof data.completenessModel === 'number' ? data.completenessModel : 0;
+      sessionMetaBySid.set(sessionDoc.id, {
+        status,
+        createdAtMs,
+        questionIds,
+        completenessModel,
+      });
     }
   }
 
@@ -439,6 +468,38 @@ export async function runFinalizeIdleQuizAttempts(
           a.status === 'draft' ? { ...a, status: 'submitted' } : a
         );
 
+        // Absence of an entry must mean "never reached," so every question
+        // the student left behind gets an explicit `abandoned` marker
+        // (RR-08 sub-decision 1/5). There is no per-question requiredness
+        // field yet, so EVERY missing question is marked; brief 3.5 should
+        // narrow this to required slots once that field exists. The session
+        // doc was already batch-read above — no extra Firestore read.
+        //
+        // DEPLOY GATE: this branch runs only for sessions the NEW teacher
+        // client created (`completenessModel: 1`). Every push to dev-paul
+        // deploys functions/ to the shared production project, where the old
+        // client's teacher UI, exports and scoring have no concept of
+        // `unresponded` and would render these entries as answered-but-blank.
+        // Legacy sessions therefore take exactly the pre-PR path below.
+        const missingEntries: QuizAnswer[] = [];
+        if (meta.completenessModel >= 1) {
+          const answeredIds = new Set(
+            finalAnswers
+              .map((a) => a.questionId)
+              .filter((id): id is string => typeof id === 'string')
+          );
+          for (const qid of meta.questionIds) {
+            if (answeredIds.has(qid)) continue;
+            missingEntries.push({
+              questionId: qid,
+              answer: '',
+              answeredAt: finalizedAt,
+              status: 'submitted',
+              unresponded: 'abandoned',
+            });
+          }
+        }
+
         // Don't consume an attempt slot for a student who joined
         // but never wrote a single answer — they'd otherwise hit
         // the cap without seeing a question. The doc still flips
@@ -457,9 +518,14 @@ export async function runFinalizeIdleQuizAttempts(
           status: 'completed',
           submittedAt: finalizedAt,
           autoSubmitted: true,
-          answers: finalAnswers,
+          answers:
+            missingEntries.length > 0
+              ? [...finalAnswers, ...missingEntries]
+              : finalAnswers,
           unlocked: false,
         };
+        // Deliberately `finalAnswers`, not the synthetic markers: a student
+        // who never answered anything must not consume an attempt slot.
         if (finalAnswers.length > 0) {
           update.completedAttempts = (fresh.completedAttempts ?? 0) + 1;
         }

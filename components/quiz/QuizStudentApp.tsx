@@ -101,6 +101,7 @@ import {
   applyHiddenOptions,
   applyTimeMultiplier,
 } from '@/utils/quizOverrideServing';
+import { countAnsweredQuestions } from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import {
@@ -549,6 +550,15 @@ const QuizJoinFlow: React.FC<{
   const servedTotalQuestions = myOverride?.questionIds
     ? servedPublicQuestions.length
     : (session?.totalQuestions ?? 0);
+  const servedQuestionIdList = useMemo(
+    () => servedPublicQuestions.map((q) => q.id),
+    [servedPublicQuestions]
+  );
+  // Raw `answers.length` over-counts once `unresponded` markers exist.
+  const myAnsweredCount = countAnsweredQuestions(
+    myResponse?.answers ?? [],
+    servedQuestionIdList
+  );
 
   // Subscribe to auth so the view-log effect re-runs when anon sign-in
   // resolves; `auth.currentUser` alone is non-reactive.
@@ -921,6 +931,7 @@ const QuizJoinFlow: React.FC<{
         session={session}
         myResponse={myResponse}
         pin={pin}
+        answeredCount={myAnsweredCount}
         totalQuestions={servedTotalQuestions}
         pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
       />
@@ -1013,7 +1024,7 @@ const QuizJoinFlow: React.FC<{
     <ResultsScreen
       session={session}
       myResponse={myResponse}
-      answeredCount={(myResponse?.answers ?? []).length}
+      answeredCount={myAnsweredCount}
       totalQuestions={servedTotalQuestions}
       pin={pin}
       myStudentUid={myResponse?.studentUid}
@@ -4268,6 +4279,8 @@ const QuizSubmittedWaitScreen: React.FC<{
     ReturnType<typeof useQuizSessionStudent>['myResponse']
   >;
   pin: string;
+  /** Completeness-aware numerator; see `utils/quizCompleteness.ts`. */
+  answeredCount: number;
   /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
   totalQuestions?: number;
   /** Per-student pointer override (M17 B4); absent = session value applies. */
@@ -4276,6 +4289,7 @@ const QuizSubmittedWaitScreen: React.FC<{
   session,
   myResponse,
   pin,
+  answeredCount,
   totalQuestions,
   pointerTabWarningThreshold,
 }) => {
@@ -4309,9 +4323,7 @@ const QuizSubmittedWaitScreen: React.FC<{
       </p>
 
       <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
-        <p className="text-4xl font-black text-white mb-2">
-          {myResponse.answers.length}
-        </p>
+        <p className="text-4xl font-black text-white mb-2">{answeredCount}</p>
         <p className="text-slate-400 text-sm">
           of {totalQuestions ?? session.totalQuestions} questions answered
         </p>

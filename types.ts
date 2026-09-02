@@ -3445,6 +3445,8 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
+  completenessModel?: number;
   /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`
@@ -3677,6 +3679,13 @@ export interface LtiAttachmentLink {
   contextId?: string;
 }
 
+/** Why an `answers[]` entry exists for a question the student never responded to. */
+export type UnrespondedReason =
+  | 'passed'
+  | 'expired'
+  | 'abandoned'
+  | 'capture-unavailable';
+
 /** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
 export type ArtifactSlot = 'primary' | 'addendum';
 /** Full peer-mode union; only `'audio'` (and inline `'text'`) ships today. */
@@ -3728,6 +3737,8 @@ export interface QuizResponseAnswer {
    * treat missing as `'submitted'` via {@link isAnswerSubmitted}.
    */
   status?: 'draft' | 'submitted';
+  /** Absent means the student responded; see `utils/quizCompleteness.ts`. */
+  unresponded?: UnrespondedReason;
   /**
    * Which take this entry belongs to, for questions that allow more than
    * one submission (e.g. a media-response retake). Absent on every entry
