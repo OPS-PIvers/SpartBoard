@@ -1670,7 +1670,50 @@ export type ActivityWallArchiveStatus =
   | 'firebase'
   | 'syncing'
   | 'archived'
-  | 'failed';
+  | 'failed'
+  | 'lost';
+
+/** Padlet-lite redesign (P1-1): board layout a wall renders as. */
+export type ActivityWallLayout =
+  | 'wall'
+  | 'columns'
+  | 'table'
+  | 'timeline'
+  | 'map'
+  | 'wordcloud';
+
+/** Per-wall toggleable submission kinds; `text` is always on. */
+export type ActivityWallSubmissionType =
+  | 'text'
+  | 'word'
+  | 'photo'
+  | 'link'
+  | 'file'
+  | 'video';
+
+/** Wall background: a Tailwind class string (color/gradient) or a preset image URL. */
+export interface ActivityWallAppearance {
+  kind: 'color' | 'gradient' | 'image';
+  value: string;
+}
+
+/** Default appearance for a newly-created wall (see docs/plans/ACTIVITY_WALL_REDESIGN.md). */
+export const ACTIVITY_WALL_DEFAULT_APPEARANCE: ActivityWallAppearance = {
+  kind: 'gradient',
+  value: 'bg-gradient-to-br from-slate-900 to-slate-700',
+};
+
+export interface ActivityWallSection {
+  id: string;
+  label: string;
+}
+
+export interface ActivityWallLinkPreview {
+  title?: string;
+  description?: string;
+  image?: string;
+  domain: string;
+}
 
 export interface ActivityWallSubmission {
   id: string;
@@ -1684,6 +1727,25 @@ export interface ActivityWallSubmission {
   driveFileId?: string;
   archiveError?: string;
   archivedAt?: number;
+  /** Padlet-lite redesign (P1-1) — all optional so legacy docs still parse. */
+  type?: ActivityWallSubmissionType;
+  title?: string;
+  authorUid?: string;
+  isGuest?: boolean;
+  editedAt?: number;
+  sectionId?: string;
+  cellKey?: string;
+  order?: number;
+  label?: string;
+  lat?: number;
+  lng?: number;
+  pinned?: boolean;
+  linkPreview?: ActivityWallLinkPreview;
+  fileName?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  attemptCount?: number;
+  driveUrl?: string;
 }
 
 export interface ActivityWallActivity {
@@ -1742,6 +1804,23 @@ export interface ActivityWallLibraryEntry {
   rosterIds?: string[];
   createdAt: number;
   updatedAt: number;
+  /** Padlet-lite redesign (P1-1) — all optional so legacy docs still parse. */
+  layout?: ActivityWallLayout;
+  sections?: ActivityWallSection[];
+  tableRows?: ActivityWallSection[];
+  tableCols?: ActivityWallSection[];
+  mapCenter?: { lat: number; lng: number; zoom: number };
+  allowedTypes?: Record<
+    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
+    boolean
+  >;
+  appearance?: ActivityWallAppearance;
+  allowGuests?: boolean;
+  showNames?: boolean;
+  maxPostsPerStudent?: number;
+  allowStudentEdit?: boolean;
+  allowStudentDelete?: boolean;
+  acceptingResponses?: boolean;
 }
 
 export interface ActivityWallBuildingConfig {
@@ -1809,6 +1888,27 @@ export interface ActivityWallSession {
    * the work without joining the live session.
    */
   publiclyShared?: boolean;
+  /** Padlet-lite redesign (P1-1) — mirrors the library entry; all optional. */
+  layout?: ActivityWallLayout;
+  sections?: ActivityWallSection[];
+  tableRows?: ActivityWallSection[];
+  tableCols?: ActivityWallSection[];
+  mapCenter?: { lat: number; lng: number; zoom: number };
+  allowedTypes?: Record<
+    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
+    boolean
+  >;
+  appearance?: ActivityWallAppearance;
+  allowGuests?: boolean;
+  showNames?: boolean;
+  maxPostsPerStudent?: number;
+  allowStudentEdit?: boolean;
+  allowStudentDelete?: boolean;
+  acceptingResponses?: boolean;
+  classIds?: string[];
+  rosterIds?: string[];
+  /** Computed at mirror time from `allowGuests` (see `mirrorSessionFromEntry`). */
+  driveVisibility?: 'domain' | 'anyone';
 }
 
 /**

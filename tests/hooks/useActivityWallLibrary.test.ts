@@ -147,6 +147,18 @@ describe('useActivityWallLibrary — snapshot mapping', () => {
       identificationMode: 'name',
       createdAt: 1,
       updatedAt: 2,
+      layout: 'wall',
+      allowedTypes: { photo: true, link: false, file: false, video: false },
+      appearance: {
+        kind: 'gradient',
+        value: 'bg-gradient-to-br from-slate-900 to-slate-700',
+      },
+      allowGuests: true,
+      showNames: true,
+      maxPostsPerStudent: 0,
+      allowStudentEdit: false,
+      allowStudentDelete: false,
+      acceptingResponses: true,
     });
     // Falls back to the Firestore doc id, empty strings, and 'text'/'anonymous'.
     expect(b).toEqual({
@@ -158,6 +170,18 @@ describe('useActivityWallLibrary — snapshot mapping', () => {
       identificationMode: 'anonymous',
       createdAt: 0,
       updatedAt: 0,
+      layout: 'wordcloud',
+      allowedTypes: { photo: false, link: false, file: false, video: false },
+      appearance: {
+        kind: 'gradient',
+        value: 'bg-gradient-to-br from-slate-900 to-slate-700',
+      },
+      allowGuests: true,
+      showNames: false,
+      maxPostsPerStudent: 0,
+      allowStudentEdit: false,
+      allowStudentDelete: false,
+      acceptingResponses: true,
     });
   });
 
