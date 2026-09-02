@@ -189,6 +189,15 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: true,
   },
+  // Student audio responses. Fail-closed on purpose: no permission record
+  // means denied, matching `isQuizMediaResponseGranted` in
+  // `functions/src/quizMediaArchive.ts`. Read it through
+  // `canAccessQuizMediaResponse`, never `canAccessFeature`.
+  'quiz-media-response': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+  },
 };
 
 /**

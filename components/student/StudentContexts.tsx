@@ -32,6 +32,7 @@ const mockAuth: AuthContextType = {
   getAssignmentMode: () => 'submissions',
   // Student view never shows view-count badges; admin-only default.
   canSeeShareTracking: () => false,
+  canAccessQuizMediaResponse: () => false,
   signInWithGoogle: async () => {
     // No-op
   },

@@ -83,6 +83,14 @@ export interface AuthContextType {
    * leaves teachers unaffected (and unbilled).
    */
   canSeeShareTracking: () => boolean;
+  /**
+   * Fail-closed gate for student audio responses. A missing
+   * `global_permissions/quiz-media-response` record means DENIED — the
+   * opposite of `canAccessFeature`'s default — so it mirrors the server gate
+   * in `functions/src/quizMediaArchive.ts` exactly. Never call
+   * `canAccessFeature('quiz-media-response')`; call this.
+   */
+  canAccessQuizMediaResponse: () => boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   /** Building IDs the user has selected in General Settings */
