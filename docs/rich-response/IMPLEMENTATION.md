@@ -1,5 +1,14 @@
 # Rich-response implementation order
 
+> ✅ **Shipped to dev-paul 2026-09-02.** Every ordered item below landed as a
+> squash-merged PR after internal adversarial review: 1.2 #2727 · 1.3 #2728 ·
+> 2.1 #2729 · 2.2 #2730 · 3.3 #2733 (+ rules/index #2734, notice-ack rule #2737)
+> · 3.1+3.2 #2736 · 4.1 #2738 · 3.5 #2740 · 3.4 #2741 · 3.6 #2742. Audio capture
+> is admin-gated behind the fail-closed `quiz-media-response` global permission
+> (no record exists yet; create it to enable). Follow-ups: #2735 (sweep retry
+> cap for lost Storage objects), #2749 (take-limit copy pluralisation).
+> Run conventions and glossary: `briefs/`.
+
 Execution plan for the locked spec in
 [`docs/rich-response-wayfinder.md`](../rich-response-wayfinder.md). Decided with
 Paul 2026-08-27. The map is the source of truth for every design decision; this
