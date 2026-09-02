@@ -142,25 +142,26 @@ service firebase.storage {
         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
     }
 
-    // Quiz recorded media — transit buffer only; the archival callable moves each
-    // take to the teacher's Drive and deletes the Storage object afterwards.
-    match /quiz_response_media/{sessionId}/{studentUid}/{fileName} {
+    // Quiz recorded media — transit buffer only. The path segment is the
+    // response key, so ownership is proven by the response doc's studentUid.
+    match /quiz_response_media/{sessionId}/{responseKey}/{fileName} {
       allow read: if request.auth != null &&
         (
           isAdmin() ||
-          request.auth.uid == studentUid ||
+          firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
+          ).data.get('studentUid', '') == request.auth.uid ||
           firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)
           ).data.get('teacherUid', '') == request.auth.uid
         );
-      // The student uploads each take exactly once (create only, no update).
+      // Create only (no update): the caller must own the response doc at this key.
       allow create: if request.auth != null &&
-        request.auth.uid == studentUid &&
         request.resource.size < 5 * 1024 * 1024 &&
         request.resource.contentType.matches('audio/.*') &&
-        firestore.exists(
-          /databases/(default)/documents/quiz_sessions/$(sessionId)
-        );
+        firestore.get(
+          /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
+        ).data.get('studentUid', '') == request.auth.uid;
       allow delete: if request.auth != null &&
         (
           isAdmin() ||
