@@ -3012,6 +3012,7 @@ describe('index barrel — deployed export set', () => {
     'archiveActivityWallPhoto',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
+    'getQuizArtifactPlaybackUrl',
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'deleteQuizMediaForOrgAdmin',

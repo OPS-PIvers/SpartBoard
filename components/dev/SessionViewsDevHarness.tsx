@@ -40,6 +40,11 @@ import {
   type RecordingControlStateKey,
 } from './RecordingControlsDevView';
 import {
+  ResultsPlaybackDevView,
+  RESULTS_PLAYBACK_STATES,
+  type ResultsPlaybackStateKey,
+} from './ResultsPlaybackDevView';
+import {
   makeQuizSession,
   makeQuizResponses,
   makeQuizData,
@@ -55,7 +60,8 @@ type ViewKey =
   | 'va-monitor'
   | 'va-results'
   | 'audio-capture'
-  | 'recording-controls';
+  | 'recording-controls'
+  | 'results-playback';
 type StateKey =
   | 'waiting'
   | 'live'
@@ -66,7 +72,8 @@ type StateKey =
   | 'populated'
   | 'empty'
   | AudioCaptureStateKey
-  | RecordingControlStateKey;
+  | RecordingControlStateKey
+  | ResultsPlaybackStateKey;
 
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
@@ -76,6 +83,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'va-results', label: 'VA Results' },
   { key: 'audio-capture', label: 'Audio capture' },
   { key: 'recording-controls', label: 'Recording controls' },
+  { key: 'results-playback', label: 'Results playback' },
 ];
 
 // State keys are partitioned by view family: monitors use the lifecycle
@@ -99,6 +107,10 @@ const STATES: { key: StateKey; label: string }[] = [
     key: key as StateKey,
     label: `Recording: ${key.slice('rc-'.length)}`,
   })),
+  ...RESULTS_PLAYBACK_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Playback: ${key}`,
+  })),
 ];
 
 // Picking a view moves the State select onto a key that view actually reads.
@@ -110,6 +122,7 @@ const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
   'va-results': 'populated',
   'audio-capture': 'prep',
   'recording-controls': 'rc-enabled-defaults',
+  'results-playback': 'playable',
 };
 
 const WIDTHS = [340, 520, 820];
@@ -143,6 +156,15 @@ const SessionView: React.FC<{
       ? (state as RecordingControlStateKey)
       : 'rc-enabled-defaults';
     return <RecordingControlsDevView state={controlState} />;
+  }
+
+  if (view === 'results-playback') {
+    const playbackState = (
+      RESULTS_PLAYBACK_STATES as readonly string[]
+    ).includes(state)
+      ? (state as ResultsPlaybackStateKey)
+      : 'playable';
+    return <ResultsPlaybackDevView state={playbackState} />;
   }
 
   if (view === 'quiz-monitor') {
