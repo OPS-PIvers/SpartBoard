@@ -76,7 +76,10 @@ import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
-import { doc, updateDoc } from 'firebase/firestore';
+import { MediaResponseGrader } from './MediaResponseGrader';
+import { readSlotGrade } from '@/utils/mediaGrading';
+import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
+import { doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
@@ -104,7 +107,8 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
 } from '@/hooks/useQuizSession';
-import { Pencil } from 'lucide-react';
+import { Mic, Pencil } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -265,8 +269,17 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
-  const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
-    useAuth();
+  const {
+    ensureGoogleScope,
+    user,
+    orgId,
+    canAccessFeature,
+    isExternalUser,
+    googleAccessToken,
+    refreshGoogleToken,
+    canAccessQuizMediaResponse,
+  } = useAuth();
+  const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
@@ -309,6 +322,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [showGrader, setShowGrader] = useState(false);
+  const [showMediaGrader, setShowMediaGrader] = useState(false);
   // In-widget screen navigation, mirroring the live monitor's calm-default
   // shell: a summary home face with drill-down screens instead of tabs.
   const [screen, setScreen] = useState<
@@ -421,6 +435,22 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     [quiz.questions]
   );
 
+  // Hidden, not disabled, when the fail-closed gate is off or the session was
+  // assigned by a client that never enabled media responses.
+  const showMediaGrading =
+    canAccessQuizMediaResponse() &&
+    session?.mediaResponseEnabled === true &&
+    quiz.questions.some((q) => !!q.recording);
+
+  const resolveTakeUrl = useMemo(
+    () =>
+      createDriveTakeUrlResolver({
+        getToken: () => googleAccessToken,
+        refreshToken: refreshGoogleToken,
+      }),
+    [googleAccessToken, refreshGoogleToken]
+  );
+
   // Build a display-name lookup keyed by the response's deterministic
   // doc key so the grader can show a real student name in its header
   // rather than the raw uid/pin.
@@ -444,7 +474,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const saveWrittenGrade = useCallback(
     async (
       responseKey: string,
-      questionId: string,
+      gradingKeyStr: string,
       grade: import('@/types').WrittenAnswerGrade
     ) => {
       const sessionId = session?.id;
@@ -460,8 +490,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         RESPONSES_COLLECTION,
         responseKey
       );
-      // Bracket-notation field path so Firestore merges this key only.
-      await updateDoc(ref, { [`grading.${questionId}`]: grade });
+      // FieldPath, not dot notation: a composite `qid::addendum` key is not a
+      // parseable dotted path. Still merges this one map key only.
+      await updateDoc(ref, new FieldPath('grading', gradingKeyStr), grade);
     },
     [session?.id]
   );
@@ -1655,6 +1686,26 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               Grade written
             </button>
           )}
+          {showMediaGrading && (
+            <button
+              onClick={() => setShowMediaGrader(true)}
+              className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+                fontSize: 'min(13px, 4.5cqmin)',
+              }}
+            >
+              <Mic
+                aria-hidden
+                style={{
+                  width: 'min(14px, 4.5cqmin)',
+                  height: 'min(14px, 4.5cqmin)',
+                }}
+              />
+              {t('quizMediaResponse.results.gradeButton')}
+            </button>
+          )}
           {/* Admin-managed `google-classroom` gate hides the draft grade-push
               entry point for users below the doc's minTier. */}
           {showClassroomPush && (
@@ -1799,6 +1850,18 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           overridesBySourcedId={overridesBySourcedId}
           targetRefKeyByStudentUid={targetRefKeyByStudentUid}
           onClose={() => setShowGrader(false)}
+        />
+      )}
+
+      {showMediaGrader && showMediaGrading && session?.id && user?.uid && (
+        <MediaResponseGrader
+          quiz={quiz}
+          responses={responses}
+          displayNameByResponseKey={displayNameByResponseKey}
+          teacherUid={user.uid}
+          resolveTakeUrl={resolveTakeUrl}
+          onSaveGrade={saveWrittenGrade}
+          onClose={() => setShowMediaGrader(false)}
         />
       )}
     </div>
@@ -1952,8 +2015,11 @@ const QuestionsScreen: React.FC<{
 
         if (qStats && q) {
           qStats.answered++;
-          const isWritten = q.type === 'short' || q.type === 'essay';
-          const manualGrade = isWritten ? r.grading?.[q.id] : undefined;
+          const isWritten =
+            q.type === 'short' || q.type === 'essay' || !!q.recording;
+          const manualGrade = isWritten
+            ? readSlotGrade(r.grading, q.id)
+            : undefined;
           if (isWritten) {
             if (manualGrade) qStats.graded++;
           } else if (gradeAnswer(q, a.answer, manualGrade).isCorrect) {
@@ -1974,7 +2040,8 @@ const QuestionsScreen: React.FC<{
           correct: 0,
           graded: 0,
         };
-        const isWritten = q.type === 'short' || q.type === 'essay';
+        const isWritten =
+          q.type === 'short' || q.type === 'essay' || !!q.recording;
         const pct =
           stats.answered > 0
             ? Math.round(
