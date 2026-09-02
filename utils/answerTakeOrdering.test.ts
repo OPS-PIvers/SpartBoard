@@ -6,7 +6,12 @@ import {
   selectRepresentativeAnswers,
 } from './answerTakeOrdering';
 
-const artifact = { id: 'a', slot: 'primary', kind: 'audio' };
+const artifact = {
+  id: 'a',
+  slot: 'primary',
+  kind: 'audio',
+  uploadState: 'uploaded',
+};
 
 describe('selectRepresentativeAnswers with takes', () => {
   it('is a no-op for the one-entry-per-question arrays every legacy quiz has', () => {
