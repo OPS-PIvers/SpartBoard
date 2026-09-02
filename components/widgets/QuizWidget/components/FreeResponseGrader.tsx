@@ -59,6 +59,7 @@ import {
   type MediaGradingSlot,
 } from '@/utils/mediaGrading';
 import type { TakeUrlResolver } from '@/utils/quizMediaPlayback';
+import { hasSubmittedContent } from '@/hooks/useQuizSession';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
@@ -203,7 +204,7 @@ function buildQueue(
         (a) => a.questionId === question.id && !a.unresponded
       );
       const grade = response.grading?.[question.id];
-      const answered = !!entry && !!entry.answer?.trim();
+      const answered = !!entry && hasSubmittedContent(entry.answer ?? '');
       targets =
         answered || grade
           ? [
@@ -457,12 +458,14 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     (isUnavailable && adjudication === 'none') ||
     substituteNoteMissing;
 
+  // Navigation re-hydrates the form, so unsaved edits need the same guard as close.
   const go = useCallback(
     (fn: () => void) => {
       if (saving) return;
+      if (isDirty && !window.confirm(tg('discardMessage'))) return;
       fn();
     },
-    [saving]
+    [saving, isDirty, tg]
   );
   const goPrevStudent = useCallback(
     () => go(() => setStudentIdx((i) => Math.max(0, i - 1))),
@@ -990,20 +993,23 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
         {/* Right rail — rubric, score, comment, takes or highlights. */}
         <aside className="flex flex-col gap-5 overflow-y-auto border-l border-slate-200 bg-white p-5">
-          {target && showPoints && effectiveRubric && (
-            <RubricScoringPanel
-              key={targetKey}
-              rubric={effectiveRubric}
-              maxPoints={maxPoints}
-              initialScores={savedGrade?.rubricScores}
-              onChange={handleRubricScoresChange}
-              overrideNote={
-                resolvedRubric.overrideMode === 'rubric'
-                  ? tg('rubricOverrideNote')
-                  : undefined
-              }
-            />
-          )}
+          {target &&
+            showPoints &&
+            effectiveRubric &&
+            slot?.slot !== 'addendum' && (
+              <RubricScoringPanel
+                key={targetKey}
+                rubric={effectiveRubric}
+                maxPoints={maxPoints}
+                initialScores={savedGrade?.rubricScores}
+                onChange={handleRubricScoresChange}
+                overrideNote={
+                  resolvedRubric.overrideMode === 'rubric'
+                    ? tg('rubricOverrideNote')
+                    : undefined
+                }
+              />
+            )}
           {target && showPoints && resolvedRubric.overrideMode === 'points' && (
             <p className="-mb-2 text-xs italic text-slate-500">
               {tg('pointsOverrideNote')}

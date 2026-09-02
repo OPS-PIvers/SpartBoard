@@ -243,13 +243,18 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   // Spoken answers play only behind the media gate; without it they stay out of the queue.
   const resolveTakeUrl = useMemo(
     () =>
-      canAccessQuizMediaResponse()
+      canAccessQuizMediaResponse() && session?.mediaResponseEnabled === true
         ? createDriveTakeUrlResolver({
             getToken: () => googleAccessToken,
             refreshToken: refreshGoogleToken,
           })
         : undefined,
-    [canAccessQuizMediaResponse, googleAccessToken, refreshGoogleToken]
+    [
+      canAccessQuizMediaResponse,
+      session?.mediaResponseEnabled,
+      googleAccessToken,
+      refreshGoogleToken,
+    ]
   );
   const [publishVisibility, setPublishVisibility] = useState<
     Exclude<QuizScoreVisibility, 'none'>
