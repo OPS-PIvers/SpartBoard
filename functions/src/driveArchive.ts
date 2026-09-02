@@ -8,6 +8,10 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import {
+  claimSubmissionForArchive,
+  finalizeResumedSubmission,
+} from './activityWallArchive';
 import './functionsInit';
 
 interface ArchiveActivityWallPhotoData {
@@ -198,15 +202,64 @@ export const archiveActivityWallPhoto = onCall(
       .collection('submissions')
       .doc(submissionId);
 
-    await submissionRef.set(
-      {
-        status,
-        archiveStatus: 'syncing',
-        archiveStartedAt: Date.now(),
-        archiveError: admin.firestore.FieldValue.delete(),
-      },
-      { merge: true }
+    // Transactional claim: the server-side pipeline and this legacy callable
+    // must never upload the same object twice.
+    const claim = await claimSubmissionForArchive(
+      admin.firestore(),
+      submissionRef,
+      Date.now()
     );
+    if (claim.kind === 'resume') {
+      // Drive already has the file from a prior attempt; only the
+      // permission or the terminal write failed. Finish it instead of
+      // stranding the doc at 'syncing'.
+      try {
+        await makeDriveFilePublic(accessToken, claim.driveFileId);
+        const submissionSnap = await submissionRef.get();
+        const submission = (submissionSnap.data() ?? {}) as {
+          storagePath?: unknown;
+        };
+        const storagePath =
+          typeof submission.storagePath === 'string'
+            ? submission.storagePath
+            : null;
+        const driveUrl = `https://lh3.googleusercontent.com/d/${claim.driveFileId}`;
+        const result = await finalizeResumedSubmission(submissionRef, {
+          driveFileId: claim.driveFileId,
+          driveUrl,
+          storagePath: storagePath ?? '',
+          now: Date.now(),
+          deleteObject: async (name) => {
+            if (!name) return;
+            await admin.storage().bucket().file(name).delete({
+              ignoreNotFound: true,
+            });
+          },
+          extraFields: { status },
+        });
+        return { ...result, driveUrl };
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : 'Drive archive failed';
+        await submissionRef.set(
+          {
+            status,
+            archiveStatus: 'failed',
+            archiveStartedAt: admin.firestore.FieldValue.delete(),
+            archiveError: message.slice(0, 180),
+          },
+          { merge: true }
+        );
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+        throw new HttpsError('internal', message);
+      }
+    }
+    if (claim.kind !== 'claimed') {
+      return { skipped: true, archiveStatus: claim.kind };
+    }
+    await submissionRef.set({ status }, { merge: true });
 
     try {
       const submissionSnap = await submissionRef.get();
