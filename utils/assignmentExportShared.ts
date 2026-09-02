@@ -17,6 +17,7 @@
 import type { GradeResult, Rubric, WrittenAnswerRubricScore } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 /**
  * Format a points value for export. Whole numbers stay as integers;
@@ -32,7 +33,16 @@ export interface ExportableResponse {
   pin?: string;
   studentUid: string;
   classPeriod?: string;
-  answers: { questionId: string; answer: string }[];
+  answers: {
+    questionId: string;
+    answer: string;
+    /** Dedup tiebreak input; entries without it sort as 0. */
+    takeIndex?: number;
+    /** Dedup tiebreak input when `takeIndex` ties. */
+    answeredAt?: number;
+    /** Brief 2.2's marker — present means the student did not respond. */
+    unresponded?: unknown;
+  }[];
   /** 'completed' | 'in-progress' | other widget-specific status string. */
   status: string;
   /**
@@ -169,23 +179,8 @@ export function buildResultsSheetData<
       ? new Date(r.submittedAt).toLocaleString()
       : '';
     const warnings = r.tabSwitchWarnings?.toString() ?? '0';
-    // Deduplicate by questionId, keeping the FIRST occurrence in the array.
-    // Firestore arrayUnion races and Drive-sync double-writes can produce
-    // duplicate answer entries; `new Map([...entries])` would silently keep
-    // the LAST duplicate, but the scoring path (`getEarnedPoints`) keeps the
-    // first chronologically-sorted entry. Mismatching the two would produce an
-    // export score that contradicts the student's published grade — same root
-    // cause as #1827. Using a for-loop with a prior-seen guard preserves
-    // array insertion order (= natural arrival order) as the tiebreak, which
-    // matches what happens in practice when no `answeredAt` field is present
-    // on the ExportableResponse interface.
-    const answerMap = new Map<string, R['answers'][number]>();
-    const answers = r.answers ?? [];
-    for (const a of answers) {
-      if (!answerMap.has(a.questionId)) {
-        answerMap.set(a.questionId, a);
-      }
-    }
+    // Dedup by questionId via the take/answeredAt tiebreak shared with scoring.
+    const answerMap = selectRepresentativeAnswers(r.answers ?? []);
     // Grade once per question per response, cached by question id. The
     // previous shape called `gradeFn` twice (once for the answer column,
     // once for the row sum) which doubled normalization/regex work on
@@ -193,7 +188,7 @@ export function buildResultsSheetData<
     const grades = new Map<string, ReturnType<typeof gradeFn>>();
     for (const q of questions) {
       const ans = answerMap.get(q.id);
-      if (!ans) continue;
+      if (!ans || ans.unresponded) continue; // absent OR unresponded === no cell
       grades.set(q.id, gradeFn(q, ans.answer, r));
     }
     // An `awaiting-grade` slot's 0 is a placeholder, not a score. Render the

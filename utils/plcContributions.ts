@@ -25,6 +25,7 @@ import type {
   QuizResponse,
 } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 const PLC_CONTRIBUTION_SCHEMA_VERSION = 1 as const;
 
@@ -83,22 +84,19 @@ function buildContributionResponse(
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
-  // Sort by answeredAt asc, keep first occurrence per questionId — matches getEarnedPoints.
-  const sortedAnswers = [...response.answers].sort(
-    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
-  );
-  const answerByQuestionId = new Map<string, string>();
-  for (const a of sortedAnswers) {
-    if (!answerByQuestionId.has(a.questionId)) {
-      answerByQuestionId.set(a.questionId, a.answer);
-    }
-  }
+  // Dedup by questionId: same take/answeredAt tiebreak as getEarnedPoints and export.
+  type ContributionAnswerEntry = QuizResponse['answers'][number] & {
+    unresponded?: unknown;
+  };
+  const responseAnswers: ContributionAnswerEntry[] = response.answers;
+  const answerByQuestionId = selectRepresentativeAnswers(responseAnswers);
 
   const pointsByQuestionId: Record<string, number> = {};
   let pointsEarned = 0;
   for (const q of questions) {
-    const answer = answerByQuestionId.get(q.id);
-    if (answer === undefined) continue;
+    const entry = answerByQuestionId.get(q.id);
+    if (!entry || entry.unresponded) continue;
+    const answer = entry.answer;
     // Written types (`short`/`essay`) carry their points on the response's
     // top-level `grading` map; passing it in here keeps the PLC
     // contribution's per-question points and aggregate score in sync with

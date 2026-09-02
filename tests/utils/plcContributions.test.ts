@@ -272,4 +272,143 @@ describe('buildContributionDoc', () => {
     expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
     expect(doc.responses[0].pointsEarned).toBe(2);
   });
+
+  // RR-06 finding 4 / RR-08: once every passed-over question writes an
+  // entry, `pointsByQuestionId` must still omit an `unresponded` question's
+  // key — presence alone can no longer signal "answered".
+  it('omits pointsByQuestionId key for an unresponded entry (RR-06 finding 4)', () => {
+    const quiz = makeQuiz([
+      makeMcQuestion('q1', 'Q1', 'a', 2),
+      makeMcQuestion('q2', 'Q2', 'b', 1),
+    ]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 100,
+          unresponded: 'passed',
+        },
+        { questionId: 'q2', answer: 'b', answeredAt: 100 },
+      ],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    expect('q1' in doc.responses[0].pointsByQuestionId).toBe(false);
+    expect(doc.responses[0].pointsByQuestionId.q2).toBe(1);
+  });
+
+  it('produces a scored 0 for a legitimate empty answer with no unresponded flag', () => {
+    const quiz = makeQuiz([makeMcQuestion('q1', 'Q1', 'a', 2)]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [{ questionId: 'q1', answer: '', answeredAt: 100 }],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    expect(doc.responses[0].pointsByQuestionId.q1).toBe(0);
+  });
+
+  it('keeps the highest-takeIndex entry on a duplicate questionId (owner note, paired with brief 1.2)', () => {
+    const quiz = makeQuiz([makeMcQuestion('q1', 'Q1', 'a', 2)]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [
+        { questionId: 'q1', answer: 'x', answeredAt: 100, takeIndex: 0 }, // wrong, earlier take
+        { questionId: 'q1', answer: 'a', answeredAt: 200, takeIndex: 1 }, // correct, later take — wins
+      ],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
+  });
+
+  it('credits the earliest answeredAt entry even when it is stored last in the array', () => {
+    const quiz = makeQuiz([makeMcQuestion('q1', 'Q1', 'a', 2)]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [
+        { questionId: 'q1', answer: 'x', answeredAt: 200 }, // wrong, later — stored first
+        { questionId: 'q1', answer: 'a', answeredAt: 100 }, // correct, EARLIEST — stored last, still wins
+      ],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
+  });
+
+  it('treats a duplicate missing answeredAt as earliest (sorts as 0)', () => {
+    const quiz = makeQuiz([makeMcQuestion('q1', 'Q1', 'a', 2)]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [
+        { questionId: 'q1', answer: 'x', answeredAt: 100 }, // wrong, timestamped
+        { questionId: 'q1', answer: 'a' }, // correct, no answeredAt — sorts as 0, wins
+      ],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
+  });
 });
