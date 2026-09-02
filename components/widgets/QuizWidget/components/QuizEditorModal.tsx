@@ -19,6 +19,7 @@ import {
   QuizQuestion,
   QuizStimulus,
   Rubric,
+  isFreeResponseType,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
@@ -90,6 +91,12 @@ const rubricSnapshotKey = (rubric: Rubric | undefined): string =>
       ])
     : '';
 
+/** Absent block and present block never collide: '' vs a 4-field key. */
+const recordingKey = (recording: QuizQuestion['recording']): string =>
+  recording
+    ? `${recording.prepSeconds}|${recording.limitSeconds}|${recording.prepExpiry}|${recording.takeLimit ?? 'null'}`
+    : '';
+
 const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -108,6 +115,7 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.maxWords ?? 0) !== (qb.maxWords ?? 0) ||
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
+      recordingKey(qa.recording) !== recordingKey(qb.recording) ||
       rubricSnapshotKey(qa.rubricSnapshot) !==
         rubricSnapshotKey(qb.rubricSnapshot)
     ) {
@@ -252,9 +260,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     if (questions.length === 0) errors.push('Add at least one question');
     questions.forEach((q, i) => {
       if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
-      // Written response types (short/essay) have no correct answer — they
+      // Free-response questions have no correct answer — they
       // are manually graded by the teacher after the quiz closes.
-      const isWritten = q.type === 'short' || q.type === 'essay';
+      const isWritten = isFreeResponseType(q.type);
       if (!isWritten && !q.correctAnswer.trim())
         errors.push(`Question ${i + 1}: correct answer is required`);
     });
@@ -352,6 +360,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               folders={folders}
               folderId={folderId}
               onFolderChange={onFolderChange}
+              shuffleQuestionsEnabled={
+                behavior.sessionMode === 'student' &&
+                behavior.sessionOptions.shuffleQuestions === true
+              }
             />
           ) : editorTab === 'stimuli' ? (
             <StimulusManagerPanel state={editorState} />

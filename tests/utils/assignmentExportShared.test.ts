@@ -361,4 +361,160 @@ describe('buildResultsSheetData', () => {
       expect(dataRows[0][12]).toBe('Ungraded');
     });
   });
+
+  // RR-06 finding 4 / RR-08: once every passed-over question writes an
+  // entry, presence alone can no longer mean "answered." The `unresponded`
+  // marker (brief 2.2) is the only correct signal.
+  describe('unresponded entries (RR-06 finding 4)', () => {
+    it('renders an unresponded entry as a blank cell, not a 0', () => {
+      const questions = [q({ id: 'q1' }), q({ id: 'q2' })];
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: '', unresponded: 'passed' },
+          { questionId: 'q2', answer: 'a' },
+        ],
+      });
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        questions,
+        ALWAYS_ZERO
+      );
+      // Q1 column (index 11) blank — unresponded, not a scored 0.
+      expect(dataRows[0][11]).toBe('');
+      // Q2 column (index 12) reflects its real grade.
+      expect(dataRows[0][12]).toBe('0');
+    });
+
+    it('renders a legitimate empty answer (no unresponded flag) as a scored 0', () => {
+      // A written-response question the student submitted blank, or a
+      // pure-audio response whose content lives in artifacts[] — both
+      // store answer: '' while being genuinely answered.
+      const response = r({ answers: [{ questionId: 'q1', answer: '' }] });
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        [q()],
+        ALWAYS_ZERO
+      );
+      expect(dataRows[0][11]).toBe('0');
+    });
+
+    it('produces identical output to the pre-change baseline for legacy fixtures', () => {
+      // No `unresponded` field anywhere — matches every Firestore document
+      // written today. Must behave exactly as before this brief.
+      const response = r({ answers: [{ questionId: 'q1', answer: 'a' }] });
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        [q()],
+        ALWAYS_FULL
+      );
+      expect(dataRows[0][11]).toBe('1');
+    });
+  });
+
+  describe('takeIndex/answeredAt dedup tiebreak (owner note, paired with brief 1.2)', () => {
+    it('keeps the highest-takeIndex entry when duplicates share a questionId', () => {
+      const gradeFn = (
+        _q: ExportableQuestion,
+        answer: string
+      ): GradeResult => ({
+        isCorrect: answer === 'second-take',
+        pointsEarned: answer === 'second-take' ? 1 : 0,
+        pointsMax: 1,
+        state: 'scored',
+      });
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'first-take', takeIndex: 0 },
+          { questionId: 'q1', answer: 'second-take', takeIndex: 1 },
+        ],
+      });
+      const { dataRows } = buildResultsSheetData([response], [q()], gradeFn);
+      expect(dataRows[0][11]).toBe('1');
+    });
+
+    it('breaks a takeIndex tie on earliest answeredAt', () => {
+      const gradeFn = (
+        _q: ExportableQuestion,
+        answer: string
+      ): GradeResult => ({
+        isCorrect: answer === 'earlier',
+        pointsEarned: answer === 'earlier' ? 1 : 0,
+        pointsMax: 1,
+        state: 'scored',
+      });
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'later', answeredAt: 200 },
+          { questionId: 'q1', answer: 'earlier', answeredAt: 100 },
+        ],
+      });
+      const { dataRows } = buildResultsSheetData([response], [q()], gradeFn);
+      expect(dataRows[0][11]).toBe('1');
+    });
+
+    it('treats a duplicate missing answeredAt as earliest (sorts as 0)', () => {
+      const gradeFn = (
+        _q: ExportableQuestion,
+        answer: string
+      ): GradeResult => ({
+        isCorrect: answer === 'no-timestamp',
+        pointsEarned: answer === 'no-timestamp' ? 1 : 0,
+        pointsMax: 1,
+        state: 'scored',
+      });
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'timestamped', answeredAt: 100 },
+          { questionId: 'q1', answer: 'no-timestamp' },
+        ],
+      });
+      const { dataRows } = buildResultsSheetData([response], [q()], gradeFn);
+      expect(dataRows[0][11]).toBe('1');
+    });
+  });
+
+  // INT-B2: an excused question leaves only THAT student's denominator, so
+  // the exported percentage is computed over the questions that remain.
+  describe('excused questions', () => {
+    it('drops the excused question from Max Points and the percentage', () => {
+      const questions = [
+        q({ id: 'q1', points: 1 }),
+        q({ id: 'q2', points: 3 }),
+      ];
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'a' },
+          { questionId: 'q2', answer: '', unresponded: 'capture-unavailable' },
+        ],
+        grading: { q2: { excused: true } },
+      });
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        questions,
+        ALWAYS_FULL
+      );
+      expect(dataRows[0][6]).toBe('100%');
+      expect(dataRows[0][8]).toBe('1');
+    });
+
+    it('keeps the full denominator when nothing is excused', () => {
+      const questions = [
+        q({ id: 'q1', points: 1 }),
+        q({ id: 'q2', points: 3 }),
+      ];
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'a' },
+          { questionId: 'q2', answer: '', unresponded: 'capture-unavailable' },
+        ],
+      });
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        questions,
+        ALWAYS_FULL
+      );
+      expect(dataRows[0][6]).toBe('25%');
+      expect(dataRows[0][8]).toBe('4');
+    });
+  });
 });

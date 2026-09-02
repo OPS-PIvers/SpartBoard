@@ -42,24 +42,33 @@ export interface AttemptLimitRowProps {
    * the live monitor).
    */
   hint?: string;
+  /** Visible row label. Defaults to the assignment-settings wording. */
+  label?: string;
+  /** Accessible name for the button group. Defaults to the visible label. */
+  ariaLabel?: string;
+  /** Label on the `null` option. Defaults to "Unlimited". */
+  unlimitedLabel?: string;
 }
 
 export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
   value,
   onChange,
   hint = 'Remove a student from the live monitor to reset their attempt.',
+  label = 'Attempts Allowed',
+  ariaLabel,
+  unlimitedLabel,
 }) => (
   <div>
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm font-bold text-brand-blue-dark">
-        Attempts Allowed
-      </span>
+      <span className="text-sm font-bold text-brand-blue-dark">{label}</span>
       <div
         role="group"
-        aria-label="Attempts allowed"
+        aria-label={ariaLabel ?? 'Attempts allowed'}
         className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
       >
         {ATTEMPT_OPTIONS.map((opt) => {
+          const optLabel =
+            opt.value === null ? (unlimitedLabel ?? opt.label) : opt.label;
           const active = value === opt.value;
           return (
             <button
@@ -74,7 +83,7 @@ export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
                   : 'text-slate-600 hover:bg-slate-50')
               }
             >
-              {opt.label}
+              {optLabel}
             </button>
           );
         })}

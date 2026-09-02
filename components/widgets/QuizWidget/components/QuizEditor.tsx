@@ -7,15 +7,23 @@
  */
 
 import React, { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   GripVertical,
+  Mic,
   MousePointerClick,
   Plus,
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { LibraryFolder, QuizQuestion, QuizQuestionType, Rubric } from '@/types';
+import {
+  LibraryFolder,
+  QuizQuestion,
+  QuizQuestionType,
+  Rubric,
+  isFreeResponseType,
+} from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -25,8 +33,15 @@ import {
   MatchingAnswerEditor,
   OrderingAnswerEditor,
 } from './MatchingOrderingEditor';
+import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { QuestionStimulusSection } from './StimulusManagerPanel';
+import {
+  ResponseFormatControl,
+  SpokenResponseSettings,
+} from './ResponseFormatSection';
+import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
+import { WordLimitFields } from './WordLimitFields';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import type { QuizEditorController } from './useQuizEditorState';
 
@@ -36,6 +51,8 @@ interface PaneProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
+  /** Drives the advisory's shuffle-no-op line; owned by the modal. */
+  shuffleQuestionsEnabled?: boolean;
 }
 
 const QUESTION_TYPES: {
@@ -64,14 +81,9 @@ const QUESTION_TYPES: {
     hint: 'List items in the correct sequence. Drag rows or use arrows to reorder.',
   },
   {
-    value: 'short',
-    label: 'Short Answer',
-    hint: 'Single-paragraph written response. Graded manually by the teacher.',
-  },
-  {
-    value: 'essay',
-    label: 'Essay',
-    hint: 'Multi-paragraph written response with rich text. Graded manually.',
+    value: 'free-response',
+    label: 'Free Response',
+    hint: 'Open-ended answer, typed or spoken. Graded manually.',
   },
 ];
 
@@ -86,14 +98,8 @@ const TYPE_BADGE: Record<QuizQuestionType, string> = {
   FIB: 'bg-amber-100 text-amber-800',
   Matching: 'bg-purple-100 text-purple-700',
   Ordering: 'bg-teal-100 text-teal-700',
-  short: 'bg-rose-100 text-rose-700',
-  essay: 'bg-rose-100 text-rose-700',
+  'free-response': 'bg-rose-100 text-rose-700',
 };
-
-const labelClass =
-  'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
-const inputClass =
-  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 
 // ─── Context pane ────────────────────────────────────────────────────────────
 
@@ -114,6 +120,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.title === next.state.title &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
+  prev.shuffleQuestionsEnabled === next.shuffleQuestionsEnabled &&
   prev.state.error === next.state.error;
 
 export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
@@ -122,7 +129,10 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   folders,
   folderId,
   onFolderChange,
+  shuffleQuestionsEnabled,
 }: PaneProps) {
+  const { canAccessQuizMediaResponse } = useAuth();
+  const mediaResponseAllowed = canAccessQuizMediaResponse();
   const {
     title,
     setTitle,
@@ -159,6 +169,14 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </div>
+        )}
+        {/* Advisory, not validation: it never blocks a save and never shares
+            the error styling. */}
+        {mediaResponseAllowed && (
+          <QuizAuthoringAdvisory
+            questions={questions}
+            shuffleQuestionsEnabled={shuffleQuestionsEnabled}
+          />
         )}
       </div>
 
@@ -284,9 +302,15 @@ const QuestionRow = React.memo(function QuestionRow({
         {index + 1}
       </span>
       <span
-        className={`shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
+        className={`shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
       >
-        {question.type}
+        {question.type === 'free-response' ? 'FRQ' : question.type}
+        {isFreeResponseType(question.type) && question.recording && (
+          <>
+            <Mic className="w-2.5 h-2.5" aria-hidden />
+            <span className="sr-only">spoken</span>
+          </>
+        )}
       </span>
       <span className="flex-1 text-sm text-slate-700 truncate">
         {question.text || (
@@ -345,6 +369,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     },
     [selectedQuestionId, updateQuestion]
   );
+  const handleRecordingChange = useCallback(
+    (updates: Partial<QuizQuestion>) => {
+      if (selectedQuestionId) updateQuestion(selectedQuestionId, updates);
+    },
+    [selectedQuestionId, updateQuestion]
+  );
   const handleOrderingChange = useCallback(
     (correctAnswer: string) => {
       if (selectedQuestionId)
@@ -353,7 +383,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     [selectedQuestionId, updateQuestion]
   );
 
-  const { user } = useAuth();
+  const { t } = useTranslation();
+  const { user, canAccessQuizMediaResponse } = useAuth();
+  // Fail-closed: no permission record means the controls never mount, so the
+  // editor is pixel-identical to today for everyone else.
+  const mediaResponseAllowed = canAccessQuizMediaResponse();
   const [showRubricBuilder, setShowRubricBuilder] = useState(false);
   // Manual points held aside per question while a rubric owns its points.
   const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
@@ -421,7 +455,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   }
 
   const q = selectedQuestion;
-  const typeMeta = QUESTION_TYPES.find((t) => t.value === q.type);
+  const typeMeta = QUESTION_TYPES.find((entry) => entry.value === q.type);
+  const timeLimitLockedByRecording = mediaResponseAllowed && !!q.recording;
+  const timeLimitRecordingHint = t(
+    'quizMediaResponse.authoring.timeLimitDisabledHint'
+  );
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
@@ -459,13 +497,17 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               aria-label="Type"
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
-                const isWritten = nextType === 'short' || nextType === 'essay';
+                const isWritten = isFreeResponseType(nextType);
                 // A rubric only applies to written types, and its Detach button
                 // only renders there — so drop it here, restoring the stashed
                 // manual points, or Points stays locked with no way to unlock.
                 const droppingRubric = !isWritten && !!q.rubricSnapshot;
                 const stashedPoints = manualPointsByQuestion.current.get(q.id);
                 if (droppingRubric) manualPointsByQuestion.current.delete(q.id);
+                // The Format row (Spoken) no longer has a "remove" affordance
+                // for non-written types, so drop any stray recording block here.
+                const droppingRecording =
+                  mediaResponseAllowed && !isWritten && !!q.recording;
                 updateQuestion(q.id, {
                   type: nextType,
                   incorrectAnswers: nextType === 'MC' ? ['', ''] : [],
@@ -479,6 +521,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   ...(droppingRubric
                     ? { points: stashedPoints ?? q.points ?? 1 }
                     : {}),
+                  ...(droppingRecording
+                    ? {
+                        recording: undefined,
+                        timeLimit: q.recording?.priorTimeLimit ?? q.timeLimit,
+                      }
+                    : {}),
                 });
               }}
               className={`${inputClass} appearance-none`}
@@ -489,26 +537,54 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 </option>
               ))}
             </select>
+            {/* Anchored under Type so the Time Limit / Points hints fill the space beside it instead of pushing the pane down. */}
+            {isFreeResponseType(q.type) && mediaResponseAllowed && (
+              <div className="mt-3">
+                <ResponseFormatControl
+                  question={q}
+                  onChange={handleRecordingChange}
+                />
+              </div>
+            )}
           </div>
           <div>
-            <label className={labelClass}>Time Limit</label>
+            <label className={labelClass} htmlFor="question-time-limit">
+              Time Limit
+            </label>
             <div className="relative">
               <input
+                id="question-time-limit"
                 type="number"
                 min={0}
                 max={300}
                 value={q.timeLimit}
+                // Visible and disabled, never unmounted, on a recording
+                // question — its own prep/limit timer owns the clock.
+                disabled={timeLimitLockedByRecording}
+                aria-describedby={
+                  timeLimitLockedByRecording
+                    ? 'question-time-limit-recording-hint'
+                    : undefined
+                }
                 onChange={(e) =>
                   updateQuestion(q.id, {
                     timeLimit: parseInt(e.target.value, 10) || 0,
                   })
                 }
-                className={`${inputClass} pr-12`}
+                className={`${inputClass} pr-12 disabled:bg-slate-100 disabled:text-slate-600`}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
                 Sec
               </span>
             </div>
+            {timeLimitLockedByRecording && (
+              <p
+                id="question-time-limit-recording-hint"
+                className="mt-1 text-xs text-slate-600"
+              >
+                {timeLimitRecordingHint}
+              </p>
+            )}
           </div>
           <div>
             <label className={labelClass}>Points</label>
@@ -542,6 +618,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             )}
           </div>
         </div>
+
+        {isFreeResponseType(q.type) && mediaResponseAllowed && (
+          <SpokenResponseSettings
+            question={q}
+            onChange={handleRecordingChange}
+          />
+        )}
 
         {(q.type === 'Matching' || q.type === 'Ordering') && (
           <div className="flex items-start gap-2">
@@ -588,61 +671,30 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             correctAnswer={q.correctAnswer}
             onChange={handleOrderingChange}
           />
-        ) : q.type === 'short' || q.type === 'essay' ? (
+        ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
-            <div className="flex gap-2 p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <p className="text-xs">
-                {q.type === 'short'
-                  ? 'Students answer in a single short paragraph. '
-                  : 'Students write a multi-paragraph response with rich text. '}
-                Responses are <strong>graded manually</strong> — open the
-                results panel after the quiz ends to award points.
-              </p>
-            </div>
-            <div>
-              <label className={labelClass}>Placeholder (optional)</label>
-              <input
-                type="text"
-                value={q.placeholder ?? ''}
-                onChange={(e) =>
-                  updateQuestion(q.id, {
-                    placeholder: e.target.value || undefined,
-                  })
-                }
-                placeholder="e.g. Cite at least two pieces of evidence."
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Word Cap (optional)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min={0}
-                  max={5000}
-                  value={q.maxWords ?? ''}
-                  onChange={(e) => {
-                    const raw = parseInt(e.target.value, 10);
-                    updateQuestion(q.id, {
-                      maxWords:
-                        Number.isFinite(raw) && raw > 0
-                          ? Math.min(5000, raw)
-                          : undefined,
-                    });
-                  }}
-                  placeholder="No cap"
-                  className={`${inputClass} pr-16`}
+            {!timeLimitLockedByRecording && (
+              <>
+                <div>
+                  <label className={labelClass}>Placeholder (optional)</label>
+                  <input
+                    type="text"
+                    value={q.placeholder ?? ''}
+                    onChange={(e) =>
+                      updateQuestion(q.id, {
+                        placeholder: e.target.value || undefined,
+                      })
+                    }
+                    placeholder="e.g. Cite at least two pieces of evidence."
+                    className={inputClass}
+                  />
+                </div>
+                <WordLimitFields
+                  question={q}
+                  onChange={(updates) => updateQuestion(q.id, updates)}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
-                  Words
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Shown to students as a soft warning. Not enforced — students can
-                exceed it.
-              </p>
-            </div>
+              </>
+            )}
             <div>
               <label className={labelClass}>Rubric</label>
               {q.rubricSnapshot ? (
@@ -734,7 +786,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         <QuestionStimulusSection state={state} questionId={q.id} />
       </div>
 
-      {showRubricBuilder && (q.type === 'short' || q.type === 'essay') && (
+      {showRubricBuilder && isFreeResponseType(q.type) && (
         <RubricBuilderPanel
           key={q.id}
           questionId={q.id}

@@ -142,6 +142,35 @@ service firebase.storage {
         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
     }
 
+    // Quiz recorded media — transit buffer only. The path segment is the
+    // response key, so ownership is proven by the response doc's studentUid.
+    match /quiz_response_media/{sessionId}/{responseKey}/{fileName} {
+      allow read: if request.auth != null &&
+        (
+          isAdmin() ||
+          firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
+          ).data.get('studentUid', '') == request.auth.uid ||
+          firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)
+          ).data.get('teacherUid', '') == request.auth.uid
+        );
+      // Create only (no update): the caller must own the response doc at this key.
+      allow create: if request.auth != null &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('audio/.*') &&
+        firestore.get(
+          /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
+        ).data.get('studentUid', '') == request.auth.uid;
+      allow delete: if request.auth != null &&
+        (
+          isAdmin() ||
+          firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)
+          ).data.get('teacherUid', '') == request.auth.uid
+        );
+    }
+
     // Default deny for everything else
     match /{allPaths=**} {
       allow read, write: if false;

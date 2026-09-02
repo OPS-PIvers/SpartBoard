@@ -90,9 +90,9 @@ export function shuffleQuestionForStudent(
  * student walks a shuffled quiz. Questions with no stimuli are singleton
  * units. Units are emitted in the order of their first member.
  */
-export function groupIntoStimulusUnits(
-  questions: readonly QuizPublicQuestion[]
-): QuizPublicQuestion[][] {
+export function groupIntoStimulusUnits<
+  T extends Pick<QuizPublicQuestion, 'stimulusIds'>,
+>(questions: readonly T[]): T[][] {
   // Union-find over question indices, merged via shared stimulus ids.
   const parent = questions.map((_, i) => i);
   const find = (x: number): number =>
@@ -108,8 +108,8 @@ export function groupIntoStimulusUnits(
       else union(first, i);
     }
   });
-  const unitByRoot = new Map<number, QuizPublicQuestion[]>();
-  const units: QuizPublicQuestion[][] = [];
+  const unitByRoot = new Map<number, T[]>();
+  const units: T[][] = [];
   questions.forEach((q, i) => {
     const root = find(i);
     let unit = unitByRoot.get(root);

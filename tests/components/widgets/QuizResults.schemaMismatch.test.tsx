@@ -19,6 +19,8 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    canAccessQuizMediaResponse: () => false,
+    refreshGoogleToken: () => Promise.resolve(null),
     googleAccessToken: 'token-1',
     // Path B: export handlers acquire the Sheets scope on demand.
     ensureGoogleScope: vi.fn().mockResolvedValue('token-1'),

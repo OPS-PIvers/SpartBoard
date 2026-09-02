@@ -96,6 +96,38 @@ describe('WrittenAnswerReview', () => {
     expect(screen.getByText('thesis')).toBeInTheDocument();
   });
 
+  // INT-B5: audio timeline comments share the `annotations` field but index
+  // milliseconds into a take. Anchoring them here highlights arbitrary text.
+  it('skips annotations tagged as millisecond offsets', () => {
+    const grade: WrittenAnswerGrade = {
+      pointsAwarded: 3,
+      gradedBy: 't',
+      gradedAt: 0,
+      gradingSnapshot: '<p>alpha beta</p>',
+      annotationUnit: 'ms',
+      annotations: [
+        {
+          id: 'a1',
+          from: 12000,
+          to: 12000,
+          authorUid: 't',
+          createdAt: 0,
+          comment: 'said it well',
+        },
+      ],
+    };
+    const { container } = render(
+      <WrittenAnswerReview
+        studentAnswer=""
+        grade={grade}
+        showResponse={true}
+        maxPoints={5}
+      />
+    );
+    expect(container.querySelector('mark')).toBeNull();
+    expect(screen.queryByText('said it well')).not.toBeInTheDocument();
+  });
+
   it('shows "no response" when the student never answered AND no grade exists', () => {
     render(
       <WrittenAnswerReview

@@ -3010,6 +3010,12 @@ describe('index barrel — deployed export set', () => {
     'checkUrlCompatibility',
     // Activity Wall archive
     'archiveActivityWallPhoto',
+    'archiveQuizMediaArtifact',
+    'sweepStuckQuizArchives',
+    'getQuizArtifactPlaybackUrl',
+    // Org-admin media review & compliance delete
+    'listQuizMediaForOrgAdmin',
+    'deleteQuizMediaForOrgAdmin',
     // Admin analytics endpoint
     'adminAnalytics',
     // Student identity

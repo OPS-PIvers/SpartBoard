@@ -26,6 +26,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ClipboardList,
   Loader2,
@@ -76,10 +77,28 @@ import {
   WrittenAnswerGrade,
   Rubric,
   StudentOverride,
-  isWrittenQuestionType,
+  isFreeResponseType,
   isAnswerSubmitted,
+  type ResponseArtifact,
+  type UnrespondedReason,
 } from '@/types';
+import {
+  countCommittedTakes,
+  isRecordingSlotClosed,
+} from '@/utils/answerTakeOrdering';
+import { AudioResponseCapture } from './recording/AudioResponseCapture';
+import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
+import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
+import { selectPlaybackTake } from '@/utils/responseArtifacts';
+import { hasUngradedRecording } from '@/utils/mediaGrading';
+import type { AudioTake } from '@/hooks/useAudioRecording';
+import {
+  buildQuizMediaStoragePath,
+  enqueueQuizMediaUpload,
+} from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { countWords } from '@/utils/wordCount';
+import { wordLimitStatus } from '@/utils/wordLimit';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { useDialog } from '@/context/useDialog';
 import { StudentLeaderboard } from './StudentLeaderboard';
@@ -101,6 +120,10 @@ import {
   applyHiddenOptions,
   applyTimeMultiplier,
 } from '@/utils/quizOverrideServing';
+import {
+  countAnsweredQuestions,
+  listOpenQuestions,
+} from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import {
@@ -116,7 +139,7 @@ import {
 
 // Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
 // pulled into the initial student-app payload. Loaded on first render of a
-// short/essay question.
+// free-response question.
 const WrittenResponseEditor = React.lazy(() =>
   import('./WrittenResponseEditor').then((m) => ({
     default: m.WrittenResponseEditor,
@@ -339,6 +362,10 @@ const QuizJoinFlow: React.FC<{
     joinQuizSession,
     subscribeForReview,
     submitAnswer,
+    commitRecordingTake,
+    setArtifactUploadState,
+    markUnresponded,
+    acknowledgeRecordingNotice,
     completeQuiz,
     reportTabSwitch,
     setHandRaised,
@@ -549,6 +576,15 @@ const QuizJoinFlow: React.FC<{
   const servedTotalQuestions = myOverride?.questionIds
     ? servedPublicQuestions.length
     : (session?.totalQuestions ?? 0);
+  const servedQuestionIdList = useMemo(
+    () => servedPublicQuestions.map((q) => q.id),
+    [servedPublicQuestions]
+  );
+  // Raw `answers.length` over-counts once `unresponded` markers exist.
+  const myAnsweredCount = countAnsweredQuestions(
+    myResponse?.answers ?? [],
+    servedQuestionIdList
+  );
 
   // Subscribe to auth so the view-log effect re-runs when anon sign-in
   // resolves; `auth.currentUser` alone is non-reactive.
@@ -594,7 +630,7 @@ const QuizJoinFlow: React.FC<{
       questionId: string,
       answer: string,
       speedBonus?: number,
-      opts?: { isDraft?: boolean }
+      opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
     ) => {
       // View-only shares never persist responses — the Firestore rule
       // rejects the write defense-in-depth, but skip it client-side too so
@@ -609,6 +645,142 @@ const QuizJoinFlow: React.FC<{
     if (isViewOnly) return;
     await completeQuiz();
   }, [completeQuiz, isViewOnly]);
+
+  // Tennessen acknowledgment. localStorage is the once-per-device fast path;
+  // `recordingNoticeAckedAt` on the response doc is the durable proof and
+  // carries the ack to a student who continues on another device.
+  const noticeAckKey = session?.id
+    ? `spart_quiz_recording_ack_${session.id}`
+    : null;
+  const [localNoticeAckedAt, setNoticeAckedAt] = useState<number | null>(null);
+  const [ackKeyRead, setAckKeyRead] = useState<string | null>(null);
+  if (noticeAckKey && ackKeyRead !== noticeAckKey) {
+    setAckKeyRead(noticeAckKey);
+    let stored: number | null = null;
+    try {
+      const raw = window.localStorage.getItem(noticeAckKey);
+      stored = raw ? Number(raw) || null : null;
+    } catch {
+      stored = null;
+    }
+    setNoticeAckedAt(stored);
+  }
+  const noticeAckedAt =
+    localNoticeAckedAt ?? myResponse?.recordingNoticeAckedAt ?? null;
+
+  const handleAcknowledgeNotice = useCallback(() => {
+    const at = Date.now();
+    setNoticeAckedAt(at);
+    void acknowledgeRecordingNotice(at).catch((err) => {
+      console.error('[QuizStudentApp] notice ack write failed:', err);
+    });
+    if (!noticeAckKey) return;
+    try {
+      window.localStorage.setItem(noticeAckKey, String(at));
+    } catch {
+      // A blocked storage quota only costs a repeat of the notice.
+    }
+  }, [acknowledgeRecordingNotice, noticeAckKey]);
+
+  // Bytes for takes whose archive failed, so "Try again" re-sends the SAME
+  // artifact (same storagePath) instead of pretending something is retrying.
+  const retryableTakesRef = useRef(new Map<string, Blob>());
+
+  const runRecordingUpload = useCallback(
+    async (questionId: string, artifact: ResponseArtifact, blob: Blob) => {
+      const sessionId = session?.id;
+      const studentUid = authedUid;
+      const responseKey = myResponse?._responseKey;
+      if (!sessionId || !studentUid || !responseKey) return;
+      const result = await enqueueQuizMediaUpload({
+        sessionId,
+        studentUid,
+        responseKey,
+        questionId,
+        artifactId: artifact.id,
+        blob,
+        mimeType: artifact.mimeType ?? blob.type,
+      });
+      if (result.uploadState === 'failed')
+        retryableTakesRef.current.set(artifact.id, blob);
+      else retryableTakesRef.current.delete(artifact.id);
+      await setArtifactUploadState(questionId, artifact.id, result.uploadState);
+      if (result.uploadState === 'failed') {
+        throw new Error(result.error ?? 'Archive failed');
+      }
+    },
+    [authedUid, myResponse?._responseKey, session?.id, setArtifactUploadState]
+  );
+
+  const handleRetryRecordingUpload = useCallback(
+    async (questionId: string, artifact: ResponseArtifact) => {
+      if (isViewOnly) return;
+      const blob = retryableTakesRef.current.get(artifact.id);
+      if (!blob) return;
+      await setArtifactUploadState(questionId, artifact.id, 'pending');
+      await runRecordingUpload(questionId, artifact, blob);
+    },
+    [isViewOnly, runRecordingUpload, setArtifactUploadState]
+  );
+
+  const canRetryRecordingUpload = useCallback(
+    (artifactId: string) => retryableTakesRef.current.has(artifactId),
+    []
+  );
+
+  const handleCommitRecording = useCallback(
+    async (questionId: string, take: AudioTake) => {
+      if (isViewOnly) return;
+      const sessionId = session?.id;
+      const studentUid = authedUid;
+      const responseKey = myResponse?._responseKey;
+      if (!sessionId || !studentUid || !responseKey) return;
+
+      const artifactId = crypto.randomUUID();
+      const artifact: ResponseArtifact = {
+        id: artifactId,
+        slot: 'primary',
+        kind: 'audio',
+        storagePath: buildQuizMediaStoragePath(
+          sessionId,
+          responseKey,
+          artifactId,
+          take.mimeType
+        ),
+        mimeType: take.mimeType,
+        bytes: take.blob.size,
+        durationMs: take.durationMs,
+        uploadState: 'pending',
+      };
+
+      // The metadata lands first, so a mid-upload crash still shows the
+      // student a pending take rather than losing the question silently.
+      await commitRecordingTake({
+        questionId,
+        artifact,
+        noticeAckedAt: noticeAckedAt ?? undefined,
+      });
+
+      await runRecordingUpload(questionId, artifact, take.blob);
+    },
+    [
+      authedUid,
+      commitRecordingTake,
+      isViewOnly,
+      myResponse?._responseKey,
+      noticeAckedAt,
+      runRecordingUpload,
+      session?.id,
+    ]
+  );
+
+  const handleMarkUnresponded = useCallback(
+    async (questionId: string, reason: UnrespondedReason) => {
+      if (isViewOnly) return;
+      await markUnresponded(questionId, reason);
+    },
+    [isViewOnly, markUnresponded]
+  );
 
   // Auto-join only works when a code AND a pin are both known. Since pin comes
   // from a form field there's no auto-join on URL code alone — the student
@@ -921,6 +1093,7 @@ const QuizJoinFlow: React.FC<{
         session={session}
         myResponse={myResponse}
         pin={pin}
+        answeredCount={myAnsweredCount}
         totalQuestions={servedTotalQuestions}
         pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
       />
@@ -994,6 +1167,12 @@ const QuizJoinFlow: React.FC<{
         alreadyAnswered={alreadyAnswered}
         myResponse={myResponse}
         onAnswer={handleAnswer}
+        onCommitRecording={handleCommitRecording}
+        onRetryRecordingUpload={handleRetryRecordingUpload}
+        canRetryRecordingUpload={canRetryRecordingUpload}
+        onMarkUnresponded={handleMarkUnresponded}
+        noticeAckedAt={noticeAckedAt}
+        onAcknowledgeNotice={handleAcknowledgeNotice}
         onComplete={handleComplete}
         reportTabSwitch={reportTabSwitch}
         onSetHandRaised={setHandRaised}
@@ -1013,7 +1192,7 @@ const QuizJoinFlow: React.FC<{
     <ResultsScreen
       session={session}
       myResponse={myResponse}
-      answeredCount={(myResponse?.answers ?? []).length}
+      answeredCount={myAnsweredCount}
       totalQuestions={servedTotalQuestions}
       pin={pin}
       myStudentUid={myResponse?.studentUid}
@@ -1093,8 +1272,24 @@ const ActiveQuiz: React.FC<{
     qId: string,
     answer: string,
     speedBonus?: number,
-    opts?: { isDraft?: boolean }
+    opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
   ) => Promise<void>;
+  /** Appends one committed take; rejects so the recorder can show the failure. */
+  onCommitRecording: (questionId: string, take: AudioTake) => Promise<void>;
+  /** Re-sends a failed take's own artifact; rejects if it fails again. */
+  onRetryRecordingUpload: (
+    questionId: string,
+    artifact: ResponseArtifact
+  ) => Promise<void>;
+  /** Whether this device still holds the bytes for a failed take. */
+  canRetryRecordingUpload: (artifactId: string) => boolean;
+  onMarkUnresponded: (
+    questionId: string,
+    reason: UnrespondedReason
+  ) => Promise<void>;
+  /** Tennessen acknowledgment for this assignment; null until acknowledged. */
+  noticeAckedAt: number | null;
+  onAcknowledgeNotice: () => void;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   onSetHandRaised: (raised: boolean) => Promise<void>;
@@ -1114,6 +1309,12 @@ const ActiveQuiz: React.FC<{
   alreadyAnswered: sessionAnswered,
   myResponse,
   onAnswer,
+  onCommitRecording,
+  onRetryRecordingUpload,
+  canRetryRecordingUpload,
+  onMarkUnresponded,
+  noticeAckedAt,
+  onAcknowledgeNotice,
   onComplete,
   reportTabSwitch,
   onSetHandRaised,
@@ -1126,7 +1327,9 @@ const ActiveQuiz: React.FC<{
   effectiveCloseAt,
 }) => {
   const { showAlert } = useDialog();
+  const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
+  const [submitBlocked, setSubmitBlocked] = useState(false);
   const [handBusy, setHandBusy] = useState(false);
   const handleToggleHand = async () => {
     if (handBusy) return;
@@ -1822,11 +2025,19 @@ const ActiveQuiz: React.FC<{
         ? currentAnswerRef.current.value
         : undefined;
     const answer = cached ?? selectedAnswerRef.current ?? '';
+    // Enforcement lives at the Submit button only — a timeout always writes
+    // through, flagged so the grader sees why the answer is short.
+    const answerWords = countWords(answer);
+    const timedOutUnderMinimum =
+      isFreeResponseType(question.type) &&
+      wordLimitStatus(answerWords, question).blocked &&
+      answerWords < (question.minWords ?? 0);
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
         answer,
-        0 // Speed bonus is 0 when timer expires
+        0, // Speed bonus is 0 when timer expires
+        timedOutUnderMinimum ? { timedOutUnderMinimum: true } : undefined
       )
       .catch((err: unknown) => {
         console.error('[QuizStudentApp] auto-submit failed:', err);
@@ -1873,6 +2084,13 @@ const ActiveQuiz: React.FC<{
   // a committed render and a fast tap could re-submit-and-advance an answer
   // the student never re-affirmed.)
   const submittableAnswer = cachedDraft;
+  // Word-limit gate for written questions. Counts the LIVE draft (what the
+  // editor shows) so the message tracks typing rather than the last commit.
+  const writtenLimit =
+    currentQuestion && isFreeResponseType(currentQuestion.type)
+      ? wordLimitStatus(countWords(liveAnswer ?? ''), currentQuestion)
+      : null;
+  const wordLimitBlocked = writtenLimit?.blocked === true;
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
@@ -2082,7 +2300,7 @@ const ActiveQuiz: React.FC<{
     // Written question types have no canonical correct answer — they are
     // manually graded. Skip the reveal/feedback path entirely.
     const isWritten =
-      currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
+      !!currentQuestion && isFreeResponseType(currentQuestion.type);
     if (
       currentRevealed &&
       submitted &&
@@ -2249,6 +2467,30 @@ const ActiveQuiz: React.FC<{
     }
   };
 
+  // RR-A2 sub-decision 1 — an open recording slot blocks the submit. A slot
+  // prep expiry closed, or one a dead microphone marked capture-unavailable,
+  // is resolved rather than open and never blocks (RR-07).
+  const recordingQuestionEntries =
+    session.mediaResponseEnabled === true
+      ? orderedPublicQuestions
+          .map((q, index) => ({ q, index }))
+          .filter(({ q }) => q.recording && isFreeResponseType(q.type))
+      : [];
+  const openRecordingIds = new Set(
+    listOpenQuestions(
+      myResponse?.answers ?? [],
+      recordingQuestionEntries.map(({ q }) => q.id)
+    )
+  );
+  const openRecordingQuestions = recordingQuestionEntries
+    .filter(({ q }) => openRecordingIds.has(q.id))
+    .map(({ q, index }) => ({ id: q.id, index, text: q.text }));
+
+  const jumpToOpenRecording = (index: number) => {
+    setSubmitBlocked(false);
+    if (isStudentPaced) setLocalIndex(index);
+  };
+
   // Self-paced unified action: persist the answer, then advance (or complete
   // on the final question). Skips the per-question feedback banner — teachers
   // who want feedback should run the quiz in teacher-paced mode and reveal
@@ -2309,6 +2551,10 @@ const ActiveQuiz: React.FC<{
 
       const isLast = currentIndex >= effectiveTotalQuestions - 1;
       if (isLast) {
+        if (openRecordingQuestions.length > 0) {
+          setSubmitBlocked(true);
+          return;
+        }
         setSelectedAnswer(answer);
         setSubmitted(true);
         if (myResponse?.status !== 'completed') {
@@ -2327,6 +2573,64 @@ const ActiveQuiz: React.FC<{
       setSubmitting(false);
       advancingRef.current = false;
     }
+  };
+
+  // Recording questions: absent block = every existing quiz, unchanged. The
+  // session marker is the fail-closed gate — `/quiz` has no AuthProvider.
+  const recordingConfig =
+    session.mediaResponseEnabled === true &&
+    currentQuestion &&
+    isFreeResponseType(currentQuestion.type)
+      ? currentQuestion.recording
+      : undefined;
+  const answersForQuestion = currentQuestion
+    ? (myResponse?.answers ?? []).filter(
+        (a) => a.questionId === currentQuestion.id
+      )
+    : [];
+  const committedTakes = currentQuestion
+    ? countCommittedTakes(
+        myResponse?.answers ?? [],
+        currentQuestion.id,
+        myResponse?.artifactArchive
+      )
+    : 0;
+  const recordingSlotClosed = currentQuestion
+    ? isRecordingSlotClosed(myResponse?.answers ?? [], currentQuestion.id)
+    : false;
+  const latestRecordingArtifact = answersForQuestion
+    .filter((a) => (a.artifacts?.length ?? 0) > 0)
+    .sort((a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0))
+    .at(-1)?.artifacts?.[0];
+
+  const handleRecordingPrepExpired = (
+    expiry: NonNullable<QuizPublicQuestion['recording']>['prepExpiry']
+  ) => {
+    if (!currentQuestion) return;
+    if (expiry === 'auto-advance') {
+      void onMarkUnresponded(currentQuestion.id, 'passed').finally(() => {
+        if (isStudentPaced) handleNext();
+      });
+    } else if (expiry === 'unanswered') {
+      void onMarkUnresponded(currentQuestion.id, 'expired');
+    }
+  };
+
+  const handleRecordingSubmit = async () => {
+    if (openRecordingQuestions.length > 0) {
+      setSubmitBlocked(true);
+      return;
+    }
+    try {
+      await onComplete();
+    } catch (err) {
+      console.error('[QuizStudentApp] onComplete failed:', err);
+    }
+  };
+
+  const handleRecordingCaptureUnavailable = () => {
+    if (!currentQuestion) return;
+    void onMarkUnresponded(currentQuestion.id, 'capture-unavailable');
   };
 
   const progress = ((currentIndex + 1) / effectiveTotalQuestions) * 100;
@@ -2550,22 +2854,9 @@ const ActiveQuiz: React.FC<{
           className={`flex flex-col p-6 w-full min-w-0 ${
             docStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'
           } ${
-            // Per-type width caps. Tuned for the personal-device viewport
-            // a student actually uses (laptop / Chromebook / tablet), not
-            // a projector:
-            //   essay     → max-w-7xl  ~1280px. Long-form writing benefits
-            //                from elbow room more than line-length
-            //                discipline; the editor wraps its own prose.
-            //   short     → max-w-5xl  ~1024px. Paragraph-length answers
-            //                still want room without becoming sprawling.
-            //   MC/FIB/   → max-w-2xl   ~672px. Short answer options and
-            //   Matching/   structured inputs read worse when stretched
-            //   Ordering    across a widescreen — keep them compact.
-            currentQuestion.type === 'essay'
-              ? 'max-w-7xl'
-              : currentQuestion.type === 'short'
-                ? 'max-w-5xl'
-                : 'max-w-2xl'
+            // Free Response gets elbow room for long-form writing; structured
+            // inputs read worse stretched across a widescreen.
+            currentQuestion.type === 'free-response' ? 'max-w-7xl' : 'max-w-2xl'
           }`}
         >
           {/* Header */}
@@ -2614,9 +2905,7 @@ const ActiveQuiz: React.FC<{
                     ? 'Matching'
                     : currentQuestion.type === 'Ordering'
                       ? 'Ordering'
-                      : currentQuestion.type === 'short'
-                        ? 'Short Answer'
-                        : 'Essay'}
+                      : 'Free Response'}
             </span>
           </div>
 
@@ -2644,7 +2933,52 @@ const ActiveQuiz: React.FC<{
           </h2>
 
           {/* Answer area */}
-          {currentQuestion.type === 'MC' && (
+          {recordingConfig && (
+            <div className="space-y-4">
+              <AudioResponseCapture
+                key={currentQuestion.id}
+                config={recordingConfig}
+                takesCommitted={committedTakes}
+                noticeAckedAt={noticeAckedAt}
+                onAcknowledgeNotice={onAcknowledgeNotice}
+                onCommit={(take) => onCommitRecording(currentQuestion.id, take)}
+                onRetryUpload={
+                  latestRecordingArtifact &&
+                  canRetryRecordingUpload(latestRecordingArtifact.id)
+                    ? () =>
+                        onRetryRecordingUpload(
+                          currentQuestion.id,
+                          latestRecordingArtifact
+                        )
+                    : undefined
+                }
+                latestArtifact={latestRecordingArtifact}
+                light={light}
+                slotClosed={recordingSlotClosed}
+                onPrepExpired={handleRecordingPrepExpired}
+                onCaptureUnavailable={handleRecordingCaptureUnavailable}
+              />
+              {isStudentPaced && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={
+                      currentIndex >= effectiveTotalQuestions - 1
+                        ? () => void handleRecordingSubmit()
+                        : handleNext
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+                  >
+                    {currentIndex >= effectiveTotalQuestions - 1
+                      ? t('quizMediaResponse.capture.submitQuiz')
+                      : t('quizMediaResponse.capture.nextQuestion')}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!recordingConfig && currentQuestion.type === 'MC' && (
             <div className="space-y-3 flex-1">
               {options.map((opt) => {
                 // Self-paced revisits stay editable, so the highlight tracks
@@ -2756,7 +3090,7 @@ const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {currentQuestion.type === 'FIB' && (
+          {!recordingConfig && currentQuestion.type === 'FIB' && (
             <div className="space-y-4 flex-1">
               <input
                 type="text"
@@ -2854,45 +3188,45 @@ const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {(currentQuestion.type === 'Matching' ||
-            currentQuestion.type === 'Ordering') && (
-            <StructuredQuestionInput
-              key={currentQuestion.id}
-              question={currentQuestion}
-              submitted={submitted}
-              isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
-              savedAnswer={liveAnswer}
-              onSubmit={(answer) => void handleSubmit(answer)}
-              onSubmitAndAdvance={(answer) =>
-                void handleSubmitAndAdvance(answer)
-              }
-              onAnswerChange={(answer) => {
-                // The input remounts per question (keyed by id) and its mount
-                // effect re-emits the seeded answer. Skip the write when the
-                // emitted value already matches the cached value: a back-nav
-                // remount would otherwise mark the question touched (freezing
-                // out the seed-from-server refresh) and churn the autosave /
-                // pollute the history log for a no-op overwrite. Genuine
-                // placements differ from the cache and fall through.
-                if (
-                  currentAnswerRef.current.qid === currentQid &&
-                  currentAnswerRef.current.value === answer
-                )
-                  return;
-                // Push the live placement into the cache; the autosave
-                // effect picks it up and debounces the Firestore write.
-                setCacheForCurrent(answer);
-              }}
-              submitting={submitting}
-              isStudentPaced={isStudentPaced}
-              isLastQuestion={currentIndex >= effectiveTotalQuestions - 1}
-              onNext={handleNext}
-              saveError={saveError}
-            />
-          )}
+          {!recordingConfig &&
+            (currentQuestion.type === 'Matching' ||
+              currentQuestion.type === 'Ordering') && (
+              <StructuredQuestionInput
+                key={currentQuestion.id}
+                question={currentQuestion}
+                submitted={submitted}
+                isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
+                savedAnswer={liveAnswer}
+                onSubmit={(answer) => void handleSubmit(answer)}
+                onSubmitAndAdvance={(answer) =>
+                  void handleSubmitAndAdvance(answer)
+                }
+                onAnswerChange={(answer) => {
+                  // The input remounts per question (keyed by id) and its mount
+                  // effect re-emits the seeded answer. Skip the write when the
+                  // emitted value already matches the cached value: a back-nav
+                  // remount would otherwise mark the question touched (freezing
+                  // out the seed-from-server refresh) and churn the autosave /
+                  // pollute the history log for a no-op overwrite. Genuine
+                  // placements differ from the cache and fall through.
+                  if (
+                    currentAnswerRef.current.qid === currentQid &&
+                    currentAnswerRef.current.value === answer
+                  )
+                    return;
+                  // Push the live placement into the cache; the autosave
+                  // effect picks it up and debounces the Firestore write.
+                  setCacheForCurrent(answer);
+                }}
+                submitting={submitting}
+                isStudentPaced={isStudentPaced}
+                isLastQuestion={currentIndex >= effectiveTotalQuestions - 1}
+                onNext={handleNext}
+                saveError={saveError}
+              />
+            )}
 
-          {(currentQuestion.type === 'short' ||
-            currentQuestion.type === 'essay') && (
+          {!recordingConfig && isFreeResponseType(currentQuestion.type) && (
             <div className="space-y-4">
               {currentQuestion.rubricSnapshot && (
                 <CollapsibleRubric
@@ -2933,9 +3267,10 @@ const ActiveQuiz: React.FC<{
                   value={liveAnswer ?? ''}
                   onChange={(html) => setCacheForCurrent(html)}
                   placeholder={currentQuestion.placeholder}
+                  minWords={currentQuestion.minWords}
                   maxWords={currentQuestion.maxWords}
+                  enforceWordLimit={currentQuestion.enforceWordLimit}
                   disabled={submitted && !isStudentPaced}
-                  isEssay={currentQuestion.type === 'essay'}
                   blockClipboard={blockCopyPaste}
                   light={light}
                 />
@@ -2962,15 +3297,28 @@ const ActiveQuiz: React.FC<{
                         deliberate clear) we submit it; when it's unseeded
                         (`submittableAnswer === null`) we advance WITHOUT writing
                         so a fast tap can't clobber a not-yet-loaded saved essay
-                        with a blank (see handleSubmitAndAdvance `skipWrite`). */}
+                        with a blank (see handleSubmitAndAdvance `skipWrite`).
+                        An enforced word limit blocks only the final SUBMIT;
+                        mid-quiz NEXT advances without writing so the draft
+                        (already autosaved) stays editable on return. */}
                       <button
                         onClick={() =>
                           void handleSubmitAndAdvance(
                             submittableAnswer ?? '',
-                            submittableAnswer === null
+                            submittableAnswer === null || wordLimitBlocked
                           )
                         }
-                        disabled={submitting}
+                        disabled={
+                          submitting ||
+                          (wordLimitBlocked &&
+                            currentIndex >= effectiveTotalQuestions - 1)
+                        }
+                        aria-describedby={
+                          writtenLimit?.message &&
+                          currentIndex >= effectiveTotalQuestions - 1
+                            ? 'word-limit-status'
+                            : undefined
+                        }
                         className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                       >
                         {submitting ? (
@@ -2987,6 +3335,16 @@ const ActiveQuiz: React.FC<{
                           </>
                         )}
                       </button>
+                      {writtenLimit?.message &&
+                        currentIndex >= effectiveTotalQuestions - 1 && (
+                          <p
+                            id="word-limit-status"
+                            role="status"
+                            className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
+                          >
+                            {writtenLimit.message}
+                          </p>
+                        )}
                     </>
                   )
                 ) : !submitted ? (
@@ -2998,23 +3356,51 @@ const ActiveQuiz: React.FC<{
                   // deliberate clear (cache holds '') is non-null, so it stays
                   // enabled. The button re-enables once the student types or the
                   // saved answer loads and seeds the cache.
-                  <button
-                    onClick={() => void handleSubmit(submittableAnswer ?? '')}
-                    disabled={submitting || submittableAnswer === null}
-                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                  >
-                    {submitting ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      'Submit Response'
+                  <>
+                    <button
+                      onClick={() => void handleSubmit(submittableAnswer ?? '')}
+                      disabled={
+                        submitting ||
+                        submittableAnswer === null ||
+                        wordLimitBlocked
+                      }
+                      aria-describedby={
+                        writtenLimit?.message ? 'word-limit-status' : undefined
+                      }
+                      className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        'Submit Response'
+                      )}
+                    </button>
+                    {writtenLimit?.message && (
+                      <p
+                        id="word-limit-status"
+                        role="status"
+                        className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
+                      >
+                        {writtenLimit.message}
+                      </p>
                     )}
-                  </button>
+                  </>
                 ) : (
                   <WrittenSubmittedCard
                     isWaiting={currentIndex < effectiveTotalQuestions - 1}
                   />
                 )}
               </div>
+            </div>
+          )}
+
+          {submitBlocked && openRecordingQuestions.length > 0 && (
+            <div className="mt-6">
+              <SubmitBlockedNotice
+                questions={openRecordingQuestions}
+                light={light}
+                onJump={jumpToOpenRecording}
+              />
             </div>
           )}
 
@@ -3532,7 +3918,7 @@ const ResultsScreen: React.FC<{
 // student device can't manufacture a "correct" badge that isn't on the
 // authoritative response doc.
 
-const PublishedScoreReview: React.FC<{
+export const PublishedScoreReview: React.FC<{
   session: QuizSession;
   myResponse: NonNullable<
     ReturnType<typeof useQuizSessionStudent>['myResponse']
@@ -3561,6 +3947,7 @@ const PublishedScoreReview: React.FC<{
   watermarkNameOverride,
   override,
 }) => {
+  const { t } = useTranslation();
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
   // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
   // teacher-paced quiz that has ended keeps the dark, immersive treatment.
@@ -3617,9 +4004,7 @@ const PublishedScoreReview: React.FC<{
     override?.questionIds
   );
   const autoGradedQuestionIds = new Set(
-    publicQuestions
-      .filter((q) => !isWrittenQuestionType(q.type))
-      .map((q) => q.id)
+    publicQuestions.filter((q) => !isFreeResponseType(q.type)).map((q) => q.id)
   );
   const autoGradedCount = autoGradedQuestionIds.size;
   const correctCount = myResponse.answers.filter(
@@ -3630,7 +4015,7 @@ const PublishedScoreReview: React.FC<{
   // student's own response — no answer key is exposed to this view.
   const writtenQuestionsById = new Map(
     publicQuestions
-      .filter((q) => isWrittenQuestionType(q.type))
+      .filter((q) => isFreeResponseType(q.type))
       .map((q) => [q.id, q] as const)
   );
   const awaitingGrade = myResponse.answers.some((a) => {
@@ -3644,6 +4029,19 @@ const PublishedScoreReview: React.FC<{
       )
     );
   });
+
+  // A committed recording with no grade entry is still owed a teacher grade,
+  // so the score is provisional whether or not the student presses play.
+  // Interim rule until Brief 3.4's per-slot GradeResult lands.
+  const mediaEnabled = session.mediaResponseEnabled === true;
+  const recordingAwaitingGrade =
+    mediaEnabled &&
+    hasUngradedRecording(
+      myResponse.answers,
+      myResponse.grading,
+      publicQuestions.map((q) => q.id),
+      myResponse.artifactArchive
+    );
 
   // Watermark overlay — rendered above content via fixed positioning, below
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
@@ -3822,12 +4220,23 @@ const PublishedScoreReview: React.FC<{
                   this score will change.
                 </p>
               )}
+              {recordingAwaitingGrade && (
+                <p
+                  className={`mt-2 text-sm font-semibold ${
+                    light ? 'text-amber-700' : 'text-amber-300'
+                  }`}
+                >
+                  {t('quizMediaResponse.playback.provisionalScore')}
+                </p>
+              )}
             </>
           ) : (
             <p className={`text-sm ${prepText}`}>
               {awaitingGrade
                 ? 'Your written response is still being graded. Check back soon.'
-                : 'Your score is being prepared. Check back soon.'}
+                : recordingAwaitingGrade
+                  ? t('quizMediaResponse.playback.provisionalScore')
+                  : t('quizMediaResponse.playback.scorePending')}
             </p>
           )}
         </section>
@@ -3843,10 +4252,11 @@ const PublishedScoreReview: React.FC<{
               {publicQuestions.map((q, idx) => {
                 const ans = answerById.get(q.id);
                 const studentAnswer = ans?.answer ?? '';
-                const isWritten = isWrittenQuestionType(q.type);
+                const isWritten = isFreeResponseType(q.type);
                 const writtenGrade = isWritten
                   ? myResponse.grading?.[q.id]
                   : undefined;
+                const slotGrade = myResponse.grading?.[q.id];
                 // Written-response questions don't have a binary
                 // right/wrong outcome — a 7/10 essay is partial credit,
                 // not "incorrect". Suppress the red-X / red-border
@@ -3865,6 +4275,17 @@ const PublishedScoreReview: React.FC<{
                   ? false
                   : ans?.isCorrect === false;
                 const correctAnswer = session.revealedAnswers?.[q.id];
+                // A recorded answer IS the response; "no response" would lie.
+                const hasRecordedTake =
+                  mediaEnabled &&
+                  !!responseKey &&
+                  selectPlaybackTake(
+                    myResponse.answers,
+                    q.id,
+                    'primary',
+                    undefined,
+                    myResponse.artifactArchive
+                  ) !== null;
                 return (
                   <article
                     key={q.id}
@@ -3914,25 +4335,31 @@ const PublishedScoreReview: React.FC<{
                           maxPoints={q.points ?? 1}
                           rubricSnapshot={q.rubricSnapshot}
                           light={light}
+                          hideEmptyResponse={hasRecordedTake}
                         />
                       ) : (
                         <>
-                          <p className={`text-xs ${subtleText}`}>
-                            Your answer:{' '}
-                            <span
-                              className={`font-mono ${
-                                isCorrect
-                                  ? answerCorrectText
-                                  : isIncorrect
-                                    ? answerIncorrectText
-                                    : answerNeutralText
-                              }`}
-                            >
-                              {studentAnswer
-                                ? formatAnswerForDisplay(studentAnswer, q.type)
-                                : '— no response'}
-                            </span>
-                          </p>
+                          {(studentAnswer || !hasRecordedTake) && (
+                            <p className={`text-xs ${subtleText}`}>
+                              Your answer:{' '}
+                              <span
+                                className={`font-mono ${
+                                  isCorrect
+                                    ? answerCorrectText
+                                    : isIncorrect
+                                      ? answerIncorrectText
+                                      : answerNeutralText
+                                }`}
+                              >
+                                {studentAnswer
+                                  ? formatAnswerForDisplay(
+                                      studentAnswer,
+                                      q.type
+                                    )
+                                  : '— no response'}
+                              </span>
+                            </p>
+                          )}
                           {showAnswers && correctAnswer && (
                             <p className={`text-xs ${subtleText}`}>
                               Correct answer:{' '}
@@ -3944,6 +4371,22 @@ const PublishedScoreReview: React.FC<{
                             </p>
                           )}
                         </>
+                      )}
+                      {mediaEnabled && responseKey && (
+                        <ResponsePlaybackCard
+                          sessionId={session.id}
+                          responseKey={responseKey}
+                          questionId={q.id}
+                          answers={myResponse.answers}
+                          artifactArchive={myResponse.artifactArchive}
+                          gradedTakeIndex={slotGrade?.gradedTakeIndex}
+                          annotations={
+                            slotGrade?.annotationUnit === 'ms'
+                              ? slotGrade.annotations
+                              : undefined
+                          }
+                          light={light}
+                        />
                       )}
                     </div>
                   </article>
@@ -4122,6 +4565,8 @@ export const WrittenAnswerReview: React.FC<{
   rubricSnapshot?: Rubric;
   /** LIGHT for the async/self-paced review; dark for a live-ended quiz. */
   light?: boolean;
+  /** Set when a recorded take is the response, so "no response" would lie. */
+  hideEmptyResponse?: boolean;
 }> = ({
   studentAnswer,
   grade,
@@ -4129,12 +4574,16 @@ export const WrittenAnswerReview: React.FC<{
   maxPoints,
   rubricSnapshot,
   light = false,
+  hideEmptyResponse = false,
 }) => {
   if (!showResponse) {
     return null;
   }
   const hasGrade = !!grade;
-  const annotations = grade?.annotations ?? [];
+  // `'ms'` annotations index into an audio take, not this text; the playback
+  // card renders those. Anchoring them here would highlight arbitrary spans.
+  const annotations =
+    grade?.annotationUnit === 'ms' ? [] : (grade?.annotations ?? []);
   const snapshot =
     grade?.gradingSnapshot ??
     (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
@@ -4148,7 +4597,7 @@ export const WrittenAnswerReview: React.FC<{
           annotations={annotations}
           light={light}
         />
-      ) : (
+      ) : hideEmptyResponse ? null : (
         <p className="text-xs text-slate-500 italic">— no response</p>
       )}
       {hasGrade && (
@@ -4268,6 +4717,8 @@ const QuizSubmittedWaitScreen: React.FC<{
     ReturnType<typeof useQuizSessionStudent>['myResponse']
   >;
   pin: string;
+  /** Completeness-aware numerator; see `utils/quizCompleteness.ts`. */
+  answeredCount: number;
   /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
   totalQuestions?: number;
   /** Per-student pointer override (M17 B4); absent = session value applies. */
@@ -4276,6 +4727,7 @@ const QuizSubmittedWaitScreen: React.FC<{
   session,
   myResponse,
   pin,
+  answeredCount,
   totalQuestions,
   pointerTabWarningThreshold,
 }) => {
@@ -4309,9 +4761,7 @@ const QuizSubmittedWaitScreen: React.FC<{
       </p>
 
       <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
-        <p className="text-4xl font-black text-white mb-2">
-          {myResponse.answers.length}
-        </p>
+        <p className="text-4xl font-black text-white mb-2">{answeredCount}</p>
         <p className="text-slate-400 text-sm">
           of {totalQuestions ?? session.totalQuestions} questions answered
         </p>

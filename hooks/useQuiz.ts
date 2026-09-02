@@ -39,6 +39,7 @@ import {
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { buildQuizSearchText } from '@/utils/quizSearchText';
+import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
 
@@ -644,7 +645,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const newQuiz: QuizData = {
         id: crypto.randomUUID(),
         title: shared.title,
-        questions: shared.questions,
+        questions: normalizeQuizQuestions(shared.questions),
         ...(shared.stimuli && shared.stimuli.length > 0
           ? { stimuli: shared.stimuli }
           : {}),

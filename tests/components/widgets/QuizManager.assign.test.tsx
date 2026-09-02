@@ -34,13 +34,16 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import '@/i18n';
 
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
 import type {
   ClassRoster,
   QuizConfig,
+  QuizData,
   QuizMetadata,
   QuizBehaviorSettings,
+  QuizQuestion,
 } from '@/types';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
@@ -74,6 +77,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     canSeeShareTracking: vi.fn(() => false),
+    canAccessQuizMediaResponse: vi.fn(() => false),
   }),
 }));
 
@@ -149,7 +153,10 @@ function makeQuizMeta(overrides: Partial<QuizMetadata> = {}): QuizMetadata {
 function renderManager(
   quizMeta: QuizMetadata,
   onAssignFn: ReturnType<typeof vi.fn> = vi.fn(),
-  extra: { canAssignToClassroom?: boolean } = {}
+  extra: {
+    canAssignToClassroom?: boolean;
+    onLoadQuizData?: (quiz: QuizMetadata) => Promise<QuizData | null>;
+  } = {}
 ) {
   // Cast: QuizManagerProps['onAssign'] signature is
   //   (quiz, behavior, plcOptions, rosterIds, dueAt, ...) => void
@@ -177,6 +184,7 @@ function renderManager(
       config={BASE_CONFIG}
       managerTab="library"
       canAssignToClassroom={extra.canAssignToClassroom}
+      onLoadQuizData={extra.onLoadQuizData}
     />
   );
   return { onAssign: onAssignFn };
@@ -314,6 +322,113 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
     expect(screen.getByTestId('assign-class-picker')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — recorded-answer advisory (self-paced only, PR #2752 review round 2)
+// ---------------------------------------------------------------------------
+
+describe('QuizManager assign modal — recorded-answer advisory', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeRecordingQuizData(): QuizData {
+    const recordingQuestion = {
+      id: 'q1',
+      type: 'short-answer',
+      points: 1,
+      recording: {
+        prepSeconds: 0,
+        limitSeconds: 60,
+        prepExpiry: 'armed',
+        takeLimit: null,
+      },
+    } as unknown as QuizQuestion;
+    return {
+      id: 'quiz-1',
+      title: 'Chapter 5 Review',
+      driveFileId: 'drive-1',
+      questions: [recordingQuestion],
+    } as unknown as QuizData;
+  }
+
+  it('shows the advisory once loaded when a recording quiz stays teacher-paced', async () => {
+    renderManager(makeQuizMeta(), vi.fn(), {
+      onLoadQuizData: () => Promise.resolve(makeRecordingQuizData()),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    // Default behavior is teacher-paced — the advisory should surface once
+    // the background quiz-data load resolves.
+    expect(
+      await within(dialog).findByText(/collected only in self-paced sessions/i)
+    ).toBeInTheDocument();
+  });
+
+  it('hides the advisory once the teacher switches to self-paced', async () => {
+    renderManager(makeQuizMeta(), vi.fn(), {
+      onLoadQuizData: () => Promise.resolve(makeRecordingQuizData()),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    await within(dialog).findByText(/collected only in self-paced sessions/i);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /^self-paced/i })
+    );
+    expect(
+      within(dialog).queryByText(/collected only in self-paced sessions/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('never shows the advisory for a quiz with no recording questions', async () => {
+    const plainQuizData: QuizData = {
+      id: 'quiz-1',
+      title: 'Chapter 5 Review',
+      driveFileId: 'drive-1',
+      questions: [
+        {
+          id: 'q1',
+          type: 'short-answer',
+          points: 1,
+        } as unknown as QuizQuestion,
+      ],
+    } as unknown as QuizData;
+    renderManager(makeQuizMeta(), vi.fn(), {
+      onLoadQuizData: () => Promise.resolve(plainQuizData),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /session settings/i })
+    );
+    // Give the background load a tick to resolve before asserting absence.
+    await within(dialog).findByRole('button', { name: /^teacher-paced/i });
+    expect(
+      within(dialog).queryByText(/collected only in self-paced sessions/i)
+    ).not.toBeInTheDocument();
   });
 });
 

@@ -1,5 +1,21 @@
 # Rich-response implementation order
 
+> ✅ **Shipped to dev-paul 2026-09-02.** Every ordered item below landed as a
+> squash-merged PR after internal adversarial review: 1.2 #2727 · 1.3 #2728 ·
+> 2.1 #2729 · 2.2 #2730 · 3.3 #2733 (+ rules/index #2734, notice-ack rule #2737)
+> · 3.1+3.2 #2736 · 4.1 #2738 · 3.5 #2740 · 3.4 #2741 · 3.6 #2742. Audio capture
+> is admin-gated behind the fail-closed `quiz-media-response` global permission
+> (no record exists yet; create it to enable). Follow-ups: #2735 (sweep retry
+> cap for lost Storage objects), #2749 (take-limit copy pluralisation).
+> **Integration review follow-ups (2026-09-02):** #2752 (submit block, dark
+> capture shell, written-only recording controls, self-paced-only sessions),
+> #2753 (terminal `lost` archives, ffmpeg guard, served-subset markers, prompt
+> text in the admin console), #2754 (archive map authoritative over
+> `uploadState`, excused as a terminal outcome incl. LMS pushes, sticky session
+> marker, timeline comments, `lost` playback state), #2755 (transit path keyed
+> by response key + matching Storage rule). Still open: #2750 (LTI origin during
+> rollout), #2751 (index wait script). Run conventions and glossary: `briefs/`.
+
 Execution plan for the locked spec in
 [`docs/rich-response-wayfinder.md`](../rich-response-wayfinder.md). Decided with
 Paul 2026-08-27. The map is the source of truth for every design decision; this
@@ -8,27 +24,29 @@ doc only orders the build. One GitHub issue exists per slice, under the
 
 **Standing decisions from the ordering session:**
 
-- Start now, everything — accepted risk: RR-A5 item 4 or RR-09 q7/q10 coming
-  back badly reworks later phases.
+- Start now, everything. _(2026-09-01: the accepted risk is gone — RR-A5 and
+  RR-09 closed on Paul's notes, see Phase 0.)_
+- **Hard constraint (Paul, 2026-09-01): student audio/video only ever persists
+  in the staff member's Drive.** Firebase Storage is a transit buffer, not a
+  store — see Phase 3.3.
+- AI transcription is not planned (Paul, 2026-09-01). RR-05's boundary stands
+  as a decision; the callable is not built.
 - C track (stimuli) is already shipped. Order is: fixes → foundations →
   **audio** capture → compliance console → **pause** for other quiz features.
-- Video, AI transcription, and the B track (whiteboard) are deferred —
+- Video and the B track (whiteboard) are deferred —
   scheduled, not ordered.
 
-## Phase 0 — human errands (fire now, block nothing)
+## Phase 0 — human errands ✅ closed 2026-09-01
 
-Not engineering. Listed so the pause points are honest.
+All three closed on Paul's notes, none executed as written:
 
-- **RR-A5 item 4** — ask the district Chrome admin to allowlist the origin in
-  `AudioCaptureAllowedUrls` for the student OU. Carries RR-07's entire
-  resolution; a "no" reopens RR-07 sub-decision 1 before Phase 3 ships.
-- **RR-09 questions 7 and 10** — one email to counsel/Google. q7 can stop a
-  capability; q10 (undo replay in whiteboard takes) only gates the deferred B
-  track.
-- **RR-A5 device checklist** — the harness at
-  [`rr-a5-capture-harness.html`](rr-a5-capture-harness.html) on a student
-  Chromebook (codec matrix, 600 s audio, clean `getUserMedia` policy failure,
-  3200×2400 canvas, pdf.js paging, stacked stimuli on 768px, picker at volume).
+- **RR-A5** — district Chromebooks are current and the app is approved for the
+  student OU. No allowlist ask, no device harness. RR-07 stands unconditionally.
+- **RR-09** — answered by district posture: internal app, every persisted
+  student artifact in staff Drive. No email. q7 is moot (no transcription);
+  q10 travels with the deferred B track.
+- **RR-A6** — closed with RR-A5; audio uploads are ~1 s a take, so the only
+  remnant (back-to-back take uploads) is an in-order queue inside Phase 3.3.
 
 ## Phase 1 — hygiene fixes
 
@@ -67,11 +85,10 @@ work, and nothing before whiteboard needs it.
    new `unresponded` field beside `status`; one completeness predicate driving
    both progress count and Submit gate (binary student / three-state teacher);
    idle sweep marks empty required slots off the session doc it already reads.
-3. **`GradeResult.state`** (RR-06 sd-1/2): `'scored' | 'awaiting-grade' |
-'not-attempted'` as a required field so the compiler walks all ~8 consumers.
-   `awaiting-grade` omits from gradebook push; `not-attempted` pushes a real 0
-   with teacher-decided excusal. **Also fixes the live defect: an ungraded
-   essay pushes a real 0 into Google Classroom today.**
+3. ~~**`GradeResult.state`** (RR-06 sd-1/2)~~ — ✅ **shipped 2026-08-28 by the
+   M12 rubrics track** (`b8e8806f`, PR #2601): `GradeState` on `GradeResult`
+   in `types.ts`, ungraded essays no longer push 0. Phase 3.4 builds on the
+   shape that exists; re-read it before adding `not-attempted` excusal.
 
 ## Phase 3 — audio capture (A track, audio only; ships admin-gated)
 
@@ -94,6 +111,10 @@ audio-only, build nothing video-specific.
    sweep for stragglers with failure email; retention to end of school year
    (RR-04). Callable sizing is fine for audio; the video runtime question is
    deferred with video.
+   **Drive-only constraint (Paul, 2026-09-01):** Firebase Storage holds bytes
+   only until archival succeeds. A take whose archive fails is retried and
+   surfaced to the student as not yet submitted — it is never parked for a
+   week. Shrink the straggler sweep to hours, not ~7 days.
 4. **Grading surfaces** (RR-06): question-major queue; per-slot grades keyed
    question+slot; pinned-take grading with `gradedTakeIndex`; time-anchored
    comments (ms); provisional scores always marked; three-way adjudication for
@@ -120,11 +141,12 @@ lands**; admin-gated testing may precede it.
 Named here so the pause point is explicit; each gets its own planning session
 when its turn comes (not planned in this doc):
 
-- **Individually assign** (per-student assignment)
-- **Rubrics** — M12 Phase 3 is unbuilt with three open decisions
-  (`TODO.md:34,46`) and touches RR-06's grading model; wants its own design
-  pass.
-- **Add question from another quiz**
+- ~~**Individually assign**~~ — ✅ shipped as milestone M17 (`student_assignments`,
+  per-student overrides in `QuizStudentApp`, `/my-assignments` windows).
+- ~~**Rubrics**~~ — ✅ shipped 2026-08-28 (M12 phases 3-A..3-I, PRs #2614–#2619,
+  #2628–#2630). Phase 3.4's grading queue must compose with the shipped
+  `Rubric` types, not assume a blank slate.
+- **Add question from another quiz** — still unplanned.
 
 ## Deferred — scheduled, not ordered
 
@@ -132,14 +154,13 @@ when its turn comes (not planned in this doc):
   district gate surface (needs the district-operable gate from RR-05 sd-5's
   pattern), video-capable transcode runtime (Cloud Run vs callable — re-test at
   4–8 MB/take before migrating), 480p/500kbps ceiling.
-- **AI transcription** (RR-05): one gated callable, teacher-initiated, pinned
-  take only, two-gate model (SpartBoard availability + district consent on the
-  org doc).
+- **AI transcription** (RR-05): **not planned** (Paul, 2026-09-01). The
+  design is recorded in RR-05 if it is ever needed; nothing is built.
 - **B track (whiteboard)**: event-log capture (RR-B2), 1600×1200 page (RR-B4),
   **fix 4 (page-space migration) lands at this track's start** — its own PR,
   its own before/after screenshots. RR-B3's grading prototype should be run
   before committing to this track's grading surface.
-- **RR-A6 upload strategy**: blocked on RR-A5's measurements.
+- ~~**RR-A6 upload strategy**~~ — closed 2026-09-01; see Phase 0.
 
 ## Shipped inconsistencies to file as issues (found by the map, not this plan)
 

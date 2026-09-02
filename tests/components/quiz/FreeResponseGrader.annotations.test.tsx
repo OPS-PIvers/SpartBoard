@@ -12,7 +12,7 @@ vi.mock('@/context/useDialog', () => ({
   }),
 }));
 
-import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
+import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
   QuizData,
   QuizResponse,
@@ -28,7 +28,7 @@ const quiz: QuizData = {
   questions: [
     {
       id: 'q1',
-      type: 'essay',
+      type: 'free-response',
       text: 'Write something.',
       timeLimit: 0,
       correctAnswer: '',
@@ -62,13 +62,13 @@ const responseFor = (
   grading,
 });
 
-describe('WrittenResponseGrader — annotations + snapshot', () => {
+describe('FreeResponseGrader — annotations + snapshot', () => {
   it('saves a points-only grade without setting gradingSnapshot when no annotations exist', async () => {
     const onSaveGrade = vi
       .fn<(rk: string, qid: string, g: WrittenAnswerGrade) => Promise<void>>()
       .mockResolvedValue(undefined);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a', '<p>hello world</p>')]}
         teacherUid="teacher-1"
@@ -112,7 +112,7 @@ describe('WrittenResponseGrader — annotations + snapshot', () => {
     // Note the live answer is DIFFERENT from the snapshot — this is
     // exactly the case where Phase 2 must not re-snapshot.
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[
           responseFor('uid-b', '<p>student edited after unlock</p>', {
@@ -160,7 +160,7 @@ describe('WrittenResponseGrader — annotations + snapshot', () => {
       annotations,
     };
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[
           responseFor('uid-c', '<p>hello world</p>', { q1: existing }),

@@ -30,6 +30,32 @@ import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidg
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { PresentScreen } from '@/components/widgets/QuizWidget/components/present/PresentScreen';
 import {
+  AudioCaptureDevView,
+  AUDIO_CAPTURE_STATES,
+  AUDIO_CAPTURE_DARK_STATES,
+  type AudioCaptureStateKey,
+} from './AudioCaptureDevView';
+import {
+  RecordingControlsDevView,
+  RECORDING_CONTROL_STATES,
+  type RecordingControlStateKey,
+} from './RecordingControlsDevView';
+import {
+  QuizEditorDevView,
+  QUIZ_EDITOR_STATES,
+  type QuizEditorStateKey,
+} from './QuizEditorDevView';
+import {
+  MediaGradingDevView,
+  MEDIA_GRADING_STATES,
+  type MediaGradingStateKey,
+} from './MediaGradingDevView';
+import {
+  ResultsPlaybackDevView,
+  RESULTS_PLAYBACK_STATES,
+  type ResultsPlaybackStateKey,
+} from './ResultsPlaybackDevView';
+import {
   makeQuizSession,
   makeQuizResponses,
   makeQuizData,
@@ -43,7 +69,12 @@ type ViewKey =
   | 'quiz-present'
   | 'quiz-results'
   | 'va-monitor'
-  | 'va-results';
+  | 'va-results'
+  | 'audio-capture'
+  | 'recording-controls'
+  | 'quiz-editor'
+  | 'media-grading'
+  | 'results-playback';
 type StateKey =
   | 'waiting'
   | 'live'
@@ -52,7 +83,12 @@ type StateKey =
   | 'paused'
   | 'ended'
   | 'populated'
-  | 'empty';
+  | 'empty'
+  | AudioCaptureStateKey
+  | RecordingControlStateKey
+  | QuizEditorStateKey
+  | MediaGradingStateKey
+  | ResultsPlaybackStateKey;
 
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
@@ -60,6 +96,11 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-results', label: 'Quiz Results' },
   { key: 'va-monitor', label: 'VA Monitor' },
   { key: 'va-results', label: 'VA Results' },
+  { key: 'audio-capture', label: 'Audio capture' },
+  { key: 'recording-controls', label: 'Recording controls' },
+  { key: 'quiz-editor', label: 'Quiz editor' },
+  { key: 'media-grading', label: 'Media grading' },
+  { key: 'results-playback', label: 'Results playback' },
 ];
 
 // State keys are partitioned by view family: monitors use the lifecycle
@@ -75,7 +116,45 @@ const STATES: { key: StateKey; label: string }[] = [
   { key: 'ended', label: 'Ended' },
   { key: 'populated', label: 'Populated (results)' },
   { key: 'empty', label: 'Empty (results)' },
+  ...AUDIO_CAPTURE_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Audio: ${key}`,
+  })),
+  ...AUDIO_CAPTURE_DARK_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Audio (dark): ${key.slice('dark-'.length)}`,
+  })),
+  ...RECORDING_CONTROL_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Recording: ${key.slice('rc-'.length)}`,
+  })),
+  ...QUIZ_EDITOR_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Editor: ${key.slice('qe-'.length)}`,
+  })),
+  ...MEDIA_GRADING_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Grading: ${key}`,
+  })),
+  ...RESULTS_PLAYBACK_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Playback: ${key}`,
+  })),
 ];
+
+// Picking a view moves the State select onto a key that view actually reads.
+const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
+  'quiz-monitor': 'live',
+  'quiz-present': 'live',
+  'quiz-results': 'populated',
+  'va-monitor': 'live',
+  'va-results': 'populated',
+  'audio-capture': 'prep',
+  'recording-controls': 'rc-enabled-defaults',
+  'quiz-editor': 'qe-gated',
+  'media-grading': 'queue',
+  'results-playback': 'playable',
+};
 
 const WIDTHS = [340, 520, 820];
 
@@ -92,6 +171,52 @@ const SessionView: React.FC<{
   state: StateKey;
   showNames: boolean;
 }> = ({ view, state, showNames }) => {
+  if (view === 'audio-capture') {
+    const audioState = [
+      ...AUDIO_CAPTURE_STATES,
+      ...AUDIO_CAPTURE_DARK_STATES,
+    ].includes(state as AudioCaptureStateKey)
+      ? (state as AudioCaptureStateKey)
+      : 'prep';
+    return <AudioCaptureDevView state={audioState} />;
+  }
+
+  if (view === 'recording-controls') {
+    const controlState = (
+      RECORDING_CONTROL_STATES as readonly string[]
+    ).includes(state)
+      ? (state as RecordingControlStateKey)
+      : 'rc-enabled-defaults';
+    return <RecordingControlsDevView state={controlState} />;
+  }
+
+  if (view === 'quiz-editor') {
+    const editorState = (QUIZ_EDITOR_STATES as readonly string[]).includes(
+      state
+    )
+      ? (state as QuizEditorStateKey)
+      : 'qe-gated';
+    return <QuizEditorDevView state={editorState} />;
+  }
+
+  if (view === 'media-grading') {
+    const gradingState = (MEDIA_GRADING_STATES as readonly string[]).includes(
+      state
+    )
+      ? (state as MediaGradingStateKey)
+      : 'queue';
+    return <MediaGradingDevView state={gradingState} />;
+  }
+
+  if (view === 'results-playback') {
+    const playbackState = (
+      RESULTS_PLAYBACK_STATES as readonly string[]
+    ).includes(state)
+      ? (state as ResultsPlaybackStateKey)
+      : 'playable';
+    return <ResultsPlaybackDevView state={playbackState} />;
+  }
+
   if (view === 'quiz-monitor') {
     const status =
       state === 'paused' ? 'paused' : state === 'ended' ? 'ended' : 'active';
@@ -220,7 +345,11 @@ export const SessionViewsDevHarness: React.FC = () => {
                     View
                     <select
                       value={view}
-                      onChange={(e) => setView(e.target.value as ViewKey)}
+                      onChange={(e) => {
+                        const next = e.target.value as ViewKey;
+                        setView(next);
+                        setState(DEFAULT_STATE_FOR_VIEW[next]);
+                      }}
                       className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
                     >
                       {VIEWS.map((v) => (

@@ -49,6 +49,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: { uid: 'uid-test', displayName: 'Test Teacher' },
     canAccessFeature: vi.fn(() => false),
+    canAccessQuizMediaResponse: vi.fn(() => false),
   })),
 }));
 
@@ -83,6 +84,7 @@ vi.mock('@/components/common/EditorWorkspace', () => ({
 }));
 
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
+import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 
 const PRE_ATTACHED: Rubric = { ...LIBRARY_RUBRIC, id: 'rub-old' };
 
@@ -93,7 +95,7 @@ const quiz: QuizData = {
     {
       id: 'q1',
       text: 'Question one',
-      type: 'essay',
+      type: 'free-response',
       points: 5,
       incorrectAnswers: [],
       correctAnswer: '',
@@ -102,7 +104,7 @@ const quiz: QuizData = {
     {
       id: 'q2',
       text: 'Question two',
-      type: 'short',
+      type: 'free-response',
       points: 9,
       incorrectAnswers: [],
       correctAnswer: '',
@@ -111,7 +113,7 @@ const quiz: QuizData = {
     {
       id: 'q3',
       text: 'Question three',
-      type: 'essay',
+      type: 'free-response',
       points: 7,
       incorrectAnswers: [],
       correctAnswer: '',
@@ -219,20 +221,6 @@ describe('QuizEditor — rubric attach/detach points stash', () => {
     expect(pointsInput().valueAsNumber).toBe(7);
   });
 
-  it('switching between written types keeps the attached rubric', () => {
-    open();
-    selectQuestion('Question three');
-
-    fireEvent.change(detail().getByRole('combobox', { name: 'Type' }), {
-      target: { value: 'short' },
-    });
-
-    expect(pointsInput()).toBeDisabled();
-    expect(
-      detail().getByText('Points come from the attached rubric.')
-    ).toBeInTheDocument();
-  });
-
   it('switching questions closes an open rubric builder', () => {
     open();
     selectQuestion('Question one');
@@ -241,5 +229,27 @@ describe('QuizEditor — rubric attach/detach points stash', () => {
 
     selectQuestion('Question two');
     expect(screen.queryByLabelText('Rubric builder')).not.toBeInTheDocument();
+  });
+});
+
+describe('QuizEditor — legacy written types', () => {
+  it('opens a normalized legacy essay question as FRQ with its rubric intact', () => {
+    const legacy = normalizeQuizData({
+      ...quiz,
+      questions: [{ ...quiz.questions[2], type: 'essay' as 'free-response' }],
+    });
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={legacy}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    expect(
+      within(screen.getByTestId('context-pane')).getByText('FRQ')
+    ).toBeTruthy();
+    expect(detail().getByText('Paragraph Rubric')).toBeTruthy();
+    expect(detail().getByRole('button', { name: 'Detach' })).toBeTruthy();
   });
 });

@@ -22,6 +22,21 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["-C", "functions", "run", "serve"],
       "port": 5001
+    },
+    {
+      "name": "vite-preview-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "exec",
+        "vite",
+        "preview",
+        "--outDir",
+        "dist-devpreview",
+        "--port",
+        "56310",
+        "--strictPort"
+      ],
+      "port": 56310
     }
   ]
 }

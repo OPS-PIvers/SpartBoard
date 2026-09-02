@@ -14,11 +14,15 @@ import {
   QuizQuestion,
   QuizQuestionType,
   QuizResponse,
+  isFreeResponseType,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 
 /**
  * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
@@ -36,10 +40,11 @@ function quizGradeFnWithManualGrades(
   response?: QuizResponse
 ) {
   const manualGrade =
-    (question.type === 'short' || question.type === 'essay') && response
-      ? response.grading?.[question.id]
+    isFreeResponseType(question.type) && response
+      ? readSlotGrade(response.grading, question.id)
       : undefined;
-  return gradeAnswer(question, studentAnswer, manualGrade);
+  const base = gradeAnswer(question, studentAnswer, manualGrade);
+  return response ? applyMediaSlots(question, response, base) : base;
 }
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
@@ -301,7 +306,7 @@ export class QuizDriveService {
       if (res.status === 404) throw new Error('Quiz file not found in Drive');
       throw new Error('Failed to download quiz from Drive');
     }
-    return (await res.json()) as QuizData;
+    return normalizeQuizData((await res.json()) as QuizData);
   }
 
   /** Delete a quiz file from Google Drive */
@@ -719,20 +724,13 @@ export class QuizDriveService {
       const answeredSet = new Set<string>();
       const correctSet = new Set<string>();
 
-      // First-occurrence dedup mirrors buildResultsSheetDataShared — correctSet must agree with the grader's first-occurrence semantics.
-      const firstOccurrenceAnswers = new Map<
-        string,
-        NonNullable<typeof r.answers>[number]
-      >();
-      for (const a of r.answers ?? []) {
-        if (!firstOccurrenceAnswers.has(a.questionId)) {
-          firstOccurrenceAnswers.set(a.questionId, a);
-        }
-      }
+      // Dedup mirrors buildResultsSheetData: same take/answeredAt tiebreak.
+      const dedupedAnswers = selectRepresentativeAnswers(r.answers ?? []);
 
-      for (const a of firstOccurrenceAnswers.values()) {
+      for (const a of dedupedAnswers.values()) {
         const q = questionMap.get(a.questionId);
         if (!q) continue;
+        if (a.unresponded) continue; // don't count a passed-over slot as answered
 
         answeredSet.add(a.questionId);
         if (gradeFn(q, a.answer, r).isCorrect) {

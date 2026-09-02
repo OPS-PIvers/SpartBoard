@@ -13,13 +13,24 @@ import React from 'react';
  * tabIndex) — see `sessionViews/SegmentedTabs.tsx` for the reference
  * implementation this mirrors. Role/tabpanel wiring is a separate, unfinished
  * concern (no consumer here actually navigates into a panel).
+ *
+ * `role="radiogroup"` renders the same pill as radio buttons for a setting
+ * that switches nothing into view; arrow keys still move the selection.
  */
 export const SegmentedControl: <T extends string>(props: {
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
   ariaLabel?: string;
-}) => React.ReactElement = ({ value, onChange, options, ariaLabel }) => {
+  role?: 'tablist' | 'radiogroup';
+}) => React.ReactElement = ({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  role = 'tablist',
+}) => {
+  const itemRole = role === 'radiogroup' ? 'radio' : 'tab';
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (
       e.key !== 'ArrowRight' &&
@@ -30,7 +41,9 @@ export const SegmentedControl: <T extends string>(props: {
       return;
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const nodes = Array.from(
-      e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      e.currentTarget.querySelectorAll<HTMLButtonElement>(
+        `[role="${itemRole}"]`
+      )
     );
     if (nodes.length === 0) return;
     e.preventDefault();
@@ -54,7 +67,7 @@ export const SegmentedControl: <T extends string>(props: {
 
   return (
     <div
-      role="tablist"
+      role={role}
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
       className="inline-flex p-1 bg-slate-100 rounded-lg"
@@ -65,14 +78,15 @@ export const SegmentedControl: <T extends string>(props: {
           <button
             key={opt.value}
             type="button"
-            role="tab"
+            role={itemRole}
             tabIndex={selected ? 0 : -1}
-            aria-selected={selected}
+            aria-selected={itemRole === 'tab' ? selected : undefined}
+            aria-checked={itemRole === 'radio' ? selected : undefined}
             onClick={() => onChange(opt.value)}
             className={`h-8 px-3 rounded-md text-xs font-semibold transition-all ${
               selected
                 ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                : 'text-slate-600 hover:text-slate-800'
             }`}
           >
             {opt.label}

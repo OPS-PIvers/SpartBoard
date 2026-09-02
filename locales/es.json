@@ -1762,6 +1762,56 @@
         "cancel": "Cancelar",
         "confirm": "Confirmar"
       }
+    },
+    "mediaReview": {
+      "title": "Student media",
+      "blurb": "Review and permanently delete recorded student responses across every teacher in your organization. Deleting a response removes every take of that question from the teacher's Google Drive.",
+      "refresh": "Refresh",
+      "filterTeacher": "Teacher",
+      "allTeachers": "All teachers",
+      "filterAfter": "On or after",
+      "filterBefore": "On or before",
+      "clearFilters": "Clear filters",
+      "loading": "Loading student media…",
+      "errorTitle": "Could not load student media",
+      "retry": "Try again",
+      "emptyTitle": "No recorded media found",
+      "emptyMessage": "No student recordings match these filters. Media appears here once a recorded response has been archived.",
+      "truncated": "This list is capped. Narrow the teacher or date filters to be sure you are seeing everything.",
+      "rowCount": "{{count}} media response",
+      "rowCount_other": "{{count}} media responses",
+      "takeCount": "{{count}} take",
+      "takeCount_other": "{{count}} takes",
+      "colStudent": "Student",
+      "colQuestion": "Question",
+      "colTeacher": "Teacher",
+      "colTakes": "Takes",
+      "colStatus": "Status",
+      "colArchived": "Last activity",
+      "selectAll": "Select every deletable response",
+      "selectRow": "Select {{student}}, question {{question}}",
+      "deleteSelected": "Delete media ({{count}})",
+      "deleting": "Deleting…",
+      "deletingProgress": "Deleting {{done}} of {{total}}…",
+      "dismiss": "Dismiss",
+      "requestFailed": "Request failed",
+      "resultsTitle": "{{deleted}} file(s) deleted, {{failed}} failed",
+      "confirmTitle": "Permanently delete student media",
+      "confirmSummary": "This will permanently delete {{files}} file(s) across {{sets}} response(s) from {{teachers}}'s Google Drive.",
+      "confirmWarning": "This cannot be undone. The student's written answer record is kept; only the recorded media is destroyed.",
+      "confirmWord": "DELETE",
+      "typeToConfirm": "Type \"{{word}}\" to confirm",
+      "confirmDelete": "Delete permanently",
+      "cancel": "Cancel",
+      "status": {
+        "syncing": "Syncing",
+        "archived": "Archived",
+        "failed": "Archive failed",
+        "lost": "Recording lost",
+        "deleting": "Delete pending",
+        "deleted": "Deleted",
+        "delete-failed": "Delete failed"
+      }
     }
   },
   "plcRoute": {
@@ -1921,6 +1971,258 @@
       "saving": "Guardando…",
       "editSkipped": "No se pudieron guardar {{count}} estudiante(s) en esta tarea.",
       "editSaveFailed": "No se pudieron guardar los cambios. Inténtalo de nuevo."
+    }
+  },
+  "quizMediaResponse": {
+    "notice": {
+      "title": "Before you record",
+      "intro": "This question asks for a spoken answer. Read this once before you start.",
+      "purposeLabel": "Why we ask for a recording",
+      "purposeBody": "Your teacher uses your recorded answer to grade this question and to hear how you explain your thinking.",
+      "refuseLabel": "Can you refuse?",
+      "refuseBody": "Yes. You can stop a recording and discard it, and nothing is kept or sent.",
+      "consequenceLabel": "What happens if you refuse",
+      "consequenceBody": "The question stays incomplete and the assignment cannot be submitted.",
+      "recipientsLabel": "Who receives your recording",
+      "recipientsBody": "Your recording is saved to your teacher’s Google Drive under your real name. Your teacher, and school staff who are allowed to see your school records, can listen to it.",
+      "acknowledge": "I have read this",
+      "whyLink": "Why we’re asking",
+      "close": "Close"
+    },
+    "capture": {
+      "title": "Spoken answer",
+      "takeUnlimited": "Take {{n}}",
+      "takeOf": "Take {{n}} of {{total}}",
+      "limitHint": "up to {{seconds}} seconds",
+      "prepLabel": "Thinking time",
+      "prepBody": "Plan what you want to say. You can start recording as soon as you are ready.",
+      "requestingMic": "Asking to use your microphone…",
+      "recordingLabel": "Recording",
+      "recordingHint": "Recording stops on its own at {{seconds}} seconds.",
+      "wrapUp": "Wrap it up — recording stops at {{seconds}} seconds.",
+      "reviewLabel": "Listen back",
+      "reviewBody": "Nothing has been sent yet. Keep this take, or discard it and record again.",
+      "playbackPosition": "Playback position",
+      "playbackValueText": "{{elapsed}} of {{total}}",
+      "windowClosedTitle": "Recording time is over",
+      "windowClosedBody": "The time to record an answer to this question has passed, so there is nothing left to record here. Your teacher will see this question without a recording. Move on when you are ready.",
+      "armedBody": "When you press record you will have {{seconds}} seconds.",
+      "record": "Record",
+      "recordAgain": "Record again",
+      "stop": "Stop recording",
+      "commit": "Keep this take",
+      "discard": "Discard",
+      "retryUpload": "Try again",
+      "playPlayback": "Play your recording",
+      "pausePlayback": "Pause your recording",
+      "submitQuiz": "Submit quiz",
+      "nextQuestion": "Next",
+      "takeLimitReachedTitle": "No takes left",
+      "takeLimitReachedBody_one": "This question allows {{count}} take, and you have used it. Your last take is the one your teacher receives.",
+      "takeLimitReachedBody_other": "This question allows {{count}} takes, and you have used them all. Your last take is the one your teacher receives.",
+      "submitBlockedTitle_one": "One question still needs a recording",
+      "submitBlockedTitle_other": "{{count}} questions still need a recording",
+      "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
+      "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
+      "submitBlockedJump": "Go to question {{number}}",
+      "notSubmittedPending": "Not yet submitted — your recording is still being sent.",
+      "notSubmittedFailed": "Not yet submitted — sending your recording did not finish. Nothing is retrying on its own; choose Try again.",
+      "notSubmittedFailedFinal": "Not yet submitted — sending your recording did not finish, and it can no longer be sent from this device. Record again to send a new take."
+    },
+    "unavailable": {
+      "title": "Your microphone did not work",
+      "body": "We could not use a microphone on this device, so there is no recording to send. This question goes to your teacher ungraded, and they will decide what to do about it. Move on to the next question."
+    },
+    "authoring": {
+      "formatLabel": "Format",
+      "formatTyped": "Typed",
+      "formatSpoken": "Spoken",
+      "prepLabel": "Thinking time",
+      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "limitLabel": "Recording limit",
+      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitClampedAction": "Set to {{seconds}}s",
+      "secondsUnit": "Sec",
+      "expiryLabel": "When thinking time runs out",
+      "expiryAutoStart": "Start recording",
+      "expiryAutoStartHint": "The recorder starts on its own.",
+      "expiryAutoAdvance": "Move on",
+      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
+      "expiryArmed": "Wait for them",
+      "expiryArmedHint": "The record button stays live until the student presses it.",
+      "expiryUnanswered": "Mark unanswered",
+      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "takeLimitLabel": "Takes allowed",
+      "takeLimitUnlimited": "Unlimited",
+      "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "modeLabelAudio": "audio",
+      "modeLabelVideo": "video",
+      "advisory": {
+        "title": "As authored",
+        "slots_one": "Records up to {{count}} slot per student.",
+        "slots_other": "Records up to {{count}} slots per student.",
+        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
+        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+      }
+    },
+    "assign": {
+      "advisory": {
+        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+      }
+    },
+    "grading": {
+      "title": "Calificar respuestas libres",
+      "close": "Close",
+      "student": "Student",
+      "questionLabel": "Question",
+      "questionOf": "Question {{index}} of {{total}}",
+      "studentOf": "Student {{index}} of {{total}}",
+      "queueLabel": "Students on this question",
+      "slotLabel": "Response slot",
+      "slot": {
+        "primary": "Recorded answer",
+        "addendum": "Addendum"
+      },
+      "state": {
+        "scored": "Graded",
+        "awaiting-grade": "Needs you",
+        "not-attempted": "No answer",
+        "excused": "Excused"
+      },
+      "points": "Points awarded",
+      "comment": "Overall comment (optional)",
+      "substituteNote": "Note (required)",
+      "commentPlaceholder": "Feedback for this student…",
+      "excusedNote": "Excused — omitted from the gradebook.",
+      "save": "Save grade",
+      "saveAndNext": "Save & next",
+      "prevStudent": "Previous student",
+      "nextStudent": "Next student",
+      "prevQuestion": "Previous question",
+      "nextQuestion": "Next question",
+      "keyboardHint": "← / → move between students. Esc closes the grader.",
+      "discardTitle": "Discard grade edits?",
+      "discardMessage": "You have unsaved grade edits. Discard them?",
+      "empty": {
+        "title": "Aún no hay respuestas libres para calificar",
+        "body": "Cuando los estudiantes respondan una pregunta de respuesta libre, escrita o hablada, aparecerán aquí."
+      },
+      "takes": {
+        "title": "Takes",
+        "count_one": "{{count}} take recorded",
+        "count_other": "{{count}} takes recorded",
+        "take": "Take {{n}}",
+        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "status": {
+          "archiving": "Still saving",
+          "archive-failed": "Not saved",
+          "lost": "Lost",
+          "deleted": "Deleted",
+          "unknown": "Unavailable"
+        }
+      },
+      "unavailable": {
+        "title": "This student could not record",
+        "body": "Their device could not capture audio, so there is nothing to listen to. Choose how this question counts before the grade is final.",
+        "excuse": "Excuse",
+        "excuseHelp": "Leave it out of the gradebook entirely.",
+        "blank": "Blank",
+        "blankHelp": "Count it as a zero, like an unanswered question.",
+        "substitute": "Offline substitute",
+        "substituteHelp": "You heard the answer another way. A note is required."
+      },
+      "player": {
+        "loading": "Loading the recording…",
+        "loadFailed": "The recording could not be loaded from your Google Drive. Check that you are still signed in to Google and try again.",
+        "retry": "Try again",
+        "play": "Play this take",
+        "pause": "Pause this take",
+        "scrubber": "Playback position",
+        "valueText": "{{elapsed}} of {{total}}",
+        "addComment": "Comment here",
+        "noComments": "Play the take and add a comment at the moment you want to talk about.",
+        "commentLabel": "Comment at {{time}}",
+        "commentPlaceholder": "What happens at this moment…",
+        "seekTo": "Jump to {{time}}",
+        "removeComment": "Remove the comment at {{time}}",
+        "unplayable": {
+          "archiving": {
+            "title": "Still saving",
+            "body": "This take is still being saved to your Google Drive. It becomes playable as soon as that finishes — usually within a few minutes."
+          },
+          "archive-failed": {
+            "title": "Not saved",
+            "body": "Saving this take to your Google Drive did not finish. It retries automatically every hour; nothing is lost in the meantime."
+          },
+          "lost": {
+            "title": "Lost",
+            "body": "Saving this take to your Google Drive failed too many times, so it is no longer being retried and the recording cannot be recovered. The student's other takes and any grade already given still stand."
+          },
+          "deleted": {
+            "title": "Deleted",
+            "body": "This recording was deleted for compliance and can no longer be played. Any grade already on it still stands."
+          },
+          "unknown": {
+            "title": "Not available",
+            "body": "This take cannot be played right now."
+          }
+        }
+      },
+      "errors": {
+        "noIdentifier": "Cannot save: this response is missing its identifier. Reload the quiz results and try again.",
+        "chooseOutcome": "Choose Excuse, Blank, or Offline substitute before saving.",
+        "noteRequired": "An offline substitute needs a note — it is the only record of the answer.",
+        "numericScore": "Enter a numeric score.",
+        "range": "Score must be between 0 and {{max}}.",
+        "saveFailed": "Failed to save grade.",
+        "undoFailed": "Failed to undo the excuse.",
+        "emptyAnnotations": "No se pueden guardar anotaciones en una respuesta vacía — el estudiante no respondió esta pregunta."
+      },
+      "undoExcuse": "Undo excuse",
+      "emptyQuestions": {
+        "title": "Este cuestionario no tiene preguntas de respuesta libre",
+        "body": "La calificación manual solo está disponible para preguntas de respuesta libre."
+      },
+      "format": {
+        "typed": "Escrita",
+        "spoken": "Hablada"
+      },
+      "responseLabel": "Respuesta del estudiante",
+      "timedOutUnderMinimum": "Tiempo agotado por debajo del mínimo",
+      "noTextAnswer": "El estudiante no respondió esta pregunta.",
+      "highlights": "Resaltados y comentarios ({{count}})",
+      "highlightsEmpty": "Selecciona texto en la respuesta para añadir un resaltado o un comentario al margen.",
+      "highlightNoComment": "(sin comentario aún — haz clic para añadir)",
+      "keyboardHintText": "← / → cambian de estudiante. Esc cierra el calificador. Selecciona texto en la respuesta para resaltar; haz clic en un resaltado para editar su comentario.",
+      "rubricOverrideNote": "Rúbrica alternativa para este estudiante",
+      "pointsOverrideNote": "Solo puntos para este estudiante — rúbrica anulada.",
+      "tabSwitches_one": "{{count}} cambio de pestaña",
+      "tabSwitches_other": "{{count}} cambios de pestaña",
+      "tabSwitchesTitle_one": "{{count}} aviso de cambio de pestaña durante la evaluación",
+      "tabSwitchesTitle_other": "{{count}} avisos de cambio de pestaña durante la evaluación",
+      "noAnswersOnQuestion": "Aún no hay respuestas para esta pregunta."
+    },
+    "results": {
+      "gradeButton": "Calificar respuestas libres"
+    },
+    "playback": {
+      "label": "Your recorded answer",
+      "play": "Play your recording",
+      "loading": "Loading your recording…",
+      "gradedTake": "Your teacher graded take {{n}}.",
+      "archiving": "Your recording is still being saved. Check back in a few minutes.",
+      "failed": "Your recording is still being saved — the system keeps trying on its own. Check back later.",
+      "deleted": "This recording has been deleted and can no longer be played.",
+      "missing": "There is no recording saved for this question.",
+      "tooLarge": "This recording is too large to play here. Ask your teacher to play it for you.",
+      "error": "Your recording did not load.",
+      "retry": "Try again",
+      "provisionalScore": "Provisional — your teacher hasn’t graded your recorded answer yet, so this score will change.",
+      "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
+      "commentsHint": "Tap a comment to jump to that moment.",
+      "scorePending": "Your score is being prepared. Check back soon."
     }
   }
 }

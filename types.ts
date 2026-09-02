@@ -3091,23 +3091,20 @@ export interface RecessGearConfig {
  * Question types supported in the quiz widget.
  * MC = Multiple Choice, FIB = Fill in the Blank,
  * Matching = Match left to right, Ordering = Place items in correct sequence,
- * short = single-paragraph written response (manually graded),
- * essay = multi-paragraph written response (manually graded).
+ * free-response = open-ended written or spoken answer (manually graded).
+ * Legacy 'short'/'essay' values are normalized on read; see
+ * `utils/quizQuestionNormalize.ts`.
  */
 export type QuizQuestionType =
   | 'MC'
   | 'FIB'
   | 'Matching'
   | 'Ordering'
-  | 'short'
-  | 'essay';
+  | 'free-response';
 
-/**
- * True iff the question type requires manual teacher grading
- * (i.e. there is no auto-grader for student responses).
- */
-export function isWrittenQuestionType(type: QuizQuestionType): boolean {
-  return type === 'short' || type === 'essay';
+/** True iff the question type requires manual teacher grading. */
+export function isFreeResponseType(type: QuizQuestionType): boolean {
+  return type === 'free-response';
 }
 
 /**
@@ -3151,7 +3148,7 @@ export interface QuizQuestion {
    * MC/FIB: the correct answer text.
    * Matching: pipe-separated pairs "term1:def1|term2:def2"
    * Ordering: pipe-separated items in correct order "item1|item2|item3"
-   * short/essay: always empty string (no key — graded manually).
+   * free-response: always empty string (no key — graded manually).
    */
   correctAnswer: string;
   /** MC only: up to 4 incorrect answer choices */
@@ -3167,28 +3164,28 @@ export interface QuizQuestion {
   matchingDistractors?: string[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering. Ignored
-   * for MC/FIB/short/essay. Defaults to false.
+   * for MC/FIB/free-response. Defaults to false.
    */
   allowPartialCredit?: boolean;
   /**
-   * short/essay only. Optional placeholder shown inside the student's
+   * Free Response only. Optional placeholder shown inside the student's
    * editor (e.g. "Cite at least two pieces of evidence.").
    */
   placeholder?: string;
-  /**
-   * short/essay only. Soft cap shown in the editor's word counter.
-   * Not enforced server-side; the student can exceed it. Undefined or 0
-   * means no cap is displayed.
-   */
+  /** Free Response only. Lower word bound shown in the editor; 0/undefined = none. */
+  minWords?: number;
+  /** Free Response only. Upper word bound shown in the editor; 0/undefined = none. */
   maxWords?: number;
+  /** Free Response only. When set, Submit is disabled outside the word range. */
+  enforceWordLimit?: boolean;
   /**
-   * short/essay only (M12 rubrics). Id of the rubric in the teacher's
+   * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
    * Informational only — graders always read the snapshot.
    */
   rubricId?: string;
   /**
-   * short/essay only (M12 rubrics). Frozen copy of the rubric captured at
+   * Free Response only (M12 rubrics). Frozen copy of the rubric captured at
    * attach time; library edits never alter authored quizzes or past grades.
    * When present, the rubric's criteria max-sum is the question's `points`.
    */
@@ -3199,6 +3196,36 @@ export interface QuizQuestion {
    * consecutive questions carrying the same id form a stimulus set.
    */
   stimulusIds?: string[];
+  /**
+   * Opt-in media-response block. Absent on every question authored before
+   * this feature and on every non-recording question — its absence is the
+   * marker that the whole capture flow stays dormant.
+   */
+  recording?: RecordingConfig;
+}
+
+/** What happens when a recording question's prep countdown runs out. */
+export type RecordingPrepExpiry =
+  | 'auto-start'
+  | 'auto-advance'
+  | 'armed'
+  | 'unanswered';
+
+/**
+ * Per-question audio capture settings. `limitSeconds` is a hard stop with a
+ * wrap-up warning before it and no grace tail; `timeLimit` is forced to 0 on
+ * a recording question and never doubles as the recording limit.
+ */
+export interface RecordingConfig {
+  /** Thinking time before the recorder arms. */
+  prepSeconds: number;
+  /** Hard cap on one take; {@link AUDIO_LIMIT_SECONDS_MAX} is the ceiling. */
+  limitSeconds: number;
+  prepExpiry: RecordingPrepExpiry;
+  /** Counts takes, not re-takes. `null` = unlimited (the default). */
+  takeLimit: number | null;
+  /** Authoring-only stash of the `timeLimit` this block zeroed; never projected to students. */
+  priorTimeLimit?: number;
 }
 
 /**
@@ -3219,6 +3246,11 @@ export interface GradeResult {
    * Classroom pushes and marked provisional wherever a total displays.
    */
   state: GradeState;
+  /**
+   * The teacher excused this question for this student: terminal, and worth
+   * 0 of 0, so the percentage is computed over the questions that remain.
+   */
+  excused?: boolean;
 }
 
 /**
@@ -3390,20 +3422,30 @@ export interface QuizPublicQuestion {
   matchingRight?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
-  /** short/essay only: optional editor placeholder */
+  /** Free Response only: optional editor placeholder */
   placeholder?: string;
-  /** short/essay only: optional soft word cap shown in the editor */
+  /** Free Response only: optional lower word bound shown in the editor */
+  minWords?: number;
+  /** Free Response only: optional upper word bound shown in the editor */
   maxWords?: number;
-  /** short/essay only: max points the teacher can award. */
+  /** Free Response only: when set, Submit is disabled outside the word range */
+  enforceWordLimit?: boolean;
+  /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
-   * short/essay only (M12 decision 6). Frozen rubric snapshot, projected
+   * Free Response only (M12 decision 6). Frozen rubric snapshot, projected
    * unchanged from `QuizQuestion.rubricSnapshot` — contains no answer key,
    * so it's safe to expose to students while answering and in results.
    */
   rubricSnapshot?: Rubric;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
+  /**
+   * Projected verbatim from {@link QuizQuestion.recording} so the student
+   * client and the archival callable (`takeLimit`) can read it off the
+   * session doc without a Drive fetch. Carries no answer key.
+   */
+  recording?: RecordingConfig;
 }
 
 export interface QuizLeaderboardEntry {
@@ -3445,6 +3487,16 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
+  completenessModel?: number;
+  /**
+   * Deploy-safety marker for student media responses. Stamped `true` by the
+   * teacher client only when `canAccessQuizMediaResponse()` passed AND at
+   * least one public question kept its `recording` block. The student app
+   * mounts capture and writes takes only when this is `true`, which is how the
+   * fail-closed gate reaches `/quiz` — a route that mounts no AuthProvider.
+   */
+  mediaResponseEnabled?: boolean;
   /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`
@@ -3677,6 +3729,43 @@ export interface LtiAttachmentLink {
   contextId?: string;
 }
 
+/** Why an `answers[]` entry exists for a question the student never responded to. */
+export type UnrespondedReason =
+  | 'passed'
+  | 'expired'
+  | 'abandoned'
+  | 'capture-unavailable';
+
+/** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
+export type ArtifactSlot = 'primary' | 'addendum';
+/** Full peer-mode union; only `'audio'` (and inline `'text'`) ships today. */
+export type ArtifactKind = 'text' | 'audio' | 'video' | 'whiteboard';
+/** Upload is its own axis, separate from the student-intent `status` on the answer. */
+export type ArtifactUploadState = 'pending' | 'uploaded' | 'failed';
+
+/**
+ * One media or text sub-response attached to a {@link QuizResponseAnswer}.
+ * Written by the student client; the server-owned archival lifecycle lives in
+ * the sibling {@link QuizResponse.artifactArchive} map, keyed by `id`.
+ */
+export interface ResponseArtifact {
+  /** Minted client-side at record-stop; never changes, even after archival. */
+  id: string;
+  /** Stored on the response, never derived from the question config at read time. */
+  slot: ArtifactSlot;
+  kind: ArtifactKind;
+  /** Inline text - `kind: 'text'` only; nothing else is ever inlined. */
+  text?: string;
+  /** Firebase Storage transit path (never a resolved download URL); absent once archived. */
+  storagePath?: string;
+  mimeType?: string;
+  bytes?: number;
+  /** Client-measured - Chrome webm reports Infinity on the media element. */
+  durationMs?: number;
+  /** `'pending'` is an expected value, not an error: metadata lands before the bytes do. */
+  uploadState: ArtifactUploadState;
+}
+
 export interface QuizResponseAnswer {
   questionId: string;
   /** MC/FIB: string. Matching: "term1:def1|term2:def2". Ordering: "item1|item2|item3" */
@@ -3698,6 +3787,29 @@ export interface QuizResponseAnswer {
    * treat missing as `'submitted'` via {@link isAnswerSubmitted}.
    */
   status?: 'draft' | 'submitted';
+  /** Absent means the student responded; see `utils/quizCompleteness.ts`. */
+  unresponded?: UnrespondedReason;
+  /**
+   * Which take this entry belongs to, for questions that allow more than
+   * one submission (e.g. a media-response retake). Absent on every entry
+   * written before takes existed — treated as `0` by
+   * {@link selectRepresentativeAnswers}, which resolves duplicate-questionId
+   * entries by highest `takeIndex`, tie-broken by earliest `answeredAt`.
+   * Written by the take-append path, not read here; see
+   * `utils/answerTakeOrdering.ts`.
+   */
+  takeIndex?: number;
+  /** Media/text sub-responses. A sibling to `answer`, which it never overloads. */
+  artifacts?: ResponseArtifact[];
+  /**
+   * When the student acknowledged the Tennessen notice for this assignment.
+   * Stamped on the take it authorised, inside `answers[]`, because the
+   * student write whitelist in `firestore.rules` admits no new top-level
+   * response field. Absent on every non-recording answer.
+   */
+  noticeAckedAt?: number;
+  /** A question timeout auto-submitted this answer below the enforced `minWords`. */
+  timedOutUnderMinimum?: true;
 }
 
 /**
@@ -3710,6 +3822,42 @@ export function isAnswerSubmitted(a: QuizResponseAnswer): boolean {
 }
 
 export type QuizResponseStatus = 'joined' | 'in-progress' | 'completed';
+
+/**
+ * Archival lifecycle of one {@link ResponseArtifact}. Any value other than
+ * `'archived'` with a `driveFileId` means "not currently playable".
+ */
+export type ArtifactArchiveStatus =
+  | 'syncing'
+  | 'archived'
+  | 'failed'
+  /** Terminal: archival gave up, so the sweep stops retrying and stops mailing. */
+  | 'lost'
+  | 'deleting'
+  | 'deleted'
+  | 'delete-failed';
+
+/** Server-owned archival record for one artifact; see {@link QuizResponse.artifactArchive}. */
+export interface ArtifactArchiveEntry {
+  driveFileId?: string;
+  /** Required - an entry only exists once a status is known. */
+  archiveStatus: ArtifactArchiveStatus;
+  archiveStartedAt?: number;
+  /** Server time of the most recent failed archive attempt; drives the sweep window. */
+  lastAttemptAt?: number;
+  /** Failed attempts so far; at `MAX_ARCHIVE_ATTEMPTS` the status becomes `'lost'`. */
+  attemptCount?: number;
+  archivedAt?: number;
+  archiveError?: string;
+  /** Drive holds the file but the Storage transit copy survived; the sweep retries the delete. */
+  storageCleanupPending?: boolean;
+  deletedAt?: number;
+  /** Admin uid that ran the compliance delete. */
+  deletedBy?: string;
+  deleteAttemptedAt?: number;
+  /** Drive copy an archive created after a delete claimed the artifact; still owed a delete. */
+  orphanedDriveFileId?: string;
+}
 
 /**
  * Per-student response document in Firestore
@@ -3770,6 +3918,12 @@ export interface QuizResponse {
    * behavior (don't retroactively auto-submit historical attempts).
    */
   lastWriteAt?: import('firebase/firestore').Timestamp;
+  /**
+   * Epoch ms at which this student acknowledged the Tennessen recording
+   * notice. Response-level so the acknowledgement is provable even when the
+   * student then refused and no take was ever committed.
+   */
+  recordingNoticeAckedAt?: number;
   /**
    * Set by the idle auto-submit Cloud Function when a stale response
    * was finalized without the student clicking Submit. Lets the
@@ -3885,8 +4039,28 @@ export interface QuizResponse {
    *
    * Auto-graded question types (MC/FIB/Matching/Ordering) do not use
    * this map; their correctness is recomputed on the fly by `gradeAnswer`.
+   *
+   * Keys are composite: an unsuffixed `questionId` is the primary slot (so
+   * every grade written before media responses stays valid), and any other
+   * slot is `` `${questionId}::${slot}` ``. Always read and write through
+   * `gradingKey`/`parseGradingKey` in `utils/mediaGrading.ts`.
    */
-  grading?: { [questionId: string]: WrittenAnswerGrade };
+  grading?: { [gradingKey: string]: WrittenAnswerGrade };
+  /**
+   * Server-written only (Admin SDK, via the archival callable), keyed by
+   * {@link ResponseArtifact.id}. Lives outside `answers[]` for the same reason
+   * `grading` does - a server write must never race the student's wholesale
+   * array rewrite - and must never appear in the student write whitelist.
+   */
+  artifactArchive?: Record<string, ArtifactArchiveEntry>;
+  /**
+   * Server-maintained denormalization of "some `artifactArchive` entry is still
+   * `'syncing'`/`'failed'`". Firestore cannot query into map values, so this is
+   * what makes the hourly `sweepStuckQuizArchives` straggler sweep an indexed
+   * collection-group query instead of a full scan. Absent on every response
+   * without media; never written by the client.
+   */
+  hasStuckArchive?: boolean;
   /**
    * Server-stamped time the student raised their hand from the live quiz UI,
    * or null when lowered (by the student or cleared by the teacher). Absent on
@@ -3922,8 +4096,28 @@ export interface WrittenAnswerGrade {
   gradingSnapshot?: string;
   /** Phase 2 (annotations). Empty/undefined when no highlights were added. */
   annotations?: WrittenAnswerAnnotation[];
+  /**
+   * Unit of the `annotations` offsets. Absent means character offsets into
+   * `gradingSnapshot` (every grade written before media responses); `'ms'`
+   * means milliseconds into the graded audio take, which only the audio
+   * playback surfaces can render.
+   */
+  annotationUnit?: 'chars' | 'ms';
   /** Phase 3 (rubrics). Empty/undefined in Phase 1. */
   rubricScores?: WrittenAnswerRubricScore[];
+  /**
+   * Which committed take this manual grade is about (media responses only).
+   * Absent means "the winning take". Provenance only: auto-computed scoring
+   * and the leaderboard always read the highest `takeIndex` regardless.
+   */
+  gradedTakeIndex?: number;
+  /**
+   * The teacher excused this slot: permanently resolved, and omitted from the
+   * gradebook and both LMS pushes exactly like an ungraded slot. Distinct from
+   * "not yet graded" so the grading queue stops re-surfacing it; both compute
+   * to `GradeResult.state === 'awaiting-grade'` downstream.
+   */
+  excused?: boolean;
   /** Teacher's auth uid that wrote the grade. */
   gradedBy: string;
   /** Client timestamp (ms) when the grade was saved. */
@@ -3937,9 +4131,12 @@ export interface WrittenAnswerGrade {
  */
 export interface WrittenAnswerAnnotation {
   id: string;
-  /** Inclusive start offset into the sanitized plaintext projection. */
+  /**
+   * Inclusive start offset into the sanitized plaintext projection — or, when
+   * the graded slot holds an audio artifact, milliseconds into the take.
+   */
   from: number;
-  /** Exclusive end offset. */
+  /** Exclusive end offset, in the same unit as `from`. */
   to: number;
   highlightColor?: 'yellow' | 'green' | 'pink' | 'blue';
   comment?: string;
@@ -4445,6 +4642,12 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    *  Mirrors QuizSession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
   /**
+   * Teacher-side twin of `QuizSession.mediaResponseEnabled`, written by the
+   * same code path so a sync can tell whether this assignment ever recorded
+   * without reading the session doc. Absent means it never did.
+   */
+  mediaResponseEnabled?: boolean;
+  /**
    * Score-publication visibility level. Absent / `'none'` means scores
    * have not been published to students yet. Mirrored to the matching
    * `QuizSession` doc by `publishAssignmentScores`.
@@ -4754,7 +4957,13 @@ export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
  */
 export type VideoActivityQuestion = Omit<
   QuizQuestion,
-  'type' | 'matchingDistractors' | 'stimulusIds'
+  | 'type'
+  | 'matchingDistractors'
+  | 'stimulusIds'
+  | 'placeholder'
+  | 'maxWords'
+  | 'minWords'
+  | 'enforceWordLimit'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */
@@ -6811,7 +7020,9 @@ export type GlobalFeature =
   | 'share-link-tracking'
   | 'personal-spotify'
   | 'google-classroom'
-  | 'anonymous-join';
+  | 'anonymous-join'
+  /** Fail-closed: read it through `canAccessQuizMediaResponse`, never `canAccessFeature`. */
+  | 'quiz-media-response';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;

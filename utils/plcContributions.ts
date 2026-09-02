@@ -24,7 +24,14 @@ import type {
   QuizQuestion,
   QuizResponse,
 } from '@/types';
+import { isFreeResponseType } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import {
+  applyMediaSlots,
+  questionPointsFor,
+  readSlotGrade,
+} from '@/utils/mediaGrading';
 
 const PLC_CONTRIBUTION_SCHEMA_VERSION = 1 as const;
 
@@ -79,45 +86,45 @@ function resolveStudentDisplayName(
 function buildContributionResponse(
   response: QuizResponse,
   questions: QuizQuestion[],
-  maxPoints: number,
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
-  // Sort by answeredAt asc, keep first occurrence per questionId — matches getEarnedPoints.
-  const sortedAnswers = [...response.answers].sort(
-    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
-  );
-  const answerByQuestionId = new Map<string, string>();
-  for (const a of sortedAnswers) {
-    if (!answerByQuestionId.has(a.questionId)) {
-      answerByQuestionId.set(a.questionId, a.answer);
-    }
-  }
+  // Dedup by questionId: same take/answeredAt tiebreak as getEarnedPoints and export.
+  const answerByQuestionId = selectRepresentativeAnswers(response.answers);
 
   const pointsByQuestionId: Record<string, number> = {};
   let pointsEarned = 0;
   for (const q of questions) {
-    const answer = answerByQuestionId.get(q.id);
-    if (answer === undefined) continue;
+    const entry = answerByQuestionId.get(q.id);
+    if (!entry || entry.unresponded) continue;
+    const answer = entry.answer;
     // Written types (`short`/`essay`) carry their points on the response's
     // top-level `grading` map; passing it in here keeps the PLC
     // contribution's per-question points and aggregate score in sync with
     // the teacher's manual grading. Ungraded written questions fall back to
     // zero points until the teacher enters a grade.
-    const manualGrade =
-      q.type === 'short' || q.type === 'essay'
-        ? response.grading?.[q.id]
-        : undefined;
-    const grade = gradeAnswer(q, answer, manualGrade);
+    const manualGrade = isFreeResponseType(q.type)
+      ? readSlotGrade(response.grading, q.id)
+      : undefined;
+    const grade = applyMediaSlots(
+      q,
+      response,
+      gradeAnswer(q, answer, manualGrade)
+    );
     pointsByQuestionId[q.id] = grade.pointsEarned;
     pointsEarned += grade.pointsEarned;
   }
 
+  // An excused question leaves only this student's denominator.
+  const studentMaxPoints = questions.reduce(
+    (sum, q) => sum + questionPointsFor(q, response),
+    0
+  );
   const status: 'completed' | 'in-progress' =
     response.status === 'completed' ? 'completed' : 'in-progress';
   const scorePercent =
-    status === 'completed' && maxPoints > 0
-      ? Math.round((pointsEarned / maxPoints) * 100)
+    status === 'completed' && studentMaxPoints > 0
+      ? Math.round((pointsEarned / studentMaxPoints) * 100)
       : null;
 
   return {
@@ -131,7 +138,7 @@ function buildContributionResponse(
     status,
     scorePercent,
     pointsEarned,
-    maxPoints,
+    maxPoints: studentMaxPoints,
     tabSwitchWarnings: response.tabSwitchWarnings ?? 0,
     submittedAt: status === 'completed' ? (response.submittedAt ?? null) : null,
     pointsByQuestionId,
@@ -168,10 +175,6 @@ export function buildContributionDoc(
     return true;
   });
 
-  const maxPoints = dedupedQuestions.reduce(
-    (sum, q) => sum + (q.points ?? 1),
-    0
-  );
   const questionsSnapshot: PlcContributionQuestion[] = dedupedQuestions.map(
     (q) => ({
       id: q.id,
@@ -180,13 +183,7 @@ export function buildContributionDoc(
     })
   );
   const contributionResponses = responses.map((r) =>
-    buildContributionResponse(
-      r,
-      dedupedQuestions,
-      maxPoints,
-      pinToName,
-      byStudentUid
-    )
+    buildContributionResponse(r, dedupedQuestions, pinToName, byStudentUid)
   );
 
   return {

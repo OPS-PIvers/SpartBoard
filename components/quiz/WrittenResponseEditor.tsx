@@ -32,6 +32,8 @@ import {
 } from '@/utils/contentEditableBlocks';
 import { toggleList } from '@/utils/contentEditableLists';
 import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
+import { countWords } from '@/utils/wordCount';
+import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
 
 interface WrittenResponseEditorProps {
   /** Initial HTML content. Sanitized on render. */
@@ -40,8 +42,12 @@ interface WrittenResponseEditorProps {
   onChange: (html: string) => void;
   /** Optional placeholder displayed when the editor is empty. */
   placeholder?: string;
-  /** Optional soft word cap shown in the counter. 0/undefined = no cap. */
+  /** Optional lower word bound shown in the counter. 0/undefined = none. */
+  minWords?: number;
+  /** Optional upper word bound shown in the counter. 0/undefined = none. */
   maxWords?: number;
+  /** When set, the counter reads as a hard requirement rather than advice. */
+  enforceWordLimit?: boolean;
   /** Disable editing (e.g. when the quiz is paused or submitted). */
   disabled?: boolean;
   /**
@@ -50,11 +56,6 @@ interface WrittenResponseEditorProps {
    * and copy/cut from the editor are prevented. Default false.
    */
   blockClipboard?: boolean;
-  /**
-   * When true, the toolbar exposes list controls and the editor grows to a
-   * multi-paragraph height. Short-answer questions stay single-paragraph.
-   */
-  isEssay?: boolean;
   /**
    * Stable identity for the current question. Changing this remounts the
    * inner editor so a fresh `value` is loaded — used for cross-question
@@ -69,31 +70,7 @@ interface WrittenResponseEditorProps {
   light?: boolean;
 }
 
-const countWords = (html: string): number => {
-  if (!html) return 0;
-  // Strip tags, normalize whitespace, count word-ish runs.
-  //
-  // Known limitation (Phase 1): this is a whitespace-delimited token
-  // count. CJK scripts (Chinese / Japanese / Korean) without inter-word
-  // spaces will under-count (a 400-character Mandarin response counts
-  // as 1 "word"), and HTML entities like `&amp;` survive the tag-strip
-  // and inflate the count by one. The word cap is described to teachers
-  // as a "soft suggestion" so the imprecision is acceptable for now —
-  // Phase 2 can swap to `Intl.Segmenter(locale, { granularity: 'word' })`
-  // operating on `editorRef.current.textContent` for proper Unicode
-  // segmentation if non-Latin classrooms surface this as a real
-  // problem.
-  const text = html
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!text) return 0;
-  return text.split(' ').length;
-};
-
 const ESSAY_MIN_HEIGHT_PX = 352; // ~22rem — comfortable on a laptop
-const SHORT_MIN_HEIGHT_PX = 128; // ~8rem
 const MAX_HEIGHT_PX_CAP = 900; // hard cap so the editor can't push the page
 const KEYBOARD_RESIZE_STEP_PX = 32;
 
@@ -103,9 +80,10 @@ const WrittenResponseEditorInner: React.FC<
   value,
   onChange,
   placeholder,
+  minWords,
   maxWords,
+  enforceWordLimit,
   disabled,
-  isEssay,
   blockClipboard,
   light = false,
 }) => {
@@ -118,7 +96,7 @@ const WrittenResponseEditorInner: React.FC<
   // they can drag the bottom-right grip to enlarge it (or use ↑/↓ when the
   // handle has keyboard focus). Resets on remount per question via the
   // `questionKey` wrapper.
-  const minHeight = isEssay ? ESSAY_MIN_HEIGHT_PX : SHORT_MIN_HEIGHT_PX;
+  const minHeight = ESSAY_MIN_HEIGHT_PX;
   const [heightPx, setHeightPx] = useState<number>(minHeight);
   // Cap at the smaller of 70vh and MAX_HEIGHT_PX_CAP so very tall windows
   // can't stretch the editor past a reasonable working size.
@@ -306,7 +284,9 @@ const WrittenResponseEditorInner: React.FC<
     handleInput();
   };
 
-  const overCap = !!maxWords && maxWords > 0 && wordCount > maxWords;
+  const limit = { minWords, maxWords, enforceWordLimit };
+  const limitTone = wordLimitStatus(wordCount, limit).tone;
+  const outsideRange = limitTone !== 'ok';
 
   return (
     <div className="flex flex-col gap-2 w-full" ref={containerRef}>
@@ -341,43 +321,39 @@ const WrittenResponseEditorInner: React.FC<
         >
           <Underline className="w-4 h-4" />
         </ToolbarButton>
-        {isEssay && (
-          <>
-            <div
-              className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
-            />
-            <ToolbarButton
-              label="Bulleted list"
-              onClick={() => handleListToggle('ul')}
-              disabled={disabled}
-              light={light}
-            >
-              <List className="w-4 h-4" />
-            </ToolbarButton>
-            <ToolbarButton
-              label="Numbered list"
-              onClick={() => handleListToggle('ol')}
-              disabled={disabled}
-              light={light}
-            >
-              <ListOrdered className="w-4 h-4" />
-            </ToolbarButton>
-          </>
-        )}
+        <div
+          className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
+        />
+        <ToolbarButton
+          label="Bulleted list"
+          onClick={() => handleListToggle('ul')}
+          disabled={disabled}
+          light={light}
+        >
+          <List className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Numbered list"
+          onClick={() => handleListToggle('ol')}
+          disabled={disabled}
+          light={light}
+        >
+          <ListOrdered className="w-4 h-4" />
+        </ToolbarButton>
         <div className="flex-1" />
         <span
           className={`text-xs font-mono px-2 py-0.5 rounded ${
-            overCap
+            outsideRange
               ? light
                 ? 'bg-amber-100 text-amber-700'
                 : 'bg-amber-500/20 text-amber-300'
-              : 'text-slate-500'
+              : light
+                ? 'text-slate-500'
+                : 'text-slate-300'
           }`}
           aria-live="polite"
         >
-          {wordCount}
-          {maxWords && maxWords > 0 ? ` / ${maxWords}` : ''}{' '}
-          {wordCount === 1 ? 'word' : 'words'}
+          {wordCounterLabel(wordCount, limit)}
         </span>
       </div>
 
@@ -420,7 +396,7 @@ const WrittenResponseEditorInner: React.FC<
         />
         {isEmpty && placeholder && (
           <div
-            className="absolute inset-0 px-5 py-4 text-slate-500 text-sm pointer-events-none select-none"
+            className={`absolute inset-0 px-5 py-4 text-sm pointer-events-none select-none ${light ? 'text-slate-500' : 'text-slate-300'}`}
             aria-hidden
           >
             {placeholder}
@@ -446,15 +422,6 @@ const WrittenResponseEditorInner: React.FC<
           </button>
         )}
       </div>
-
-      {overCap && (
-        <p
-          className={`text-xs italic ${light ? 'text-amber-700' : 'text-amber-400'}`}
-        >
-          You&apos;re past the suggested word cap. Your teacher may take this
-          into account when grading.
-        </p>
-      )}
     </div>
   );
 };

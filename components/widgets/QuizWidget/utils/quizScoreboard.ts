@@ -10,9 +10,18 @@ import {
   ScoreboardTeam,
   QuizSession,
   QuizLeaderboardEntry,
+  isFreeResponseType,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import {
+  applyMediaSlots,
+  collectMediaSlots,
+  questionPointsFor,
+  readSlotGrade,
+  resolveSlotState,
+} from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 import {
   resolveResponseDisplayName,
@@ -50,35 +59,42 @@ export function getEarnedPoints(
   // Precompute question lookup map for O(1) access
   const qMap = new Map(questions.map((q) => [q.id, q]));
 
-  // Sort answers by answeredAt to compute streaks in chronological order
-  const sortedAnswers = [...r.answers].sort(
+  // Deduplicate by questionId: highest takeIndex wins, ties (equal or absent
+  // takeIndex — e.g. a Firestore arrayUnion race or Drive-sync double-write)
+  // broken by earliest answeredAt. Without this guard a student's score is
+  // inflated (same fix applied to computeVideoActivityScorePct, #1728/#1777).
+  // Then re-sort the survivors chronologically so streaks compute in
+  // answer order.
+  const representative = selectRepresentativeAnswers(r.answers);
+  const sortedAnswers = [...representative.values()].sort(
     (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
   );
 
   let totalPoints = 0;
   let streak = 0;
 
-  // Deduplicate by questionId: credit only the first (chronologically earliest)
-  // answer per question. Firestore arrayUnion races and Drive-sync double-writes
-  // can produce duplicate entries; without this guard a student's score is
-  // inflated (same fix applied to computeVideoActivityScorePct, #1728/#1777).
-  const seenQuestionIds = new Set<string>();
-
   for (const ans of sortedAnswers) {
     const q = qMap.get(ans.questionId);
     if (!q) continue;
-    if (seenQuestionIds.has(ans.questionId)) continue;
-    seenQuestionIds.add(ans.questionId);
 
     // Written types (`short`/`essay`) get their points from the response's
     // top-level `grading` map. Without this thread-through, scoreboard
     // totals and streaks treat every essay as 0 points / incorrect, which
     // would break a student's streak any time their quiz mixes auto-graded
     // and written items.
-    const manualGrade =
-      q.type === 'short' || q.type === 'essay' ? r.grading?.[q.id] : undefined;
-    const grade = gradeAnswer(q, ans.answer, manualGrade);
+    const manualGrade = isFreeResponseType(q.type)
+      ? readSlotGrade(r.grading, q.id)
+      : undefined;
+    // Media slots fold in here (and only for questions with a `recording`
+    // block) so a recorded answer isn't scored as a silent 0.
+    const grade = applyMediaSlots(
+      q,
+      r,
+      gradeAnswer(q, ans.answer, manualGrade)
+    );
 
+    // An excused question is worth 0 of 0; it must not break the streak.
+    if (grade.excused || grade.pointsMax === 0) continue;
     if (grade.pointsEarned <= 0) {
       streak = 0;
       continue;
@@ -127,7 +143,7 @@ export function isGamificationActive(session?: QuizScoringSession): boolean {
  *
  * Drive-sync duplication and arrayUnion races can write the same question id
  * twice into `questions`. `getEarnedPoints` already guards the *answer* side
- * via `seenQuestionIds`, but the *denominator* must also dedup — otherwise
+ * via `selectRepresentativeAnswers`, but the *denominator* must also dedup — otherwise
  * `maxPoints` inflates while `earned` stays correct, deflating the score (e.g.
  * a student who answered the only real question correctly scores 50% instead of
  * 100% when that question appears twice). Mirrors the identical guard in
@@ -141,11 +157,12 @@ export function getResponseScore(
 ): number {
   // Deduplicate by question id before summing maxPoints so a Drive-sync
   // duplicate doesn't inflate the denominator while earned stays correct.
+  // A question this student was excused from leaves the denominator too.
   const seenIds = new Set<string>();
   const maxPoints = questions.reduce((sum, q) => {
     if (seenIds.has(q.id)) return sum;
     seenIds.add(q.id);
-    return sum + (q.points ?? 1);
+    return sum + questionPointsFor(q, r);
   }, 0);
   if (maxPoints === 0) return 0;
   return Math.round((getEarnedPoints(r, questions, session) / maxPoints) * 100);
@@ -236,24 +253,33 @@ export function isResponseAwaitingGrade(
   questions: QuizQuestion[]
 ): boolean {
   const qMap = new Map(questions.map((q) => [q.id, q]));
-  // Sort then dedup by questionId exactly as getEarnedPoints does, so both pick
-  // the same representative answer when arrayUnion races duplicate a questionId.
-  const sortedAnswers = [...(r.answers ?? [])].sort(
-    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
-  );
-  const seen = new Set<string>();
-  for (const ans of sortedAnswers) {
+  // Same shared dedup as getEarnedPoints, so both pick the same representative
+  // answer when arrayUnion races (or a genuine retake) duplicate a questionId.
+  const representative = selectRepresentativeAnswers(r.answers ?? []);
+  for (const ans of representative.values()) {
     const q = qMap.get(ans.questionId);
     if (!q) continue;
-    if (seen.has(ans.questionId)) continue;
-    seen.add(ans.questionId);
-    const manualGrade =
-      q.type === 'short' || q.type === 'essay' ? r.grading?.[q.id] : undefined;
-    if (gradeAnswer(q, ans.answer, manualGrade).state === 'awaiting-grade') {
+    const manualGrade = isFreeResponseType(q.type)
+      ? readSlotGrade(r.grading, q.id)
+      : undefined;
+    const grade = applyMediaSlots(
+      q,
+      r,
+      gradeAnswer(q, ans.answer, manualGrade)
+    );
+    if (grade.state === 'awaiting-grade') {
       return true;
     }
   }
-  return false;
+  // A capture-unavailable slot has an `unresponded` marker, so it is skipped
+  // by the representative loop above; it still owes the teacher a decision.
+  return questions.some(
+    (q) =>
+      !!q.recording &&
+      collectMediaSlots(q, r).some(
+        (slot) => resolveSlotState(slot) === 'awaiting-grade'
+      )
+  );
 }
 
 /**

@@ -44,6 +44,7 @@ import {
   PlayCircle,
   Music2,
   Link2,
+  Mic,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -159,6 +160,13 @@ const GLOBAL_FEATURES: {
     icon: Link2,
     description:
       "Controls which teachers can offer the no-sign-in join URL for activities. Restrict by access level, beta users, building, or minimum tier. Participants' join experience is unaffected.",
+  },
+  {
+    id: 'quiz-media-response',
+    label: 'Spoken quiz responses (audio)',
+    icon: Mic,
+    description:
+      "Lets teachers add a spoken-answer question to a quiz. Students record audio, which is archived to the teacher's own Google Drive. Fail-closed: until this is saved and enabled, the recording controls and the student capture flow stay hidden everywhere. Access level, beta users, building and minimum tier all apply, and the decision is frozen onto each assignment when it is assigned — revoking access hides recording from new assignments and from any existing one the teacher re-syncs.",
   },
 ];
 

@@ -16,7 +16,7 @@
 > **Paul:** each ticket has an empty `Paul's notes` slot. Write in them freely —
 > agents should read them as the highest-authority input on that ticket.
 
-**Status:** Charted 2026-08-04 · **19 of 24 resolved** — ✅ **RR-11 closed into Out of scope 2026-08-27, on its own first question**: accommodations stay teacher-mediated and invisible, for the reasons written in the ticket — which leaves **zero agent-takeable tickets**. Everything still open wants a person: RR-A5 (Chromebook), RR-09 (email to counsel/Google), RR-B3 (stopwatch), and RR-A6 behind RR-A5. Prior state: 🔴 **RR-07 closed 2026-08-16, and it deleted a requirement rather than designing one.** Its answer to _"what's the alternate-format policy"_ is **there isn't one**: both supports of the mandatory non-recorded floor had already been withdrawn — the legal one by RR-A1, the functional one by Paul (**mic access is grantable**) — and nobody had noticed they were both gone. What replaces it is four mechanisms at four times (allowlist at onboarding, told-and-moves-on at runtime, three-way teacher adjudication at grading, RR-10's advisory at authoring). ⚠️ **It is also the first resolution on this map to rest on an unrun measurement** — RR-A5 item 4 — so it is decided **and provisional**. The same session settled RR-C2's CORS item without a Chromebook (**there is no infrastructure requirement**) and opened **RR-11** on accommodations. Prior state below. · RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3, RR-A1, RR-08, RR-A2 and RR-05 closed 2026-08-06**; **RR-06, RR-B2, RR-B4, RR-C1, RR-C2 and RR-C3 closed 2026-08-07** — six in one day, and RR-C3 ran its audit and its grilling as two separate sessions within it. 🔴 **The map briefly reported having no design questions left, and that lasted exactly one turn.** It was true of the **charted tickets** and false of the **fog**: three authoring patches had been accumulating one control per session since 2026-08-06, each too small to ticket alone and each naming the other two as the reason. They graduated together the same day as **[RR-10](#rr-10--what-does-the-quiz-editor-become-and-what-does-it-refuse-to-let-a-teacher-build)** — the inventory of everything nine closed tickets made a teacher author, plus the question of what the product refuses to let them build. **What remains besides it is three errands that want a person rather than an agent** (RR-A5, RR-09, RR-B3), one upload ticket behind RR-A5, and RR-07's narrowed remnant. **The entire quiz-side design is now settled — response model, capture, persistence, privacy, completeness, AI boundary, and grading — and RR-B2 turned the B track's keystone**, which came in far cheaper than three tickets had assumed and dissolved RR-B1's hard blocker outright. What remains on the quiz side is measurement and legal confirmation, not design. Video ships gated as a peer mode (RR-A3); the capture experience, its timing model and its data model are locked (RR-A1); RR-08 settled what "answered" means now that a question can complete in parts — including the shipped `'auto'`-mode stall RR-A1 found; and **RR-A2 settled what happens to a take once it exists**, dissolving the one live contradiction two closed tickets had left. The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. RR-05 then drew the AI boundary — one capability, two gates, and four wrong premises corrected against the codebase. **No keystones remain, and after RR-B4 the B track has no design questions left either** — what remains there is one prototype with a stopwatch. RR-B4 fixed the whiteboard's coordinate space at a **1600×1200 logical page rendered at 2×**, found that three of its four charted bullets were already answered by shipped code, and 🔴 **became the first decision on this map to change shipped teacher behaviour**: the same fixed page applies to the dashboard drawing widget, retiring the last absolute-pixel coordinate space in the app — one the codebase had already migrated away from a level up, for widget bounds. **The C track ran the pattern the A and B tracks each ran on their opening day, and then ran a new one.** RR-C1 fixed the stimulus list at image/audio/video/YouTube/PDF with Office refused, and found the app had **already solved question-attached media once, in GuidedLearning**, while the quiz model carries no media field at all — and that its two shipped players disagree with each other about the very control policy the ticket was asking about. RR-C2's audit then landed the same day and was harsher still: **both of its load-bearing premises were wrong in opposite directions.** But RR-C2's grilling session inverted that again — **one more call-site read dissolved the expensive option instead of confirming it blocked** (`storage.rules:127-139` performs cross-service `firestore.get()`, which I had asserted was impossible), so the Cloud Function proxy the ticket was charted around is not merely unbuildable but **unnecessary**. RR-C2 gates image and PDF behind a Storage rule, leaves audio/video/YouTube on public URLs, moves **every stimulus byte out of Drive** — amending RR-03 on capability rather than cost grounds — and states plainly what its sub-decisions imply: **SpartBoard has decided not to protect copyrighted stimulus material.** **RR-C3 then closed the same day and ended the design work on this map.** It followed the house pattern its audit found — a stimulus array on the quiz, a pointer on the question — but **explicitly not for the reason the precedent supplies**, since a VA question is located _in_ the video and a quiz stimulus has no positional relationship to anything; what transferred was that **the pointer is the grouping concept**, which is what shuffle needed and what nobody had to invent. It departed from the precedent in exactly one place — a stable id rather than GL's index — and that place is precisely where the precedent's ordering semantics stop applying, which is where the frontier had predicted the departure would fall. ⚠️ **Two premises the audit left standing failed verification before a question was asked**: the house pinning idiom is _don't key at all_, and `toPublicQuestion` is a hand-written allowlist — the second of which **dissolved RR-C2's two-shapes wrinkle outright**, since a parent array holds one copy of every reference. What's left on the whole map is two hardware/legal verifications, one upload-strategy ticket behind them, one grading prototype, and RR-07's authoring remnant.
+**Status:** Charted 2026-08-04 · **23 of 24 resolved · implementation shipped to dev-paul 2026-09-02** (eleven PRs, see [`rich-response/IMPLEMENTATION.md`](rich-response/IMPLEMENTATION.md)). RR-B3 remains the only open ticket, deferred with the whiteboard track. Prior state: **23 of 24 resolved** — ✅ **RR-A5, RR-A6 and RR-09 closed 2026-09-01 on Paul's word, not on a harness or an email**: district Chromebooks are current and the app is approved (the whole hardware branch was overblown), and the district posture — internal app, every persisted student artifact in the staff member's Drive — answers RR-09 without counsel. AI transcription is not planned. **The only open ticket is RR-B3**, which travels with the deferred whiteboard track. The map is finished; see [`rich-response/IMPLEMENTATION.md`](rich-response/IMPLEMENTATION.md). Prior state: **19 of 24 resolved** — ✅ **RR-11 closed into Out of scope 2026-08-27, on its own first question**: accommodations stay teacher-mediated and invisible, for the reasons written in the ticket — which leaves **zero agent-takeable tickets**. Everything still open wants a person: RR-A5 (Chromebook), RR-09 (email to counsel/Google), RR-B3 (stopwatch), and RR-A6 behind RR-A5. Prior state: 🔴 **RR-07 closed 2026-08-16, and it deleted a requirement rather than designing one.** Its answer to _"what's the alternate-format policy"_ is **there isn't one**: both supports of the mandatory non-recorded floor had already been withdrawn — the legal one by RR-A1, the functional one by Paul (**mic access is grantable**) — and nobody had noticed they were both gone. What replaces it is four mechanisms at four times (allowlist at onboarding, told-and-moves-on at runtime, three-way teacher adjudication at grading, RR-10's advisory at authoring). ⚠️ **It is also the first resolution on this map to rest on an unrun measurement** — RR-A5 item 4 — so it is decided **and provisional**. The same session settled RR-C2's CORS item without a Chromebook (**there is no infrastructure requirement**) and opened **RR-11** on accommodations. Prior state below. · RR-01, RR-B1, RR-A4 closed and RR-04's research half done 2026-08-04; **RR-02, RR-03 and RR-04 closed 2026-08-05**; **RR-A3, RR-A1, RR-08, RR-A2 and RR-05 closed 2026-08-06**; **RR-06, RR-B2, RR-B4, RR-C1, RR-C2 and RR-C3 closed 2026-08-07** — six in one day, and RR-C3 ran its audit and its grilling as two separate sessions within it. 🔴 **The map briefly reported having no design questions left, and that lasted exactly one turn.** It was true of the **charted tickets** and false of the **fog**: three authoring patches had been accumulating one control per session since 2026-08-06, each too small to ticket alone and each naming the other two as the reason. They graduated together the same day as **[RR-10](#rr-10--what-does-the-quiz-editor-become-and-what-does-it-refuse-to-let-a-teacher-build)** — the inventory of everything nine closed tickets made a teacher author, plus the question of what the product refuses to let them build. **What remains besides it is three errands that want a person rather than an agent** (RR-A5, RR-09, RR-B3), one upload ticket behind RR-A5, and RR-07's narrowed remnant. **The entire quiz-side design is now settled — response model, capture, persistence, privacy, completeness, AI boundary, and grading — and RR-B2 turned the B track's keystone**, which came in far cheaper than three tickets had assumed and dissolved RR-B1's hard blocker outright. What remains on the quiz side is measurement and legal confirmation, not design. Video ships gated as a peer mode (RR-A3); the capture experience, its timing model and its data model are locked (RR-A1); RR-08 settled what "answered" means now that a question can complete in parts — including the shipped `'auto'`-mode stall RR-A1 found; and **RR-A2 settled what happens to a take once it exists**, dissolving the one live contradiction two closed tickets had left. The response model (RR-01), its serialization (RR-02) and its lifecycle (RR-03) were already locked, and RR-04 governs who may hold student media, under what name, and for how long. RR-05 then drew the AI boundary — one capability, two gates, and four wrong premises corrected against the codebase. **No keystones remain, and after RR-B4 the B track has no design questions left either** — what remains there is one prototype with a stopwatch. RR-B4 fixed the whiteboard's coordinate space at a **1600×1200 logical page rendered at 2×**, found that three of its four charted bullets were already answered by shipped code, and 🔴 **became the first decision on this map to change shipped teacher behaviour**: the same fixed page applies to the dashboard drawing widget, retiring the last absolute-pixel coordinate space in the app — one the codebase had already migrated away from a level up, for widget bounds. **The C track ran the pattern the A and B tracks each ran on their opening day, and then ran a new one.** RR-C1 fixed the stimulus list at image/audio/video/YouTube/PDF with Office refused, and found the app had **already solved question-attached media once, in GuidedLearning**, while the quiz model carries no media field at all — and that its two shipped players disagree with each other about the very control policy the ticket was asking about. RR-C2's audit then landed the same day and was harsher still: **both of its load-bearing premises were wrong in opposite directions.** But RR-C2's grilling session inverted that again — **one more call-site read dissolved the expensive option instead of confirming it blocked** (`storage.rules:127-139` performs cross-service `firestore.get()`, which I had asserted was impossible), so the Cloud Function proxy the ticket was charted around is not merely unbuildable but **unnecessary**. RR-C2 gates image and PDF behind a Storage rule, leaves audio/video/YouTube on public URLs, moves **every stimulus byte out of Drive** — amending RR-03 on capability rather than cost grounds — and states plainly what its sub-decisions imply: **SpartBoard has decided not to protect copyrighted stimulus material.** **RR-C3 then closed the same day and ended the design work on this map.** It followed the house pattern its audit found — a stimulus array on the quiz, a pointer on the question — but **explicitly not for the reason the precedent supplies**, since a VA question is located _in_ the video and a quiz stimulus has no positional relationship to anything; what transferred was that **the pointer is the grouping concept**, which is what shuffle needed and what nobody had to invent. It departed from the precedent in exactly one place — a stable id rather than GL's index — and that place is precisely where the precedent's ordering semantics stop applying, which is where the frontier had predicted the departure would fall. ⚠️ **Two premises the audit left standing failed verification before a question was asked**: the house pinning idiom is _don't key at all_, and `toPublicQuestion` is a hand-written allowlist — the second of which **dissolved RR-C2's two-shapes wrinkle outright**, since a parent array holds one copy of every reference. What's left on the whole map is two hardware/legal verifications, one upload-strategy ticket behind them, one grading prototype, and RR-07's authoring remnant.
 
 > ⚠️ **Open cost item, 2026-08-06.** RR-A2 defaulted `takeLimit` to unlimited and made takes append rather than replace, so **RR-A1's 599 MB-per-assignment ceiling no longer holds** — per-assignment media is now unbounded by default. Every closed ticket that priced storage, upload or retention (**RR-A1, RR-03, RR-04, RR-A6**) carries the consequence in place. This is a known, accepted trade, not an oversight.
 
@@ -132,6 +132,10 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 
 - **[RR-07 — What's the alternate-format policy when a student can't use the required mode?](#rr-07--whats-the-alternate-format-policy-when-a-student-cant-use-the-required-mode)** — 🔴 **The ticket answers its own title with _"there isn't one"_ — there is no alternate format, and the mandatory floor is deleted.** Both supports had already been withdrawn without anyone noticing they were both gone: RR-A1 took the legal one, and **Paul took the functional one — mic access on student devices is grantable**, so RR-A4 finding 5 is a remediable config rather than a permanent wall. Four mechanisms at four times replace it: **allowlist at onboarding** (RR-A5 item 4, promoted from errand to deployment step), **told-and-moves-on at runtime**, **three-way teacher adjudication in the grading queue** (excuse / blank / offline substitute), and **RR-10's advisory at authoring**. ⚠️ **Paul's live-monitor proposal failed on a fact**: `QuizLiveMonitor` is a dashboard widget whose own header says _"during a live quiz session,"_ while `dueAt` appears five times in the assignment types — so homework has **no teacher awake**, and moving adjudication into the grading queue dissolves the latency and async problems together. 🔵 **RR-06 had already paid for Paul's no-silent-zero requirement**: `capture-unavailable` defaults to `awaiting-grade`, which sub-decision 1 **omits from the gradebook**, so a zero cannot auto-push — protection lands **at the slot, not the grade**. **Substitute means offline attestation** with a mandatory note, at the accepted cost that **no artifact ever exists**. ⚠️ **The automatic-trigger reasoning was wrong and Paul caught it** — a student can manufacture a capability failure, so "automatic" is student-raisable with extra steps; the conclusion survives on a different basis, that what makes faking attractive is **silence**, killed by telling the student, and **the detector is the count across a class, not a flag**. `Warnings` adjacency refused on RR-A2's grounds even after the equity objection withdrew. **Two policies stated explicitly** — degradation prevented upstream, device-blocked served at runtime. ⚠️ 🔴 **The whole resolution rests on RR-A5 item 4, which has never been run**; if it returns "no," sub-decision 1 reopens rather than adjusts, and **item 3 is promoted from a technical check to a design dependency.**
 
+- **[RR-A5 — Verify format round-trip and capture policy on real district hardware](#rr-a5--verify-format-round-trip-and-capture-policy-on-real-district-hardware)** — **Nothing to verify.** Chromebooks are current and the app is approved; RR-07 stands unconditionally.
+- **[RR-A6 — What's the upload strategy on the school-wifi floor?](#rr-a6--whats-the-upload-strategy-on-the-school-wifi-floor)** — **None for v1.** Audio is ~1 s a take; in-order queue decided in Phase 3.3; video numbers deferred with video.
+- **[RR-09 — Get the four answers that only the district and Google can give](#rr-09--get-the-four-answers-that-only-the-district-and-google-can-give)** — **Answered by posture, not counsel.** Internal app; every persisted artifact lives only in staff Drive (hard constraint on Phase 3.3); transcription not planned, so q7 is moot.
+
 **Destination confirmed** 2026-08-04 (not a ticket, recorded here so it isn't re-litigated): the spec covers all three tracks; narrower, wider, and spec-plus-build were considered and rejected. See the ✅ note under **Destination**.
 
 ---
@@ -139,6 +143,8 @@ These are load-bearing. Several tickets are really "should we reuse this or not?
 ## Frontier
 
 Open, unblocked, unclaimed — takeable right now:
+
+_**Nothing (2026-09-01).** RR-A5, RR-A6 and RR-09 closed on Paul's notes; RR-B3 is deferred with the whiteboard track. The map has handed off to implementation._
 
 _Rebuilt 2026-08-09 after RR-10 closed. **The map now has no design tickets left,
 and this time the claim has been checked against the fog before being made** — the
@@ -401,6 +407,20 @@ pair that must be kept in step. It is also the first mode whose **gating differs
 from its content**: it records a child's voice exactly as `'audio'` does but
 carries no camera, so RR-A3's video gate does not name it and it ships ungated.
 The set-subtraction model handled a case it was never tested against.
+
+**2026-09-02 — sub-decision 3 shipped.** `'short'` and `'essay'` are now one
+`QuizQuestionType` value, **`'free-response'`** (teacher label "Free Response",
+badge FRQ); `isWrittenQuestionType` became `isFreeResponseType`. Legacy values
+are normalized at every read site (`utils/quizQuestionNormalize.ts`: Drive
+`loadQuiz`, shared/synced imports, both `quiz_sessions` listeners) and never
+rewritten. The response mode moved up under Type as a **Format** segmented
+control (Typed / Spoken) that expands the recording settings in place;
+**"Student's choice" is deferred** — the control's options are data-driven so
+it is a one-line addition when Paul wants it. "Word cap" became a **min/max
+Word limit** with an optional **Enforce limit** switch: enforcement lives at
+the Submit button only (a timer still auto-submits, flagged
+`timedOutUnderMinimum` on the answer entry; a blank draft is never trapped).
+PRs #2756–#2759.
 
 **Paul's notes:**
 
@@ -1672,7 +1692,7 @@ reads "the graded take" rather than "the winning take."**
 
 - 🔵 **RR-B2 (2026-08-07) answered the question this ticket handed it, and it came back on the one-artifact branch.** Audio and strokes arm on one clock and commit as a single take, so **a whiteboard take is a recording** — transcription applies to it, under both gates, on the graded take per RR-06 sub-decision 5. The slot therefore holds four kinds at once (audio, command log, final-state PNG, optional `kind: 'text'` transcript), which is the shape this ticket described for the _attached_ branch arriving via the synchronized one. **No new gating question**: RR-B2 confirmed a narrated whiteboard is audio-class for permissions, since it carries no camera.
 
-**Paul's notes:**
+**Paul's notes:** AI transcription: I don't plan to implement this if avoidable. Keep the boundary as decided; don't build the callable. _(2026-09-01)_
 
 ---
 
@@ -1803,6 +1823,20 @@ premise outright.
   magnitude, and this ticket is where the wrong number lands.
 
 - ✅ **RR-10 (2026-08-09) answered this ticket's one optional item, and answered it by construction rather than by choosing.** This ticket left open _"whether a count of hand-graded slots appears anywhere,"_ naming the existing `Manual` badge (`QuizResults.tsx:1850`) as the obvious home. RR-10 sub-decision 6 puts a **slot count in the editor's advisory** — _"records up to N slots per student"_ — for a storage reason, and by **this ticket's own sub-decision 10** the recording-slot count **is** the hand-grading count: nine MC plus one video is one thing to hand-grade. **One figure serves both, at authoring time rather than after**, and the `Manual` badge stays the grading-side home unchanged. 🔵 Worth noting the direction of travel: this ticket _"asked the editor for almost nothing, which is an answer rather than a deferral"_ — and the editor ended up supplying the one thing anyway, from the other side.
+
+**2026-09-02 — one grader, not two.** Sub-decision 9's question-major queue
+now grades **every** Free Response answer, typed or spoken: `FreeResponseGrader`
+replaces both the student-major `WrittenResponseGrader` and the spoken-only
+`MediaResponseGrader`, keeping the media grader's shape (student rail left,
+response centre, rubric / score / comments right) and folding in the text
+path's annotations, word count, rubric scoring and per-student rubric
+overrides. Paul's finding: a teacher who opened "Grade written" on a spoken
+question was told the student didn't answer, because the two graders split by
+format rather than by what needs a human. The results screen and the Classroom
+add-on now expose one **Grade Free Response** entry point; spoken questions
+join the queue only when a take resolver is wired (the media gate), and a
+rubric attached to a spoken question is finally scoreable. Grade keys are
+unchanged (`gradingKey`, primary unsuffixed).
 
 **Paul's notes:**
 
@@ -1946,6 +1980,8 @@ days.**
 ---
 
 #### RR-07 Resolution — _resolved 2026-08-16_
+
+> ✅ **Provisional flag lifted 2026-09-01.** RR-A5 closed on Paul's confirmation that district Chromebooks are current and the app is approved, so sub-decision 1 no longer rests on an unrun measurement.
 
 🔴 **This ticket answers its own title question with _"there isn't one."_ There is
 no alternate format, and the mandatory non-recorded floor is deleted.** Both of
@@ -2509,7 +2545,7 @@ media.**
 
 ### RR-09 — Get the four answers that only the district and Google can give
 
-**Type:** task (HITL — district counsel, records officer, and Google) · **Status:** Open · unclaimed · **Blocks:** nothing · _Opened 2026-08-04 by RR-04's research_
+**Type:** task (HITL — district counsel, records officer, and Google) · **Status:** ✅ **Closed 2026-09-01** (by Paul; no email sent) · **Blocks:** nothing · _Opened 2026-08-04 by RR-04's research_
 
 > 🔵 **Stale line corrected 2026-08-06 by RR-05.** This ticket claimed **Blocks: RR-05** from the day it was charted, but RR-05 never listed it as a blocker and the frontier had called RR-05 takeable since 2026-08-05. **RR-05 closed without it**, so the claim is retired rather than merely doubted. This ticket blocks nothing on the map today — its items are confirmations, district guidance, and contract hygiene.
 
@@ -2565,9 +2601,9 @@ about them.
 representation the STANDARD omits, and adding video to Exhibit "B" (there's no
 video row).
 
-**Resolution:** _(unresolved)_
+**Resolution:** _resolved 2026-09-01_ — **Answered by district posture rather than by counsel.** SpartBoard is an internal district app and every persisted student artifact lives in the staff member's Drive, which is the posture the district already operates under. On that basis: **q3 and q11 are settled** (student-created recordings and student photos are covered as long as they persist only in staff Drive — Phase 3.3 must honor this as a hard constraint, not a seven-day sweep); **q7 is moot** because AI transcription is not planned; q1, q2, q5, q6, q8 are confirmations that change no decision; q4 and q10 travel with the deferred video and whiteboard tracks; q9 is a vendor-docs check for Phase 3.4; q12 rides with q11 and resolves to "say nothing", matching every existing upload path.
 
-**Paul's notes:**
+**Paul's notes:** 3: as long as audio/video only ever persist in the staff member's Drive it's all good. 11: same as 3. 7: I don't plan to implement transcription if avoidable. _(2026-09-01)_
 
 ---
 
@@ -3302,6 +3338,10 @@ permanent for the lesson while being literally temporary. **Accepted knowingly:*
 a student who refuses sits visibly stuck for the remainder of the period unless
 the teacher intervenes.
 
+**Implementation note 2026-09-02:** the block is enforced in QuizStudentApp's
+self-paced submit path (PR #2752); it applies only to open slots — a closed or
+capture-unavailable slot never blocks, per RR-07.
+
 **2. Discards are never counted and never written.** The budget counts
 **committed takes only**. A discarded take leaves no trace, exactly as RR-A1
 sub-decision 7 designed, and no Firestore write anywhere records that a student
@@ -3902,7 +3942,7 @@ actual numeric default `audioBitsPerSecond`.
 
 ### RR-A5 — Verify format round-trip and capture policy on real district hardware
 
-**Type:** task (HITL — needs a person on district hardware and a district Chrome admin) · **Status:** Open · unclaimed · **Blocks:** RR-A6 (~~RR-A3~~ closed) · _Opened 2026-08-04 by RR-A4's resolution_
+**Type:** task (HITL — needs a person on district hardware and a district Chrome admin) · **Status:** ✅ **Closed 2026-09-01** (by Paul, without running the harness) · **Blocks:** RR-A6 (~~RR-A3~~ closed) · _Opened 2026-08-04 by RR-A4's resolution_
 
 **Question**
 
@@ -4091,15 +4131,15 @@ sits directly beside RR-C1's pdf.js paging test and costs nothing extra to run
 while the file is already open. **If two stimuli plainly cannot fit, that is
 evidence for capping the stack — which sub-decision 2 deliberately did not do.**
 
-**Resolution:** _(unresolved)_
+**Resolution:** _resolved 2026-09-01_ — **Nothing to verify.** District Chromebooks are all current and the app is already approved for the student OU, so item 4's allowlist question is answered and RR-07 sub-decision 1 stands unconditionally. The device checklist is not run; any codec or canvas surprise is handled as an ordinary Phase 3 bug, not a design reopen.
 
-**Paul's notes:**
+**Paul's notes:** Chromebooks are fine. That entire branch was overblown — they're all up to date and the app is approved. _(2026-09-01)_
 
 ---
 
 ### RR-A6 — What's the upload strategy on the school-wifi floor?
 
-**Type:** grilling (HITL) · **Status:** Open · **Blocked by:** ~~RR-03~~ (closed), ~~RR-A3~~ (closed), RR-A5 · _Graduated from fog 2026-08-04 by RR-A4's resolution_
+**Type:** grilling (HITL) · **Status:** ✅ **Closed 2026-09-01** (with RR-A5) · **Blocked by:** ~~RR-03~~ (closed), ~~RR-A3~~ (closed), RR-A5 · _Graduated from fog 2026-08-04 by RR-A4's resolution_
 
 **Question**
 
@@ -4180,7 +4220,7 @@ Everything else got easier:
 - **The size cap can now be set**, which RR-03 deliberately deferred pending the bitrate policy: 4.0 MB at the 60 s default, ~8 MB at the 120 s video maximum, ~1.2 MB for a 300 s audio take. The shipped activity-wall rule's 10 MB is coincidentally about right for video and wildly generous for audio.
 - **Crash recovery is out of scope by decision, not omission.** A lost take is lost (RR-A1 sub-decision 7); IndexedDB buffering was considered and rejected there. It can be reconsidered here **only** in a form that keeps bytes local — which also keeps RR-04's derived-artifact sweep problem in the bullet above tractable.
 
-**Resolution:** _(unresolved)_
+**Resolution:** _resolved 2026-09-01_ — **No strategy needed for v1.** Audio is ~1 s per take on the measured floor, so the only live question — how back-to-back take uploads behave — is an in-order upload queue decided inside Phase 3.3, not a design ticket. The video-sized numbers that made this ticket sharp are deferred with video; reopen only if video ships.
 
 🔵 **RR-A2 (2026-08-06) removed this ticket's per-assignment denominator.** RR-A1
 handed it "4.0 MB a take, 16 s to upload, 599 MB an assignment." **The first two
@@ -4196,7 +4236,7 @@ Three consequences for this ticket:
 
 - 🔵 **RR-B2 (2026-08-07) introduced a payload shape this ticket has not priced: the multi-file commit.** Every other mode uploads **one** artifact per take; a whiteboard commit uploads **three at once** — audio (up to 600 s, the longest artifact on the map), a `{ t, cmd }[]` event log, and a rendered final-state PNG. The log and the PNG are small, so this is not a bytes problem; it is that **a single commit is now a transaction that either lands whole or leaves a partial take**, and RR-08's in-flight Submit block has to mean all three rather than the one. Whatever threshold this ticket picks has to be expressed per-commit, not per-file.
 
-**Paul's notes:**
+**Paul's notes:** See RR-A5 — the wifi/Chromebook branch was overblown. _(2026-09-01)_
 
 ---
 

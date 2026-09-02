@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
 }));
+const { showConfirm } = vi.hoisted(() => ({
+  showConfirm: vi.fn(() => Promise.resolve(true)),
+}));
 vi.mock('@/context/useDialog', () => ({
-  useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
+  useDialog: () => ({ showConfirm }),
 }));
 
-import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
+import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type { QuizData, QuizResponse } from '@/types';
 
 afterEach(cleanup);
@@ -22,7 +25,7 @@ const quiz: QuizData = {
   questions: [
     {
       id: 'q1',
-      type: 'essay',
+      type: 'free-response',
       text: 'Write something.',
       timeLimit: 0,
       correctAnswer: '',
@@ -44,11 +47,11 @@ const response: QuizResponse = {
   tabSwitchWarnings: 0,
 };
 
-describe('WrittenResponseGrader — Escape with widget portal', () => {
+describe('FreeResponseGrader — Escape with widget portal', () => {
   it('does not call onClose when Escape originates from inside a [data-widget-portal] element', () => {
     const onClose = vi.fn();
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[response]}
         onSaveGrade={vi.fn().mockResolvedValue(undefined)}
@@ -77,5 +80,29 @@ describe('WrittenResponseGrader — Escape with widget portal', () => {
     } finally {
       document.body.removeChild(portalRoot);
     }
+  });
+});
+
+describe('FreeResponseGrader — Escape with unsaved edits', () => {
+  it('routes Escape through the shell dirty-check instead of closing outright', () => {
+    showConfirm.mockClear();
+    const onClose = vi.fn();
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[response]}
+        onSaveGrade={vi.fn().mockResolvedValue(undefined)}
+        teacherUid="teacher-1"
+        onClose={onClose}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/Points awarded/i), {
+      target: { value: '5' },
+    });
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

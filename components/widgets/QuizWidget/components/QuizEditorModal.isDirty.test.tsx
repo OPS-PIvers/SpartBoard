@@ -20,6 +20,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: { uid: 'uid-test', displayName: 'Test Teacher' },
     canAccessFeature: vi.fn(() => false),
+    canAccessQuizMediaResponse: vi.fn(() => false),
   })),
 }));
 
@@ -131,7 +132,7 @@ const rubricQuiz: QuizData = {
     {
       id: 'q1',
       text: 'Explain your reasoning.',
-      type: 'essay',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
       timeLimit: 60,

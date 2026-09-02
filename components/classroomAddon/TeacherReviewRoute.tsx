@@ -9,7 +9,7 @@
  *
  * LEAN by design (chosen over mounting the full QuizResults): it runs on the
  * teacher session hook + the quiz library only — NO DashboardProvider, so it
- * adds no dashboard Firestore listeners. It reuses the real WrittenResponseGrader
+ * adds no dashboard Firestore listeners. It reuses the real FreeResponseGrader
  * modal and the existing publish-scores / push-grades plumbing.
  *
  * Flow:
@@ -17,7 +17,7 @@
  *      session) + a Drive token (loads the full quiz for grading).
  *   2. Resolve the quiz_sessions doc id from the join code.
  *   3. Stream the session + responses (useQuizSessionTeacher) and load the full
- *      QuizData from Drive (needed: WrittenResponseGrader + score math read the
+ *      QuizData from Drive (needed: FreeResponseGrader + score math read the
  *      real questions/answers, not the answer-stripped publicQuestions).
  *   4. The teacher can: grade written responses, publish scores to students
  *      (so the student view shows results — see QuizStudentApp), and push grades
@@ -53,7 +53,8 @@ import {
   isResponseAwaitingGrade,
   getScoreSuffix,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
-import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
+import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
+import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
 import {
   buildQuizClassroomGradeEntries,
   formatGradePushToast,
@@ -67,7 +68,7 @@ import {
 import { requestClassroomTeacherToken } from './gisOAuth';
 import { logError } from '@/utils/logError';
 import {
-  isWrittenQuestionType,
+  isFreeResponseType,
   type QuizData,
   type QuizScoreVisibility,
 } from '@/types';
@@ -103,7 +104,14 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const kind = params.get('kind') ?? 'quiz';
   const loginHint = params.get('login_hint') ?? undefined;
 
-  const { user, signInWithGoogle, googleAccessToken, orgId } = useAuth();
+  const {
+    user,
+    signInWithGoogle,
+    googleAccessToken,
+    refreshGoogleToken,
+    orgId,
+    canAccessQuizMediaResponse,
+  } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { publishAssignmentScores } = useQuizAssignments(user?.uid);
 
@@ -211,13 +219,13 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
 
   const questions = useMemo(() => quizData?.questions ?? [], [quizData]);
   const hasWritten = useMemo(
-    () => questions.some((q) => isWrittenQuestionType(q.type)),
+    () => questions.some((q) => isFreeResponseType(q.type)),
     [questions]
   );
   const scoreSuffix = getScoreSuffix(session ?? undefined);
 
   // Per-response display name keyed by the deterministic response-doc key (same
-  // key WrittenResponseGrader + the grade write use). Classroom students are
+  // key FreeResponseGrader + the grade write use). Classroom students are
   // SSO, so their real name resolves via the pseudonym map (no roster needed);
   // PIN names would need rosters we don't have in the iframe, so they fall back.
   const displayNameByResponseKey = useMemo(() => {
@@ -232,12 +240,28 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   }, [responses, pseudonyms.byStudentUid]);
 
   const [showGrader, setShowGrader] = useState(false);
+  // Spoken answers play only behind the media gate; without it they stay out of the queue.
+  const resolveTakeUrl = useMemo(
+    () =>
+      canAccessQuizMediaResponse() && session?.mediaResponseEnabled === true
+        ? createDriveTakeUrlResolver({
+            getToken: () => googleAccessToken,
+            refreshToken: refreshGoogleToken,
+          })
+        : undefined,
+    [
+      canAccessQuizMediaResponse,
+      session?.mediaResponseEnabled,
+      googleAccessToken,
+      refreshGoogleToken,
+    ]
+  );
   const [publishVisibility, setPublishVisibility] = useState<
     Exclude<QuizScoreVisibility, 'none'>
   >('score-and-responses');
 
   const saveWrittenGrade = useCallback<
-    React.ComponentProps<typeof WrittenResponseGrader>['onSaveGrade']
+    React.ComponentProps<typeof FreeResponseGrader>['onSaveGrade']
   >(
     async (responseKey, questionId, grade) => {
       if (!sessionId) return;
@@ -525,7 +549,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
             {hasWritten && (
               <div>
                 <p className="mb-1.5 text-sm font-medium text-slate-700">
-                  Written responses
+                  Free Response
                 </p>
                 <AddonButton
                   variant="secondary"
@@ -533,7 +557,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
                   disabled={!quizData || responses.length === 0}
                   onClick={() => setShowGrader(true)}
                 >
-                  Grade written responses
+                  Grade Free Response
                 </AddonButton>
               </div>
             )}
@@ -602,11 +626,12 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
       </div>
 
       {showGrader && quizData && sessionId && user?.uid && (
-        <WrittenResponseGrader
+        <FreeResponseGrader
           quiz={quizData}
           responses={responses}
           displayNameByResponseKey={displayNameByResponseKey}
           teacherUid={user.uid}
+          resolveTakeUrl={resolveTakeUrl}
           onSaveGrade={saveWrittenGrade}
           onClose={() => setShowGrader(false)}
         />

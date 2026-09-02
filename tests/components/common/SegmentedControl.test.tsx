@@ -98,4 +98,28 @@ describe('SegmentedControl', () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(first).toHaveFocus();
   });
+
+  it('renders as a radiogroup with aria-checked radios when asked, arrows still selecting', () => {
+    const onChange = vi.fn();
+    render(
+      <SegmentedControl
+        value="settings"
+        onChange={onChange}
+        options={[...OPTIONS]}
+        ariaLabel="Format"
+        role="radiogroup"
+      />
+    );
+    expect(screen.getByRole('radiogroup', { name: 'Format' })).toBeTruthy();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    const settings = screen.getByRole('radio', { name: 'Settings' });
+    expect(settings).toHaveAttribute('aria-checked', 'true');
+    expect(settings).not.toHaveAttribute('aria-selected');
+    settings.focus();
+    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenCalledWith('style');
+    expect(document.activeElement).toBe(
+      screen.getByRole('radio', { name: 'Style' })
+    );
+  });
 });

@@ -60,7 +60,7 @@ describe('WrittenResponseEditor', () => {
     expect(screen.getByText(/3 \/?\s*words?/i)).toBeInTheDocument();
   });
 
-  it('warns past maxWords cap', () => {
+  it('marks the counter amber past maxWords', () => {
     render(
       <WrittenResponseEditor
         value="one two three four five"
@@ -69,12 +69,10 @@ describe('WrittenResponseEditor', () => {
         questionKey="q1"
       />
     );
-    expect(
-      screen.getByText(/past the suggested word cap/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText('5 / 3 words').className).toContain('amber');
   });
 
-  it('does NOT warn when at or below maxWords', () => {
+  it('keeps the counter neutral at or below maxWords', () => {
     render(
       <WrittenResponseEditor
         value="one two three"
@@ -83,9 +81,86 @@ describe('WrittenResponseEditor', () => {
         questionKey="q1"
       />
     );
-    expect(
-      screen.queryByText(/past the suggested word cap/i)
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('3 / 5 words').className).not.toContain('amber');
+  });
+
+  it('renders both bounds as a range in the counter', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={100}
+        maxWords={200}
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 100–200 words')).toBeInTheDocument();
+  });
+
+  it('renders a min-only bound with a trailing plus', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={100}
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 100+ words')).toBeInTheDocument();
+  });
+
+  it('marks the counter amber below the minimum', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={100}
+        light
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 100+ words').className).toContain('amber');
+  });
+
+  it('leaves the counter neutral inside the range', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={1}
+        maxWords={200}
+        light
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 1–200 words').className).not.toContain(
+      'amber'
+    );
+  });
+
+  it('marks the counter amber below the minimum too, not just above the maximum', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two"
+        onChange={vi.fn()}
+        minWords={50}
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('2 / 50+ words').className).toContain('amber');
+  });
+
+  it('keeps a blank draft neutral even under a minimum', () => {
+    render(
+      <WrittenResponseEditor
+        value=""
+        onChange={vi.fn()}
+        minWords={50}
+        enforceWordLimit
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('0 / 50+ words').className).not.toContain('amber');
   });
 
   it('remounts and reseeds when questionKey changes (pause/resume)', () => {
@@ -107,25 +182,9 @@ describe('WrittenResponseEditor', () => {
     expect(getEditor().textContent).toContain('second answer');
   });
 
-  it('shows list controls only in essay mode', () => {
-    const { rerender } = render(
-      <WrittenResponseEditor
-        value=""
-        onChange={vi.fn()}
-        questionKey="q1"
-        isEssay={false}
-      />
-    );
-    expect(
-      screen.queryByRole('button', { name: /bulleted list/i })
-    ).not.toBeInTheDocument();
-    rerender(
-      <WrittenResponseEditor
-        value=""
-        onChange={vi.fn()}
-        questionKey="q1"
-        isEssay={true}
-      />
+  it('always shows list controls', () => {
+    render(
+      <WrittenResponseEditor value="" onChange={vi.fn()} questionKey="q1" />
     );
     expect(
       screen.getByRole('button', { name: /bulleted list/i })

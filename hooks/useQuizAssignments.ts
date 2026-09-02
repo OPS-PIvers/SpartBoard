@@ -11,7 +11,7 @@
  * submissions) or Inactive (URL dead, responses preserved).
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
   collection,
   deleteField,
@@ -46,16 +46,20 @@ import type {
   QuizAssignmentSyncLinkage,
   QuizData,
   QuizMetadataSyncLinkage,
+  QuizPublicQuestion,
   QuizQuestion,
   QuizResponse,
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuizSessionMode,
   QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
   StudentOverride,
 } from '@/types';
+import { isFreeResponseType } from '@/types';
+import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { projectSessionStimuli } from '@/utils/quizStimuli';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
@@ -74,6 +78,10 @@ import {
 } from './useSyncedQuizGroups';
 import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { responseHasArtifacts } from '@/utils/responseArtifacts';
+import { AuthContext } from '@/context/AuthContextValue';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -631,6 +639,39 @@ export const useQuizAssignments = (
     assignmentsRef.current = assignments;
   }, [assignments]);
 
+  // The fail-closed media gate lives here because `/quiz` mounts no
+  // AuthProvider: the teacher decides at assign time, and the decision travels
+  // on the session doc. Read via `useContext` rather than `useAuth()` so a
+  // provider-less caller denies instead of throwing.
+  const authContext = useContext(AuthContext);
+  const mediaResponseGranted =
+    authContext?.canAccessQuizMediaResponse?.() === true;
+
+  // Ungated teachers publish the question without its recording block, so the
+  // student app has nothing to mount even if it wanted to.
+  const toGatedPublicQuestion = useCallback(
+    (question: QuizQuestion): QuizPublicQuestion => {
+      const projected = toPublicQuestion(question);
+      if (mediaResponseGranted || !projected.recording) return projected;
+      const { recording: _stripped, ...rest } = projected;
+      return rest;
+    },
+    [mediaResponseGranted]
+  );
+
+  // Recorded answers are a self-paced (student mode) feature: only there does a
+  // per-student submit exist to satisfy the Tennessen notice's promise. Strip the
+  // recording block for any other session mode, regardless of the media gate.
+  const projectPublicQuestionForMode = useCallback(
+    (question: QuizQuestion, mode: QuizSessionMode): QuizPublicQuestion => {
+      const projected = toGatedPublicQuestion(question);
+      if (mode === 'student' || !projected.recording) return projected;
+      const { recording: _stripped, ...rest } = projected;
+      return rest;
+    },
+    [toGatedPublicQuestion]
+  );
+
   // Adjust state during render when userId transitions away — avoids the
   // "set-state-in-effect" anti-pattern while still clearing stale data when
   // the user signs out.
@@ -785,6 +826,13 @@ export const useQuizAssignments = (
               ? 'active'
               : 'waiting';
 
+      const sessionPublicQuestions = sessionQuestions.map((q) =>
+        projectPublicQuestionForMode(q, mode)
+      );
+      const sessionHasRecording = sessionPublicQuestions.some(
+        (q) => !!q.recording
+      );
+
       const session: QuizSession = {
         id: assignmentId,
         assignmentId,
@@ -798,7 +846,12 @@ export const useQuizAssignments = (
         endedAt: null,
         code,
         totalQuestions: sessionQuestions.length,
-        publicQuestions: sessionQuestions.map(toPublicQuestion),
+        publicQuestions: sessionPublicQuestions,
+        // Opts this session into server-side `unresponded` completeness writes;
+        // sessions from older clients omit it and keep pre-feature finalize behaviour.
+        completenessModel: 1,
+        // Carries the teacher-side media gate to `/quiz`, which has no AuthProvider.
+        ...(sessionHasRecording ? { mediaResponseEnabled: true } : {}),
         // Stimuli referenced by at least one question, labels stripped.
         // Omitted entirely for stimulus-free quizzes.
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
@@ -855,7 +908,11 @@ export const useQuizAssignments = (
       const batch = writeBatch(db);
       batch.set(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        assignment
+        // Teacher-side twin of the session marker, so a later sync knows
+        // whether to look for committed takes without reading the session.
+        sessionHasRecording
+          ? { ...assignment, mediaResponseEnabled: true }
+          : assignment
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), session);
       await batch.commit();
@@ -917,7 +974,7 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId]
+    [userId, projectPublicQuestionForMode]
   );
 
   const setStatus = useCallback(
@@ -1584,7 +1641,7 @@ export const useQuizAssignments = (
       const effectiveMode: SharedAssignmentImportMode =
         requestedMode === 'sync' && shared.syncGroupId ? 'sync' : 'copy';
 
-      let initialQuestions = shared.questions;
+      let initialQuestions = normalizeQuizQuestions(shared.questions);
       let initialTitle = shared.title;
       let initialStimuli = shared.stimuli;
       let canonicalVersion: number | undefined = undefined;
@@ -1872,7 +1929,10 @@ export const useQuizAssignments = (
       // doesn't have to special-case post-sync state.
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
-      const publicQuestions = canonicalQuestions.map(toPublicQuestion);
+      const publicQuestions = canonicalQuestions.map((q) =>
+        projectPublicQuestionForMode(q, assignment.sessionMode)
+      );
+      const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({
         questions: canonicalQuestions,
         stimuli: canonical.stimuli,
@@ -1912,6 +1972,40 @@ export const useQuizAssignments = (
           where('preSyncVersion', '==', 0)
         )
       );
+      // Revoking the recording block stops NEW capture; it must not strand
+      // takes already committed. Clearing the marker would hide the grader,
+      // withhold the score and deny playback for work the student finished,
+      // so the marker is sticky while any response still carries artifacts.
+      // The already-loaded assignment carries the same marker, so a quiz that
+      // never recorded costs no extra reads at all.
+      let stickyMediaMarker = false;
+      if (!syncHasRecording && assignment.mediaResponseEnabled !== false) {
+        // Absent mirror predates this field; fall back to the session doc.
+        let shouldScanArtifacts = assignment.mediaResponseEnabled === true;
+        if (assignment.mediaResponseEnabled === undefined) {
+          const sessionSnap = await getDoc(
+            doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+          );
+          const sessionData = sessionSnap.data() as
+            | { mediaResponseEnabled?: boolean }
+            | undefined;
+          shouldScanArtifacts =
+            shouldScanArtifacts || !!sessionData?.mediaResponseEnabled;
+        }
+        if (shouldScanArtifacts) {
+          const allResponses = await getDocs(
+            collection(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              assignmentId,
+              RESPONSES_COLLECTION
+            )
+          );
+          stickyMediaMarker = (allResponses?.docs ?? []).some((d) =>
+            responseHasArtifacts(d.data())
+          );
+        }
+      }
       const now = Date.now();
       const responsesToTag = responsesSnap.docs;
 
@@ -1938,6 +2032,9 @@ export const useQuizAssignments = (
           groupId: assignment.sync.groupId,
           syncedVersion: canonical.version,
         },
+        // Kept in lockstep with the session marker below.
+        mediaResponseEnabled:
+          syncHasRecording || stickyMediaMarker ? true : deleteField(),
         updatedAt: now,
       });
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
@@ -1947,6 +2044,10 @@ export const useQuizAssignments = (
         // publicQuestions; deleteField clears stale entries when the
         // canonical edit removed the last stimulus.
         stimuli: canonicalStimuli.length > 0 ? canonicalStimuli : deleteField(),
+        // Re-derived every sync, so revoking the gate clears a stale marker —
+        // unless committed takes still depend on it.
+        mediaResponseEnabled:
+          syncHasRecording || stickyMediaMarker ? true : deleteField(),
       });
       // 2 writes already used (assignment + session); fill the rest.
       const firstChunkSize = Math.min(
@@ -1982,7 +2083,7 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId]
+    [userId, projectPublicQuestionForMode]
   );
 
   const unpublishAssignmentScores = useCallback<
@@ -2137,16 +2238,16 @@ export const useQuizAssignments = (
         // the ungraded slot counts as 0 here, so publishing now would show
         // the student a grade the teacher hasn't finished awarding.
         let awaitingGrade = false;
-        // Track which question ids have already been scored so a duplicate
-        // answer (arrayUnion race writing the same questionId twice into
-        // `answers`) can't inflate pointsEarned and pointsMax. Each
-        // answer is still graded for its `isCorrect` flag, but only the
-        // first occurrence of a questionId contributes to the totals —
-        // matching the dedup already applied in the unanswered loop below
-        // and mirroring the identical guard in
+        // Pick one representative answer per questionId — highest takeIndex
+        // wins, ties (equal or absent takeIndex, e.g. an arrayUnion race)
+        // broken by earliest answeredAt — so a duplicate answer can't
+        // inflate pointsEarned and pointsMax. Each answer is still graded
+        // for its `isCorrect` flag, but only the representative contributes
+        // to the totals — matching the dedup already applied in the
+        // unanswered loop below and mirroring the identical guard in
         // `useVideoActivityAssignments.publishAssignmentScores` (#1728,
         // #1787, #1803).
-        const scoredQuestionIds = new Set<string>();
+        const representativeAnswers = selectRepresentativeAnswers(answers);
         const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
           const q = questionsById.get(a.questionId);
           if (!q) {
@@ -2163,17 +2264,19 @@ export const useQuizAssignments = (
           // a quiz that contained essays would freeze them at 0 points
           // and the archive would silently disagree with the live results
           // view forever after.
-          const manualGrade =
-            q.type === 'short' || q.type === 'essay'
-              ? data.grading?.[q.id]
-              : undefined;
-          const result = gradeAnswer(q, a.answer, manualGrade);
+          const manualGrade = isFreeResponseType(q.type)
+            ? readSlotGrade(data.grading, q.id)
+            : undefined;
+          const result = applyMediaSlots(
+            q,
+            data,
+            gradeAnswer(q, a.answer, manualGrade)
+          );
           if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (
-            !scoredQuestionIds.has(a.questionId) &&
+            representativeAnswers.get(a.questionId) === a &&
             (!servedIds || servedIds.has(a.questionId))
           ) {
-            scoredQuestionIds.add(a.questionId);
             pointsEarned += result.pointsEarned;
             pointsMax += result.pointsMax;
           }
