@@ -20,6 +20,7 @@ import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 
 /**
  * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
@@ -38,9 +39,10 @@ function quizGradeFnWithManualGrades(
 ) {
   const manualGrade =
     (question.type === 'short' || question.type === 'essay') && response
-      ? response.grading?.[question.id]
+      ? readSlotGrade(response.grading, question.id)
       : undefined;
-  return gradeAnswer(question, studentAnswer, manualGrade);
+  const base = gradeAnswer(question, studentAnswer, manualGrade);
+  return response ? applyMediaSlots(question, response, base) : base;
 }
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';

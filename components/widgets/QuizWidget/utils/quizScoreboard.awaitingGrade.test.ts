@@ -191,3 +191,124 @@ describe('selectPushableResponses', () => {
     expect(selectPushableResponses([r], [])).toEqual([]);
   });
 });
+
+const RECORDING = {
+  prepSeconds: 30,
+  limitSeconds: 60,
+  prepExpiry: 'armed' as const,
+  takeLimit: null,
+};
+
+const spoken = (id: string): QuizQuestion => ({
+  id,
+  text: 'Say it out loud',
+  timeLimit: 0,
+  type: 'short',
+  correctAnswer: '',
+  incorrectAnswers: [],
+  points: 4,
+  recording: RECORDING,
+});
+
+const recordedResponse = (
+  grading?: QuizResponse['grading'],
+  unresponded?: 'capture-unavailable'
+): QuizResponse =>
+  ({
+    pin: '01',
+    studentUid: 'u1',
+    status: 'completed',
+    answers: unresponded
+      ? [{ questionId: 'q1', answer: '', answeredAt: 1, unresponded }]
+      : [
+          {
+            questionId: 'q1',
+            answer: '',
+            answeredAt: 1,
+            takeIndex: 1,
+            artifacts: [
+              {
+                id: 'a1',
+                slot: 'primary',
+                kind: 'audio',
+                uploadState: 'uploaded',
+                durationMs: 9000,
+              },
+            ],
+          },
+        ],
+    ...(grading ? { grading } : {}),
+  }) as unknown as QuizResponse;
+
+describe('isResponseAwaitingGrade — media slots', () => {
+  it('a recorded answer with no grade is awaiting, not a silent zero', () => {
+    const qs = [spoken('q1')];
+    const r = recordedResponse();
+    expect(isResponseAwaitingGrade(r, qs)).toBe(true);
+    expect(getEarnedPoints(r, qs)).toBe(0);
+    expect(selectPushableResponses([r], qs)).toEqual([]);
+  });
+
+  it('a graded recording scores from the manual grade', () => {
+    const qs = [spoken('q1')];
+    const r = recordedResponse({
+      q1: { pointsAwarded: 3, gradedBy: 't', gradedAt: 1 },
+    });
+    expect(isResponseAwaitingGrade(r, qs)).toBe(false);
+    expect(getEarnedPoints(r, qs)).toBe(3);
+    expect(selectPushableResponses([r], qs)).toHaveLength(1);
+  });
+
+  it('an excused slot is omitted from the push, exactly like an ungraded one', () => {
+    const qs = [spoken('q1')];
+    const r = recordedResponse({
+      q1: { pointsAwarded: 0, excused: true, gradedBy: 't', gradedAt: 1 },
+    });
+    expect(isResponseAwaitingGrade(r, qs)).toBe(true);
+    expect(selectPushableResponses([r], qs)).toEqual([]);
+  });
+
+  it('an unadjudicated capture-unavailable slot still owes a decision', () => {
+    const qs = [spoken('q1')];
+    expect(
+      isResponseAwaitingGrade(
+        recordedResponse(undefined, 'capture-unavailable'),
+        qs
+      )
+    ).toBe(true);
+  });
+
+  it('Blank resolves a capture-unavailable slot to a real zero', () => {
+    const qs = [spoken('q1')];
+    const r = recordedResponse(
+      { q1: { pointsAwarded: 0, gradedBy: 't', gradedAt: 1 } },
+      'capture-unavailable'
+    );
+    expect(isResponseAwaitingGrade(r, qs)).toBe(false);
+    expect(getEarnedPoints(r, qs)).toBe(0);
+  });
+
+  it('an offline substitute scores its points from the note-bearing grade', () => {
+    const qs = [spoken('q1')];
+    const r = recordedResponse(
+      {
+        q1: {
+          pointsAwarded: 2,
+          overallComment: 'Answered aloud at my desk',
+          gradedBy: 't',
+          gradedAt: 1,
+        },
+      },
+      'capture-unavailable'
+    );
+    expect(isResponseAwaitingGrade(r, qs)).toBe(false);
+    expect(getEarnedPoints(r, qs)).toBe(2);
+  });
+
+  it('leaves a question with no recording block completely alone', () => {
+    const qs = [mc('q1')];
+    const r = response([{ questionId: 'q1', answer: 'A' }]);
+    expect(isResponseAwaitingGrade(r, qs)).toBe(false);
+    expect(getEarnedPoints(r, qs)).toBe(1);
+  });
+});

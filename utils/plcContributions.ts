@@ -26,6 +26,7 @@ import type {
 } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 
 const PLC_CONTRIBUTION_SCHEMA_VERSION = 1 as const;
 
@@ -100,9 +101,13 @@ function buildContributionResponse(
     // zero points until the teacher enters a grade.
     const manualGrade =
       q.type === 'short' || q.type === 'essay'
-        ? response.grading?.[q.id]
+        ? readSlotGrade(response.grading, q.id)
         : undefined;
-    const grade = gradeAnswer(q, answer, manualGrade);
+    const grade = applyMediaSlots(
+      q,
+      response,
+      gradeAnswer(q, answer, manualGrade)
+    );
     pointsByQuestionId[q.id] = grade.pointsEarned;
     pointsEarned += grade.pointsEarned;
   }
