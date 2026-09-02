@@ -78,7 +78,16 @@ import {
   StudentOverride,
   isWrittenQuestionType,
   isAnswerSubmitted,
+  type ResponseArtifact,
+  type UnrespondedReason,
 } from '@/types';
+import { countCommittedTakes } from '@/utils/answerTakeOrdering';
+import { AudioResponseCapture } from './recording/AudioResponseCapture';
+import type { AudioTake } from '@/hooks/useAudioRecording';
+import {
+  buildQuizMediaStoragePath,
+  enqueueQuizMediaUpload,
+} from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { useDialog } from '@/context/useDialog';
@@ -340,6 +349,9 @@ const QuizJoinFlow: React.FC<{
     joinQuizSession,
     subscribeForReview,
     submitAnswer,
+    commitRecordingTake,
+    setArtifactUploadState,
+    markUnresponded,
     completeQuiz,
     reportTabSwitch,
     setHandRaised,
@@ -619,6 +631,103 @@ const QuizJoinFlow: React.FC<{
     if (isViewOnly) return;
     await completeQuiz();
   }, [completeQuiz, isViewOnly]);
+
+  // Tennessen acknowledgment. Kept per-device rather than on the response doc
+  // because the student write whitelist in firestore.rules admits no new
+  // top-level field; the ack timestamp itself rides on the take it authorised.
+  const noticeAckKey = session?.id
+    ? `spart_quiz_recording_ack_${session.id}`
+    : null;
+  const [noticeAckedAt, setNoticeAckedAt] = useState<number | null>(null);
+  const [ackKeyRead, setAckKeyRead] = useState<string | null>(null);
+  if (noticeAckKey && ackKeyRead !== noticeAckKey) {
+    setAckKeyRead(noticeAckKey);
+    let stored: number | null = null;
+    try {
+      const raw = window.localStorage.getItem(noticeAckKey);
+      stored = raw ? Number(raw) || null : null;
+    } catch {
+      stored = null;
+    }
+    setNoticeAckedAt(stored);
+  }
+
+  const handleAcknowledgeNotice = useCallback(() => {
+    const at = Date.now();
+    setNoticeAckedAt(at);
+    if (!noticeAckKey) return;
+    try {
+      window.localStorage.setItem(noticeAckKey, String(at));
+    } catch {
+      // A blocked storage quota only costs a repeat of the notice.
+    }
+  }, [noticeAckKey]);
+
+  const handleCommitRecording = useCallback(
+    async (questionId: string, take: AudioTake) => {
+      if (isViewOnly) return;
+      const sessionId = session?.id;
+      const studentUid = authedUid;
+      const responseKey = myResponse?._responseKey;
+      if (!sessionId || !studentUid || !responseKey) return;
+
+      const artifactId = crypto.randomUUID();
+      const artifact: ResponseArtifact = {
+        id: artifactId,
+        slot: 'primary',
+        kind: 'audio',
+        storagePath: buildQuizMediaStoragePath(
+          sessionId,
+          studentUid,
+          artifactId,
+          take.mimeType
+        ),
+        mimeType: take.mimeType,
+        bytes: take.blob.size,
+        durationMs: take.durationMs,
+        uploadState: 'pending',
+      };
+
+      // The metadata lands first, so a mid-upload crash still shows the
+      // student a pending take rather than losing the question silently.
+      await commitRecordingTake({
+        questionId,
+        artifact,
+        noticeAckedAt: noticeAckedAt ?? undefined,
+      });
+
+      const result = await enqueueQuizMediaUpload({
+        sessionId,
+        studentUid,
+        responseKey,
+        questionId,
+        artifactId,
+        blob: take.blob,
+        mimeType: take.mimeType,
+      });
+      await setArtifactUploadState(questionId, artifactId, result.uploadState);
+      if (result.uploadState === 'failed') {
+        throw new Error(result.error ?? 'Archive failed');
+      }
+    },
+    [
+      authedUid,
+      commitRecordingTake,
+      isViewOnly,
+      myResponse?._responseKey,
+      noticeAckedAt,
+      session?.id,
+      setArtifactUploadState,
+    ]
+  );
+
+  const handleMarkUnresponded = useCallback(
+    async (questionId: string, reason: UnrespondedReason) => {
+      if (isViewOnly) return;
+      await markUnresponded(questionId, reason);
+    },
+    [isViewOnly, markUnresponded]
+  );
 
   // Auto-join only works when a code AND a pin are both known. Since pin comes
   // from a form field there's no auto-join on URL code alone — the student
@@ -1005,6 +1114,10 @@ const QuizJoinFlow: React.FC<{
         alreadyAnswered={alreadyAnswered}
         myResponse={myResponse}
         onAnswer={handleAnswer}
+        onCommitRecording={handleCommitRecording}
+        onMarkUnresponded={handleMarkUnresponded}
+        noticeAckedAt={noticeAckedAt}
+        onAcknowledgeNotice={handleAcknowledgeNotice}
         onComplete={handleComplete}
         reportTabSwitch={reportTabSwitch}
         onSetHandRaised={setHandRaised}
@@ -1106,6 +1219,15 @@ const ActiveQuiz: React.FC<{
     speedBonus?: number,
     opts?: { isDraft?: boolean }
   ) => Promise<void>;
+  /** Appends one committed take; rejects so the recorder can show the failure. */
+  onCommitRecording: (questionId: string, take: AudioTake) => Promise<void>;
+  onMarkUnresponded: (
+    questionId: string,
+    reason: UnrespondedReason
+  ) => Promise<void>;
+  /** Tennessen acknowledgment for this assignment; null until acknowledged. */
+  noticeAckedAt: number | null;
+  onAcknowledgeNotice: () => void;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   onSetHandRaised: (raised: boolean) => Promise<void>;
@@ -1125,6 +1247,10 @@ const ActiveQuiz: React.FC<{
   alreadyAnswered: sessionAnswered,
   myResponse,
   onAnswer,
+  onCommitRecording,
+  onMarkUnresponded,
+  noticeAckedAt,
+  onAcknowledgeNotice,
   onComplete,
   reportTabSwitch,
   onSetHandRaised,
@@ -2340,6 +2466,39 @@ const ActiveQuiz: React.FC<{
     }
   };
 
+  // Recording questions: absent block = every existing quiz, unchanged.
+  const recordingConfig = currentQuestion?.recording;
+  const answersForQuestion = currentQuestion
+    ? (myResponse?.answers ?? []).filter(
+        (a) => a.questionId === currentQuestion.id
+      )
+    : [];
+  const committedTakes = currentQuestion
+    ? countCommittedTakes(myResponse?.answers ?? [], currentQuestion.id)
+    : 0;
+  const latestRecordingArtifact = answersForQuestion
+    .filter((a) => (a.artifacts?.length ?? 0) > 0)
+    .sort((a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0))
+    .at(-1)?.artifacts?.[0];
+
+  const handleRecordingPrepExpired = (
+    expiry: NonNullable<QuizPublicQuestion['recording']>['prepExpiry']
+  ) => {
+    if (!currentQuestion) return;
+    if (expiry === 'auto-advance') {
+      void onMarkUnresponded(currentQuestion.id, 'passed').finally(() => {
+        if (isStudentPaced) handleNext();
+      });
+    } else if (expiry === 'unanswered') {
+      void onMarkUnresponded(currentQuestion.id, 'expired');
+    }
+  };
+
+  const handleRecordingCaptureUnavailable = () => {
+    if (!currentQuestion) return;
+    void onMarkUnresponded(currentQuestion.id, 'capture-unavailable');
+  };
+
   const progress = ((currentIndex + 1) / effectiveTotalQuestions) * 100;
 
   // Choices are pre-shuffled in publicQuestions by the teacher side
@@ -2655,7 +2814,40 @@ const ActiveQuiz: React.FC<{
           </h2>
 
           {/* Answer area */}
-          {currentQuestion.type === 'MC' && (
+          {recordingConfig && (
+            <div className="space-y-4">
+              <AudioResponseCapture
+                key={currentQuestion.id}
+                config={recordingConfig}
+                takesCommitted={committedTakes}
+                noticeAckedAt={noticeAckedAt}
+                onAcknowledgeNotice={onAcknowledgeNotice}
+                onCommit={(take) => onCommitRecording(currentQuestion.id, take)}
+                latestArtifact={latestRecordingArtifact}
+                onPrepExpired={handleRecordingPrepExpired}
+                onCaptureUnavailable={handleRecordingCaptureUnavailable}
+              />
+              {isStudentPaced && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={
+                      currentIndex >= effectiveTotalQuestions - 1
+                        ? () => void onComplete()
+                        : handleNext
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+                  >
+                    {currentIndex >= effectiveTotalQuestions - 1
+                      ? 'Submit quiz'
+                      : 'Next'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!recordingConfig && currentQuestion.type === 'MC' && (
             <div className="space-y-3 flex-1">
               {options.map((opt) => {
                 // Self-paced revisits stay editable, so the highlight tracks
@@ -2767,7 +2959,7 @@ const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {currentQuestion.type === 'FIB' && (
+          {!recordingConfig && currentQuestion.type === 'FIB' && (
             <div className="space-y-4 flex-1">
               <input
                 type="text"
@@ -2865,108 +3057,110 @@ const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {(currentQuestion.type === 'Matching' ||
-            currentQuestion.type === 'Ordering') && (
-            <StructuredQuestionInput
-              key={currentQuestion.id}
-              question={currentQuestion}
-              submitted={submitted}
-              isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
-              savedAnswer={liveAnswer}
-              onSubmit={(answer) => void handleSubmit(answer)}
-              onSubmitAndAdvance={(answer) =>
-                void handleSubmitAndAdvance(answer)
-              }
-              onAnswerChange={(answer) => {
-                // The input remounts per question (keyed by id) and its mount
-                // effect re-emits the seeded answer. Skip the write when the
-                // emitted value already matches the cached value: a back-nav
-                // remount would otherwise mark the question touched (freezing
-                // out the seed-from-server refresh) and churn the autosave /
-                // pollute the history log for a no-op overwrite. Genuine
-                // placements differ from the cache and fall through.
-                if (
-                  currentAnswerRef.current.qid === currentQid &&
-                  currentAnswerRef.current.value === answer
-                )
-                  return;
-                // Push the live placement into the cache; the autosave
-                // effect picks it up and debounces the Firestore write.
-                setCacheForCurrent(answer);
-              }}
-              submitting={submitting}
-              isStudentPaced={isStudentPaced}
-              isLastQuestion={currentIndex >= effectiveTotalQuestions - 1}
-              onNext={handleNext}
-              saveError={saveError}
-            />
-          )}
-
-          {(currentQuestion.type === 'short' ||
-            currentQuestion.type === 'essay') && (
-            <div className="space-y-4">
-              {currentQuestion.rubricSnapshot && (
-                <CollapsibleRubric
-                  rubric={currentQuestion.rubricSnapshot}
-                  light={light}
-                />
-              )}
-              <React.Suspense
-                fallback={
-                  <div
-                    className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
-                  >
-                    <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-                  </div>
+          {!recordingConfig &&
+            (currentQuestion.type === 'Matching' ||
+              currentQuestion.type === 'Ordering') && (
+              <StructuredQuestionInput
+                key={currentQuestion.id}
+                question={currentQuestion}
+                submitted={submitted}
+                isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
+                savedAnswer={liveAnswer}
+                onSubmit={(answer) => void handleSubmit(answer)}
+                onSubmitAndAdvance={(answer) =>
+                  void handleSubmitAndAdvance(answer)
                 }
-              >
-                <WrittenResponseEditor
-                  // The editor seeds its `innerHTML` once on mount (caret
-                  // preservation), so we encode a "recovered text needs
-                  // injecting" boolean in the questionKey. A page refresh
-                  // mid-essay first mounts with value='' (cache empty,
-                  // saved null); when the Firestore snapshot arrives the
-                  // seed-from-server block recovery-seeds the cache, the key
-                  // flips from `…:init` → `…:seeded`, and the editor
-                  // remounts with the recovered text. Without this, the
-                  // student stares at a blank editor while React state
-                  // already holds the recovered value.
-                  //
-                  // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
-                  // rather than general cache presence: a student's own first
-                  // keystroke also populates `answerCache`, and keying on that
-                  // remounted the editor mid-type, stealing focus and the caret.
-                  questionKey={`${currentQuestion.id}:${
-                    seededQuestionsRef.current.has(currentQuestion.id)
-                      ? 'seeded'
-                      : 'init'
-                  }`}
-                  value={liveAnswer ?? ''}
-                  onChange={(html) => setCacheForCurrent(html)}
-                  placeholder={currentQuestion.placeholder}
-                  maxWords={currentQuestion.maxWords}
-                  disabled={submitted && !isStudentPaced}
-                  isEssay={currentQuestion.type === 'essay'}
-                  blockClipboard={blockCopyPaste}
-                  light={light}
-                />
-              </React.Suspense>
+                onAnswerChange={(answer) => {
+                  // The input remounts per question (keyed by id) and its mount
+                  // effect re-emits the seeded answer. Skip the write when the
+                  // emitted value already matches the cached value: a back-nav
+                  // remount would otherwise mark the question touched (freezing
+                  // out the seed-from-server refresh) and churn the autosave /
+                  // pollute the history log for a no-op overwrite. Genuine
+                  // placements differ from the cache and fall through.
+                  if (
+                    currentAnswerRef.current.qid === currentQid &&
+                    currentAnswerRef.current.value === answer
+                  )
+                    return;
+                  // Push the live placement into the cache; the autosave
+                  // effect picks it up and debounces the Firestore write.
+                  setCacheForCurrent(answer);
+                }}
+                submitting={submitting}
+                isStudentPaced={isStudentPaced}
+                isLastQuestion={currentIndex >= effectiveTotalQuestions - 1}
+                onNext={handleNext}
+                saveError={saveError}
+              />
+            )}
 
-              {/*
+          {!recordingConfig &&
+            (currentQuestion.type === 'short' ||
+              currentQuestion.type === 'essay') && (
+              <div className="space-y-4">
+                {currentQuestion.rubricSnapshot && (
+                  <CollapsibleRubric
+                    rubric={currentQuestion.rubricSnapshot}
+                    light={light}
+                  />
+                )}
+                <React.Suspense
+                  fallback={
+                    <div
+                      className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                    >
+                      <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                    </div>
+                  }
+                >
+                  <WrittenResponseEditor
+                    // The editor seeds its `innerHTML` once on mount (caret
+                    // preservation), so we encode a "recovered text needs
+                    // injecting" boolean in the questionKey. A page refresh
+                    // mid-essay first mounts with value='' (cache empty,
+                    // saved null); when the Firestore snapshot arrives the
+                    // seed-from-server block recovery-seeds the cache, the key
+                    // flips from `…:init` → `…:seeded`, and the editor
+                    // remounts with the recovered text. Without this, the
+                    // student stares at a blank editor while React state
+                    // already holds the recovered value.
+                    //
+                    // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
+                    // rather than general cache presence: a student's own first
+                    // keystroke also populates `answerCache`, and keying on that
+                    // remounted the editor mid-type, stealing focus and the caret.
+                    questionKey={`${currentQuestion.id}:${
+                      seededQuestionsRef.current.has(currentQuestion.id)
+                        ? 'seeded'
+                        : 'init'
+                    }`}
+                    value={liveAnswer ?? ''}
+                    onChange={(html) => setCacheForCurrent(html)}
+                    placeholder={currentQuestion.placeholder}
+                    maxWords={currentQuestion.maxWords}
+                    disabled={submitted && !isStudentPaced}
+                    isEssay={currentQuestion.type === 'essay'}
+                    blockClipboard={blockCopyPaste}
+                    light={light}
+                  />
+                </React.Suspense>
+
+                {/*
               Sticky CTA: the editor can grow up to ~70vh tall, so without
               `sticky bottom-0` the Submit button rides below the fold and
               students miss it.
             */}
-              <div
-                className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
-              >
-                {isStudentPaced ? (
-                  submitted && currentIndex >= effectiveTotalQuestions - 1 ? (
-                    <QuizCompleteCard />
-                  ) : (
-                    <>
-                      {saveError && <SaveErrorBanner message={saveError} />}
-                      {/* Written NEXT stays enabled (only `submitting` gates it)
+                <div
+                  className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
+                >
+                  {isStudentPaced ? (
+                    submitted && currentIndex >= effectiveTotalQuestions - 1 ? (
+                      <QuizCompleteCard />
+                    ) : (
+                      <>
+                        {saveError && <SaveErrorBanner message={saveError} />}
+                        {/* Written NEXT stays enabled (only `submitting` gates it)
                         so a student can advance past a blank essay; gating it
                         on the cache like MC/FIB would trap anyone who wants to
                         skip. When the cache HAS a value (typed, seeded, or a
@@ -2974,60 +3168,60 @@ const ActiveQuiz: React.FC<{
                         (`submittableAnswer === null`) we advance WITHOUT writing
                         so a fast tap can't clobber a not-yet-loaded saved essay
                         with a blank (see handleSubmitAndAdvance `skipWrite`). */}
-                      <button
-                        onClick={() =>
-                          void handleSubmitAndAdvance(
-                            submittableAnswer ?? '',
-                            submittableAnswer === null
-                          )
-                        }
-                        disabled={submitting}
-                        className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                      >
-                        {submitting ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : currentIndex >= effectiveTotalQuestions - 1 ? (
-                          <>
-                            {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
-                            <CheckCircle2 className="w-5 h-5" />
-                          </>
-                        ) : (
-                          <>
-                            {saveError ? 'Retry' : 'NEXT'}{' '}
-                            <ArrowRight className="w-5 h-5" />
-                          </>
-                        )}
-                      </button>
-                    </>
-                  )
-                ) : !submitted ? (
-                  // Teacher-paced has no self-advance, so (unlike self-paced) we
-                  // can safely gate Submit on the cache: disabled while the
-                  // editor is unseeded (`submittableAnswer === null`) — never
-                  // typed, or the saved answer hasn't echoed yet — so a fast tap
-                  // can't write a blank over a not-yet-loaded saved essay. A
-                  // deliberate clear (cache holds '') is non-null, so it stays
-                  // enabled. The button re-enables once the student types or the
-                  // saved answer loads and seeds the cache.
-                  <button
-                    onClick={() => void handleSubmit(submittableAnswer ?? '')}
-                    disabled={submitting || submittableAnswer === null}
-                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                  >
-                    {submitting ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      'Submit Response'
-                    )}
-                  </button>
-                ) : (
-                  <WrittenSubmittedCard
-                    isWaiting={currentIndex < effectiveTotalQuestions - 1}
-                  />
-                )}
+                        <button
+                          onClick={() =>
+                            void handleSubmitAndAdvance(
+                              submittableAnswer ?? '',
+                              submittableAnswer === null
+                            )
+                          }
+                          disabled={submitting}
+                          className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                        >
+                          {submitting ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : currentIndex >= effectiveTotalQuestions - 1 ? (
+                            <>
+                              {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                              <CheckCircle2 className="w-5 h-5" />
+                            </>
+                          ) : (
+                            <>
+                              {saveError ? 'Retry' : 'NEXT'}{' '}
+                              <ArrowRight className="w-5 h-5" />
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )
+                  ) : !submitted ? (
+                    // Teacher-paced has no self-advance, so (unlike self-paced) we
+                    // can safely gate Submit on the cache: disabled while the
+                    // editor is unseeded (`submittableAnswer === null`) — never
+                    // typed, or the saved answer hasn't echoed yet — so a fast tap
+                    // can't write a blank over a not-yet-loaded saved essay. A
+                    // deliberate clear (cache holds '') is non-null, so it stays
+                    // enabled. The button re-enables once the student types or the
+                    // saved answer loads and seeds the cache.
+                    <button
+                      onClick={() => void handleSubmit(submittableAnswer ?? '')}
+                      disabled={submitting || submittableAnswer === null}
+                      className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        'Submit Response'
+                      )}
+                    </button>
+                  ) : (
+                    <WrittenSubmittedCard
+                      isWaiting={currentIndex < effectiveTotalQuestions - 1}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Raise hand */}
           <div className="mt-6 flex justify-center">

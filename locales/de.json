@@ -1922,5 +1922,51 @@
       "editSkipped": "{{count}} Schüler konnten dieser Aufgabe nicht zugewiesen werden.",
       "editSaveFailed": "Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen."
     }
+  },
+  "quizMediaResponse": {
+    "notice": {
+      "title": "Before you record",
+      "intro": "This question asks for a spoken answer. Read this once before you start.",
+      "purposeLabel": "Why we ask for a recording",
+      "purposeBody": "Your teacher uses your recorded answer to grade this question and to hear how you explain your thinking.",
+      "refuseLabel": "Can you refuse?",
+      "refuseBody": "Yes. You can stop a recording and discard it, and nothing is kept or sent.",
+      "consequenceLabel": "What happens if you refuse",
+      "consequenceBody": "The question stays incomplete and the assignment cannot be submitted.",
+      "recipientsLabel": "Who receives your recording",
+      "recipientsBody": "Your recording is saved to your teacher’s Google Drive under your real name. Your teacher, and school staff who are allowed to see your school records, can listen to it.",
+      "acknowledge": "I have read this",
+      "whyLink": "Why we’re asking"
+    },
+    "capture": {
+      "title": "Spoken answer",
+      "takeUnlimited": "Take {{n}}",
+      "takeOf": "Take {{n}} of {{total}}",
+      "limitHint": "up to {{seconds}} seconds",
+      "prepLabel": "Thinking time",
+      "prepBody": "Plan what you want to say. You can start recording as soon as you are ready.",
+      "requestingMic": "Asking to use your microphone…",
+      "recordingLabel": "Recording",
+      "recordingHint": "Recording stops on its own at {{seconds}} seconds.",
+      "wrapUp": "Wrap it up — recording stops at {{seconds}} seconds.",
+      "reviewLabel": "Listen back",
+      "reviewBody": "Nothing has been sent yet. Keep this take, or discard it and record again.",
+      "reviewPlayerLabel": "Play back your recording",
+      "armedBody": "When you press record you will have {{seconds}} seconds.",
+      "record": "Record",
+      "recordAgain": "Record again",
+      "stop": "Stop recording",
+      "commit": "Keep this take",
+      "discard": "Discard",
+      "dismissFailure": "Try again",
+      "takeLimitReachedTitle": "No takes left",
+      "takeLimitReachedBody": "This question allows {{total}} take(s), and you have used them all. Your last take is the one your teacher receives.",
+      "notSubmittedPending": "Not yet submitted — your recording is still being sent.",
+      "notSubmittedFailed": "Not yet submitted — sending your recording did not finish. We are still trying; keep this page open if you can."
+    },
+    "unavailable": {
+      "title": "Your microphone did not work",
+      "body": "We could not use a microphone on this device, so there is no recording to send. This question goes to your teacher ungraded, and they will decide what to do about it. Move on to the next question."
+    }
   }
 }
