@@ -31,6 +31,20 @@ This machine runs several agents at once and has crashed under full-repo checks.
 
 ## Production safety — zero regressions for users signing in tomorrow
 
+**Every push to `dev-paul` deploys `firestore.rules`, `firestore.indexes.json`,
+`storage.rules` AND `functions/` to the shared production project** (see
+`.github/workflows/firebase-dev-deploy.yml`, step "Deploy Firebase Rules, Indexes,
+Functions, Storage"). Only hosting is isolated to a preview channel. Therefore:
+
+- A change to an EXISTING Cloud Function's behaviour goes live for production clients
+  immediately. Any such change must be gated on a marker that only the new client
+  writes (a session/quiz/assignment field that production clients never set), so
+  documents produced by the old client are handled exactly as today.
+- NEW callables are safe (nothing in production calls them) but must fail closed on
+  missing or malformed input.
+- Rules changes must be purely additive: a new path or a new optional field, never a
+  tightened condition on a path production clients already write.
+
 Production and `dev-paul` share the same Firestore project, rules, Storage bucket and
 Cloud Functions deployment.
 
