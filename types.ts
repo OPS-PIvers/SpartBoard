@@ -3677,6 +3677,36 @@ export interface LtiAttachmentLink {
   contextId?: string;
 }
 
+/** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
+export type ArtifactSlot = 'primary' | 'addendum';
+/** Full peer-mode union; only `'audio'` (and inline `'text'`) ships today. */
+export type ArtifactKind = 'text' | 'audio' | 'video' | 'whiteboard';
+/** Upload is its own axis, separate from the student-intent `status` on the answer. */
+export type ArtifactUploadState = 'pending' | 'uploaded' | 'failed';
+
+/**
+ * One media or text sub-response attached to a {@link QuizResponseAnswer}.
+ * Written by the student client; the server-owned archival lifecycle lives in
+ * the sibling {@link QuizResponse.artifactArchive} map, keyed by `id`.
+ */
+export interface ResponseArtifact {
+  /** Minted client-side at record-stop; never changes, even after archival. */
+  id: string;
+  /** Stored on the response, never derived from the question config at read time. */
+  slot: ArtifactSlot;
+  kind: ArtifactKind;
+  /** Inline text - `kind: 'text'` only; nothing else is ever inlined. */
+  text?: string;
+  /** Firebase Storage transit path (never a resolved download URL); absent once archived. */
+  storagePath?: string;
+  mimeType?: string;
+  bytes?: number;
+  /** Client-measured - Chrome webm reports Infinity on the media element. */
+  durationMs?: number;
+  /** `'pending'` is an expected value, not an error: metadata lands before the bytes do. */
+  uploadState: ArtifactUploadState;
+}
+
 export interface QuizResponseAnswer {
   questionId: string;
   /** MC/FIB: string. Matching: "term1:def1|term2:def2". Ordering: "item1|item2|item3" */
@@ -3708,6 +3738,8 @@ export interface QuizResponseAnswer {
    * `utils/answerTakeOrdering.ts`.
    */
   takeIndex?: number;
+  /** Media/text sub-responses. A sibling to `answer`, which it never overloads. */
+  artifacts?: ResponseArtifact[];
 }
 
 /**
@@ -3720,6 +3752,31 @@ export function isAnswerSubmitted(a: QuizResponseAnswer): boolean {
 }
 
 export type QuizResponseStatus = 'joined' | 'in-progress' | 'completed';
+
+/**
+ * Archival lifecycle of one {@link ResponseArtifact}. Any value other than
+ * `'archived'` with a `driveFileId` means "not currently playable".
+ */
+export type ArtifactArchiveStatus =
+  | 'syncing'
+  | 'archived'
+  | 'failed'
+  | 'deleted'
+  | 'delete-failed';
+
+/** Server-owned archival record for one artifact; see {@link QuizResponse.artifactArchive}. */
+export interface ArtifactArchiveEntry {
+  driveFileId?: string;
+  /** Required - an entry only exists once a status is known. */
+  archiveStatus: ArtifactArchiveStatus;
+  archiveStartedAt?: number;
+  archivedAt?: number;
+  archiveError?: string;
+  deletedAt?: number;
+  /** Admin uid that ran the compliance delete. */
+  deletedBy?: string;
+  deleteAttemptedAt?: number;
+}
 
 /**
  * Per-student response document in Firestore
@@ -3897,6 +3954,13 @@ export interface QuizResponse {
    * this map; their correctness is recomputed on the fly by `gradeAnswer`.
    */
   grading?: { [questionId: string]: WrittenAnswerGrade };
+  /**
+   * Server-written only (Admin SDK, via the archival callable), keyed by
+   * {@link ResponseArtifact.id}. Lives outside `answers[]` for the same reason
+   * `grading` does - a server write must never race the student's wholesale
+   * array rewrite - and must never appear in the student write whitelist.
+   */
+  artifactArchive?: Record<string, ArtifactArchiveEntry>;
   /**
    * Server-stamped time the student raised their hand from the live quiz UI,
    * or null when lowered (by the student or cleared by the teacher). Absent on

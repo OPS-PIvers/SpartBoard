@@ -104,7 +104,8 @@ Every reader of `archiveStatus` must treat anything other than `'archived'`
 (with `driveFileId` present) as "not currently playable" — this already
 holds by construction in 3.3/3.4/3.6's logic; 4.1's new values are additive
 and don't require those briefs to add new branches, only to confirm the
-"else not playable" fallback still catches them.
+"else not playable" fallback still catches them. `isArtifactPlayable`
+(`utils/responseArtifacts.ts`) is the shared helper for this check.
 
 ## `RecordingConfig` (types.ts) — 3.1 (base) + 3.2 (`takeLimit`) is canonical
 
