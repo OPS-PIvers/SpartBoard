@@ -3962,6 +3962,14 @@ export interface QuizResponse {
    */
   artifactArchive?: Record<string, ArtifactArchiveEntry>;
   /**
+   * Server-maintained denormalization of "some `artifactArchive` entry is still
+   * `'syncing'`/`'failed'`". Firestore cannot query into map values, so this is
+   * what makes the hourly `sweepStuckQuizArchives` straggler sweep an indexed
+   * collection-group query instead of a full scan. Absent on every response
+   * without media; never written by the client.
+   */
+  hasStuckArchive?: boolean;
+  /**
    * Server-stamped time the student raised their hand from the live quiz UI,
    * or null when lowered (by the student or cleared by the teacher). Absent on
    * responses written before the feature existed — treat as null. Deliberately
