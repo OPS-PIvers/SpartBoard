@@ -337,6 +337,7 @@ describe('runFinalizeIdleQuizAttempts — unresponded markers', () => {
         sess1: {
           status: 'active',
           createdAt: NOW - 2 * IDLE_MS,
+          completenessModel: 1,
           publicQuestions: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
         },
       },
@@ -382,6 +383,7 @@ describe('runFinalizeIdleQuizAttempts — unresponded markers', () => {
         sess1: {
           status: 'active',
           createdAt: NOW - 2 * IDLE_MS,
+          completenessModel: 1,
           publicQuestions: [{ id: 'q1' }, { id: 'q2' }],
         },
       },
@@ -411,8 +413,14 @@ describe('runFinalizeIdleQuizAttempts — unresponded markers', () => {
           },
         },
       ],
-      // Legacy session doc shape: no publicQuestions field at all.
-      sessions: { sess1: { status: 'active', createdAt: NOW - 2 * IDLE_MS } },
+      // Opted-in session, but no publicQuestions field at all.
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          completenessModel: 1,
+        },
+      },
     });
 
     await runFinalizeIdleQuizAttempts(db, NOW);
@@ -441,6 +449,7 @@ describe('runFinalizeIdleQuizAttempts — unresponded markers', () => {
         sess1: {
           status: 'active',
           createdAt: NOW - 2 * IDLE_MS,
+          completenessModel: 1,
           publicQuestions: [{ id: 'q1' }, { id: 'q2' }],
         },
       },
@@ -453,6 +462,73 @@ describe('runFinalizeIdleQuizAttempts — unresponded markers', () => {
     expect(answers.find((a) => a.questionId === 'q1')!.unresponded).toBe(
       'passed'
     );
+  });
+
+  // Deploy gate: functions/ ships to the shared production project on every
+  // dev-paul push, so a session created by the OLD client (no marker) must be
+  // finalized exactly as it was before this feature landed.
+  it('writes no synthetic entries for a legacy session with no completenessModel marker', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'r1',
+          sid: 'sess1',
+          data: {
+            status: 'in-progress',
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+            answers: [{ questionId: 'q1', answer: 'a', status: 'draft' }],
+          },
+        },
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          // No `completenessModel` — an old-client session with skipped questions.
+          publicQuestions: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
+        },
+      },
+    });
+
+    const result = await runFinalizeIdleQuizAttempts(db, NOW);
+
+    expect(result.finalized).toBe(1);
+    const answers = responses[0].data.answers as Record<string, unknown>[];
+    // Pre-PR behaviour exactly: the draft is promoted, nothing is appended.
+    expect(answers).toEqual([
+      { questionId: 'q1', answer: 'a', status: 'submitted' },
+    ]);
+    expect(responses[0].data.completedAttempts).toBe(1);
+    expect(responses[0].data.status).toBe('completed');
+    expect(responses[0].data.autoSubmitted).toBe(true);
+  });
+
+  it('writes no synthetic entries for a legacy zero-answer session', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'r1',
+          sid: 'sess1',
+          data: {
+            status: 'joined',
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+            answers: [],
+          },
+        },
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          publicQuestions: [{ id: 'q1' }, { id: 'q2' }],
+        },
+      },
+    });
+
+    await runFinalizeIdleQuizAttempts(db, NOW);
+
+    expect(responses[0].data.answers).toEqual([]);
+    expect(responses[0].data.completedAttempts).toBeUndefined();
   });
 });
 

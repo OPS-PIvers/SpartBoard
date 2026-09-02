@@ -3445,6 +3445,8 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
+  completenessModel?: number;
   /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`

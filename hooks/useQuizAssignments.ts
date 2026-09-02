@@ -800,6 +800,9 @@ export const useQuizAssignments = (
         code,
         totalQuestions: sessionQuestions.length,
         publicQuestions: sessionQuestions.map(toPublicQuestion),
+        // Opts this session into server-side `unresponded` completeness writes;
+        // sessions from older clients omit it and keep pre-feature finalize behaviour.
+        completenessModel: 1,
         // Stimuli referenced by at least one question, labels stripped.
         // Omitted entirely for stimulus-free quizzes.
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
