@@ -214,7 +214,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
         </div>
 
         {/* Sub-header: PLC meta */}
-        <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-2.5 flex items-center gap-3 text-xxs text-slate-500 shrink-0">
+        <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-2.5 min-h-11 flex items-center gap-3 text-xxs text-slate-500 shrink-0">
           <span className="font-semibold uppercase tracking-widest">
             {t('plcDashboard.meta.members', {
               count: memberCount,
