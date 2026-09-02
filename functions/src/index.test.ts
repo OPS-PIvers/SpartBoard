@@ -3010,6 +3010,9 @@ describe('index barrel — deployed export set', () => {
     'checkUrlCompatibility',
     // Activity Wall archive
     'archiveActivityWallPhoto',
+    'sweepActivityWallArchives',
+    'archiveActivityWallSubmissionOnUpdate',
+    'archiveActivityWallSubmissionOnCreate',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
     'getQuizArtifactPlaybackUrl',
