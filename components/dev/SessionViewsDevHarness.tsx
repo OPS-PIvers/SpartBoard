@@ -30,6 +30,11 @@ import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidg
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { PresentScreen } from '@/components/widgets/QuizWidget/components/present/PresentScreen';
 import {
+  AudioCaptureDevView,
+  AUDIO_CAPTURE_STATES,
+  type AudioCaptureStateKey,
+} from './AudioCaptureDevView';
+import {
   makeQuizSession,
   makeQuizResponses,
   makeQuizData,
@@ -43,7 +48,8 @@ type ViewKey =
   | 'quiz-present'
   | 'quiz-results'
   | 'va-monitor'
-  | 'va-results';
+  | 'va-results'
+  | 'audio-capture';
 type StateKey =
   | 'waiting'
   | 'live'
@@ -52,7 +58,8 @@ type StateKey =
   | 'paused'
   | 'ended'
   | 'populated'
-  | 'empty';
+  | 'empty'
+  | AudioCaptureStateKey;
 
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
@@ -60,6 +67,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-results', label: 'Quiz Results' },
   { key: 'va-monitor', label: 'VA Monitor' },
   { key: 'va-results', label: 'VA Results' },
+  { key: 'audio-capture', label: 'Audio capture' },
 ];
 
 // State keys are partitioned by view family: monitors use the lifecycle
@@ -75,6 +83,10 @@ const STATES: { key: StateKey; label: string }[] = [
   { key: 'ended', label: 'Ended' },
   { key: 'populated', label: 'Populated (results)' },
   { key: 'empty', label: 'Empty (results)' },
+  ...AUDIO_CAPTURE_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Audio: ${key}`,
+  })),
 ];
 
 const WIDTHS = [340, 520, 820];
@@ -92,6 +104,15 @@ const SessionView: React.FC<{
   state: StateKey;
   showNames: boolean;
 }> = ({ view, state, showNames }) => {
+  if (view === 'audio-capture') {
+    const audioState = (AUDIO_CAPTURE_STATES as readonly string[]).includes(
+      state
+    )
+      ? (state as AudioCaptureStateKey)
+      : 'prep';
+    return <AudioCaptureDevView state={audioState} />;
+  }
+
   if (view === 'quiz-monitor') {
     const status =
       state === 'paused' ? 'paused' : state === 'ended' ? 'ended' : 'active';
