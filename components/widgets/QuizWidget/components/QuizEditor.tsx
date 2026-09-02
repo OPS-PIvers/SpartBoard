@@ -38,6 +38,7 @@ import { QuestionStimulusSection } from './StimulusManagerPanel';
 import { ResponseFormatSection } from './ResponseFormatSection';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
+import { WordLimitFields } from './WordLimitFields';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import type { QuizEditorController } from './useQuizEditorState';
 
@@ -676,35 +677,10 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                     className={inputClass}
                   />
                 </div>
-                <div>
-                  <label className={labelClass}>Word Cap (optional)</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={0}
-                      max={5000}
-                      value={q.maxWords ?? ''}
-                      onChange={(e) => {
-                        const raw = parseInt(e.target.value, 10);
-                        updateQuestion(q.id, {
-                          maxWords:
-                            Number.isFinite(raw) && raw > 0
-                              ? Math.min(5000, raw)
-                              : undefined,
-                        });
-                      }}
-                      placeholder="No cap"
-                      className={`${inputClass} pr-16`}
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
-                      Words
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Shown to students as a soft warning. Not enforced — students
-                    can exceed it.
-                  </p>
-                </div>
+                <WordLimitFields
+                  question={q}
+                  onChange={(updates) => updateQuestion(q.id, updates)}
+                />
               </>
             )}
             <div>

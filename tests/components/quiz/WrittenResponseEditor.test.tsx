@@ -70,7 +70,7 @@ describe('WrittenResponseEditor', () => {
       />
     );
     expect(
-      screen.getByText(/past the suggested word cap/i)
+      screen.getByText(/outside the suggested word range/i)
     ).toBeInTheDocument();
   });
 
@@ -84,8 +84,92 @@ describe('WrittenResponseEditor', () => {
       />
     );
     expect(
-      screen.queryByText(/past the suggested word cap/i)
+      screen.queryByText(/outside the suggested word range/i)
     ).not.toBeInTheDocument();
+  });
+
+  it('renders both bounds as a range in the counter', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={100}
+        maxWords={200}
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 100–200 words')).toBeInTheDocument();
+  });
+
+  it('renders a min-only bound with a trailing plus', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={100}
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 100+ words')).toBeInTheDocument();
+  });
+
+  it('marks the counter amber below the minimum', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={100}
+        light
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 100+ words').className).toContain('amber');
+  });
+
+  it('leaves the counter neutral inside the range', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two three"
+        onChange={vi.fn()}
+        minWords={1}
+        maxWords={200}
+        light
+        questionKey="q1"
+      />
+    );
+    expect(screen.getByText('3 / 1–200 words').className).not.toContain(
+      'amber'
+    );
+  });
+
+  it('warns below the minimum too, not just above the maximum', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two"
+        onChange={vi.fn()}
+        minWords={50}
+        questionKey="q1"
+      />
+    );
+    expect(
+      screen.getByText(/outside the suggested word range/i)
+    ).toBeInTheDocument();
+  });
+
+  it('suppresses the advisory copy when the limit is enforced', () => {
+    render(
+      <WrittenResponseEditor
+        value="one two"
+        onChange={vi.fn()}
+        minWords={50}
+        enforceWordLimit
+        questionKey="q1"
+      />
+    );
+    expect(
+      screen.queryByText(/outside the suggested word range/i)
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('2 / 50+ words').className).toContain('amber');
   });
 
   it('remounts and reseeds when questionKey changes (pause/resume)', () => {

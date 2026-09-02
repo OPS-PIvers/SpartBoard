@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Clock,
   ShieldAlert,
 } from 'lucide-react';
 import {
@@ -40,6 +41,8 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { countWords } from '@/utils/wordCount';
+import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
@@ -448,8 +451,13 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     );
   }
 
-  const studentAnswer =
-    response.answers.find((a) => a.questionId === question.id)?.answer ?? '';
+  const answerEntry = response.answers.find(
+    (a) => a.questionId === question.id
+  );
+  const studentAnswer = answerEntry?.answer ?? '';
+  const answerWordCount = countWords(studentAnswer);
+  const outsideWordRange =
+    wordLimitStatus(answerWordCount, question).tone !== 'ok';
   const tabSwitches = response.tabSwitchWarnings ?? 0;
   const fullyGradedForThisQ = !!savedGrade;
   const isLastStudent = studentIdx >= gradeableResponses.length - 1;
@@ -562,9 +570,22 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
             </p>
           </div>
           <div className="p-8">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
-              Student response
-            </h3>
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+                Student response
+              </h3>
+              <span
+                className={`text-xs font-mono ${outsideWordRange ? 'text-amber-700' : 'text-slate-500'}`}
+              >
+                {wordCounterLabel(answerWordCount, question)}
+              </span>
+              {answerEntry?.timedOutUnderMinimum && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-xxs uppercase tracking-wider">
+                  <Clock className="w-3 h-3" />
+                  Timed out under minimum
+                </span>
+              )}
+            </div>
             {studentAnswer ? (
               <AnnotatedResponseView
                 mode="edit"

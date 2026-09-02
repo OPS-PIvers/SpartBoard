@@ -2065,6 +2065,59 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     return result;
   }
 
+  it('writes timedOutUnderMinimum only when the caller passes it', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: '',
+      answeredAt: 100,
+      status: 'draft',
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+
+    updateMock.mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'too short', 0, {
+        timedOutUnderMinimum: true,
+      });
+    });
+    let payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+    };
+    expect(payload.answers[0].timedOutUnderMinimum).toBe(true);
+
+    updateMock.mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'plain submit');
+    });
+    payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+    };
+    expect(payload.answers[0]).not.toHaveProperty('timedOutUnderMinimum');
+  });
+
+  it('clears a stale timedOutUnderMinimum on a later re-submit', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'short',
+      answeredAt: 100,
+      status: 'submitted',
+      timedOutUnderMinimum: true,
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'a much longer answer');
+    });
+    const payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+    };
+    expect(payload.answers[0]).not.toHaveProperty('timedOutUnderMinimum');
+  });
+
   it('preserves unowned sibling fields and strips stale speedBonus/isCorrect on rewrite', async () => {
     const result = await joinAndSeedPrior({
       questionId: 'q1',
