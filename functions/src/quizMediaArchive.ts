@@ -79,6 +79,12 @@ export const ARCHIVE_AUDIO_BITRATE = '64k';
  * needs the same window to tell a live sibling run from an abandoned one.
  */
 export const STUCK_ARCHIVE_AGE_MS = 2 * 60 * 60 * 1000;
+/**
+ * Failed attempts before archival gives up and settles at `'lost'`. Without a
+ * ceiling a permanently unarchivable artifact re-queued a straggler email on
+ * every hourly sweep forever (GitHub issue #2735).
+ */
+export const MAX_ARCHIVE_ATTEMPTS = 5;
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const APP_DRIVE_FOLDER = 'SpartBoard';
@@ -240,7 +246,7 @@ export function questionLabelFor(
   return `Q${sanitizeDriveNameSegment(questionId) || 'unknown'}`;
 }
 
-/** True when any entry in the merged map still needs the sweep's attention. */
+/** True when any entry in the merged map still needs the sweep's attention. Terminal `'lost'` never does. */
 export function computeHasStuckArchive(
   archive:
     | Record<
@@ -411,7 +417,11 @@ export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
   const outputPath = path.join(dir, 'out.m4a');
   try {
     await fs.writeFile(inputPath, input);
-    if (ffmpegStatic) ffmpeg.setFfmpegPath(ffmpegStatic);
+    // The runtime image has no ffmpeg on PATH, so falling through is a silent hang.
+    if (!ffmpegStatic) {
+      throw new Error('ffmpeg-static binary missing from the deployed package');
+    }
+    ffmpeg.setFfmpegPath(ffmpegStatic);
     await new Promise<void>((resolve, reject) => {
       ffmpeg(inputPath)
         .noVideo()
@@ -679,10 +689,44 @@ export function isDeleteTombstoned(entry: {
   );
 }
 
+/**
+ * Where a failed attempt leaves the entry. 'lost' is terminal: the sweep skips
+ * it, computeHasStuckArchive drops it, and the teacher is mailed about it
+ * exactly once, on the run that settles it.
+ */
+export function resolveFailedArchiveStatus(
+  attemptCount: number,
+  unrecoverable: boolean
+): 'failed' | 'lost' {
+  if (unrecoverable) return 'lost';
+  return attemptCount >= MAX_ARCHIVE_ATTEMPTS ? 'lost' : 'failed';
+}
+
+/** True when the rejected attempt settled the artifact at the terminal 'lost'. */
+export function isLostArchiveError(error: unknown): boolean {
+  if (!(error instanceof HttpsError)) return false;
+  const details = error.details as { artifactLost?: unknown } | undefined;
+  return details?.artifactLost === true;
+}
+
+/** Rethrow shape: tags a terminal failure so the sweep can mail it just once. */
+function toArchiveFailure(error: unknown, lost: boolean): HttpsError {
+  const message =
+    error instanceof Error ? error.message : 'Drive archive failed';
+  if (!lost) {
+    return error instanceof HttpsError
+      ? error
+      : new HttpsError('internal', message);
+  }
+  const code = error instanceof HttpsError ? error.code : 'internal';
+  return new HttpsError(code, message, { artifactLost: true });
+}
+
 type ArchiveEntryShape = {
   archiveStatus?: unknown;
   driveFileId?: unknown;
   archiveStartedAt?: unknown;
+  attemptCount?: unknown;
   storageCleanupPending?: unknown;
   orphanedDriveFileId?: unknown;
 };
@@ -845,18 +889,33 @@ export async function archiveQuizArtifactCore(
   // Stamped the instant Drive accepts the upload, so every later failure path
   // can persist it and the retry never uploads a duplicate.
   let driveFileId: string | null = null;
-  const writeFailure = async (error: unknown): Promise<void> => {
+  // Set when no future attempt could succeed; forces the terminal 'lost'.
+  let unrecoverable = false;
+  /** Resolves true when this attempt settled the entry at 'lost'. */
+  const writeFailure = async (error: unknown): Promise<boolean> => {
     const message =
       error instanceof Error ? error.message : 'Drive archive failed';
     // `archiveStartedAt` survives and `lastAttemptAt` is stamped, so the sweep
     // measures from this attempt rather than retrying on its very next run.
-    const tombstoned = await db.runTransaction(async (tx) => {
+    const outcome = await db.runTransaction(async (tx) => {
       const fresh = await tx.get(responseRef);
       const archive = readArchiveMap(fresh.data());
-      if (isDeleteTombstoned(archive[artifactId] ?? {})) return true;
+      const previous = archive[artifactId] ?? {};
+      if (isDeleteTombstoned(previous)) {
+        return { tombstoned: true, lost: false };
+      }
+      const attemptCount =
+        (typeof previous.attemptCount === 'number'
+          ? previous.attemptCount
+          : 0) + 1;
+      const archiveStatus = resolveFailedArchiveStatus(
+        attemptCount,
+        unrecoverable
+      );
       archive[artifactId] = {
-        ...(archive[artifactId] ?? {}),
-        archiveStatus: 'failed',
+        ...previous,
+        archiveStatus,
+        attemptCount,
         ...(driveFileId ? { driveFileId } : {}),
       };
       tx.set(
@@ -864,9 +923,10 @@ export async function archiveQuizArtifactCore(
         {
           artifactArchive: {
             [artifactId]: {
-              archiveStatus: 'failed',
+              archiveStatus,
               archiveError: message.slice(0, 180),
               lastAttemptAt: deps.now(),
+              attemptCount,
               ...(driveFileId ? { driveFileId } : {}),
             },
           },
@@ -874,9 +934,9 @@ export async function archiveQuizArtifactCore(
         },
         { merge: true }
       );
-      return false;
+      return { tombstoned: false, lost: archiveStatus === 'lost' };
     });
-    if (tombstoned && driveFileId) {
+    if (outcome.tombstoned && driveFileId) {
       await discardArchivedCopy(
         deps,
         responseRef,
@@ -886,11 +946,14 @@ export async function archiveQuizArtifactCore(
         storagePath
       );
     }
+    return outcome.lost;
   };
 
   try {
     const stat = await deps.statObject(storagePath);
     if (!stat) {
+      // Nothing can rescue a missing transit object, so stop retrying it.
+      unrecoverable = true;
       throw new HttpsError(
         'not-found',
         'Recorded audio is no longer in Storage.'
@@ -936,30 +999,20 @@ export async function archiveQuizArtifactCore(
     );
     driveFileId = driveFile.id;
   } catch (error: unknown) {
-    await writeFailure(error);
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError(
-      'internal',
-      error instanceof Error ? error.message : 'Drive archive failed'
-    );
+    throw toArchiveFailure(error, await writeFailure(error));
   }
 
   const uploadedId = driveFileId;
   if (!uploadedId) {
-    await writeFailure(new Error('Drive upload returned no file id.'));
-    throw new HttpsError('internal', 'Drive upload returned no file id.');
+    const noIdError = new Error('Drive upload returned no file id.');
+    throw toArchiveFailure(noIdError, await writeFailure(noIdError));
   }
 
   // Separate try: a rejected terminal write must still record the Drive id.
   try {
     return await finalizeArchived(uploadedId);
   } catch (error: unknown) {
-    await writeFailure(error);
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError(
-      'internal',
-      error instanceof Error ? error.message : 'Drive archive failed'
-    );
+    throw toArchiveFailure(error, await writeFailure(error));
   }
 }
 

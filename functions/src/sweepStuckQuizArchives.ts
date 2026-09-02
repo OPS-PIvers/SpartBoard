@@ -19,6 +19,7 @@ import * as admin from 'firebase-admin';
 import {
   archiveQuizArtifactCore,
   buildDefaultArchiveDeps,
+  isLostArchiveError,
   retryStorageCleanup,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
@@ -51,6 +52,8 @@ export interface SweepDeps {
   cleanUpStorage: (input: StuckArtifact) => Promise<void>;
   /** Third pass: a compliance delete still owes Drive or Storage bytes. */
   finishDelete: (input: StuckArtifact) => Promise<void>;
+  /** True when the rejection settled the entry at the terminal 'lost'. */
+  isPermanentFailure: (error: unknown) => boolean;
   getTeacherEmail: (teacherUid: string) => Promise<string | null>;
   /** Real name where the roster resolves it, else `Pin{pin}` — never a raw uid. */
   resolveStudentLabel: (
@@ -66,6 +69,8 @@ export interface SweepSummary {
   retried: number;
   recovered: number;
   stillStuck: number;
+  /** Retries that gave up for good this run; each is mailed exactly once. */
+  lost: number;
   cleanedUp: number;
   deletesFinished: number;
   mailQueued: number;
@@ -73,6 +78,7 @@ export interface SweepSummary {
 
 interface ArchiveEntry {
   archiveStatus?: unknown;
+  attemptCount?: unknown;
   archiveStartedAt?: unknown;
   lastAttemptAt?: unknown;
   storageCleanupPending?: unknown;
@@ -117,7 +123,8 @@ export function needsDeleteCompletion(
  * Stuck = still syncing/failed AND untouched for longer than the threshold.
  * The window measures from the most recent of `archiveStartedAt` /
  * `lastAttemptAt`; an entry carrying neither has no timestamp to age against
- * and is left alone rather than retried on every run.
+ * and is left alone rather than retried on every run. A terminal `'lost'`
+ * entry is never stuck — that is what stops the forever-retry loop.
  */
 export function isStuckArchiveEntry(
   entry: ArchiveEntry | undefined,
@@ -156,29 +163,53 @@ export interface StragglerItem {
   questionId: string;
   /** Roster name or `Pin{pin}` — resolved server-side, never a raw uid. */
   studentLabel: string;
+  /** Archival gave up: this artifact will never appear in a later email. */
+  permanent?: boolean;
+}
+
+/** Bounded list for one section of the email body. */
+function stragglerLines(items: readonly StragglerItem[]): string[] {
+  const listed = items.slice(0, MAX_LISTED_STRAGGLERS);
+  const lines = listed.map(
+    (i) => `- ${i.quizTitle} — ${i.studentLabel}: question ${i.questionId}`
+  );
+  const overflow = items.length - listed.length;
+  if (overflow > 0) lines.push(`- ...and ${overflow} more`);
+  return lines;
 }
 
 export function buildStragglerEmail(items: StragglerItem[]): {
   subject: string;
   text: string;
 } {
-  const listed = items.slice(0, MAX_LISTED_STRAGGLERS);
-  const overflow = items.length - listed.length;
-  const lines = listed.map(
-    (i) => `- ${i.quizTitle} — ${i.studentLabel}: question ${i.questionId}`
+  const retrying = items.filter((i) => !i.permanent);
+  const lost = items.filter((i) => i.permanent);
+  const body: string[] = [
+    'SpartBoard could not archive the following student recordings to your Google Drive.',
+  ];
+  if (retrying.length > 0) {
+    body.push(
+      '',
+      'Still retrying — the students see these questions as not yet submitted:',
+      ...stragglerLines(retrying)
+    );
+  }
+  if (lost.length > 0) {
+    body.push(
+      '',
+      'SpartBoard has stopped retrying these; the recordings could not be saved:',
+      ...stragglerLines(lost)
+    );
+  }
+  body.push(
+    '',
+    'If this persists, reconnect Google Drive from the SpartBoard sidebar.'
   );
-  if (overflow > 0) lines.push(`- ...and ${overflow} more`);
   return {
     subject: `SpartBoard: ${items.length} student recording${
       items.length === 1 ? '' : 's'
     } could not be saved to Drive`,
-    text: [
-      'SpartBoard could not archive the following student recordings to your Google Drive.',
-      'The students still see these questions as not yet submitted, and SpartBoard will keep retrying.',
-      'If this persists, reconnect Google Drive from the SpartBoard sidebar.',
-      '',
-      ...lines,
-    ].join('\n'),
+    text: body.join('\n'),
   };
 }
 
@@ -192,6 +223,7 @@ export async function runSweepStuckQuizArchives(
     retried: 0,
     recovered: 0,
     stillStuck: 0,
+    lost: 0,
     cleanedUp: 0,
     deletesFinished: 0,
     mailQueued: 0,
@@ -289,8 +321,11 @@ export async function runSweepStuckQuizArchives(
         try {
           await deps.archiveOne({ ...target, questionId });
           summary.recovered++;
-        } catch {
-          summary.stillStuck++;
+        } catch (error) {
+          // A terminal failure is mailed on this run and never swept again.
+          const permanent = deps.isPermanentFailure(error);
+          if (permanent) summary.lost++;
+          else summary.stillStuck++;
           if (!session.teacherUid) continue;
           const studentLabel = await deps.resolveStudentLabel(
             session.teacherUid,
@@ -302,6 +337,7 @@ export async function runSweepStuckQuizArchives(
             quizTitle: session.quizTitle,
             questionId,
             studentLabel,
+            ...(permanent ? { permanent: true } : {}),
           });
           stragglersByTeacher.set(session.teacherUid, list);
         }
@@ -346,6 +382,7 @@ export const sweepStuckQuizArchives = onSchedule(
         );
       },
       cleanUpStorage: (input) => retryStorageCleanup(input, archiveDeps),
+      isPermanentFailure: isLostArchiveError,
       finishDelete: (input) => finishStuckMediaDelete(input, orgMediaDeps),
       getTeacherEmail: async (teacherUid) => {
         try {

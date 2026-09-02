@@ -476,6 +476,7 @@ describe('takeUnplayableReason', () => {
   it('reports every non-playable lifecycle value', () => {
     expect(takeUnplayableReason(take('syncing'))).toBe('archiving');
     expect(takeUnplayableReason(take('failed'))).toBe('archive-failed');
+    expect(takeUnplayableReason(take('lost'))).toBe('archive-failed');
     expect(takeUnplayableReason(take('deleting'))).toBe('deleted');
     expect(takeUnplayableReason(take('deleted'))).toBe('deleted');
     expect(takeUnplayableReason(take('delete-failed'))).toBe('deleted');

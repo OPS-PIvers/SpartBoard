@@ -36,7 +36,8 @@ export function resolveArtifactPlaybackState(
   ) {
     return 'deleted';
   }
-  if (status === 'failed') return 'failed';
+  // A terminal 'lost' is an honest failure, never a stuck 'archiving'.
+  if (status === 'failed' || status === 'lost') return 'failed';
   return 'archiving';
 }
 

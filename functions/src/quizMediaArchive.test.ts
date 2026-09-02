@@ -20,9 +20,11 @@ vi.mock('firebase-admin', () => ({
 vi.mock('firebase-functions/v2/https', () => {
   class FakeHttpsError extends Error {
     code: string;
-    constructor(code: string, message: string) {
+    details: unknown;
+    constructor(code: string, message: string, details?: unknown) {
       super(message);
       this.code = code;
+      this.details = details;
     }
   }
   return {
@@ -35,7 +37,14 @@ vi.mock('firebase-functions/params', () => ({
   defineSecret: (name: string) => ({ value: () => `secret:${name}` }),
 }));
 
-vi.mock('ffmpeg-static', () => ({ default: '/usr/bin/ffmpeg' }));
+const ffmpegState = vi.hoisted(() => ({
+  path: '/usr/bin/ffmpeg' as string | null,
+}));
+vi.mock('ffmpeg-static', () => ({
+  get default() {
+    return ffmpegState.path;
+  },
+}));
 vi.mock('fluent-ffmpeg', () => ({
   default: Object.assign(vi.fn(), { setFfmpegPath: vi.fn() }),
 }));
@@ -67,6 +76,7 @@ vi.mock('./secrets', () => {
 import {
   archiveQuizArtifactCore,
   isQuizMediaResponseGranted,
+  isLostArchiveError,
   buildArchiveFileName,
   computeHasStuckArchive,
   countCommittedTakes,
@@ -74,7 +84,10 @@ import {
   hasQuizMediaStoragePrefix,
   parseRefKey,
   questionLabelFor,
+  resolveFailedArchiveStatus,
   retryStorageCleanup,
+  transcodeBufferToM4a,
+  MAX_ARCHIVE_ATTEMPTS,
   type ArchiveDeps,
 } from './quizMediaArchive';
 import { resolveOrgIdForDomain } from './classlinkShared';
@@ -1012,5 +1025,118 @@ describe('isQuizMediaResponseGranted', () => {
         't1'
       )
     ).resolves.toBe(false);
+  });
+});
+
+describe('giving up on an unarchivable artifact (INT-A / issue #2735)', () => {
+  const entryOf = (writes: Record<string, unknown>[]) => {
+    const archive = writes
+      .map(
+        (w) =>
+          (w.artifactArchive as Record<string, Record<string, unknown>>)?.[
+            ARTIFACT_ID
+          ]
+      )
+      .filter(Boolean);
+    return archive[archive.length - 1] ?? {};
+  };
+
+  it('caps the retry count before the terminal status', () => {
+    expect(resolveFailedArchiveStatus(1, false)).toBe('failed');
+    expect(resolveFailedArchiveStatus(MAX_ARCHIVE_ATTEMPTS - 1, false)).toBe(
+      'failed'
+    );
+    expect(resolveFailedArchiveStatus(MAX_ARCHIVE_ATTEMPTS, false)).toBe(
+      'lost'
+    );
+    expect(resolveFailedArchiveStatus(1, true)).toBe('lost');
+  });
+
+  it("treats a missing Storage object as immediately 'lost'", async () => {
+    const { db, writes } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      statObject: vi.fn(() => Promise.resolve(null)),
+    });
+    await expect(call(deps)).rejects.toMatchObject({ code: 'not-found' });
+    const entry = entryOf(writes);
+    expect(entry.archiveStatus).toBe('lost');
+    expect(entry.attemptCount).toBe(1);
+    const last = writes[writes.length - 1];
+    expect(last.hasStuckArchive).toBe(false);
+  });
+
+  it("stays 'failed' for a retryable Drive failure until the cap", async () => {
+    const { db, writes } = makeStubDb(
+      baseSeed({
+        response: {
+          artifactArchive: {
+            [ARTIFACT_ID]: {
+              archiveStatus: 'failed',
+              attemptCount: MAX_ARCHIVE_ATTEMPTS - 2,
+            },
+          },
+        },
+      })
+    );
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => Promise.reject(new Error('Drive 503'))),
+    });
+    await expect(call(deps)).rejects.toThrow('Drive 503');
+    const entry = entryOf(writes);
+    expect(entry.archiveStatus).toBe('failed');
+    expect(entry.attemptCount).toBe(MAX_ARCHIVE_ATTEMPTS - 1);
+    expect(writes[writes.length - 1].hasStuckArchive).toBe(true);
+  });
+
+  it("settles at 'lost' on the attempt that reaches the cap", async () => {
+    const { db, writes } = makeStubDb(
+      baseSeed({
+        response: {
+          artifactArchive: {
+            [ARTIFACT_ID]: {
+              archiveStatus: 'failed',
+              attemptCount: MAX_ARCHIVE_ATTEMPTS - 1,
+            },
+          },
+        },
+      })
+    );
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => Promise.reject(new Error('Drive 503'))),
+    });
+    const error = await call(deps).catch((e: unknown) => e);
+    expect(isLostArchiveError(error)).toBe(true);
+    const entry = entryOf(writes);
+    expect(entry.archiveStatus).toBe('lost');
+    expect(entry.attemptCount).toBe(MAX_ARCHIVE_ATTEMPTS);
+    expect(writes[writes.length - 1].hasStuckArchive).toBe(false);
+  });
+
+  it('does not tag a still-retryable failure as lost', async () => {
+    const { db } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => Promise.reject(new Error('Drive 503'))),
+    });
+    const error = await call(deps).catch((e: unknown) => e);
+    expect(isLostArchiveError(error)).toBe(false);
+  });
+
+  it("leaves a 'lost' entry out of the stuck flag", () => {
+    expect(computeHasStuckArchive({ a: { archiveStatus: 'lost' } })).toBe(
+      false
+    );
+  });
+});
+
+describe('transcodeBufferToM4a packaging guard', () => {
+  it('fails loudly when ffmpeg-static is missing from the bundle', async () => {
+    ffmpegState.path = null;
+    try {
+      await expect(transcodeBufferToM4a(Buffer.from('x'))).rejects.toThrow(
+        'ffmpeg-static binary missing from the deployed package'
+      );
+    } finally {
+      ffmpegState.path = '/usr/bin/ffmpeg';
+    }
   });
 });
