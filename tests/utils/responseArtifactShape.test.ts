@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeTestArtifact } from '../testHelpers/responseArtifacts';
+import { isArtifactPlayable } from '@/utils/responseArtifacts';
 import type {
   ArtifactArchiveEntry,
   ArtifactArchiveStatus,
@@ -71,21 +72,20 @@ describe('artifactArchive shape', () => {
   });
 
   it('is playable only when archived with a driveFileId', () => {
-    const isPlayable = (e: ArtifactArchiveEntry) =>
-      e.archiveStatus === 'archived' && !!e.driveFileId;
-    expect(isPlayable({ archiveStatus: 'archived', driveFileId: 'd1' })).toBe(
-      true
-    );
-    expect(isPlayable({ archiveStatus: 'archived' })).toBe(false);
-    expect(isPlayable({ archiveStatus: 'syncing', driveFileId: 'd1' })).toBe(
-      false
-    );
-    expect(isPlayable({ archiveStatus: 'deleted', driveFileId: 'd1' })).toBe(
-      false
-    );
     expect(
-      isPlayable({ archiveStatus: 'delete-failed', driveFileId: 'd1' })
+      isArtifactPlayable({ archiveStatus: 'archived', driveFileId: 'd1' })
+    ).toBe(true);
+    expect(isArtifactPlayable({ archiveStatus: 'archived' })).toBe(false);
+    expect(
+      isArtifactPlayable({ archiveStatus: 'syncing', driveFileId: 'd1' })
     ).toBe(false);
+    expect(
+      isArtifactPlayable({ archiveStatus: 'deleted', driveFileId: 'd1' })
+    ).toBe(false);
+    expect(
+      isArtifactPlayable({ archiveStatus: 'delete-failed', driveFileId: 'd1' })
+    ).toBe(false);
+    expect(isArtifactPlayable(undefined)).toBe(false);
   });
 
   it('carries 4.1 delete-tracking fields keyed by artifact id', () => {
