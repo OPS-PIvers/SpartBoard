@@ -3013,6 +3013,7 @@ describe('index barrel — deployed export set', () => {
     'sweepActivityWallArchives',
     'archiveActivityWallSubmissionOnUpdate',
     'archiveActivityWallSubmissionOnCreate',
+    'fetchLinkPreview',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
     'getQuizArtifactPlaybackUrl',

@@ -36,6 +36,7 @@ export {
 
 // ── External-content proxy + iframe embeddability check ────────────────────
 export { fetchExternalProxy, checkUrlCompatibility } from './embedProxy';
+export { fetchLinkPreview } from './linkPreview';
 
 // ── Activity Wall photo → Google Drive archive (legacy client callable) ────
 export { archiveActivityWallPhoto } from './driveArchive';
