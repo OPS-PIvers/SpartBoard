@@ -8,13 +8,14 @@ export type CompletenessAnswer = Pick<
 
 /**
  * A recording take whose artifacts all failed to upload never reaches the
- * teacher, so it fills no slot — the same rule `countCommittedTakes` applies.
- * Legacy answers carry no `artifacts` key and are unaffected.
+ * teacher, so it fills no slot — the same rule `countCommittedTakes` applies,
+ * including its treatment of an empty `artifacts` array as nothing committed.
+ * Legacy answers carry no `artifacts` key at all and are unaffected.
  */
 function isCommittedEntry(answer: CompletenessAnswer): boolean {
   if (answer.unresponded) return false;
   const artifacts = answer.artifacts;
-  if (!artifacts || artifacts.length === 0) return true;
+  if (!artifacts) return true;
   return artifacts.some((art) => art?.uploadState !== 'failed');
 }
 
@@ -50,12 +51,20 @@ export function isQuestionOpen(
   return !answers.some((a) => a.questionId === questionId && a.unresponded);
 }
 
+/** Which of `questionIds` the student can still answer, in the order given. */
+export function listOpenQuestions(
+  answers: CompletenessAnswer[],
+  questionIds: string[]
+): string[] {
+  return questionIds.filter((id) => isQuestionOpen(answers, id));
+}
+
 /** How many of `questionIds` the student can still answer. */
 export function countOpenQuestions(
   answers: CompletenessAnswer[],
   questionIds: string[]
 ): number {
-  return questionIds.filter((id) => isQuestionOpen(answers, id)).length;
+  return listOpenQuestions(answers, questionIds).length;
 }
 
 /** Student-facing binary count: how many of `questionIds` are answered. */

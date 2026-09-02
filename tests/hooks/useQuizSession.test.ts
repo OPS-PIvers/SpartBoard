@@ -640,6 +640,26 @@ describe('toPublicQuestion', () => {
     });
   });
 
+  it('drops a recording block on a non-written question type', () => {
+    const q: QuizQuestion = {
+      id: 'q7b',
+      timeLimit: 0,
+      text: 'Pick one',
+      type: 'MC',
+      correctAnswer: 'Alpha',
+      incorrectAnswers: ['Bravo'],
+      recording: {
+        prepSeconds: 15,
+        limitSeconds: 90,
+        prepExpiry: 'auto-start',
+        takeLimit: 2,
+      },
+    };
+    const pub = toPublicQuestion(q);
+    expect(pub).not.toHaveProperty('recording');
+    expect(pub.choices).toContain('Alpha');
+  });
+
   it('omits recording entirely on a legacy question', () => {
     const q: QuizQuestion = {
       id: 'q8',

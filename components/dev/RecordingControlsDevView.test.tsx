@@ -6,7 +6,10 @@ import {
   RecordingControlsDevView,
   RECORDING_CONTROL_STATES,
 } from './RecordingControlsDevView';
-import { AUDIO_CAPTURE_STATES } from './AudioCaptureDevView';
+import {
+  AUDIO_CAPTURE_STATES,
+  AUDIO_CAPTURE_DARK_STATES,
+} from './AudioCaptureDevView';
 
 const EXPECTED: Record<string, RegExp> = {
   'rc-disabled': /Students record their answer instead/i,
@@ -46,9 +49,22 @@ describe('RecordingControlsDevView', () => {
     );
   });
 
-  it('shares no state key with the audio-capture fixtures', () => {
-    for (const key of RECORDING_CONTROL_STATES) {
-      expect(AUDIO_CAPTURE_STATES as readonly string[]).not.toContain(key);
+  it('shares no state key across the three dev fixture sets', () => {
+    const sets: Record<string, readonly string[]> = {
+      RECORDING_CONTROL_STATES,
+      AUDIO_CAPTURE_STATES,
+      AUDIO_CAPTURE_DARK_STATES,
+    };
+    const names = Object.keys(sets);
+    const all = names.flatMap((n) => [...sets[n]]);
+    expect(new Set(all).size).toBe(all.length);
+    for (const a of names) {
+      for (const b of names) {
+        if (a === b) continue;
+        for (const key of sets[a]) {
+          expect(sets[b]).not.toContain(key);
+        }
+      }
     }
   });
 });

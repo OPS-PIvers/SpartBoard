@@ -25,7 +25,8 @@ describe('i18n config', () => {
 describe('quizMediaResponse plurals', () => {
   const PLURAL_KEYS = [
     'capture.takeLimitReachedBody',
-    'capture.submitUnansweredBody',
+    'capture.submitBlockedTitle',
+    'capture.submitBlockedBody',
     'authoring.advisory.slots',
   ];
 

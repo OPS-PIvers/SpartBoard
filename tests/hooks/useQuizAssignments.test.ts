@@ -1810,7 +1810,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     questions: [
       {
         id: 'q-rec',
-        type: 'FIB' as const,
+        type: 'short' as const,
         text: 'Say it out loud',
         correctAnswer: '',
         incorrectAnswers: [],

@@ -3310,6 +3310,10 @@ permanent for the lesson while being literally temporary. **Accepted knowingly:*
 a student who refuses sits visibly stuck for the remainder of the period unless
 the teacher intervenes.
 
+**Implementation note 2026-09-02:** the block is enforced in QuizStudentApp's
+self-paced submit path (PR #2752); it applies only to open slots — a closed or
+capture-unavailable slot never blocks, per RR-07.
+
 **2. Discards are never counted and never written.** The budget counts
 **committed takes only**. A discarded take leaves no trace, exactly as RR-A1
 sub-decision 7 designed, and no Firestore write anywhere records that a student

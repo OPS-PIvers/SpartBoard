@@ -29,14 +29,11 @@ describe('RecordingConsentNotice', () => {
     expect(screen.getByText(/What happens if you refuse/i)).toBeTruthy();
     expect(screen.getByText(/Who receives your recording/i)).toBeTruthy();
     expect(screen.getByText(/stop a recording and discard it/i)).toBeTruthy();
-    expect(screen.getByText(/question stays unanswered/i)).toBeTruthy();
-  });
-
-  it('promises no hard submit block in the refusal consequence', () => {
-    const { container } = render(
-      <RecordingConsentNotice onAcknowledge={() => undefined} />
-    );
-    expect(container.textContent).not.toMatch(/cannot be submitted/i);
+    expect(
+      screen.getByText(
+        /question stays incomplete and the assignment cannot be submitted/i
+      )
+    ).toBeTruthy();
   });
 
   it('renders a dark card when light is false', () => {

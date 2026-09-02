@@ -4,6 +4,7 @@ import {
   isQuestionOpen,
   countAnsweredQuestions,
   countOpenQuestions,
+  listOpenQuestions,
   type CompletenessAnswer,
 } from './quizCompleteness';
 
@@ -108,6 +109,16 @@ describe('recording takes', () => {
   it('leaves a failed-only recording question open to record again', () => {
     expect(isQuestionOpen([failedTake], 'q1')).toBe(true);
   });
+
+  it('treats an empty artifacts array as nothing committed', () => {
+    const emptyTake: CompletenessAnswer = { questionId: 'q1', artifacts: [] };
+    expect(isQuestionAnswered([emptyTake], 'q1')).toBe(false);
+    expect(isQuestionOpen([emptyTake], 'q1')).toBe(true);
+  });
+
+  it('still counts a legacy answer that carries no artifacts key', () => {
+    expect(isQuestionAnswered([{ questionId: 'q1' }], 'q1')).toBe(true);
+  });
 });
 
 describe('isQuestionOpen', () => {
@@ -140,5 +151,16 @@ describe('countOpenQuestions', () => {
       { questionId: 'q2', unresponded: 'capture-unavailable' },
     ];
     expect(countOpenQuestions(answers, ['q1', 'q2', 'q3', 'q4'])).toBe(2);
+  });
+
+  it('lists the open ids in the order asked', () => {
+    const answers: CompletenessAnswer[] = [
+      { questionId: 'q1' },
+      { questionId: 'q2', unresponded: 'capture-unavailable' },
+    ];
+    expect(listOpenQuestions(answers, ['q1', 'q2', 'q3', 'q4'])).toEqual([
+      'q3',
+      'q4',
+    ]);
   });
 });
