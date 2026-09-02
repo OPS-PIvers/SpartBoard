@@ -74,28 +74,26 @@ export function useQuizArtifactPlayback(
 ): { state: PlaybackState; load: () => void } {
   const [state, setState] = useState<PlaybackState>({ phase: 'idle' });
   const urlRef = useRef<string | null>(null);
-  const inFlightRef = useRef(false);
+  // Bumped whenever the resolved artifactId changes; a fetch is stale once its captured generation no longer matches.
+  const generationRef = useRef(0);
+  const loadingGenerationRef = useRef<number | null>(null);
   const artifactId = request?.artifactId ?? null;
   const [loadedArtifactId, setLoadedArtifactId] = useState(artifactId);
-  const artifactIdRef = useRef(artifactId);
-  artifactIdRef.current = artifactId;
 
   // The teacher can re-pin the graded take live; the cached bytes are stale.
   if (artifactId !== loadedArtifactId) {
     setLoadedArtifactId(artifactId);
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    urlRef.current = null;
-    inFlightRef.current = false;
+    generationRef.current += 1;
     setState({ phase: 'idle' });
   }
 
-  // Object URLs are a browser resource, not React state - revoke on unmount.
+  // Object URLs are a browser resource, not React state - revoke the previous take's URL here, and on unmount.
   useEffect(() => {
     return () => {
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
       urlRef.current = null;
     };
-  }, []);
+  }, [artifactId]);
 
   const sessionId = request?.sessionId;
   const responseKey = request?.responseKey;
@@ -105,8 +103,9 @@ export function useQuizArtifactPlayback(
   const load = useCallback(() => {
     if (!sessionId || !responseKey || !questionId || !slot || !artifactId)
       return;
-    if (inFlightRef.current || urlRef.current) return;
-    inFlightRef.current = true;
+    const generation = generationRef.current;
+    if (loadingGenerationRef.current === generation || urlRef.current) return;
+    loadingGenerationRef.current = generation;
     setState({ phase: 'loading' });
     void (async () => {
       try {
@@ -116,21 +115,26 @@ export function useQuizArtifactPlayback(
           questionId,
           slot,
         });
-        // A take re-pinned mid-flight makes this answer the wrong one.
-        if (artifactIdRef.current !== artifactId) return;
+        // A take re-pinned mid-flight makes this answer the wrong one; the in-flight guard is "current generation is pending".
+        const stale = generationRef.current !== generation;
         if (data.status !== 'ready') {
-          setState({ phase: 'unavailable', reason: data.reason });
+          if (!stale) setState({ phase: 'unavailable', reason: data.reason });
           return;
         }
         const url = URL.createObjectURL(
           base64ToBlob(data.data, data.mimeType || 'audio/mp4')
         );
+        if (stale) {
+          URL.revokeObjectURL(url);
+          return;
+        }
         urlRef.current = url;
         setState({ phase: 'ready', url, durationMs: data.durationMs ?? 0 });
       } catch {
-        if (artifactIdRef.current === artifactId) setState({ phase: 'error' });
+        if (generationRef.current === generation) setState({ phase: 'error' });
       } finally {
-        if (artifactIdRef.current === artifactId) inFlightRef.current = false;
+        if (loadingGenerationRef.current === generation)
+          loadingGenerationRef.current = null;
       }
     })();
   }, [fetchPlayback, sessionId, responseKey, questionId, slot, artifactId]);
