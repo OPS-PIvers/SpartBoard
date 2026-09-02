@@ -35,6 +35,7 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
   mirrorPlcAssignmentStatus,
   writePlcAssignmentIndexEntry,
@@ -998,13 +999,14 @@ export const useVideoActivityAssignments = (
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;
         let pointsMax = 0;
-        // Track which question ids have already been scored so a duplicate
-        // answer (Drive-sync duplication / arrayUnion race writing the same
-        // questionId twice into `answers`) can't inflate pointsEarned and
-        // pointsMax. Each answer is still graded for its `isCorrect` flag, but
-        // only the first occurrence of a questionId contributes to the totals —
-        // matching the dedup already applied in the unanswered loop below.
-        const scoredQuestionIds = new Set<string>();
+        // Pick one representative answer per questionId — highest takeIndex
+        // wins, ties (equal or absent takeIndex, e.g. an arrayUnion race or
+        // Drive-sync duplication) broken by earliest answeredAt — so a
+        // duplicate answer can't inflate pointsEarned and pointsMax. Each
+        // answer is still graded for its `isCorrect` flag, but only the
+        // representative contributes to the totals — matching the dedup
+        // already applied in the unanswered loop below.
+        const representativeAnswers = selectRepresentativeAnswers(answers);
         const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
           const q = questionsById.get(a.questionId);
           if (!q) {
@@ -1017,8 +1019,7 @@ export const useVideoActivityAssignments = (
             return rest;
           }
           const result = gradeVideoActivityAnswer(q, a.answer);
-          if (!scoredQuestionIds.has(a.questionId)) {
-            scoredQuestionIds.add(a.questionId);
+          if (representativeAnswers.get(a.questionId) === a) {
             pointsEarned += result.pointsEarned;
             pointsMax += result.pointsMax;
           }

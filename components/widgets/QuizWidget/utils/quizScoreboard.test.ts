@@ -74,6 +74,7 @@ function makeResponse(
     answer: string;
     answeredAt?: number;
     speedBonus?: number;
+    takeIndex?: number;
   }[],
   status: 'joined' | 'in-progress' | 'completed' = 'completed'
 ): QuizResponse {
@@ -87,6 +88,7 @@ function makeResponse(
       answer: a.answer,
       answeredAt: a.answeredAt ?? Date.now() + i,
       ...(a.speedBonus != null ? { speedBonus: a.speedBonus } : {}),
+      ...(a.takeIndex != null ? { takeIndex: a.takeIndex } : {}),
     })),
     score: null,
     submittedAt: status === 'completed' ? Date.now() : null,
@@ -436,6 +438,41 @@ describe('quizScoreboard', () => {
         //   q1(wrong duplicate): 0pts, streak resets to 0
         //   q2: 2pts × 1.0 = 2 (streak=1, not 2) → total = 4
         expect(getEarnedPoints(response, questions, session)).toBe(5);
+      });
+
+      it('a strictly higher takeIndex wins over take 0, regardless of array order', () => {
+        const questions = [makeQuestion('q1', 'A', 5)];
+        const response = makeResponse('01', [
+          { questionId: 'q1', answer: 'wrong', answeredAt: 200, takeIndex: 0 },
+          { questionId: 'q1', answer: 'A', answeredAt: 100, takeIndex: 1 },
+        ]);
+        // Take 1 wins even though it was answered earlier and appears second.
+        expect(getEarnedPoints(response, questions)).toBe(5);
+      });
+
+      it('equal takeIndex ties are broken by earliest answeredAt (same-index race)', () => {
+        // A race-created duplicate carries the SAME takeIndex as the original —
+        // must resolve exactly like the legacy no-takeIndex case above.
+        const questions = [makeQuestion('q1', 'A', 5)];
+        const response = makeResponse('01', [
+          { questionId: 'q1', answer: 'A', answeredAt: 100, takeIndex: 0 },
+          {
+            questionId: 'q1',
+            answer: 'wrong',
+            answeredAt: 150,
+            takeIndex: 0,
+          },
+        ]);
+        expect(getEarnedPoints(response, questions)).toBe(5);
+      });
+
+      it('legacy documents with no takeIndex anywhere score exactly as before', () => {
+        const questions = [makeQuestion('q1', 'A', 5)];
+        const response = makeResponse('01', [
+          { questionId: 'q1', answer: 'A', answeredAt: 100 },
+          { questionId: 'q1', answer: 'wrong', answeredAt: 150 },
+        ]);
+        expect(getEarnedPoints(response, questions)).toBe(5);
       });
     });
   });

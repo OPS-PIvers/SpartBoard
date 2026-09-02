@@ -49,7 +49,12 @@ const essay = (id: string, snapshot?: Rubric): QuizQuestion => ({
 });
 
 const response = (
-  answers: { questionId: string; answer: string; answeredAt?: number }[],
+  answers: {
+    questionId: string;
+    answer: string;
+    answeredAt?: number;
+    takeIndex?: number;
+  }[],
   grading?: QuizResponse['grading']
 ): QuizResponse =>
   ({
@@ -134,6 +139,25 @@ describe('isResponseAwaitingGrade', () => {
     ]);
     const qs = [essay('e1')];
     expect(getEarnedPoints(r, qs)).toBe(0);
+    expect(isResponseAwaitingGrade(r, qs)).toBe(true);
+  });
+
+  it('a strictly higher takeIndex wins over take 0 for the ungraded check', () => {
+    // Take 0 is a blank essay (a genuine 0, not owed a grade); take 1 is a
+    // real, still-ungraded retake. The representative must be take 1.
+    const r = response([
+      { questionId: 'e1', answer: '   ', answeredAt: 100, takeIndex: 0 },
+      { questionId: 'e1', answer: 'my essay', answeredAt: 200, takeIndex: 1 },
+    ]);
+    expect(isResponseAwaitingGrade(r, [essay('e1')])).toBe(true);
+  });
+
+  it('equal takeIndex ties are broken by earliest answeredAt, matching getEarnedPoints', () => {
+    const r = response([
+      { questionId: 'e1', answer: 'my essay', answeredAt: 100, takeIndex: 0 },
+      { questionId: 'e1', answer: 'A', answeredAt: 150, takeIndex: 0 },
+    ]);
+    const qs = [essay('e1')];
     expect(isResponseAwaitingGrade(r, qs)).toBe(true);
   });
 });
