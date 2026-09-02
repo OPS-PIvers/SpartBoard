@@ -408,6 +408,20 @@ from its content**: it records a child's voice exactly as `'audio'` does but
 carries no camera, so RR-A3's video gate does not name it and it ships ungated.
 The set-subtraction model handled a case it was never tested against.
 
+**2026-09-02 — sub-decision 3 shipped.** `'short'` and `'essay'` are now one
+`QuizQuestionType` value, **`'free-response'`** (teacher label "Free Response",
+badge FRQ); `isWrittenQuestionType` became `isFreeResponseType`. Legacy values
+are normalized at every read site (`utils/quizQuestionNormalize.ts`: Drive
+`loadQuiz`, shared/synced imports, both `quiz_sessions` listeners) and never
+rewritten. The response mode moved up under Type as a **Format** segmented
+control (Typed / Spoken) that expands the recording settings in place;
+**"Student's choice" is deferred** — the control's options are data-driven so
+it is a one-line addition when Paul wants it. "Word cap" became a **min/max
+Word limit** with an optional **Enforce limit** switch: enforcement lives at
+the Submit button only (a timer still auto-submits, flagged
+`timedOutUnderMinimum` on the answer entry; a blank draft is never trapped).
+PRs #2756–#2759.
+
 **Paul's notes:**
 
 ---
