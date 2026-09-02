@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -95,6 +97,53 @@ export interface PlcQuizHeaderPatch {
   sessionMode?: QuizSessionMode;
   sessionOptions?: QuizSessionOptions;
   attemptLimit?: number | null;
+}
+
+/** Firestore update payload for a header mirror; skips undefined so nothing is wiped. */
+function headerPatchFields(patch: PlcQuizHeaderPatch): Record<string, unknown> {
+  const fields: Record<string, unknown> = { updatedAt: Date.now() };
+  if (patch.title !== undefined) fields.title = patch.title;
+  if (patch.questionCount !== undefined) {
+    fields.questionCount = patch.questionCount;
+  }
+  if (patch.sessionMode !== undefined) fields.sessionMode = patch.sessionMode;
+  if (patch.sessionOptions !== undefined) {
+    fields.sessionOptions = patch.sessionOptions;
+  }
+  if (patch.attemptLimit !== undefined)
+    fields.attemptLimit = patch.attemptLimit;
+  return fields;
+}
+
+/**
+ * Mirror a published quiz's header onto every PLC library row that points at
+ * `syncGroupId`, across the given PLCs. Used by the board editor, which has no
+ * PLC in scope; best-effort per PLC, never rejects.
+ */
+export async function mirrorPlcQuizHeadersBySyncGroup(
+  plcIds: readonly string[],
+  syncGroupId: string,
+  patch: PlcQuizHeaderPatch
+): Promise<void> {
+  const fields = headerPatchFields(patch);
+  await Promise.all(
+    plcIds.map(async (plcId) => {
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION),
+            where('syncGroupId', '==', syncGroupId)
+          )
+        );
+        await Promise.all(snap.docs.map((d) => updateDoc(d.ref, fields)));
+      } catch (err) {
+        logError('usePlcQuizzes.mirrorHeadersBySyncGroup', err, {
+          plcId,
+          syncGroupId,
+        });
+      }
+    })
+  );
 }
 
 interface UsePlcQuizzesResult {
@@ -288,23 +337,9 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     async (plcQuizId: string, patch: PlcQuizHeaderPatch): Promise<void> => {
       if (!plcId || !user) return;
       try {
-        const fields: Record<string, unknown> = { updatedAt: Date.now() };
-        if (patch.title !== undefined) fields.title = patch.title;
-        if (patch.questionCount !== undefined) {
-          fields.questionCount = patch.questionCount;
-        }
-        if (patch.sessionMode !== undefined) {
-          fields.sessionMode = patch.sessionMode;
-        }
-        if (patch.sessionOptions !== undefined) {
-          fields.sessionOptions = patch.sessionOptions;
-        }
-        if (patch.attemptLimit !== undefined) {
-          fields.attemptLimit = patch.attemptLimit;
-        }
         await updateDoc(
           doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),
-          fields
+          headerPatchFields(patch)
         );
       } catch (err) {
         // Mirror writes are best-effort — never reject so callers' primary

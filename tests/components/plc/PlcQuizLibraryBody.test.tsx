@@ -363,6 +363,47 @@ describe('PlcQuizLibraryBody', () => {
       );
     });
 
+    it('registers the pickup with the PLC when the PLC has a shared sheet', async () => {
+      const sheetPlc = {
+        ...plc,
+        sharedSheetUrl: 'https://docs.google.com/spreadsheets/d/plc-sheet',
+      } as unknown as Plc;
+      render(
+        <I18nextProvider i18n={i18n}>
+          <PlcQuizLibraryBody plc={sheetPlc} onCloseDashboard={vi.fn()} />
+        </I18nextProvider>
+      );
+
+      openAssignModal();
+      await pickCopy();
+
+      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+      expect(createAssignment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          plc: expect.objectContaining({
+            id: 'plc-1',
+            sheetUrl: 'https://docs.google.com/spreadsheets/d/plc-sheet',
+          }),
+        }),
+        expect.anything()
+      );
+    });
+
+    it('leaves the pickup unlinked when the PLC has no shared sheet', async () => {
+      renderSubject();
+
+      openAssignModal();
+      await pickCopy();
+
+      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+      const [, settings] = createAssignment.mock.calls[0] as unknown as [
+        unknown,
+        Record<string, unknown>,
+      ];
+      expect(settings).not.toHaveProperty('plc');
+    });
+
     it('renders the class-period picker optimistically after assign (no listener snapshot)', async () => {
       renderSubject();
 

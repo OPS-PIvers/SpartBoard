@@ -399,6 +399,49 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     });
   });
 
+  it('a pickup carries PLC linkage to the originator sheet and the canonical behavior', async () => {
+    const behavior = {
+      sessionMode: 'student' as const,
+      sessionOptions: { shuffleQuestions: true },
+      attemptLimit: 2,
+    };
+    vi.mocked(syncedQuizGroupsMod.pullSyncedQuizContent).mockResolvedValueOnce({
+      title: 'Cell Division Quiz',
+      questions: [],
+      version: 3,
+      behavior,
+    });
+    renderSubject();
+
+    fireEvent.click(screen.getByTestId('row-action-assign-to-my-classes'));
+    const syncButton = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.includes('Synced'));
+    act(() => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      fireEvent.click(syncButton!);
+    });
+
+    await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+    expect(saveQuiz).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+      behavior
+    );
+    expect(createAssignment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        ...behavior,
+        plc: expect.objectContaining({
+          id: 'plc-1',
+          name: 'Test PLC',
+          sheetUrl: 'https://docs.google.com/spreadsheets/d/fake2',
+        }),
+      }),
+      expect.objectContaining({ initialStatus: 'paused' })
+    );
+  });
+
   it('after createAssignment resolves, import modal is dismissed', async () => {
     renderSubject();
     fireEvent.click(screen.getByTestId('row-action-assign-to-my-classes'));

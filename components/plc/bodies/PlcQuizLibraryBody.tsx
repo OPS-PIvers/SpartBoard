@@ -78,7 +78,11 @@ import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
-import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
+import {
+  canEditPlcContent,
+  getPlcMemberEmail,
+  getPlcMemberEmails,
+} from '@/utils/plc';
 import { getQuizBehavior } from '@/utils/quizBehavior';
 import { PlcVersionHistoryPanel } from '@/components/plc/versions/PlcVersionHistoryPanel';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
@@ -566,12 +570,26 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
               ? { stimuli: canonical.stimuli }
               : {}),
           },
-          // The canonical doc carries the behavior the author last published;
-          // the row's header is only a share-time snapshot, so it is the fallback.
-          canonical.behavior ?? {
-            sessionMode: target.sessionMode,
-            sessionOptions: target.sessionOptions,
-            attemptLimit: target.attemptLimit,
+          {
+            // The canonical doc carries the behavior the author last published;
+            // the row's header is only a share-time snapshot, so it is the fallback.
+            ...(canonical.behavior ?? {
+              sessionMode: target.sessionMode,
+              sessionOptions: target.sessionOptions,
+              attemptLimit: target.attemptLimit,
+            }),
+            // Register on the In-progress tab when the PLC has a shared sheet
+            // (the index rule requires a Sheets URL).
+            ...(plc.sharedSheetUrl
+              ? {
+                  plc: {
+                    id: plc.id,
+                    name: plc.name,
+                    sheetUrl: plc.sharedSheetUrl,
+                    memberEmails: getPlcMemberEmails(plc),
+                  },
+                }
+              : {}),
           },
           {
             initialStatus: 'paused',
@@ -652,7 +670,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       createAssignment,
       deleteQuiz,
       isDriveConnected,
-      plc.id,
+      plc,
       saveQuiz,
       t,
       user,

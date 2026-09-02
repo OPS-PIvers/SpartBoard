@@ -29,7 +29,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
   onClose,
 }) => {
   const { user } = useAuth();
-  const { saveQuiz } = useQuiz(user?.uid);
+  const { saveQuiz, attachSyncLinkage } = useQuiz(user?.uid);
 
   // After authoring, hold the AssignmentQuizRef + behavior to pass to the config modal.
   const [quizRef, setQuizRef] = useState<AssignmentQuizRef | null>(null);
@@ -78,6 +78,12 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
         kind="quiz"
         quizRef={quizRef}
         quizBehavior={savedBehavior ?? undefined}
+        onQuizSyncGroupCreated={(syncGroupId) =>
+          attachSyncLinkage(quizRef.id, {
+            groupId: syncGroupId,
+            lastSyncedVersion: 1,
+          })
+        }
         isOpen
         onClose={handleConfigClose}
       />
