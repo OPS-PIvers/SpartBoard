@@ -5,14 +5,14 @@
  * granted on the auth-bypass dev server, which has no permission record.
  */
 import React, { useMemo, useState } from 'react';
-import { RecordingConfigSection } from '@/components/widgets/QuizWidget/components/RecordingConfigSection';
+import { ResponseFormatSection } from '@/components/widgets/QuizWidget/components/ResponseFormatSection';
 import { QuizAuthoringAdvisory } from '@/components/widgets/QuizWidget/components/QuizAuthoringAdvisory';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
 import type { QuizQuestion } from '@/types';
 
 // Prefixed so no key collides with AUDIO_CAPTURE_STATES in the harness picker.
 export const RECORDING_CONTROL_STATES = [
-  'rc-disabled',
+  'rc-typed',
   'rc-enabled-defaults',
   'rc-clamped-limit',
   'rc-take-limit',
@@ -33,7 +33,7 @@ const baseQuestion = (): QuizQuestion => ({
 
 function seedQuestion(state: RecordingControlStateKey): QuizQuestion {
   const q = baseQuestion();
-  if (state === 'rc-disabled') return { ...q, timeLimit: 45 };
+  if (state === 'rc-typed') return { ...q, timeLimit: 45 };
   if (state === 'rc-clamped-limit') {
     // Over the audio ceiling, as an imported quiz can be.
     return {
@@ -80,7 +80,7 @@ export const RecordingControlsDevView: React.FC<{
           questions={advisoryQuestions}
           shuffleQuestionsEnabled={state === 'rc-advisory'}
         />
-        <RecordingConfigSection
+        <ResponseFormatSection
           question={question}
           onChange={(updates) => setQuestion((q) => ({ ...q, ...updates }))}
         />

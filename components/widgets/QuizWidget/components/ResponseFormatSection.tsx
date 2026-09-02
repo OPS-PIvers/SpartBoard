@@ -1,22 +1,23 @@
 /**
- * RecordingConfigSection — the per-question spoken-answer controls, mounted
- * inside the quiz editor's question detail pane.
+ * ResponseFormatSection — the Format control (Typed / Spoken) plus the
+ * inline spoken-answer settings, mounted inside the quiz editor's question
+ * detail pane directly under the Type/Time/Points row.
  *
  * Presentational on purpose: the fail-closed `canAccessQuizMediaResponse`
- * gate lives one level up in `QuizEditorDetailPane`, so this file has one
- * job and the dev harness can mount it with the gate granted.
+ * gate AND the written-type check both live one level up in
+ * `QuizEditorDetailPane`, so this file only renders for a written question
+ * with the media permission granted — the dev harness mounts it directly
+ * with that already true.
  */
 
 import React from 'react';
-import { Mic } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  isFreeResponseType,
-  type QuizQuestion,
-  type RecordingConfig,
-  type RecordingPrepExpiry,
+import type {
+  QuizQuestion,
+  RecordingConfig,
+  RecordingPrepExpiry,
 } from '@/types';
-import { Toggle } from '@/components/common/Toggle';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { AttemptLimitRow } from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import {
@@ -31,6 +32,9 @@ import {
 } from '@/utils/quizRecordingModes';
 
 const hintClass = 'text-xxs text-slate-500 mt-1';
+
+/** The third "Student's choice" option is deferred; kept data-driven for it. */
+type ResponseFormat = 'typed' | 'spoken';
 
 const EXPIRY_ORDER: RecordingPrepExpiry[] = [
   'armed',
@@ -52,13 +56,13 @@ const EXPIRY_KEYS: Record<
   unanswered: { label: 'expiryUnanswered', hint: 'expiryUnansweredHint' },
 };
 
-export interface RecordingConfigSectionProps {
+export interface ResponseFormatSectionProps {
   question: QuizQuestion;
   /** The editor's existing per-question writer. */
   onChange: (updates: Partial<QuizQuestion>) => void;
 }
 
-export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
+export const ResponseFormatSection: React.FC<ResponseFormatSectionProps> = ({
   question,
   onChange,
 }) => {
@@ -67,12 +71,10 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
     t(`quizMediaResponse.authoring.${key}`, params);
 
   const recording = question.recording;
-  const enabled = !!recording;
+  const spoken: ResponseFormat = recording ? 'spoken' : 'typed';
   const ceiling = recordingLimitCeiling(recordingModesForQuestion(question));
 
-  // Session-only memory of the block a question had when last disabled, so
-  // re-enabling in the same editing session restores it instead of resetting
-  // to defaults. Keyed by question id; lost on remount, which is fine.
+  // Remembers the block last set to Typed so Spoken restores it; cleared whenever a non-FRQ question is selected.
   const lastDisabledRef = React.useRef<Map<string, RecordingConfig>>(new Map());
 
   const patch = (updates: Partial<RecordingConfig>) => {
@@ -80,8 +82,8 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
     onChange({ recording: { ...recording, ...updates } });
   };
 
-  const toggle = (next: boolean) => {
-    if (next) {
+  const setFormat = (next: ResponseFormat) => {
+    if (next === 'spoken') {
       // Speed bonus and the recording timer cannot both own the clock
       // (RR-A1 sub-decision 3), so the editor writes the zero it implies and
       // stashes the clock it replaced.
@@ -108,57 +110,25 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
   const clamped = !!recording && recording.limitSeconds > ceiling.seconds;
   const limitValue = clamped ? ceiling.seconds : (recording?.limitSeconds ?? 0);
 
-  // A spoken answer replaces the student's answer input, so it only belongs on
-  // question types whose input is a written response.
-  if (!isFreeResponseType(question.type)) {
-    return (
-      <div className="border border-slate-200 rounded-lg bg-white">
-        <div className="flex items-center gap-2 px-3 pt-2">
-          <Mic className="w-3.5 h-3.5 text-slate-400" aria-hidden />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            {tk('sectionLabel')}
-          </span>
-        </div>
-        <p className="px-3 pb-2.5 pt-1 text-xs text-slate-500">
-          {tk('unsupportedType')}
-        </p>
-        {enabled && (
-          <div className="px-3 pb-2.5">
-            <button
-              type="button"
-              onClick={() => toggle(false)}
-              className="text-xs font-bold text-brand-blue-primary underline"
-            >
-              {tk('unsupportedTypeRemove')}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
+  const formatOptions: { value: ResponseFormat; label: string }[] = [
+    { value: 'typed', label: tk('formatTyped') },
+    { value: 'spoken', label: tk('formatSpoken') },
+  ];
 
   return (
-    <div className="border border-slate-200 rounded-lg bg-white">
-      <div className="flex items-center gap-2 px-3 py-2">
-        <Mic className="w-3.5 h-3.5 text-slate-500" aria-hidden />
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex-1">
-          {tk('sectionLabel')}
-        </span>
-        <Toggle
-          checked={enabled}
-          onChange={toggle}
-          size="sm"
-          showLabels
-          label={tk('enableLabel')}
+    <div className="space-y-3">
+      <div>
+        <span className={labelClass}>{tk('formatLabel')}</span>
+        <SegmentedControl
+          value={spoken}
+          onChange={setFormat}
+          options={formatOptions}
+          ariaLabel={tk('formatLabel')}
         />
       </div>
 
-      {!enabled && (
-        <p className="px-3 pb-2.5 text-xs text-slate-500">{tk('enableHint')}</p>
-      )}
-
-      {enabled && recording && (
-        <div className="px-3 pb-3 pt-2 space-y-3 border-t border-slate-100">
+      {recording && (
+        <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass} htmlFor="recording-prep-seconds">

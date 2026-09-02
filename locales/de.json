@@ -2034,9 +2034,9 @@
       "body": "We could not use a microphone on this device, so there is no recording to send. This question goes to your teacher ungraded, and they will decide what to do about it. Move on to the next question."
     },
     "authoring": {
-      "sectionLabel": "Spoken answer",
-      "enableLabel": "Ask for a spoken answer",
-      "enableHint": "Students record their answer instead of typing it.",
+      "formatLabel": "Format",
+      "formatTyped": "Typed",
+      "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
       "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
       "limitLabel": "Recording limit",
@@ -2059,8 +2059,6 @@
       "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
-      "unsupportedType": "Spoken answers are available on Free Response questions. This question type keeps its own answer input.",
-      "unsupportedTypeRemove": "Turn off the spoken answer here",
       "advisory": {
         "title": "As authored",
         "slots_one": "Records up to {{count}} slot per student.",

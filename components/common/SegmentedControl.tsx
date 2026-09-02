@@ -72,7 +72,7 @@ export const SegmentedControl: <T extends string>(props: {
             className={`h-8 px-3 rounded-md text-xs font-semibold transition-all ${
               selected
                 ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                : 'text-slate-600 hover:text-slate-800'
             }`}
           >
             {opt.label}

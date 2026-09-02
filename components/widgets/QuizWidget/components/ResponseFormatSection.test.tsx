@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@/i18n';
-import { RecordingConfigSection } from './RecordingConfigSection';
+import { ResponseFormatSection } from './ResponseFormatSection';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
 import type { QuizQuestion } from '@/types';
 
@@ -19,40 +19,36 @@ const question = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
 const withRecording = (over = {}) =>
   question({ recording: { ...DEFAULT_RECORDING_CONFIG, ...over } });
 
-describe('RecordingConfigSection', () => {
-  it('shows only the enable toggle until the block exists', () => {
-    render(<RecordingConfigSection question={question()} onChange={vi.fn()} />);
-    expect(screen.getByLabelText('Ask for a spoken answer')).toBeTruthy();
+const spokenTab = () => screen.getByRole('tab', { name: 'Spoken' });
+const typedTab = () => screen.getByRole('tab', { name: 'Typed' });
+
+describe('ResponseFormatSection', () => {
+  it('shows only the Format control until Spoken is chosen', () => {
+    render(<ResponseFormatSection question={question()} onChange={vi.fn()} />);
+    expect(typedTab()).toBeTruthy();
+    expect(spokenTab()).toBeTruthy();
     expect(screen.queryByLabelText('Thinking time')).toBeNull();
     expect(screen.queryByLabelText('Takes allowed')).toBeNull();
   });
 
-  it('reports the enable switch state to assistive tech', () => {
+  it('reports the selected format to assistive tech', () => {
     const { unmount } = render(
-      <RecordingConfigSection question={question()} onChange={vi.fn()} />
+      <ResponseFormatSection question={question()} onChange={vi.fn()} />
     );
-    expect(
-      screen
-        .getByLabelText('Ask for a spoken answer')
-        .getAttribute('aria-checked')
-    ).toBe('false');
+    expect(typedTab().getAttribute('aria-selected')).toBe('true');
+    expect(spokenTab().getAttribute('aria-selected')).toBe('false');
     unmount();
     render(
-      <RecordingConfigSection question={withRecording()} onChange={vi.fn()} />
+      <ResponseFormatSection question={withRecording()} onChange={vi.fn()} />
     );
-    expect(
-      screen
-        .getByLabelText('Ask for a spoken answer')
-        .getAttribute('aria-checked')
-    ).toBe('true');
+    expect(typedTab().getAttribute('aria-selected')).toBe('false');
+    expect(spokenTab().getAttribute('aria-selected')).toBe('true');
   });
 
-  it('writes the default block and zeroes the speed-bonus clock on enable', () => {
+  it('writes the default block and zeroes the speed-bonus clock on Spoken', () => {
     const onChange = vi.fn();
-    render(
-      <RecordingConfigSection question={question()} onChange={onChange} />
-    );
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    render(<ResponseFormatSection question={question()} onChange={onChange} />);
+    fireEvent.click(spokenTab());
     expect(onChange).toHaveBeenCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, priorTimeLimit: 45 },
       timeLimit: 0,
@@ -62,31 +58,31 @@ describe('RecordingConfigSection', () => {
   it('stashes nothing when there was no clock to replace', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection
+      <ResponseFormatSection
         question={question({ timeLimit: 0 })}
         onChange={onChange}
       />
     );
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(spokenTab());
     expect(onChange).toHaveBeenCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG },
       timeLimit: 0,
     });
   });
 
-  it('removes the block entirely on disable', () => {
+  it('removes the block entirely on Typed', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection question={withRecording()} onChange={onChange} />
+      <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(typedTab());
     expect(onChange).toHaveBeenCalledWith({ recording: undefined });
   });
 
-  it('restores the stashed time limit on disable', () => {
+  it('restores the stashed time limit on Typed', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection
+      <ResponseFormatSection
         question={question({
           timeLimit: 0,
           recording: { ...DEFAULT_RECORDING_CONFIG, priorTimeLimit: 45 },
@@ -94,14 +90,14 @@ describe('RecordingConfigSection', () => {
         onChange={onChange}
       />
     );
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(typedTab());
     expect(onChange).toHaveBeenCalledWith({
       recording: undefined,
       timeLimit: 45,
     });
   });
 
-  it('restores a customized block authored earlier in the session on re-enable', () => {
+  it('restores a customized block authored earlier in the session on re-selecting Spoken', () => {
     let current = question();
     const apply = (updates: Partial<QuizQuestion>) => {
       const next = { ...current, ...updates } as Record<string, unknown>;
@@ -111,11 +107,11 @@ describe('RecordingConfigSection', () => {
       current = next as unknown as QuizQuestion;
     };
     const view = () => (
-      <RecordingConfigSection question={current} onChange={apply} />
+      <ResponseFormatSection question={current} onChange={apply} />
     );
     const { rerender } = render(view());
 
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(spokenTab());
     rerender(view());
     fireEvent.change(screen.getByLabelText('Recording limit'), {
       target: { value: '180' },
@@ -123,9 +119,9 @@ describe('RecordingConfigSection', () => {
     rerender(view());
     fireEvent.click(screen.getByRole('button', { name: '2' }));
     rerender(view());
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(typedTab());
     rerender(view());
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(spokenTab());
     rerender(view());
 
     expect(current.recording?.limitSeconds).toBe(180);
@@ -142,22 +138,22 @@ describe('RecordingConfigSection', () => {
       current = next as unknown as QuizQuestion;
     };
     const view = () => (
-      <RecordingConfigSection question={current} onChange={apply} />
+      <ResponseFormatSection question={current} onChange={apply} />
     );
     const { rerender, unmount } = render(view());
 
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(spokenTab());
     rerender(view());
     fireEvent.change(screen.getByLabelText('Recording limit'), {
       target: { value: '180' },
     });
     rerender(view());
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(typedTab());
     rerender(view());
     unmount();
 
-    render(<RecordingConfigSection question={current} onChange={apply} />);
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    render(<ResponseFormatSection question={current} onChange={apply} />);
+    fireEvent.click(spokenTab());
     expect(current.recording).toEqual({
       ...DEFAULT_RECORDING_CONFIG,
       priorTimeLimit: 45,
@@ -175,19 +171,19 @@ describe('RecordingConfigSection', () => {
       current = next as unknown as QuizQuestion;
     };
     const view = () => (
-      <RecordingConfigSection question={current} onChange={apply} />
+      <ResponseFormatSection question={current} onChange={apply} />
     );
     const { rerender } = render(view());
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(spokenTab());
     rerender(view());
-    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(typedTab());
     expect(current).toEqual(original);
   });
 
   it('writes prep seconds through the caller', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection question={withRecording()} onChange={onChange} />
+      <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
     fireEvent.change(screen.getByLabelText('Thinking time'), {
       target: { value: '15' },
@@ -200,7 +196,7 @@ describe('RecordingConfigSection', () => {
   it('writes the recording limit and holds it under the ceiling', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection question={withRecording()} onChange={onChange} />
+      <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
     const limit = screen.getByLabelText('Recording limit');
     fireEvent.change(limit, { target: { value: '120' } });
@@ -216,7 +212,7 @@ describe('RecordingConfigSection', () => {
   it('writes each prep-expiry branch', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection question={withRecording()} onChange={onChange} />
+      <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
     fireEvent.click(screen.getByRole('button', { name: /Start recording/ }));
     expect(onChange).toHaveBeenLastCalledWith({
@@ -231,7 +227,7 @@ describe('RecordingConfigSection', () => {
   it('writes a numeric take limit and back to unlimited', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection
+      <ResponseFormatSection
         question={withRecording({ takeLimit: 2 })}
         onChange={onChange}
       />
@@ -249,7 +245,7 @@ describe('RecordingConfigSection', () => {
 
   it('points both duration fields at their hint text', () => {
     render(
-      <RecordingConfigSection question={withRecording()} onChange={vi.fn()} />
+      <ResponseFormatSection question={withRecording()} onChange={vi.fn()} />
     );
     const hintFor = (label: string) => {
       const id =
@@ -264,7 +260,7 @@ describe('RecordingConfigSection', () => {
 
   it('marks the active take limit as pressed', () => {
     render(
-      <RecordingConfigSection
+      <ResponseFormatSection
         question={withRecording({ takeLimit: 2 })}
         onChange={vi.fn()}
       />
@@ -277,7 +273,7 @@ describe('RecordingConfigSection', () => {
   it('shows the ceiling and names the mode instead of clamping silently', () => {
     const onChange = vi.fn();
     render(
-      <RecordingConfigSection
+      <ResponseFormatSection
         question={withRecording({ limitSeconds: 420 })}
         onChange={onChange}
       />
@@ -292,46 +288,5 @@ describe('RecordingConfigSection', () => {
     expect(onChange).toHaveBeenCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 300 },
     });
-  });
-});
-
-describe('RecordingConfigSection — question types', () => {
-  it('offers the controls on a free-response question', () => {
-    render(
-      <RecordingConfigSection
-        question={question({ type: 'free-response' })}
-        onChange={vi.fn()}
-      />
-    );
-    expect(screen.getByLabelText('Ask for a spoken answer')).toBeTruthy();
-    expect(screen.queryByText(/Free Response questions/i)).toBeNull();
-  });
-
-  it.each(['MC', 'FIB', 'Matching', 'Ordering'] as const)(
-    'advises instead of offering the controls on a %s question',
-    (type) => {
-      render(
-        <RecordingConfigSection
-          question={question({ type })}
-          onChange={vi.fn()}
-        />
-      );
-      expect(screen.queryByLabelText('Ask for a spoken answer')).toBeNull();
-      expect(screen.getByText(/Free Response questions/i)).toBeTruthy();
-    }
-  );
-
-  it('lets the teacher clear a block left behind by a type change', () => {
-    const onChange = vi.fn();
-    render(
-      <RecordingConfigSection
-        question={{ ...withRecording(), type: 'MC' }}
-        onChange={onChange}
-      />
-    );
-    fireEvent.click(
-      screen.getByRole('button', { name: /Turn off the spoken answer here/i })
-    );
-    expect(onChange).toHaveBeenCalledWith({ recording: undefined });
   });
 });

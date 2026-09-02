@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   GripVertical,
+  Mic,
   MousePointerClick,
   Plus,
   Sparkles,
@@ -34,7 +35,7 @@ import {
 } from './MatchingOrderingEditor';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { QuestionStimulusSection } from './StimulusManagerPanel';
-import { RecordingConfigSection } from './RecordingConfigSection';
+import { ResponseFormatSection } from './ResponseFormatSection';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
@@ -297,9 +298,15 @@ const QuestionRow = React.memo(function QuestionRow({
         {index + 1}
       </span>
       <span
-        className={`shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
+        className={`shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
       >
         {question.type === 'free-response' ? 'FRQ' : question.type}
+        {isFreeResponseType(question.type) && question.recording && (
+          <>
+            <Mic className="w-2.5 h-2.5" aria-hidden />
+            <span className="sr-only">spoken</span>
+          </>
+        )}
       </span>
       <span className="flex-1 text-sm text-slate-700 truncate">
         {question.text || (
@@ -493,6 +500,10 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 const droppingRubric = !isWritten && !!q.rubricSnapshot;
                 const stashedPoints = manualPointsByQuestion.current.get(q.id);
                 if (droppingRubric) manualPointsByQuestion.current.delete(q.id);
+                // The Format row (Spoken) no longer has a "remove" affordance
+                // for non-written types, so drop any stray recording block here.
+                const droppingRecording =
+                  mediaResponseAllowed && !isWritten && !!q.recording;
                 updateQuestion(q.id, {
                   type: nextType,
                   incorrectAnswers: nextType === 'MC' ? ['', ''] : [],
@@ -505,6 +516,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
                   ...(droppingRubric
                     ? { points: stashedPoints ?? q.points ?? 1 }
+                    : {}),
+                  ...(droppingRecording
+                    ? {
+                        recording: undefined,
+                        timeLimit: q.recording?.priorTimeLimit ?? q.timeLimit,
+                      }
                     : {}),
                 });
               }}
@@ -589,6 +606,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         </div>
 
+        {isFreeResponseType(q.type) && mediaResponseAllowed && (
+          <ResponseFormatSection
+            question={q}
+            onChange={handleRecordingChange}
+          />
+        )}
+
         {(q.type === 'Matching' || q.type === 'Ordering') && (
           <div className="flex items-start gap-2">
             <div className="flex-1 flex gap-2 p-2.5 bg-brand-blue-primary text-white rounded-lg shadow-sm">
@@ -636,49 +660,53 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           />
         ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
-            <div>
-              <label className={labelClass}>Placeholder (optional)</label>
-              <input
-                type="text"
-                value={q.placeholder ?? ''}
-                onChange={(e) =>
-                  updateQuestion(q.id, {
-                    placeholder: e.target.value || undefined,
-                  })
-                }
-                placeholder="e.g. Cite at least two pieces of evidence."
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Word Cap (optional)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min={0}
-                  max={5000}
-                  value={q.maxWords ?? ''}
-                  onChange={(e) => {
-                    const raw = parseInt(e.target.value, 10);
-                    updateQuestion(q.id, {
-                      maxWords:
-                        Number.isFinite(raw) && raw > 0
-                          ? Math.min(5000, raw)
-                          : undefined,
-                    });
-                  }}
-                  placeholder="No cap"
-                  className={`${inputClass} pr-16`}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
-                  Words
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Shown to students as a soft warning. Not enforced — students can
-                exceed it.
-              </p>
-            </div>
+            {!timeLimitLockedByRecording && (
+              <>
+                <div>
+                  <label className={labelClass}>Placeholder (optional)</label>
+                  <input
+                    type="text"
+                    value={q.placeholder ?? ''}
+                    onChange={(e) =>
+                      updateQuestion(q.id, {
+                        placeholder: e.target.value || undefined,
+                      })
+                    }
+                    placeholder="e.g. Cite at least two pieces of evidence."
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Word Cap (optional)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={5000}
+                      value={q.maxWords ?? ''}
+                      onChange={(e) => {
+                        const raw = parseInt(e.target.value, 10);
+                        updateQuestion(q.id, {
+                          maxWords:
+                            Number.isFinite(raw) && raw > 0
+                              ? Math.min(5000, raw)
+                              : undefined,
+                        });
+                      }}
+                      placeholder="No cap"
+                      className={`${inputClass} pr-16`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
+                      Words
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Shown to students as a soft warning. Not enforced — students
+                    can exceed it.
+                  </p>
+                </div>
+              </>
+            )}
             <div>
               <label className={labelClass}>Rubric</label>
               {q.rubricSnapshot ? (
@@ -768,13 +796,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         {/* Per-question stimulus attach — second entry point alongside the
             quiz-level Stimuli tab; both edit the same array. */}
         <QuestionStimulusSection state={state} questionId={q.id} />
-
-        {mediaResponseAllowed && (
-          <RecordingConfigSection
-            question={q}
-            onChange={handleRecordingChange}
-          />
-        )}
       </div>
 
       {showRubricBuilder && isFreeResponseType(q.type) && (

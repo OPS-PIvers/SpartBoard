@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { renderHook, act } from '@testing-library/react';
 import '@/i18n';
-import { RecordingConfigSection } from './RecordingConfigSection';
+import { ResponseFormatSection } from './ResponseFormatSection';
 import { toPublicQuestion } from '@/hooks/useQuizSession';
 import {
   useAudioRecording,
@@ -52,7 +52,7 @@ function author(
   let question = seed;
   let rerender: ((ui: React.ReactElement) => void) | null = null;
   const view = (q: QuizQuestion) => (
-    <RecordingConfigSection
+    <ResponseFormatSection
       question={q}
       onChange={(updates) => {
         question = applyUpdates(question, updates);
@@ -121,7 +121,7 @@ afterEach(() => {
 describe('authored recording controls reach a runtime reader', () => {
   it('projects the authored block onto the session question', () => {
     const { config } = author(baseQuestion(), () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
     });
     expect(config).toEqual({
       prepSeconds: 30,
@@ -134,8 +134,8 @@ describe('authored recording controls reach a runtime reader', () => {
   it('writes nothing onto a question with the block turned off', () => {
     const seed = baseQuestion();
     const { question } = author(seed, () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Typed' }));
     });
     expect('recording' in question).toBe(false);
     expect(question).toEqual(seed);
@@ -144,7 +144,7 @@ describe('authored recording controls reach a runtime reader', () => {
 
   it('keeps the authoring-only stash off the student payload', () => {
     const { question, config } = author(baseQuestion(), () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
     });
     expect(question.recording?.priorTimeLimit).toBe(45);
     expect('priorTimeLimit' in config).toBe(false);
@@ -152,7 +152,7 @@ describe('authored recording controls reach a runtime reader', () => {
 
   it('prepSeconds drives the student prep countdown', () => {
     const { config } = author(baseQuestion(), () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
       fireEvent.change(screen.getByLabelText('Thinking time'), {
         target: { value: '8' },
       });
@@ -166,7 +166,7 @@ describe('authored recording controls reach a runtime reader', () => {
 
   it('prepExpiry auto-start arms the recorder when prep runs out', async () => {
     const { config } = author(baseQuestion(), () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
       fireEvent.change(screen.getByLabelText('Thinking time'), {
         target: { value: '3' },
       });
@@ -182,7 +182,7 @@ describe('authored recording controls reach a runtime reader', () => {
 
   it('limitSeconds hard-stops the take at the authored value', async () => {
     const { config } = author(baseQuestion(), () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
       fireEvent.change(screen.getByLabelText('Thinking time'), {
         target: { value: '0' },
       });
@@ -205,7 +205,7 @@ describe('authored recording controls reach a runtime reader', () => {
 
   it('takeLimit is what the student-side counter reads', () => {
     const { config } = author(baseQuestion(), () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
       fireEvent.click(screen.getByRole('button', { name: '2' }));
     });
     expect(config.takeLimit).toBe(2);
@@ -215,7 +215,7 @@ describe('authored recording controls reach a runtime reader', () => {
 
   it('an unlimited take limit leaves the counter unbounded', () => {
     const { config } = author(baseQuestion(), () => {
-      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+      fireEvent.click(screen.getByRole('tab', { name: 'Spoken' }));
       fireEvent.click(screen.getByRole('button', { name: '2' }));
       fireEvent.click(screen.getByRole('button', { name: 'Unlimited' }));
     });
