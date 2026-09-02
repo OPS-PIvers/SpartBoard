@@ -84,6 +84,7 @@ vi.mock('@/components/common/EditorWorkspace', () => ({
 }));
 
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
+import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 
 const PRE_ATTACHED: Rubric = { ...LIBRARY_RUBRIC, id: 'rub-old' };
 
@@ -228,5 +229,27 @@ describe('QuizEditor — rubric attach/detach points stash', () => {
 
     selectQuestion('Question two');
     expect(screen.queryByLabelText('Rubric builder')).not.toBeInTheDocument();
+  });
+});
+
+describe('QuizEditor — legacy written types', () => {
+  it('opens a normalized legacy essay question as FRQ with its rubric intact', () => {
+    const legacy = normalizeQuizData({
+      ...quiz,
+      questions: [{ ...quiz.questions[2], type: 'essay' as 'free-response' }],
+    });
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={legacy}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    expect(
+      within(screen.getByTestId('context-pane')).getByText('FRQ')
+    ).toBeTruthy();
+    expect(detail().getByText('Paragraph Rubric')).toBeTruthy();
+    expect(detail().getByRole('button', { name: 'Detach' })).toBeTruthy();
   });
 });

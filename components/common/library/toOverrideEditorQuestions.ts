@@ -32,7 +32,7 @@ export function toOverrideEditorQuestions(
             })),
           ]
         : undefined,
-    // F2 fix — only short/essay are rubric-swappable; FIB/Matching/Ordering
+    // F2 fix — only free-response is rubric-swappable; FIB/Matching/Ordering
     // are neither MC-hideable nor rubric-swappable, just subset-selectable.
     isWritten: isFreeResponseType(q.type),
   }));

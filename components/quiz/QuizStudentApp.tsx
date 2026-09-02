@@ -137,7 +137,7 @@ import {
 
 // Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
 // pulled into the initial student-app payload. Loaded on first render of a
-// short/essay question.
+// free-response question.
 const WrittenResponseEditor = React.lazy(() =>
   import('./WrittenResponseEditor').then((m) => ({
     default: m.WrittenResponseEditor,

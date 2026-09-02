@@ -189,11 +189,13 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                     ? 'bg-amber-100 text-amber-700'
                     : question.type === 'Matching'
                       ? 'bg-purple-100 text-purple-700'
-                      : 'bg-teal-100 text-teal-700'
+                      : question.type === 'free-response'
+                        ? 'bg-rose-100 text-rose-700'
+                        : 'bg-teal-100 text-teal-700'
               }`}
               style={{ fontSize: 'min(10px, 3cqmin)' }}
             >
-              {question.type}
+              {question.type === 'free-response' ? 'FRQ' : question.type}
             </span>
             <p
               className="text-brand-blue-dark font-black leading-tight mt-3"
@@ -245,6 +247,15 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                 showAnswer={showAnswer}
                 onReveal={() => setShowAnswer(true)}
               />
+            )}
+
+            {question.type === 'free-response' && (
+              <p
+                className="text-slate-600 italic"
+                style={{ fontSize: 'min(13px, 4cqmin)' }}
+              >
+                Open-ended answer, graded manually.
+              </p>
             )}
           </div>
 

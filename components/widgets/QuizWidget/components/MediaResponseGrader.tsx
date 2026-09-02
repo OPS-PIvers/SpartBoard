@@ -3,7 +3,7 @@
  *
  * Deliberately NOT the shipped `WrittenResponseGrader`: that one is
  * student-major (one student, all their essays) and stays that way for pure
- * short/essay work. A recording criterion is easier to hold across thirty
+ * free-response work. A recording criterion is easier to hold across thirty
  * students than across five questions, so this queue loops question-outer,
  * student-inner, and only over questions carrying a `recording` block.
  *

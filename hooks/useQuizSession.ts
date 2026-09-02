@@ -2414,7 +2414,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           }
         }
 
-        setSession(sessionData);
+        setSession(normalizeQuizSession(sessionData));
         return sessionDoc.id;
       } catch (err) {
         // Translate Firestore `permission-denied` into a student-friendly
