@@ -16,7 +16,18 @@ export const TakeReviewPlayer: React.FC<{
   light?: boolean;
   /** Set when the player mounts in response to the student's own press. */
   autoPlay?: boolean;
-}> = ({ src, durationMs, light = true, autoPlay = false }) => {
+  /** Target of a parent-requested seek, in ms into the take. */
+  seekToMs?: number;
+  /** Bumped by the parent to (re-)request the seek above. */
+  seekNonce?: number;
+}> = ({
+  src,
+  durationMs,
+  light = true,
+  autoPlay = false,
+  seekToMs = 0,
+  seekNonce = 0,
+}) => {
   const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -35,6 +46,21 @@ export const TakeReviewPlayer: React.FC<{
     if (!autoPlay) return;
     void Promise.resolve(audioRef.current?.play()).catch(() => undefined);
   }, [autoPlay, src]);
+
+  // Only a fresh nonce is a seek request; the ref makes `seekToMs` an honest
+  // dependency without re-seeking when the parent merely re-renders.
+  const handledSeekNonceRef = useRef(0);
+
+  // The media element is external; a parent-driven seek must reach it.
+  useEffect(() => {
+    if (!seekNonce || handledSeekNonceRef.current === seekNonce) return;
+    handledSeekNonceRef.current = seekNonce;
+    const el = audioRef.current;
+    if (!el) return;
+    // `onTimeUpdate` carries the new position back into state.
+    el.currentTime = Math.max(0, seekToMs) / 1000;
+    void Promise.resolve(el.play()).catch(() => undefined);
+  }, [seekNonce, seekToMs]);
 
   const toggle = () => {
     const el = audioRef.current;

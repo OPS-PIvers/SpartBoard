@@ -3,7 +3,10 @@ import {
   applyMediaSlots,
   collectMediaSlots,
   gradingKey,
+  isQuestionExcused,
+  isSlotExcused,
   parseGradingKey,
+  questionPointsFor,
   readSlotGrade,
   resolveSlotState,
   selectGradedTake,
@@ -11,6 +14,7 @@ import {
   takeUnplayableReason,
 } from './mediaGrading';
 import type {
+  ArtifactSlot,
   GradeResult,
   QuizQuestion,
   ResponseArtifact,
@@ -63,7 +67,23 @@ const AUTO_ZERO: GradeResult = {
   state: 'not-attempted',
 };
 
+// Mirror of GRADING_KEY_CONTRACT in
+// functions/src/getQuizArtifactPlaybackUrl.test.ts — the server's
+// `gradingKeyFor` is asserted against the same table there, so the two
+// implementations cannot drift apart unnoticed (INT-B8).
+const GRADING_KEY_CONTRACT: [string, ArtifactSlot, string][] = [
+  ['q1', 'primary', 'q1'],
+  ['q1', 'addendum', 'q1::addendum'],
+];
+
 describe('gradingKey / parseGradingKey', () => {
+  it.each(GRADING_KEY_CONTRACT)(
+    'agrees with the server contract for %s / %s',
+    (questionId, slot, expected) => {
+      expect(gradingKey(questionId, slot)).toBe(expected);
+    }
+  );
+
   it('leaves the primary slot unsuffixed so old grades keep their meaning', () => {
     expect(gradingKey('q1', 'primary')).toBe('q1');
     expect(parseGradingKey('q1')).toEqual({
@@ -171,6 +191,43 @@ describe('collectMediaSlots', () => {
     });
     expect(slots).toHaveLength(1);
     expect(slots[0].takes.map((t) => t.takeIndex)).toEqual([2, 1]);
+    // Positional numbering: the surviving takes read as Take 2 and Take 1.
+    expect(slots[0].takes.map((t) => t.displayIndex)).toEqual([2, 1]);
+  });
+
+  it('keeps a failed take the hourly sweep archived to Drive', () => {
+    const slots = collectMediaSlots(question(), {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          takeIndex: 1,
+          artifacts: [audio('a1', { uploadState: 'failed' })],
+        },
+      ],
+      artifactArchive: {
+        a1: { archiveStatus: 'archived', driveFileId: 'd1' },
+      },
+    });
+    expect(slots[0].takes.map((t) => t.takeIndex)).toEqual([1]);
+    expect(slots[0].takes[0].playable).toBe(true);
+  });
+
+  it('still drops a failed take whose archive also failed', () => {
+    const slots = collectMediaSlots(question(), {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          takeIndex: 1,
+          artifacts: [audio('a1', { uploadState: 'failed' })],
+        },
+      ],
+      artifactArchive: { a1: { archiveStatus: 'failed' } },
+    });
+    expect(slots).toHaveLength(0);
   });
 
   it('marks a capture-unavailable slot only when no take landed', () => {
@@ -225,10 +282,12 @@ describe('resolveSlotState', () => {
     expect(resolveSlotState(slotWithTake({}))).toBe('scored');
   });
 
-  it('keeps an excused slot awaiting-grade so the gradebook omits it', () => {
-    expect(resolveSlotState(slotWithTake({ excused: true }))).toBe(
-      'awaiting-grade'
-    );
+  it('treats an excused slot as terminal, not as still-pending', () => {
+    const slot = slotWithTake({ excused: true });
+    expect(isSlotExcused(slot)).toBe(true);
+    // `awaiting-grade` here would hold up publishing forever (INT-B).
+    expect(resolveSlotState(slot)).toBe('scored');
+    expect(resolveSlotState(slot, 'awaiting-grade')).toBe('scored');
   });
 
   const unavailableSlot = (g?: WrittenAnswerGrade) =>
@@ -448,7 +507,51 @@ describe('applyMediaSlots', () => {
       },
       AUTO_ZERO
     );
-    expect(result.state).toBe('awaiting-grade');
+    // 0 of 0: terminal, out of the denominator, never in the gradebook.
+    expect(result).toMatchObject({
+      pointsEarned: 0,
+      pointsMax: 0,
+      state: 'scored',
+      excused: true,
+    });
+  });
+});
+
+describe('excused questions leave the student denominator', () => {
+  const excusedResponse = {
+    answers: [
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 1,
+        unresponded: 'capture-unavailable' as const,
+      },
+    ],
+    grading: { q1: grade({ pointsAwarded: 0, excused: true }) },
+  };
+
+  it('drops the question points for that student only', () => {
+    expect(isQuestionExcused(question(), excusedResponse)).toBe(true);
+    expect(questionPointsFor(question(), excusedResponse)).toBe(0);
+  });
+
+  it('leaves every other question at its full weight', () => {
+    const answered = {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          takeIndex: 1,
+          artifacts: [audio('a1')],
+        },
+      ],
+    };
+    expect(isQuestionExcused(question(), answered)).toBe(false);
+    expect(questionPointsFor(question(), answered)).toBe(4);
+    expect(
+      questionPointsFor(question({ recording: undefined }), excusedResponse)
+    ).toBe(4);
   });
 });
 
@@ -476,7 +579,8 @@ describe('takeUnplayableReason', () => {
   it('reports every non-playable lifecycle value', () => {
     expect(takeUnplayableReason(take('syncing'))).toBe('archiving');
     expect(takeUnplayableReason(take('failed'))).toBe('archive-failed');
-    expect(takeUnplayableReason(take('lost'))).toBe('archive-failed');
+    // Terminal, so the teacher sees "Lost", not the retrying "Not saved".
+    expect(takeUnplayableReason(take('lost'))).toBe('lost');
     expect(takeUnplayableReason(take('deleting'))).toBe('deleted');
     expect(takeUnplayableReason(take('deleted'))).toBe('deleted');
     expect(takeUnplayableReason(take('delete-failed'))).toBe('deleted');

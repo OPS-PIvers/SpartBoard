@@ -1,3 +1,5 @@
+import { artifactCountsAsTake } from '@/utils/responseArtifacts';
+
 // Highest takeIndex wins; ties broken by earliest answeredAt.
 export function selectRepresentativeAnswers<
   T extends { questionId: string; answeredAt?: number; takeIndex?: number },
@@ -16,26 +18,40 @@ export function selectRepresentativeAnswers<
 }
 
 /**
- * Committed takes for one question. A take whose artifacts all failed to
- * upload never reaches the teacher, so it must not consume the student's
- * budget — same rule the archival callable's `countCommittedTakes` applies.
+ * Committed takes for one question. A take counts when the archive map says it
+ * was archived, whatever `uploadState` the client wrote; it is dropped only
+ * when the upload failed and no archive entry rescued it — the same rule
+ * `collectMediaSlots` and `selectPlaybackTake` apply.
  */
 export function countCommittedTakes<
   T extends {
     questionId: string;
     unresponded?: string;
-    artifacts?: { uploadState?: string }[];
+    artifacts?: { id?: string; uploadState?: string }[];
   },
->(answers: T[], questionId: string): number {
+>(
+  answers: T[],
+  questionId: string,
+  archive?: Record<
+    string,
+    { archiveStatus?: string; driveFileId?: string } | undefined
+  >
+): number {
   return answers.filter(
     (a) =>
       a.questionId === questionId &&
       !a.unresponded &&
-      (a.artifacts ?? []).some((art) => art?.uploadState !== 'failed')
+      (a.artifacts ?? []).some((art) =>
+        artifactCountsAsTake(art, art?.id ? archive?.[art.id] : undefined)
+      )
   ).length;
 }
 
-/** Next `takeIndex` for a question; 1-based, so the first take is take 1. */
+/**
+ * Next `takeIndex` for a question; 1-based, so the first take is take 1.
+ * Always `max(takeIndex) + 1` over EVERY entry, including takes that no longer
+ * count — reusing a dropped take's index would collide with its answer row.
+ */
 export function nextTakeIndex<
   T extends { questionId: string; takeIndex?: number },
 >(answers: T[], questionId: string): number {

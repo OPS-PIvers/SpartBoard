@@ -151,6 +151,22 @@ about a `'lost'` artifact on the single sweep run that settles it, and never
 again — this is what closes GitHub issue #2735, where an unarchivable artifact
 re-queued a straggler email every hour forever.
 
+`'lost'` stays distinct from `'failed'` all the way to the surfaces, because the
+two mean opposite things to a person: `'failed'` is an attempt that will be
+retried, `'lost'` is the end of the road. `resolveArtifactPlaybackState`
+(`utils/responseArtifacts.ts`) therefore returns its own `ArtifactPlaybackState`
+`'lost'`, which `ResponsePlaybackCard` renders as
+`quizMediaResponse.playback.lost` ("could not be saved… can no longer be
+recovered") rather than the "still being saved" copy `'failed'` gets.
+`takeUnplayableReason` (`utils/mediaGrading.ts`) makes the same split for the
+teacher: `'lost'` for the terminal case, `'archive-failed'` for a retrying one,
+with matching `quizMediaResponse.grading.takes.status.*` and
+`quizMediaResponse.grading.player.unplayable.*` copy. Take counting does NOT
+split them: `artifactCountsAsTake` treats `'failed'` and `'lost'` alike, since
+neither rescues a `'failed'` upload. The admin console's own
+`admin.mediaReview.status.lost` label is the third surface and reads the raw
+`archiveStatus`.
+
 ## `RecordingConfig` (types.ts) — 3.1 (base) + 3.2 (`takeLimit`) is canonical
 
 ```ts
@@ -240,8 +256,29 @@ never called for quiz media).
   is about; scoring/leaderboard always reads the highest `takeIndex`
   regardless of this field.
 - `WrittenAnswerGrade.excused?: boolean` — distinguishes "excused,
-  permanently resolved" from "still awaiting grade"; both compute to
-  `GradeResult.state === 'awaiting-grade'` for every downstream consumer.
+  permanently resolved" from "still awaiting grade". **Integration review
+  (INT-B) corrected the downstream mapping**: excused is TERMINAL, not
+  pending. It resolves to `GradeResult.state === 'scored'` with
+  `pointsEarned: 0`, `pointsMax: 0` and `excused: true`, so it clears the
+  awaiting-grade publish gate, leaves that student's denominator, and never
+  reaches the gradebook. `isSlotExcused` / `isQuestionExcused` /
+  `questionPointsFor` (`utils/mediaGrading.ts`) are the shared readers.
+- `WrittenAnswerGrade.annotationUnit?: 'chars' | 'ms'` — the unit of
+  `annotations[].from`/`to`. Absent (or `'chars'`) means character offsets
+  into `gradingSnapshot`, which is what `WrittenAnswerReview` renders;
+  `'ms'` means milliseconds into the graded audio take, written by
+  `MediaResponseGrader` and rendered only by the audio playback surfaces.
+  Text surfaces must skip `'ms'` annotations rather than mis-anchor them.
+- `artifactCountsAsTake(artifact, archiveEntry)`
+  (`utils/responseArtifacts.ts`) — the one rule for "is this a real take".
+  The archive map is authoritative: an `'archived'` entry with a
+  `driveFileId` counts whatever `uploadState` the client wrote, and a
+  `'failed'` upload is dropped only when no entry exists or the entry is
+  itself `'failed'`/`'lost'`. `collectMediaSlots`, `selectPlaybackTake` and
+  `countCommittedTakes` all route through it. `nextTakeIndex` stays
+  `max(takeIndex) + 1` over EVERY entry (gaps are fine); any displayed
+  "Take N" uses the take's position among visible takes (`displayIndex`),
+  so student and teacher read the same numbers.
 - Composite grading key helpers: `gradingKey(questionId, slot): string`
   (unsuffixed key = primary slot, for backward compat; `` `${questionId}::${slot}` ``
   otherwise) and `parseGradingKey(key): { questionId, slot }`. Every reader

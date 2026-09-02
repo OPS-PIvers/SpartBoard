@@ -9,6 +9,7 @@ import {
   isResponseAwaitingGrade,
   selectPushableResponses,
   getEarnedPoints,
+  getResponseScore,
 } from './quizScoreboard';
 import type { QuizQuestion, QuizResponse, Rubric } from '@/types';
 
@@ -199,7 +200,10 @@ const RECORDING = {
   takeLimit: null,
 };
 
-const spoken = (id: string): QuizQuestion => ({
+const spoken = (
+  id: string,
+  over: Partial<QuizQuestion> = {}
+): QuizQuestion => ({
   id,
   text: 'Say it out loud',
   timeLimit: 0,
@@ -208,6 +212,7 @@ const spoken = (id: string): QuizQuestion => ({
   incorrectAnswers: [],
   points: 4,
   recording: RECORDING,
+  ...over,
 });
 
 const recordedResponse = (
@@ -259,13 +264,17 @@ describe('isResponseAwaitingGrade — media slots', () => {
     expect(selectPushableResponses([r], qs)).toHaveLength(1);
   });
 
-  it('an excused slot is omitted from the push, exactly like an ungraded one', () => {
-    const qs = [spoken('q1')];
+  it('an excused slot is terminal: it publishes, and leaves the denominator', () => {
+    const qs = [spoken('q1'), spoken('q2', { recording: undefined })];
     const r = recordedResponse({
       q1: { pointsAwarded: 0, excused: true, gradedBy: 't', gradedAt: 1 },
     });
-    expect(isResponseAwaitingGrade(r, qs)).toBe(true);
-    expect(selectPushableResponses([r], qs)).toEqual([]);
+    // Was `true` before INT-B, which deleted the student's published score
+    // forever with no way to undo the excuse.
+    expect(isResponseAwaitingGrade(r, qs)).toBe(false);
+    expect(selectPushableResponses([r], qs)).toHaveLength(1);
+    // q1's points leave this student's max, so the percentage is over q2 only.
+    expect(getResponseScore(r, qs)).toBe(0);
   });
 
   it('an unadjudicated capture-unavailable slot still owes a decision', () => {

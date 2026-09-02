@@ -279,4 +279,174 @@ describe('ResponsePlaybackCard', () => {
     );
     await waitFor(() => expect(fetchPlayback).toHaveBeenCalledTimes(1));
   });
+
+  // INT-B7: the archive retries on its own, so the student copy must not say
+  // the recording is gone. Terminal wording belongs to `'lost'` only.
+  it('separates "still retrying" from the terminal lost state', () => {
+    const { unmount } = renderCard({
+      'artifact-1': { archiveStatus: 'failed' },
+    });
+    expect(
+      screen.getByText('quizMediaResponse.playback.failed')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('quizMediaResponse.playback.lost')).toBeNull();
+    unmount();
+
+    renderCard({
+      'artifact-1': { archiveStatus: 'lost' as 'failed' },
+    });
+    expect(
+      screen.getByText('quizMediaResponse.playback.lost')
+    ).toBeInTheDocument();
+  });
+
+  // INT-B1: the archive map is authoritative over the client's uploadState.
+  it('plays a take the client marked failed but the sweep archived', async () => {
+    const failedAnswers = answers();
+    const [failedArtifact] = failedAnswers[0].artifacts ?? [];
+    if (failedArtifact) failedArtifact.uploadState = 'failed';
+    const fetchPlayback = vi.fn(ready);
+    render(
+      <ResponsePlaybackCard
+        sessionId="s1"
+        responseKey="r1"
+        questionId="q1"
+        answers={failedAnswers}
+        artifactArchive={{ 'artifact-1': archived }}
+        fetchPlayback={fetchPlayback}
+      />
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+    );
+    await waitFor(() => expect(fetchPlayback).toHaveBeenCalledTimes(1));
+  });
+
+  // INT-B5: teacher timeline comments are ms offsets and must reach the
+  // student somewhere; nothing rendered them before.
+  describe('timeline comments', () => {
+    const annotations = [
+      {
+        id: 'ann-1',
+        from: 12_000,
+        to: 12_000,
+        comment: 'Good evidence here.',
+        authorUid: 't1',
+        createdAt: 1,
+      },
+    ];
+
+    const renderWithComments = () =>
+      render(
+        <ResponsePlaybackCard
+          sessionId="s1"
+          responseKey="r1"
+          questionId="q1"
+          answers={answers()}
+          artifactArchive={{ 'artifact-1': archived }}
+          annotations={annotations}
+          fetchPlayback={ready}
+        />
+      );
+
+    it('renders each comment with its timecode once the take is playing', async () => {
+      renderWithComments();
+      await userEvent.click(
+        screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+      );
+      const comment = await screen.findByRole('button', {
+        name: /Good evidence here/,
+      });
+      expect(comment.textContent).toContain('0:12');
+    });
+
+    it('seeks the player to the comment when it is pressed', async () => {
+      renderWithComments();
+      await userEvent.click(
+        screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+      );
+      const comment = await screen.findByRole('button', {
+        name: /Good evidence here/,
+      });
+      const audio = document.querySelector('audio') as HTMLAudioElement;
+      await userEvent.click(comment);
+      await waitFor(() => expect(audio.currentTime).toBeCloseTo(12));
+    });
+
+    it('does not replay a stale comment seek onto a freshly re-pinned take', async () => {
+      let urlCount = 0;
+      (URL.createObjectURL as ReturnType<typeof vi.fn>).mockImplementation(
+        () => `blob:take-${++urlCount}`
+      );
+      const fetchForTake: FetchPlayback = (req) =>
+        Promise.resolve({
+          status: 'ready',
+          artifactId: req.questionId === 'q1' ? 'artifact-1' : 'artifact-2',
+          takeIndex: 1,
+          mimeType: 'audio/mp4',
+          data: btoa('bytes'),
+          durationMs: 5000,
+        });
+      const { rerender } = render(
+        <ResponsePlaybackCard
+          sessionId="s1"
+          responseKey="r1"
+          questionId="q1"
+          answers={answers([1, 2])}
+          artifactArchive={{ 'artifact-1': archived, 'artifact-2': archived }}
+          annotations={annotations}
+          gradedTakeIndex={1}
+          fetchPlayback={fetchForTake}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+      );
+      const comment = await screen.findByRole('button', {
+        name: /Good evidence here/,
+      });
+      const firstAudio = document.querySelector('audio') as HTMLAudioElement;
+      await userEvent.click(comment);
+      await waitFor(() => expect(firstAudio.currentTime).toBeCloseTo(12));
+
+      // The teacher re-pins a different take — a fresh player mounts.
+      rerender(
+        <ResponsePlaybackCard
+          sessionId="s1"
+          responseKey="r1"
+          questionId="q1"
+          answers={answers([1, 2])}
+          artifactArchive={{ 'artifact-1': archived, 'artifact-2': archived }}
+          annotations={annotations}
+          gradedTakeIndex={2}
+          fetchPlayback={fetchForTake}
+        />
+      );
+      await userEvent.click(
+        await screen.findByRole('button', {
+          name: 'quizMediaResponse.playback.play',
+        })
+      );
+      await waitFor(() => {
+        const audio = document.querySelector('audio') as HTMLAudioElement;
+        expect(audio.src).not.toBe(firstAudio.src);
+      });
+      const secondAudio = document.querySelector('audio') as HTMLAudioElement;
+      // The stale ms=12000/nonce from the old take must not replay here.
+      expect(secondAudio.currentTime).toBe(0);
+    });
+
+    it('renders no comment list when the grade carries none', async () => {
+      renderCard({ 'artifact-1': archived });
+      await userEvent.click(
+        screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+      );
+      await waitFor(() =>
+        expect(screen.getByRole('progressbar')).toBeInTheDocument()
+      );
+      expect(
+        screen.queryByText('quizMediaResponse.playback.commentsHint')
+      ).toBeNull();
+    });
+  });
 });

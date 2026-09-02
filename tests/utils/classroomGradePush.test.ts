@@ -204,4 +204,38 @@ describe('buildQuizClassroomGradeEntries', () => {
     // A student who earned 10/10 on the only real question should push 10/10.
     expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 10 }]);
   });
+
+  it('leaves an excused question out of that student’s denominator', () => {
+    // INT-B: the denominator is per student. A recording question the teacher
+    // excused is worth 0 of 0 on the scoreboard; the LMS push must agree, or an
+    // excused slot silently halves the grade it writes to Google Classroom.
+    const mcQuestion = {
+      id: 'q1',
+      type: 'MC',
+      points: 1,
+    } as unknown as QuizQuestion;
+    const recordingQuestion = {
+      id: 'r1',
+      type: 'short-answer',
+      points: 1,
+      recording: {
+        prepSeconds: 30,
+        limitSeconds: 60,
+        prepExpiry: 'armed',
+        takeLimit: null,
+      },
+    } as unknown as QuizQuestion;
+    const response = {
+      ...resp('u1', 'completed', 1),
+      answers: [],
+      grading: { r1: { excused: true, pointsAwarded: 0 } },
+    } as unknown as QuizResponse;
+    const grades = buildQuizClassroomGradeEntries(
+      [response],
+      [mcQuestion, recordingQuestion],
+      10
+    );
+    // bugged: (1 / 2) * 10 = 5. correct: (1 / 1) * 10 = 10.
+    expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 10 }]);
+  });
 });
