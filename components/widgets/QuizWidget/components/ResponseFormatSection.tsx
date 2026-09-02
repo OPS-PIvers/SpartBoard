@@ -124,6 +124,7 @@ export const ResponseFormatSection: React.FC<ResponseFormatSectionProps> = ({
           onChange={setFormat}
           options={formatOptions}
           ariaLabel={tk('formatLabel')}
+          role="radiogroup"
         />
       </div>
 

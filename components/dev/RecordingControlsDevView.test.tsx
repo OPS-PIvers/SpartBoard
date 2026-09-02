@@ -38,14 +38,14 @@ describe('RecordingControlsDevView', () => {
   it('seeds the enabled-defaults fixture on Spoken', () => {
     render(<RecordingControlsDevView state="rc-enabled-defaults" />);
     expect(
-      screen.getByRole('tab', { name: 'Spoken' }).getAttribute('aria-selected')
+      screen.getByRole('radio', { name: 'Spoken' }).getAttribute('aria-checked')
     ).toBe('true');
   });
 
   it('seeds the typed fixture on Typed', () => {
     render(<RecordingControlsDevView state="rc-typed" />);
     expect(
-      screen.getByRole('tab', { name: 'Typed' }).getAttribute('aria-selected')
+      screen.getByRole('radio', { name: 'Typed' }).getAttribute('aria-checked')
     ).toBe('true');
   });
 

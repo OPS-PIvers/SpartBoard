@@ -19,8 +19,8 @@ const question = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
 const withRecording = (over = {}) =>
   question({ recording: { ...DEFAULT_RECORDING_CONFIG, ...over } });
 
-const spokenTab = () => screen.getByRole('tab', { name: 'Spoken' });
-const typedTab = () => screen.getByRole('tab', { name: 'Typed' });
+const spokenTab = () => screen.getByRole('radio', { name: 'Spoken' });
+const typedTab = () => screen.getByRole('radio', { name: 'Typed' });
 
 describe('ResponseFormatSection', () => {
   it('shows only the Format control until Spoken is chosen', () => {
@@ -35,14 +35,14 @@ describe('ResponseFormatSection', () => {
     const { unmount } = render(
       <ResponseFormatSection question={question()} onChange={vi.fn()} />
     );
-    expect(typedTab().getAttribute('aria-selected')).toBe('true');
-    expect(spokenTab().getAttribute('aria-selected')).toBe('false');
+    expect(typedTab().getAttribute('aria-checked')).toBe('true');
+    expect(spokenTab().getAttribute('aria-checked')).toBe('false');
     unmount();
     render(
       <ResponseFormatSection question={withRecording()} onChange={vi.fn()} />
     );
-    expect(typedTab().getAttribute('aria-selected')).toBe('false');
-    expect(spokenTab().getAttribute('aria-selected')).toBe('true');
+    expect(typedTab().getAttribute('aria-checked')).toBe('false');
+    expect(spokenTab().getAttribute('aria-checked')).toBe('true');
   });
 
   it('writes the default block and zeroes the speed-bonus clock on Spoken', () => {
