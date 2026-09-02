@@ -18,8 +18,10 @@ const MAX_REDIRECTS = 2;
 const MAX_RESPONSE_BYTES = 1_048_576;
 const FETCH_TIMEOUT_MS = 5_000;
 const RATE_LIMIT_MAX_CALLS = 30;
+const RATE_LIMIT_ANON_MAX_CALLS = 10;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX_ENTRIES = 5_000;
+const GLOBAL_RATE_LIMIT_MAX_CALLS = 300;
 
 export interface LinkPreviewResult {
   title?: string;
@@ -32,8 +34,21 @@ export interface LinkPreviewResult {
 // Best-effort per-instance rate limit — not shared across instances, but
 // cheap and good enough to blunt abuse; documented as such.
 const callCounts = new Map<string, number[]>();
+let globalCallTimes: number[] = [];
 
-function isRateLimited(uid: string, now: number): boolean {
+function isRateLimited(
+  uid: string,
+  now: number,
+  isAnonymous: boolean
+): boolean {
+  globalCallTimes = globalCallTimes.filter(
+    (t) => now - t < RATE_LIMIT_WINDOW_MS
+  );
+  globalCallTimes.push(now);
+  if (globalCallTimes.length > GLOBAL_RATE_LIMIT_MAX_CALLS) {
+    return true;
+  }
+
   const calls = (callCounts.get(uid) ?? []).filter(
     (t) => now - t < RATE_LIMIT_WINDOW_MS
   );
@@ -51,7 +66,10 @@ function isRateLimited(uid: string, now: number): boolean {
     if (oldestKey === undefined) break;
     callCounts.delete(oldestKey);
   }
-  return calls.length > RATE_LIMIT_MAX_CALLS;
+  const maxCalls = isAnonymous
+    ? RATE_LIMIT_ANON_MAX_CALLS
+    : RATE_LIMIT_MAX_CALLS;
+  return calls.length > maxCalls;
 }
 
 // IP-literal / reserved-range blocks, mirrored from embedProxy.ts's
@@ -201,7 +219,9 @@ export const fetchLinkPreview = onCall(
         'The function must be called while authenticated.'
       );
     }
-    if (isRateLimited(request.auth.uid, Date.now())) {
+    const isAnonymous =
+      request.auth.token?.firebase?.sign_in_provider === 'anonymous';
+    if (isRateLimited(request.auth.uid, Date.now(), isAnonymous)) {
       throw new HttpsError(
         'resource-exhausted',
         'Too many link preview requests. Try again in a few minutes.'

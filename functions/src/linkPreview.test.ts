@@ -1,6 +1,6 @@
 // Unit tests for the fetchLinkPreview callable (P1-3).
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('firebase-functions/v2/https', () => {
   class FakeHttpsError extends Error {
@@ -46,7 +46,10 @@ function makeRedirectError(status: number, location: string) {
 import { fetchLinkPreview } from './linkPreview';
 
 type Handler = (request: {
-  auth: { uid: string } | null;
+  auth: {
+    uid: string;
+    token?: { firebase?: { sign_in_provider?: string } };
+  } | null;
   data: unknown;
 }) => Promise<unknown>;
 
@@ -234,6 +237,8 @@ describe('fetchLinkPreview', () => {
   });
 
   it('rate-limits after 30 calls in the window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000_000_000);
     axiosGet.mockResolvedValue({
       data: '<html><head><title>T</title></head></html>',
       headers: { 'content-type': 'text/html' },
@@ -250,5 +255,52 @@ describe('fetchLinkPreview', () => {
         data: { url: 'https://example.com/p' },
       })
     ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    vi.useRealTimers();
   });
+
+  it('rate-limits anonymous callers after 10 calls in the window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(2_000_000_000_000);
+    axiosGet.mockResolvedValue({
+      data: '<html><head><title>T</title></head></html>',
+      headers: { 'content-type': 'text/html' },
+    });
+    const anonAuth = {
+      uid: 'anon-user',
+      token: { firebase: { sign_in_provider: 'anonymous' } },
+    };
+    for (let i = 0; i < 10; i += 1) {
+      await call({ auth: anonAuth, data: { url: 'https://example.com/p' } });
+    }
+    await expect(
+      call({ auth: anonAuth, data: { url: 'https://example.com/p' } })
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    vi.useRealTimers();
+  });
+
+  it('rate-limits globally across uids after 300 calls in the window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(3_000_000_000_000);
+    axiosGet.mockResolvedValue({
+      data: '<html><head><title>T</title></head></html>',
+      headers: { 'content-type': 'text/html' },
+    });
+    for (let i = 0; i < 300; i += 1) {
+      await call({
+        auth: { uid: `global-user-${i}` },
+        data: { url: 'https://example.com/p' },
+      });
+    }
+    await expect(
+      call({
+        auth: { uid: 'global-user-overflow' },
+        data: { url: 'https://example.com/p' },
+      })
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    vi.useRealTimers();
+  });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
