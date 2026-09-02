@@ -31,7 +31,11 @@ export default defineConfig({
     ...commonServerConfig,
     // Agent worktrees live inside the repo; watching them stalls the dev server.
     watch: {
-      ignored: (p: string) => /[\/]\.claude[\/]worktrees[\/]/.test(p),
+      ignored: (p: string) =>
+        p
+          .split(String.fromCharCode(92))
+          .join('/')
+          .includes('/.claude/worktrees/'),
     },
   },
   preview: commonServerConfig,
