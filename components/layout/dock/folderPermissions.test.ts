@@ -4,8 +4,9 @@ import {
   reorderPreservingHidden,
   reorderDockItemsPreservingHidden,
   dockItemId,
+  isDockItemVisible,
 } from './folderPermissions';
-import type { DockItem } from '@/types';
+import type { DockItem, WidgetType } from '@/types';
 
 describe('shouldShowFolder', () => {
   it('hides a folder with no items when not in edit mode (Array.prototype.some on [] is always false)', () => {
@@ -151,5 +152,40 @@ describe('dockItemId', () => {
         folder: { id: 'folder-1', name: 'F', items: [] },
       })
     ).toBe('folder-1');
+  });
+});
+
+describe('isDockItemVisible', () => {
+  const alwaysAccess = () => true;
+
+  it('is visible for a tool present in TOOLS with access', () => {
+    const item: DockItem = { type: 'tool', toolType: 'clock' };
+    expect(isDockItemVisible(item, false, alwaysAccess)).toBe(true);
+  });
+
+  it('is invisible for a tool with access but no longer present in TOOLS (stale/renamed toolType)', () => {
+    // Regression: the render loop hides an entry when TOOLS.find comes back
+    // empty, not just when canAccessTool fails — this must match, or
+    // reorderDockItemsPreservingHidden treats a never-rendered entry as
+    // draggable and drifts its slot.
+    const item: DockItem = {
+      type: 'tool',
+      toolType: 'no-longer-a-real-tool' as WidgetType,
+    };
+    expect(isDockItemVisible(item, false, alwaysAccess)).toBe(false);
+  });
+
+  it('is invisible for a tool the user cannot access', () => {
+    const item: DockItem = { type: 'tool', toolType: 'clock' };
+    expect(isDockItemVisible(item, false, () => false)).toBe(false);
+  });
+
+  it('delegates to shouldShowFolder for a folder entry', () => {
+    const folderItem: DockItem = {
+      type: 'folder',
+      folder: { id: 'folder-1', name: 'F', items: [] },
+    };
+    expect(isDockItemVisible(folderItem, false, alwaysAccess)).toBe(false);
+    expect(isDockItemVisible(folderItem, true, alwaysAccess)).toBe(true);
   });
 });

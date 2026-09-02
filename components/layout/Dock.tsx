@@ -86,9 +86,9 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import {
-  shouldShowFolder,
   reorderDockItemsPreservingHidden,
   dockItemId,
+  isDockItemVisible as isDockItemVisibleHelper,
 } from './dock/folderPermissions';
 
 export const Dock: React.FC = () => {
@@ -660,12 +660,10 @@ export const Dock: React.FC = () => {
     [canAccessFeature, canAccessWidget]
   );
 
-  // Mirrors the per-entry gate the render loop below applies, so reorderDockItemsPreservingHidden pins entries this user can't see.
+  // Shared with the render loop's own per-entry gate below, so reorderDockItemsPreservingHidden can't drift from what actually renders.
   const isDockItemVisible = useCallback(
     (item: DockItem) =>
-      item.type === 'tool'
-        ? canAccessTool(item.toolType)
-        : shouldShowFolder(isEditMode, item.folder.items, canAccessTool),
+      isDockItemVisibleHelper(item, isEditMode, canAccessTool),
     [canAccessTool, isEditMode]
   );
 
@@ -1116,7 +1114,7 @@ export const Dock: React.FC = () => {
                         const tool = TOOLS.find(
                           (t) => t.type === item.toolType
                         );
-                        if (!tool || !canAccessTool(tool.type)) return null;
+                        if (!tool || !isDockItemVisible(item)) return null;
 
                         // Handle special internal tools that aren't standard widgets
                         if (
@@ -1311,14 +1309,7 @@ export const Dock: React.FC = () => {
                           />
                         );
                       } else {
-                        if (
-                          !shouldShowFolder(
-                            isEditMode,
-                            item.folder.items,
-                            canAccessTool
-                          )
-                        )
-                          return null;
+                        if (!isDockItemVisible(item)) return null;
                         return (
                           <FolderItem
                             key={item.folder.id}

@@ -1,5 +1,6 @@
 import { arrayMove } from '@dnd-kit/sortable';
 import { WidgetType, InternalToolType, DockItem } from '@/types';
+import { TOOLS } from '@/config/tools';
 
 // Hidden only when empty AND not in edit mode — edit mode keeps it reachable for rename/delete.
 export function shouldShowFolder(
@@ -36,6 +37,18 @@ export function reorderPreservingHidden<T>(
 // Stable id for a top-level dock entry — matches the ids handed to dnd-kit's SortableContext.
 export function dockItemId(item: DockItem): string {
   return item.type === 'tool' ? item.toolType : item.folder.id;
+}
+
+// Single source of truth for whether a dock entry actually renders — used by both the render loop and the reorder handler so they can never drift.
+export function isDockItemVisible(
+  item: DockItem,
+  isEditMode: boolean,
+  canAccessTool: (type: WidgetType | InternalToolType) => boolean
+): boolean {
+  return item.type === 'tool'
+    ? !!TOOLS.find((t) => t.type === item.toolType) &&
+        canAccessTool(item.toolType)
+    : shouldShowFolder(isEditMode, item.folder.items, canAccessTool);
 }
 
 // Same permission-gated-slot preservation as reorderPreservingHidden, applied to the dock's top-level tool/folder sequence.
