@@ -131,6 +131,7 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
     if (state.phase === 'ready') {
       return (
         <TakeReviewPlayer
+          key={state.url}
           src={state.url}
           durationMs={state.durationMs || (take.artifact.durationMs ?? 0)}
           light={light}
