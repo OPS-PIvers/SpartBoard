@@ -438,6 +438,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               </p>
               {/* Local object URL — reviewing touches no network and no Firestore. */}
               <TakeReviewPlayer
+                key={recorder.takeUrl}
                 src={recorder.takeUrl}
                 durationMs={recorder.take?.durationMs ?? 0}
               />
