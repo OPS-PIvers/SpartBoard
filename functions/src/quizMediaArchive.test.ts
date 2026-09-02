@@ -45,10 +45,13 @@ vi.mock('./googleOAuth', () => ({
 }));
 vi.mock('./studentAssignmentTargets', () => ({
   loadTargetDirectory: vi.fn(),
+  uidForRef: (ref: { kind: string; sourcedId?: string; email?: string }) =>
+    ref.kind === 'classlink' ? `uid:${ref.sourcedId}` : `uid:test:${ref.email}`,
 }));
 vi.mock('./classlinkShared', () => ({
   ALLOWED_ORIGINS: [],
-  computeStudentUid: (id: string) => `uid:${id}`,
+  normalizeEmailDomain: (email: string) => `@${email.split('@')[1]}`,
+  resolveOrgIdForDomain: vi.fn(() => Promise.resolve(null)),
 }));
 vi.mock('./secrets', () => {
   const secret = (name: string) => ({ value: () => `secret:${name}` });
@@ -63,6 +66,7 @@ vi.mock('./secrets', () => {
 
 import {
   archiveQuizArtifactCore,
+  isQuizMediaResponseGranted,
   buildArchiveFileName,
   computeHasStuckArchive,
   countCommittedTakes,
@@ -86,10 +90,39 @@ interface SeedOptions {
   response?: Record<string, unknown>;
 }
 
+type Bag = Record<string, unknown>;
+
+const isDelete = (v: unknown) =>
+  typeof v === 'object' && v !== null && '__delete' in (v as Bag);
+
+/** Firestore `set(..., {merge: true})` semantics, including map-field merging. */
+function mergeInto(target: Bag, patch: Bag): Bag {
+  for (const [key, value] of Object.entries(patch)) {
+    if (isDelete(value)) {
+      delete target[key];
+    } else if (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      const existing = target[key];
+      target[key] = mergeInto(
+        typeof existing === 'object' && existing !== null
+          ? { ...(existing as Bag) }
+          : {},
+        value as Bag
+      );
+    } else {
+      target[key] = value;
+    }
+  }
+  return target;
+}
+
 function makeStubDb(seed: SeedOptions) {
   const writes: Record<string, unknown>[] = [];
   const session = seed.session ?? null;
-  const response = seed.response ?? null;
+  const response: Bag | null = seed.response ? { ...seed.response } : null;
   const responseRef = {
     get: () =>
       Promise.resolve({
@@ -98,6 +131,7 @@ function makeStubDb(seed: SeedOptions) {
       }),
     set: (data: Record<string, unknown>) => {
       writes.push(data);
+      if (response) mergeInto(response, data);
       return Promise.resolve();
     },
   };
@@ -109,6 +143,8 @@ function makeStubDb(seed: SeedOptions) {
       }),
     collection: () => ({ doc: () => responseRef }),
   };
+  // Transactions serialize, so a concurrent sibling sees the first claim.
+  let chain: Promise<unknown> = Promise.resolve();
   const db = {
     collection: (name: string) => {
       if (name !== 'quiz_sessions') {
@@ -116,8 +152,25 @@ function makeStubDb(seed: SeedOptions) {
       }
       return { doc: () => sessionRef };
     },
+    runTransaction: <T>(
+      fn: (tx: {
+        get: (ref: typeof responseRef) => Promise<unknown>;
+        set: (ref: typeof responseRef, data: Bag) => void;
+      }) => Promise<T>
+    ): Promise<T> => {
+      const next = chain.then(() =>
+        fn({
+          get: (ref) => ref.get(),
+          set: (ref, data) => {
+            void ref.set(data);
+          },
+        })
+      );
+      chain = next.catch(() => undefined);
+      return next;
+    },
   };
-  return { db, writes };
+  return { db, writes, response };
 }
 
 function makeDeps(
@@ -436,6 +489,134 @@ describe('archiveQuizArtifactCore', () => {
     expect(deps.uploadToDrive).not.toHaveBeenCalled();
   });
 
+  it('keeps archived durable when the Storage delete fails, and never re-uploads', async () => {
+    const { db, response } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      deleteObject: vi.fn(() => Promise.reject(new Error('storage 503'))),
+    });
+
+    const first = await call(deps);
+    expect(first).toEqual({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-1',
+    });
+    const entry = (response?.artifactArchive as Record<string, Bag>)[
+      ARTIFACT_ID
+    ];
+    expect(entry).toMatchObject({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-1',
+      storageCleanupPending: true,
+    });
+    expect(response?.hasStuckArchive).toBe(true);
+
+    const second = await call(deps);
+    expect(second).toEqual({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-1',
+    });
+    expect(deps.uploadToDrive).toHaveBeenCalledTimes(1);
+    expect(
+      (response?.artifactArchive as Record<string, Bag>)[ARTIFACT_ID]
+        .driveFileId
+    ).toBe('drive-1');
+  });
+
+  it('uploads once when two invocations race the same artifact', async () => {
+    const { db } = makeStubDb(baseSeed());
+    const deps = makeDeps(db);
+    const results = await Promise.all([call(deps), call(deps)]);
+    expect(deps.uploadToDrive).toHaveBeenCalledTimes(1);
+    expect(results.map((r) => r.archiveStatus).sort()).toEqual([
+      'archived',
+      'syncing',
+    ]);
+  });
+
+  it('recomputes hasStuckArchive from the live map when siblings finish out of order', async () => {
+    const seed = baseSeed();
+    (seed.response as { answers: unknown[] }).answers = [
+      {
+        questionId: QUESTION_ID,
+        artifacts: [
+          {
+            id: ARTIFACT_ID,
+            kind: 'audio',
+            storagePath: GOOD_PATH,
+            uploadState: 'pending',
+          },
+        ],
+      },
+      {
+        questionId: 'q2',
+        artifacts: [
+          {
+            id: 'art-2',
+            kind: 'audio',
+            storagePath: `quiz_response_media/${SESSION_ID}/${STUDENT_UID}/art-2.webm`,
+            uploadState: 'pending',
+          },
+        ],
+      },
+    ];
+    (seed.session as { publicQuestions: unknown[] }).publicQuestions = [
+      { id: QUESTION_ID },
+      { id: 'q2' },
+    ];
+    const { db, response } = makeStubDb(seed);
+    let releaseSlowUpload: () => void = () => undefined;
+    const slowUpload = new Promise<void>((resolve) => {
+      releaseSlowUpload = resolve;
+    });
+    const deps = makeDeps(db, {
+      downloadObject: vi.fn((storagePath: string) =>
+        Promise.resolve(Buffer.from(storagePath))
+      ),
+      transcodeToM4a: vi.fn((buf: Buffer) =>
+        buf.toString().includes('art-2')
+          ? Promise.reject(new Error('ffmpeg exited 1'))
+          : Promise.resolve(Buffer.from('m4a'))
+      ),
+      uploadToDrive: vi.fn(async () => {
+        await slowUpload;
+        return { id: 'drive-1' };
+      }),
+    });
+
+    const slow = call(deps);
+    const fast = archiveQuizArtifactCore(
+      {
+        sessionId: SESSION_ID,
+        responseKey: RESPONSE_KEY,
+        questionId: 'q2',
+        artifactId: 'art-2',
+        callerUid: STUDENT_UID,
+      },
+      deps
+    );
+    await expect(fast).rejects.toMatchObject({ code: 'internal' });
+    releaseSlowUpload();
+    await expect(slow).resolves.toMatchObject({ archiveStatus: 'archived' });
+
+    const archive = response?.artifactArchive as Record<string, Bag>;
+    expect(archive[ARTIFACT_ID].archiveStatus).toBe('archived');
+    expect(archive['art-2'].archiveStatus).toBe('failed');
+    expect(response?.hasStuckArchive).toBe(true);
+  });
+
+  it('keeps archiveStartedAt and stamps lastAttemptAt on failure', async () => {
+    const { db, response } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      transcodeToM4a: vi.fn(() => Promise.reject(new Error('ffmpeg exited 1'))),
+    });
+    await expect(call(deps)).rejects.toMatchObject({ code: 'internal' });
+    const entry = (response?.artifactArchive as Record<string, Bag>)[
+      ARTIFACT_ID
+    ];
+    expect(entry.archiveStartedAt).toBe(1_700_000_000_000);
+    expect(entry.lastAttemptAt).toBe(1_700_000_000_000);
+  });
+
   it('falls back to the PIN label when no real name resolves', async () => {
     const seed = baseSeed();
     (seed.response as Record<string, unknown>).pin = '4821';
@@ -451,5 +632,94 @@ describe('archiveQuizArtifactCore', () => {
       'Pin4821__Q1.m4a',
       'Quiz Responses/Unit 3 Speaking'
     );
+  });
+});
+
+describe('isQuizMediaResponseGranted', () => {
+  const TEACHER_EMAIL = 'teacher@school.org';
+
+  function makeGateDb(
+    permission: Record<string, unknown> | null,
+    profile: Record<string, unknown> | null,
+    adminEmails: string[] = []
+  ) {
+    return {
+      collection: (name: string) => ({
+        doc: (id: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists:
+                name === 'global_permissions'
+                  ? permission !== null
+                  : adminEmails.includes(id),
+              data: () => (name === 'global_permissions' ? permission : {}),
+            }),
+        }),
+      }),
+      doc: () => ({
+        get: () =>
+          Promise.resolve({
+            exists: profile !== null,
+            data: () => profile ?? undefined,
+          }),
+      }),
+    } as unknown as Parameters<typeof isQuizMediaResponseGranted>[0];
+  }
+
+  it('denies when no permission record exists', async () => {
+    await expect(
+      isQuizMediaResponseGranted(makeGateDb(null, null), TEACHER_EMAIL, 't1')
+    ).resolves.toBe(false);
+  });
+
+  it('honors a buildings-scoped record', async () => {
+    const permission = {
+      enabled: true,
+      accessLevel: 'public',
+      buildings: ['middle'],
+    };
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(permission, { selectedBuildings: ['orono-middle-school'] }),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(true);
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(permission, { selectedBuildings: ['high'] }),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(false);
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(permission, null),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(false);
+  });
+
+  it('honors a minTier-scoped record', async () => {
+    const permission = {
+      enabled: true,
+      accessLevel: 'public',
+      minTier: 'internal',
+    };
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(permission, null),
+        'someone@orono.k12.mn.us',
+        't1'
+      )
+    ).resolves.toBe(true);
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(permission, null),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(false);
   });
 });

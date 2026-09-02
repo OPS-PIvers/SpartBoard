@@ -3770,8 +3770,12 @@ export interface ArtifactArchiveEntry {
   /** Required - an entry only exists once a status is known. */
   archiveStatus: ArtifactArchiveStatus;
   archiveStartedAt?: number;
+  /** Server time of the most recent failed archive attempt; drives the sweep window. */
+  lastAttemptAt?: number;
   archivedAt?: number;
   archiveError?: string;
+  /** Drive holds the file but the Storage transit copy survived; the sweep retries the delete. */
+  storageCleanupPending?: boolean;
   deletedAt?: number;
   /** Admin uid that ran the compliance delete. */
   deletedBy?: string;

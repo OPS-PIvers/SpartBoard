@@ -89,8 +89,10 @@ export interface ArtifactArchiveEntry {
   driveFileId?: string;
   archiveStatus: ArtifactArchiveStatus; // required — an entry is only created once a status is known
   archiveStartedAt?: number;
+  lastAttemptAt?: number; // 3.3 review: stamped on every failed attempt; archiveStartedAt survives
   archivedAt?: number;
   archiveError?: string;
+  storageCleanupPending?: boolean; // 3.3 review: archived to Drive, Storage delete still owed
   deletedAt?: number; // 4.1
   deletedBy?: string; // 4.1, admin uid
   deleteAttemptedAt?: number; // 4.1, dead-token failure path
@@ -106,6 +108,15 @@ holds by construction in 3.3/3.4/3.6's logic; 4.1's new values are additive
 and don't require those briefs to add new branches, only to confirm the
 "else not playable" fallback still catches them. `isArtifactPlayable`
 (`utils/responseArtifacts.ts`) is the shared helper for this check.
+
+`archiveStatus: 'archived'` is durable the moment the Drive upload lands: the
+Storage delete that follows is a separate, retryable step. When it fails the
+entry keeps `'archived'` (and its `driveFileId`) and gains
+`storageCleanupPending: true`, which the sweep clears once the delete
+succeeds. `lastAttemptAt` is stamped on every failed attempt while
+`archiveStartedAt` is preserved, so the sweep's staleness window measures from
+`max(archiveStartedAt, lastAttemptAt)` and a just-failed entry is not retried
+on the very next hourly run.
 
 ## `RecordingConfig` (types.ts) — 3.1 (base) + 3.2 (`takeLimit`) is canonical
 

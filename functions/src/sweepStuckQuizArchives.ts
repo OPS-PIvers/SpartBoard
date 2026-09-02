@@ -19,14 +19,15 @@ import * as admin from 'firebase-admin';
 import {
   archiveQuizArtifactCore,
   buildDefaultArchiveDeps,
+  retryStorageCleanup,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
+  STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
 import './functionsInit';
 
 type Firestore = admin.firestore.Firestore;
 
-/** Hours, not days — the owner constraint that supersedes the map's 7-day text. */
-export const STUCK_ARCHIVE_AGE_MS = 2 * 60 * 60 * 1000;
+export { STUCK_ARCHIVE_AGE_MS };
 /** Runaway guard, not an expected volume. */
 export const MAX_RESPONSES_PER_RUN = 2000;
 export const RESPONSE_PAGE_SIZE = 200;
@@ -42,7 +43,15 @@ export interface StuckArtifact {
 
 export interface SweepDeps {
   archiveOne: (input: StuckArtifact) => Promise<void>;
+  /** Second pass: the Drive copy exists, only the transit object is owed. */
+  cleanUpStorage: (input: StuckArtifact) => Promise<void>;
   getTeacherEmail: (teacherUid: string) => Promise<string | null>;
+  /** Real name where the roster resolves it, else `Pin{pin}` — never a raw uid. */
+  resolveStudentLabel: (
+    teacherUid: string,
+    studentUid: string,
+    pin: string
+  ) => Promise<string>;
   now: () => number;
 }
 
@@ -51,24 +60,36 @@ export interface SweepSummary {
   retried: number;
   recovered: number;
   stillStuck: number;
+  cleanedUp: number;
   mailQueued: number;
 }
 
 interface ArchiveEntry {
   archiveStatus?: unknown;
   archiveStartedAt?: unknown;
+  lastAttemptAt?: unknown;
+  storageCleanupPending?: unknown;
 }
 
-/** Stuck = still syncing/failed AND older than the threshold. */
+/**
+ * Stuck = still syncing/failed AND untouched for longer than the threshold.
+ * The window measures from the most recent of `archiveStartedAt` /
+ * `lastAttemptAt`; an entry carrying neither has no timestamp to age against
+ * and is left alone rather than retried on every run.
+ */
 export function isStuckArchiveEntry(
   entry: ArchiveEntry | undefined,
   now: number
 ): boolean {
   const status = entry?.archiveStatus;
   if (status !== 'syncing' && status !== 'failed') return false;
-  const startedAt =
-    typeof entry?.archiveStartedAt === 'number' ? entry.archiveStartedAt : 0;
-  return now - startedAt >= STUCK_ARCHIVE_AGE_MS;
+  const started =
+    typeof entry?.archiveStartedAt === 'number' ? entry.archiveStartedAt : null;
+  const attempted =
+    typeof entry?.lastAttemptAt === 'number' ? entry.lastAttemptAt : null;
+  if (started === null && attempted === null) return false;
+  const lastTouched = Math.max(started ?? 0, attempted ?? 0);
+  return now - lastTouched >= STUCK_ARCHIVE_AGE_MS;
 }
 
 /** Locates the answer that owns an artifact so the retry can address it. */
@@ -88,12 +109,22 @@ export function findQuestionIdForArtifact(
   return null;
 }
 
-export function buildStragglerEmail(
-  items: { quizTitle: string; questionId: string }[]
-): { subject: string; text: string } {
+export interface StragglerItem {
+  quizTitle: string;
+  questionId: string;
+  /** Roster name or `Pin{pin}` — resolved server-side, never a raw uid. */
+  studentLabel: string;
+}
+
+export function buildStragglerEmail(items: StragglerItem[]): {
+  subject: string;
+  text: string;
+} {
   const listed = items.slice(0, MAX_LISTED_STRAGGLERS);
   const overflow = items.length - listed.length;
-  const lines = listed.map((i) => `- ${i.quizTitle}: question ${i.questionId}`);
+  const lines = listed.map(
+    (i) => `- ${i.quizTitle} — ${i.studentLabel}: question ${i.questionId}`
+  );
   if (overflow > 0) lines.push(`- ...and ${overflow} more`);
   return {
     subject: `SpartBoard: ${items.length} student recording${
@@ -119,13 +150,11 @@ export async function runSweepStuckQuizArchives(
     retried: 0,
     recovered: 0,
     stillStuck: 0,
+    cleanedUp: 0,
     mailQueued: 0,
   };
 
-  const stragglersByTeacher = new Map<
-    string,
-    { quizTitle: string; questionId: string }[]
-  >();
+  const stragglersByTeacher = new Map<string, StragglerItem[]>();
   const sessionCache = new Map<
     string,
     { teacherUid: string; quizTitle: string }
@@ -173,24 +202,48 @@ export async function runSweepStuckQuizArchives(
         sessionCache.set(sessionId, session);
       }
 
+      const studentUid =
+        typeof data.studentUid === 'string' ? data.studentUid : '';
+      const pin = typeof data.pin === 'string' ? data.pin : '';
+
       for (const [artifactId, entry] of Object.entries(archive)) {
+        const target = { sessionId, responseKey: docSnap.id, artifactId };
+        // Second pass: archived to Drive, only the transit object is owed.
+        if (entry?.storageCleanupPending === true) {
+          const questionId = findQuestionIdForArtifact(
+            data.answers,
+            artifactId
+          );
+          if (!questionId) continue;
+          try {
+            await deps.cleanUpStorage({ ...target, questionId });
+            summary.cleanedUp++;
+          } catch {
+            summary.stillStuck++;
+          }
+          continue;
+        }
         if (!isStuckArchiveEntry(entry, now)) continue;
         const questionId = findQuestionIdForArtifact(data.answers, artifactId);
         if (!questionId) continue;
         summary.retried++;
         try {
-          await deps.archiveOne({
-            sessionId,
-            responseKey: docSnap.id,
-            questionId,
-            artifactId,
-          });
+          await deps.archiveOne({ ...target, questionId });
           summary.recovered++;
         } catch {
           summary.stillStuck++;
           if (!session.teacherUid) continue;
+          const studentLabel = await deps.resolveStudentLabel(
+            session.teacherUid,
+            studentUid,
+            pin
+          );
           const list = stragglersByTeacher.get(session.teacherUid) ?? [];
-          list.push({ quizTitle: session.quizTitle, questionId });
+          list.push({
+            quizTitle: session.quizTitle,
+            questionId,
+            studentLabel,
+          });
           stragglersByTeacher.set(session.teacherUid, list);
         }
       }
@@ -232,12 +285,23 @@ export const sweepStuckQuizArchives = onSchedule(
           archiveDeps
         );
       },
+      cleanUpStorage: (input) => retryStorageCleanup(input, archiveDeps),
       getTeacherEmail: async (teacherUid) => {
         try {
           return (await admin.auth().getUser(teacherUid)).email ?? null;
         } catch {
           return null;
         }
+      },
+      resolveStudentLabel: async (teacherUid, studentUid, pin) => {
+        const name = studentUid
+          ? await archiveDeps
+              .resolveStudentName(teacherUid, studentUid)
+              .catch(() => null)
+          : null;
+        const full = name ? `${name.givenName} ${name.familyName}`.trim() : '';
+        if (full) return full;
+        return pin ? `Pin${pin}` : 'Unidentified student';
       },
       now: () => Date.now(),
     });

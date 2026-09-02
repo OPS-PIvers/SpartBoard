@@ -23,7 +23,9 @@ vi.mock('./functionsInit', () => ({}));
 vi.mock('./quizMediaArchive', () => ({
   archiveQuizArtifactCore: vi.fn(),
   buildDefaultArchiveDeps: vi.fn(),
+  retryStorageCleanup: vi.fn(),
   QUIZ_MEDIA_ARCHIVE_SECRETS: [],
+  STUCK_ARCHIVE_AGE_MS: 2 * 60 * 60 * 1000,
 }));
 
 import {
@@ -103,7 +105,11 @@ function makeStubDb(
 function makeDeps(overrides: Partial<SweepDeps> = {}): SweepDeps {
   return {
     archiveOne: vi.fn(() => Promise.resolve()),
+    cleanUpStorage: vi.fn(() => Promise.resolve()),
     getTeacherEmail: vi.fn(() => Promise.resolve('teacher@school.org')),
+    resolveStudentLabel: vi.fn((_t: string, _u: string, pin: string) =>
+      Promise.resolve(pin ? `Pin${pin}` : 'Ava Nguyen')
+    ),
     now: () => NOW,
     ...overrides,
   };
@@ -146,6 +152,27 @@ describe('pure helpers', () => {
     expect(isStuckArchiveEntry(undefined, NOW)).toBe(false);
   });
 
+  it('measures the window from the newest of archiveStartedAt / lastAttemptAt', () => {
+    // The exact shape the archival core writes on failure: the original start
+    // survives, and lastAttemptAt records the attempt that just failed.
+    expect(
+      isStuckArchiveEntry(
+        { archiveStatus: 'failed', archiveStartedAt: OLD, lastAttemptAt: NOW },
+        NOW
+      )
+    ).toBe(false);
+    expect(
+      isStuckArchiveEntry(
+        { archiveStatus: 'failed', archiveStartedAt: OLD, lastAttemptAt: OLD },
+        NOW
+      )
+    ).toBe(true);
+  });
+
+  it('ignores an entry carrying no timestamp at all', () => {
+    expect(isStuckArchiveEntry({ archiveStatus: 'failed' }, NOW)).toBe(false);
+  });
+
   it('finds the question that owns an artifact', () => {
     expect(findQuestionIdForArtifact(answersWith('q7', 'a1'), 'a1')).toBe('q7');
     expect(
@@ -158,6 +185,7 @@ describe('pure helpers', () => {
     const items = Array.from({ length: MAX_LISTED_STRAGGLERS + 5 }, (_, i) => ({
       quizTitle: 'Unit 3',
       questionId: `q${i}`,
+      studentLabel: 'Ava Nguyen',
     }));
     const email = buildStragglerEmail(items);
     expect(email.text).toContain('...and 5 more');
@@ -223,6 +251,75 @@ describe('runSweepStuckQuizArchives', () => {
     expect(summary.retried).toBe(0);
   });
 
+  it('leaves a just-failed artifact alone for the rest of the window', async () => {
+    const { db } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            studentUid: 'stu-1',
+            answers: answersWith('q1', 'a1'),
+            artifactArchive: {
+              a1: {
+                archiveStatus: 'failed',
+                archiveStartedAt: OLD,
+                lastAttemptAt: FRESH,
+                archiveError: 'drive down',
+              },
+            },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Unit 3' } }
+    );
+    const deps = makeDeps();
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.archiveOne).not.toHaveBeenCalled();
+    expect(summary.retried).toBe(0);
+  });
+
+  it('retries only the Storage delete for an archived entry pending cleanup', async () => {
+    const { db } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            studentUid: 'stu-1',
+            answers: answersWith('q1', 'a1'),
+            artifactArchive: {
+              a1: {
+                archiveStatus: 'archived',
+                driveFileId: 'drive-1',
+                storageCleanupPending: true,
+              },
+            },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Unit 3' } }
+    );
+    const deps = makeDeps();
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.cleanUpStorage).toHaveBeenCalledWith({
+      sessionId: 's1',
+      responseKey: 'r1',
+      questionId: 'q1',
+      artifactId: 'a1',
+    });
+    expect(deps.archiveOne).not.toHaveBeenCalled();
+    expect(summary).toMatchObject({ cleanedUp: 1, retried: 0 });
+  });
+
   it('queues one mail doc per teacher, not one per stuck artifact', async () => {
     const { db, mailWrites } = makeStubDb(
       [
@@ -231,6 +328,8 @@ describe('runSweepStuckQuizArchives', () => {
           id: 'r1',
           data: {
             hasStuckArchive: true,
+            studentUid: 'stu-1',
+            pin: '4821',
             answers: [
               { questionId: 'q1', artifacts: [{ id: 'a1' }, { id: 'a2' }] },
             ],
@@ -282,8 +381,12 @@ describe('runSweepStuckQuizArchives', () => {
     expect(ids[0]).toContain('quiz-archive-stuck-t1-');
     expect(ids[1]).toContain('quiz-archive-stuck-t2-');
     const t1 = mailWrites.find((m) => m.id.includes('-t1-'));
-    expect((t1?.data.message as { text: string }).text).toContain(
-      'question q1'
-    );
+    const text = (t1?.data.message as { text: string }).text;
+    expect(text).toContain('question q1');
+    // Every line names a student — the roster name, or Pin{pin} for anonymous
+    // joiners — and never a raw uid.
+    expect(text).toContain('Unit 3 — Pin4821: question q1');
+    expect(text).toContain('Unit 3 — Ava Nguyen: question q2');
+    expect(text).not.toContain('stu-1');
   });
 });

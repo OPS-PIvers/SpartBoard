@@ -24,10 +24,15 @@ import * as os from 'os';
 import * as path from 'path';
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
-import { ALLOWED_ORIGINS, computeStudentUid } from './classlinkShared';
+import {
+  ALLOWED_ORIGINS,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
+} from './classlinkShared';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   loadTargetDirectory,
+  uidForRef,
   type StudentTargetRef,
 } from './studentAssignmentTargets';
 import {
@@ -63,6 +68,12 @@ export const MAX_QUIZ_MEDIA_BYTES = 5 * 1024 * 1024;
 export const QUIZ_MEDIA_FEATURE_ID = 'quiz-media-response';
 /** Output bitrate — plenty for a 32 kbps speech source, kept fixed on purpose. */
 export const ARCHIVE_AUDIO_BITRATE = '64k';
+/**
+ * Hours, not days — the owner constraint that supersedes the map's 7-day text.
+ * Lives here (not in the sweep) because the archival core's concurrency claim
+ * needs the same window to tell a live sibling run from an abandoned one.
+ */
+export const STUCK_ARCHIVE_AGE_MS = 2 * 60 * 60 * 1000;
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const APP_DRIVE_FOLDER = 'SpartBoard';
@@ -224,12 +235,36 @@ export function questionLabelFor(
 
 /** True when any entry in the merged map still needs the sweep's attention. */
 export function computeHasStuckArchive(
-  archive: Record<string, { archiveStatus?: unknown }> | undefined
+  archive:
+    | Record<
+        string,
+        { archiveStatus?: unknown; storageCleanupPending?: unknown }
+      >
+    | undefined
 ): boolean {
   return Object.values(archive ?? {}).some(
     (entry) =>
-      entry?.archiveStatus === 'syncing' || entry?.archiveStatus === 'failed'
+      entry?.archiveStatus === 'syncing' ||
+      entry?.archiveStatus === 'failed' ||
+      entry?.storageCleanupPending === true
   );
+}
+
+/** The one artifact this request addresses, or null when the id is unknown. */
+export function findStoredArtifact(
+  answers: readonly StoredAnswer[],
+  questionId: string,
+  artifactId: string
+): StoredArtifact | null {
+  for (const answer of answers) {
+    if (answer?.questionId !== questionId) continue;
+    const list = Array.isArray(answer.artifacts)
+      ? (answer.artifacts as StoredArtifact[])
+      : [];
+    const match = list.find((a) => a?.id === artifactId);
+    if (match) return match;
+  }
+  return null;
 }
 
 /** `classlink:{sourcedId}` / `test:{email}` — the inverse of `refKey()`. */
@@ -367,13 +402,87 @@ export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
   }
 }
 
+/** Mirrors `BUILDING_ID_ALIASES` in `config/buildings.ts`; functions cannot import it. */
+const BUILDING_ID_ALIASES: Readonly<Record<string, string>> = {
+  'orono-high-school': 'high',
+  'orono-middle-school': 'middle',
+  'orono-intermediate-school': 'intermediate',
+  'schumann-elementary': 'schumann',
+};
+
+/** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
+const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
+
+/** Mirrors the `free < org < internal` ordering in `utils/userTier.ts`. */
+const TIER_RANK: Readonly<Record<string, number>> = {
+  free: 0,
+  org: 1,
+  internal: 2,
+};
+
+/** Server twin of `canonicalizeBuildingIds` — legacy ids, de-duplicated. */
+export function canonicalizeBuildingIdsServer(
+  ids: readonly unknown[]
+): string[] {
+  const out: string[] = [];
+  for (const raw of ids) {
+    if (typeof raw !== 'string') continue;
+    const canonical = BUILDING_ID_ALIASES[raw] ?? raw;
+    if (!out.includes(canonical)) out.push(canonical);
+  }
+  return out;
+}
+
+/** Server twin of `meetsMinTier` — an unset floor imposes no restriction. */
+export function meetsMinTierServer(tier: string, minTier: unknown): boolean {
+  if (typeof minTier !== 'string' || !minTier) return true;
+  return (TIER_RANK[tier] ?? 0) >= (TIER_RANK[minTier] ?? 0);
+}
+
+/** The teacher's `selectedBuildings`, canonicalized the way AuthContext does. */
+export async function loadTeacherBuildings(
+  db: Firestore,
+  teacherUid: string
+): Promise<string[]> {
+  if (!teacherUid) return [];
+  const snap = await db
+    .doc(`users/${teacherUid}/userProfile/profile`)
+    .get()
+    .catch(() => null);
+  const raw: unknown = snap?.data()?.selectedBuildings;
+  return Array.isArray(raw) ? canonicalizeBuildingIdsServer(raw) : [];
+}
+
+/** Server twin of `deriveUserTier` — internal domain, else org member, else free. */
+export async function deriveTeacherTier(
+  db: Firestore,
+  teacherEmail: string
+): Promise<string> {
+  const domain = teacherEmail.split('@')[1] ?? '';
+  if (domain && INTERNAL_TIER_DOMAINS.includes(domain)) return 'internal';
+  const domainWithAt = normalizeEmailDomain(teacherEmail);
+  if (!domainWithAt) return 'free';
+  const orgId = await resolveOrgIdForDomain(db, domainWithAt).catch(() => null);
+  if (!orgId) return 'free';
+  const member = await db
+    .doc(`organizations/${orgId}/members/${teacherEmail}`)
+    .get()
+    .catch(() => null);
+  return member?.exists ? 'org' : 'free';
+}
+
 /**
- * Fail-closed gate. Unlike the generic `canAccessFeature` default, a missing
- * `global_permissions/quiz-media-response` record denies access.
+ * Fail-closed gate, mirroring `resolvePermissionAccess` in
+ * `context/AuthContext.tsx`: enabled → admin bypass → access level → `minTier`
+ * → `buildings`. Unlike the generic `canAccessFeature` default, a missing
+ * `global_permissions/quiz-media-response` record denies access. The subject is
+ * always the session teacher, since the gate asks whether this teacher's org
+ * turned the feature on.
  */
 export async function isQuizMediaResponseGranted(
   db: Firestore,
-  teacherEmail: string | null
+  teacherEmail: string | null,
+  teacherUid: string
 ): Promise<boolean> {
   const snap = await db
     .collection('global_permissions')
@@ -382,18 +491,34 @@ export async function isQuizMediaResponseGranted(
   if (!snap.exists) return false;
   const data = snap.data() ?? {};
   if (data.enabled !== true) return false;
-  if (data.accessLevel === 'public') return true;
   const email = (teacherEmail ?? '').toLowerCase();
-  if (!email) return false;
-  const adminSnap = await db.collection('admins').doc(email).get();
-  if (adminSnap.exists) return true;
+  if (email) {
+    const adminSnap = await db.collection('admins').doc(email).get();
+    if (adminSnap.exists) return true;
+  }
   if (data.accessLevel === 'beta') {
+    if (!email) return false;
     const betaUsers = Array.isArray(data.betaUsers) ? data.betaUsers : [];
-    return betaUsers.some(
+    const isBeta = betaUsers.some(
       (u: unknown) => typeof u === 'string' && u.toLowerCase() === email
     );
+    if (!isBeta) return false;
+  } else if (data.accessLevel !== 'public') {
+    return false;
   }
-  return false;
+  if (data.minTier !== undefined && data.minTier !== null) {
+    const tier = email ? await deriveTeacherTier(db, email) : 'free';
+    if (!meetsMinTierServer(tier, data.minTier)) return false;
+  }
+  // `buildings` is compared raw, exactly as the client does — only the user's
+  // own selection is canonicalized on either side.
+  const buildings = Array.isArray(data.buildings) ? data.buildings : [];
+  if (buildings.length > 0) {
+    const allowed = new Set(buildings);
+    const selected = await loadTeacherBuildings(db, teacherUid);
+    if (!selected.some((b) => allowed.has(b))) return false;
+  }
+  return true;
 }
 
 /**
@@ -432,11 +557,7 @@ export async function resolveStudentRealName(
   for (const [key, name] of namesByRefKey) {
     const ref = parseRefKey(key);
     if (!ref) continue;
-    const uid =
-      ref.kind === 'classlink'
-        ? computeStudentUid(ref.sourcedId, hmacSecret)
-        : computeStudentUid(`test:${ref.email}`, hmacSecret);
-    if (uid === studentUid) return name;
+    if (uidForRef(ref, hmacSecret) === studentUid) return name;
   }
   return null;
 }
@@ -476,7 +597,7 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
       } catch {
         email = null;
       }
-      return isQuizMediaResponseGranted(db, email);
+      return isQuizMediaResponseGranted(db, email, teacherUid);
     },
     now: () => Date.now(),
   };
@@ -485,8 +606,32 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
 // ── Archive core (shared by the callable and the sweep) ────────────────────
 
 export interface ArchiveResult {
-  archiveStatus: 'archived';
-  driveFileId: string;
+  /** `'syncing'` means a concurrent invocation owns this artifact right now. */
+  archiveStatus: 'archived' | 'syncing';
+  driveFileId?: string;
+}
+
+type ArchiveEntryShape = {
+  archiveStatus?: unknown;
+  driveFileId?: unknown;
+  archiveStartedAt?: unknown;
+  storageCleanupPending?: unknown;
+};
+
+type ArchiveMap = Record<string, ArchiveEntryShape>;
+
+const readArchiveMap = (
+  data: Record<string, unknown> | undefined
+): ArchiveMap => ({ ...((data?.artifactArchive ?? {}) as ArchiveMap) });
+
+/** A `'syncing'` entry younger than the sweep window still has a live owner. */
+function hasLiveOwner(
+  entry: ArchiveEntryShape | undefined,
+  now: number
+): boolean {
+  if (entry?.archiveStatus !== 'syncing') return false;
+  if (typeof entry.archiveStartedAt !== 'number') return false;
+  return now - entry.archiveStartedAt < STUCK_ARCHIVE_AGE_MS;
 }
 
 /**
@@ -541,18 +686,7 @@ export async function archiveQuizArtifactCore(
   const answers: StoredAnswer[] = Array.isArray(response.answers)
     ? (response.answers as StoredAnswer[])
     : [];
-  let artifact: StoredArtifact | null = null;
-  for (const answer of answers) {
-    if (answer?.questionId !== questionId) continue;
-    const list = Array.isArray(answer.artifacts)
-      ? (answer.artifacts as StoredArtifact[])
-      : [];
-    const match = list.find((a) => a?.id === artifactId);
-    if (match) {
-      artifact = match;
-      break;
-    }
-  }
+  const artifact = findStoredArtifact(answers, questionId, artifactId);
   if (!artifact) {
     throw new HttpsError('not-found', 'Artifact not found on this response.');
   }
@@ -568,11 +702,7 @@ export async function archiveQuizArtifactCore(
     );
   }
 
-  const existingArchive = (response.artifactArchive ?? {}) as Record<
-    string,
-    { archiveStatus?: unknown; driveFileId?: unknown }
-  >;
-  const alreadyArchived = existingArchive[artifactId];
+  const alreadyArchived = readArchiveMap(response)[artifactId];
   if (
     alreadyArchived?.archiveStatus === 'archived' &&
     typeof alreadyArchived.driveFileId === 'string'
@@ -599,24 +729,41 @@ export async function archiveQuizArtifactCore(
     );
   }
 
+  // Check-and-set in one transaction: a concurrent invocation for the same
+  // artifact must not reach ffmpeg or Drive at all.
   const startedAt = deps.now();
-  const syncingArchive = {
-    ...existingArchive,
-    [artifactId]: { archiveStatus: 'syncing' },
-  };
-  await responseRef.set(
-    {
-      artifactArchive: {
-        [artifactId]: {
-          archiveStatus: 'syncing',
-          archiveStartedAt: startedAt,
-          archiveError: admin.firestore.FieldValue.delete(),
+  const claim = await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    const entry = archive[artifactId];
+    if (
+      entry?.archiveStatus === 'archived' &&
+      typeof entry.driveFileId === 'string'
+    ) {
+      return { kind: 'archived' as const, driveFileId: entry.driveFileId };
+    }
+    if (hasLiveOwner(entry, startedAt)) return { kind: 'inflight' as const };
+    archive[artifactId] = { archiveStatus: 'syncing' };
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: {
+          [artifactId]: {
+            archiveStatus: 'syncing',
+            archiveStartedAt: startedAt,
+            archiveError: admin.firestore.FieldValue.delete(),
+          },
         },
+        hasStuckArchive: computeHasStuckArchive(archive),
       },
-      hasStuckArchive: computeHasStuckArchive(syncingArchive),
-    },
-    { merge: true }
-  );
+      { merge: true }
+    );
+    return { kind: 'claimed' as const };
+  });
+  if (claim.kind === 'archived') {
+    return { archiveStatus: 'archived', driveFileId: claim.driveFileId };
+  }
+  if (claim.kind === 'inflight') return { archiveStatus: 'syncing' };
 
   try {
     const stat = await deps.statObject(storagePath);
@@ -665,51 +812,143 @@ export async function archiveQuizArtifactCore(
       `${QUIZ_DRIVE_FOLDER}/${quizTitle}`
     );
 
-    const archivedArchive = {
-      ...existingArchive,
-      [artifactId]: { archiveStatus: 'archived' },
-    };
-    await responseRef.set(
-      {
-        artifactArchive: {
-          [artifactId]: {
-            archiveStatus: 'archived',
-            driveFileId: driveFile.id,
-            archivedAt: deps.now(),
-            archiveStartedAt: admin.firestore.FieldValue.delete(),
-            archiveError: admin.firestore.FieldValue.delete(),
+    // `'archived'` is durable from here on: the Storage delete below is a
+    // separate retryable step and can never demote this entry.
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive = readArchiveMap(fresh.data());
+      archive[artifactId] = { archiveStatus: 'archived' };
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [artifactId]: {
+              archiveStatus: 'archived',
+              driveFileId: driveFile.id,
+              archivedAt: deps.now(),
+              archiveStartedAt: admin.firestore.FieldValue.delete(),
+              lastAttemptAt: admin.firestore.FieldValue.delete(),
+              archiveError: admin.firestore.FieldValue.delete(),
+            },
           },
+          hasStuckArchive: computeHasStuckArchive(archive),
         },
-        hasStuckArchive: computeHasStuckArchive(archivedArchive),
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+    });
 
-    await deps.deleteObject(storagePath);
+    try {
+      await deps.deleteObject(storagePath);
+    } catch {
+      await markStorageCleanupPending(db, responseRef, artifactId);
+    }
     return { archiveStatus: 'archived', driveFileId: driveFile.id };
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : 'Drive archive failed';
-    const failedArchive = {
-      ...existingArchive,
-      [artifactId]: { archiveStatus: 'failed' },
-    };
-    await responseRef.set(
-      {
-        artifactArchive: {
-          [artifactId]: {
-            archiveStatus: 'failed',
-            archiveError: message.slice(0, 180),
-            archiveStartedAt: admin.firestore.FieldValue.delete(),
+    // `archiveStartedAt` survives and `lastAttemptAt` is stamped, so the sweep
+    // measures from this attempt rather than retrying on its very next run.
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive = readArchiveMap(fresh.data());
+      archive[artifactId] = {
+        ...(archive[artifactId] ?? {}),
+        archiveStatus: 'failed',
+      };
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [artifactId]: {
+              archiveStatus: 'failed',
+              archiveError: message.slice(0, 180),
+              lastAttemptAt: deps.now(),
+            },
           },
+          hasStuckArchive: computeHasStuckArchive(archive),
         },
-        hasStuckArchive: computeHasStuckArchive(failedArchive),
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+    });
     if (error instanceof HttpsError) throw error;
     throw new HttpsError('internal', message);
   }
+}
+
+async function markStorageCleanupPending(
+  db: Firestore,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string
+): Promise<void> {
+  await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    archive[artifactId] = {
+      ...(archive[artifactId] ?? {}),
+      storageCleanupPending: true,
+    };
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: { [artifactId]: { storageCleanupPending: true } },
+        hasStuckArchive: computeHasStuckArchive(archive),
+      },
+      { merge: true }
+    );
+  });
+}
+
+/**
+ * Second-pass cleanup for an entry the sweep found with
+ * `storageCleanupPending`: the Drive copy already exists, only the transit
+ * object is owed. Throws when the delete still fails so the sweep counts it.
+ */
+export async function retryStorageCleanup(
+  input: ArchiveArtifactRequest,
+  deps: ArchiveDeps
+): Promise<void> {
+  const { db } = deps;
+  const responseRef = db
+    .collection('quiz_sessions')
+    .doc(input.sessionId)
+    .collection('responses')
+    .doc(input.responseKey);
+  const snap = await responseRef.get();
+  if (!snap.exists) return;
+  const data = snap.data() ?? {};
+  const studentUid = typeof data.studentUid === 'string' ? data.studentUid : '';
+  const answers: StoredAnswer[] = Array.isArray(data.answers)
+    ? (data.answers as StoredAnswer[])
+    : [];
+  const artifact = findStoredArtifact(
+    answers,
+    input.questionId,
+    input.artifactId
+  );
+  const storagePath =
+    typeof artifact?.storagePath === 'string' ? artifact.storagePath : '';
+  if (hasQuizMediaStoragePrefix(storagePath, input.sessionId, studentUid)) {
+    await deps.deleteObject(storagePath);
+  }
+  await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    const entry = { ...(archive[input.artifactId] ?? {}) };
+    delete entry.storageCleanupPending;
+    archive[input.artifactId] = entry;
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: {
+          [input.artifactId]: {
+            storageCleanupPending: admin.firestore.FieldValue.delete(),
+          },
+        },
+        hasStuckArchive: computeHasStuckArchive(archive),
+      },
+      { merge: true }
+    );
+  });
 }
 
 function parseArchiveRequest(raw: unknown): ArchiveArtifactRequest {
