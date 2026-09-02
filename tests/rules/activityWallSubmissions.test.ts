@@ -196,6 +196,31 @@ describe('activity wall submissions — legacy compatibility', () => {
     );
   });
 
+  it('legacy create with a foreign authorUid is denied', async () => {
+    await seedSession(legacySession());
+    await assertFails(
+      setDoc(doc(asStudent(), submissionPath('legacy-foreign')), {
+        id: 'legacy-foreign',
+        content: 'not mine',
+        submittedAt: 1_700_000,
+        status: 'approved',
+        authorUid: OTHER_STUDENT_UID,
+      })
+    );
+  });
+
+  it('legacy create without authorUid is still allowed', async () => {
+    await seedSession(legacySession());
+    await assertSucceeds(
+      setDoc(doc(asStudent(), submissionPath('legacy-no-author')), {
+        id: 'legacy-no-author',
+        content: 'no authorUid at all',
+        submittedAt: 1_700_000,
+        status: 'approved',
+      })
+    );
+  });
+
   it('legacy photo create with storage metadata still passes', async () => {
     await seedSession(legacySession());
     await assertSucceeds(
@@ -476,6 +501,40 @@ describe('activity wall submissions — student edit and delete toggles', () => 
     await assertFails(
       updateDoc(doc(asStudent(OTHER_STUDENT_UID), submissionPath('sub-1')), {
         content: 'edited',
+      })
+    );
+  });
+
+  it('author cannot archive their own post', async () => {
+    await seedSession(padletSession({ allowStudentEdit: true }));
+    await seedSubmission('sub-1', existing({ archiveStatus: 'firebase' }));
+    await assertFails(
+      updateDoc(doc(asStudent(), submissionPath('sub-1')), {
+        archiveStatus: 'archived',
+      })
+    );
+  });
+
+  it('author can re-upload with a valid storagePath', async () => {
+    await seedSession(padletSession({ allowStudentEdit: true }));
+    await seedSubmission('sub-1', existing({ archiveStatus: 'firebase' }));
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), submissionPath('sub-1')), {
+        archiveStatus: 'firebase',
+        storagePath: `activity_wall_media/${SESSION_ID}/sub-1/photo.jpg`,
+        fileName: 'photo.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 1234,
+      })
+    );
+  });
+
+  it('author cannot point storagePath at another submission', async () => {
+    await seedSession(padletSession({ allowStudentEdit: true }));
+    await seedSubmission('sub-1', existing({ archiveStatus: 'firebase' }));
+    await assertFails(
+      updateDoc(doc(asStudent(), submissionPath('sub-1')), {
+        storagePath: `activity_wall_media/${SESSION_ID}/sub-other/photo.jpg`,
       })
     );
   });
@@ -827,6 +886,18 @@ describe('activity wall submissions — published gallery hides pending posts', 
       getDoc(doc(asTeacher(), submissionPath('sub-pending')))
     );
   });
+
+  it('an unfiltered gallery query still succeeds on a legacy session', async () => {
+    await seedSession(legacySession({ publiclyShared: true }));
+    await assertSucceeds(
+      getDocs(
+        collection(
+          asAnonymous(),
+          `activity_wall_sessions/${SESSION_ID}/submissions`
+        )
+      )
+    );
+  });
 });
 
 describe('short_links — teacher-minted gallery codes', () => {
@@ -908,6 +979,15 @@ describe('short_links — teacher-minted gallery codes', () => {
       setDoc(
         doc(asTeacher(), 'short_links/abc123'),
         shortLink({ createdBy: OTHER_STUDENT_UID })
+      )
+    );
+  });
+
+  it('a student SSO session cannot mint a gallery short link', async () => {
+    await assertFails(
+      setDoc(
+        doc(asStudent(), 'short_links/stu123'),
+        shortLink({ code: 'stu123', createdBy: STUDENT_UID })
       )
     );
   });

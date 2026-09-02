@@ -152,6 +152,10 @@ service firebase.storage {
           /databases/(default)/documents/activity_wall_sessions/$(sessionId)
         ).data;
       }
+      // Padlet-lite marker; legacy sessions keep the pre-redesign public read.
+      function awIsPadletSession() {
+        return 'layout' in awSession();
+      }
       // The object carries no status, so gallery reads defer to the submission
       // doc (the {submissionId} path segment is that doc's id).
       function awSubmissionApproved() {
@@ -182,13 +186,16 @@ service firebase.storage {
           submissionId == request.auth.uid ||
           submissionId.matches('^' + request.auth.uid + '__.*') ||
           (awSession().get('publiclyShared', false) == true &&
-           awSubmissionApproved())
+           (!awIsPadletSession() || awSubmissionApproved()))
         );
       // Create only (no update/overwrite). Ownership is proven by the path:
       // the submissionId segment must start with the caller's uid, which is
       // exactly what P1-5 writes (`{uid}__{n}` when capped, `{uid}__{random}`
       // otherwise) — the upload happens before the submission doc exists, so
       // a Firestore ownership lookup is not available at this point.
+      // No per-student object cap here (same limitation as activity_wall_photos):
+      // the Firestore submission cap is the enforcement point and the 7-day
+      // sweeper reclaims orphaned objects.
       allow create: if request.auth != null &&
         (submissionId == request.auth.uid ||
          submissionId.matches('^' + request.auth.uid + '__.*')) &&

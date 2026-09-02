@@ -726,7 +726,7 @@ service cloud.firestore {
     // - get: public (anyone can follow a known shortlink).
     // - list: admin-only (blocks anonymous enumeration of all codes + targets).
     // - create: admins, plus non-anonymous users minting an Activity Wall
-    //   gallery link stamped with their own uid.
+    //   gallery link stamped with their own uid (students excluded).
     // - edit/delete: admin-only.
     // - update: narrow anonymous path — the resolver may only bump `clicks` by
     //   exactly 1 and stamp `lastClickedAt`, clamped to ±5min of server time
@@ -736,9 +736,12 @@ service cloud.firestore {
       allow list: if isAdmin();
       // Teachers may also mint a code, but only for an Activity Wall gallery
       // destination they stamp with their own uid — not an arbitrary redirect.
+      // Student SSO sessions are custom-token (non-anonymous), so they need an
+      // explicit exclusion or they would qualify as minters too.
       allow create: if isAdmin() ||
         (request.auth != null &&
          request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+         !isStudentRoleUser() &&
          request.resource.data.createdBy == request.auth.uid &&
          request.resource.data.destination is string &&
          request.resource.data.destination.matches('^https://(spartboard[.]web[.]app|spartboard[.]firebaseapp[.]com|spartboard--[a-z0-9-]+[.]web[.]app)/activity-wall/gallery/[A-Za-z0-9_-]+$'));
@@ -4333,6 +4336,10 @@ service cloud.firestore {
           request.resource.data.submittedAt is int &&
           request.resource.data.status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
           awFieldTypesOk() &&
+          // authorUid is an ownership claim on every session shape, not just padlet ones.
+          (!('authorUid' in request.resource.data) ||
+           (request.resource.data.authorUid == request.auth.uid &&
+            request.resource.data.authorUid.size() <= 200)) &&
           (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase') &&
           (!awIsPadletSession() ||
             (awAcceptingResponses() &&
@@ -4345,14 +4352,17 @@ service cloud.firestore {
         // anon gallery viewers). Delete stays teacher/admin-only.
         // A student can list/get their own posts via a where('authorUid','==',uid)
         // query even on a non-public wall (Padlet-lite "my posts" view).
-        // A published gallery only exposes APPROVED posts, so a pending post
-        // awaiting moderation never leaks; gallery clients must therefore query
-        // with where('status','==','approved').
+        // A published PADLET gallery only exposes APPROVED posts, so a pending
+        // post awaiting moderation never leaks; new gallery clients query with
+        // where('status','==','approved'). Legacy sessions keep the old
+        // unconditional public read: the deployed prod gallery lists unfiltered
+        // and would break the moment these rules ship.
         allow read: if request.auth != null &&
                             (isAdmin() ||
                              sessionId.matches(request.auth.uid + '_.*') ||
                              (awSession().get('publiclyShared', false) == true &&
-                              resource.data.status == 'approved') ||
+                              (!awIsPadletSession() ||
+                               resource.data.status == 'approved')) ||
                              resource.data.authorUid == request.auth.uid);
         allow delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
@@ -4417,7 +4427,11 @@ service cloud.firestore {
                             request.resource.data.content.size() > 0 &&
                             request.resource.data.content.size() <= 5000 &&
                             awFieldTypesOk() &&
-                            (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed', 'lost']);
+                            // A re-upload may only re-enter the pipeline at 'firebase', under its own object path.
+                            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['archiveStatus']) ||
+                             request.resource.data.archiveStatus == 'firebase') &&
+                            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['storagePath']) ||
+                             request.resource.data.storagePath.matches('^activity_wall_media/' + sessionId + '/' + submissionId + '/.+'));
       }
     }
 
