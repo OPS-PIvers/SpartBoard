@@ -997,6 +997,47 @@ describe('useVideoActivityAssignments — publishAssignmentScores', () => {
     expect((responseCall[1] as { score: number }).score).toBe(50);
   });
 
+  it('credits the earliest-answeredAt duplicate even when it is stored last in the array', async () => {
+    // VideoActivityAnswer has no takeIndex field, so duplicate entries always
+    // tie at the implicit takeIndex 0 and fall through to the answeredAt
+    // tie-break — this must hold regardless of raw array order.
+    const refStudent = { id: 'r-reverse-order' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              // Wrong duplicate stored FIRST in the array, but answered LATER.
+              { questionId: 'q0', answer: 'b', answeredAt: 2 },
+              // Correct entry stored SECOND, but answered EARLIER.
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        activityData,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!responseCall) throw new Error('expected update on response ref');
+    // Earliest-answeredAt (correct) entry wins → earned=1, max=2 (q1 unanswered) → 50.
+    expect((responseCall[1] as { score: number }).score).toBe(50);
+  });
+
   it('scores every response across more than one page (limit + cursor paging)', async () => {
     // Mirrors RESPONSES_PAGE_SIZE in useVideoActivityAssignments — a full page
     // forces the publish path to request a second page to finish reading.
