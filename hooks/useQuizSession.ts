@@ -48,6 +48,7 @@ import {
   ResponseArtifact,
   ArtifactUploadState,
   UnrespondedReason,
+  isWrittenQuestionType,
 } from '@/types';
 import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
 import {
@@ -377,7 +378,11 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
   }
   // Carries no answer key; the student client and the archival callable both
   // read `takeLimit`/`limitSeconds` off the session doc. Absent stays absent.
-  const recording = normalizeRecordingConfig(q.recording);
+  // Only written types render a recorder; a stray block elsewhere would hide
+  // the student's choice input, so it never reaches the public payload.
+  const recording = isWrittenQuestionType(q.type)
+    ? normalizeRecordingConfig(q.recording)
+    : undefined;
   if (recording) base.recording = recording;
   return base;
 }

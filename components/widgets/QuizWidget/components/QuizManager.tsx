@@ -16,7 +16,14 @@
  * only, not functionality.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Plus,
   FileUp,
@@ -121,6 +128,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import { countRecordingSlots } from '@/utils/quizRecordingModes';
 import {
   splitDueAtToInputs,
   dueInputsToEpoch,
@@ -591,6 +599,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     /* action not wired */
   };
 
+  const { t } = useTranslation();
   const { showConfirm } = useDialog();
 
   // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
@@ -729,6 +738,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // Tracks the quiz id whose full content has been loaded/in-flight for the
   // current assign modal (F1 fix) — see `handleExpandIndividualTargeting`.
   const loadedAssignQuizDataForRef = useRef<string | null>(null);
+  // Recorded answers only capture in self-paced sessions (no per-student
+  // submit exists in a live/teacher-paced session). Surface a heads-up
+  // rather than block — the session still creates fine, just written-only.
+  const assignHasRecordingQuestions = useMemo(
+    () => countRecordingSlots(assignQuizData?.questions ?? []) > 0,
+    [assignQuizData]
+  );
   const { rubrics: assignRubrics } = useRubrics(userId);
 
   // Subscribed at the parent so both AssignPlcSlot (UI) and
@@ -777,6 +793,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       }
     });
   };
+
+  // Also loads in the background as soon as the assign modal opens (not
+  // only on individual-targeting expand) — the recording advisory below
+  // needs question content to know whether the quiz has any recording
+  // questions. Same dedupe ref as the expand path, so a teacher who then
+  // expands individual targeting doesn't trigger a second fetch.
+  useEffect(() => {
+    handleExpandIndividualTargeting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignTarget]);
 
   // Live ClassLink fetching is no longer performed at assign time. Imported
   // ClassLink rosters carry their own `classlinkClassId` metadata so the
@@ -2007,6 +2033,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                       setAssignBehavior(next);
                     }}
                   />
+                  {assignHasRecordingQuestions &&
+                    assignBehavior.sessionMode !== 'student' && (
+                      <p
+                        role="status"
+                        className="text-xxs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
+                      >
+                        {t('quizMediaResponse.assign.advisory.notSelfPaced')}
+                      </p>
+                    )}
                 </CollapsibleSection>
               )}
             </>

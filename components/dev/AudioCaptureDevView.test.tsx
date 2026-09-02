@@ -5,6 +5,7 @@ import '@/i18n';
 import {
   AudioCaptureDevView,
   AUDIO_CAPTURE_STATES,
+  AUDIO_CAPTURE_DARK_STATES,
 } from './AudioCaptureDevView';
 
 beforeEach(() => {
@@ -23,6 +24,7 @@ const EXPECTED: Record<string, RegExp> = {
   'take-limit': /No takes left/i,
   'window-closed': /Recording time is over/i,
   'mic-unavailable': /microphone did not work/i,
+  'submit-blocked': /questions still need a recording/i,
 };
 
 describe('AudioCaptureDevView', () => {
@@ -33,4 +35,18 @@ describe('AudioCaptureDevView', () => {
       await screen.findByText(EXPECTED[state], undefined, { timeout: 3000 })
     ).toBeTruthy();
   });
+
+  it.each(AUDIO_CAPTURE_DARK_STATES)(
+    'renders the %s state on a dark shell',
+    async (state) => {
+      const { container } = render(<AudioCaptureDevView state={state} />);
+      const key = state.slice('dark-'.length);
+      expect(
+        await screen.findByText(EXPECTED[key], undefined, { timeout: 3000 })
+      ).toBeTruthy();
+      expect(container.querySelector('section')?.className).toContain(
+        'bg-slate-800/60'
+      );
+    }
+  );
 });

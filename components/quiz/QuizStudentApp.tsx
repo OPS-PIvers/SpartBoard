@@ -88,6 +88,7 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
+import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
 import { selectPlaybackTake } from '@/utils/responseArtifacts';
 import { hasUngradedRecording } from '@/utils/mediaGrading';
 import type { AudioTake } from '@/hooks/useAudioRecording';
@@ -117,7 +118,10 @@ import {
   applyHiddenOptions,
   applyTimeMultiplier,
 } from '@/utils/quizOverrideServing';
-import { countAnsweredQuestions } from '@/utils/quizCompleteness';
+import {
+  countAnsweredQuestions,
+  listOpenQuestions,
+} from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import {
@@ -1323,6 +1327,7 @@ const ActiveQuiz: React.FC<{
   const { showAlert } = useDialog();
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
+  const [submitBlocked, setSubmitBlocked] = useState(false);
   const [handBusy, setHandBusy] = useState(false);
   const handleToggleHand = async () => {
     if (handBusy) return;
@@ -2445,6 +2450,30 @@ const ActiveQuiz: React.FC<{
     }
   };
 
+  // RR-A2 sub-decision 1 — an open recording slot blocks the submit. A slot
+  // prep expiry closed, or one a dead microphone marked capture-unavailable,
+  // is resolved rather than open and never blocks (RR-07).
+  const recordingQuestionEntries =
+    session.mediaResponseEnabled === true
+      ? orderedPublicQuestions
+          .map((q, index) => ({ q, index }))
+          .filter(({ q }) => q.recording && isWrittenQuestionType(q.type))
+      : [];
+  const openRecordingIds = new Set(
+    listOpenQuestions(
+      myResponse?.answers ?? [],
+      recordingQuestionEntries.map(({ q }) => q.id)
+    )
+  );
+  const openRecordingQuestions = recordingQuestionEntries
+    .filter(({ q }) => openRecordingIds.has(q.id))
+    .map(({ q, index }) => ({ id: q.id, index, text: q.text }));
+
+  const jumpToOpenRecording = (index: number) => {
+    setSubmitBlocked(false);
+    if (isStudentPaced) setLocalIndex(index);
+  };
+
   // Self-paced unified action: persist the answer, then advance (or complete
   // on the final question). Skips the per-question feedback banner — teachers
   // who want feedback should run the quiz in teacher-paced mode and reveal
@@ -2505,6 +2534,10 @@ const ActiveQuiz: React.FC<{
 
       const isLast = currentIndex >= effectiveTotalQuestions - 1;
       if (isLast) {
+        if (openRecordingQuestions.length > 0) {
+          setSubmitBlocked(true);
+          return;
+        }
         setSelectedAnswer(answer);
         setSubmitted(true);
         if (myResponse?.status !== 'completed') {
@@ -2528,8 +2561,10 @@ const ActiveQuiz: React.FC<{
   // Recording questions: absent block = every existing quiz, unchanged. The
   // session marker is the fail-closed gate — `/quiz` has no AuthProvider.
   const recordingConfig =
-    session.mediaResponseEnabled === true
-      ? currentQuestion?.recording
+    session.mediaResponseEnabled === true &&
+    currentQuestion &&
+    isWrittenQuestionType(currentQuestion.type)
+      ? currentQuestion.recording
       : undefined;
   const answersForQuestion = currentQuestion
     ? (myResponse?.answers ?? []).filter(
@@ -2561,6 +2596,18 @@ const ActiveQuiz: React.FC<{
       });
     } else if (expiry === 'unanswered') {
       void onMarkUnresponded(currentQuestion.id, 'expired');
+    }
+  };
+
+  const handleRecordingSubmit = async () => {
+    if (openRecordingQuestions.length > 0) {
+      setSubmitBlocked(true);
+      return;
+    }
+    try {
+      await onComplete();
+    } catch (err) {
+      console.error('[QuizStudentApp] onComplete failed:', err);
     }
   };
 
@@ -2904,6 +2951,7 @@ const ActiveQuiz: React.FC<{
                     : undefined
                 }
                 latestArtifact={latestRecordingArtifact}
+                light={light}
                 slotClosed={recordingSlotClosed}
                 onPrepExpired={handleRecordingPrepExpired}
                 onCaptureUnavailable={handleRecordingCaptureUnavailable}
@@ -2914,7 +2962,7 @@ const ActiveQuiz: React.FC<{
                     type="button"
                     onClick={
                       currentIndex >= effectiveTotalQuestions - 1
-                        ? () => void onComplete()
+                        ? () => void handleRecordingSubmit()
                         : handleNext
                     }
                     className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
@@ -3303,6 +3351,16 @@ const ActiveQuiz: React.FC<{
                 </div>
               </div>
             )}
+
+          {submitBlocked && openRecordingQuestions.length > 0 && (
+            <div className="mt-6">
+              <SubmitBlockedNotice
+                questions={openRecordingQuestions}
+                light={light}
+                onJump={jumpToOpenRecording}
+              />
+            </div>
+          )}
 
           {/* Raise hand */}
           <div className="mt-6 flex justify-center">

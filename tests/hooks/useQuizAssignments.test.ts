@@ -1984,7 +1984,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     questions: [
       {
         id: 'q-rec',
-        type: 'FIB' as const,
+        type: 'short' as const,
         text: 'Say it out loud',
         correctAnswer: '',
         incorrectAnswers: [],
@@ -2015,7 +2015,28 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(sessionSet.mediaResponseEnabled).toBeUndefined();
   });
 
-  it('keeps the recording block and stamps the marker when the gate is open', async () => {
+  it('keeps the recording block and stamps the marker when the gate is open and the session is self-paced', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mediaWrapper(true),
+    });
+    await act(async () => {
+      await result.current.createAssignment(RECORDING_QUIZ, {
+        sessionMode: 'student',
+        sessionOptions: {},
+      });
+    });
+    const sessionSet = findSessionSet();
+    const questions = sessionSet.publicQuestions as {
+      recording?: { limitSeconds: number };
+    }[];
+    expect(questions[0].recording?.limitSeconds).toBe(60);
+    expect(sessionSet.mediaResponseEnabled).toBe(true);
+  });
+
+  // Recorded answers are a self-paced feature: a teacher-paced session has
+  // no per-student submit, so the Tennessen notice's "cannot be submitted"
+  // promise would be false there. Strip the block regardless of the gate.
+  it('strips the recording block and writes no marker for a granted teacher whose session is teacher-paced', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
       wrapper: mediaWrapper(true),
     });
@@ -2026,11 +2047,25 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       });
     });
     const sessionSet = findSessionSet();
-    const questions = sessionSet.publicQuestions as {
-      recording?: { limitSeconds: number };
-    }[];
-    expect(questions[0].recording?.limitSeconds).toBe(60);
-    expect(sessionSet.mediaResponseEnabled).toBe(true);
+    const questions = sessionSet.publicQuestions as { recording?: unknown }[];
+    expect(questions[0].recording).toBeUndefined();
+    expect(sessionSet.mediaResponseEnabled).toBeUndefined();
+  });
+
+  it('strips the recording block and writes no marker for a granted teacher whose session is auto-paced', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mediaWrapper(true),
+    });
+    await act(async () => {
+      await result.current.createAssignment(RECORDING_QUIZ, {
+        sessionMode: 'auto',
+        sessionOptions: {},
+      });
+    });
+    const sessionSet = findSessionSet();
+    const questions = sessionSet.publicQuestions as { recording?: unknown }[];
+    expect(questions[0].recording).toBeUndefined();
+    expect(sessionSet.mediaResponseEnabled).toBeUndefined();
   });
 
   it('writes no marker for a granted teacher whose quiz has no recording block', async () => {

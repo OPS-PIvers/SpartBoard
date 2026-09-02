@@ -2018,7 +2018,13 @@
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
       "takeLimitReachedTitle": "No takes left",
-      "takeLimitReachedBody": "This question allows {{total}} take(s), and you have used them all. Your last take is the one your teacher receives.",
+      "takeLimitReachedBody_one": "This question allows {{count}} take, and you have used it. Your last take is the one your teacher receives.",
+      "takeLimitReachedBody_other": "This question allows {{count}} takes, and you have used them all. Your last take is the one your teacher receives.",
+      "submitBlockedTitle_one": "One question still needs a recording",
+      "submitBlockedTitle_other": "{{count}} questions still need a recording",
+      "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
+      "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
+      "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Not yet submitted — your recording is still being sent.",
       "notSubmittedFailed": "Not yet submitted — sending your recording did not finish. Nothing is retrying on its own; choose Try again.",
       "notSubmittedFailedFinal": "Not yet submitted — sending your recording did not finish, and it can no longer be sent from this device. Record again to send a new take."
@@ -2051,12 +2057,21 @@
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
       "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "modeLabelAudio": "audio",
+      "modeLabelVideo": "video",
+      "unsupportedType": "Spoken answers are available on short-answer and essay questions. This question type keeps its own answer input.",
+      "unsupportedTypeRemove": "Turn off the spoken answer here",
       "advisory": {
         "title": "As authored",
         "slots_one": "Records up to {{count}} slot per student.",
         "slots_other": "Records up to {{count}} slots per student.",
         "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
         "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+      }
+    },
+    "assign": {
+      "advisory": {
+        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
       }
     },
     "grading": {

@@ -6,11 +6,14 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
 
-const { mockAuth, hookState } = vi.hoisted(() => ({
+const { mockAuth, hookState, spies } = vi.hoisted(() => ({
+  spies: {
+    completeQuiz: vi.fn().mockResolvedValue(undefined),
+  },
   mockAuth: {
     onAuthStateChanged: vi.fn(),
     signInWithPopup: vi.fn(),
@@ -64,7 +67,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
     setArtifactUploadState: vi.fn().mockResolvedValue(undefined),
     markUnresponded: vi.fn().mockResolvedValue(undefined),
     acknowledgeRecordingNotice: vi.fn().mockResolvedValue(undefined),
-    completeQuiz: vi.fn().mockResolvedValue(undefined),
+    completeQuiz: spies.completeQuiz,
     reportTabSwitch: vi.fn(),
     setHandRaised: vi.fn(),
     recordStimulusPlay: vi.fn(),
@@ -86,8 +89,17 @@ const RECORDING_BLOCK: NonNullable<QuizPublicQuestion['recording']> = {
 
 const RECORDING_QUESTION: QuizPublicQuestion = {
   id: 'q1',
-  type: 'MC',
+  type: 'short',
   text: 'Say it out loud',
+  timeLimit: 0,
+  recording: RECORDING_BLOCK,
+};
+
+/** A stray recording block on a choice question must never hide its options. */
+const MC_WITH_RECORDING: QuizPublicQuestion = {
+  id: 'q1',
+  type: 'MC',
+  text: 'Pick one',
   timeLimit: 0,
   choices: ['Alpha', 'Bravo'],
   recording: RECORDING_BLOCK,
@@ -133,10 +145,22 @@ beforeEach(() => {
 
 describe('QuizStudentApp — recording gate', () => {
   it('renders the ordinary answer UI when the session carries no marker', async () => {
-    hookState.session = buildSession();
+    hookState.session = buildSession({ publicQuestions: [MC_WITH_RECORDING] });
     render(<QuizStudentApp />);
 
-    expect(await screen.findByText(/Say it out loud/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Pick one/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Alpha' })).toBeInTheDocument();
+    expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
+  });
+
+  it('ignores a recording block on a choice question', async () => {
+    hookState.session = buildSession({
+      mediaResponseEnabled: true,
+      publicQuestions: [MC_WITH_RECORDING],
+    });
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText(/Pick one/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Alpha' })).toBeInTheDocument();
     expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
   });
@@ -183,6 +207,82 @@ describe('QuizStudentApp — recording gate', () => {
 
     expect(await screen.findByText(/Thinking time/i)).toBeInTheDocument();
     expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
+  });
+
+  it('blocks the submit while a recording question is still open', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+    });
+    render(<QuizStudentApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
+
+    expect(
+      await screen.findByText(/One question still needs a recording/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /stays incomplete and the assignment cannot be submitted/i
+      )
+    ).toBeInTheDocument();
+    expect(spies.completeQuiz).not.toHaveBeenCalled();
+  });
+
+  it('does not block when a dead microphone already resolved the slot', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1700000001000,
+          status: 'submitted',
+          unresponded: 'capture-unavailable',
+        },
+      ],
+    });
+    render(<QuizStudentApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
+
+    await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByText(/still needs a recording/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not block once a take is committed', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1700000001000,
+          status: 'submitted',
+          takeIndex: 1,
+          artifacts: [
+            {
+              id: 'art-1',
+              slot: 'primary',
+              kind: 'audio',
+              storagePath: 'p',
+              uploadState: 'uploaded',
+              durationMs: 1000,
+              mimeType: 'audio/webm',
+            },
+          ],
+        },
+      ],
+    });
+    render(<QuizStudentApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
+
+    await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
   });
 
   it('mounts capture when the session carries the marker', async () => {

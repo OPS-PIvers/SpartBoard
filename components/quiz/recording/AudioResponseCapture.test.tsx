@@ -230,3 +230,51 @@ describe('AudioResponseCapture — failed upload', () => {
     expect(screen.queryByText(/We are still trying/i)).toBeNull();
   });
 });
+
+describe('AudioResponseCapture — dark shell', () => {
+  it('renders a dark card in the teacher-paced shell', () => {
+    const { container } = renderCapture({ light: false });
+    const section = container.querySelector('section');
+    expect(section?.className).toContain('bg-slate-800/60');
+    expect(section?.className).not.toContain('bg-white/90');
+  });
+
+  it('renders a light card by default', () => {
+    const { container } = renderCapture();
+    expect(container.querySelector('section')?.className).toContain(
+      'bg-white/90'
+    );
+  });
+
+  it('carries the dark shell into the closed-slot state', () => {
+    const { container } = renderCapture({ light: false, slotClosed: true });
+    expect(screen.getByText(/Recording time is over/i)).toBeTruthy();
+    expect(container.querySelector('section')?.className).toContain(
+      'bg-slate-800/60'
+    );
+  });
+
+  it('carries the dark shell into the consent notice', () => {
+    const { container } = renderCapture({ light: false, noticeAckedAt: null });
+    expect(screen.getByText(/Before you record/i)).toBeTruthy();
+    expect(container.querySelector('section')?.className).toContain(
+      'bg-slate-800/60'
+    );
+  });
+});
+
+describe('AudioResponseCapture — take-limit plural', () => {
+  it('uses the singular take-limit sentence for a one-take budget', () => {
+    renderCapture({ config: { ...config, takeLimit: 1 }, takesCommitted: 1 });
+    expect(
+      screen.getByText(/allows 1 take, and you have used it/i)
+    ).toBeTruthy();
+  });
+
+  it('uses the plural take-limit sentence for a multi-take budget', () => {
+    renderCapture({ config: { ...config, takeLimit: 3 }, takesCommitted: 3 });
+    expect(
+      screen.getByText(/allows 3 takes, and you have used them all/i)
+    ).toBeTruthy();
+  });
+});

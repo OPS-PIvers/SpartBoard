@@ -36,6 +36,15 @@ describe('RecordingConsentNotice', () => {
     ).toBeTruthy();
   });
 
+  it('renders a dark card when light is false', () => {
+    const { container } = render(
+      <RecordingConsentNotice light={false} onAcknowledge={() => undefined} />
+    );
+    const section = container.querySelector('section');
+    expect(section?.className).toContain('bg-slate-800/60');
+    expect(section?.className).not.toContain('bg-white/90');
+  });
+
   it('does not mention AI or transcription', () => {
     const { container } = render(
       <RecordingConsentNotice onAcknowledge={() => undefined} />

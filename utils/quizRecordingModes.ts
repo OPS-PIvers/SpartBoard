@@ -15,9 +15,10 @@ export const RECORDING_MODE_CEILING_SECONDS: Record<RecordingMode, number> = {
   video: 120,
 };
 
-export const RECORDING_MODE_LABELS: Record<RecordingMode, string> = {
-  audio: 'audio',
-  video: 'video',
+/** Locale keys under `quizMediaResponse.authoring` — the label itself is i18n's. */
+export const RECORDING_MODE_LABEL_KEYS: Record<RecordingMode, string> = {
+  audio: 'modeLabelAudio',
+  video: 'modeLabelVideo',
 };
 
 /**

@@ -32,6 +32,7 @@ import { PresentScreen } from '@/components/widgets/QuizWidget/components/presen
 import {
   AudioCaptureDevView,
   AUDIO_CAPTURE_STATES,
+  AUDIO_CAPTURE_DARK_STATES,
   type AudioCaptureStateKey,
 } from './AudioCaptureDevView';
 import {
@@ -111,6 +112,10 @@ const STATES: { key: StateKey; label: string }[] = [
     key: key as StateKey,
     label: `Audio: ${key}`,
   })),
+  ...AUDIO_CAPTURE_DARK_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Audio (dark): ${key.slice('dark-'.length)}`,
+  })),
   ...RECORDING_CONTROL_STATES.map((key) => ({
     key: key as StateKey,
     label: `Recording: ${key.slice('rc-'.length)}`,
@@ -154,9 +159,10 @@ const SessionView: React.FC<{
   showNames: boolean;
 }> = ({ view, state, showNames }) => {
   if (view === 'audio-capture') {
-    const audioState = (AUDIO_CAPTURE_STATES as readonly string[]).includes(
-      state
-    )
+    const audioState = [
+      ...AUDIO_CAPTURE_STATES,
+      ...AUDIO_CAPTURE_DARK_STATES,
+    ].includes(state as AudioCaptureStateKey)
       ? (state as AudioCaptureStateKey)
       : 'prep';
     return <AudioCaptureDevView state={audioState} />;
