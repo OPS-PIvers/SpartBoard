@@ -734,4 +734,208 @@ describe('sweepActivityWallArchives', () => {
     expect(summary.cleanupCleared).toBe(1);
     expect(submissionState.storageCleanupPending).toBeUndefined();
   });
+
+  it('retries a stuck failed doc and a stale syncing doc, skips a fresh one', async () => {
+    function makeDocSnap(id: string, data: Bag) {
+      return {
+        id,
+        ref: {
+          parent: {
+            parent: {
+              id: SESSION_ID,
+              parent: { id: SESSIONS_COLLECTION },
+            },
+          },
+        },
+        data: () => data,
+      };
+    }
+    const stuckFailed = makeDocSnap('sub-stuck', {
+      storagePath: GOOD_PATH,
+      archiveStatus: 'failed',
+      submittedAt: NOW - STUCK_SUBMISSION_AGE_MS,
+    });
+    const staleSyncing = makeDocSnap('sub-stale-syncing', {
+      storagePath: GOOD_PATH,
+      archiveStatus: 'syncing',
+      archiveStartedAt: NOW - STUCK_SUBMISSION_AGE_MS,
+    });
+    const freshSyncing = makeDocSnap('sub-fresh-syncing', {
+      storagePath: GOOD_PATH,
+      archiveStatus: 'syncing',
+      archiveStartedAt: NOW - 1000,
+    });
+    const db = {
+      collectionGroup: () => ({
+        where: (field: string) => ({
+          orderBy: () => ({
+            limit: () => ({
+              get: () =>
+                Promise.resolve(
+                  field === 'archiveStatus'
+                    ? {
+                        empty: false,
+                        size: 3,
+                        docs: [stuckFailed, staleSyncing, freshSyncing],
+                      }
+                    : { empty: true, size: 0, docs: [] }
+                ),
+            }),
+          }),
+          limit: () => ({
+            get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
+          }),
+        }),
+      }),
+    };
+    const archiveOne = vi.fn(() => Promise.resolve());
+    const summary = await runSweepActivityWallArchives(db as never, {
+      archiveOne,
+      listObjects: vi.fn(() => Promise.resolve([])),
+      deleteObject: vi.fn(() => Promise.resolve()),
+      now: () => NOW,
+    });
+
+    expect(archiveOne).toHaveBeenCalledTimes(2);
+    expect(archiveOne).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      submissionId: 'sub-stuck',
+    });
+    expect(archiveOne).toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      submissionId: 'sub-stale-syncing',
+    });
+    expect(archiveOne).not.toHaveBeenCalledWith({
+      sessionId: SESSION_ID,
+      submissionId: 'sub-fresh-syncing',
+    });
+    expect(summary.retried).toBe(2);
+    expect(summary.recovered).toBe(2);
+  });
+
+  it('records a phase error but still runs the remaining phases', async () => {
+    const cleanupState: Bag = {
+      archiveStatus: 'archived',
+      storageCleanupPending: true,
+    };
+    const cleanupRef = {
+      id: SUBMISSION_ID,
+      parent: {
+        parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
+      },
+      set: (data: Bag) => {
+        mergeInto(cleanupState, data);
+        return Promise.resolve();
+      },
+    };
+    const cleanupDoc = { id: SUBMISSION_ID, ref: cleanupRef };
+    const db = {
+      collectionGroup: () => ({
+        where: (field: string) => ({
+          orderBy: () => ({
+            limit: () => ({
+              get: () =>
+                field === 'archiveStatus'
+                  ? Promise.reject(new Error('query failed'))
+                  : Promise.resolve({ empty: true, size: 0, docs: [] }),
+            }),
+          }),
+          limit: () => ({
+            get: () =>
+              Promise.resolve(
+                field === 'storageCleanupPending'
+                  ? { empty: false, size: 1, docs: [cleanupDoc] }
+                  : { empty: true, size: 0, docs: [] }
+              ),
+          }),
+        }),
+      }),
+      collection: () => ({
+        doc: () => ({
+          collection: () => ({
+            doc: () => ({
+              get: () => Promise.resolve({ exists: false }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const deleteObject = vi.fn(() => Promise.resolve());
+    const summary = await runSweepActivityWallArchives(db as never, {
+      archiveOne: vi.fn(() => Promise.resolve()),
+      listObjects: vi.fn((prefix: string) =>
+        Promise.resolve(
+          prefix === `activity_wall_media/${SESSION_ID}/${SUBMISSION_ID}/`
+            ? [{ name: GOOD_PATH, createdAt: NOW }]
+            : []
+        )
+      ),
+      deleteObject,
+      now: () => NOW,
+    });
+
+    expect(summary.phaseErrors).toHaveLength(1);
+    expect(summary.phaseErrors[0]).toContain('retryStragglers');
+    expect(summary.cleanupRetried).toBe(1);
+    expect(summary.cleanupCleared).toBe(1);
+    expect(cleanupState.storageCleanupPending).toBeUndefined();
+  });
+
+  it('clears a pending cleanup flag for a legacy-prefix submission', async () => {
+    const legacyPath = `activity_wall_photos/${SESSION_ID}/${SUBMISSION_ID}.jpg`;
+    const submissionState: Bag = {
+      archiveStatus: 'archived',
+      storageCleanupPending: true,
+    };
+    const submissionRef = {
+      id: SUBMISSION_ID,
+      parent: {
+        parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
+      },
+      set: (data: Bag) => {
+        mergeInto(submissionState, data);
+        return Promise.resolve();
+      },
+    };
+    const docSnap = { id: SUBMISSION_ID, ref: submissionRef };
+    const db = {
+      collectionGroup: () => ({
+        where: (field: string) => ({
+          limit: () => ({
+            get: () =>
+              Promise.resolve(
+                field === 'storageCleanupPending'
+                  ? { empty: false, size: 1, docs: [docSnap] }
+                  : { empty: true, size: 0, docs: [] }
+              ),
+          }),
+          orderBy: () => ({
+            limit: () => ({
+              get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const deleteObject = vi.fn(() => Promise.resolve());
+    const summary = await runSweepActivityWallArchives(db as never, {
+      archiveOne: vi.fn(() => Promise.resolve()),
+      listObjects: vi.fn((prefix: string) => {
+        if (prefix === `activity_wall_media/${SESSION_ID}/${SUBMISSION_ID}/`) {
+          return Promise.resolve([]);
+        }
+        if (prefix === `activity_wall_photos/${SESSION_ID}/`) {
+          return Promise.resolve([{ name: legacyPath, createdAt: NOW }]);
+        }
+        return Promise.resolve([]);
+      }),
+      deleteObject,
+      now: () => NOW,
+    });
+
+    expect(deleteObject).toHaveBeenCalledWith(legacyPath);
+    expect(summary.cleanupRetried).toBe(1);
+    expect(summary.cleanupCleared).toBe(1);
+    expect(submissionState.storageCleanupPending).toBeUndefined();
+  });
 });

@@ -130,7 +130,7 @@ async function retryStragglers(
     // equality filter on the field catches every straggler this sweep owns.
     let query = db
       .collectionGroup(SUBMISSIONS_COLLECTION)
-      .where('archiveStatus', 'in', ['firebase', 'failed'])
+      .where('archiveStatus', 'in', ['firebase', 'failed', 'syncing'])
       .orderBy('submittedAt')
       .limit(SUBMISSION_PAGE_SIZE);
     if (cursor) query = query.startAfter(cursor);
@@ -188,10 +188,18 @@ async function retryStorageCleanup(
     if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
     summary.cleanupRetried++;
     try {
-      const objects = await deps.listObjects(
+      // Legacy prefix is flat per session, so filter to this submission.
+      const modernObjects = await deps.listObjects(
         `${ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/${docSnap.id}/`
       );
-      for (const object of objects) {
+      const legacyCandidates = await deps.listObjects(
+        `${LEGACY_ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/`
+      );
+      const legacyObjects = legacyCandidates.filter(
+        (object) =>
+          parseMediaObjectName(object.name)?.submissionId === docSnap.id
+      );
+      for (const object of [...modernObjects, ...legacyObjects]) {
         await deps.deleteObject(object.name);
       }
       await docSnap.ref.set(
