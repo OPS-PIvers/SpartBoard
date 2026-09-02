@@ -684,7 +684,7 @@ const QuizJoinFlow: React.FC<{
         questionId,
         artifactId: artifact.id,
         blob,
-        mimeType: artifact.mimeType,
+        mimeType: artifact.mimeType ?? blob.type,
       });
       if (result.uploadState === 'failed')
         retryableTakesRef.current.set(artifact.id, blob);

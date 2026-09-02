@@ -43,7 +43,11 @@ describe('nextTakeIndex / countCommittedTakes', () => {
   });
 
   it('counts only artifact-bearing, responded entries', () => {
-    const answers = [
+    const answers: {
+      questionId: string;
+      unresponded?: string;
+      artifacts?: { uploadState?: string }[];
+    }[] = [
       { questionId: 'q1', artifacts: [artifact] },
       { questionId: 'q1', artifacts: [artifact] },
       { questionId: 'q1', artifacts: [], unresponded: undefined },
