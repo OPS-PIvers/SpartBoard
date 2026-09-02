@@ -575,6 +575,42 @@ describe('deleteOrgQuizMediaSets', () => {
     expect(results[0]?.error).toMatch(/organization/i);
   });
 
+  it('deletes a transit object keyed by the response key', async () => {
+    db.set('quiz_sessions/s1/responses/pin-3-481920', {
+      studentUid: 'stu1',
+      answers: [
+        {
+          questionId: 'q1',
+          artifacts: [
+            {
+              id: 'a1',
+              kind: 'audio',
+              storagePath: 'quiz_response_media/s1/pin-3-481920/a1.webm',
+            },
+          ],
+        },
+      ],
+      artifactArchive: {
+        a1: { archiveStatus: 'failed', storageCleanupPending: true },
+      },
+    });
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [
+          { sessionId: 's1', responseKey: 'pin-3-481920', questionId: 'q1' },
+        ],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(results[0]?.status).toBe('deleted');
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(
+      'quiz_response_media/s1/pin-3-481920/a1.webm'
+    );
+  });
+
   it('also deletes a surviving Storage transit object', async () => {
     db.set('quiz_sessions/s1/responses/r1', {
       studentUid: 'stu1',

@@ -741,7 +741,7 @@ const QuizJoinFlow: React.FC<{
         kind: 'audio',
         storagePath: buildQuizMediaStoragePath(
           sessionId,
-          studentUid,
+          responseKey,
           artifactId,
           take.mimeType
         ),

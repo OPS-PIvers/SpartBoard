@@ -98,7 +98,9 @@ const STUDENT_UID = 'student-1';
 const TEACHER_UID = 'teacher-1';
 const QUESTION_ID = 'q1';
 const ARTIFACT_ID = 'art-1';
-const GOOD_PATH = `quiz_response_media/${SESSION_ID}/${STUDENT_UID}/${ARTIFACT_ID}.webm`;
+const PIN_RESPONSE_KEY = 'pin-3-481920';
+const GOOD_PATH = `quiz_response_media/${SESSION_ID}/${RESPONSE_KEY}/${ARTIFACT_ID}.webm`;
+const LEGACY_PATH = `quiz_response_media/${SESSION_ID}/${STUDENT_UID}/${ARTIFACT_ID}.webm`;
 
 interface SeedOptions {
   session?: Record<string, unknown>;
@@ -240,11 +242,11 @@ function baseSeed(overrides: SeedOptions = {}): SeedOptions {
   };
 }
 
-function call(deps: ArchiveDeps) {
+function call(deps: ArchiveDeps, responseKey: string = RESPONSE_KEY) {
   return archiveQuizArtifactCore(
     {
       sessionId: SESSION_ID,
-      responseKey: RESPONSE_KEY,
+      responseKey,
       questionId: QUESTION_ID,
       artifactId: ARTIFACT_ID,
       callerUid: STUDENT_UID,
@@ -259,23 +261,48 @@ beforeEach(() => {
 
 describe('pure helpers', () => {
   it('accepts only paths under this response prefix', () => {
-    expect(hasQuizMediaStoragePrefix(GOOD_PATH, SESSION_ID, STUDENT_UID)).toBe(
-      true
+    expect(
+      hasQuizMediaStoragePrefix(
+        GOOD_PATH,
+        SESSION_ID,
+        RESPONSE_KEY,
+        STUDENT_UID
+      )
+    ).toBe(true);
+    expect(
+      hasQuizMediaStoragePrefix(
+        `quiz_response_media/${SESSION_ID}/other-response/x.webm`,
+        SESSION_ID,
+        RESPONSE_KEY,
+        STUDENT_UID
+      )
+    ).toBe(false);
+    expect(
+      hasQuizMediaStoragePrefix(
+        `quiz_response_media/${SESSION_ID}/${RESPONSE_KEY}/nested/x.webm`,
+        SESSION_ID,
+        RESPONSE_KEY,
+        STUDENT_UID
+      )
+    ).toBe(false);
+  });
+
+  it('still accepts the legacy studentUid segment for stored objects', () => {
+    expect(
+      hasQuizMediaStoragePrefix(
+        LEGACY_PATH,
+        SESSION_ID,
+        RESPONSE_KEY,
+        STUDENT_UID
+      )
+    ).toBe(true);
+    // Without the legacy segment the uid-keyed path is outside the response.
+    expect(
+      hasQuizMediaStoragePrefix(LEGACY_PATH, SESSION_ID, RESPONSE_KEY)
+    ).toBe(false);
+    expect(hasQuizMediaStoragePrefix(GOOD_PATH, SESSION_ID, '', '')).toBe(
+      false
     );
-    expect(
-      hasQuizMediaStoragePrefix(
-        `quiz_response_media/${SESSION_ID}/other-student/x.webm`,
-        SESSION_ID,
-        STUDENT_UID
-      )
-    ).toBe(false);
-    expect(
-      hasQuizMediaStoragePrefix(
-        `quiz_response_media/${SESSION_ID}/${STUDENT_UID}/nested/x.webm`,
-        SESSION_ID,
-        STUDENT_UID
-      )
-    ).toBe(false);
   });
 
   it('treats an absent takeLimit as unlimited', () => {
@@ -382,6 +409,93 @@ describe('archiveQuizArtifactCore', () => {
       driveFileId: 'drive-1',
     });
     expect(writes[1].hasStuckArchive).toBe(false);
+  });
+
+  it('archives a PIN joiner take keyed by response key, not auth uid', async () => {
+    const pinPath = `quiz_response_media/${SESSION_ID}/${PIN_RESPONSE_KEY}/${ARTIFACT_ID}.webm`;
+    const { db } = makeStubDb(
+      baseSeed({
+        response: {
+          answers: [
+            {
+              questionId: QUESTION_ID,
+              artifacts: [
+                {
+                  id: ARTIFACT_ID,
+                  kind: 'audio',
+                  storagePath: pinPath,
+                  uploadState: 'pending',
+                },
+              ],
+            },
+          ],
+        },
+      })
+    );
+    const deps = makeDeps(db);
+
+    await expect(call(deps, PIN_RESPONSE_KEY)).resolves.toEqual({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-1',
+    });
+    expect(deps.downloadObject).toHaveBeenCalledWith(pinPath);
+    expect(deps.deleteObject).toHaveBeenCalledWith(pinPath);
+  });
+
+  it('still archives an object stored under the legacy uid segment', async () => {
+    const { db } = makeStubDb(
+      baseSeed({
+        response: {
+          answers: [
+            {
+              questionId: QUESTION_ID,
+              artifacts: [
+                {
+                  id: ARTIFACT_ID,
+                  kind: 'audio',
+                  storagePath: LEGACY_PATH,
+                  uploadState: 'pending',
+                },
+              ],
+            },
+          ],
+        },
+      })
+    );
+    const deps = makeDeps(db);
+
+    await expect(call(deps, PIN_RESPONSE_KEY)).resolves.toMatchObject({
+      archiveStatus: 'archived',
+    });
+    expect(deps.deleteObject).toHaveBeenCalledWith(LEGACY_PATH);
+  });
+
+  it('rejects a take stored under another response key', async () => {
+    const { db } = makeStubDb(
+      baseSeed({
+        response: {
+          answers: [
+            {
+              questionId: QUESTION_ID,
+              artifacts: [
+                {
+                  id: ARTIFACT_ID,
+                  kind: 'audio',
+                  storagePath: `quiz_response_media/${SESSION_ID}/pin-9-000000/${ARTIFACT_ID}.webm`,
+                  uploadState: 'pending',
+                },
+              ],
+            },
+          ],
+        },
+      })
+    );
+    const deps = makeDeps(db);
+
+    await expect(call(deps, PIN_RESPONSE_KEY)).rejects.toThrow(
+      /outside this response/
+    );
+    expect(deps.deleteObject).not.toHaveBeenCalled();
   });
 
   it('never calls a public-sharing step on the Drive file', async () => {

@@ -30,14 +30,15 @@ export function quizMediaExtensionForMimeType(mimeType: string): string {
   }
 }
 
+/** Keyed by response key, not auth uid, so `storage.rules` can prove ownership. */
 export function buildQuizMediaStoragePath(
   sessionId: string,
-  studentUid: string,
+  responseKey: string,
   artifactId: string,
   mimeType: string
 ): string {
   const ext = quizMediaExtensionForMimeType(mimeType);
-  return `${QUIZ_MEDIA_STORAGE_ROOT}/${sessionId}/${studentUid}/${artifactId}.${ext}`;
+  return `${QUIZ_MEDIA_STORAGE_ROOT}/${sessionId}/${responseKey}/${artifactId}.${ext}`;
 }
 
 export interface QuizMediaUploadJob {
@@ -115,7 +116,7 @@ async function runUpload(
 ): Promise<QuizMediaUploadResult> {
   const storagePath = buildQuizMediaStoragePath(
     job.sessionId,
-    job.studentUid,
+    job.responseKey,
     job.artifactId,
     job.mimeType
   );
