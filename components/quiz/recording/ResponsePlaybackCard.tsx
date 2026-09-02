@@ -7,10 +7,15 @@
  * A take that is still archiving, failed, or compliance-deleted renders an
  * honest state instead of a player that would never load.
  */
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Hourglass, Loader2, Play } from 'lucide-react';
-import type { ArtifactArchiveEntry, QuizResponseAnswer } from '@/types';
+import type {
+  ArtifactArchiveEntry,
+  QuizResponseAnswer,
+  WrittenAnswerAnnotation,
+} from '@/types';
+import { formatTimecode } from '@/utils/mediaGrading';
 import {
   resolveArtifactPlaybackState,
   selectPlaybackTake,
@@ -30,6 +35,8 @@ export interface ResponsePlaybackCardProps {
   artifactArchive: Record<string, ArtifactArchiveEntry> | undefined;
   /** Which take the teacher graded, when they pinned one. */
   gradedTakeIndex?: number;
+  /** Teacher timeline comments (ms offsets) on the graded take. */
+  annotations?: readonly WrittenAnswerAnnotation[];
   light?: boolean;
   /** Injected by tests and the DEV harness only. */
   fetchPlayback?: FetchPlayback;
@@ -42,15 +49,25 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
   answers,
   artifactArchive,
   gradedTakeIndex,
+  annotations,
   light = true,
   fetchPlayback,
 }) => {
   const { t } = useTranslation();
+  const [seek, setSeek] = useState({ ms: 0, nonce: 0 });
   const take = selectPlaybackTake(
     answers,
     questionId,
     'primary',
-    gradedTakeIndex
+    gradedTakeIndex,
+    artifactArchive
+  );
+  const timelineComments = useMemo(
+    () =>
+      [...(annotations ?? [])]
+        .filter((a) => (a.comment ?? '').trim())
+        .sort((a, b) => a.from - b.from),
+    [annotations]
   );
   const entry = take ? artifactArchive?.[take.artifact.id] : undefined;
   const archiveState = resolveArtifactPlaybackState(entry);
@@ -75,6 +92,9 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
   const noticeCls = light
     ? 'border-slate-200 bg-slate-50'
     : 'border-slate-700 bg-slate-800/60';
+  const commentHoverCls = light
+    ? 'hover:bg-slate-100'
+    : 'hover:bg-slate-700/60';
   const retryCls = light
     ? 'border-slate-300 text-slate-700 hover:bg-slate-100'
     : 'border-slate-600 text-slate-200 hover:bg-slate-700/60';
@@ -126,8 +146,14 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
     }
     if (archiveState === 'failed') {
       return notice(
+        <Hourglass aria-hidden className="h-4 w-4" />,
+        t('quizMediaResponse.playback.failed')
+      );
+    }
+    if (archiveState === 'lost') {
+      return notice(
         <AlertTriangle aria-hidden className="h-4 w-4" />,
-        t('quizMediaResponse.playback.failed'),
+        t('quizMediaResponse.playback.lost'),
         'warning'
       );
     }
@@ -141,13 +167,42 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
 
     if (state.phase === 'ready') {
       return (
-        <TakeReviewPlayer
-          key={state.url}
-          src={state.url}
-          durationMs={state.durationMs || (take.artifact.durationMs ?? 0)}
-          light={light}
-          autoPlay
-        />
+        <>
+          <TakeReviewPlayer
+            key={state.url}
+            src={state.url}
+            durationMs={state.durationMs || (take.artifact.durationMs ?? 0)}
+            light={light}
+            autoPlay
+            seekToMs={seek.ms}
+            seekNonce={seek.nonce}
+          />
+          {timelineComments.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {timelineComments.map((a) => (
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSeek((prev) => ({
+                        ms: Math.max(0, a.from),
+                        nonce: prev.nonce + 1,
+                      }))
+                    }
+                    className={`flex w-full items-start gap-2 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${noticeCls} ${commentHoverCls}`}
+                  >
+                    <span
+                      className={`shrink-0 font-mono text-xs tabular-nums ${labelCls}`}
+                    >
+                      {formatTimecode(a.from)}
+                    </span>
+                    <span className={`text-xs ${bodyCls}`}>{a.comment}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       );
     }
     if (state.phase === 'unavailable') {
@@ -205,8 +260,13 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
       {gradedTakeIndex !== undefined && (
         <p className={`mt-0.5 text-xs ${bodyCls}`}>
           {t('quizMediaResponse.playback.gradedTake', {
-            n: take.takeIndex,
+            n: take.displayIndex,
           })}
+        </p>
+      )}
+      {timelineComments.length > 0 && (
+        <p className={`mt-0.5 text-xs ${bodyCls}`}>
+          {t('quizMediaResponse.playback.commentsHint')}
         </p>
       )}
       {/* Live only for notices; the player's progress bar must not chatter. */}

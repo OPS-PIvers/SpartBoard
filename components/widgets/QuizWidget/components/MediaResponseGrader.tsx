@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Mic,
   Pin,
+  Undo2,
 } from 'lucide-react';
 import type {
   ArtifactSlot,
@@ -38,6 +39,7 @@ import { EditorModalShell } from '@/components/common/EditorModalShell';
 import {
   collectMediaSlots,
   formatTimecode,
+  isSlotExcused,
   resolveSlotState,
   selectGradedTake,
   takeUnplayableReason,
@@ -61,11 +63,35 @@ export interface MediaResponseGraderProps {
     key: string,
     grade: WrittenAnswerGrade
   ) => Promise<void>;
+  /** Removes one slot's grade entirely; backs the "Undo excuse" control. */
+  onClearGrade?: (responseKey: string, key: string) => Promise<void>;
   onClose: () => void;
 }
 
 const clampPoints = (points: number, maxPoints: number): number =>
   Math.max(0, Math.min(points, maxPoints));
+
+/** One vocabulary for a slot's state — the header badge and the rail agree. */
+const slotVocabulary = (
+  slot: MediaGradingSlot | undefined
+): { key: string; chip: string } => {
+  if (slot && isSlotExcused(slot)) {
+    return {
+      key: 'quizMediaResponse.grading.state.excused',
+      chip: 'bg-slate-200 text-slate-700',
+    };
+  }
+  const state = slot ? resolveSlotState(slot) : 'not-attempted';
+  return {
+    key: `quizMediaResponse.grading.state.${state}`,
+    chip:
+      state === 'scored'
+        ? 'bg-emerald-100 text-emerald-700'
+        : state === 'awaiting-grade'
+          ? 'bg-amber-100 text-amber-700'
+          : 'bg-slate-200 text-slate-600',
+  };
+};
 
 const annotationsEqual = (
   a: WrittenAnswerAnnotation[],
@@ -92,6 +118,7 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
   teacherUid,
   resolveTakeUrl,
   onSaveGrade,
+  onClearGrade,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -365,6 +392,9 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
         pointsAwarded: parsed,
         overallComment: comment.trim() || undefined,
         annotations: cleaned.length > 0 ? cleaned : undefined,
+        // Timeline comments are milliseconds, not character offsets; the text
+        // reviewer reads the same field and must know to skip them.
+        ...(cleaned.length > 0 ? { annotationUnit: 'ms' as const } : {}),
         gradedTakeIndex: activeTake?.takeIndex,
         gradedBy: teacherUid,
         gradedAt: Date.now(),
@@ -403,6 +433,24 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
     t,
   ]);
 
+  const handleUndoExcuse = useCallback(async () => {
+    if (!onClearGrade || !slot || !responseKey) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onClearGrade(responseKey, slot.key);
+      setHydrationKey('');
+    } catch (err) {
+      setSaveError(
+        err instanceof Error
+          ? err.message
+          : t('quizMediaResponse.grading.errors.undoFailed')
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [onClearGrade, slot, responseKey, t]);
+
   if (mediaQuestions.length === 0 || queue.length === 0 || !question || !slot) {
     return (
       <div
@@ -437,6 +485,8 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
   }
 
   const slotState = resolveSlotState(slot);
+  const slotExcused = isSlotExcused(slot);
+  const headerVocabulary = slotVocabulary(slot);
   const unplayable = isUnavailable ? null : takeUnplayableReason(activeTake);
 
   const subtitle = (
@@ -455,17 +505,14 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
         })}
       </span>
       <span className="font-semibold text-slate-700">{studentLabel}</span>
-      {slotState === 'scored' && (
-        <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-emerald-700">
+      <span
+        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
+      >
+        {slotState === 'scored' && !slotExcused && (
           <CheckCircle2 aria-hidden className="h-3 w-3" />
-          {t('quizMediaResponse.grading.badge.graded')}
-        </span>
-      )}
-      {slotState === 'awaiting-grade' && (
-        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
-          {t('quizMediaResponse.grading.badge.provisional')}
-        </span>
-      )}
+        )}
+        {t(headerVocabulary.key)}
+      </span>
     </span>
   );
 
@@ -530,7 +577,7 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
                 entry.response._responseKey ?? entry.response.studentUid;
               const entrySlot =
                 entry.slots.find((s) => s.slot === slotName) ?? entry.slots[0];
-              const state = resolveSlotState(entrySlot);
+              const vocabulary = slotVocabulary(entrySlot);
               return (
                 <li key={key ?? idx}>
                   <button
@@ -551,15 +598,9 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
                             t('quizMediaResponse.grading.student')))}
                     </span>
                     <span
-                      className={`shrink-0 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${
-                        state === 'scored'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : state === 'awaiting-grade'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-slate-200 text-slate-600'
-                      }`}
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
                     >
-                      {t(`quizMediaResponse.grading.state.${state}`)}
+                      {t(vocabulary.key)}
                     </span>
                   </button>
                 </li>
@@ -747,7 +788,7 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
                       >
                         <span className="font-bold text-slate-800">
                           {t('quizMediaResponse.grading.takes.take', {
-                            n: take.takeIndex,
+                            n: take.displayIndex,
                           })}
                         </span>
                         <span className="font-mono tabular-nums text-slate-500">
@@ -778,10 +819,23 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
           )}
 
           {savedGrade?.excused && (
-            <p className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600">
-              <Ban aria-hidden className="h-3.5 w-3.5" />
-              {t('quizMediaResponse.grading.excusedNote')}
-            </p>
+            <div className="rounded-lg bg-slate-100 px-3 py-2">
+              <p className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                <Ban aria-hidden className="h-3.5 w-3.5" />
+                {t('quizMediaResponse.grading.excusedNote')}
+              </p>
+              {onClearGrade && (
+                <button
+                  type="button"
+                  onClick={handleUndoExcuse}
+                  disabled={saving}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Undo2 aria-hidden className="h-3.5 w-3.5" />
+                  {t('quizMediaResponse.grading.undoExcuse')}
+                </button>
+              )}
+            </div>
           )}
 
           <div className="mt-auto flex items-center gap-1">

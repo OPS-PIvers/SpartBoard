@@ -2001,7 +2001,6 @@
       "wrapUp": "Wrap it up — recording stops at {{seconds}} seconds.",
       "reviewLabel": "Listen back",
       "reviewBody": "Nothing has been sent yet. Keep this take, or discard it and record again.",
-      "reviewPlayerLabel": "Play back your recording",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
@@ -2012,7 +2011,6 @@
       "stop": "Stop recording",
       "commit": "Keep this take",
       "discard": "Discard",
-      "dismissFailure": "Try again",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
@@ -2076,11 +2074,8 @@
       "state": {
         "scored": "Graded",
         "awaiting-grade": "Needs you",
-        "not-attempted": "No answer"
-      },
-      "badge": {
-        "graded": "Graded",
-        "provisional": "Provisional"
+        "not-attempted": "No answer",
+        "excused": "Excused"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2162,8 +2157,10 @@
         "noteRequired": "An offline substitute needs a note — it is the only record of the answer.",
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
-        "saveFailed": "Failed to save grade."
-      }
+        "saveFailed": "Failed to save grade.",
+        "undoFailed": "Failed to undo the excuse."
+      },
+      "undoExcuse": "Undo excuse"
     },
     "results": {
       "gradeButton": "Grade recordings"
@@ -2174,13 +2171,16 @@
       "loading": "Loading your recording…",
       "gradedTake": "Your teacher graded take {{n}}.",
       "archiving": "Your recording is still being saved. Check back in a few minutes.",
-      "failed": "Your recording could not be saved, so there is nothing to play here. Your teacher can still see that you recorded an answer.",
+      "failed": "Your recording is still being saved — the system keeps trying on its own. Check back later.",
       "deleted": "This recording has been deleted and can no longer be played.",
       "missing": "There is no recording saved for this question.",
       "tooLarge": "This recording is too large to play here. Ask your teacher to play it for you.",
       "error": "Your recording did not load.",
       "retry": "Try again",
-      "provisionalScore": "Provisional — your teacher hasn’t graded your recorded answer yet, so this score will change."
+      "provisionalScore": "Provisional — your teacher hasn’t graded your recorded answer yet, so this score will change.",
+      "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
+      "commentsHint": "Tap a comment to jump to that moment.",
+      "scorePending": "Your score is being prepared. Check back soon."
     }
   }
 }

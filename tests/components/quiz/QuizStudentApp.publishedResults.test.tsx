@@ -409,4 +409,51 @@ describe('QuizStudentApp — recorded-answer playback on published results', () 
     expect(await screen.findByText('Your Results')).toBeInTheDocument();
     expect(screen.queryByText(/^Provisional —/)).toBeNull();
   });
+
+  // INT-B1: the archive map is authoritative; a swept-up take is a real take.
+  it('still offers playback for a take the client marked failed', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      mediaResponseEnabled: true,
+    });
+    const [recordedAnswer] = RECORDING_RESPONSE.answers ?? [];
+    const [recordedArtifact] = recordedAnswer?.artifacts ?? [];
+    hookState.myResponse = buildResponse({
+      ...RECORDING_RESPONSE,
+      answers: [
+        {
+          ...recordedAnswer,
+          artifacts: [{ ...recordedArtifact, uploadState: 'failed' }],
+        },
+      ],
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Play your recording' })
+    ).toBeInTheDocument();
+  });
+
+  // INT-B8: the no-score branch was the last hard-coded English string here.
+  it('renders the score-pending copy through i18n when no score exists', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-only',
+      mediaResponseEnabled: true,
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      _responseKey: 'sso-uid-1',
+      answers: [{ questionId: 'q1', answer: 'a', answeredAt: 5 }],
+      score: undefined,
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(
+      screen.getByText('Your score is being prepared. Check back soon.')
+    ).toBeInTheDocument();
+  });
 });

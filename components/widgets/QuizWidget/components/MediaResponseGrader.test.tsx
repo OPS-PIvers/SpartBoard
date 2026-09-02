@@ -140,7 +140,8 @@ const renderGrader = (
   onSaveGrade = vi.fn<MediaResponseGraderProps['onSaveGrade']>(() =>
     Promise.resolve()
   ),
-  onClose: () => void = () => undefined
+  onClose: () => void = () => undefined,
+  onClearGrade?: MediaResponseGraderProps['onClearGrade']
 ) => {
   render(
     <MediaResponseGrader
@@ -150,11 +151,20 @@ const renderGrader = (
       teacherUid="teacher-1"
       resolveTakeUrl={() => Promise.resolve('blob:take')}
       onSaveGrade={onSaveGrade}
+      onClearGrade={onClearGrade}
       onClose={onClose}
     />
   );
   return onSaveGrade;
 };
+
+const excused = (key: string): QuizResponse =>
+  ({
+    ...(unavailable(key) as unknown as Record<string, unknown>),
+    grading: {
+      q1: { pointsAwarded: 0, excused: true, gradedBy: 't', gradedAt: 1 },
+    },
+  }) as unknown as QuizResponse;
 
 describe('MediaResponseGrader queue shape', () => {
   it('is question-major: one question, every student on this question', async () => {
@@ -330,6 +340,66 @@ describe('MediaResponseGrader time-anchored comments', () => {
       to: 0,
       comment: 'Nice framing here.',
     });
+    // The text reviewer reads the same field; ms offsets must be labelled.
+    expect(grade.annotationUnit).toBe('ms');
+  });
+});
+
+// INT-B6: one vocabulary map keyed on the slot's state, header and rail alike.
+describe('MediaResponseGrader state vocabulary', () => {
+  it('uses the same word in the header badge and the queue rail', async () => {
+    renderGrader([recorded('ada', 1)]);
+    await screen.findByText('Question 1 of 2');
+    // "Provisional" in the header vs "Needs you" in the rail was the bug.
+    expect(screen.getAllByText('Needs you').length).toBe(2);
+    expect(screen.queryByText('Provisional')).toBeNull();
+  });
+
+  it('labels an excused slot Excused rather than Graded', async () => {
+    renderGrader([excused('grace')]);
+    await screen.findByText('Question 1 of 2');
+    expect(screen.getAllByText('Excused').length).toBe(2);
+  });
+});
+
+// INT-B2: excusing must be reversible — it used to delete the published score
+// with no way back.
+describe('MediaResponseGrader undo excuse', () => {
+  it('clears the grade entirely so the slot returns to needing a decision', async () => {
+    const onClear = vi.fn(() => Promise.resolve());
+    renderGrader([excused('grace')], undefined, undefined, onClear);
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Undo excuse/i })
+    );
+    await waitFor(() => expect(onClear).toHaveBeenCalledWith('grace', 'q1'));
+  });
+
+  it('hides the control when no clear handler is wired', async () => {
+    renderGrader([excused('grace')]);
+    await screen.findByText('Question 1 of 2');
+    expect(screen.queryByRole('button', { name: /Undo excuse/i })).toBeNull();
+  });
+});
+
+// INT-B1/U6: the label is the take's position, not its raw index.
+describe('MediaResponseGrader take numbering', () => {
+  it('numbers a rescued/dropped-take history by position', async () => {
+    const response = recorded('ada', 3);
+    // Take 2's upload failed and nothing archived it — it stops counting.
+    const answers = (
+      response as unknown as {
+        answers: { artifacts: { uploadState: string }[] }[];
+      }
+    ).answers;
+    answers[1].artifacts[0].uploadState = 'failed';
+    delete (response as unknown as { artifactArchive: Record<string, unknown> })
+      .artifactArchive['ada-t2'];
+
+    renderGrader([response]);
+    expect(await screen.findByText('2 takes recorded')).toBeTruthy();
+    // takeIndex 3 survives as the SECOND visible take, so it reads "Take 2".
+    expect(screen.getByRole('button', { name: /Take 2/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Take 3/ })).toBeNull();
   });
 });
 

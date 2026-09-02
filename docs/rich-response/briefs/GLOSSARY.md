@@ -225,8 +225,29 @@ never called for quiz media).
   is about; scoring/leaderboard always reads the highest `takeIndex`
   regardless of this field.
 - `WrittenAnswerGrade.excused?: boolean` — distinguishes "excused,
-  permanently resolved" from "still awaiting grade"; both compute to
-  `GradeResult.state === 'awaiting-grade'` for every downstream consumer.
+  permanently resolved" from "still awaiting grade". **Integration review
+  (INT-B) corrected the downstream mapping**: excused is TERMINAL, not
+  pending. It resolves to `GradeResult.state === 'scored'` with
+  `pointsEarned: 0`, `pointsMax: 0` and `excused: true`, so it clears the
+  awaiting-grade publish gate, leaves that student's denominator, and never
+  reaches the gradebook. `isSlotExcused` / `isQuestionExcused` /
+  `questionPointsFor` (`utils/mediaGrading.ts`) are the shared readers.
+- `WrittenAnswerGrade.annotationUnit?: 'chars' | 'ms'` — the unit of
+  `annotations[].from`/`to`. Absent (or `'chars'`) means character offsets
+  into `gradingSnapshot`, which is what `WrittenAnswerReview` renders;
+  `'ms'` means milliseconds into the graded audio take, written by
+  `MediaResponseGrader` and rendered only by the audio playback surfaces.
+  Text surfaces must skip `'ms'` annotations rather than mis-anchor them.
+- `artifactCountsAsTake(artifact, archiveEntry)`
+  (`utils/responseArtifacts.ts`) — the one rule for "is this a real take".
+  The archive map is authoritative: an `'archived'` entry with a
+  `driveFileId` counts whatever `uploadState` the client wrote, and a
+  `'failed'` upload is dropped only when no entry exists or the entry is
+  itself `'failed'`/`'lost'`. `collectMediaSlots`, `selectPlaybackTake` and
+  `countCommittedTakes` all route through it. `nextTakeIndex` stays
+  `max(takeIndex) + 1` over EVERY entry (gaps are fine); any displayed
+  "Take N" uses the take's position among visible takes (`displayIndex`),
+  so student and teacher read the same numbers.
 - Composite grading key helpers: `gradingKey(questionId, slot): string`
   (unsuffixed key = primary slot, for backward compat; `` `${questionId}::${slot}` ``
   otherwise) and `parseGradingKey(key): { questionId, slot }`. Every reader
