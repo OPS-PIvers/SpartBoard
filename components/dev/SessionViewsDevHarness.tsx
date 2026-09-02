@@ -56,6 +56,12 @@ import {
   type ResultsPlaybackStateKey,
 } from './ResultsPlaybackDevView';
 import {
+  VIEWS,
+  STATES,
+  type ViewKey,
+  type StateKey,
+} from './sessionViewsStateOptions';
+import {
   makeQuizSession,
   makeQuizResponses,
   makeQuizData,
@@ -63,84 +69,6 @@ import {
   makeVaSession,
   makeVaResponses,
 } from './sessionViewsMocks';
-
-type ViewKey =
-  | 'quiz-monitor'
-  | 'quiz-present'
-  | 'quiz-results'
-  | 'va-monitor'
-  | 'va-results'
-  | 'audio-capture'
-  | 'recording-controls'
-  | 'quiz-editor'
-  | 'media-grading'
-  | 'results-playback';
-type StateKey =
-  | 'waiting'
-  | 'live'
-  | 'reviewing'
-  | 'self-paced'
-  | 'paused'
-  | 'ended'
-  | 'populated'
-  | 'empty'
-  | AudioCaptureStateKey
-  | RecordingControlStateKey
-  | QuizEditorStateKey
-  | MediaGradingStateKey
-  | ResultsPlaybackStateKey;
-
-const VIEWS: { key: ViewKey; label: string }[] = [
-  { key: 'quiz-monitor', label: 'Quiz Monitor' },
-  { key: 'quiz-present', label: 'Quiz Present' },
-  { key: 'quiz-results', label: 'Quiz Results' },
-  { key: 'va-monitor', label: 'VA Monitor' },
-  { key: 'va-results', label: 'VA Results' },
-  { key: 'audio-capture', label: 'Audio capture' },
-  { key: 'recording-controls', label: 'Recording controls' },
-  { key: 'quiz-editor', label: 'Quiz editor' },
-  { key: 'media-grading', label: 'Media grading' },
-  { key: 'results-playback', label: 'Results playback' },
-];
-
-// State keys are partitioned by view family: monitors use the lifecycle
-// states (waiting/live/paused/ended), results use populated/empty. Offering
-// an irrelevant state for a view (e.g. "paused" on a results view) is a
-// harmless no-op — the mapper coerces to a sensible session status.
-const STATES: { key: StateKey; label: string }[] = [
-  { key: 'waiting', label: 'Waiting (no responses)' },
-  { key: 'live', label: 'Live' },
-  { key: 'reviewing', label: 'Reviewing (present)' },
-  { key: 'self-paced', label: 'Self-paced (present)' },
-  { key: 'paused', label: 'Paused' },
-  { key: 'ended', label: 'Ended' },
-  { key: 'populated', label: 'Populated (results)' },
-  { key: 'empty', label: 'Empty (results)' },
-  ...AUDIO_CAPTURE_STATES.map((key) => ({
-    key: key as StateKey,
-    label: `Audio: ${key}`,
-  })),
-  ...AUDIO_CAPTURE_DARK_STATES.map((key) => ({
-    key: key as StateKey,
-    label: `Audio (dark): ${key.slice('dark-'.length)}`,
-  })),
-  ...RECORDING_CONTROL_STATES.map((key) => ({
-    key: key as StateKey,
-    label: `Recording: ${key.slice('rc-'.length)}`,
-  })),
-  ...QUIZ_EDITOR_STATES.map((key) => ({
-    key: key as StateKey,
-    label: `Editor: ${key.slice('qe-'.length)}`,
-  })),
-  ...MEDIA_GRADING_STATES.map((key) => ({
-    key: key as StateKey,
-    label: `Grading: ${key}`,
-  })),
-  ...RESULTS_PLAYBACK_STATES.map((key) => ({
-    key: key as StateKey,
-    label: `Playback: ${key}`,
-  })),
-];
 
 // Picking a view moves the State select onto a key that view actually reads.
 const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
@@ -368,7 +296,7 @@ export const SessionViewsDevHarness: React.FC = () => {
                       className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
                     >
                       {STATES.map((s) => (
-                        <option key={s.key} value={s.key}>
+                        <option key={s.id} value={s.key}>
                           {s.label}
                         </option>
                       ))}
