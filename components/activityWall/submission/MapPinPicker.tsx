@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import React, { useEffect, useState } from 'react';
+import {
+  MapContainer,
+  Marker,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -23,6 +29,19 @@ const pinIcon = divIcon({
 
 const inputClass =
   'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+
+/** react-leaflet ignores center/zoom prop changes after mount; this keeps the view synced to the draft. */
+const MapViewSync: React.FC<{ lat: number; lng: number; zoom: number }> = ({
+  lat,
+  lng,
+  zoom,
+}) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], zoom);
+  }, [map, lat, lng, zoom]);
+  return null;
+};
 
 const PinDropper: React.FC<{ onPick: (pin: MapPin) => void }> = ({
   onPick,
@@ -125,6 +144,7 @@ const MapPinPicker: React.FC<MapPinPickerProps> = ({ center, pin, onPick }) => (
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
         />
+        <MapViewSync lat={center.lat} lng={center.lng} zoom={center.zoom} />
         <PinDropper onPick={onPick} />
         {pin && <Marker position={[pin.lat, pin.lng]} icon={pinIcon} />}
       </MapContainer>

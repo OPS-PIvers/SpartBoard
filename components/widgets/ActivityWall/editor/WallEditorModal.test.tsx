@@ -91,9 +91,18 @@ describe('WallEditorModal', () => {
     expect(screen.queryByText('Submission types')).not.toBeInTheDocument();
   });
 
-  it('returns to the layout grid with a warning from "Change layout"', () => {
-    renderModal();
-    fireEvent.click(screen.getByRole('radio', { name: /Wall/ }));
+  it('returns to the layout grid with a warning from "Change layout" for an existing wall', () => {
+    renderModal({
+      id: 'wall-1',
+      title: 'Existing',
+      prompt: '',
+      mode: 'photo',
+      moderationEnabled: false,
+      identificationMode: 'anonymous',
+      createdAt: 0,
+      updatedAt: 0,
+      layout: 'wall',
+    } as ActivityWallLibraryEntry);
     fireEvent.click(screen.getByRole('button', { name: 'Change layout' }));
 
     expect(
@@ -117,5 +126,89 @@ describe('WallEditorModal', () => {
     expect(saved.mode).toBe('text');
     expect(saved.identificationMode).toBe('anonymous');
     expect(saved.classId).toBeUndefined();
+  });
+
+  it('clears the layout-change warning once a new layout is chosen', () => {
+    renderModal({
+      id: 'wall-1',
+      title: 'Existing',
+      prompt: '',
+      mode: 'photo',
+      moderationEnabled: false,
+      identificationMode: 'anonymous',
+      createdAt: 0,
+      updatedAt: 0,
+      layout: 'wall',
+    } as ActivityWallLibraryEntry);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change layout' }));
+    expect(screen.getByText(/keeps every existing post/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: /Columns/ }));
+    expect(
+      screen.queryByText(/keeps every existing post/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('never shows the layout-change warning for a brand-new wall', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('radio', { name: /Wall/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change layout' }));
+
+    expect(
+      screen.queryByText(/keeps every existing post/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('seeds two placeholder columns when Columns is first chosen for a new wall', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('radio', { name: /Columns/ }));
+
+    expect(screen.getByPlaceholderText('Column 1')).toHaveValue('Column 1');
+    expect(screen.getByPlaceholderText('Column 2')).toHaveValue('Column 2');
+  });
+
+  it('blocks save for a columns layout with zero sections', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('radio', { name: /Columns/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Remove column 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Remove column 1/i }));
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Empty columns' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
+
+    expect(
+      screen.getByText('Add at least one column before saving.')
+    ).toBeInTheDocument();
+    expect(mockSaveActivity).not.toHaveBeenCalled();
+  });
+
+  it('seeds two rows and two columns when Table is first chosen for a new wall', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('radio', { name: /Table/ }));
+
+    expect(screen.getByPlaceholderText('Row 1')).toHaveValue('Row 1');
+    expect(screen.getByPlaceholderText('Row 2')).toHaveValue('Row 2');
+    expect(screen.getByPlaceholderText('Column 1')).toHaveValue('Column 1');
+    expect(screen.getByPlaceholderText('Column 2')).toHaveValue('Column 2');
+  });
+
+  it('blocks save for a table layout with zero rows and zero columns', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('radio', { name: /Table/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Remove row 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Remove row 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Remove column 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Remove column 1/i }));
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Empty table' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
+
+    expect(
+      screen.getByText('Add at least one row and one column before saving.')
+    ).toBeInTheDocument();
+    expect(mockSaveActivity).not.toHaveBeenCalled();
   });
 });

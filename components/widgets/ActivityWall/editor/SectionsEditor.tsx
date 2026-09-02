@@ -121,10 +121,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
   );
 };
 
-/**
- * Layout-specific structure fields. Wall, timeline and word cloud need none,
- * so the editor renders nothing for them.
- */
+/** Layout-specific structure fields; wall, timeline and word cloud render nothing. */
 export const SectionsEditor: React.FC<SectionsEditorProps> = ({
   layout,
   value,

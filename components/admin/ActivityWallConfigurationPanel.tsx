@@ -156,30 +156,32 @@ export const ActivityWallConfigurationPanel: React.FC<
           />
         </div>
 
-        <div className="space-y-1">
-          <h3 className="text-sm font-bold text-slate-700">
-            Default Activity Type
-          </h3>
-          <p className="text-xxs text-slate-500 mb-2">
-            The mode new activities start with.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {MODE_OPTIONS.map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => handleUpdateBuilding({ defaultMode: mode })}
-                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
-                  currentBuildingConfig.defaultMode === mode
-                    ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                {mode === 'text' ? 'Text (Word Cloud)' : 'Photo (Padlet)'}
-              </button>
-            ))}
+        {!currentBuildingConfig.defaultLayout && (
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-slate-700">
+              Legacy default (old widget)
+            </h3>
+            <p className="text-xxs text-slate-500 mb-2">
+              Only applies to walls that predate Default Layout above.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {MODE_OPTIONS.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleUpdateBuilding({ defaultMode: mode })}
+                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                    currentBuildingConfig.defaultMode === mode
+                      ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {mode === 'text' ? 'Text (Word Cloud)' : 'Photo (Padlet)'}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">

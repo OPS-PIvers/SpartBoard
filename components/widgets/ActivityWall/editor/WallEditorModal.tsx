@@ -47,10 +47,7 @@ const legacyFieldsFor = (
 const layoutLabel = (layout: ActivityWallLayout): string =>
   LAYOUT_OPTIONS.find((option) => option.layout === layout)?.label ?? layout;
 
-/**
- * Two-step wall editor: layout card grid, then one scrollable grouped form.
- * Editing an existing wall opens on step 2 with a "Change layout" link back.
- */
+/** Two-step wall editor: layout card grid, then one scrollable grouped form. */
 export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   open,
   entry,
@@ -128,9 +125,43 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   const layout = draft.layout ?? 'wall';
   const isWordCloud = layout === 'wordcloud';
 
+  /** Seeds placeholder columns/rows so a brand-new wall isn't saved empty. */
+  const seedForLayout = (
+    next: ActivityWallLayout,
+    current: ActivityWallLibraryEntry
+  ): Partial<ActivityWallLibraryEntry> => {
+    if (entry) return {};
+    if (next === 'columns' && !current.sections?.length) {
+      return {
+        sections: [
+          { id: crypto.randomUUID(), label: 'Column 1' },
+          { id: crypto.randomUUID(), label: 'Column 2' },
+        ],
+      };
+    }
+    if (
+      next === 'table' &&
+      !current.tableRows?.length &&
+      !current.tableCols?.length
+    ) {
+      return {
+        tableRows: [
+          { id: crypto.randomUUID(), label: 'Row 1' },
+          { id: crypto.randomUUID(), label: 'Row 2' },
+        ],
+        tableCols: [
+          { id: crypto.randomUUID(), label: 'Column 1' },
+          { id: crypto.randomUUID(), label: 'Column 2' },
+        ],
+      };
+    }
+    return {};
+  };
+
   const chooseLayout = (next: ActivityWallLayout) => {
-    patch({ layout: next });
+    patch({ layout: next, ...seedForLayout(next, draft) });
     setStep(2);
+    setShowLayoutWarning(false);
   };
 
   const handleSave = async () => {
@@ -144,15 +175,31 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
         .map((item) => ({ ...item, label: item.label.trim() }))
         .filter((item) => item.label.length > 0);
 
+    const trimmedSections = trimSections(draft.sections);
+    const trimmedRows = trimSections(draft.tableRows);
+    const trimmedCols = trimSections(draft.tableCols);
+
+    if (draft.layout === 'columns' && trimmedSections.length === 0) {
+      setError('Add at least one column before saving.');
+      return;
+    }
+    if (
+      draft.layout === 'table' &&
+      (trimmedRows.length === 0 || trimmedCols.length === 0)
+    ) {
+      setError('Add at least one row and one column before saving.');
+      return;
+    }
+
     const now = Date.now();
     const next: ActivityWallLibraryEntry = {
       ...draft,
       ...legacyFieldsFor(draft),
       title,
       prompt: draft.prompt.trim(),
-      sections: trimSections(draft.sections),
-      tableRows: trimSections(draft.tableRows),
-      tableCols: trimSections(draft.tableCols),
+      sections: trimmedSections,
+      tableRows: trimmedRows,
+      tableCols: trimmedCols,
       createdAt: draft.createdAt || now,
       updatedAt: now,
     };
@@ -235,7 +282,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                setShowLayoutWarning(true);
+                if (entry) setShowLayoutWarning(true);
                 setStep(1);
               }}
               className="text-sm font-semibold text-brand-blue-primary hover:underline"

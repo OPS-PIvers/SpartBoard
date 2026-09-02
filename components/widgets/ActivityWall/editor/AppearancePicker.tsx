@@ -22,11 +22,7 @@ const SelectedMark: React.FC = () => (
   </span>
 );
 
-/**
- * Wall background picker. Presets come from `admin_backgrounds` via
- * `useBackgrounds()`, which is teacher-context only — student and gallery
- * pages read the stored `{kind, value}` instead.
- */
+/** Wall background picker; presets come from `admin_backgrounds` via `useBackgrounds()` (teacher-context only). */
 export const AppearancePicker: React.FC<AppearancePickerProps> = ({
   value,
   onChange,
