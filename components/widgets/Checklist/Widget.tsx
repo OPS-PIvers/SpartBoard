@@ -42,7 +42,17 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     [rosters, activeRosterId]
   );
 
-  const students = useMemo((): { id: string; label: string }[] => {
+  // `legacyId` is set only for name-derived (non-roster) entries: the raw
+  // typed name, which is what completedNames used to be keyed by before
+  // this fix. Two students sharing the same typed name used to collide on
+  // that name string (same completion state, duplicate React key) — `id`
+  // is now positional and unique, while `legacyId` lets us still recognize
+  // completions saved under the old name-keyed scheme.
+  const students = useMemo((): {
+    id: string;
+    label: string;
+    legacyId?: string;
+  }[] => {
     if (mode !== 'roster') return [];
 
     if (rosterMode === 'class' && activeRoster) {
@@ -61,10 +71,11 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
       .map((n) => n.trim())
       .filter((n) => n);
     const count = Math.max(firsts.length, lasts.length);
-    const combined: { id: string; label: string }[] = [];
+    const combined: { id: string; label: string; legacyId: string }[] = [];
     for (let i = 0; i < count; i++) {
       const name = `${firsts[i] || ''} ${lasts[i] || ''}`.trim();
-      if (name) combined.push({ id: name, label: name });
+      if (name)
+        combined.push({ id: `custom-${i}`, label: name, legacyId: name });
     }
     return combined;
   }, [firstNames, lastNames, mode, rosterMode, activeRoster]);
@@ -89,7 +100,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   }, [items, completedNames, config, widget.id, mode]);
 
   const toggleItem = useCallback(
-    (idOrName: string) => {
+    (idOrName: string, legacyName?: string) => {
       const { items, completedNames, config, widgetId, mode } =
         latestState.current;
       if (mode === 'manual') {
@@ -100,9 +111,14 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
           config: { ...config, items: newItems } as ChecklistConfig,
         });
       } else {
-        const isCompleted = completedNames.includes(idOrName);
+        // Recognize completion under either the current id or the legacy
+        // name token, and drop both on toggle-off — this self-heals old
+        // name-keyed data onto the new id-keyed scheme on first interaction.
+        const isCompleted =
+          completedNames.includes(idOrName) ||
+          (legacyName !== undefined && completedNames.includes(legacyName));
         const nextCompleted = isCompleted
-          ? completedNames.filter((n) => n !== idOrName)
+          ? completedNames.filter((n) => n !== idOrName && n !== legacyName)
           : [...completedNames, idOrName];
         updateWidget(widgetId, {
           config: {
@@ -223,8 +239,12 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     <ChecklistCard
                       id={student.id}
                       label={student.label}
-                      isCompleted={completedNames.includes(student.id)}
-                      onToggle={toggleItem}
+                      isCompleted={
+                        completedNames.includes(student.id) ||
+                        (student.legacyId !== undefined &&
+                          completedNames.includes(student.legacyId))
+                      }
+                      onToggle={(id) => toggleItem(id, student.legacyId)}
                       textSize={textSize}
                       iconSize={iconSize}
                       cardPadding={cardPadding}

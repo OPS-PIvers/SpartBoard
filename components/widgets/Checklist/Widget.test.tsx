@@ -240,6 +240,51 @@ describe('ChecklistWidget', () => {
     expect(screen.queryByTitle('Remove Completed')).not.toBeInTheDocument();
   });
 
+  it('toggles duplicate-named roster students independently', () => {
+    const rosterWidget = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        mode: 'roster' as const,
+        rosterMode: 'custom' as const,
+        completedNames: [],
+        firstNames: 'Jacob\nJacob',
+        lastNames: 'Smith\nSmith',
+      } as ChecklistConfig,
+    };
+    render(<ChecklistWidget widget={rosterWidget} />);
+
+    const rows = screen.getAllByRole('checkbox', { name: 'Jacob Smith' });
+    expect(rows).toHaveLength(2);
+
+    fireEvent.click(rows[0]);
+
+    // Only the clicked entry's positional id is recorded — not a shared
+    // name token that would also complete the second "Jacob Smith".
+    expect(mockUpdateWidget).toHaveBeenCalledWith('checklist-1', {
+      config: expect.objectContaining({
+        completedNames: ['custom-0'],
+      }),
+    });
+  });
+
+  it('still recognizes legacy name-keyed completions for custom roster students', () => {
+    const rosterWidget = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        mode: 'roster' as const,
+        rosterMode: 'custom' as const,
+        completedNames: ['Alice Lee'],
+        firstNames: 'Alice',
+        lastNames: 'Lee',
+      } as ChecklistConfig,
+    };
+    render(<ChecklistWidget widget={rosterWidget} />);
+
+    expect(screen.getByTestId('check-circle-2')).toBeInTheDocument();
+  });
+
   it('resets all checks when reset button is clicked', () => {
     const itemsWidget = {
       ...mockWidget,
