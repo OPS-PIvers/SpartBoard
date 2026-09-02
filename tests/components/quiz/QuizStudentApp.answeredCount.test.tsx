@@ -8,7 +8,12 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
+import type {
+  QuizSession,
+  QuizResponse,
+  QuizPublicQuestion,
+  StudentAssignmentPointer,
+} from '@/types';
 
 const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
   type MockUser = {
@@ -19,7 +24,8 @@ const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
   const state: {
     session: import('@/types').QuizSession | null;
     myResponse: import('@/types').QuizResponse | null;
-  } = { session: null, myResponse: null };
+    pointer: import('@/types').StudentAssignmentPointer | null;
+  } = { session: null, myResponse: null, pointer: null };
   return {
     mockAuth: {
       onAuthStateChanged: vi.fn(),
@@ -34,7 +40,7 @@ const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
 });
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
-  useStudentAssignmentPointer: () => null,
+  useStudentAssignmentPointer: () => hookState.pointer,
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -116,6 +122,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   hookState.session = buildSession();
   hookState.myResponse = buildResponse();
+  hookState.pointer = null;
   mockAuth.currentUser = {
     uid: 'sso-uid-1',
     isAnonymous: false,
@@ -173,5 +180,59 @@ describe('QuizStudentApp — submitted summary answered count', () => {
     );
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.queryByText('3')).not.toBeInTheDocument();
+  });
+
+  it('scopes both the numerator and denominator to the M17 served-question subset, excluding an answer for a question outside it', async () => {
+    // Legacy response with two answers, but the per-student override (M17
+    // served-subset) only serves q1 — the answer for q2 falls outside the
+    // subset and must not inflate either the numerator or the denominator.
+    hookState.pointer = {
+      kind: 'quiz',
+      sessionId: 'session-1',
+      teacherUid: 'teacher-1',
+      classId: 'class-1',
+      override: { questionIds: ['q1'] },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as StudentAssignmentPointer;
+    hookState.myResponse = buildResponse({
+      answers: [
+        { questionId: 'q1', answer: 'a', answeredAt: Date.now() },
+        { questionId: 'q2', answer: 'b', answeredAt: Date.now() },
+      ],
+    });
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() =>
+      expect(screen.getByText('of 1 questions answered')).toBeInTheDocument()
+    );
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+
+  it('scopes the answered count to the served subset on the post-session results screen too', async () => {
+    hookState.session = buildSession({ status: 'ended', endedAt: Date.now() });
+    hookState.pointer = {
+      kind: 'quiz',
+      sessionId: 'session-1',
+      teacherUid: 'teacher-1',
+      classId: 'class-1',
+      override: { questionIds: ['q1'] },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as StudentAssignmentPointer;
+    hookState.myResponse = buildResponse({
+      answers: [
+        { questionId: 'q1', answer: 'a', answeredAt: Date.now() },
+        { questionId: 'q2', answer: 'b', answeredAt: Date.now() },
+      ],
+    });
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() =>
+      expect(screen.getByText('of 1 questions answered')).toBeInTheDocument()
+    );
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 });

@@ -1731,6 +1731,17 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findSessionSet()).toMatchObject({ blockCopyPaste: false });
   });
 
+  it('opts every new session into the server-side completeness model (completenessModel: 1)', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet().completenessModel).toBe(1);
+  });
+
   it('does not duplicate a question shown to students when quiz.questions contains a duplicate id (dedup guard)', async () => {
     // Drive-sync duplication or arrayUnion races can write the same question
     // id twice into `quiz.questions` (see quizMaxPoints.test.ts). Without a
