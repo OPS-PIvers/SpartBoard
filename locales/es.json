@@ -2073,7 +2073,7 @@
       }
     },
     "grading": {
-      "title": "Grade recorded answers",
+      "title": "Calificar respuestas libres",
       "close": "Close",
       "student": "Student",
       "questionLabel": "Question",
@@ -2106,8 +2106,8 @@
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
-        "title": "No recorded answers to grade yet",
-        "body": "Once students record an answer to a question that asks for one, they show up here."
+        "title": "Aún no hay respuestas libres para calificar",
+        "body": "Cuando los estudiantes respondan una pregunta de respuesta libre, escrita o hablada, aparecerán aquí."
       },
       "takes": {
         "title": "Takes",
@@ -2177,12 +2177,35 @@
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
         "saveFailed": "Failed to save grade.",
-        "undoFailed": "Failed to undo the excuse."
+        "undoFailed": "Failed to undo the excuse.",
+        "emptyAnnotations": "No se pueden guardar anotaciones en una respuesta vacía — el estudiante no respondió esta pregunta."
       },
-      "undoExcuse": "Undo excuse"
+      "undoExcuse": "Undo excuse",
+      "emptyQuestions": {
+        "title": "Este cuestionario no tiene preguntas de respuesta libre",
+        "body": "La calificación manual solo está disponible para preguntas de respuesta libre."
+      },
+      "format": {
+        "typed": "Escrita",
+        "spoken": "Hablada"
+      },
+      "responseLabel": "Respuesta del estudiante",
+      "timedOutUnderMinimum": "Tiempo agotado por debajo del mínimo",
+      "noTextAnswer": "El estudiante no respondió esta pregunta.",
+      "highlights": "Resaltados y comentarios ({{count}})",
+      "highlightsEmpty": "Selecciona texto en la respuesta para añadir un resaltado o un comentario al margen.",
+      "highlightNoComment": "(sin comentario aún — haz clic para añadir)",
+      "keyboardHintText": "← / → cambian de estudiante. Esc cierra el calificador. Selecciona texto en la respuesta para resaltar; haz clic en un resaltado para editar su comentario.",
+      "rubricOverrideNote": "Rúbrica alternativa para este estudiante",
+      "pointsOverrideNote": "Solo puntos para este estudiante — rúbrica anulada.",
+      "tabSwitches_one": "{{count}} cambio de pestaña",
+      "tabSwitches_other": "{{count}} cambios de pestaña",
+      "tabSwitchesTitle_one": "{{count}} aviso de cambio de pestaña durante la evaluación",
+      "tabSwitchesTitle_other": "{{count}} avisos de cambio de pestaña durante la evaluación",
+      "noAnswersOnQuestion": "Aún no hay respuestas para esta pregunta."
     },
     "results": {
-      "gradeButton": "Grade recordings"
+      "gradeButton": "Calificar respuestas libres"
     },
     "playback": {
       "label": "Your recorded answer",

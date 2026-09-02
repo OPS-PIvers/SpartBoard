@@ -687,7 +687,7 @@ const App: React.FC = () => {
         typeof window !== 'undefined' &&
         new URLSearchParams(window.location.search).has('addOnToken');
       // Attach only needs auth (uid + Drive token) — no dashboard listeners. The
-      // grader needs DashboardProvider: it reuses the shared WrittenResponseGrader
+      // grader needs DashboardProvider: it reuses the shared FreeResponseGrader
       // whose editor shell reads useDashboard (addToast), so wrap ONLY the review
       // branch — keeping attach lean while the grader has the context it needs.
       return (

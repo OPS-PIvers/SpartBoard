@@ -484,7 +484,7 @@ function isPartialRubricGrade(
  * cheap regex rather than `htmlToPlainText` — this runs once per answer per
  * response across whole-class grading loops.
  */
-function hasSubmittedContent(studentAnswer: string): boolean {
+export function hasSubmittedContent(studentAnswer: string): boolean {
   let stripped = studentAnswer ?? '';
   // `[^<>]` (not `[^>]`) so a bare `<` in prose can't swallow the rest of the
   // answer, looped to a fixpoint so nested markup like `<<p>>` fully strips.

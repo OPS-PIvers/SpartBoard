@@ -2073,7 +2073,7 @@
       }
     },
     "grading": {
-      "title": "Grade recorded answers",
+      "title": "Freie Antworten bewerten",
       "close": "Close",
       "student": "Student",
       "questionLabel": "Question",
@@ -2106,8 +2106,8 @@
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
-        "title": "No recorded answers to grade yet",
-        "body": "Once students record an answer to a question that asks for one, they show up here."
+        "title": "Noch keine freien Antworten zu bewerten",
+        "body": "Sobald Schüler eine Frage mit freier Antwort beantworten, getippt oder gesprochen, erscheinen sie hier."
       },
       "takes": {
         "title": "Takes",
@@ -2177,12 +2177,35 @@
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
         "saveFailed": "Failed to save grade.",
-        "undoFailed": "Failed to undo the excuse."
+        "undoFailed": "Failed to undo the excuse.",
+        "emptyAnnotations": "Anmerkungen zu einer leeren Antwort können nicht gespeichert werden — der Schüler hat diese Frage nicht beantwortet."
       },
-      "undoExcuse": "Undo excuse"
+      "undoExcuse": "Undo excuse",
+      "emptyQuestions": {
+        "title": "Dieses Quiz enthält keine Fragen mit freier Antwort",
+        "body": "Manuelle Bewertung ist nur für Fragen mit freier Antwort verfügbar."
+      },
+      "format": {
+        "typed": "Getippt",
+        "spoken": "Gesprochen"
+      },
+      "responseLabel": "Antwort des Schülers",
+      "timedOutUnderMinimum": "Zeit abgelaufen unter dem Minimum",
+      "noTextAnswer": "Der Schüler hat diese Frage nicht beantwortet.",
+      "highlights": "Markierungen & Kommentare ({{count}})",
+      "highlightsEmpty": "Text in der Antwort auswählen, um eine Markierung oder einen Randkommentar hinzuzufügen.",
+      "highlightNoComment": "(noch kein Kommentar — zum Hinzufügen klicken)",
+      "keyboardHintText": "← / → wechseln zwischen Schülern. Esc schließt die Bewertung. Text in der Antwort auswählen, um zu markieren; auf eine Markierung klicken, um den Kommentar zu bearbeiten.",
+      "rubricOverrideNote": "Alternatives Bewertungsraster für diesen Schüler",
+      "pointsOverrideNote": "Nur Punkte für diesen Schüler — Raster außer Kraft gesetzt.",
+      "tabSwitches_one": "{{count}} Tabwechsel",
+      "tabSwitches_other": "{{count}} Tabwechsel",
+      "tabSwitchesTitle_one": "{{count}} Tabwechsel-Warnung während der Prüfung",
+      "tabSwitchesTitle_other": "{{count}} Tabwechsel-Warnungen während der Prüfung",
+      "noAnswersOnQuestion": "Noch keine Antworten auf diese Frage."
     },
     "results": {
-      "gradeButton": "Grade recordings"
+      "gradeButton": "Freie Antworten bewerten"
     },
     "playback": {
       "label": "Your recorded answer",

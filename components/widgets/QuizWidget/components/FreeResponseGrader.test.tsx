@@ -16,9 +16,9 @@ vi.mock('@/context/useDialog', () => ({
 }));
 
 import {
-  MediaResponseGrader,
-  type MediaResponseGraderProps,
-} from './MediaResponseGrader';
+  FreeResponseGrader,
+  type FreeResponseGraderProps,
+} from './FreeResponseGrader';
 import type { QuizData, QuizResponse, WrittenAnswerGrade } from '@/types';
 
 beforeAll(() => {
@@ -137,14 +137,14 @@ const names = new Map([
 
 const renderGrader = (
   responses: QuizResponse[],
-  onSaveGrade = vi.fn<MediaResponseGraderProps['onSaveGrade']>(() =>
+  onSaveGrade = vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
     Promise.resolve()
   ),
   onClose: () => void = () => undefined,
-  onClearGrade?: MediaResponseGraderProps['onClearGrade']
+  onClearGrade?: FreeResponseGraderProps['onClearGrade']
 ) => {
   render(
-    <MediaResponseGrader
+    <FreeResponseGrader
       quiz={quiz}
       responses={responses}
       displayNameByResponseKey={names}
@@ -166,7 +166,7 @@ const excused = (key: string): QuizResponse =>
     },
   }) as unknown as QuizResponse;
 
-describe('MediaResponseGrader queue shape', () => {
+describe('FreeResponseGrader queue shape', () => {
   it('is question-major: one question, every student on this question', async () => {
     renderGrader([recorded('ada', 1), recorded('grace', 1)]);
     expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
@@ -179,19 +179,84 @@ describe('MediaResponseGrader queue shape', () => {
     expect(rail.textContent).toContain('Grace Hopper');
   });
 
-  it('only offers questions that carry a recording block', async () => {
+  it('offers every Free Response question, spoken or typed, and no auto-graded one', async () => {
     renderGrader([recorded('ada', 1)]);
     expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
     expect(screen.getByText(/Explain your reasoning out loud/)).toBeTruthy();
   });
 
+  it('puts typed and spoken answers in one queue with a per-question format tag', async () => {
+    const typedQuiz = {
+      ...quiz,
+      questions: [
+        ...quiz.questions,
+        {
+          id: 'q4',
+          text: 'Write a sentence about the passage.',
+          type: 'free-response',
+          correctAnswer: '',
+          incorrectAnswers: [],
+          timeLimit: 0,
+          points: 2,
+        },
+      ],
+    } as unknown as QuizData;
+    const typed = {
+      ...(recorded('grace', 1) as unknown as Record<string, unknown>),
+      answers: [
+        { questionId: 'q4', answer: '<p>one two three</p>', answeredAt: 5 },
+      ],
+      tabSwitchWarnings: 2,
+    } as unknown as QuizResponse;
+    render(
+      <FreeResponseGrader
+        quiz={typedQuiz}
+        responses={[recorded('ada', 1), typed]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={() => Promise.resolve()}
+        onClose={() => undefined}
+      />
+    );
+    expect(await screen.findByText('Question 1 of 3')).toBeTruthy();
+    expect(screen.getByText('Spoken')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /next question/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next question/i }));
+    expect(await screen.findByText('Question 3 of 3')).toBeTruthy();
+    expect(screen.getByText('Typed')).toBeTruthy();
+    expect(screen.getByText('Student 1 of 1')).toBeTruthy();
+    expect(screen.getByText('3 words')).toBeTruthy();
+    expect(screen.getByText('2 tab switches')).toBeTruthy();
+    expect(screen.getByLabelText(/points awarded/i)).toBeTruthy();
+    expect(screen.getByText(/Highlights & comments \(0\)/)).toBeTruthy();
+  });
+
+  it('keeps spoken questions out of the queue when no take resolver is wired', () => {
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[recorded('ada', 1)]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        onSaveGrade={() => Promise.resolve()}
+        onClose={() => undefined}
+      />
+    );
+    expect(
+      screen.getByText(/No Free Response questions in this quiz/i)
+    ).toBeTruthy();
+  });
+
   it('shows an empty state when nothing has been recorded', () => {
     renderGrader([]);
-    expect(screen.getByText(/No recorded answers to grade yet/i)).toBeTruthy();
+    expect(
+      screen.getByText(/No Free Response answers to grade yet/i)
+    ).toBeTruthy();
   });
 });
 
-describe('MediaResponseGrader take pinning', () => {
+describe('FreeResponseGrader take pinning', () => {
   it('defaults to the winning take and records an earlier pick as gradedTakeIndex', async () => {
     const onSave = renderGrader([recorded('ada', 3)]);
     expect(await screen.findByText('3 takes recorded')).toBeTruthy();
@@ -227,7 +292,7 @@ describe('MediaResponseGrader take pinning', () => {
   });
 });
 
-describe('MediaResponseGrader capture-unavailable adjudication', () => {
+describe('FreeResponseGrader capture-unavailable adjudication', () => {
   it('offers exactly Excuse / Blank / Offline substitute', () => {
     renderGrader([unavailable('grace')]);
     expect(screen.getByRole('button', { name: /^Excuse/ })).toBeTruthy();
@@ -293,7 +358,7 @@ describe('MediaResponseGrader capture-unavailable adjudication', () => {
   });
 });
 
-describe('MediaResponseGrader take lifecycle states', () => {
+describe('FreeResponseGrader take lifecycle states', () => {
   it('explains a take that is still archiving instead of offering a dead player', () => {
     const response = recorded('ada', 1);
     (
@@ -318,7 +383,7 @@ describe('MediaResponseGrader take lifecycle states', () => {
   });
 });
 
-describe('MediaResponseGrader time-anchored comments', () => {
+describe('FreeResponseGrader time-anchored comments', () => {
   it('stores a comment at the current playback position in milliseconds', async () => {
     const onSave = renderGrader([recorded('ada', 1)]);
     fireEvent.click(
@@ -346,7 +411,7 @@ describe('MediaResponseGrader time-anchored comments', () => {
 });
 
 // INT-B6: one vocabulary map keyed on the slot's state, header and rail alike.
-describe('MediaResponseGrader state vocabulary', () => {
+describe('FreeResponseGrader state vocabulary', () => {
   it('uses the same word in the header badge and the queue rail', async () => {
     renderGrader([recorded('ada', 1)]);
     await screen.findByText('Question 1 of 2');
@@ -364,7 +429,7 @@ describe('MediaResponseGrader state vocabulary', () => {
 
 // INT-B2: excusing must be reversible — it used to delete the published score
 // with no way back.
-describe('MediaResponseGrader undo excuse', () => {
+describe('FreeResponseGrader undo excuse', () => {
   it('clears the grade entirely so the slot returns to needing a decision', async () => {
     const onClear = vi.fn(() => Promise.resolve());
     renderGrader([excused('grace')], undefined, undefined, onClear);
@@ -382,7 +447,7 @@ describe('MediaResponseGrader undo excuse', () => {
 });
 
 // INT-B1/U6: the label is the take's position, not its raw index.
-describe('MediaResponseGrader take numbering', () => {
+describe('FreeResponseGrader take numbering', () => {
   it('numbers a rescued/dropped-take history by position', async () => {
     const response = recorded('ada', 3);
     // Take 2's upload failed and nothing archived it — it stops counting.
@@ -403,7 +468,7 @@ describe('MediaResponseGrader take numbering', () => {
   });
 });
 
-describe('MediaResponseGrader close guard', () => {
+describe('FreeResponseGrader close guard', () => {
   it('routes Escape through the shell dirty-check instead of closing outright', async () => {
     showConfirm.mockClear();
     const onClose = vi.fn();

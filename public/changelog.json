@@ -1,6 +1,35 @@
 {
   "entries": [
     {
+      "version": "2026.09.02.1",
+      "date": "2026-09-02",
+      "title": "One grader for every Free Response answer",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "Grading",
+          "items": [
+            {
+              "text": "Grade written and Grade recordings are now one button: Grade Free Response. Typed and spoken answers share a single queue, so a spoken answer no longer shows up as \"didn't answer\" in the written grader."
+            },
+            {
+              "text": "The grader keeps the recordings layout for everything: the list of students down the left, the answer in the middle, and rubric, points and comments on the right. Click any student to jump to them."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Grading — the grader is question-major for both formats: pick a question, work down the student list, then move to the next question. Highlights, margin comments, word counts, tab-switch warnings and per-student rubric overrides carry over for typed answers; takes, time-anchored comments and the could-not-record decisions carry over for spoken ones. A rubric attached to a spoken question can now be scored."
+        },
+        {
+          "type": "improvement",
+          "text": "Google Classroom add-on — the review page opens the same grader, so spoken answers can be graded from there too."
+        }
+      ]
+    },
+    {
       "version": "2026.09.02",
       "date": "2026-09-02",
       "title": "Free Response questions: one type, typed or spoken, with word limits",

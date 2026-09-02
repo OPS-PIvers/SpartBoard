@@ -1824,6 +1824,20 @@ premise outright.
 
 - ✅ **RR-10 (2026-08-09) answered this ticket's one optional item, and answered it by construction rather than by choosing.** This ticket left open _"whether a count of hand-graded slots appears anywhere,"_ naming the existing `Manual` badge (`QuizResults.tsx:1850`) as the obvious home. RR-10 sub-decision 6 puts a **slot count in the editor's advisory** — _"records up to N slots per student"_ — for a storage reason, and by **this ticket's own sub-decision 10** the recording-slot count **is** the hand-grading count: nine MC plus one video is one thing to hand-grade. **One figure serves both, at authoring time rather than after**, and the `Manual` badge stays the grading-side home unchanged. 🔵 Worth noting the direction of travel: this ticket _"asked the editor for almost nothing, which is an answer rather than a deferral"_ — and the editor ended up supplying the one thing anyway, from the other side.
 
+**2026-09-02 — one grader, not two.** Sub-decision 9's question-major queue
+now grades **every** Free Response answer, typed or spoken: `FreeResponseGrader`
+replaces both the student-major `WrittenResponseGrader` and the spoken-only
+`MediaResponseGrader`, keeping the media grader's shape (student rail left,
+response centre, rubric / score / comments right) and folding in the text
+path's annotations, word count, rubric scoring and per-student rubric
+overrides. Paul's finding: a teacher who opened "Grade written" on a spoken
+question was told the student didn't answer, because the two graders split by
+format rather than by what needs a human. The results screen and the Classroom
+add-on now expose one **Grade Free Response** entry point; spoken questions
+join the queue only when a take resolver is wired (the media gate), and a
+rubric attached to a spoken question is finally scoreable. Grade keys are
+unchanged (`gradingKey`, primary unsuffixed).
+
 **Paul's notes:**
 
 ---

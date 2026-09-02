@@ -1,10 +1,10 @@
 /**
- * DEV-only fixture wrapper for `MediaResponseGrader`. Mounts the REAL
+ * DEV-only fixture wrapper for `FreeResponseGrader`. Mounts the REAL
  * component (no fork) against synthetic responses, with a take resolver that
  * hands back a silent WAV instead of hitting Google Drive.
  */
 import React, { useMemo } from 'react';
-import { MediaResponseGrader } from '@/components/widgets/QuizWidget/components/MediaResponseGrader';
+import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
   ArtifactArchiveEntry,
   QuizData,
@@ -15,6 +15,7 @@ import type {
 
 export const MEDIA_GRADING_STATES = [
   'queue',
+  'typed',
   'playing',
   'provisional',
   'capture-unavailable',
@@ -35,8 +36,20 @@ const RECORDING = {
   takeLimit: null,
 };
 
-function makeQuestions(): QuizQuestion[] {
-  return [
+const TYPED_QUESTION = {
+  id: 'q3',
+  text: 'In two or three sentences, explain why the experiment failed.',
+  type: 'free-response',
+  correctAnswer: '',
+  incorrectAnswers: [],
+  timeLimit: 0,
+  points: 5,
+  minWords: 40,
+  maxWords: 120,
+};
+
+function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {
+  const spoken = [
     {
       id: 'q1',
       text: 'Explain, out loud, how you solved problem 4.',
@@ -57,7 +70,10 @@ function makeQuestions(): QuizQuestion[] {
       points: 3,
       recording: RECORDING,
     },
-  ] as unknown as QuizQuestion[];
+  ];
+  return (state === 'typed'
+    ? [TYPED_QUESTION, ...spoken]
+    : [...spoken, TYPED_QUESTION]) as unknown as QuizQuestion[];
 }
 
 function artifact(id: string, durationMs: number): ResponseArtifact {
@@ -138,6 +154,34 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
     artifactArchive: { 'kath-take1': archived('drive-kath-1') },
   } as unknown as QuizResponse;
 
+  if (state === 'typed') {
+    const typed = (key: string, text: string, graded: boolean) =>
+      ({
+        _responseKey: key,
+        studentUid: `u-${key}`,
+        status: 'completed',
+        tabSwitchWarnings: key === 'r-grace' ? 2 : 0,
+        answers: [
+          { questionId: 'q3', answer: text, answeredAt: 1_700_000_000_000 },
+        ],
+        grading: graded
+          ? { q3: { pointsAwarded: 4, gradedBy: 'teacher', gradedAt: 1 } }
+          : {},
+      }) as unknown as QuizResponse;
+    return [
+      typed(
+        'r-ada',
+        '<p>The experiment failed because the control group was contaminated before the second trial. Without a clean baseline, none of the later measurements could be trusted, so the team had to discard the run and start again with fresh samples.</p>',
+        true
+      ),
+      typed('r-grace', '<p>It failed because we ran out of time.</p>', false),
+      typed(
+        'r-kath',
+        '<p>The heating element was set to the wrong temperature for the whole first hour. By the time anyone noticed, the samples had already denatured, which explains why every reading after that came back flat.</p>',
+        false
+      ),
+    ];
+  }
   if (state === 'capture-unavailable') return [grace, ada, kath];
   return [ada, grace, kath];
 }
@@ -150,11 +194,11 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
       ({
         id: 'quiz-dev',
         title: 'Spoken checks',
-        questions: makeQuestions(),
+        questions: makeQuestions(state),
         createdAt: 0,
         updatedAt: 0,
       }) as QuizData,
-    []
+    [state]
   );
   const responses = useMemo(() => makeResponses(state), [state]);
   const names = useMemo(
@@ -168,7 +212,7 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
   );
 
   return (
-    <MediaResponseGrader
+    <FreeResponseGrader
       key={state}
       quiz={quiz}
       responses={responses}
