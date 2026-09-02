@@ -2,7 +2,7 @@
  * The Format row (Typed/Spoken) inside the real editor: the fail-closed
  * gate, the advisory banner's separation from the save-error path, the
  * disabled `timeLimit`, dirty tracking for the new block, and the
- * Placeholder/Word Cap fields hiding (not clearing) under Spoken.
+ * Placeholder/Word limit fields hiding (not clearing) under Spoken.
  *
  * Mocking strategy mirrors QuizEditorModal.isDirty.test.tsx.
  */
@@ -130,7 +130,7 @@ describe('QuizEditorModal Format row', () => {
     expect(spokenTab().getAttribute('aria-selected')).toBe('false');
   });
 
-  it('choosing Spoken flips dirty, disables Time Limit, advises, and hides Placeholder/Word Cap', () => {
+  it('choosing Spoken flips dirty, disables Time Limit, advises, and hides Placeholder/Word limit', () => {
     gate.mockReturnValue(true);
     open();
     expect(dirtyAttr()).toBe('false');
@@ -139,7 +139,7 @@ describe('QuizEditorModal Format row', () => {
         'e.g. Cite at least two pieces of evidence.'
       )
     ).toBeTruthy();
-    expect(detail().getByPlaceholderText('No cap')).toBeTruthy();
+    expect(detail().getByLabelText('Maximum words')).toBeTruthy();
 
     fireEvent.click(spokenTab());
 
@@ -160,7 +160,7 @@ describe('QuizEditorModal Format row', () => {
         'e.g. Cite at least two pieces of evidence.'
       )
     ).toBeNull();
-    expect(detail().queryByPlaceholderText('No cap')).toBeNull();
+    expect(detail().queryByLabelText('Maximum words')).toBeNull();
   });
 
   it('switching back to Typed leaves the quiz clean again', () => {

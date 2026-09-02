@@ -65,6 +65,7 @@ import {
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
 import { normalizeQuizSession } from '@/utils/quizQuestionNormalize';
+import { isInvalidWordRange } from '@/utils/wordLimit';
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
@@ -368,7 +369,17 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     base.orderingItems = fisherYatesShuffle(q.correctAnswer.split('|'));
   } else if (isFreeResponseType(q.type)) {
     if (q.placeholder) base.placeholder = q.placeholder;
+    if (q.minWords && q.minWords > 0) base.minWords = q.minWords;
     if (q.maxWords && q.maxWords > 0) base.maxWords = q.maxWords;
+    // Only meaningful alongside a bound; projecting it bare would let the
+    // student client block Submit on a range that doesn't exist.
+    if (
+      q.enforceWordLimit &&
+      (base.minWords || base.maxWords) &&
+      !isInvalidWordRange(base.minWords, base.maxWords)
+    ) {
+      base.enforceWordLimit = true;
+    }
     if (q.points && q.points > 0) base.points = q.points;
     if (q.rubricSnapshot) base.rubricSnapshot = q.rubricSnapshot;
   }
@@ -1596,7 +1607,7 @@ export interface UseQuizSessionStudentResult {
     questionId: string,
     answer: string,
     speedBonus?: number,
-    opts?: { isDraft?: boolean }
+    opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
   ) => Promise<void>;
   /**
    * Appends a committed recording take as a sibling `answers[]` entry with an
@@ -2475,7 +2486,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       questionId: string,
       answer: string,
       speedBonus?: number,
-      opts?: { isDraft?: boolean }
+      opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
     ) => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
@@ -2584,6 +2595,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       };
       delete newAnswer.speedBonus;
       delete newAnswer.isCorrect;
+      // Per-answer flag: the student write whitelist admits no new top-level
+      // response field, and a re-submit must not carry the stale marker.
+      delete newAnswer.timedOutUnderMinimum;
+      if (opts?.timedOutUnderMinimum) newAnswer.timedOutUnderMinimum = true;
       if (speedBonus != null && speedBonus > 0) {
         newAnswer.speedBonus = Math.min(50, Math.max(0, speedBonus));
       }

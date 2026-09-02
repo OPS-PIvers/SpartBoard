@@ -3172,12 +3172,12 @@ export interface QuizQuestion {
    * editor (e.g. "Cite at least two pieces of evidence.").
    */
   placeholder?: string;
-  /**
-   * short/essay only. Soft cap shown in the editor's word counter.
-   * Not enforced server-side; the student can exceed it. Undefined or 0
-   * means no cap is displayed.
-   */
+  /** Free Response only. Lower word bound shown in the editor; 0/undefined = none. */
+  minWords?: number;
+  /** Free Response only. Upper word bound shown in the editor; 0/undefined = none. */
   maxWords?: number;
+  /** Free Response only. When set, Submit is disabled outside the word range. */
+  enforceWordLimit?: boolean;
   /**
    * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
@@ -3424,8 +3424,12 @@ export interface QuizPublicQuestion {
   orderingItems?: string[];
   /** Free Response only: optional editor placeholder */
   placeholder?: string;
-  /** short/essay only: optional soft word cap shown in the editor */
+  /** Free Response only: optional lower word bound shown in the editor */
+  minWords?: number;
+  /** Free Response only: optional upper word bound shown in the editor */
   maxWords?: number;
+  /** Free Response only: when set, Submit is disabled outside the word range */
+  enforceWordLimit?: boolean;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -3804,6 +3808,8 @@ export interface QuizResponseAnswer {
    * response field. Absent on every non-recording answer.
    */
   noticeAckedAt?: number;
+  /** A question timeout auto-submitted this answer below the enforced `minWords`. */
+  timedOutUnderMinimum?: true;
 }
 
 /**

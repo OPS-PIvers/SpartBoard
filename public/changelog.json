@@ -1,6 +1,52 @@
 {
   "entries": [
     {
+      "version": "2026.09.02",
+      "date": "2026-09-02",
+      "title": "Free Response questions: one type, typed or spoken, with word limits",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "Quiz editor",
+          "items": [
+            {
+              "text": "Short Answer and Essay are now a single Free Response question type. Every Free Response question gets the full writing editor, and quizzes you already made keep working without any changes."
+            },
+            {
+              "text": "A Format control sits right under the question Type: choose Typed or Spoken. Choosing Spoken opens the recording settings in place, and the red \"graded manually\" banner is gone."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Word limits",
+          "items": [
+            {
+              "text": "Word cap is now Word limit: set a minimum, a maximum, or both. Students see the range on their word counter, and you can turn on Enforce limit so they can't submit outside it."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Quiz editor — Short Answer and Essay have merged into one Free Response type (badge: FRQ). Both used to share the same manual-grading path; the only difference was the size of the student's editor, so every Free Response question now gets the taller editor with list formatting. Existing quizzes, shared quizzes, PLC-synced quizzes and running assignments that still say short or essay are read as Free Response automatically; nothing is rewritten in your files."
+        },
+        {
+          "type": "improvement",
+          "text": "Quiz editor — a Format row (Typed / Spoken) now sits directly under the question Type instead of a Spoken Answer toggle at the bottom of the question. Choosing Spoken opens thinking time, recording limit, expiry and take limit right beneath it, and hides Placeholder and Word limit, which return with their values when you switch back to Typed. The row only appears for teachers who have spoken answers enabled."
+        },
+        {
+          "type": "feature",
+          "text": "Word limits — the Word cap field is now Word limit with a Min and a Max (either optional). By default the limit is advisory: the student's counter shows the range, for example 42 / 100–200 words, and turns amber outside it. Switch on Enforce limit and the Submit button stays off until the answer is inside the range, with a live note such as \"Write at least 100 words to submit. 38 to go.\" Typing is never blocked, and a question timer still submits whatever the student has written."
+        },
+        {
+          "type": "improvement",
+          "text": "Grading — written responses show their word count beside the student label, amber when outside the question's range, plus a \"Timed out under minimum\" chip when a timed question auto-submitted a short answer under an enforced minimum."
+        }
+      ]
+    },
+    {
       "version": "2026.06.03",
       "date": "2026-06-03",
       "title": "Google Classroom linking, scoring, and widget fixes",
@@ -694,8 +740,12 @@
                 {
                   "text": "Solid color from an 8-swatch palette or a custom color."
                 },
-                { "text": "Pattern overlay — lines, grid, or dots." },
-                { "text": "Your own uploaded image." }
+                {
+                  "text": "Pattern overlay — lines, grid, or dots."
+                },
+                {
+                  "text": "Your own uploaded image."
+                }
               ]
             },
             {

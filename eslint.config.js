@@ -18,6 +18,9 @@ export default tseslint.config(
       // SSR prerender build output (gitignored, same as `dist`). Generated
       // by the prerender step; never linted as source.
       'dist-ssr',
+      // Gitignored local artefacts: agent worktrees hold whole repo copies.
+      'dist-devpreview',
+      '.claude',
       'node_modules',
       '**/*.config.js',
       '**/*.config.ts',

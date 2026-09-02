@@ -97,6 +97,8 @@ import {
   enqueueQuizMediaUpload,
 } from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { countWords } from '@/utils/wordCount';
+import { wordLimitStatus } from '@/utils/wordLimit';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { useDialog } from '@/context/useDialog';
 import { StudentLeaderboard } from './StudentLeaderboard';
@@ -628,7 +630,7 @@ const QuizJoinFlow: React.FC<{
       questionId: string,
       answer: string,
       speedBonus?: number,
-      opts?: { isDraft?: boolean }
+      opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
     ) => {
       // View-only shares never persist responses — the Firestore rule
       // rejects the write defense-in-depth, but skip it client-side too so
@@ -1270,7 +1272,7 @@ const ActiveQuiz: React.FC<{
     qId: string,
     answer: string,
     speedBonus?: number,
-    opts?: { isDraft?: boolean }
+    opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
   ) => Promise<void>;
   /** Appends one committed take; rejects so the recorder can show the failure. */
   onCommitRecording: (questionId: string, take: AudioTake) => Promise<void>;
@@ -2023,11 +2025,19 @@ const ActiveQuiz: React.FC<{
         ? currentAnswerRef.current.value
         : undefined;
     const answer = cached ?? selectedAnswerRef.current ?? '';
+    // Enforcement lives at the Submit button only — a timeout always writes
+    // through, flagged so the grader sees why the answer is short.
+    const answerWords = countWords(answer);
+    const timedOutUnderMinimum =
+      isFreeResponseType(question.type) &&
+      wordLimitStatus(answerWords, question).blocked &&
+      answerWords < (question.minWords ?? 0);
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
         answer,
-        0 // Speed bonus is 0 when timer expires
+        0, // Speed bonus is 0 when timer expires
+        timedOutUnderMinimum ? { timedOutUnderMinimum: true } : undefined
       )
       .catch((err: unknown) => {
         console.error('[QuizStudentApp] auto-submit failed:', err);
@@ -2074,6 +2084,13 @@ const ActiveQuiz: React.FC<{
   // a committed render and a fast tap could re-submit-and-advance an answer
   // the student never re-affirmed.)
   const submittableAnswer = cachedDraft;
+  // Word-limit gate for written questions. Counts the LIVE draft (what the
+  // editor shows) so the message tracks typing rather than the last commit.
+  const writtenLimit =
+    currentQuestion && isFreeResponseType(currentQuestion.type)
+      ? wordLimitStatus(countWords(liveAnswer ?? ''), currentQuestion)
+      : null;
+  const wordLimitBlocked = writtenLimit?.blocked === true;
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
@@ -3250,7 +3267,9 @@ const ActiveQuiz: React.FC<{
                   value={liveAnswer ?? ''}
                   onChange={(html) => setCacheForCurrent(html)}
                   placeholder={currentQuestion.placeholder}
+                  minWords={currentQuestion.minWords}
                   maxWords={currentQuestion.maxWords}
+                  enforceWordLimit={currentQuestion.enforceWordLimit}
                   disabled={submitted && !isStudentPaced}
                   blockClipboard={blockCopyPaste}
                   light={light}
@@ -3278,15 +3297,28 @@ const ActiveQuiz: React.FC<{
                         deliberate clear) we submit it; when it's unseeded
                         (`submittableAnswer === null`) we advance WITHOUT writing
                         so a fast tap can't clobber a not-yet-loaded saved essay
-                        with a blank (see handleSubmitAndAdvance `skipWrite`). */}
+                        with a blank (see handleSubmitAndAdvance `skipWrite`).
+                        An enforced word limit blocks only the final SUBMIT;
+                        mid-quiz NEXT advances without writing so the draft
+                        (already autosaved) stays editable on return. */}
                       <button
                         onClick={() =>
                           void handleSubmitAndAdvance(
                             submittableAnswer ?? '',
-                            submittableAnswer === null
+                            submittableAnswer === null || wordLimitBlocked
                           )
                         }
-                        disabled={submitting}
+                        disabled={
+                          submitting ||
+                          (wordLimitBlocked &&
+                            currentIndex >= effectiveTotalQuestions - 1)
+                        }
+                        aria-describedby={
+                          writtenLimit?.message &&
+                          currentIndex >= effectiveTotalQuestions - 1
+                            ? 'word-limit-status'
+                            : undefined
+                        }
                         className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                       >
                         {submitting ? (
@@ -3303,6 +3335,16 @@ const ActiveQuiz: React.FC<{
                           </>
                         )}
                       </button>
+                      {writtenLimit?.message &&
+                        currentIndex >= effectiveTotalQuestions - 1 && (
+                          <p
+                            id="word-limit-status"
+                            role="status"
+                            className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
+                          >
+                            {writtenLimit.message}
+                          </p>
+                        )}
                     </>
                   )
                 ) : !submitted ? (
@@ -3314,17 +3356,35 @@ const ActiveQuiz: React.FC<{
                   // deliberate clear (cache holds '') is non-null, so it stays
                   // enabled. The button re-enables once the student types or the
                   // saved answer loads and seeds the cache.
-                  <button
-                    onClick={() => void handleSubmit(submittableAnswer ?? '')}
-                    disabled={submitting || submittableAnswer === null}
-                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                  >
-                    {submitting ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      'Submit Response'
+                  <>
+                    <button
+                      onClick={() => void handleSubmit(submittableAnswer ?? '')}
+                      disabled={
+                        submitting ||
+                        submittableAnswer === null ||
+                        wordLimitBlocked
+                      }
+                      aria-describedby={
+                        writtenLimit?.message ? 'word-limit-status' : undefined
+                      }
+                      className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        'Submit Response'
+                      )}
+                    </button>
+                    {writtenLimit?.message && (
+                      <p
+                        id="word-limit-status"
+                        role="status"
+                        className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
+                      >
+                        {writtenLimit.message}
+                      </p>
                     )}
-                  </button>
+                  </>
                 ) : (
                   <WrittenSubmittedCard
                     isWaiting={currentIndex < effectiveTotalQuestions - 1}
