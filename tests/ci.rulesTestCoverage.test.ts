@@ -65,6 +65,33 @@ function firstMatchIndex(
   });
 }
 
+/**
+ * Returns the `needs:` array entries for a top-level job (2-space-indented
+ * `<jobName>:` block), or null if the job or its `needs:` line isn't found.
+ * Line-order alone doesn't prove a multi-job workflow's dependency graph —
+ * two job blocks can sit in any order and still be wired via `needs:`, so
+ * an ordering check on job BLOCK POSITION says nothing about whether one
+ * job actually gates the other. This walks the actual `needs:` array.
+ */
+function jobNeeds(yaml: string, jobName: string): string[] | null {
+  const lines = yaml.split('\n');
+  const jobStart = lines.findIndex(
+    (l) => l.trim() === `${jobName}:` && /^ {2}\S/.test(l)
+  );
+  if (jobStart === -1) return null;
+  const nextJobStart = lines.findIndex(
+    (l, i) => i > jobStart && /^ {2}\S.*:\s*$/.test(l)
+  );
+  const blockEnd = nextJobStart === -1 ? lines.length : nextJobStart;
+  const needsLine = lines
+    .slice(jobStart, blockEnd)
+    .find((l) => /^\s*needs:/.test(l));
+  if (!needsLine) return null;
+  const match = needsLine.match(/needs:\s*\[(.*)\]/);
+  if (!match) return null;
+  return match[1].split(',').map((s) => s.trim());
+}
+
 describe('CI workflow: Firestore rules tests must run in deploy pipelines', () => {
   it('firebase-deploy.yml (production) runs the Firestore rules test suite before deploying rules', () => {
     const yaml = readWorkflow('firebase-deploy.yml');
@@ -94,6 +121,9 @@ describe('CI workflow: Firestore rules tests must run in deploy pipelines', () =
     expect(deployLine).toBeGreaterThan(-1);
     expect(rulesTestLine).toBeGreaterThan(-1);
     expect(rulesTestLine).toBeLessThan(deployLine);
+
+    // Line order alone doesn't prove dependency for a multi-job workflow — assert the actual needs: wiring.
+    expect(jobNeeds(yaml, 'deploy')).toContain('rules');
   });
 
   it('pr-validation.yml already runs the Firestore rules test suite (baseline)', () => {
