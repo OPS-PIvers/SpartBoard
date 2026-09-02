@@ -27,6 +27,7 @@ import {
   onSnapshot,
   query,
   setDoc,
+  where,
 } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { auth, db, storage } from '@/config/firebase';
@@ -200,11 +201,11 @@ export const ActivityWallGalleryView: React.FC = () => {
   useEffect(() => {
     if (state.kind !== 'ready' || !viewer) return;
     const { sessionId } = state.share;
-    const submissionsRef = collection(
-      db,
-      'activity_wall_sessions',
-      sessionId,
-      'submissions'
+    // Rules only expose approved posts on a published wall, so the filter is
+    // required for the query to be authorized (not just cosmetic).
+    const submissionsRef = query(
+      collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
+      where('status', '==', 'approved')
     );
     const unsubscribe = onSnapshot(
       submissionsRef,
