@@ -98,8 +98,8 @@ const detail = () => within(screen.getByTestId('detail-pane'));
 const context = () => within(screen.getByTestId('context-pane'));
 const dirtyAttr = () =>
   screen.getByTestId('editor-workspace').getAttribute('data-is-dirty');
-const spokenTab = () => detail().getByRole('tab', { name: 'Spoken' });
-const typedTab = () => detail().getByRole('tab', { name: 'Typed' });
+const spokenTab = () => detail().getByRole('radio', { name: 'Spoken' });
+const typedTab = () => detail().getByRole('radio', { name: 'Typed' });
 
 const open = () =>
   render(
@@ -126,8 +126,8 @@ describe('QuizEditorModal Format row', () => {
     gate.mockReturnValue(true);
     open();
     expect(detail().getByText('Format')).toBeTruthy();
-    expect(typedTab().getAttribute('aria-selected')).toBe('true');
-    expect(spokenTab().getAttribute('aria-selected')).toBe('false');
+    expect(typedTab().getAttribute('aria-checked')).toBe('true');
+    expect(spokenTab().getAttribute('aria-checked')).toBe('false');
   });
 
   it('choosing Spoken flips dirty, disables Time Limit, advises, and hides Placeholder/Word limit', () => {
