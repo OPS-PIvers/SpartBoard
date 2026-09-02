@@ -3698,6 +3698,16 @@ export interface QuizResponseAnswer {
    * treat missing as `'submitted'` via {@link isAnswerSubmitted}.
    */
   status?: 'draft' | 'submitted';
+  /**
+   * Which take this entry belongs to, for questions that allow more than
+   * one submission (e.g. a media-response retake). Absent on every entry
+   * written before takes existed — treated as `0` by
+   * {@link selectRepresentativeAnswers}, which resolves duplicate-questionId
+   * entries by highest `takeIndex`, tie-broken by earliest `answeredAt`.
+   * Written by the take-append path, not read here; see
+   * `utils/answerTakeOrdering.ts`.
+   */
+  takeIndex?: number;
 }
 
 /**

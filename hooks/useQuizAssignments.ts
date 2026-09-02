@@ -74,6 +74,7 @@ import {
 } from './useSyncedQuizGroups';
 import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -2137,16 +2138,16 @@ export const useQuizAssignments = (
         // the ungraded slot counts as 0 here, so publishing now would show
         // the student a grade the teacher hasn't finished awarding.
         let awaitingGrade = false;
-        // Track which question ids have already been scored so a duplicate
-        // answer (arrayUnion race writing the same questionId twice into
-        // `answers`) can't inflate pointsEarned and pointsMax. Each
-        // answer is still graded for its `isCorrect` flag, but only the
-        // first occurrence of a questionId contributes to the totals —
-        // matching the dedup already applied in the unanswered loop below
-        // and mirroring the identical guard in
+        // Pick one representative answer per questionId — highest takeIndex
+        // wins, ties (equal or absent takeIndex, e.g. an arrayUnion race)
+        // broken by earliest answeredAt — so a duplicate answer can't
+        // inflate pointsEarned and pointsMax. Each answer is still graded
+        // for its `isCorrect` flag, but only the representative contributes
+        // to the totals — matching the dedup already applied in the
+        // unanswered loop below and mirroring the identical guard in
         // `useVideoActivityAssignments.publishAssignmentScores` (#1728,
         // #1787, #1803).
-        const scoredQuestionIds = new Set<string>();
+        const representativeAnswers = selectRepresentativeAnswers(answers);
         const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
           const q = questionsById.get(a.questionId);
           if (!q) {
@@ -2170,10 +2171,9 @@ export const useQuizAssignments = (
           const result = gradeAnswer(q, a.answer, manualGrade);
           if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (
-            !scoredQuestionIds.has(a.questionId) &&
+            representativeAnswers.get(a.questionId) === a &&
             (!servedIds || servedIds.has(a.questionId))
           ) {
-            scoredQuestionIds.add(a.questionId);
             pointsEarned += result.pointsEarned;
             pointsMax += result.pointsMax;
           }

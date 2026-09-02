@@ -15,6 +15,7 @@
 
 import { VideoActivityQuestion, VideoActivityResponse } from '@/types';
 import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 type ResponseLike = Pick<VideoActivityResponse, 'answers'>;
 
@@ -26,7 +27,7 @@ export function computeQuestionAccuracy(
   let answeredCount = 0;
   let correctCount = 0;
   for (const r of responses) {
-    const answer = r.answers.find((a) => a.questionId === question.id);
+    const answer = selectRepresentativeAnswers(r.answers).get(question.id);
     if (answer === undefined) continue;
     answeredCount++;
     if (gradeVideoActivityAnswer(question, answer.answer).isCorrect) {
@@ -42,16 +43,14 @@ export function countCorrectAnswers(
   response: ResponseLike,
   questions: VideoActivityQuestion[]
 ): number {
-  const firstAnswers = new Map<string, string>();
-  for (const a of response.answers) {
-    if (!firstAnswers.has(a.questionId)) {
-      firstAnswers.set(a.questionId, a.answer);
-    }
-  }
+  const representative = selectRepresentativeAnswers(response.answers);
   let correctCount = 0;
   for (const q of questions) {
-    const answer = firstAnswers.get(q.id);
-    if (answer !== undefined && gradeVideoActivityAnswer(q, answer).isCorrect) {
+    const answer = representative.get(q.id);
+    if (
+      answer !== undefined &&
+      gradeVideoActivityAnswer(q, answer.answer).isCorrect
+    ) {
       correctCount++;
     }
   }

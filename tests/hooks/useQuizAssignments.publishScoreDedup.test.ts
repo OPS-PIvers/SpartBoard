@@ -271,6 +271,104 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
     // to max → earned=1, max=2 → score=50).
     expect(patch.score).toBe(50);
   });
+
+  it('scores the higher-takeIndex answer over take 0, regardless of array order', async () => {
+    // Take 0 is wrong; take 1 (a genuine retake) is correct and must win
+    // even though it appears first in the array and was answered earlier.
+    const refStudent = { id: 'r-takeindex' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              {
+                questionId: 'q0',
+                answer: 'b',
+                answeredAt: 1,
+                takeIndex: 1,
+              },
+              {
+                questionId: 'q0',
+                answer: 'a',
+                answeredAt: 2,
+                takeIndex: 0,
+              },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!responseCall) throw new Error('expected batch.update on response ref');
+    const patch = responseCall[1] as {
+      score: number;
+      answers: Array<{ isCorrect: boolean; takeIndex?: number }>;
+    };
+    // q0 only (take 1, wrong) + q1 unanswered → earned=0, max=2 → score=0.
+    expect(patch.score).toBe(0);
+    // Every stored entry still gets a fresh isCorrect, not just the winner.
+    expect(patch.answers).toHaveLength(2);
+    expect(patch.answers[0].isCorrect).toBe(false);
+    expect(patch.answers[1].isCorrect).toBe(true);
+  });
+
+  it('breaks an equal-takeIndex tie by earliest answeredAt, matching pre-takeIndex behavior', async () => {
+    const refStudent = { id: 'r-takeindex-tie' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              {
+                questionId: 'q0',
+                answer: 'a',
+                answeredAt: 1,
+                takeIndex: 0,
+              },
+              {
+                questionId: 'q0',
+                answer: 'wrong',
+                answeredAt: 2,
+                takeIndex: 0,
+              },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!responseCall) throw new Error('expected batch.update on response ref');
+    // Earliest-answeredAt entry (correct) wins the tie → earned=1, max=2 → 50.
+    expect((responseCall[1] as { score: number }).score).toBe(50);
+  });
 });
 
 describe('useQuizAssignments — publishAssignmentScores bounded paging', () => {
