@@ -456,6 +456,14 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   // `submissions` already arrives sorted newest-first from the snapshot
   // callback, so no per-render spread+sort is needed here.
 
+  // Marks the document body chrome-free for the app shell (external DOM system).
+  useEffect(() => {
+    document.body.dataset.chromeFree = 'true';
+    return () => {
+      delete document.body.dataset.chromeFree;
+    };
+  }, []);
+
   const likeIndex = useMemo(() => {
     const map = new Map<string, { count: number; viewerLiked: boolean }>();
     likes.forEach((like) => {
@@ -518,7 +526,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
 
       <main className="max-w-5xl mx-auto px-5 py-6">
         {!submissionsReady ? (
-          <div className="flex items-center justify-center text-slate-500 py-12">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white flex items-center justify-center text-slate-500 px-6 py-12">
             <Loader2 className="w-5 h-5 animate-spin mr-2" />
             Loading submissions…
           </div>
