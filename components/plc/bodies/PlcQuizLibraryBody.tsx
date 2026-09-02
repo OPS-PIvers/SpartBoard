@@ -78,11 +78,8 @@ import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
-import {
-  canEditPlcContent,
-  getPlcMemberEmail,
-  getPlcMemberEmails,
-} from '@/utils/plc';
+import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
+import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getQuizBehavior } from '@/utils/quizBehavior';
 import { PlcVersionHistoryPanel } from '@/components/plc/versions/PlcVersionHistoryPanel';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
@@ -147,7 +144,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   onCloseDashboard,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, ensureGoogleScope } = useAuth();
   const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
   const { showConfirm } = useDialog();
   const {
@@ -557,6 +554,33 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           });
         }
 
+        // Same per-assignment PLC sheet the board's assign flow creates, so
+        // the pickup registers on the In-progress tab and exports like any
+        // other PLC assignment. A failed sheet create still adds the quiz.
+        const sheetsToken = await ensureGoogleScope('spreadsheets', {
+          interactive: true,
+        });
+        const { linkage: plcLinkage, error: sheetError } =
+          await buildPlcLinkage({
+            plc,
+            quizTitle: canonical.title,
+            selfUid: user.uid,
+            googleAccessToken: sheetsToken,
+          });
+        if (sheetError) {
+          logError('PlcQuizLibraryBody.assign.sheetAutoCreate', sheetError, {
+            plcId: plc.id,
+            sourceId: target.sourceId,
+          });
+          addToast(
+            t('plcDashboard.assignmentsLibrary.sheetAutoCreateFailed', {
+              defaultValue:
+                'Could not create the shared PLC results sheet. The quiz was added to your board but will not show on the PLC In-progress tab.',
+            }),
+            'warning'
+          );
+        }
+
         // Create the paused personal assignment with the row's session
         // settings. `skipPlcTemplateWrite: true` so assigning an existing
         // shared quiz doesn't recursively author a new template.
@@ -578,18 +602,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
               sessionOptions: target.sessionOptions,
               attemptLimit: target.attemptLimit,
             }),
-            // Register on the In-progress tab when the PLC has a shared sheet
-            // (the index rule requires a Sheets URL).
-            ...(plc.sharedSheetUrl
-              ? {
-                  plc: {
-                    id: plc.id,
-                    name: plc.name,
-                    sheetUrl: plc.sharedSheetUrl,
-                    memberEmails: getPlcMemberEmails(plc),
-                  },
-                }
-              : {}),
+            ...(plcLinkage ? { plc: plcLinkage } : {}),
           },
           {
             initialStatus: 'paused',
@@ -669,6 +682,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       busyRowId,
       createAssignment,
       deleteQuiz,
+      ensureGoogleScope,
       isDriveConnected,
       plc,
       saveQuiz,
