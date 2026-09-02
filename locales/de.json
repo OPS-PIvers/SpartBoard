@@ -2070,6 +2070,11 @@
         "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
       }
     },
+    "assign": {
+      "advisory": {
+        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+      }
+    },
     "grading": {
       "title": "Grade recorded answers",
       "close": "Close",

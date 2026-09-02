@@ -52,6 +52,7 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuizSessionMode,
   QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
@@ -655,6 +656,19 @@ export const useQuizAssignments = (
     [mediaResponseGranted]
   );
 
+  // Recorded answers are a self-paced (student mode) feature: only there does a
+  // per-student submit exist to satisfy the Tennessen notice's promise. Strip the
+  // recording block for any other session mode, regardless of the media gate.
+  const projectPublicQuestionForMode = useCallback(
+    (question: QuizQuestion, mode: QuizSessionMode): QuizPublicQuestion => {
+      const projected = toGatedPublicQuestion(question);
+      if (mode === 'student' || !projected.recording) return projected;
+      const { recording: _stripped, ...rest } = projected;
+      return rest;
+    },
+    [toGatedPublicQuestion]
+  );
+
   // Adjust state during render when userId transitions away — avoids the
   // "set-state-in-effect" anti-pattern while still clearing stale data when
   // the user signs out.
@@ -809,8 +823,8 @@ export const useQuizAssignments = (
               ? 'active'
               : 'waiting';
 
-      const sessionPublicQuestions = sessionQuestions.map(
-        toGatedPublicQuestion
+      const sessionPublicQuestions = sessionQuestions.map((q) =>
+        projectPublicQuestionForMode(q, mode)
       );
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
@@ -953,7 +967,7 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId, toGatedPublicQuestion]
+    [userId, projectPublicQuestionForMode]
   );
 
   const setStatus = useCallback(
@@ -1908,7 +1922,9 @@ export const useQuizAssignments = (
       // doesn't have to special-case post-sync state.
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
-      const publicQuestions = canonicalQuestions.map(toGatedPublicQuestion);
+      const publicQuestions = canonicalQuestions.map((q) =>
+        projectPublicQuestionForMode(q, assignment.sessionMode)
+      );
       const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({
         questions: canonicalQuestions,
@@ -2021,7 +2037,7 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId, toGatedPublicQuestion]
+    [userId, projectPublicQuestionForMode]
   );
 
   const unpublishAssignmentScores = useCallback<

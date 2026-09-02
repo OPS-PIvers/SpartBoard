@@ -24,6 +24,7 @@ const EXPECTED: Record<string, RegExp> = {
   'take-limit': /No takes left/i,
   'window-closed': /Recording time is over/i,
   'mic-unavailable': /microphone did not work/i,
+  'submit-blocked': /questions still need a recording/i,
 };
 
 describe('AudioCaptureDevView', () => {

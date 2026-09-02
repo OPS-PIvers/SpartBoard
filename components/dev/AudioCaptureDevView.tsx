@@ -5,6 +5,7 @@
  */
 import React, { useMemo } from 'react';
 import { AudioResponseCapture } from '@/components/quiz/recording/AudioResponseCapture';
+import { SubmitBlockedNotice } from '@/components/quiz/recording/SubmitBlockedNotice';
 import type { AudioRecordingDeps } from '@/hooks/useAudioRecording';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
 
@@ -19,6 +20,10 @@ export const AUDIO_CAPTURE_STATES = [
   'take-limit',
   'window-closed',
   'mic-unavailable',
+  // Not AudioResponseCapture — SubmitBlockedNotice, the self-paced quiz's
+  // submit gate. Only reachable in production behind the light prop (the
+  // quiz app is light-only); the dark variant stays a harness-only fixture.
+  'submit-blocked',
 ] as const;
 
 /** Same states in the dark (teacher-paced) shell. */
@@ -66,6 +71,11 @@ function makeDeps(unavailable: boolean): AudioRecordingDeps {
     now: () => Date.now(),
   };
 }
+
+const SUBMIT_BLOCKED_QUESTIONS = [
+  { id: 'q1', index: 0, text: 'Describe the water cycle in your own words.' },
+  { id: 'q3', index: 2, text: 'Explain why the sky appears blue.' },
+];
 
 const pendingArtifact: ResponseArtifact = {
   id: 'artifact-dev',
@@ -127,6 +137,22 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
     }, 10);
     return () => window.clearInterval(id);
   }, [state]);
+
+  if (state === 'submit-blocked') {
+    return (
+      <div
+        className={`h-full w-full overflow-auto p-6 ${
+          light ? 'bg-slate-50' : 'bg-slate-900'
+        }`}
+      >
+        <SubmitBlockedNotice
+          light={light}
+          questions={SUBMIT_BLOCKED_QUESTIONS}
+          onJump={() => undefined}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
