@@ -90,3 +90,6 @@ Quizzes/
 # Ops-script reports (e.g. scripts/migrateAnnouncements.js) — derived from prod
 # Firestore docs (IDs + titles); never commit
 scripts/output/
+
+# Local dev-mode static preview (see .claude/launch.json vite-preview-dev)
+dist-devpreview
