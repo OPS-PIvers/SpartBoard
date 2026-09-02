@@ -1,7 +1,8 @@
 /**
- * The recording controls inside the real editor: the fail-closed gate, the
- * advisory banner's separation from the save-error path, the disabled
- * `timeLimit`, and dirty tracking for the new block.
+ * The Format row (Typed/Spoken) inside the real editor: the fail-closed
+ * gate, the advisory banner's separation from the save-error path, the
+ * disabled `timeLimit`, dirty tracking for the new block, and the
+ * Placeholder/Word Cap fields hiding (not clearing) under Spoken.
  *
  * Mocking strategy mirrors QuizEditorModal.isDirty.test.tsx.
  */
@@ -97,6 +98,8 @@ const detail = () => within(screen.getByTestId('detail-pane'));
 const context = () => within(screen.getByTestId('context-pane'));
 const dirtyAttr = () =>
   screen.getByTestId('editor-workspace').getAttribute('data-is-dirty');
+const spokenTab = () => detail().getByRole('tab', { name: 'Spoken' });
+const typedTab = () => detail().getByRole('tab', { name: 'Typed' });
 
 const open = () =>
   render(
@@ -108,10 +111,10 @@ beforeEach(() => {
   gate.mockReturnValue(false);
 });
 
-describe('QuizEditorModal recording controls', () => {
+describe('QuizEditorModal Format row', () => {
   it('renders nothing new when the permission record is missing', () => {
     open();
-    expect(detail().queryByText('Spoken answer')).toBeNull();
+    expect(detail().queryByText('Format')).toBeNull();
     expect(context().queryByText(/Records up to .* per student/)).toBeNull();
     expect(
       detail().getByRole<HTMLInputElement>('spinbutton', { name: 'Time Limit' })
@@ -119,19 +122,26 @@ describe('QuizEditorModal recording controls', () => {
     ).toBe(false);
   });
 
-  it('mounts the section in the question pane when the gate grants', () => {
+  it('mounts the row in the question pane when the gate grants', () => {
     gate.mockReturnValue(true);
     open();
-    expect(detail().getByText('Spoken answer')).toBeTruthy();
-    expect(detail().getByLabelText('Ask for a spoken answer')).toBeTruthy();
+    expect(detail().getByText('Format')).toBeTruthy();
+    expect(typedTab().getAttribute('aria-selected')).toBe('true');
+    expect(spokenTab().getAttribute('aria-selected')).toBe('false');
   });
 
-  it('enabling the block flips dirty, disables Time Limit, and advises', () => {
+  it('choosing Spoken flips dirty, disables Time Limit, advises, and hides Placeholder/Word Cap', () => {
     gate.mockReturnValue(true);
     open();
     expect(dirtyAttr()).toBe('false');
+    expect(
+      detail().getByPlaceholderText(
+        'e.g. Cite at least two pieces of evidence.'
+      )
+    ).toBeTruthy();
+    expect(detail().getByPlaceholderText('No cap')).toBeTruthy();
 
-    fireEvent.click(detail().getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(spokenTab());
 
     expect(dirtyAttr()).toBe('true');
     const timeLimit = detail().getByRole<HTMLInputElement>('spinbutton', {
@@ -145,16 +155,22 @@ describe('QuizEditorModal recording controls', () => {
     expect(
       context().getByText('Records up to 1 slot per student.')
     ).toBeTruthy();
+    expect(
+      detail().queryByPlaceholderText(
+        'e.g. Cite at least two pieces of evidence.'
+      )
+    ).toBeNull();
+    expect(detail().queryByPlaceholderText('No cap')).toBeNull();
   });
 
-  it('turning the block back off leaves the quiz clean again', () => {
+  it('switching back to Typed leaves the quiz clean again', () => {
     gate.mockReturnValue(true);
     open();
-    const toggle = () => detail().getByLabelText('Ask for a spoken answer');
-    fireEvent.click(toggle());
-    fireEvent.click(toggle());
+    fireEvent.click(spokenTab());
+    fireEvent.click(typedTab());
+
     expect(context().queryByText(/Records up to/)).toBeNull();
-    expect(detail().queryByText('Spoken answer')).toBeTruthy();
+    expect(detail().getByText('Format')).toBeTruthy();
     const timeLimit = detail().getByRole<HTMLInputElement>('spinbutton', {
       name: 'Time Limit',
     });
@@ -164,7 +180,26 @@ describe('QuizEditorModal recording controls', () => {
     expect(dirtyAttr()).toBe('false');
   });
 
-  it('advises instead of offering the toggle on a choice question', () => {
+  it('restores the Placeholder value intact after a round trip through Spoken', () => {
+    gate.mockReturnValue(true);
+    open();
+    fireEvent.change(
+      detail().getByPlaceholderText(
+        'e.g. Cite at least two pieces of evidence.'
+      ),
+      { target: { value: 'Cite your source' } }
+    );
+    fireEvent.click(spokenTab());
+    fireEvent.click(typedTab());
+
+    expect(
+      detail().getByPlaceholderText<HTMLInputElement>(
+        'e.g. Cite at least two pieces of evidence.'
+      ).value
+    ).toBe('Cite your source');
+  });
+
+  it('does not render the Format row on a choice question', () => {
     gate.mockReturnValue(true);
     render(
       <QuizEditorModal
@@ -177,15 +212,13 @@ describe('QuizEditorModal recording controls', () => {
         onSave={vi.fn()}
       />
     );
-    expect(detail().getByText('Spoken answer')).toBeTruthy();
-    expect(detail().queryByLabelText('Ask for a spoken answer')).toBeNull();
-    expect(detail().getByText(/Free Response questions/i)).toBeTruthy();
+    expect(detail().queryByText('Format')).toBeNull();
   });
 
   it('keeps the advisory out of the save-error banner', () => {
     gate.mockReturnValue(true);
     open();
-    fireEvent.click(detail().getByLabelText('Ask for a spoken answer'));
+    fireEvent.click(spokenTab());
     const advisory = context()
       .getByText('As authored')
       .closest('[role="status"]') as HTMLElement;

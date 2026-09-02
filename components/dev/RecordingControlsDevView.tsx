@@ -5,7 +5,7 @@
  * granted on the auth-bypass dev server, which has no permission record.
  */
 import React, { useMemo, useState } from 'react';
-import { RecordingConfigSection } from '@/components/widgets/QuizWidget/components/RecordingConfigSection';
+import { ResponseFormatSection } from '@/components/widgets/QuizWidget/components/ResponseFormatSection';
 import { QuizAuthoringAdvisory } from '@/components/widgets/QuizWidget/components/QuizAuthoringAdvisory';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
 import type { QuizQuestion } from '@/types';
@@ -80,7 +80,7 @@ export const RecordingControlsDevView: React.FC<{
           questions={advisoryQuestions}
           shuffleQuestionsEnabled={state === 'rc-advisory'}
         />
-        <RecordingConfigSection
+        <ResponseFormatSection
           question={question}
           onChange={(updates) => setQuestion((q) => ({ ...q, ...updates }))}
         />
