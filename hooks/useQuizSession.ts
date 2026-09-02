@@ -365,7 +365,7 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     // a student pop devtools and read off exactly which entries are wrong.
   } else if (q.type === 'Ordering') {
     base.orderingItems = fisherYatesShuffle(q.correctAnswer.split('|'));
-  } else if (q.type === 'short' || q.type === 'essay') {
+  } else if (isWrittenQuestionType(q.type)) {
     if (q.placeholder) base.placeholder = q.placeholder;
     if (q.maxWords && q.maxWords > 0) base.maxWords = q.maxWords;
     if (q.points && q.points > 0) base.points = q.points;
@@ -517,7 +517,7 @@ export function gradeAnswer(
   // Written question types are graded manually by the teacher. Until a grade
   // exists the slot is `awaiting-grade`: `pointsEarned: 0` is a placeholder,
   // and callers must not publish or push it as a real score.
-  if (question.type === 'short' || question.type === 'essay') {
+  if (isWrittenQuestionType(question.type)) {
     // A partial rubric save persists its points but stays provisional.
     const awaiting = isWrittenAnswerAwaitingGrade(
       question,

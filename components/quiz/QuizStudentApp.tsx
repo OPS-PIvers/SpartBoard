@@ -2283,7 +2283,7 @@ const ActiveQuiz: React.FC<{
     // Written question types have no canonical correct answer — they are
     // manually graded. Skip the reveal/feedback path entirely.
     const isWritten =
-      currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
+      !!currentQuestion && isWrittenQuestionType(currentQuestion.type);
     if (
       currentRevealed &&
       submitted &&
@@ -3224,72 +3224,70 @@ const ActiveQuiz: React.FC<{
               />
             )}
 
-          {!recordingConfig &&
-            (currentQuestion.type === 'short' ||
-              currentQuestion.type === 'essay') && (
-              <div className="space-y-4">
-                {currentQuestion.rubricSnapshot && (
-                  <CollapsibleRubric
-                    rubric={currentQuestion.rubricSnapshot}
-                    light={light}
-                  />
-                )}
-                <React.Suspense
-                  fallback={
-                    <div
-                      className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
-                    >
-                      <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-                    </div>
-                  }
-                >
-                  <WrittenResponseEditor
-                    // The editor seeds its `innerHTML` once on mount (caret
-                    // preservation), so we encode a "recovered text needs
-                    // injecting" boolean in the questionKey. A page refresh
-                    // mid-essay first mounts with value='' (cache empty,
-                    // saved null); when the Firestore snapshot arrives the
-                    // seed-from-server block recovery-seeds the cache, the key
-                    // flips from `…:init` → `…:seeded`, and the editor
-                    // remounts with the recovered text. Without this, the
-                    // student stares at a blank editor while React state
-                    // already holds the recovered value.
-                    //
-                    // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
-                    // rather than general cache presence: a student's own first
-                    // keystroke also populates `answerCache`, and keying on that
-                    // remounted the editor mid-type, stealing focus and the caret.
-                    questionKey={`${currentQuestion.id}:${
-                      seededQuestionsRef.current.has(currentQuestion.id)
-                        ? 'seeded'
-                        : 'init'
-                    }`}
-                    value={liveAnswer ?? ''}
-                    onChange={(html) => setCacheForCurrent(html)}
-                    placeholder={currentQuestion.placeholder}
-                    maxWords={currentQuestion.maxWords}
-                    disabled={submitted && !isStudentPaced}
-                    isEssay={currentQuestion.type === 'essay'}
-                    blockClipboard={blockCopyPaste}
-                    light={light}
-                  />
-                </React.Suspense>
+          {!recordingConfig && isWrittenQuestionType(currentQuestion.type) && (
+            <div className="space-y-4">
+              {currentQuestion.rubricSnapshot && (
+                <CollapsibleRubric
+                  rubric={currentQuestion.rubricSnapshot}
+                  light={light}
+                />
+              )}
+              <React.Suspense
+                fallback={
+                  <div
+                    className={`h-48 border rounded-2xl flex items-center justify-center ${editorFallbackCls}`}
+                  >
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                  </div>
+                }
+              >
+                <WrittenResponseEditor
+                  // The editor seeds its `innerHTML` once on mount (caret
+                  // preservation), so we encode a "recovered text needs
+                  // injecting" boolean in the questionKey. A page refresh
+                  // mid-essay first mounts with value='' (cache empty,
+                  // saved null); when the Firestore snapshot arrives the
+                  // seed-from-server block recovery-seeds the cache, the key
+                  // flips from `…:init` → `…:seeded`, and the editor
+                  // remounts with the recovered text. Without this, the
+                  // student stares at a blank editor while React state
+                  // already holds the recovered value.
+                  //
+                  // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
+                  // rather than general cache presence: a student's own first
+                  // keystroke also populates `answerCache`, and keying on that
+                  // remounted the editor mid-type, stealing focus and the caret.
+                  questionKey={`${currentQuestion.id}:${
+                    seededQuestionsRef.current.has(currentQuestion.id)
+                      ? 'seeded'
+                      : 'init'
+                  }`}
+                  value={liveAnswer ?? ''}
+                  onChange={(html) => setCacheForCurrent(html)}
+                  placeholder={currentQuestion.placeholder}
+                  maxWords={currentQuestion.maxWords}
+                  disabled={submitted && !isStudentPaced}
+                  isEssay={currentQuestion.type === 'essay'}
+                  blockClipboard={blockCopyPaste}
+                  light={light}
+                />
+              </React.Suspense>
 
-                {/*
+              {/*
               Sticky CTA: the editor can grow up to ~70vh tall, so without
               `sticky bottom-0` the Submit button rides below the fold and
               students miss it.
             */}
-                <div
-                  className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
-                >
-                  {isStudentPaced ? (
-                    submitted && currentIndex >= effectiveTotalQuestions - 1 ? (
-                      <QuizCompleteCard />
-                    ) : (
-                      <>
-                        {saveError && <SaveErrorBanner message={saveError} />}
-                        {/* Written NEXT stays enabled (only `submitting` gates it)
+              <div
+                className={`animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl ${stickyCtaBg}`}
+              >
+                {isStudentPaced ? (
+                  submitted && currentIndex >= effectiveTotalQuestions - 1 ? (
+                    <QuizCompleteCard />
+                  ) : (
+                    <>
+                      {saveError && <SaveErrorBanner message={saveError} />}
+                      {/* Written NEXT stays enabled (only `submitting` gates it)
                         so a student can advance past a blank essay; gating it
                         on the cache like MC/FIB would trap anyone who wants to
                         skip. When the cache HAS a value (typed, seeded, or a
@@ -3297,60 +3295,60 @@ const ActiveQuiz: React.FC<{
                         (`submittableAnswer === null`) we advance WITHOUT writing
                         so a fast tap can't clobber a not-yet-loaded saved essay
                         with a blank (see handleSubmitAndAdvance `skipWrite`). */}
-                        <button
-                          onClick={() =>
-                            void handleSubmitAndAdvance(
-                              submittableAnswer ?? '',
-                              submittableAnswer === null
-                            )
-                          }
-                          disabled={submitting}
-                          className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                        >
-                          {submitting ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : currentIndex >= effectiveTotalQuestions - 1 ? (
-                            <>
-                              {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
-                              <CheckCircle2 className="w-5 h-5" />
-                            </>
-                          ) : (
-                            <>
-                              {saveError ? 'Retry' : 'NEXT'}{' '}
-                              <ArrowRight className="w-5 h-5" />
-                            </>
-                          )}
-                        </button>
-                      </>
-                    )
-                  ) : !submitted ? (
-                    // Teacher-paced has no self-advance, so (unlike self-paced) we
-                    // can safely gate Submit on the cache: disabled while the
-                    // editor is unseeded (`submittableAnswer === null`) — never
-                    // typed, or the saved answer hasn't echoed yet — so a fast tap
-                    // can't write a blank over a not-yet-loaded saved essay. A
-                    // deliberate clear (cache holds '') is non-null, so it stays
-                    // enabled. The button re-enables once the student types or the
-                    // saved answer loads and seeds the cache.
-                    <button
-                      onClick={() => void handleSubmit(submittableAnswer ?? '')}
-                      disabled={submitting || submittableAnswer === null}
-                      className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
-                    >
-                      {submitting ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        'Submit Response'
-                      )}
-                    </button>
-                  ) : (
-                    <WrittenSubmittedCard
-                      isWaiting={currentIndex < effectiveTotalQuestions - 1}
-                    />
-                  )}
-                </div>
+                      <button
+                        onClick={() =>
+                          void handleSubmitAndAdvance(
+                            submittableAnswer ?? '',
+                            submittableAnswer === null
+                          )
+                        }
+                        disabled={submitting}
+                        className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      >
+                        {submitting ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : currentIndex >= effectiveTotalQuestions - 1 ? (
+                          <>
+                            {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                            <CheckCircle2 className="w-5 h-5" />
+                          </>
+                        ) : (
+                          <>
+                            {saveError ? 'Retry' : 'NEXT'}{' '}
+                            <ArrowRight className="w-5 h-5" />
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )
+                ) : !submitted ? (
+                  // Teacher-paced has no self-advance, so (unlike self-paced) we
+                  // can safely gate Submit on the cache: disabled while the
+                  // editor is unseeded (`submittableAnswer === null`) — never
+                  // typed, or the saved answer hasn't echoed yet — so a fast tap
+                  // can't write a blank over a not-yet-loaded saved essay. A
+                  // deliberate clear (cache holds '') is non-null, so it stays
+                  // enabled. The button re-enables once the student types or the
+                  // saved answer loads and seeds the cache.
+                  <button
+                    onClick={() => void handleSubmit(submittableAnswer ?? '')}
+                    disabled={submitting || submittableAnswer === null}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {submitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      'Submit Response'
+                    )}
+                  </button>
+                ) : (
+                  <WrittenSubmittedCard
+                    isWaiting={currentIndex < effectiveTotalQuestions - 1}
+                  />
+                )}
               </div>
-            )}
+            </div>
+          )}
 
           {submitBlocked && openRecordingQuestions.length > 0 && (
             <div className="mt-6">

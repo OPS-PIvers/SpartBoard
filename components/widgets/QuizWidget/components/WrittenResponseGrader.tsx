@@ -37,6 +37,7 @@ import {
   WrittenAnswerAnnotation,
   WrittenAnswerGrade,
   WrittenAnswerRubricScore,
+  isWrittenQuestionType,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
@@ -96,8 +97,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
 }) => {
   // Surface only the questions that actually need manual grading.
   const writtenQuestions = useMemo(
-    () =>
-      quiz.questions.filter((q) => q.type === 'short' || q.type === 'essay'),
+    () => quiz.questions.filter((q) => isWrittenQuestionType(q.type)),
     [quiz.questions]
   );
 

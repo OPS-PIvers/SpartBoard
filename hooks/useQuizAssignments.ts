@@ -58,6 +58,7 @@ import type {
   SharedQuizAssignment,
   StudentOverride,
 } from '@/types';
+import { isWrittenQuestionType } from '@/types';
 import { projectSessionStimuli } from '@/utils/quizStimuli';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
@@ -2262,10 +2263,9 @@ export const useQuizAssignments = (
           // a quiz that contained essays would freeze them at 0 points
           // and the archive would silently disagree with the live results
           // view forever after.
-          const manualGrade =
-            q.type === 'short' || q.type === 'essay'
-              ? readSlotGrade(data.grading, q.id)
-              : undefined;
+          const manualGrade = isWrittenQuestionType(q.type)
+            ? readSlotGrade(data.grading, q.id)
+            : undefined;
           const result = applyMediaSlots(
             q,
             data,

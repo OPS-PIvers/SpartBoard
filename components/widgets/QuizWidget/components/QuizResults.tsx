@@ -31,7 +31,13 @@ import {
   Paperclip,
   Send,
 } from 'lucide-react';
-import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
+import {
+  QuizResponse,
+  QuizData,
+  QuizQuestion,
+  QuizConfig,
+  isWrittenQuestionType,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import {
@@ -432,7 +438,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // types. Used to surface the "Grade Written" entry-point only when
   // it's actually useful.
   const hasWrittenQuestions = useMemo(
-    () => quiz.questions.some((q) => q.type === 'short' || q.type === 'essay'),
+    () => quiz.questions.some((q) => isWrittenQuestionType(q.type)),
     [quiz.questions]
   );
 
@@ -2068,8 +2074,7 @@ const QuestionsScreen: React.FC<{
           (s) =>
             s.slot === 'primary' && (s.takes.length > 0 || s.captureUnavailable)
         );
-        const manualPrimary =
-          q.type === 'short' || q.type === 'essay' || mediaPrimary;
+        const manualPrimary = isWrittenQuestionType(q.type) || mediaPrimary;
 
         if (manualPrimary) {
           qStats.manualTotal++;
@@ -2100,8 +2105,7 @@ const QuestionsScreen: React.FC<{
           manualTotal: 0,
         };
         // With no responses yet, fall back to the question's own shape.
-        const manualByShape =
-          q.type === 'short' || q.type === 'essay' || !!q.recording;
+        const manualByShape = isWrittenQuestionType(q.type) || !!q.recording;
         const showAuto =
           stats.autoTotal > 0 || (stats.manualTotal === 0 && !manualByShape);
         const showManual =

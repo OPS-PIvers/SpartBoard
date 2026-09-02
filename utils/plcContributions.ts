@@ -24,6 +24,7 @@ import type {
   QuizQuestion,
   QuizResponse,
 } from '@/types';
+import { isWrittenQuestionType } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
@@ -102,10 +103,9 @@ function buildContributionResponse(
     // contribution's per-question points and aggregate score in sync with
     // the teacher's manual grading. Ungraded written questions fall back to
     // zero points until the teacher enters a grade.
-    const manualGrade =
-      q.type === 'short' || q.type === 'essay'
-        ? readSlotGrade(response.grading, q.id)
-        : undefined;
+    const manualGrade = isWrittenQuestionType(q.type)
+      ? readSlotGrade(response.grading, q.id)
+      : undefined;
     const grade = applyMediaSlots(
       q,
       response,

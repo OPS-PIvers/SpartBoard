@@ -14,6 +14,7 @@ import {
   QuizQuestion,
   QuizQuestionType,
   QuizResponse,
+  isWrittenQuestionType,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
@@ -38,7 +39,7 @@ function quizGradeFnWithManualGrades(
   response?: QuizResponse
 ) {
   const manualGrade =
-    (question.type === 'short' || question.type === 'essay') && response
+    isWrittenQuestionType(question.type) && response
       ? readSlotGrade(response.grading, question.id)
       : undefined;
   const base = gradeAnswer(question, studentAnswer, manualGrade);
