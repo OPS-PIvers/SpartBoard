@@ -49,11 +49,16 @@ const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
   'GOOGLE_OAUTH_REFRESH_TOKEN_KEY'
 );
 
-/** Every secret this module's entry points need, including the sweep's. */
-export const QUIZ_MEDIA_ARCHIVE_SECRETS = [
+/** Just the Google OAuth trio — all a Drive-read entry point needs. */
+export const QUIZ_MEDIA_GOOGLE_SECRETS = [
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
+];
+
+/** Every secret this module's entry points need, including the sweep's. */
+export const QUIZ_MEDIA_ARCHIVE_SECRETS = [
+  ...QUIZ_MEDIA_GOOGLE_SECRETS,
   CLASSLINK_CLIENT_ID,
   CLASSLINK_CLIENT_SECRET,
   CLASSLINK_TENANT_URL,

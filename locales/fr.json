@@ -2025,6 +2025,20 @@
     "unavailable": {
       "title": "Your microphone did not work",
       "body": "We could not use a microphone on this device, so there is no recording to send. This question goes to your teacher ungraded, and they will decide what to do about it. Move on to the next question."
+    },
+    "playback": {
+      "label": "Your recorded answer",
+      "play": "Play your recording",
+      "loading": "Loading your recording…",
+      "gradedTake": "Your teacher graded take {{n}}.",
+      "archiving": "Your recording is still being saved. Check back in a few minutes.",
+      "failed": "Your recording could not be saved, so there is nothing to play here. Your teacher can still see that you recorded an answer.",
+      "deleted": "This recording has been deleted and can no longer be played.",
+      "missing": "There is no recording saved for this question.",
+      "tooLarge": "This recording is too large to play here. Ask your teacher to play it for you.",
+      "error": "Your recording did not load.",
+      "retry": "Try again",
+      "provisionalScore": "Provisional — your teacher hasn’t graded your recorded answer yet, so this score will change."
     }
   }
 }
