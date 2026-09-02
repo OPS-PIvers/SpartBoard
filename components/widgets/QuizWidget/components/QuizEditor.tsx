@@ -301,7 +301,12 @@ const QuestionRow = React.memo(function QuestionRow({
         className={`shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
       >
         {question.type === 'free-response' ? 'FRQ' : question.type}
-        {question.recording && <Mic className="w-2.5 h-2.5" aria-hidden />}
+        {isFreeResponseType(question.type) && question.recording && (
+          <>
+            <Mic className="w-2.5 h-2.5" aria-hidden />
+            <span className="sr-only">spoken</span>
+          </>
+        )}
       </span>
       <span className="flex-1 text-sm text-slate-700 truncate">
         {question.text || (
@@ -448,7 +453,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const q = selectedQuestion;
   const typeMeta = QUESTION_TYPES.find((entry) => entry.value === q.type);
   const timeLimitLockedByRecording = mediaResponseAllowed && !!q.recording;
-  const spoken = mediaResponseAllowed && !!q.recording;
   const timeLimitRecordingHint = t(
     'quizMediaResponse.authoring.timeLimitDisabledHint'
   );
@@ -498,7 +502,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 if (droppingRubric) manualPointsByQuestion.current.delete(q.id);
                 // The Format row (Spoken) no longer has a "remove" affordance
                 // for non-written types, so drop any stray recording block here.
-                const droppingRecording = !isWritten && !!q.recording;
+                const droppingRecording =
+                  mediaResponseAllowed && !isWritten && !!q.recording;
                 updateQuestion(q.id, {
                   type: nextType,
                   incorrectAnswers: nextType === 'MC' ? ['', ''] : [],
@@ -655,7 +660,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           />
         ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
-            {!spoken && (
+            {!timeLimitLockedByRecording && (
               <>
                 <div>
                   <label className={labelClass}>Placeholder (optional)</label>

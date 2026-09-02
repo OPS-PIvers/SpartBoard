@@ -12,7 +12,7 @@ import {
 } from './AudioCaptureDevView';
 
 const EXPECTED: Record<string, RegExp> = {
-  'rc-disabled': /Students record their answer instead/i,
+  'rc-typed': /^Format$/,
   'rc-enabled-defaults': /When thinking time runs out/i,
   'rc-clamped-limit': /Capped at 300s/i,
   'rc-take-limit': /Takes allowed/i,
@@ -35,18 +35,18 @@ describe('RecordingControlsDevView', () => {
     expect(screen.getByText(/Question shuffle has no effect/i)).toBeTruthy();
   });
 
-  it('seeds the enabled-defaults fixture with the switch on', () => {
+  it('seeds the enabled-defaults fixture on Spoken', () => {
     render(<RecordingControlsDevView state="rc-enabled-defaults" />);
-    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe(
-      'true'
-    );
+    expect(
+      screen.getByRole('tab', { name: 'Spoken' }).getAttribute('aria-selected')
+    ).toBe('true');
   });
 
-  it('seeds the disabled fixture with the switch off', () => {
-    render(<RecordingControlsDevView state="rc-disabled" />);
-    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe(
-      'false'
-    );
+  it('seeds the typed fixture on Typed', () => {
+    render(<RecordingControlsDevView state="rc-typed" />);
+    expect(
+      screen.getByRole('tab', { name: 'Typed' }).getAttribute('aria-selected')
+    ).toBe('true');
   });
 
   it('shares no state key across the three dev fixture sets', () => {

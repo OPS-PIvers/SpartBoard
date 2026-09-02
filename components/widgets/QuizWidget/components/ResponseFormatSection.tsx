@@ -74,9 +74,7 @@ export const ResponseFormatSection: React.FC<ResponseFormatSectionProps> = ({
   const spoken: ResponseFormat = recording ? 'spoken' : 'typed';
   const ceiling = recordingLimitCeiling(recordingModesForQuestion(question));
 
-  // Session-only memory of the block a question had when last set to Typed,
-  // so switching back to Spoken in the same editing session restores it
-  // instead of resetting to defaults. Keyed by question id; lost on remount.
+  // Remembers the block last set to Typed so Spoken restores it; cleared whenever a non-FRQ question is selected.
   const lastDisabledRef = React.useRef<Map<string, RecordingConfig>>(new Map());
 
   const patch = (updates: Partial<RecordingConfig>) => {
@@ -120,7 +118,7 @@ export const ResponseFormatSection: React.FC<ResponseFormatSectionProps> = ({
   return (
     <div className="space-y-3">
       <div>
-        <label className={labelClass}>{tk('formatLabel')}</label>
+        <span className={labelClass}>{tk('formatLabel')}</span>
         <SegmentedControl
           value={spoken}
           onChange={setFormat}

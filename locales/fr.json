@@ -2059,7 +2059,6 @@
       "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
-      "unsupportedType": "Spoken answers are available on Free Response questions. This question type keeps its own answer input.",
       "advisory": {
         "title": "As authored",
         "slots_one": "Records up to {{count}} slot per student.",

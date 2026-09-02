@@ -12,7 +12,7 @@ import type { QuizQuestion } from '@/types';
 
 // Prefixed so no key collides with AUDIO_CAPTURE_STATES in the harness picker.
 export const RECORDING_CONTROL_STATES = [
-  'rc-disabled',
+  'rc-typed',
   'rc-enabled-defaults',
   'rc-clamped-limit',
   'rc-take-limit',
@@ -33,7 +33,7 @@ const baseQuestion = (): QuizQuestion => ({
 
 function seedQuestion(state: RecordingControlStateKey): QuizQuestion {
   const q = baseQuestion();
-  if (state === 'rc-disabled') return { ...q, timeLimit: 45 };
+  if (state === 'rc-typed') return { ...q, timeLimit: 45 };
   if (state === 'rc-clamped-limit') {
     // Over the audio ceiling, as an imported quiz can be.
     return {
