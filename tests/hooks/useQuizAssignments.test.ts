@@ -1274,6 +1274,180 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     );
     expect(updatedRefs).toContain(refFresh);
   });
+
+  it('keeps mediaResponseEnabled when a revoked quiz still holds committed takes', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      // Recording block removed upstream — new capture must stop.
+      questions: [],
+      version: 6,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 5 },
+        // The assignment's own marker is what gates the artifact scan now.
+        mediaResponseEnabled: true,
+      }),
+    });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
+      docs: [
+        {
+          data: () => ({
+            answers: [{ questionId: 'q1', artifacts: [{ id: 'a1' }] }],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    // Deleting the marker here hid the grader, withheld the score and denied
+    // playback for takes the student already committed.
+    expect(
+      (sessionCall[1] as { mediaResponseEnabled: unknown }).mediaResponseEnabled
+    ).toBe(true);
+  });
+
+  it('clears mediaResponseEnabled when no response carries an artifact', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 7,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 6 },
+        mediaResponseEnabled: true,
+      }),
+    });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
+      docs: [{ data: () => ({ answers: [{ questionId: 'q1' }] }) }],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(
+      (sessionCall[1] as { mediaResponseEnabled: unknown }).mediaResponseEnabled
+    ).not.toBe(true);
+  });
+
+  it('scans no responses for artifacts when the assignment never recorded', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 8,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 7 },
+          // No mirror field — falls back to the session, which also never recorded.
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ mediaResponseEnabled: undefined }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    // Only the preSyncVersion==0 tagging query — no all-responses artifact scan.
+    expect(mockGetDocs).toHaveBeenCalledTimes(1);
+  });
+
+  it('strands committed takes on a pre-existing assignment doc with no mirror field', async () => {
+    // The assignment doc predates the mediaResponseEnabled mirror entirely
+    // (undefined, not false) — the session doc is the only place recording
+    // history survives, so it must be consulted before the marker is wiped.
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 9,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 8 },
+          // No mediaResponseEnabled key at all — a doc written before the mirror existed.
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ mediaResponseEnabled: true }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
+      docs: [
+        {
+          data: () => ({
+            answers: [{ questionId: 'q1', artifacts: [{ id: 'a1' }] }],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!assignmentCall)
+      throw new Error('expected batch.update on assignment doc');
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    // Both writes must keep the marker true — clearing it would strand the committed take.
+    expect(
+      (assignmentCall[1] as { mediaResponseEnabled: unknown })
+        .mediaResponseEnabled
+    ).toBe(true);
+    expect(
+      (sessionCall[1] as { mediaResponseEnabled: unknown }).mediaResponseEnabled
+    ).toBe(true);
+  });
 });
 
 describe('useQuizAssignments - publishAssignmentScores', () => {

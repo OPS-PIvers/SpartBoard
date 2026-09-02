@@ -34,6 +34,8 @@ const ROWS: MediaResponseRow[] = [
     sessionId: 's1',
     responseKey: 'r1',
     questionId: 'q-fractions-3',
+    questionText:
+      'Read the mixed number aloud, then explain how you convert it',
     quizTitle: 'Fractions Review — Unit 4',
     teacherUid: 't1',
     teacherEmail: 'r.alvarez@orono.k12.mn.us',
@@ -60,6 +62,8 @@ const ROWS: MediaResponseRow[] = [
     sessionId: 's1',
     responseKey: 'r2',
     questionId: 'q-fractions-3',
+    questionText:
+      'Read the mixed number aloud, then explain how you convert it',
     quizTitle: 'Fractions Review — Unit 4',
     teacherUid: 't1',
     teacherEmail: 'r.alvarez@orono.k12.mn.us',
@@ -89,6 +93,12 @@ const ROWS: MediaResponseRow[] = [
       {
         artifactId: 'c1',
         archiveStatus: 'failed',
+        hasStorageObject: true,
+      },
+      {
+        artifactId: 'c3',
+        archiveStatus: 'lost',
+        archiveError: 'Recorded audio is no longer in Storage.',
         hasStorageObject: true,
       },
       {

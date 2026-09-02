@@ -26,7 +26,11 @@ import type {
 } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
-import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import {
+  applyMediaSlots,
+  questionPointsFor,
+  readSlotGrade,
+} from '@/utils/mediaGrading';
 
 const PLC_CONTRIBUTION_SCHEMA_VERSION = 1 as const;
 
@@ -81,7 +85,6 @@ function resolveStudentDisplayName(
 function buildContributionResponse(
   response: QuizResponse,
   questions: QuizQuestion[],
-  maxPoints: number,
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
@@ -112,11 +115,16 @@ function buildContributionResponse(
     pointsEarned += grade.pointsEarned;
   }
 
+  // An excused question leaves only this student's denominator.
+  const studentMaxPoints = questions.reduce(
+    (sum, q) => sum + questionPointsFor(q, response),
+    0
+  );
   const status: 'completed' | 'in-progress' =
     response.status === 'completed' ? 'completed' : 'in-progress';
   const scorePercent =
-    status === 'completed' && maxPoints > 0
-      ? Math.round((pointsEarned / maxPoints) * 100)
+    status === 'completed' && studentMaxPoints > 0
+      ? Math.round((pointsEarned / studentMaxPoints) * 100)
       : null;
 
   return {
@@ -130,7 +138,7 @@ function buildContributionResponse(
     status,
     scorePercent,
     pointsEarned,
-    maxPoints,
+    maxPoints: studentMaxPoints,
     tabSwitchWarnings: response.tabSwitchWarnings ?? 0,
     submittedAt: status === 'completed' ? (response.submittedAt ?? null) : null,
     pointsByQuestionId,
@@ -167,10 +175,6 @@ export function buildContributionDoc(
     return true;
   });
 
-  const maxPoints = dedupedQuestions.reduce(
-    (sum, q) => sum + (q.points ?? 1),
-    0
-  );
   const questionsSnapshot: PlcContributionQuestion[] = dedupedQuestions.map(
     (q) => ({
       id: q.id,
@@ -179,13 +183,7 @@ export function buildContributionDoc(
     })
   );
   const contributionResponses = responses.map((r) =>
-    buildContributionResponse(
-      r,
-      dedupedQuestions,
-      maxPoints,
-      pinToName,
-      byStudentUid
-    )
+    buildContributionResponse(r, dedupedQuestions, pinToName, byStudentUid)
   );
 
   return {

@@ -3249,6 +3249,11 @@ export interface GradeResult {
    * Classroom pushes and marked provisional wherever a total displays.
    */
   state: GradeState;
+  /**
+   * The teacher excused this question for this student: terminal, and worth
+   * 0 of 0, so the percentage is computed over the questions that remain.
+   */
+  excused?: boolean;
 }
 
 /**
@@ -3823,6 +3828,8 @@ export type ArtifactArchiveStatus =
   | 'syncing'
   | 'archived'
   | 'failed'
+  /** Terminal: archival gave up, so the sweep stops retrying and stops mailing. */
+  | 'lost'
   | 'deleting'
   | 'deleted'
   | 'delete-failed';
@@ -3835,6 +3842,8 @@ export interface ArtifactArchiveEntry {
   archiveStartedAt?: number;
   /** Server time of the most recent failed archive attempt; drives the sweep window. */
   lastAttemptAt?: number;
+  /** Failed attempts so far; at `MAX_ARCHIVE_ATTEMPTS` the status becomes `'lost'`. */
+  attemptCount?: number;
   archivedAt?: number;
   archiveError?: string;
   /** Drive holds the file but the Storage transit copy survived; the sweep retries the delete. */
@@ -4084,6 +4093,13 @@ export interface WrittenAnswerGrade {
   gradingSnapshot?: string;
   /** Phase 2 (annotations). Empty/undefined when no highlights were added. */
   annotations?: WrittenAnswerAnnotation[];
+  /**
+   * Unit of the `annotations` offsets. Absent means character offsets into
+   * `gradingSnapshot` (every grade written before media responses); `'ms'`
+   * means milliseconds into the graded audio take, which only the audio
+   * playback surfaces can render.
+   */
+  annotationUnit?: 'chars' | 'ms';
   /** Phase 3 (rubrics). Empty/undefined in Phase 1. */
   rubricScores?: WrittenAnswerRubricScore[];
   /**
@@ -4622,6 +4638,12 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Frozen at creation from the org-wide `assignment-modes` admin setting.
    *  Mirrors QuizSession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+  /**
+   * Teacher-side twin of `QuizSession.mediaResponseEnabled`, written by the
+   * same code path so a sync can tell whether this assignment ever recorded
+   * without reading the session doc. Absent means it never did.
+   */
+  mediaResponseEnabled?: boolean;
   /**
    * Score-publication visibility level. Absent / `'none'` means scores
    * have not been published to students yet. Mirrored to the matching

@@ -145,7 +145,8 @@ export function playbackBlockReason(
   ) {
     return 'deleted';
   }
-  if (status === 'failed') return 'failed';
+  // A terminal 'lost' is a failed archive that will never be retried.
+  if (status === 'failed' || status === 'lost') return 'failed';
   if (status !== 'archived' || typeof entry?.driveFileId !== 'string') {
     return 'archiving';
   }

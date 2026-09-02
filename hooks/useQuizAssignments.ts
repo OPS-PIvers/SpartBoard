@@ -78,6 +78,7 @@ import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 
 /** Import-mode picker result for shared-assignment paste flows. */
@@ -905,7 +906,11 @@ export const useQuizAssignments = (
       const batch = writeBatch(db);
       batch.set(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        assignment
+        // Teacher-side twin of the session marker, so a later sync knows
+        // whether to look for committed takes without reading the session.
+        sessionHasRecording
+          ? { ...assignment, mediaResponseEnabled: true }
+          : assignment
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), session);
       await batch.commit();
@@ -1965,6 +1970,40 @@ export const useQuizAssignments = (
           where('preSyncVersion', '==', 0)
         )
       );
+      // Revoking the recording block stops NEW capture; it must not strand
+      // takes already committed. Clearing the marker would hide the grader,
+      // withhold the score and deny playback for work the student finished,
+      // so the marker is sticky while any response still carries artifacts.
+      // The already-loaded assignment carries the same marker, so a quiz that
+      // never recorded costs no extra reads at all.
+      let stickyMediaMarker = false;
+      if (!syncHasRecording && assignment.mediaResponseEnabled !== false) {
+        // Absent mirror predates this field; fall back to the session doc.
+        let shouldScanArtifacts = assignment.mediaResponseEnabled === true;
+        if (assignment.mediaResponseEnabled === undefined) {
+          const sessionSnap = await getDoc(
+            doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+          );
+          const sessionData = sessionSnap.data() as
+            | { mediaResponseEnabled?: boolean }
+            | undefined;
+          shouldScanArtifacts =
+            shouldScanArtifacts || !!sessionData?.mediaResponseEnabled;
+        }
+        if (shouldScanArtifacts) {
+          const allResponses = await getDocs(
+            collection(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              assignmentId,
+              RESPONSES_COLLECTION
+            )
+          );
+          stickyMediaMarker = (allResponses?.docs ?? []).some((d) =>
+            responseHasArtifacts(d.data())
+          );
+        }
+      }
       const now = Date.now();
       const responsesToTag = responsesSnap.docs;
 
@@ -1991,6 +2030,9 @@ export const useQuizAssignments = (
           groupId: assignment.sync.groupId,
           syncedVersion: canonical.version,
         },
+        // Kept in lockstep with the session marker below.
+        mediaResponseEnabled:
+          syncHasRecording || stickyMediaMarker ? true : deleteField(),
         updatedAt: now,
       });
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
@@ -2000,8 +2042,10 @@ export const useQuizAssignments = (
         // publicQuestions; deleteField clears stale entries when the
         // canonical edit removed the last stimulus.
         stimuli: canonicalStimuli.length > 0 ? canonicalStimuli : deleteField(),
-        // Re-derived every sync, so revoking the gate clears a stale marker.
-        mediaResponseEnabled: syncHasRecording ? true : deleteField(),
+        // Re-derived every sync, so revoking the gate clears a stale marker —
+        // unless committed takes still depend on it.
+        mediaResponseEnabled:
+          syncHasRecording || stickyMediaMarker ? true : deleteField(),
       });
       // 2 writes already used (assignment + session); fill the rest.
       const firstChunkSize = Math.min(

@@ -58,7 +58,11 @@ export interface ExportableResponse {
   tabSwitchWarnings?: number;
   /** Per-question manual grades; read for rubric score export columns. */
   grading?: {
-    [questionId: string]: { rubricScores?: WrittenAnswerRubricScore[] };
+    [questionId: string]: {
+      rubricScores?: WrittenAnswerRubricScore[];
+      /** Excused: terminal, and out of THIS student's denominator. */
+      excused?: boolean;
+    };
   };
 }
 
@@ -142,7 +146,12 @@ export function buildResultsSheetData<
     return 'Student';
   };
 
-  const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
+  // Per-row, because an excused question leaves only that student's total.
+  const rowMaxPoints = (r: R): number =>
+    questions.reduce(
+      (sum, q) => (r.grading?.[q.id]?.excused ? sum : sum + (q.points ?? 1)),
+      0
+    );
 
   // Gated on the quiz definition alone: any question carrying a snapshot
   // always emits its criterion columns, ungraded responses render empty
@@ -235,9 +244,10 @@ export function buildResultsSheetData<
       const grade = grades.get(q.id);
       return grade ? sum + grade.pointsEarned : sum;
     }, 0);
+    const rowMax = rowMaxPoints(r);
     const scoreDisplay =
-      r.status === 'completed' && maxPoints > 0
-        ? `${Math.round((earnedPoints / maxPoints) * 100)}%${awaitingGrade ? ' (provisional)' : ''}`
+      r.status === 'completed' && rowMax > 0
+        ? `${Math.round((earnedPoints / rowMax) * 100)}%${awaitingGrade ? ' (provisional)' : ''}`
         : '';
     return [
       timestamp,
@@ -248,7 +258,7 @@ export function buildResultsSheetData<
       r.status,
       scoreDisplay,
       formatExportPoints(earnedPoints),
-      String(maxPoints),
+      String(rowMax),
       warnings,
       submitted,
       ...answerCols,

@@ -89,10 +89,8 @@ import {
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
 import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
-import {
-  hasUngradedRecording,
-  selectPlaybackTake,
-} from '@/utils/responseArtifacts';
+import { selectPlaybackTake } from '@/utils/responseArtifacts';
+import { hasUngradedRecording } from '@/utils/mediaGrading';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
@@ -2574,7 +2572,11 @@ const ActiveQuiz: React.FC<{
       )
     : [];
   const committedTakes = currentQuestion
-    ? countCommittedTakes(myResponse?.answers ?? [], currentQuestion.id)
+    ? countCommittedTakes(
+        myResponse?.answers ?? [],
+        currentQuestion.id,
+        myResponse?.artifactArchive
+      )
     : 0;
   const recordingSlotClosed = currentQuestion
     ? isRecordingSlotClosed(myResponse?.answers ?? [], currentQuestion.id)
@@ -3997,7 +3999,8 @@ export const PublishedScoreReview: React.FC<{
     hasUngradedRecording(
       myResponse.answers,
       myResponse.grading,
-      publicQuestions.map((q) => q.id)
+      publicQuestions.map((q) => q.id),
+      myResponse.artifactArchive
     );
 
   // Watermark overlay — rendered above content via fixed positioning, below
@@ -4193,7 +4196,7 @@ export const PublishedScoreReview: React.FC<{
                 ? 'Your written response is still being graded. Check back soon.'
                 : recordingAwaitingGrade
                   ? t('quizMediaResponse.playback.provisionalScore')
-                  : 'Your score is being prepared. Check back soon.'}
+                  : t('quizMediaResponse.playback.scorePending')}
             </p>
           )}
         </section>
@@ -4213,6 +4216,7 @@ export const PublishedScoreReview: React.FC<{
                 const writtenGrade = isWritten
                   ? myResponse.grading?.[q.id]
                   : undefined;
+                const slotGrade = myResponse.grading?.[q.id];
                 // Written-response questions don't have a binary
                 // right/wrong outcome — a 7/10 essay is partial credit,
                 // not "incorrect". Suppress the red-X / red-border
@@ -4235,7 +4239,13 @@ export const PublishedScoreReview: React.FC<{
                 const hasRecordedTake =
                   mediaEnabled &&
                   !!responseKey &&
-                  selectPlaybackTake(myResponse.answers, q.id) !== null;
+                  selectPlaybackTake(
+                    myResponse.answers,
+                    q.id,
+                    'primary',
+                    undefined,
+                    myResponse.artifactArchive
+                  ) !== null;
                 return (
                   <article
                     key={q.id}
@@ -4329,13 +4339,11 @@ export const PublishedScoreReview: React.FC<{
                           questionId={q.id}
                           answers={myResponse.answers}
                           artifactArchive={myResponse.artifactArchive}
-                          gradedTakeIndex={
-                            // Brief 3.4's field; absent until that lands.
-                            (
-                              myResponse.grading?.[q.id] as unknown as
-                                | { gradedTakeIndex?: number }
-                                | undefined
-                            )?.gradedTakeIndex
+                          gradedTakeIndex={slotGrade?.gradedTakeIndex}
+                          annotations={
+                            slotGrade?.annotationUnit === 'ms'
+                              ? slotGrade.annotations
+                              : undefined
                           }
                           light={light}
                         />
@@ -4532,7 +4540,10 @@ export const WrittenAnswerReview: React.FC<{
     return null;
   }
   const hasGrade = !!grade;
-  const annotations = grade?.annotations ?? [];
+  // `'ms'` annotations index into an audio take, not this text; the playback
+  // card renders those. Anchoring them here would highlight arbitrary spans.
+  const annotations =
+    grade?.annotationUnit === 'ms' ? [] : (grade?.annotations ?? []);
   const snapshot =
     grade?.gradingSnapshot ??
     (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');

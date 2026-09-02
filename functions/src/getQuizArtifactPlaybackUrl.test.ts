@@ -209,6 +209,7 @@ describe('playbackBlockReason', () => {
     expect(playbackBlockReason(undefined)).toBe('archiving');
     expect(playbackBlockReason({ archiveStatus: 'syncing' })).toBe('archiving');
     expect(playbackBlockReason({ archiveStatus: 'failed' })).toBe('failed');
+    expect(playbackBlockReason({ archiveStatus: 'lost' })).toBe('failed');
     expect(playbackBlockReason({ archiveStatus: 'deleting' })).toBe('deleted');
     expect(playbackBlockReason({ archiveStatus: 'deleted' })).toBe('deleted');
     expect(playbackBlockReason({ archiveStatus: 'delete-failed' })).toBe(
@@ -268,6 +269,22 @@ describe('selectPlaybackTake', () => {
 
   it('returns null when the question has no audio take', () => {
     expect(selectPlaybackTake([], 'q1', 'primary')).toBeNull();
+  });
+});
+
+// INT-B8: one composite grading key. Drift between this and the client's
+// `gradingKey` (utils/mediaGrading.ts) would grade the addendum under the
+// primary's key and silently overwrite it. `functions/` has no path alias to
+// the client tree, so the contract is pinned as a shared table here and
+// asserted against `gradingKey` in utils/mediaGrading.test.ts.
+export const GRADING_KEY_CONTRACT: [string, string, string][] = [
+  ['q1', 'primary', 'q1'],
+  ['q1', 'addendum', 'q1::addendum'],
+];
+
+describe('gradingKeyFor matches the client helper for every ArtifactSlot', () => {
+  it.each(GRADING_KEY_CONTRACT)('%s / %s', (questionId, slot, expected) => {
+    expect(gradingKeyFor(questionId, slot)).toBe(expected);
   });
 });
 

@@ -177,4 +177,37 @@ describe('QuizResults — per-slot question stats', () => {
     expect(screen.getByText(/^0 Correct$/)).toBeTruthy();
     expect(screen.getByText(/^1 Missed$/)).toBeTruthy();
   });
+
+  // INT-B3: an `unresponded` marker is not an answer. Counting it as one
+  // scored every passed-over slot as answered-and-missed.
+  it('does not count an unresponded entry as answered-and-missed', () => {
+    const unrespondedResponse = {
+      studentUid: 'uid-3',
+      _responseKey: 'uid-3',
+      pin: '3333',
+      status: 'completed',
+      submittedAt: 200,
+      tabSwitchWarnings: 0,
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 50,
+          unresponded: 'passed',
+        },
+      ],
+    } as unknown as QuizResponse;
+
+    render(
+      <QuizResults
+        quiz={legacyQuiz}
+        responses={[unrespondedResponse]}
+        config={{ view: 'results' } as unknown as QuizConfig}
+        onBack={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByText('Question results'));
+    expect(screen.getByText(/^0 Correct$/)).toBeTruthy();
+    expect(screen.getByText(/^0 Missed$/)).toBeTruthy();
+  });
 });

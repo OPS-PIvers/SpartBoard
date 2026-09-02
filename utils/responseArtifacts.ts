@@ -1,5 +1,6 @@
 import type {
   ArtifactArchiveEntry,
+  ArtifactArchiveStatus,
   QuizResponseAnswer,
   ResponseArtifact,
   ArtifactSlot,
@@ -12,11 +13,35 @@ export function isArtifactPlayable(
   return entry?.archiveStatus === 'archived' && !!entry.driveFileId;
 }
 
+// Terminal-dead archive statuses: nothing rescues a take from these.
+const DEAD_ARCHIVE_STATUSES = new Set<string>([
+  'failed',
+  'lost',
+] satisfies ArtifactArchiveStatus[]);
+
+/**
+ * Does this artifact count as a real take? The server-owned archive map is
+ * authoritative: an archived entry counts whatever the client wrote, and a
+ * failed upload is dropped only when no archive entry rescued it.
+ */
+export function artifactCountsAsTake(
+  artifact: { uploadState?: string } | undefined,
+  entry: { archiveStatus?: string; driveFileId?: string } | undefined
+): boolean {
+  if (!artifact) return false;
+  if (entry?.archiveStatus === 'archived' && !!entry.driveFileId) return true;
+  if (artifact.uploadState !== 'failed') return true;
+  const status = entry?.archiveStatus;
+  if (!status) return false;
+  return !DEAD_ARCHIVE_STATUSES.has(status);
+}
+
 /** What the student sees instead of a player when a take can't be played. */
 export type ArtifactPlaybackState =
   | 'playable'
   | 'archiving'
   | 'failed'
+  | 'lost'
   | 'deleted';
 
 /**
@@ -36,6 +61,8 @@ export function resolveArtifactPlaybackState(
   ) {
     return 'deleted';
   }
+  // Terminal: archival gave up, distinct from a 'failed' attempt still retrying.
+  if (status === 'lost') return 'lost';
   if (status === 'failed') return 'failed';
   return 'archiving';
 }
@@ -43,6 +70,8 @@ export function resolveArtifactPlaybackState(
 export interface PlaybackTakeSelection {
   artifact: ResponseArtifact;
   takeIndex: number;
+  /** 1-based position among the takes that are visible on both sides. */
+  displayIndex: number;
 }
 
 /**
@@ -55,7 +84,8 @@ export function selectPlaybackTake(
   answers: readonly QuizResponseAnswer[],
   questionId: string,
   slot: ArtifactSlot = 'primary',
-  gradedTakeIndex?: number
+  gradedTakeIndex?: number,
+  archive?: Record<string, ArtifactArchiveEntry>
 ): PlaybackTakeSelection | null {
   const candidates: PlaybackTakeSelection[] = [];
   for (const answer of answers) {
@@ -64,44 +94,32 @@ export function selectPlaybackTake(
       (a) => a.kind === 'audio' && (a.slot ?? 'primary') === slot
     );
     if (!artifact) continue;
-    candidates.push({ artifact, takeIndex: answer.takeIndex ?? 0 });
+    if (!artifactCountsAsTake(artifact, archive?.[artifact.id])) continue;
+    candidates.push({
+      artifact,
+      takeIndex: answer.takeIndex ?? 0,
+      displayIndex: 0,
+    });
   }
   if (candidates.length === 0) return null;
+  // Numbering is positional, so a rescued or dropped take never leaves a hole.
+  candidates.sort((a, b) => a.takeIndex - b.takeIndex);
+  candidates.forEach((c, i) => {
+    c.displayIndex = i + 1;
+  });
   if (typeof gradedTakeIndex === 'number') {
     const pinned = candidates.find((c) => c.takeIndex === gradedTakeIndex);
     if (pinned) return pinned;
   }
-  return candidates.reduce((best, c) =>
-    c.takeIndex > best.takeIndex ? c : best
-  );
+  return candidates[candidates.length - 1];
 }
 
-/**
- * Composite grading key; the unsuffixed key is the primary slot, matching
- * every `grading` entry written before slots existed.
- */
-export function artifactGradingKey(
-  questionId: string,
-  slot: ArtifactSlot = 'primary'
-): string {
-  return slot === 'primary' ? questionId : `${questionId}::${slot}`;
-}
-
-/**
- * Interim provisional detector for recording slots: a committed audio take
- * with no `grading` entry is still owed a teacher grade. Replace with Brief
- * 3.4's per-slot `GradeResult` computation once that lands.
- */
-export function hasUngradedRecording(
-  answers: readonly QuizResponseAnswer[],
-  grading: Record<string, unknown> | undefined,
-  questionIds: readonly string[]
-): boolean {
-  return questionIds.some((questionId) => {
-    const take = selectPlaybackTake(answers, questionId);
-    if (!take) return false;
-    return (
-      grading?.[artifactGradingKey(questionId, take.artifact.slot)] == null
-    );
+/** Does this response doc carry any recorded artifact at all? Shape-tolerant. */
+export function responseHasArtifacts(data: unknown): boolean {
+  const answers = (data as { answers?: unknown } | undefined)?.answers;
+  if (!Array.isArray(answers)) return false;
+  return answers.some((a) => {
+    const artifacts = (a as { artifacts?: unknown } | undefined)?.artifacts;
+    return Array.isArray(artifacts) && artifacts.length > 0;
   });
 }
