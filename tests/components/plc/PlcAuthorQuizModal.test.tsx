@@ -56,6 +56,7 @@ vi.mock('@/context/useAuth', () => ({
       displayName: 'Test Teacher',
       email: 'test@school.edu',
     },
+    canAccessQuizMediaResponse: vi.fn(() => false),
   })),
 }));
 

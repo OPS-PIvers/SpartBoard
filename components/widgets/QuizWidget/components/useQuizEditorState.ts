@@ -156,10 +156,20 @@ export function useQuizEditorState({
     [questions, selectedId]
   );
 
+  // An explicit `undefined` deletes the key rather than persisting it as a
+  // present-but-undefined field, so a question with no recording block saves
+  // exactly as it does today.
   const updateQuestion = useCallback(
     (id: string, updates: Partial<QuizQuestion>) => {
       setQuestions((prev) =>
-        prev.map((q) => (q.id === id ? { ...q, ...updates } : q))
+        prev.map((q) => {
+          if (q.id !== id) return q;
+          const next = { ...q, ...updates } as Record<string, unknown>;
+          for (const [key, value] of Object.entries(updates)) {
+            if (value === undefined) delete next[key];
+          }
+          return next as unknown as QuizQuestion;
+        })
       );
     },
     []

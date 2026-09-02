@@ -49,6 +49,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: { uid: 'uid-test', displayName: 'Test Teacher' },
     canAccessFeature: vi.fn(() => false),
+    canAccessQuizMediaResponse: vi.fn(() => false),
   })),
 }));
 
