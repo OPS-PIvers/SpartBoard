@@ -88,6 +88,15 @@ function runSettingsFields(
   return fields;
 }
 
+/** Mirrorable header fields: title/count plus the run-settings a pickup inherits. */
+export interface PlcQuizHeaderPatch {
+  title?: string;
+  questionCount?: number;
+  sessionMode?: QuizSessionMode;
+  sessionOptions?: QuizSessionOptions;
+  attemptLimit?: number | null;
+}
+
 interface UsePlcQuizzesResult {
   quizzes: PlcQuizEntry[];
   loading: boolean;
@@ -111,7 +120,7 @@ interface UsePlcQuizzesResult {
    */
   mirrorPlcQuizHeader: (
     plcQuizId: string,
-    patch: { title?: string; questionCount?: number }
+    patch: PlcQuizHeaderPatch
   ) => Promise<void>;
   /**
    * Unshare (soft-delete, Decision 3.1) a PLC quiz entry. Any member can
@@ -276,16 +285,22 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
   );
 
   const mirrorPlcQuizHeader = useCallback(
-    async (
-      plcQuizId: string,
-      patch: { title?: string; questionCount?: number }
-    ): Promise<void> => {
+    async (plcQuizId: string, patch: PlcQuizHeaderPatch): Promise<void> => {
       if (!plcId || !user) return;
       try {
         const fields: Record<string, unknown> = { updatedAt: Date.now() };
         if (patch.title !== undefined) fields.title = patch.title;
         if (patch.questionCount !== undefined) {
           fields.questionCount = patch.questionCount;
+        }
+        if (patch.sessionMode !== undefined) {
+          fields.sessionMode = patch.sessionMode;
+        }
+        if (patch.sessionOptions !== undefined) {
+          fields.sessionOptions = patch.sessionOptions;
+        }
+        if (patch.attemptLimit !== undefined) {
+          fields.attemptLimit = patch.attemptLimit;
         }
         await updateDoc(
           doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, plcQuizId),

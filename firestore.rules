@@ -1722,6 +1722,16 @@ service cloud.firestore {
       return v == null || v is timestamp || v is int;
     }
 
+    // Optional pickup run-settings on a PLC quiz header: each field may be
+    // absent; when present it must match the assignment-template shape.
+    function plcQuizRunSettingsOk() {
+      let d = request.resource.data;
+      return (!('sessionMode' in d) || d.sessionMode in ['teacher', 'auto', 'student'])
+        && (!('sessionOptions' in d) || d.sessionOptions is map)
+        && (!('attemptLimit' in d) || d.attemptLimit == null || d.attemptLimit is int)
+        && (!('quizId' in d) || d.quizId is string);
+    }
+
     // Optional NULLABLE time field well-formed: absent, null, timestamp, or legacy
     // int millis. Used for Common Assessment scheduling (opensAt / dueAt, §3.6),
     // which unlike createdAt/updatedAt may be omitted or null.
@@ -2405,13 +2415,17 @@ service cloud.firestore {
         // Create: any non-viewer member (plcCanEditContent), doc id pinned,
         // sharedBy == caller. Questions live in the synced group. Optional
         // deletedAt tombstone (Decision 3.1); shape locked via hasOnly([...]).
+        // Optional run-settings (sessionMode/sessionOptions/attemptLimit) are
+        // the pickup defaults a teammate inherits; mirrored after each publish.
         allow create: if request.auth != null
           && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt', 'deletedAt'
+               'sharedAt', 'updatedAt', 'deletedAt',
+               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId'
              ])
+          && plcQuizRunSettingsOk()
           && plcQuizId == request.resource.data.id
           && request.resource.data.sharedBy == request.auth.uid
           && request.resource.data.title is string
@@ -2426,16 +2440,18 @@ service cloud.firestore {
           && request.resource.data.updatedAt is int
           && plcSubDeletedAtOk();
 
-        // Update: non-viewer member mirrors title/questionCount/updatedAt or
-        // soft-deletes via deletedAt. Identity + attribution immutable; viewers
-        // denied.
+        // Update: non-viewer member mirrors title/questionCount/run-settings/
+        // updatedAt or soft-deletes via deletedAt. Identity + attribution
+        // immutable; viewers denied.
         allow update: if request.auth != null
           && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt', 'deletedAt'
+               'sharedAt', 'updatedAt', 'deletedAt',
+               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId'
              ])
+          && plcQuizRunSettingsOk()
           && request.resource.data.id == resource.data.id
           && request.resource.data.syncGroupId == resource.data.syncGroupId
           && request.resource.data.sharedBy == resource.data.sharedBy

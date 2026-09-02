@@ -78,24 +78,37 @@ export function unifyAssignableQuizzes(
   templates: PlcAssignmentTemplate[]
 ): AssignableQuizRow[] {
   const quizSyncGroupIds = new Set(quizzes.map((q) => q.syncGroupId));
+  // A shadowed template still carries real run-settings; prefer them over defaults.
+  const templateBySyncGroup = new Map(templates.map((t) => [t.syncGroupId, t]));
 
-  const quizRows: AssignableQuizRow[] = quizzes.map((quiz) => ({
-    source: 'quiz',
-    quiz,
-    syncGroupId: quiz.syncGroupId,
-    title: quiz.title,
-    sessionMode: quiz.sessionMode ?? DEFAULT_QUIZ_BEHAVIOR.sessionMode,
-    sessionOptions: quiz.sessionOptions ?? DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
-    // null = unlimited (explicit); only undefined (legacy/absent) falls back to the default — do NOT use ??
-    attemptLimit:
-      quiz.attemptLimit === undefined
-        ? DEFAULT_QUIZ_BEHAVIOR.attemptLimit
-        : quiz.attemptLimit,
-    sharedByName: quiz.sharedByName,
-    sharedByEmail: quiz.sharedByEmail,
-    sharedBy: quiz.sharedBy,
-    updatedAt: quiz.updatedAt,
-  }));
+  const quizRows: AssignableQuizRow[] = quizzes.map((quiz) => {
+    const shadowed = templateBySyncGroup.get(quiz.syncGroupId);
+    return {
+      source: 'quiz',
+      quiz,
+      syncGroupId: quiz.syncGroupId,
+      title: quiz.title,
+      sessionMode:
+        quiz.sessionMode ??
+        shadowed?.sessionMode ??
+        DEFAULT_QUIZ_BEHAVIOR.sessionMode,
+      sessionOptions:
+        quiz.sessionOptions ??
+        shadowed?.sessionOptions ??
+        DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
+      // null = unlimited (explicit); only undefined (legacy/absent) falls back — do NOT use ??
+      attemptLimit:
+        quiz.attemptLimit !== undefined
+          ? quiz.attemptLimit
+          : shadowed !== undefined
+            ? shadowed.attemptLimit
+            : DEFAULT_QUIZ_BEHAVIOR.attemptLimit,
+      sharedByName: quiz.sharedByName,
+      sharedByEmail: quiz.sharedByEmail,
+      sharedBy: quiz.sharedBy,
+      updatedAt: quiz.updatedAt,
+    };
+  });
 
   const templateRows: AssignableQuizRow[] = templates
     .filter((template) => !quizSyncGroupIds.has(template.syncGroupId))

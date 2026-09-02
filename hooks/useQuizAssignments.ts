@@ -53,6 +53,7 @@ import type {
   QuizScoreVisibility,
   QuizSession,
   QuizSessionMode,
+  QuizSessionOptions,
   QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
@@ -470,6 +471,37 @@ type LegacySyncLinkageShape = {
   syncedVersion?: number;
   sync?: QuizAssignmentSyncLinkage;
 };
+/** Flatten session-option toggles onto the session doc's mirror fields. */
+function sessionOptionsToSessionPatch(
+  o: QuizSessionOptions
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  if (o.tabWarningsEnabled !== undefined)
+    patch.tabWarningsEnabled = o.tabWarningsEnabled;
+  if (o.tabWarningThreshold !== undefined)
+    patch.tabWarningThreshold = o.tabWarningThreshold;
+  if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
+  if (o.showResultToStudent !== undefined)
+    patch.showResultToStudent = o.showResultToStudent;
+  if (o.showCorrectAnswerToStudent !== undefined)
+    patch.showCorrectAnswerToStudent = o.showCorrectAnswerToStudent;
+  if (o.showCorrectOnBoard !== undefined)
+    patch.showCorrectOnBoard = o.showCorrectOnBoard;
+  if (o.speedBonusEnabled !== undefined)
+    patch.speedBonusEnabled = o.speedBonusEnabled;
+  if (o.streakBonusEnabled !== undefined)
+    patch.streakBonusEnabled = o.streakBonusEnabled;
+  if (o.showPodiumBetweenQuestions !== undefined)
+    patch.showPodiumBetweenQuestions = o.showPodiumBetweenQuestions;
+  if (o.soundEffectsEnabled !== undefined)
+    patch.soundEffectsEnabled = o.soundEffectsEnabled;
+  if (o.shuffleQuestions !== undefined)
+    patch.shuffleQuestions = o.shuffleQuestions;
+  if (o.shuffleAnswerOptions !== undefined)
+    patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
+  return patch;
+}
+
 const LEGACY_SYNC_KEYS = ['syncGroupId', 'syncedVersion'] as const;
 
 /**
@@ -1302,33 +1334,10 @@ export const useQuizAssignments = (
       if ('attemptLimit' in patch)
         sessionPatch.attemptLimit = patch.attemptLimit ?? null;
       if (patch.sessionOptions) {
-        const o = patch.sessionOptions;
-        if (o.tabWarningsEnabled !== undefined)
-          sessionPatch.tabWarningsEnabled = o.tabWarningsEnabled;
-        if (o.tabWarningThreshold !== undefined)
-          sessionPatch.tabWarningThreshold = o.tabWarningThreshold;
-        if (o.blockCopyPaste !== undefined)
-          sessionPatch.blockCopyPaste = o.blockCopyPaste;
-        if (o.showResultToStudent !== undefined)
-          sessionPatch.showResultToStudent = o.showResultToStudent;
-        if (o.showCorrectAnswerToStudent !== undefined)
-          sessionPatch.showCorrectAnswerToStudent =
-            o.showCorrectAnswerToStudent;
-        if (o.showCorrectOnBoard !== undefined)
-          sessionPatch.showCorrectOnBoard = o.showCorrectOnBoard;
-        if (o.speedBonusEnabled !== undefined)
-          sessionPatch.speedBonusEnabled = o.speedBonusEnabled;
-        if (o.streakBonusEnabled !== undefined)
-          sessionPatch.streakBonusEnabled = o.streakBonusEnabled;
-        if (o.showPodiumBetweenQuestions !== undefined)
-          sessionPatch.showPodiumBetweenQuestions =
-            o.showPodiumBetweenQuestions;
-        if (o.soundEffectsEnabled !== undefined)
-          sessionPatch.soundEffectsEnabled = o.soundEffectsEnabled;
-        if (o.shuffleQuestions !== undefined)
-          sessionPatch.shuffleQuestions = o.shuffleQuestions;
-        if (o.shuffleAnswerOptions !== undefined)
-          sessionPatch.shuffleAnswerOptions = o.shuffleAnswerOptions;
+        Object.assign(
+          sessionPatch,
+          sessionOptionsToSessionPatch(patch.sessionOptions)
+        );
       }
       if (Object.keys(sessionPatch).length > 0) {
         batch.update(
@@ -1923,6 +1932,13 @@ export const useQuizAssignments = (
       // forever. The floor turns a hypothetical bug into a no-op tag.
       const tagValue = Math.max(previousSyncedVersion, 1);
 
+      // A paused pickup also adopts the author's published run-settings; a
+      // running or archived session keeps the settings it started with.
+      const behavior =
+        assignment.status === 'paused' ? canonical.behavior : undefined;
+      const sessionMode = behavior?.sessionMode ?? assignment.sessionMode;
+      const modeChanged = sessionMode !== assignment.sessionMode;
+
       // Build the student-safe publicQuestions array from the canonical
       // content. This MUST match the shuffle/strip logic used at session
       // create time (toPublicQuestion) so the student-side rendering path
@@ -1930,7 +1946,7 @@ export const useQuizAssignments = (
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
       const publicQuestions = canonicalQuestions.map((q) =>
-        projectPublicQuestionForMode(q, assignment.sessionMode)
+        projectPublicQuestionForMode(q, sessionMode)
       );
       const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({
@@ -2036,8 +2052,29 @@ export const useQuizAssignments = (
         mediaResponseEnabled:
           syncHasRecording || stickyMediaMarker ? true : deleteField(),
         updatedAt: now,
+        ...(behavior
+          ? {
+              sessionMode: behavior.sessionMode,
+              sessionOptions: behavior.sessionOptions,
+              attemptLimit: behavior.attemptLimit,
+            }
+          : {}),
       });
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
+        ...(behavior
+          ? {
+              sessionMode: behavior.sessionMode,
+              attemptLimit: behavior.attemptLimit,
+              ...sessionOptionsToSessionPatch(behavior.sessionOptions),
+              // A mode flip restarts the cursor the way session-create would.
+              ...(modeChanged
+                ? {
+                    currentQuestionIndex: sessionMode === 'student' ? 0 : -1,
+                    questionPhase: 'answering',
+                  }
+                : {}),
+            }
+          : {}),
         publicQuestions,
         totalQuestions: canonicalQuestions.length,
         // Keep the session's stimuli in lockstep with the rebuilt

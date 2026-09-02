@@ -144,6 +144,29 @@ describe('plcs/{plcId}/quizzes — create', () => {
     );
   });
 
+  it('accepts optional pickup run-settings on create', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
+        validEntry({
+          sessionMode: 'student',
+          sessionOptions: { shuffleQuestions: true },
+          attemptLimit: null,
+          quizId: 'personal-quiz-1',
+        })
+      )
+    );
+  });
+
+  it('rejects an unknown sessionMode on create', async () => {
+    await assertFails(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
+        validEntry({ sessionMode: 'self-paced' })
+      )
+    );
+  });
+
   it('a non-member cannot fabricate an entry', async () => {
     await assertFails(
       setDoc(
@@ -231,6 +254,26 @@ describe('plcs/{plcId}/quizzes — update', () => {
       updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
         title: 'Renamed',
         questionCount: 9,
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('any member can mirror pickup run-settings after a publish', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        sessionMode: 'auto',
+        sessionOptions: { showResultToStudent: true },
+        attemptLimit: 3,
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a non-int attemptLimit on update', async () => {
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        attemptLimit: 'unlimited',
         updatedAt: 2000,
       })
     );

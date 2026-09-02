@@ -72,6 +72,35 @@ function makeTemplate(
 // ---------------------------------------------------------------------------
 
 describe('unifyAssignableQuizzes', () => {
+  it('borrows run-settings from a shadowed template when the quiz row has none', () => {
+    const quiz = makeQuiz({ syncGroupId: 'group-shared' });
+    const template = makeTemplate({
+      syncGroupId: 'group-shared',
+      sessionMode: 'student',
+      attemptLimit: null,
+    });
+    const rows = unifyAssignableQuizzes([quiz], [template]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source).toBe('quiz');
+    expect(rows[0].sessionMode).toBe('student');
+    expect(rows[0].sessionOptions).toEqual(TEMPLATE_OPTIONS);
+    expect(rows[0].attemptLimit).toBeNull();
+  });
+
+  it('keeps the quiz row run-settings over a shadowed template', () => {
+    const quiz = makeQuiz({
+      syncGroupId: 'group-shared',
+      sessionMode: 'teacher',
+      sessionOptions: { shuffleQuestions: true },
+      attemptLimit: 2,
+    });
+    const template = makeTemplate({ syncGroupId: 'group-shared' });
+    const [row] = unifyAssignableQuizzes([quiz], [template]);
+    expect(row.sessionMode).toBe('teacher');
+    expect(row.sessionOptions).toEqual({ shuffleQuestions: true });
+    expect(row.attemptLimit).toBe(2);
+  });
+
   it('returns quiz rows when only quizzes are present', () => {
     const quiz = makeQuiz({
       sessionMode: 'student',

@@ -136,6 +136,28 @@ describe('usePlcAutoPullSync', () => {
     expect(result.current.conflicts).toHaveLength(0);
   });
 
+  it('ignores a suspended replica (own publish in flight): no conflict, no pull', async () => {
+    const pull = pullMock();
+    const { result, rerender } = renderHook(
+      ({ suspended }: { suspended: string | null }) =>
+        usePlcAutoPullSync<Meta>({
+          replicas: [replica()],
+          canonicalGroups: canonical([['g1', 2]]),
+          dirtyReplicaId: 'r1',
+          suspendedReplicaId: suspended,
+          pull,
+          acknowledgeVersion: ackMock(),
+        }),
+      { initialProps: { suspended: 'r1' as string | null } }
+    );
+    expect(result.current.conflicts).toEqual([]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(pull).not.toHaveBeenCalled();
+    // Suspension lifted before the local version caught up: normal rules apply.
+    rerender({ suspended: null });
+    expect(result.current.conflicts).toHaveLength(1);
+  });
+
   it('is inert when disabled', async () => {
     const pull = pullMock();
     const { result } = renderHook(() =>
