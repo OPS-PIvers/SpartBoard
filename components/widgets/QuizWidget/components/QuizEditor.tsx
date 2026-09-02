@@ -35,7 +35,10 @@ import {
 } from './MatchingOrderingEditor';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { QuestionStimulusSection } from './StimulusManagerPanel';
-import { ResponseFormatSection } from './ResponseFormatSection';
+import {
+  ResponseFormatControl,
+  SpokenResponseSettings,
+} from './ResponseFormatSection';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
@@ -534,6 +537,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 </option>
               ))}
             </select>
+            {/* Anchored under Type so the Time Limit / Points hints fill the space beside it instead of pushing the pane down. */}
+            {isFreeResponseType(q.type) && mediaResponseAllowed && (
+              <div className="mt-3">
+                <ResponseFormatControl
+                  question={q}
+                  onChange={handleRecordingChange}
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className={labelClass} htmlFor="question-time-limit">
@@ -608,7 +620,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         </div>
 
         {isFreeResponseType(q.type) && mediaResponseAllowed && (
-          <ResponseFormatSection
+          <SpokenResponseSettings
             question={q}
             onChange={handleRecordingChange}
           />
