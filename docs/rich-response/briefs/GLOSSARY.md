@@ -228,13 +228,19 @@ All four use `refreshGoogleAccessTokenForUid(teacherUid)`
 ## Firebase Storage transit path — 3.3 is canonical
 
 ```
-quiz_response_media/{sessionId}/{studentUid}/{artifactId}.{ext}
+quiz_response_media/{sessionId}/{responseKey}/{artifactId}.{ext}
 ```
 
-5 MB size cap, `contentType.matches('audio/.*')`. Deleted by the archival
-callable on successful archive. Any reader of `ResponseArtifact.storagePath`
-must independently verify the `{sessionId}/{studentUid}` prefix before
-trusting it (Firestore rules cannot validate array element shape).
+The middle segment is the **response key** (`pin-{classPeriod}-{pin}` for
+anonymous PIN joiners, the auth uid for SSO joiners), not the auth uid, so
+`storage.rules` can prove ownership by reading `studentUid` off the response
+doc at that exact key. 5 MB size cap, `contentType.matches('audio/.*')`.
+Deleted by the archival callable on successful archive. Any reader of
+`ResponseArtifact.storagePath` must independently verify the
+`{sessionId}/{responseKey}` prefix before trusting it (Firestore rules cannot
+validate array element shape); `hasQuizMediaStoragePrefix` also accepts the
+legacy `{sessionId}/{studentUid}` segment so objects uploaded before the
+rekey still drain.
 
 ## Google Drive folder + filename convention — 3.3 is canonical
 

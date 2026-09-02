@@ -57,10 +57,13 @@ describe('storage path', () => {
     expect(quizMediaExtensionForMimeType('')).toBe('audio');
   });
 
-  it('builds the pseudonymous transit path the storage rule gates', () => {
-    expect(buildQuizMediaStoragePath('s1', 'u1', 'a1', 'audio/webm')).toBe(
-      'quiz_response_media/s1/u1/a1.webm'
+  it('keys the transit path by response key so the storage rule can gate it', () => {
+    expect(buildQuizMediaStoragePath('s1', 'resp-1', 'a1', 'audio/webm')).toBe(
+      'quiz_response_media/s1/resp-1/a1.webm'
     );
+    expect(
+      buildQuizMediaStoragePath('s1', 'pin-3-481920', 'a1', 'audio/mp4')
+    ).toBe('quiz_response_media/s1/pin-3-481920/a1.m4a');
   });
 });
 
@@ -71,7 +74,7 @@ describe('enqueueQuizMediaUpload', () => {
     expect(result).toMatchObject({
       uploadState: 'uploaded',
       driveFileId: 'drive-1',
-      storagePath: 'quiz_response_media/sess-1/student-1/art-1.webm',
+      storagePath: 'quiz_response_media/sess-1/resp-1/art-1.webm',
     });
   });
 
@@ -138,10 +141,10 @@ describe('enqueueQuizMediaUpload', () => {
     await Promise.all([first, second]);
 
     expect(order).toEqual([
-      'start:quiz_response_media/sess-1/student-1/art-1.webm',
-      'end:quiz_response_media/sess-1/student-1/art-1.webm',
-      'start:quiz_response_media/sess-1/student-1/art-2.webm',
-      'end:quiz_response_media/sess-1/student-1/art-2.webm',
+      'start:quiz_response_media/sess-1/resp-1/art-1.webm',
+      'end:quiz_response_media/sess-1/resp-1/art-1.webm',
+      'start:quiz_response_media/sess-1/resp-1/art-2.webm',
+      'end:quiz_response_media/sess-1/resp-1/art-2.webm',
     ]);
   });
 

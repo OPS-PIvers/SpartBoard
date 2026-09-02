@@ -149,18 +149,27 @@ export interface ArchiveDeps {
 
 /**
  * `artifacts[]` is student-written and Firestore rules cannot validate array
- * element shape, so every reader re-derives the expected prefix itself.
+ * element shape, so every reader re-derives the expected prefix itself. The
+ * segment is the response key; `legacyStudentUid` still matches objects
+ * uploaded before the path was rekeyed.
  */
 export function hasQuizMediaStoragePrefix(
   storagePath: string,
   sessionId: string,
-  studentUid: string
+  responseKey: string,
+  legacyStudentUid?: string
 ): boolean {
-  if (!sessionId || !studentUid) return false;
-  const prefix = `${QUIZ_MEDIA_STORAGE_ROOT}/${sessionId}/${studentUid}/`;
-  if (!storagePath.startsWith(prefix)) return false;
-  const tail = storagePath.slice(prefix.length);
-  return tail.length > 0 && !tail.includes('/') && !tail.includes('..');
+  if (!sessionId) return false;
+  const segments = [responseKey, legacyStudentUid].filter(
+    (segment): segment is string =>
+      typeof segment === 'string' && segment !== ''
+  );
+  return segments.some((segment) => {
+    const prefix = `${QUIZ_MEDIA_STORAGE_ROOT}/${sessionId}/${segment}/`;
+    if (!storagePath.startsWith(prefix)) return false;
+    const tail = storagePath.slice(prefix.length);
+    return tail.length > 0 && !tail.includes('/') && !tail.includes('..');
+  });
 }
 
 /** Committed takes for a question, excluding the one being archived right now. */
@@ -808,7 +817,9 @@ export async function archiveQuizArtifactCore(
   }
   const storagePath =
     typeof artifact.storagePath === 'string' ? artifact.storagePath : '';
-  if (!hasQuizMediaStoragePrefix(storagePath, sessionId, studentUid)) {
+  if (
+    !hasQuizMediaStoragePrefix(storagePath, sessionId, responseKey, studentUid)
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Artifact storage path is outside this response.'
@@ -1220,7 +1231,14 @@ export async function retryStorageCleanup(
   const storagePath =
     typeof artifact?.storagePath === 'string' ? artifact.storagePath : '';
   // Clearing the flag without a confirmed delete would strand the object.
-  if (!hasQuizMediaStoragePrefix(storagePath, input.sessionId, studentUid)) {
+  if (
+    !hasQuizMediaStoragePrefix(
+      storagePath,
+      input.sessionId,
+      input.responseKey,
+      studentUid
+    )
+  ) {
     throw new HttpsError(
       'failed-precondition',
       'Cannot resolve the transit object for this artifact.'

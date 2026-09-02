@@ -812,6 +812,7 @@ export async function deleteOrgQuizMediaSets(
       const storagePath = hasQuizMediaStoragePrefix(
         artifact.storagePath,
         target.sessionId,
+        target.responseKey,
         studentUid
       )
         ? artifact.storagePath
@@ -889,7 +890,12 @@ export async function finishStuckMediaDelete(
   const rawPath = artifact?.storagePath ?? '';
   const storagePath =
     (claimed || entry.storageCleanupPending === true) &&
-    hasQuizMediaStoragePrefix(rawPath, input.sessionId, studentUid)
+    hasQuizMediaStoragePrefix(
+      rawPath,
+      input.sessionId,
+      input.responseKey,
+      studentUid
+    )
       ? rawPath
       : '';
 
