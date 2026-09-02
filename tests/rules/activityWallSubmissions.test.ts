@@ -38,6 +38,7 @@ const SESSION_ID = `${TEACHER_UID}_${ACTIVITY_ID}`;
 const STUDENT_UID = 'student-uid';
 const OTHER_STUDENT_UID = 'other-student-uid';
 const ANON_UID = 'anon-uid';
+const NON_STUDENT_UID = 'non-student-uid';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -59,6 +60,16 @@ const asStudent = (uid = STUDENT_UID) =>
       studentRole: true,
       classIds: ['class-1'],
       firebase: { sign_in_provider: 'custom' },
+    })
+    .firestore();
+
+// A signed-in Google user with no studentRole claim (e.g. a teacher opening a
+// colleague's wall link, or a staff member).
+const asSignedInNonStudent = (uid = NON_STUDENT_UID) =>
+  testEnv
+    .authenticatedContext(uid, {
+      email: 'someone@example.com',
+      firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
 
@@ -698,6 +709,122 @@ describe('activity wall submissions — author self-read', () => {
           `activity_wall_sessions/${SESSION_ID}/submissions`
         )
       )
+    );
+  });
+});
+
+describe('activity wall submissions — padlet access gate', () => {
+  it('signed-in non-student denied on an SSO-only wall', async () => {
+    await seedSession(padletSession({ allowGuests: false }));
+    await assertFails(
+      setDoc(
+        doc(asSignedInNonStudent(), submissionPath('sub-1')),
+        newSubmission({ authorUid: NON_STUDENT_UID })
+      )
+    );
+  });
+
+  it('signed-in non-student allowed on a guest wall', async () => {
+    await seedSession(padletSession({ allowGuests: true }));
+    await assertSucceeds(
+      setDoc(
+        doc(asSignedInNonStudent(), submissionPath('sub-1')),
+        newSubmission({ authorUid: NON_STUDENT_UID })
+      )
+    );
+  });
+
+  it('studentRole user allowed on an SSO-only wall', async () => {
+    await seedSession(padletSession({ allowGuests: false }));
+    await assertSucceeds(
+      setDoc(doc(asStudent(), submissionPath('sub-1')), newSubmission())
+    );
+  });
+});
+
+describe('activity wall submissions — create-time moderation fields', () => {
+  it('create with pinned: true is denied', async () => {
+    await seedSession(padletSession());
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({ pinned: true })
+      )
+    );
+  });
+
+  it('create with order is denied', async () => {
+    await seedSession(padletSession());
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({ order: 1.5 })
+      )
+    );
+  });
+
+  it('student self-edit cannot set pinned', async () => {
+    await seedSession(padletSession({ allowStudentEdit: true }));
+    await seedSubmission('sub-1', newSubmission({ id: 'sub-1' }));
+    await assertFails(
+      updateDoc(doc(asStudent(), submissionPath('sub-1')), { pinned: true })
+    );
+  });
+});
+
+describe('activity wall submissions — published gallery hides pending posts', () => {
+  beforeEach(async () => {
+    await seedSession(padletSession({ publiclyShared: true }));
+    await seedSubmission(
+      'sub-pending',
+      newSubmission({ id: 'sub-pending', status: 'pending' })
+    );
+    await seedSubmission(
+      'sub-approved',
+      newSubmission({ id: 'sub-approved', status: 'approved' })
+    );
+  });
+
+  it('anonymous gallery viewer cannot get a pending post', async () => {
+    await assertFails(
+      getDoc(doc(asAnonymous(), submissionPath('sub-pending')))
+    );
+  });
+
+  it('anonymous gallery viewer can get an approved post', async () => {
+    await assertSucceeds(
+      getDoc(doc(asAnonymous(), submissionPath('sub-approved')))
+    );
+  });
+
+  it('a status-filtered gallery query succeeds', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(
+            asAnonymous(),
+            `activity_wall_sessions/${SESSION_ID}/submissions`
+          ),
+          where('status', '==', 'approved')
+        )
+      )
+    );
+  });
+
+  it('an unfiltered gallery query is denied', async () => {
+    await assertFails(
+      getDocs(
+        collection(
+          asAnonymous(),
+          `activity_wall_sessions/${SESSION_ID}/submissions`
+        )
+      )
+    );
+  });
+
+  it('the owning teacher still reads pending posts', async () => {
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), submissionPath('sub-pending')))
     );
   });
 });

@@ -4237,9 +4237,11 @@ service cloud.firestore {
         function awAcceptingResponses() {
           return awSession().get('acceptingResponses', true) != false;
         }
-        // Anonymous callers only reach a wall that opted into guest posting.
-        function awGuestGateOk() {
-          return request.auth.token.firebase.sign_in_provider != 'anonymous' ||
+        // Padlet walls admit enrolled studentRole users (the class gate above
+        // already ran), or ANY authenticated caller once the teacher opted into
+        // guest posting. A signed-in non-student on an SSO-only wall is denied.
+        function awPadletAccessOk() {
+          return isStudentRoleUser() ||
                  awSession().get('allowGuests', false) == true;
         }
         // `word` is wordcloud-only and `text` is everywhere else; the four
@@ -4321,7 +4323,7 @@ service cloud.firestore {
             'id', 'activityId', 'content', 'submittedAt', 'status',
             'participantLabel', 'storagePath', 'archiveStatus',
             'type', 'authorUid', 'isGuest', 'title', 'sectionId', 'cellKey',
-            'order', 'label', 'lat', 'lng', 'pinned', 'linkPreview',
+            'label', 'lat', 'lng', 'linkPreview',
             'fileName', 'mimeType', 'sizeBytes', 'editedAt'
           ]) &&
           request.resource.data.id is string &&
@@ -4334,7 +4336,7 @@ service cloud.firestore {
           (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase') &&
           (!awIsPadletSession() ||
             (awAcceptingResponses() &&
-             awGuestGateOk() &&
+             awPadletAccessOk() &&
              request.resource.data.authorUid == request.auth.uid &&
              awTypeAllowed() &&
              awWithinPostCap()));
@@ -4343,10 +4345,14 @@ service cloud.firestore {
         // anon gallery viewers). Delete stays teacher/admin-only.
         // A student can list/get their own posts via a where('authorUid','==',uid)
         // query even on a non-public wall (Padlet-lite "my posts" view).
+        // A published gallery only exposes APPROVED posts, so a pending post
+        // awaiting moderation never leaks; gallery clients must therefore query
+        // with where('status','==','approved').
         allow read: if request.auth != null &&
                             (isAdmin() ||
                              sessionId.matches(request.auth.uid + '_.*') ||
-                             awSession().get('publiclyShared', false) == true ||
+                             (awSession().get('publiclyShared', false) == true &&
+                              resource.data.status == 'approved') ||
                              resource.data.authorUid == request.auth.uid);
         allow delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
