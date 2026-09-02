@@ -69,6 +69,11 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
   const enabled = !!recording;
   const ceiling = recordingLimitCeiling(recordingModesForQuestion(question));
 
+  // Session-only memory of the block a question had when last disabled, so
+  // re-enabling in the same editing session restores it instead of resetting
+  // to defaults. Keyed by question id; lost on remount, which is fine.
+  const lastDisabledRef = React.useRef<Map<string, RecordingConfig>>(new Map());
+
   const patch = (updates: Partial<RecordingConfig>) => {
     if (!recording) return;
     onChange({ recording: { ...recording, ...updates } });
@@ -80,14 +85,16 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
       // (RR-A1 sub-decision 3), so the editor writes the zero it implies and
       // stashes the clock it replaced.
       const prior = question.timeLimit;
+      const remembered = lastDisabledRef.current.get(question.id);
       onChange({
         recording: {
-          ...DEFAULT_RECORDING_CONFIG,
+          ...(remembered ?? DEFAULT_RECORDING_CONFIG),
           ...(prior ? { priorTimeLimit: prior } : {}),
         },
         timeLimit: 0,
       });
     } else {
+      if (recording) lastDisabledRef.current.set(question.id, recording);
       const prior = recording?.priorTimeLimit;
       onChange(
         prior === undefined

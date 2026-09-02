@@ -101,6 +101,69 @@ describe('RecordingConfigSection', () => {
     });
   });
 
+  it('restores a customized block authored earlier in the session on re-enable', () => {
+    let current = question();
+    const apply = (updates: Partial<QuizQuestion>) => {
+      const next = { ...current, ...updates } as Record<string, unknown>;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined) delete next[key];
+      }
+      current = next as unknown as QuizQuestion;
+    };
+    const view = () => (
+      <RecordingConfigSection question={current} onChange={apply} />
+    );
+    const { rerender } = render(view());
+
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    rerender(view());
+    fireEvent.change(screen.getByLabelText('Recording limit'), {
+      target: { value: '180' },
+    });
+    rerender(view());
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    rerender(view());
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    rerender(view());
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    rerender(view());
+
+    expect(current.recording?.limitSeconds).toBe(180);
+    expect(current.recording?.takeLimit).toBe(2);
+  });
+
+  it('starts from defaults again on a fresh mount', () => {
+    let current = question();
+    const apply = (updates: Partial<QuizQuestion>) => {
+      const next = { ...current, ...updates } as Record<string, unknown>;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined) delete next[key];
+      }
+      current = next as unknown as QuizQuestion;
+    };
+    const view = () => (
+      <RecordingConfigSection question={current} onChange={apply} />
+    );
+    const { rerender, unmount } = render(view());
+
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    rerender(view());
+    fireEvent.change(screen.getByLabelText('Recording limit'), {
+      target: { value: '180' },
+    });
+    rerender(view());
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    rerender(view());
+    unmount();
+
+    render(<RecordingConfigSection question={current} onChange={apply} />);
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    expect(current.recording).toEqual({
+      ...DEFAULT_RECORDING_CONFIG,
+      priorTimeLimit: 45,
+    });
+  });
+
   it('leaves the question deep-equal to its original across a round trip', () => {
     const original = question();
     let current = original;
