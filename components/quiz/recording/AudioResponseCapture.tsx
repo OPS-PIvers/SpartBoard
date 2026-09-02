@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -6,6 +6,8 @@ import {
   Loader2,
   Mic,
   MicOff,
+  Pause,
+  Play,
   RotateCcw,
   Square,
   Trash2,
@@ -22,7 +24,7 @@ import {
   RecordingNoticeReminder,
 } from './RecordingConsentNotice';
 
-export type CommitState = 'idle' | 'committing' | 'archive-failed';
+export type CommitState = 'idle' | 'committing' | 'retrying' | 'archive-failed';
 
 export interface AudioResponseCaptureProps {
   config: RecordingConfig;
@@ -33,6 +35,8 @@ export interface AudioResponseCaptureProps {
   onAcknowledgeNotice: () => void;
   /** Resolves once the take is written; rejects to surface the failed state. */
   onCommit: (take: AudioTake) => Promise<void>;
+  /** Re-sends the failed take's own artifact; absent when the bytes are gone. */
+  onRetryUpload?: () => Promise<void>;
   onPrepExpired?: (expiry: RecordingConfig['prepExpiry']) => void;
   onCaptureUnavailable?: () => void;
   /** Archive state of the most recent committed take, for "not yet submitted". */
@@ -53,12 +57,82 @@ const cardCls =
 const primaryBtn =
   'inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
+const TakeReviewPlayer: React.FC<{ src: string; durationMs: number }> = ({
+  src,
+  durationMs,
+}) => {
+  const { t } = useTranslation();
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const totalMs = Math.max(durationMs, 1);
+  const pct = Math.min(100, Math.round((elapsedMs / totalMs) * 100));
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) void el.play();
+    else el.pause();
+  };
+
+  return (
+    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+      {/* Hidden native element: playback engine only, no browser chrome. */}
+      <audio
+        ref={audioRef}
+        src={src}
+        className="hidden"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setElapsedMs(totalMs);
+        }}
+        onTimeUpdate={(e) => setElapsedMs(e.currentTarget.currentTime * 1000)}
+      />
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={
+          playing
+            ? t('quizMediaResponse.capture.pausePlayback')
+            : t('quizMediaResponse.capture.playPlayback')
+        }
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-blue-primary text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+      >
+        {playing ? (
+          <Pause aria-hidden className="h-4 w-4" />
+        ) : (
+          <Play aria-hidden className="h-4 w-4" />
+        )}
+      </button>
+      <div
+        role="progressbar"
+        aria-label={t('quizMediaResponse.capture.reviewPlayerLabel')}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200"
+      >
+        <div
+          className="h-full rounded-full bg-brand-blue-primary motion-safe:transition-[width] motion-safe:duration-150"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="font-mono text-xs tabular-nums text-slate-600">
+        {formatClock(elapsedMs / 1000)} / {formatClock(totalMs / 1000)}
+      </span>
+    </div>
+  );
+};
+
 export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   config,
   takesCommitted,
   noticeAckedAt,
   onAcknowledgeNotice,
   onCommit,
+  onRetryUpload,
   onPrepExpired,
   onCaptureUnavailable,
   latestArtifact,
@@ -95,6 +169,17 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
       setCommitState('archive-failed');
     }
   }, [commit, onCommit]);
+
+  const handleRetryUpload = useCallback(async () => {
+    if (!onRetryUpload) return;
+    setCommitState('retrying');
+    try {
+      await onRetryUpload();
+      setCommitState('idle');
+    } catch {
+      setCommitState('archive-failed');
+    }
+  }, [onRetryUpload]);
 
   const takeLabel = useMemo(() => {
     if (config.takeLimit == null)
@@ -143,10 +228,14 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   }
 
   const archivePending =
-    latestArtifact?.uploadState === 'pending' || commitState === 'committing';
+    (latestArtifact?.uploadState === 'pending' &&
+      commitState !== 'archive-failed') ||
+    commitState === 'committing' ||
+    commitState === 'retrying';
   const archiveFailed =
-    latestArtifact?.uploadState === 'failed' ||
-    commitState === 'archive-failed';
+    !archivePending &&
+    (latestArtifact?.uploadState === 'failed' ||
+      commitState === 'archive-failed');
 
   return (
     <section className={cardCls}>
@@ -219,7 +308,10 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               />
               {t('quizMediaResponse.capture.recordingLabel')}
             </p>
-            <p className="font-mono text-5xl font-bold tabular-nums text-slate-900">
+            <p
+              className="font-mono text-5xl font-bold tabular-nums text-slate-900"
+              aria-live="off"
+            >
               {formatClock(recorder.recordSecondsLeft ?? config.limitSeconds)}
             </p>
             <p className="text-sm font-semibold text-red-700">
@@ -240,11 +332,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               {t('quizMediaResponse.capture.reviewLabel')}
             </p>
             {/* Local object URL — reviewing touches no network and no Firestore. */}
-            <audio
-              controls
+            <TakeReviewPlayer
               src={recorder.takeUrl}
-              className="mt-3 w-full"
-              aria-label={t('quizMediaResponse.capture.reviewPlayerLabel')}
+              durationMs={recorder.take?.durationMs ?? 0}
             />
             <p className="mt-2 text-sm text-slate-600">
               {t('quizMediaResponse.capture.reviewBody')}
@@ -277,8 +367,8 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
       </div>
 
       {(archivePending || archiveFailed) && (
-        <p
-          className={`mt-4 flex items-start gap-2 rounded-2xl p-3 text-sm ${
+        <div
+          className={`mt-4 rounded-2xl p-3 text-sm ${
             archiveFailed
               ? 'bg-amber-50 text-amber-800'
               : 'bg-slate-100 text-slate-700'
@@ -286,18 +376,32 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           role="status"
           aria-live="polite"
         >
-          {archiveFailed ? (
-            <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          ) : (
-            <Loader2
-              aria-hidden
-              className="mt-0.5 h-4 w-4 shrink-0 animate-spin"
-            />
+          <p className="flex items-start gap-2">
+            {archiveFailed ? (
+              <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : (
+              <Loader2
+                aria-hidden
+                className="mt-0.5 h-4 w-4 shrink-0 animate-spin"
+              />
+            )}
+            {archiveFailed
+              ? onRetryUpload
+                ? t('quizMediaResponse.capture.notSubmittedFailed')
+                : t('quizMediaResponse.capture.notSubmittedFailedFinal')
+              : t('quizMediaResponse.capture.notSubmittedPending')}
+          </p>
+          {archiveFailed && onRetryUpload && (
+            <button
+              type="button"
+              onClick={() => void handleRetryUpload()}
+              className={`${primaryBtn} mt-3 border border-amber-300 bg-white text-amber-900 outline-amber-500 hover:bg-amber-100`}
+            >
+              <RotateCcw aria-hidden className="h-4 w-4" />
+              {t('quizMediaResponse.capture.retryUpload')}
+            </button>
           )}
-          {archiveFailed
-            ? t('quizMediaResponse.capture.notSubmittedFailed')
-            : t('quizMediaResponse.capture.notSubmittedPending')}
-        </p>
+        </div>
       )}
 
       <div className="mt-5 flex flex-wrap gap-3">
@@ -350,17 +454,6 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               {t('quizMediaResponse.capture.discard')}
             </button>
           </>
-        )}
-
-        {archiveFailed && phase === 'armed' && (
-          <button
-            type="button"
-            onClick={() => setCommitState('idle')}
-            className={`${primaryBtn} border border-slate-300 bg-white text-slate-700 outline-slate-400 hover:bg-slate-50`}
-          >
-            <RotateCcw aria-hidden className="h-4 w-4" />
-            {t('quizMediaResponse.capture.dismissFailure')}
-          </button>
         )}
       </div>
     </section>

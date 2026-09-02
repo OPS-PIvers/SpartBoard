@@ -2188,12 +2188,21 @@ describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () =
     ).mockResolvedValue(undefined);
   });
 
-  async function joinAndSeed(answers: Record<string, unknown>[]) {
+  async function joinAndSeed(
+    answers: Record<string, unknown>[],
+    sessionOver: Partial<QuizSession> = {}
+  ) {
     (
       firestore.getDocs as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce({
       empty: false,
-      docs: [buildSessionDoc('sess-1', { status: 'active' })],
+      docs: [
+        buildSessionDoc('sess-1', {
+          status: 'active',
+          mediaResponseEnabled: true,
+          ...sessionOver,
+        }),
+      ],
     });
     const { result } = renderHook(() => useQuizSessionStudent());
     await act(async () => {
@@ -2265,6 +2274,34 @@ describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () =
       questionId: 'q1',
       takeIndex: 1,
       noticeAckedAt: 1700000000000,
+    });
+  });
+
+  it('writes nothing when the session carries no mediaResponseEnabled marker', async () => {
+    const result = await joinAndSeed([], { mediaResponseEnabled: undefined });
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      const takeIndex = await result.current.commitRecordingTake({
+        questionId: 'q1',
+        artifact: makeTestArtifact({ id: 'art-1' }),
+      });
+      expect(takeIndex).toBeNull();
+      await result.current.markUnresponded('q1', 'capture-unavailable');
+    });
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('stamps the response-level Tennessen ack once', async () => {
+    const result = await joinAndSeed([]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.acknowledgeRecordingNotice(1700000000000);
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    expect(updateMock.mock.calls[0][1]).toMatchObject({
+      recordingNoticeAckedAt: 1700000000000,
     });
   });
 

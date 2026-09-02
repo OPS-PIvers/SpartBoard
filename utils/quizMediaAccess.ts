@@ -3,41 +3,30 @@ import type { GlobalFeaturePermission } from '@/types';
 /** The one `GlobalFeature` id whose missing-record default is DENY. */
 export const QUIZ_MEDIA_FEATURE_ID = 'quiz-media-response';
 
+/** Signature of AuthContext's shared `resolvePermissionAccess`. */
+export type ResolvePermissionAccess = (
+  permission: GlobalFeaturePermission,
+  email: string | null
+) => boolean;
+
 export interface QuizMediaAccessContext {
   /** The `global_permissions/quiz-media-response` record, if one exists. */
   permission: GlobalFeaturePermission | undefined;
-  isAdmin: boolean;
   email: string | null;
+  resolveAccess: ResolvePermissionAccess;
 }
 
 /**
- * Fail-closed gate for student media responses. Deliberately NOT
- * `canAccessFeature`, whose missing-record default is public: here a missing
- * record means denied. Mirrors `isQuizMediaResponseGranted` in
- * `functions/src/quizMediaArchive.ts` decision for decision — record exists,
- * `enabled === true`, then public / admin / beta — so a surface the client
- * shows is a surface the archival callable will accept. Building and tier
- * restrictions are intentionally not consulted: the server gate cannot see
- * them, and a client that granted more than the server would strand a
- * student mid-recording.
+ * Fail-closed gate for student media responses: the ONLY thing that differs
+ * from every other feature is the missing-record default, which denies here
+ * and is public in `canAccessFeature`. Everything else delegates to
+ * `resolvePermissionAccess`, so `minTier` and `buildings` are honoured exactly
+ * as `isQuizMediaResponseGranted` honours them server-side.
  */
 export function canAccessQuizMediaResponse(
   ctx: QuizMediaAccessContext
 ): boolean {
-  const { permission, isAdmin, email } = ctx;
+  const { permission, email, resolveAccess } = ctx;
   if (!permission) return false;
-  if (permission.enabled !== true) return false;
-  if (permission.accessLevel === 'public') return true;
-  if (isAdmin) return true;
-  const normalized = (email ?? '').toLowerCase();
-  if (!normalized) return false;
-  if (permission.accessLevel === 'beta') {
-    const betaUsers = Array.isArray(permission.betaUsers)
-      ? permission.betaUsers
-      : [];
-    return betaUsers.some(
-      (u) => typeof u === 'string' && u.toLowerCase() === normalized
-    );
-  }
-  return false;
+  return resolveAccess(permission, email);
 }

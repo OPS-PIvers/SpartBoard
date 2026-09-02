@@ -129,6 +129,11 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
             ? Promise.reject(new Error('archive failed'))
             : new Promise<void>(() => undefined)
         }
+        onRetryUpload={
+          state === 'archive-failed'
+            ? () => new Promise<void>(() => undefined)
+            : undefined
+        }
         latestArtifact={
           state === 'archive-failed' ? pendingArtifact : undefined
         }

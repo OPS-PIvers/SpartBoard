@@ -229,6 +229,15 @@ always-write of `unresponded: 'abandoned'` entries in
 `functions/src/finalizeIdleQuizAttempts.ts` is gated on `>= 1`, so sessions created by
 production clients that predate the marker are finalized exactly as before.
 
+`mediaResponseEnabled: boolean` on the `quiz_sessions/{id}` doc, stamped `true` by the
+teacher client at assign/sync time (`hooks/useQuizAssignments.ts`) only when
+`canAccessQuizMediaResponse()` passed AND at least one public question kept its
+`recording` block — which the same code strips when the gate is closed. `/quiz` mounts no
+`AuthProvider`, so this marker is how the fail-closed gate reaches the student: capture in
+`components/quiz/QuizStudentApp.tsx` and both write paths in `hooks/useQuizSession.ts`
+(`commitRecordingTake`, `markUnresponded` for recording reasons) act only when it is
+`true`. Sessions written by production clients omit it and behave exactly as today.
+
 ## i18n namespace/key prefix — none of the nine briefs commits to one; established here
 
 No brief specifies a concrete i18n key prefix beyond `CONVENTIONS.md`'s

@@ -15,19 +15,23 @@ export function selectRepresentativeAnswers<
   return byQuestion;
 }
 
-/** Committed takes for one question — anything carrying an artifact. */
+/**
+ * Committed takes for one question. A take whose artifacts all failed to
+ * upload never reaches the teacher, so it must not consume the student's
+ * budget — same rule the archival callable's `countCommittedTakes` applies.
+ */
 export function countCommittedTakes<
   T extends {
     questionId: string;
     unresponded?: string;
-    artifacts?: unknown[];
+    artifacts?: { uploadState?: string }[];
   },
 >(answers: T[], questionId: string): number {
   return answers.filter(
     (a) =>
       a.questionId === questionId &&
       !a.unresponded &&
-      (a.artifacts?.length ?? 0) > 0
+      (a.artifacts ?? []).some((art) => art?.uploadState !== 'failed')
   ).length;
 }
 

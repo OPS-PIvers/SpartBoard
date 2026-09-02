@@ -3482,6 +3482,14 @@ export interface QuizSession {
   /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
   completenessModel?: number;
   /**
+   * Deploy-safety marker for student media responses. Stamped `true` by the
+   * teacher client only when `canAccessQuizMediaResponse()` passed AND at
+   * least one public question kept its `recording` block. The student app
+   * mounts capture and writes takes only when this is `true`, which is how the
+   * fail-closed gate reaches `/quiz` — a route that mounts no AuthProvider.
+   */
+  mediaResponseEnabled?: boolean;
+  /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`
    * is kept — students enforce it client-side. Absent on pre-feature
@@ -3893,6 +3901,12 @@ export interface QuizResponse {
    * behavior (don't retroactively auto-submit historical attempts).
    */
   lastWriteAt?: import('firebase/firestore').Timestamp;
+  /**
+   * Epoch ms at which this student acknowledged the Tennessen recording
+   * notice. Response-level so the acknowledgement is provable even when the
+   * student then refused and no take was ever committed.
+   */
+  recordingNoticeAckedAt?: number;
   /**
    * Set by the idle auto-submit Cloud Function when a stale response
    * was finalized without the student clicking Submit. Lets the
