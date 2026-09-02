@@ -35,6 +35,15 @@ describe('resolveNextTarget', () => {
     expect(resolveNextTarget('/quizzes')).toBeNull();
     expect(resolveNextTarget('/quiz/../admin')).toBeNull();
   });
+
+  it('allows an Activity Wall submission page but not the public gallery', () => {
+    expect(resolveNextTarget('/activity-wall/teacher-1_activity-1')).toBe(
+      '/activity-wall/teacher-1_activity-1'
+    );
+    expect(resolveNextTarget('/activity-wall/gallery')).toBeNull();
+    expect(resolveNextTarget('/activity-wall/gallery/share-1')).toBeNull();
+    expect(resolveNextTarget('/activity-wall')).toBeNull();
+  });
 });
 
 describe('shouldGateToSso', () => {
