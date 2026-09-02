@@ -12,7 +12,10 @@ vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: () => Promise.resolve(true) }),
 }));
 
-import { MediaResponseGrader } from './MediaResponseGrader';
+import {
+  MediaResponseGrader,
+  type MediaResponseGraderProps,
+} from './MediaResponseGrader';
 import type { QuizData, QuizResponse, WrittenAnswerGrade } from '@/types';
 
 beforeAll(() => {
@@ -131,7 +134,9 @@ const names = new Map([
 
 const renderGrader = (
   responses: QuizResponse[],
-  onSaveGrade = vi.fn(() => Promise.resolve())
+  onSaveGrade = vi.fn<MediaResponseGraderProps['onSaveGrade']>(() =>
+    Promise.resolve()
+  )
 ) => {
   render(
     <MediaResponseGrader
@@ -223,7 +228,7 @@ describe('MediaResponseGrader capture-unavailable adjudication', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Excuse/ }));
     fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const grade = onSave.mock.calls[0][2] as WrittenAnswerGrade;
+    const grade = onSave.mock.calls[0][2];
     expect(grade.excused).toBe(true);
     expect(grade.pointsAwarded).toBe(0);
     expect(grade.overallComment).toBeUndefined();
@@ -234,7 +239,7 @@ describe('MediaResponseGrader capture-unavailable adjudication', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Blank/ }));
     fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const grade = onSave.mock.calls[0][2] as WrittenAnswerGrade;
+    const grade = onSave.mock.calls[0][2];
     expect(grade.excused).toBeUndefined();
     expect(grade.overallComment).toBeUndefined();
     expect(grade.pointsAwarded).toBe(0);
@@ -258,7 +263,7 @@ describe('MediaResponseGrader capture-unavailable adjudication', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const grade = onSave.mock.calls[0][2] as WrittenAnswerGrade;
+    const grade = onSave.mock.calls[0][2];
     expect(grade.overallComment).toBe('Answered aloud at my desk.');
     expect(grade.pointsAwarded).toBe(2);
     expect(grade.gradedTakeIndex).toBeUndefined();
@@ -314,7 +319,7 @@ describe('MediaResponseGrader time-anchored comments', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const grade = onSave.mock.calls[0][2] as WrittenAnswerGrade;
+    const grade = onSave.mock.calls[0][2];
     expect(grade.annotations).toHaveLength(1);
     expect(grade.annotations?.[0]).toMatchObject({
       from: 0,
