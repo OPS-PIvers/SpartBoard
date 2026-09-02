@@ -2027,10 +2027,11 @@ const ActiveQuiz: React.FC<{
     const answer = cached ?? selectedAnswerRef.current ?? '';
     // Enforcement lives at the Submit button only — a timeout always writes
     // through, flagged so the grader sees why the answer is short.
+    const answerWords = countWords(answer);
     const timedOutUnderMinimum =
       isFreeResponseType(question.type) &&
-      wordLimitStatus(countWords(answer), question).blocked &&
-      countWords(answer) < (question.minWords ?? 0);
+      wordLimitStatus(answerWords, question).blocked &&
+      answerWords < (question.minWords ?? 0);
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
@@ -3296,15 +3297,27 @@ const ActiveQuiz: React.FC<{
                         deliberate clear) we submit it; when it's unseeded
                         (`submittableAnswer === null`) we advance WITHOUT writing
                         so a fast tap can't clobber a not-yet-loaded saved essay
-                        with a blank (see handleSubmitAndAdvance `skipWrite`). */}
+                        with a blank (see handleSubmitAndAdvance `skipWrite`).
+                        An enforced word limit blocks only the final SUBMIT;
+                        mid-quiz NEXT advances without writing so the draft
+                        (already autosaved) stays editable on return. */}
                       <button
                         onClick={() =>
                           void handleSubmitAndAdvance(
                             submittableAnswer ?? '',
-                            submittableAnswer === null
+                            submittableAnswer === null || wordLimitBlocked
                           )
                         }
-                        disabled={submitting || wordLimitBlocked}
+                        disabled={
+                          submitting ||
+                          (wordLimitBlocked &&
+                            currentIndex >= effectiveTotalQuestions - 1)
+                        }
+                        aria-describedby={
+                          writtenLimit?.message
+                            ? 'word-limit-status'
+                            : undefined
+                        }
                         className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                       >
                         {submitting ? (
@@ -3323,6 +3336,7 @@ const ActiveQuiz: React.FC<{
                       </button>
                       {writtenLimit?.message && (
                         <p
+                          id="word-limit-status"
                           role="status"
                           className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
                         >
@@ -3348,6 +3362,9 @@ const ActiveQuiz: React.FC<{
                         submittableAnswer === null ||
                         wordLimitBlocked
                       }
+                      aria-describedby={
+                        writtenLimit?.message ? 'word-limit-status' : undefined
+                      }
                       className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                     >
                       {submitting ? (
@@ -3358,6 +3375,7 @@ const ActiveQuiz: React.FC<{
                     </button>
                     {writtenLimit?.message && (
                       <p
+                        id="word-limit-status"
                         role="status"
                         className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
                       >

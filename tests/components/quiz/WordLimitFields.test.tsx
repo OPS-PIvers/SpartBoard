@@ -107,4 +107,36 @@ describe('WordLimitFields', () => {
       expect.objectContaining({ maxWords: 5000 })
     );
   });
+
+  it('treats 0 as clearing that bound instead of holding the old value', () => {
+    const onChange = vi.fn();
+    render(
+      <WordLimitFields
+        question={question({ minWords: 50, maxWords: 100 })}
+        onChange={onChange}
+      />
+    );
+    fireEvent.change(minInput(), { target: { value: '0' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      minWords: undefined,
+      maxWords: 100,
+      enforceWordLimit: undefined,
+    });
+  });
+
+  it('reseeds the inputs when the question is edited externally', () => {
+    const { rerender } = render(
+      <WordLimitFields
+        question={question({ maxWords: 100 })}
+        onChange={vi.fn()}
+      />
+    );
+    rerender(
+      <WordLimitFields
+        question={question({ maxWords: 250 })}
+        onChange={vi.fn()}
+      />
+    );
+    expect(maxInput()).toHaveValue(250);
+  });
 });

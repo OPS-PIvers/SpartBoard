@@ -1,16 +1,9 @@
-/**
- * Word-limit authoring row for written quiz questions: an optional Min/Max
- * pair plus an "Enforce limit" switch.
- *
- * The inputs are held in local state so a half-typed or backwards range
- * (min > max) can be shown with an inline error WITHOUT writing it to the
- * question — the student client would otherwise briefly see an impossible
- * requirement. Valid edits write through immediately.
- */
+// Min/Max word-limit row plus the "Enforce limit" switch for a Free Response question.
 
 import React, { useState } from 'react';
 import type { QuizQuestion } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { isInvalidWordRange, wordLimitBounds } from '@/utils/wordLimit';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 
 const MAX_WORD_BOUND = 5000;
@@ -23,44 +16,39 @@ interface Props {
 const toField = (n: number | undefined): string =>
   n && n > 0 ? String(n) : '';
 
-/** Parsed input value: `undefined` = cleared, `null` = present but unusable. */
-const parseBound = (raw: string): number | undefined | null => {
-  if (!raw.trim()) return undefined;
+/** Blank, non-numeric and sub-1 input all mean "no bound on this side". */
+const parseBound = (raw: string): number | undefined => {
   const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) return null;
+  if (!Number.isFinite(n) || n < 1) return undefined;
   return Math.min(MAX_WORD_BOUND, n);
 };
 
 export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
-  const [minRaw, setMinRaw] = useState(() => toField(question.minWords));
-  const [maxRaw, setMaxRaw] = useState(() => toField(question.maxWords));
+  const committed = wordLimitBounds(question);
+  const [minRaw, setMinRaw] = useState(() => toField(committed.min));
+  const [maxRaw, setMaxRaw] = useState(() => toField(committed.max));
+  const [seed, setSeed] = useState({ id: question.id, ...committed });
 
-  // Adjusting state while rendering: reseed the inputs when the selection moves.
-  const [lastId, setLastId] = useState(question.id);
-  if (lastId !== question.id) {
-    setLastId(question.id);
-    setMinRaw(toField(question.minWords));
-    setMaxRaw(toField(question.maxWords));
+  // Adjusting state while rendering: reseed on selection change or an external edit.
+  if (
+    seed.id !== question.id ||
+    seed.min !== committed.min ||
+    seed.max !== committed.max
+  ) {
+    setSeed({ id: question.id, ...committed });
+    setMinRaw(toField(committed.min));
+    setMaxRaw(toField(committed.max));
   }
 
-  const min = parseBound(minRaw);
-  const max = parseBound(maxRaw);
-  const backwards =
-    typeof min === 'number' && typeof max === 'number' && min > max;
-  const hasBound = typeof min === 'number' || typeof max === 'number';
+  const backwards = isInvalidWordRange(parseBound(minRaw), parseBound(maxRaw));
+  const hasBound = committed.min !== undefined || committed.max !== undefined;
 
   const commit = (nextMinRaw: string, nextMaxRaw: string) => {
     const nextMin = parseBound(nextMinRaw);
     const nextMax = parseBound(nextMaxRaw);
-    if (nextMin === null || nextMax === null) return;
-    if (
-      typeof nextMin === 'number' &&
-      typeof nextMax === 'number' &&
-      nextMin > nextMax
-    ) {
-      return;
-    }
+    if (isInvalidWordRange(nextMin, nextMax)) return;
     const stillBounded = nextMin !== undefined || nextMax !== undefined;
+    setSeed({ id: question.id, min: nextMin, max: nextMax });
     onChange({
       minWords: nextMin,
       maxWords: nextMax,

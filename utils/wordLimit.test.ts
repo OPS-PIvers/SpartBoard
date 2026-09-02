@@ -100,7 +100,7 @@ describe('wordLimitStatus', () => {
     const status = wordLimitStatus(0, { minWords: 50, enforceWordLimit: true });
     expect(status.blocked).toBe(false);
     expect(status.message).toBeNull();
-    expect(status.tone).toBe('warn');
+    expect(status.tone).toBe('ok');
   });
 
   it('does not block at the exact bounds', () => {

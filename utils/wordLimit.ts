@@ -1,14 +1,4 @@
-/**
- * Word-limit evaluation for written quiz questions.
- *
- * A question carries an optional `[minWords, maxWords]` range. By default the
- * range is advisory — the counter turns amber outside it and the student can
- * still submit. When the teacher sets `enforceWordLimit`, the Submit control
- * is disabled while the count sits outside the range and the student is told
- * exactly how far off they are. Typing is never blocked, a blank draft is
- * never blocked (it stays unanswered), and a per-question timer auto-submit
- * always writes through: enforcement lives at the button.
- */
+// Word-limit evaluation for Free Response answers; enforcement lives at the Submit button only.
 
 export interface WordLimitConfig {
   minWords?: number;
@@ -57,9 +47,11 @@ export function wordLimitStatus(
   const { min, max } = wordLimitBounds(cfg);
   const over = max !== undefined && count > max;
   const under = min !== undefined && count < min;
-  if (!over && !under) return { blocked: false, message: null, tone: 'ok' };
-  // A blank draft is "unanswered", never trapped: the student may still skip.
-  if (!cfg.enforceWordLimit || count === 0) {
+  // A blank draft is simply unanswered: never scolded, never trapped.
+  if ((!over && !under) || count === 0) {
+    return { blocked: false, message: null, tone: 'ok' };
+  }
+  if (!cfg.enforceWordLimit) {
     return { blocked: false, message: null, tone: 'warn' };
   }
   if (over && max !== undefined) {

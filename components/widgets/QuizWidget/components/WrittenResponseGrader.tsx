@@ -455,9 +455,11 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     (a) => a.questionId === question.id
   );
   const studentAnswer = answerEntry?.answer ?? '';
+  // Spoken answers carry no text; hidden-not-cleared bounds must not mark them.
+  const showWordCount = !question.recording;
   const answerWordCount = countWords(studentAnswer);
   const outsideWordRange =
-    wordLimitStatus(answerWordCount, question).tone !== 'ok';
+    showWordCount && wordLimitStatus(answerWordCount, question).tone !== 'ok';
   const tabSwitches = response.tabSwitchWarnings ?? 0;
   const fullyGradedForThisQ = !!savedGrade;
   const isLastStudent = studentIdx >= gradeableResponses.length - 1;

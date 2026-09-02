@@ -41,6 +41,11 @@ import {
   type RecordingControlStateKey,
 } from './RecordingControlsDevView';
 import {
+  QuizEditorDevView,
+  QUIZ_EDITOR_STATES,
+  type QuizEditorStateKey,
+} from './QuizEditorDevView';
+import {
   MediaGradingDevView,
   MEDIA_GRADING_STATES,
   type MediaGradingStateKey,
@@ -67,6 +72,7 @@ type ViewKey =
   | 'va-results'
   | 'audio-capture'
   | 'recording-controls'
+  | 'quiz-editor'
   | 'media-grading'
   | 'results-playback';
 type StateKey =
@@ -80,6 +86,7 @@ type StateKey =
   | 'empty'
   | AudioCaptureStateKey
   | RecordingControlStateKey
+  | QuizEditorStateKey
   | MediaGradingStateKey
   | ResultsPlaybackStateKey;
 
@@ -91,6 +98,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'va-results', label: 'VA Results' },
   { key: 'audio-capture', label: 'Audio capture' },
   { key: 'recording-controls', label: 'Recording controls' },
+  { key: 'quiz-editor', label: 'Quiz editor' },
   { key: 'media-grading', label: 'Media grading' },
   { key: 'results-playback', label: 'Results playback' },
 ];
@@ -120,6 +128,10 @@ const STATES: { key: StateKey; label: string }[] = [
     key: key as StateKey,
     label: `Recording: ${key.slice('rc-'.length)}`,
   })),
+  ...QUIZ_EDITOR_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Editor: ${key.slice('qe-'.length)}`,
+  })),
   ...MEDIA_GRADING_STATES.map((key) => ({
     key: key as StateKey,
     label: `Grading: ${key}`,
@@ -139,6 +151,7 @@ const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
   'va-results': 'populated',
   'audio-capture': 'prep',
   'recording-controls': 'rc-enabled-defaults',
+  'quiz-editor': 'qe-gated',
   'media-grading': 'queue',
   'results-playback': 'playable',
 };
@@ -175,6 +188,15 @@ const SessionView: React.FC<{
       ? (state as RecordingControlStateKey)
       : 'rc-enabled-defaults';
     return <RecordingControlsDevView state={controlState} />;
+  }
+
+  if (view === 'quiz-editor') {
+    const editorState = (QUIZ_EDITOR_STATES as readonly string[]).includes(
+      state
+    )
+      ? (state as QuizEditorStateKey)
+      : 'qe-gated';
+    return <QuizEditorDevView state={editorState} />;
   }
 
   if (view === 'media-grading') {

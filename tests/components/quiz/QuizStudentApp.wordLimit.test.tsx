@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
 
@@ -258,5 +258,42 @@ describe('QuizStudentApp — enforced word limits', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /SUBMIT/i })).toBeEnabled();
     });
+  });
+
+  it('keeps mid-quiz NEXT enabled under an enforced limit and advances without writing', async () => {
+    setUp(
+      essayQuestion({ minWords: 100, enforceWordLimit: true }),
+      '<p>far too short</p>'
+    );
+    const single = buildSession(
+      essayQuestion({ minWords: 100, enforceWordLimit: true })
+    );
+    hookState.session = {
+      ...single,
+      totalQuestions: 2,
+      publicQuestions: [
+        single.publicQuestions[0],
+        {
+          id: 'q2',
+          type: 'MC',
+          text: 'Second question',
+          timeLimit: 0,
+          options: ['A', 'B'],
+        } as QuizPublicQuestion,
+      ],
+    };
+    render(<QuizStudentApp />);
+
+    expect(
+      await screen.findByText(/Explain your reasoning/i)
+    ).toBeInTheDocument();
+    const next = screen.getByRole('button', { name: /NEXT/i });
+    expect(next).toBeEnabled();
+    expect(
+      screen.getByText('Write at least 100 words to submit. 97 to go.')
+    ).toBeInTheDocument();
+    fireEvent.click(next);
+    expect(await screen.findByText(/Second question/i)).toBeInTheDocument();
+    expect(mockSubmitAnswer).not.toHaveBeenCalled();
   });
 });

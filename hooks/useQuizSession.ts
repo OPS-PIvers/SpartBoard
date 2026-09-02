@@ -65,6 +65,7 @@ import {
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
 import { normalizeQuizSession } from '@/utils/quizQuestionNormalize';
+import { isInvalidWordRange } from '@/utils/wordLimit';
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
@@ -372,7 +373,11 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     if (q.maxWords && q.maxWords > 0) base.maxWords = q.maxWords;
     // Only meaningful alongside a bound; projecting it bare would let the
     // student client block Submit on a range that doesn't exist.
-    if (q.enforceWordLimit && (base.minWords || base.maxWords)) {
+    if (
+      q.enforceWordLimit &&
+      (base.minWords || base.maxWords) &&
+      !isInvalidWordRange(base.minWords, base.maxWords)
+    ) {
       base.enforceWordLimit = true;
     }
     if (q.points && q.points > 0) base.points = q.points;
