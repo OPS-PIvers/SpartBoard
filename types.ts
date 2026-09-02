@@ -1746,6 +1746,8 @@ export interface ActivityWallSubmission {
   sizeBytes?: number;
   attemptCount?: number;
   driveUrl?: string;
+  /** Drive sharing applied at archive time; `private` means only the teacher can open the file. */
+  drivePermission?: 'private' | 'domain' | 'anyone';
 }
 
 export interface ActivityWallActivity {
