@@ -13,7 +13,14 @@ export const RecordingConsentNotice: React.FC<{
   busy?: boolean;
   /** 'reminder' is the re-read overlay: it closes, it never re-acknowledges. */
   variant?: 'acknowledge' | 'reminder';
-}> = ({ onAcknowledge, busy = false, variant = 'acknowledge' }) => {
+  /** The live (teacher-paced) quiz shell is dark; the self-paced one is light. */
+  light?: boolean;
+}> = ({
+  onAcknowledge,
+  busy = false,
+  variant = 'acknowledge',
+  light = true,
+}) => {
   const { t } = useTranslation();
 
   const elements: { key: string; label: string; body: string }[] = [
@@ -42,23 +49,35 @@ export const RecordingConsentNotice: React.FC<{
   return (
     <section
       aria-labelledby="recording-notice-heading"
-      className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur-sm"
+      className={`rounded-3xl border p-6 shadow-sm backdrop-blur-sm ${
+        light
+          ? 'border-slate-200 bg-white/90'
+          : 'border-slate-700 bg-slate-800/60'
+      }`}
     >
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-blue-primary/10 text-brand-blue-primary"
+          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+            light
+              ? 'bg-brand-blue-primary/10 text-brand-blue-primary'
+              : 'bg-brand-blue-light/25 text-brand-blue-lighter'
+          }`}
         >
           <ShieldCheck className="h-5 w-5" />
         </span>
         <div>
           <h3
             id="recording-notice-heading"
-            className="text-lg font-bold leading-snug text-slate-900"
+            className={`text-lg font-bold leading-snug ${
+              light ? 'text-slate-900' : 'text-white'
+            }`}
           >
             {t('quizMediaResponse.notice.title')}
           </h3>
-          <p className="mt-1 text-sm text-slate-600">
+          <p
+            className={`mt-1 text-sm ${light ? 'text-slate-600' : 'text-slate-300'}`}
+          >
             {t('quizMediaResponse.notice.intro')}
           </p>
         </div>
@@ -67,10 +86,18 @@ export const RecordingConsentNotice: React.FC<{
       <dl className="mt-5 space-y-4">
         {elements.map((el) => (
           <div key={el.key}>
-            <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <dt
+              className={`text-xs font-bold uppercase tracking-wider ${
+                light ? 'text-slate-500' : 'text-slate-300'
+              }`}
+            >
               {el.label}
             </dt>
-            <dd className="mt-1 text-sm leading-relaxed text-slate-700">
+            <dd
+              className={`mt-1 text-sm leading-relaxed ${
+                light ? 'text-slate-700' : 'text-slate-200'
+              }`}
+            >
               {el.body}
             </dd>
           </div>
@@ -99,8 +126,8 @@ export const RecordingConsentNotice: React.FC<{
 /** Persistent "why we're asking" link that stays on the recorder itself. */
 export const RecordingNoticeReminder = React.forwardRef<
   HTMLButtonElement,
-  { onOpen: () => void; disabled?: boolean }
->(({ onOpen, disabled = false }, ref) => {
+  { onOpen: () => void; disabled?: boolean; light?: boolean }
+>(({ onOpen, disabled = false, light = true }, ref) => {
   const { t } = useTranslation();
   return (
     <button
@@ -108,7 +135,11 @@ export const RecordingNoticeReminder = React.forwardRef<
       type="button"
       onClick={onOpen}
       disabled={disabled}
-      className="rounded-lg text-xs font-semibold text-brand-blue-primary underline underline-offset-2 transition hover:text-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:no-underline disabled:text-slate-500"
+      className={`rounded-lg text-xs font-semibold underline underline-offset-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:no-underline ${
+        light
+          ? 'text-brand-blue-primary hover:text-brand-blue-dark focus-visible:outline-brand-blue-primary disabled:text-slate-500'
+          : 'text-brand-blue-lighter hover:text-white focus-visible:outline-brand-blue-lighter disabled:text-slate-400'
+      }`}
     >
       {t('quizMediaResponse.notice.whyLink')}
     </button>

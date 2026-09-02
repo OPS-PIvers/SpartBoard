@@ -29,11 +29,23 @@ describe('RecordingConsentNotice', () => {
     expect(screen.getByText(/What happens if you refuse/i)).toBeTruthy();
     expect(screen.getByText(/Who receives your recording/i)).toBeTruthy();
     expect(screen.getByText(/stop a recording and discard it/i)).toBeTruthy();
-    expect(
-      screen.getByText(
-        /question stays incomplete and the assignment cannot be submitted/i
-      )
-    ).toBeTruthy();
+    expect(screen.getByText(/question stays unanswered/i)).toBeTruthy();
+  });
+
+  it('promises no hard submit block in the refusal consequence', () => {
+    const { container } = render(
+      <RecordingConsentNotice onAcknowledge={() => undefined} />
+    );
+    expect(container.textContent).not.toMatch(/cannot be submitted/i);
+  });
+
+  it('renders a dark card when light is false', () => {
+    const { container } = render(
+      <RecordingConsentNotice light={false} onAcknowledge={() => undefined} />
+    );
+    const section = container.querySelector('section');
+    expect(section?.className).toContain('bg-slate-800/60');
+    expect(section?.className).not.toContain('bg-white/90');
   });
 
   it('does not mention AI or transcription', () => {

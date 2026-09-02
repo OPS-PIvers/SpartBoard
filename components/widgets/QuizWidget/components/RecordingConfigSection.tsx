@@ -10,10 +10,11 @@
 import React from 'react';
 import { Mic } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type {
-  QuizQuestion,
-  RecordingConfig,
-  RecordingPrepExpiry,
+import {
+  isWrittenQuestionType,
+  type QuizQuestion,
+  type RecordingConfig,
+  type RecordingPrepExpiry,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { AttemptLimitRow } from '@/components/common/library/AssignmentSettingsToggleGroup';
@@ -26,7 +27,7 @@ import {
 import {
   recordingLimitCeiling,
   recordingModesForQuestion,
-  RECORDING_MODE_LABELS,
+  RECORDING_MODE_LABEL_KEYS,
 } from '@/utils/quizRecordingModes';
 
 const hintClass = 'text-xxs text-slate-500 mt-1';
@@ -106,6 +107,35 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
 
   const clamped = !!recording && recording.limitSeconds > ceiling.seconds;
   const limitValue = clamped ? ceiling.seconds : (recording?.limitSeconds ?? 0);
+
+  // A spoken answer replaces the student's answer input, so it only belongs on
+  // question types whose input is a written response.
+  if (!isWrittenQuestionType(question.type)) {
+    return (
+      <div className="border border-slate-200 rounded-lg bg-white">
+        <div className="flex items-center gap-2 px-3 pt-2">
+          <Mic className="w-3.5 h-3.5 text-slate-400" aria-hidden />
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            {tk('sectionLabel')}
+          </span>
+        </div>
+        <p className="px-3 pb-2.5 pt-1 text-xs text-slate-500">
+          {tk('unsupportedType')}
+        </p>
+        {enabled && (
+          <div className="px-3 pb-2.5">
+            <button
+              type="button"
+              onClick={() => toggle(false)}
+              className="text-xs font-bold text-brand-blue-primary underline"
+            >
+              {tk('unsupportedTypeRemove')}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="border border-slate-200 rounded-lg bg-white">
@@ -200,7 +230,7 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
                   <span className="font-bold text-amber-700">
                     {tk('limitClamped', {
                       seconds: ceiling.seconds,
-                      mode: RECORDING_MODE_LABELS[ceiling.mode],
+                      mode: tk(RECORDING_MODE_LABEL_KEYS[ceiling.mode]),
                     })}
                   </span>{' '}
                   <button

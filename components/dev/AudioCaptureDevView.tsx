@@ -21,7 +21,14 @@ export const AUDIO_CAPTURE_STATES = [
   'mic-unavailable',
 ] as const;
 
-export type AudioCaptureStateKey = (typeof AUDIO_CAPTURE_STATES)[number];
+/** Same states in the dark (teacher-paced) shell. */
+export const AUDIO_CAPTURE_DARK_STATES = AUDIO_CAPTURE_STATES.map(
+  (key) => `dark-${key}`
+) as readonly `dark-${(typeof AUDIO_CAPTURE_STATES)[number]}`[];
+
+export type AudioCaptureStateKey =
+  | (typeof AUDIO_CAPTURE_STATES)[number]
+  | (typeof AUDIO_CAPTURE_DARK_STATES)[number];
 
 const ACKED_AT = 1_700_000_000_000;
 
@@ -75,8 +82,12 @@ const pendingArtifact: ResponseArtifact = {
  * live states) firing the same buttons a student would.
  */
 export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
-  state,
+  state: stateKey,
 }) => {
+  const light = !stateKey.startsWith('dark-');
+  const state = (
+    light ? stateKey : stateKey.slice('dark-'.length)
+  ) as (typeof AUDIO_CAPTURE_STATES)[number];
   const config: RecordingConfig = useMemo(
     () => ({
       prepSeconds: state === 'prep' ? 30 : 0,
@@ -118,9 +129,15 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
   }, [state]);
 
   return (
-    <div ref={rootRef} className="h-full w-full overflow-auto bg-slate-50 p-6">
+    <div
+      ref={rootRef}
+      className={`h-full w-full overflow-auto p-6 ${
+        light ? 'bg-slate-50' : 'bg-slate-900'
+      }`}
+    >
       <AudioResponseCapture
-        key={state}
+        key={stateKey}
+        light={light}
         config={config}
         takesCommitted={state === 'take-limit' ? 2 : 0}
         noticeAckedAt={state === 'notice' ? null : ACKED_AT}

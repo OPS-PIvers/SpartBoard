@@ -294,3 +294,51 @@ describe('RecordingConfigSection', () => {
     });
   });
 });
+
+describe('RecordingConfigSection — question types', () => {
+  it.each(['short', 'essay'] as const)(
+    'offers the controls on a %s question',
+    (type) => {
+      render(
+        <RecordingConfigSection
+          question={question({ type })}
+          onChange={vi.fn()}
+        />
+      );
+      expect(screen.getByLabelText('Ask for a spoken answer')).toBeTruthy();
+      expect(
+        screen.queryByText(/short-answer and essay questions/i)
+      ).toBeNull();
+    }
+  );
+
+  it.each(['MC', 'FIB', 'Matching', 'Ordering'] as const)(
+    'advises instead of offering the controls on a %s question',
+    (type) => {
+      render(
+        <RecordingConfigSection
+          question={question({ type })}
+          onChange={vi.fn()}
+        />
+      );
+      expect(screen.queryByLabelText('Ask for a spoken answer')).toBeNull();
+      expect(
+        screen.getByText(/short-answer and essay questions/i)
+      ).toBeTruthy();
+    }
+  );
+
+  it('lets the teacher clear a block left behind by a type change', () => {
+    const onChange = vi.fn();
+    render(
+      <RecordingConfigSection
+        question={{ ...withRecording(), type: 'MC' }}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Turn off the spoken answer here/i })
+    );
+    expect(onChange).toHaveBeenCalledWith({ recording: undefined });
+  });
+});

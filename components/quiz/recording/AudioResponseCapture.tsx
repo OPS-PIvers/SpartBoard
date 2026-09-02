@@ -50,14 +50,18 @@ export interface AudioResponseCaptureProps {
   latestArtifact?: ResponseArtifact;
   /** Prep expiry already closed this slot; the recorder must stay locked. */
   slotClosed?: boolean;
+  /** The live (teacher-paced) quiz shell is dark; the self-paced one is light. */
+  light?: boolean;
   /** Injected by tests and the DEV harness only. */
   recorderDeps?: AudioRecordingDeps;
   /** Forced state for the DEV harness; never set in the app. */
   commitStateOverride?: CommitState;
 }
 
-const cardCls =
-  'rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur-sm';
+const cardClass = (light: boolean) =>
+  `rounded-3xl border p-6 shadow-sm backdrop-blur-sm ${
+    light ? 'border-slate-200 bg-white/90' : 'border-slate-700 bg-slate-800/60'
+  }`;
 const primaryBtn =
   'inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
@@ -65,9 +69,10 @@ const FOCUSABLE =
   'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /** The reminder layers ABOVE the live recorder; capture never unmounts. */
-const NoticeReminderOverlay: React.FC<{ onClose: () => void }> = ({
-  onClose,
-}) => {
+const NoticeReminderOverlay: React.FC<{
+  onClose: () => void;
+  light: boolean;
+}> = ({ onClose, light }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -109,7 +114,11 @@ const NoticeReminderOverlay: React.FC<{ onClose: () => void }> = ({
         aria-labelledby="recording-notice-heading"
         className="max-h-full w-full max-w-lg overflow-y-auto"
       >
-        <RecordingConsentNotice variant="reminder" onAcknowledge={onClose} />
+        <RecordingConsentNotice
+          variant="reminder"
+          light={light}
+          onAcknowledge={onClose}
+        />
       </div>
     </div>
   );
@@ -126,10 +135,18 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   onCaptureUnavailable,
   latestArtifact,
   slotClosed = false,
+  light = true,
   recorderDeps,
   commitStateOverride,
 }) => {
   const { t } = useTranslation();
+  const cardCls = cardClass(light);
+  const headingCls = light ? 'text-slate-900' : 'text-white';
+  const bodyCls = light ? 'text-slate-700' : 'text-slate-300';
+  const mutedCls = light ? 'text-slate-600' : 'text-slate-300';
+  const labelCls = light ? 'text-slate-500' : 'text-slate-300';
+  const panelCls = light ? 'bg-slate-50' : 'bg-slate-900/40';
+  const numeralCls = light ? 'text-slate-900' : 'text-white';
   const [showNotice, setShowNotice] = useState(false);
   const [localCommitState, setCommitState] = useState<CommitState>('idle');
   const commitState = commitStateOverride ?? localCommitState;
@@ -204,15 +221,19 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
         <div className="flex items-start gap-3">
           <span
             aria-hidden
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500"
+            className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+              light
+                ? 'bg-slate-100 text-slate-500'
+                : 'bg-slate-700 text-slate-300'
+            }`}
           >
             <Hourglass className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className={`text-lg font-bold ${headingCls}`}>
               {t('quizMediaResponse.capture.windowClosedTitle')}
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-slate-700">
+            <p className={`mt-1 text-sm leading-relaxed ${bodyCls}`}>
               {t('quizMediaResponse.capture.windowClosedBody')}
             </p>
           </div>
@@ -223,7 +244,12 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
 
   // Tennessen notice comes first — the mic is never probed before it.
   if (!acknowledged) {
-    return <RecordingConsentNotice onAcknowledge={onAcknowledgeNotice} />;
+    return (
+      <RecordingConsentNotice
+        light={light}
+        onAcknowledge={onAcknowledgeNotice}
+      />
+    );
   }
 
   if (phase === 'capture-unavailable') {
@@ -232,15 +258,19 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
         <div className="flex items-start gap-3">
           <span
             aria-hidden
-            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700"
+            className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+              light
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-amber-500/20 text-amber-300'
+            }`}
           >
             <MicOff className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className={`text-lg font-bold ${headingCls}`}>
               {t('quizMediaResponse.unavailable.title')}
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-slate-700">
+            <p className={`mt-1 text-sm leading-relaxed ${bodyCls}`}>
               {t('quizMediaResponse.unavailable.body')}
             </p>
           </div>
@@ -266,15 +296,19 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           <div className="flex items-center gap-2">
             <span
               aria-hidden
-              className="flex h-9 w-9 items-center justify-center rounded-2xl bg-brand-blue-primary/10 text-brand-blue-primary"
+              className={`flex h-9 w-9 items-center justify-center rounded-2xl ${
+                light
+                  ? 'bg-brand-blue-primary/10 text-brand-blue-primary'
+                  : 'bg-brand-blue-light/25 text-brand-blue-lighter'
+              }`}
             >
               <Mic className="h-4 w-4" />
             </span>
             <div>
-              <p className="text-sm font-bold text-slate-900">
+              <p className={`text-sm font-bold ${headingCls}`}>
                 {t('quizMediaResponse.capture.title')}
               </p>
-              <p className="text-xs text-slate-600">
+              <p className={`text-xs ${mutedCls}`}>
                 {takeLabel} ·{' '}
                 {t('quizMediaResponse.capture.limitHint', {
                   seconds: config.limitSeconds,
@@ -284,6 +318,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           </div>
           <RecordingNoticeReminder
             ref={reminderRef}
+            light={light}
             disabled={phase === 'recording'}
             onOpen={() => setShowNotice(true)}
           />
@@ -291,29 +326,35 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
 
         <div className="mt-5">
           {phase === 'prep' && (
-            <div className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 py-8">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+            <div
+              className={`flex flex-col items-center gap-2 rounded-2xl py-8 ${panelCls}`}
+            >
+              <p
+                className={`text-xs font-bold uppercase tracking-widest ${labelCls}`}
+              >
                 {t('quizMediaResponse.capture.prepLabel')}
               </p>
               <p
-                className="font-mono text-4xl font-bold tabular-nums text-slate-900"
+                className={`font-mono text-4xl font-bold tabular-nums ${numeralCls}`}
                 aria-live="off"
               >
                 {formatClock(recorder.prepSecondsLeft ?? config.prepSeconds)}
               </p>
-              <p className="max-w-sm text-center text-sm text-slate-600">
+              <p className={`max-w-sm text-center text-sm ${mutedCls}`}>
                 {t('quizMediaResponse.capture.prepBody')}
               </p>
             </div>
           )}
 
           {phase === 'requesting-permission' && (
-            <div className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 py-8">
+            <div
+              className={`flex flex-col items-center gap-2 rounded-2xl py-8 ${panelCls}`}
+            >
               <Loader2
                 aria-hidden
-                className="h-6 w-6 animate-spin text-slate-500"
+                className={`h-6 w-6 animate-spin ${labelCls}`}
               />
-              <p className="text-sm text-slate-600">
+              <p className={`text-sm ${mutedCls}`}>
                 {t('quizMediaResponse.capture.requestingMic')}
               </p>
             </div>
@@ -322,26 +363,42 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           {phase === 'recording' && (
             <div
               className={`flex flex-col items-center gap-2 rounded-2xl py-8 ${
-                recorder.wrapUpWarning ? 'bg-red-50' : 'bg-slate-50'
+                recorder.wrapUpWarning
+                  ? light
+                    ? 'bg-red-50'
+                    : 'bg-red-500/15'
+                  : panelCls
               }`}
               role="status"
               aria-live="polite"
             >
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-red-600">
+              <p
+                className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest ${
+                  light ? 'text-red-600' : 'text-red-300'
+                }`}
+              >
                 {/* Static dot, not a pulse: unmistakable without looping motion. */}
                 <span
                   aria-hidden
-                  className="inline-block h-3 w-3 rounded-full bg-red-600 ring-4 ring-red-600/20"
+                  className={`inline-block h-3 w-3 rounded-full ring-4 ${
+                    light
+                      ? 'bg-red-600 ring-red-600/20'
+                      : 'bg-red-400 ring-red-400/25'
+                  }`}
                 />
                 {t('quizMediaResponse.capture.recordingLabel')}
               </p>
               <p
-                className="font-mono text-5xl font-bold tabular-nums text-slate-900"
+                className={`font-mono text-5xl font-bold tabular-nums ${numeralCls}`}
                 aria-live="off"
               >
                 {formatClock(recorder.recordSecondsLeft ?? config.limitSeconds)}
               </p>
-              <p className="text-sm font-semibold text-red-700">
+              <p
+                className={`text-sm font-semibold ${
+                  light ? 'text-red-700' : 'text-red-200'
+                }`}
+              >
                 {recorder.wrapUpWarning
                   ? t('quizMediaResponse.capture.wrapUp', {
                       seconds: config.limitSeconds,
@@ -354,8 +411,10 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           )}
 
           {phase === 'reviewing' && recorder.takeUrl && (
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+            <div className={`rounded-2xl p-4 ${panelCls}`}>
+              <p
+                className={`text-xs font-bold uppercase tracking-widest ${labelCls}`}
+              >
                 {t('quizMediaResponse.capture.reviewLabel')}
               </p>
               {/* Local object URL — reviewing touches no network and no Firestore. */}
@@ -363,16 +422,19 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 key={recorder.takeUrl}
                 src={recorder.takeUrl}
                 durationMs={recorder.take?.durationMs ?? 0}
+                light={light}
               />
-              <p className="mt-2 text-sm text-slate-600">
+              <p className={`mt-2 text-sm ${mutedCls}`}>
                 {t('quizMediaResponse.capture.reviewBody')}
               </p>
             </div>
           )}
 
           {phase === 'armed' && !takeBudgetReached && (
-            <div className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 py-8">
-              <p className="text-sm text-slate-600">
+            <div
+              className={`flex flex-col items-center gap-2 rounded-2xl py-8 ${panelCls}`}
+            >
+              <p className={`text-sm ${mutedCls}`}>
                 {t('quizMediaResponse.capture.armedBody', {
                   seconds: config.limitSeconds,
                 })}
@@ -381,13 +443,19 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           )}
 
           {takeBudgetReached && (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-900">
+            <div
+              className={`rounded-2xl border p-4 ${
+                light
+                  ? 'border-slate-200 bg-slate-50'
+                  : 'border-slate-700 bg-slate-900/40'
+              }`}
+            >
+              <p className={`text-sm font-semibold ${headingCls}`}>
                 {t('quizMediaResponse.capture.takeLimitReachedTitle')}
               </p>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className={`mt-1 text-sm ${mutedCls}`}>
                 {t('quizMediaResponse.capture.takeLimitReachedBody', {
-                  total: config.takeLimit ?? 0,
+                  count: config.takeLimit ?? 0,
                 })}
               </p>
             </div>
@@ -400,8 +468,12 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
             tabIndex={-1}
             className={`mt-4 rounded-2xl p-3 text-sm focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-slate-400 ${
               archiveFailed
-                ? 'bg-amber-50 text-amber-800'
-                : 'bg-slate-100 text-slate-700'
+                ? light
+                  ? 'bg-amber-50 text-amber-800'
+                  : 'bg-amber-500/15 text-amber-200'
+                : light
+                  ? 'bg-slate-100 text-slate-700'
+                  : 'bg-slate-900/50 text-slate-300'
             }`}
             role="status"
             aria-live="polite"
@@ -429,7 +501,11 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 ref={retryBtnRef}
                 type="button"
                 onClick={() => void handleRetryUpload()}
-                className={`${primaryBtn} mt-3 border border-amber-300 bg-white text-amber-900 outline-amber-500 hover:bg-amber-100`}
+                className={`${primaryBtn} mt-3 border outline-amber-500 ${
+                  light
+                    ? 'border-amber-300 bg-white text-amber-900 hover:bg-amber-100'
+                    : 'border-amber-400/40 bg-slate-800 text-amber-100 hover:bg-slate-700'
+                }`}
               >
                 <RotateCcw aria-hidden className="h-4 w-4" />
                 {t('quizMediaResponse.capture.retryUpload')}
@@ -456,7 +532,11 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
             <button
               type="button"
               onClick={recorder.stop}
-              className={`${primaryBtn} bg-slate-900 text-white outline-slate-900 hover:bg-slate-800`}
+              className={`${primaryBtn} ${
+                light
+                  ? 'bg-slate-900 text-white outline-slate-900 hover:bg-slate-800'
+                  : 'bg-slate-100 text-slate-900 outline-slate-200 hover:bg-white'
+              }`}
             >
               <Square aria-hidden className="h-4 w-4" />
               {t('quizMediaResponse.capture.stop')}
@@ -482,7 +562,11 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 type="button"
                 onClick={recorder.discard}
                 disabled={commitState === 'committing'}
-                className={`${primaryBtn} border border-slate-300 bg-white text-slate-700 outline-slate-400 hover:bg-slate-50`}
+                className={`${primaryBtn} border outline-slate-400 ${
+                  light
+                    ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                    : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                }`}
               >
                 <Trash2 aria-hidden className="h-4 w-4" />
                 {t('quizMediaResponse.capture.discard')}
@@ -493,6 +577,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
       </section>
       {showNotice && (
         <NoticeReminderOverlay
+          light={light}
           onClose={() => {
             setShowNotice(false);
             reminderRef.current?.focus();

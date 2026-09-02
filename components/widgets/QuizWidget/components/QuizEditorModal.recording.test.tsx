@@ -83,7 +83,7 @@ const quiz: QuizData = {
     {
       id: 'q1',
       text: 'What is photosynthesis?',
-      type: 'MC',
+      type: 'short',
       correctAnswer: 'A',
       incorrectAnswers: ['B', 'C', 'D'],
       timeLimit: 30,
@@ -162,6 +162,26 @@ describe('QuizEditorModal recording controls', () => {
     // The teacher's clock comes back, so nothing is left to save.
     expect(timeLimit.value).toBe('30');
     expect(dirtyAttr()).toBe('false');
+  });
+
+  it('advises instead of offering the toggle on a choice question', () => {
+    gate.mockReturnValue(true);
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={{
+          ...quiz,
+          questions: [{ ...quiz.questions[0], type: 'MC' }],
+        }}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(detail().getByText('Spoken answer')).toBeTruthy();
+    expect(detail().queryByLabelText('Ask for a spoken answer')).toBeNull();
+    expect(
+      detail().getByText(/short-answer and essay questions/i)
+    ).toBeTruthy();
   });
 
   it('keeps the advisory out of the save-error banner', () => {
