@@ -30,12 +30,17 @@ import {
 } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { auth, db, storage } from '@/config/firebase';
-import type {
-  ActivityWallComment,
-  ActivityWallIdentificationMode,
-  ActivityWallLike,
-  ActivityWallSubmission,
-  SharedActivityWall,
+import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
+import { normalizeActivityWallSession } from '@/utils/activityWallNormalize';
+import {
+  ACTIVITY_WALL_DEFAULT_APPEARANCE,
+  type ActivityWallAppearance,
+  type ActivityWallComment,
+  type ActivityWallIdentificationMode,
+  type ActivityWallLike,
+  type ActivityWallSession,
+  type ActivityWallSubmission,
+  type SharedActivityWall,
 } from '@/types';
 
 type LoadState =
@@ -99,24 +104,20 @@ const buildParticipantLabel = (
   return 'Anonymous';
 };
 
+/**
+ * Never signs in anonymously when a user already exists — waits for
+ * Firebase Auth's first emission (`resolved`) before deciding, so a
+ * signed-in teacher opening the gallery in the same tab keeps their
+ * session instead of being silently swapped for an anonymous one.
+ */
 const useAnonymousFirebaseUser = (): User | null => {
-  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const { user, resolved } = useResolvedFirebaseUser();
   useEffect(() => {
-    let cancelled = false;
-    if (!auth.currentUser) {
-      void signInAnonymously(auth).catch((err) => {
-        console.error('[ActivityWallGallery] Anonymous sign-in failed:', err);
-      });
-    }
-    const unsubscribe = auth.onAuthStateChanged((next) => {
-      if (cancelled) return;
-      setUser(next);
+    if (!resolved || user) return;
+    void signInAnonymously(auth).catch((err) => {
+      console.error('[ActivityWallGallery] Anonymous sign-in failed:', err);
     });
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, []);
+  }, [resolved, user]);
   return user;
 };
 
@@ -143,6 +144,9 @@ export const ActivityWallGalleryView: React.FC = () => {
   const inFlightPhotoPathsRef = useRef<Set<string>>(new Set());
   const [likes, setLikes] = useState<ActivityWallLike[]>([]);
   const [comments, setComments] = useState<ActivityWallComment[]>([]);
+  const [appearance, setAppearance] = useState<ActivityWallAppearance>(
+    ACTIVITY_WALL_DEFAULT_APPEARANCE
+  );
 
   // Load the share doc once. We don't subscribe — the share toggles are
   // effectively immutable (teachers re-share rather than edit), and
@@ -236,6 +240,28 @@ export const ActivityWallGalleryView: React.FC = () => {
       (err) => {
         console.error('[ActivityWallGallery] Submissions snapshot error:', err);
         setSubmissionsReady(true);
+      }
+    );
+    return unsubscribe;
+  }, [state, viewer]);
+
+  // Subscribe to the session doc for its wall appearance — the source of
+  // truth students/teachers write to, not the (near-immutable) share doc.
+  useEffect(() => {
+    if (state.kind !== 'ready' || !viewer) return;
+    const { sessionId } = state.share;
+    const unsubscribe = onSnapshot(
+      doc(db, 'activity_wall_sessions', sessionId),
+      (snap) => {
+        if (!snap.exists()) return;
+        const session = normalizeActivityWallSession(
+          sessionId,
+          snap.data() as Partial<ActivityWallSession>
+        );
+        setAppearance(session.appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE);
+      },
+      (err) => {
+        console.error('[ActivityWallGallery] Session snapshot error:', err);
       }
     );
     return unsubscribe;
@@ -401,6 +427,7 @@ export const ActivityWallGalleryView: React.FC = () => {
       photoUrls={photoUrls}
       likes={likes}
       comments={comments}
+      appearance={appearance}
     />
   );
 };
@@ -413,6 +440,7 @@ interface GalleryReadyProps {
   photoUrls: Record<string, string>;
   likes: ActivityWallLike[];
   comments: ActivityWallComment[];
+  appearance: ActivityWallAppearance;
 }
 
 const GalleryReady: React.FC<GalleryReadyProps> = ({
@@ -423,6 +451,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   photoUrls,
   likes,
   comments,
+  appearance,
 }) => {
   // `submissions` already arrives sorted newest-first from the snapshot
   // callback, so no per-render spread+sort is needed here.
@@ -459,7 +488,17 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
     // `h-dvh` follows `h-screen` so the dynamic viewport unit wins on
     // browsers that support it — keeps iOS Safari from clipping the
     // bottom row under the collapsing URL bar.
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-100">
+    <div
+      data-chrome-free="true"
+      className={`h-screen h-dvh overflow-y-auto bg-cover bg-center ${
+        appearance.kind === 'image' ? '' : appearance.value
+      }`}
+      style={
+        appearance.kind === 'image'
+          ? { backgroundImage: `url(${appearance.value})` }
+          : undefined
+      }
+    >
       <header className="bg-brand-blue-primary text-white">
         <div className="max-w-5xl mx-auto px-5 py-6">
           <p className="text-xs uppercase tracking-widest font-bold opacity-90">

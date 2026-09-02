@@ -13,6 +13,7 @@ const {
   mockGetDoc,
   mockOnSnapshot,
   mockSignInAnonymously,
+  mockOnAuthStateChanged,
   mockCollection,
   mockDoc,
   mockAuth,
@@ -20,11 +21,11 @@ const {
   mockGetDoc: vi.fn(),
   mockOnSnapshot: vi.fn(),
   mockSignInAnonymously: vi.fn(),
+  mockOnAuthStateChanged: vi.fn(),
   mockCollection: vi.fn(),
   mockDoc: vi.fn(),
   mockAuth: {
     currentUser: { uid: 'viewer-1' } as { uid: string } | null,
-    onAuthStateChanged: vi.fn<(cb: unknown) => () => void>(),
   },
 }));
 
@@ -36,6 +37,7 @@ vi.mock('@/config/firebase', () => ({
 
 vi.mock('firebase/auth', () => ({
   signInAnonymously: mockSignInAnonymously,
+  onAuthStateChanged: mockOnAuthStateChanged,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -96,7 +98,16 @@ describe('ActivityWallGalleryView', () => {
 
     window.history.pushState({}, '', '/activity-wall/gallery/share-1');
 
-    mockAuth.onAuthStateChanged.mockImplementation(() => noop);
+    mockSignInAnonymously.mockResolvedValue({ user: { uid: 'anon-1' } });
+
+    // Default: auth resolves immediately with the existing viewer, mirroring
+    // a signed-in teacher opening the gallery in the same tab.
+    mockOnAuthStateChanged.mockImplementation(
+      (_auth: unknown, cb: (u: unknown) => void) => {
+        cb(mockAuth.currentUser);
+        return noop;
+      }
+    );
 
     mockGetDoc.mockResolvedValue({
       exists: () => true,
@@ -188,6 +199,26 @@ describe('ActivityWallGalleryView', () => {
         screen.getByText(/the link may be incorrect or has been removed/i)
       ).toBeInTheDocument()
     );
+  });
+
+  it('does not sign in anonymously when a user already exists at first emission', async () => {
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(mockGetDoc).toHaveBeenCalled());
+    expect(mockSignInAnonymously).not.toHaveBeenCalled();
+  });
+
+  it('signs in anonymously when the first emission is null', async () => {
+    mockOnAuthStateChanged.mockImplementation(
+      (_auth: unknown, cb: (u: unknown) => void) => {
+        cb(null);
+        return noop;
+      }
+    );
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(mockSignInAnonymously).toHaveBeenCalled());
   });
 
   it('shows the empty state when every submission is pending', async () => {
