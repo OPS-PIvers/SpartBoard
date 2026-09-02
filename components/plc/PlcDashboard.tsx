@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Users2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Users2, X } from 'lucide-react';
 
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -106,14 +106,8 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   const isLead = user?.uid ? getPlcRole(plc, user.uid) === 'lead' : false;
   const memberCount = useMemo(() => getPlcMembers(plc).length, [plc]);
 
-  const handleBackOrClose = () => {
-    if (!showMobileMenu) {
-      // Drill back out to the mobile section list without leaving the PLC.
-      setShowMobileMenu(true);
-    } else {
-      onClose();
-    }
-  };
+  // Mobile-only: drill back out to the section list without leaving the PLC.
+  const handleBackToMenu = () => setShowMobileMenu(true);
 
   const handleNavigateSection = (sectionId: PlcSectionId) => {
     setShowMobileMenu(false);
@@ -178,17 +172,18 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
         {/* Header */}
         <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center justify-between shadow-sm shrink-0">
           <div className="flex items-center gap-2 overflow-hidden w-full md:w-auto">
-            <button
-              onClick={handleBackOrClose}
-              className="p-2 md:p-1.5 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2 md:ml-0"
-              aria-label={
-                !showMobileMenu
-                  ? t('plcDashboard.backToMenu', { defaultValue: 'Back' })
-                  : t('plcDashboard.close', { defaultValue: 'Close' })
-              }
-            >
-              <ChevronLeft className="w-6 h-6 md:w-5 md:h-5" />
-            </button>
+            {!showMobileMenu && (
+              <button
+                type="button"
+                onClick={handleBackToMenu}
+                className="md:hidden p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2"
+                aria-label={t('plcDashboard.backToMenu', {
+                  defaultValue: 'Back',
+                })}
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+            )}
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <Users2 className="w-5 h-5 md:w-4 md:h-4 text-white/70 shrink-0 hidden md:block" />
               <div className="flex flex-col md:flex-row md:items-baseline md:gap-2 min-w-0">
@@ -211,6 +206,14 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
           <div className="hidden md:block shrink-0 ml-4">
             <PlcSearchBox plcId={plc.id} onNavigate={handleNavigateSection} />
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 md:p-1.5 hover:bg-white/20 rounded-lg transition-colors shrink-0 ml-2 -mr-2 md:mr-0"
+            aria-label={t('plcDashboard.close', { defaultValue: 'Close' })}
+          >
+            <X className="w-6 h-6 md:w-5 md:h-5" />
+          </button>
         </div>
 
         {/* Sub-header: PLC meta */}
