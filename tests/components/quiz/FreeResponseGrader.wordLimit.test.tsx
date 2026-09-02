@@ -8,7 +8,7 @@ vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
 }));
 
-import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
+import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type { QuizData, QuizResponse, QuizQuestion } from '@/types';
 
 const quizWith = (limits: Partial<QuizQuestion>): QuizData => ({
@@ -55,7 +55,7 @@ const responseWith = (
 
 const renderGrader = (quiz: QuizData, response: QuizResponse) =>
   render(
-    <WrittenResponseGrader
+    <FreeResponseGrader
       quiz={quiz}
       responses={[response]}
       teacherUid="teacher-1"
@@ -64,7 +64,7 @@ const renderGrader = (quiz: QuizData, response: QuizResponse) =>
     />
   );
 
-describe('WrittenResponseGrader — word count', () => {
+describe('FreeResponseGrader — word count', () => {
   it('shows a bare word count when the question has no bounds', () => {
     renderGrader(quizWith({}), responseWith('<p>one two three</p>'));
     expect(screen.getByText('3 words')).toBeInTheDocument();

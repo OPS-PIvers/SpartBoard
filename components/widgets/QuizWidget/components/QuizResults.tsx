@@ -81,8 +81,7 @@ import {
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { WrittenResponseGrader } from './WrittenResponseGrader';
-import { MediaResponseGrader } from './MediaResponseGrader';
+import { FreeResponseGrader } from './FreeResponseGrader';
 import { collectMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
@@ -114,7 +113,7 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
 } from '@/hooks/useQuizSession';
-import { Mic, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -329,7 +328,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [showGrader, setShowGrader] = useState(false);
-  const [showMediaGrader, setShowMediaGrader] = useState(false);
   // In-widget screen navigation, mirroring the live monitor's calm-default
   // shell: a summary home face with drill-down screens instead of tabs.
   const [screen, setScreen] = useState<
@@ -1716,26 +1714,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                   height: 'min(14px, 4.5cqmin)',
                 }}
               />
-              Grade written
-            </button>
-          )}
-          {showMediaGrading && (
-            <button
-              onClick={() => setShowMediaGrader(true)}
-              className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
-                fontSize: 'min(13px, 4.5cqmin)',
-              }}
-            >
-              <Mic
-                aria-hidden
-                style={{
-                  width: 'min(14px, 4.5cqmin)',
-                  height: 'min(14px, 4.5cqmin)',
-                }}
-              />
               {t('quizMediaResponse.results.gradeButton')}
             </button>
           )}
@@ -1874,28 +1852,17 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       )}
 
       {showGrader && session?.id && user?.uid && (
-        <WrittenResponseGrader
+        <FreeResponseGrader
           quiz={quiz}
           responses={responses}
           displayNameByResponseKey={displayNameByResponseKey}
           teacherUid={user.uid}
+          resolveTakeUrl={showMediaGrading ? resolveTakeUrl : undefined}
           onSaveGrade={saveWrittenGrade}
+          onClearGrade={clearWrittenGrade}
           overridesBySourcedId={overridesBySourcedId}
           targetRefKeyByStudentUid={targetRefKeyByStudentUid}
           onClose={() => setShowGrader(false)}
-        />
-      )}
-
-      {showMediaGrader && showMediaGrading && session?.id && user?.uid && (
-        <MediaResponseGrader
-          quiz={quiz}
-          responses={responses}
-          displayNameByResponseKey={displayNameByResponseKey}
-          teacherUid={user.uid}
-          resolveTakeUrl={resolveTakeUrl}
-          onSaveGrade={saveWrittenGrade}
-          onClearGrade={clearWrittenGrade}
-          onClose={() => setShowMediaGrader(false)}
         />
       )}
     </div>

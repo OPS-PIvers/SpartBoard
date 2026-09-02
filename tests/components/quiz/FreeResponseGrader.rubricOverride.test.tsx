@@ -12,7 +12,7 @@ vi.mock('@/context/useDialog', () => ({
   }),
 }));
 
-import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
+import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
   QuizData,
   QuizResponse,
@@ -97,10 +97,10 @@ const saveGrade = async () => {
   });
 };
 
-describe('WrittenResponseGrader — per-student rubric override (M17 C4)', () => {
+describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
   it('grades exactly as today when the assignment has no overrides (zero regression)', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -119,7 +119,7 @@ describe('WrittenResponseGrader — per-student rubric override (M17 C4)', () =>
     };
     const targetRefKeyByStudentUid = new Map([['uid-a', 'classlink:sid-a']]);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a'), responseFor('uid-b')]}
         teacherUid="teacher-1"
@@ -147,7 +147,7 @@ describe('WrittenResponseGrader — per-student rubric override (M17 C4)', () =>
     };
     const targetRefKeyByStudentUid = new Map([['uid-a', 'classlink:sid-a']]);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -172,7 +172,7 @@ describe('WrittenResponseGrader — per-student rubric override (M17 C4)', () =>
       .fn<(rk: string, qid: string, g: WrittenAnswerGrade) => Promise<void>>()
       .mockResolvedValue(undefined);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -198,7 +198,7 @@ describe('WrittenResponseGrader — per-student rubric override (M17 C4)', () =>
     // Empty map: no pseudonym resolution has happened yet (or the uid never resolved).
     const targetRefKeyByStudentUid = new Map<string, string>();
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -219,7 +219,7 @@ describe('WrittenResponseGrader — per-student rubric override (M17 C4)', () =>
     };
     const targetRefKeyByStudentUid = new Map([['uid-a', 'classlink:sid-a']]);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"

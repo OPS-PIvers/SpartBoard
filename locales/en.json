@@ -2073,7 +2073,7 @@
       }
     },
     "grading": {
-      "title": "Grade recorded answers",
+      "title": "Grade Free Response",
       "close": "Close",
       "student": "Student",
       "questionLabel": "Question",
@@ -2106,8 +2106,8 @@
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
-        "title": "No recorded answers to grade yet",
-        "body": "Once students record an answer to a question that asks for one, they show up here."
+        "title": "No Free Response answers to grade yet",
+        "body": "Once students answer a Free Response question, typed or spoken, they show up here."
       },
       "takes": {
         "title": "Takes",
@@ -2177,12 +2177,35 @@
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
         "saveFailed": "Failed to save grade.",
-        "undoFailed": "Failed to undo the excuse."
+        "undoFailed": "Failed to undo the excuse.",
+        "emptyAnnotations": "Cannot save annotations on an empty response — the student didn't answer this question."
       },
-      "undoExcuse": "Undo excuse"
+      "undoExcuse": "Undo excuse",
+      "emptyQuestions": {
+        "title": "No Free Response questions in this quiz",
+        "body": "Manual grading is only available for Free Response questions."
+      },
+      "format": {
+        "typed": "Typed",
+        "spoken": "Spoken"
+      },
+      "responseLabel": "Student response",
+      "timedOutUnderMinimum": "Timed out under minimum",
+      "noTextAnswer": "The student didn't answer this question.",
+      "highlights": "Highlights & comments ({{count}})",
+      "highlightsEmpty": "Select text in the response to add a highlight or margin comment.",
+      "highlightNoComment": "(no comment yet — click to add)",
+      "keyboardHintText": "← / → move between students. Esc closes the grader. Select text in the response to highlight; click a highlight to edit its comment.",
+      "rubricOverrideNote": "Alternate rubric for this student",
+      "pointsOverrideNote": "Points only for this student — rubric override.",
+      "tabSwitches_one": "{{count}} tab switch",
+      "tabSwitches_other": "{{count}} tab switches",
+      "tabSwitchesTitle_one": "{{count}} tab switch warning during the assessment",
+      "tabSwitchesTitle_other": "{{count}} tab switch warnings during the assessment",
+      "noAnswersOnQuestion": "No answers on this question yet."
     },
     "results": {
-      "gradeButton": "Grade recordings"
+      "gradeButton": "Grade Free Response"
     },
     "playback": {
       "label": "Your recorded answer",

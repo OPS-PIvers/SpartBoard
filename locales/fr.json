@@ -2073,7 +2073,7 @@
       }
     },
     "grading": {
-      "title": "Grade recorded answers",
+      "title": "Noter les réponses libres",
       "close": "Close",
       "student": "Student",
       "questionLabel": "Question",
@@ -2106,8 +2106,8 @@
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
-        "title": "No recorded answers to grade yet",
-        "body": "Once students record an answer to a question that asks for one, they show up here."
+        "title": "Aucune réponse libre à noter pour l'instant",
+        "body": "Dès que les élèves répondent à une question à réponse libre, écrite ou orale, ils apparaissent ici."
       },
       "takes": {
         "title": "Takes",
@@ -2177,12 +2177,35 @@
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
         "saveFailed": "Failed to save grade.",
-        "undoFailed": "Failed to undo the excuse."
+        "undoFailed": "Failed to undo the excuse.",
+        "emptyAnnotations": "Impossible d'enregistrer des annotations sur une réponse vide — l'élève n'a pas répondu à cette question."
       },
-      "undoExcuse": "Undo excuse"
+      "undoExcuse": "Undo excuse",
+      "emptyQuestions": {
+        "title": "Ce quiz ne contient aucune question à réponse libre",
+        "body": "La notation manuelle n'est disponible que pour les questions à réponse libre."
+      },
+      "format": {
+        "typed": "Écrite",
+        "spoken": "Orale"
+      },
+      "responseLabel": "Réponse de l'élève",
+      "timedOutUnderMinimum": "Temps écoulé sous le minimum",
+      "noTextAnswer": "L'élève n'a pas répondu à cette question.",
+      "highlights": "Surlignages et commentaires ({{count}})",
+      "highlightsEmpty": "Sélectionnez du texte dans la réponse pour ajouter un surlignage ou un commentaire en marge.",
+      "highlightNoComment": "(pas encore de commentaire — cliquez pour ajouter)",
+      "keyboardHintText": "← / → changent d'élève. Échap ferme la notation. Sélectionnez du texte dans la réponse pour surligner ; cliquez sur un surlignage pour modifier son commentaire.",
+      "rubricOverrideNote": "Grille alternative pour cet élève",
+      "pointsOverrideNote": "Points seulement pour cet élève — grille remplacée.",
+      "tabSwitches_one": "{{count}} changement d'onglet",
+      "tabSwitches_other": "{{count}} changements d'onglet",
+      "tabSwitchesTitle_one": "{{count}} avertissement de changement d'onglet pendant l'évaluation",
+      "tabSwitchesTitle_other": "{{count}} avertissements de changement d'onglet pendant l'évaluation",
+      "noAnswersOnQuestion": "Pas encore de réponse à cette question."
     },
     "results": {
-      "gradeButton": "Grade recordings"
+      "gradeButton": "Noter les réponses libres"
     },
     "playback": {
       "label": "Your recorded answer",

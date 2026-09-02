@@ -12,7 +12,7 @@ vi.mock('@/context/useDialog', () => ({
   }),
 }));
 
-import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
+import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
   QuizData,
   QuizResponse,
@@ -88,10 +88,10 @@ const saveGrade = async () => {
   });
 };
 
-describe('WrittenResponseGrader — rubric scoring', () => {
+describe('FreeResponseGrader — rubric scoring', () => {
   it('does not mount the rubric panel when the question has no snapshot', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(false)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -105,7 +105,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
 
   it('mounts the rubric panel when the question carries a snapshot', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -120,7 +120,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
 
   it('auto-fills the points field once every criterion has a level', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -140,7 +140,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
     const quiz = quizWith(true);
     quiz.questions[0].points = 5;
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quiz}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -158,7 +158,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
       .fn<(rk: string, qid: string, g: WrittenAnswerGrade) => Promise<void>>()
       .mockResolvedValue(undefined);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -183,7 +183,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
       .fn<(rk: string, qid: string, g: WrittenAnswerGrade) => Promise<void>>()
       .mockResolvedValue(undefined);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -207,7 +207,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
 
   it('keeps a manual points override when a criterion note is edited', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -231,7 +231,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
 
   it('re-fills the points field on a level change the teacher has not overridden', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -249,7 +249,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
 
   it('keeps a manual points override when a level changes', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -270,7 +270,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
       .fn<(rk: string, qid: string, g: WrittenAnswerGrade) => Promise<void>>()
       .mockResolvedValue(undefined);
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[responseFor('uid-a')]}
         teacherUid="teacher-1"
@@ -292,7 +292,7 @@ describe('WrittenResponseGrader — rubric scoring', () => {
 
   it('hydrates saved rubric scores into the panel', () => {
     render(
-      <WrittenResponseGrader
+      <FreeResponseGrader
         quiz={quizWith(true)}
         responses={[
           responseFor('uid-a', {
