@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { shouldShowFolder, reorderPreservingHidden } from './folderPermissions';
+import {
+  shouldShowFolder,
+  reorderPreservingHidden,
+  reorderDockItemsPreservingHidden,
+  dockItemId,
+} from './folderPermissions';
+import type { DockItem } from '@/types';
 
 describe('shouldShowFolder', () => {
   it('hides a folder with no items when not in edit mode (Array.prototype.some on [] is always false)', () => {
@@ -82,5 +88,68 @@ describe('reorderPreservingHidden', () => {
       'time-tool'
     );
     expect(result).toEqual(['time-tool', 'clock']);
+  });
+});
+
+describe('reorderDockItemsPreservingHidden', () => {
+  // Top-level dock sequence: 'clock' and 'time-tool' are ordinary tools the
+  // user can drag; 'weather' stands in for a tool gated behind a beta/admin
+  // FeaturePermission the user doesn't currently have, so it renders nothing
+  // and can never itself be the dragged or dropped-on entry.
+  const clock: DockItem = { type: 'tool', toolType: 'clock' };
+  const weather: DockItem = { type: 'tool', toolType: 'weather' };
+  const timeTool: DockItem = { type: 'tool', toolType: 'time-tool' };
+  const isVisible = (item: DockItem) =>
+    item.type !== 'tool' || item.toolType !== 'weather';
+
+  it('reorders visible entries while leaving a permission-gated tool at its original absolute index', () => {
+    // Regression: dnd-kit hands us the visible drag/drop ids, but the prior
+    // implementation ran arrayMove over the *full* dockItems array — so
+    // dragging 'time-tool' before 'clock' also silently dragged the hidden
+    // 'weather' entry from index 1 to index 2 even though nothing about it
+    // was ever visible or interacted with.
+    const result = reorderDockItemsPreservingHidden(
+      [clock, weather, timeTool],
+      isVisible,
+      'time-tool',
+      'clock'
+    );
+    expect(result?.map(dockItemId)).toEqual(['time-tool', 'weather', 'clock']);
+  });
+
+  it('returns null when the dragged or drop-target entry is not currently visible', () => {
+    const result = reorderDockItemsPreservingHidden(
+      [clock, weather, timeTool],
+      isVisible,
+      'weather',
+      'clock'
+    );
+    expect(result).toBeNull();
+  });
+
+  it('reorders folder ids the same way as tool ids', () => {
+    const folderA: DockItem = {
+      type: 'folder',
+      folder: { id: 'folder-a', name: 'A', items: [] },
+    };
+    const result = reorderDockItemsPreservingHidden(
+      [clock, weather, folderA],
+      (item) => item !== weather,
+      'folder-a',
+      'clock'
+    );
+    expect(result?.map(dockItemId)).toEqual(['folder-a', 'weather', 'clock']);
+  });
+});
+
+describe('dockItemId', () => {
+  it('reads toolType for a tool entry and folder.id for a folder entry', () => {
+    expect(dockItemId({ type: 'tool', toolType: 'clock' })).toBe('clock');
+    expect(
+      dockItemId({
+        type: 'folder',
+        folder: { id: 'folder-1', name: 'F', items: [] },
+      })
+    ).toBe('folder-1');
   });
 });
