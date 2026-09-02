@@ -20,6 +20,7 @@ import {
   KeyRound,
   Copy,
   Check,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useOrganizations } from '@/hooks/useOrganizations';
@@ -41,6 +42,7 @@ import type {
 } from '@/types/organization';
 import { withDerivedUserCounts } from './lib/buildingUserCounts';
 import { resolveActorBuildingIds } from './lib/actorBuildingScope';
+import { filterVisibleSections } from './lib/sectionVisibility';
 import { AllOrganizationsView } from './views/AllOrganizationsView';
 import { OverviewView } from './views/OverviewView';
 import { DomainsView } from './views/DomainsView';
@@ -49,6 +51,7 @@ import { RolesView } from './views/RolesView';
 import { UsersView } from './views/UsersView';
 import { StudentPageView } from './views/StudentPageView';
 import { TestClassesView } from './views/TestClassesView';
+import { MediaReviewSection } from './views/MediaReviewView';
 import {
   Btn,
   LocalModal,
@@ -65,7 +68,8 @@ type SectionId =
   | 'roles'
   | 'users'
   | 'student'
-  | 'testClasses';
+  | 'testClasses'
+  | 'mediaReview';
 
 interface SectionDef {
   id: SectionId;
@@ -128,6 +132,13 @@ const SECTIONS: SectionDef[] = [
     label: 'Test classes',
     sublabel: 'Mock classes for PII-free SSO testing.',
     icon: FlaskConical,
+    domainAdminOnly: true,
+  },
+  {
+    id: 'mediaReview',
+    label: 'Student media',
+    sublabel: 'Review & delete recorded responses.',
+    icon: ShieldAlert,
     domainAdminOnly: true,
   },
 ];
@@ -194,12 +205,7 @@ export const OrganizationPanel: React.FC = () => {
   }, [section]);
 
   const visibleSections = useMemo(
-    () =>
-      SECTIONS.filter((s) => {
-        if (s.superOnly && actorRole !== 'super_admin') return false;
-        if (s.domainAdminOnly && actorRole === 'building_admin') return false;
-        return true;
-      }),
+    () => filterVisibleSections(SECTIONS, actorRole),
     [actorRole]
   );
 
@@ -621,6 +627,8 @@ export const OrganizationPanel: React.FC = () => {
     users: usersLoading || rolesLoading,
     student: studentPageLoading,
     testClasses: testClassesLoading,
+    // The media console owns its own callable-backed loading state.
+    mediaReview: isMembershipHydrating,
   };
 
   return (
@@ -851,6 +859,9 @@ export const OrganizationPanel: React.FC = () => {
                 ) : (
                   <PanelEmpty message="Student page config has not been seeded yet." />
                 ))}
+              {effectiveSection === 'mediaReview' && (
+                <MediaReviewSection orgId={activeOrgId} />
+              )}
               {effectiveSection === 'testClasses' && (
                 <TestClassesView
                   testClasses={testClasses}

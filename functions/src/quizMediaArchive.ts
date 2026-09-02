@@ -124,6 +124,8 @@ export interface ArchiveDeps {
     fileName: string,
     folderPath: string
   ) => Promise<{ id: string }>;
+  /** Resolves for an already-absent file; used only to undo a lost delete race. */
+  deleteDriveFile: (accessToken: string, fileId: string) => Promise<void>;
   resolveStudentName: (
     teacherUid: string,
     studentUid: string
@@ -238,7 +240,11 @@ export function computeHasStuckArchive(
   archive:
     | Record<
         string,
-        { archiveStatus?: unknown; storageCleanupPending?: unknown }
+        {
+          archiveStatus?: unknown;
+          storageCleanupPending?: unknown;
+          orphanedDriveFileId?: unknown;
+        }
       >
     | undefined
 ): boolean {
@@ -246,7 +252,9 @@ export function computeHasStuckArchive(
     (entry) =>
       entry?.archiveStatus === 'syncing' ||
       entry?.archiveStatus === 'failed' ||
-      entry?.storageCleanupPending === true
+      entry?.archiveStatus === 'deleting' ||
+      entry?.storageCleanupPending === true ||
+      typeof entry?.orphanedDriveFileId === 'string'
   );
 }
 
@@ -376,6 +384,20 @@ const uploadBlobToDrive = async (
   }
   return driveFile;
 };
+
+/** Permanent delete, not a trash move — this is a compliance delete. */
+export async function deleteDriveFileById(
+  accessToken: string,
+  fileId: string
+): Promise<void> {
+  const response = await fetch(
+    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  // 404/410 means the file is already gone; the obligation is satisfied.
+  if (response.ok || response.status === 404 || response.status === 410) return;
+  throw new Error(`Drive responded ${response.status}`);
+}
 
 /** webm never survives to Drive; AAC in an M4A container always previews. */
 export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
@@ -617,6 +639,7 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
     getAccessToken: async (teacherUid) =>
       (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
     uploadToDrive: uploadBlobToDrive,
+    deleteDriveFile: deleteDriveFileById,
     resolveStudentName: (teacherUid, studentUid) =>
       resolveStudentRealName(db, teacherUid, studentUid),
     isFeatureGranted: async (teacherUid) => {
@@ -636,8 +659,19 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
 
 export interface ArchiveResult {
   /** `'syncing'` means a concurrent invocation owns this artifact right now. */
-  archiveStatus: 'archived' | 'syncing';
+  archiveStatus: 'archived' | 'syncing' | 'deleted';
   driveFileId?: string;
+}
+
+/** A compliance delete owns this artifact; no archive write may resurrect it. */
+export function isDeleteTombstoned(entry: {
+  archiveStatus?: unknown;
+}): boolean {
+  return (
+    entry.archiveStatus === 'deleting' ||
+    entry.archiveStatus === 'deleted' ||
+    entry.archiveStatus === 'delete-failed'
+  );
 }
 
 type ArchiveEntryShape = {
@@ -645,6 +679,7 @@ type ArchiveEntryShape = {
   driveFileId?: unknown;
   archiveStartedAt?: unknown;
   storageCleanupPending?: unknown;
+  orphanedDriveFileId?: unknown;
 };
 
 type ArchiveMap = Record<string, ArchiveEntryShape>;
@@ -741,10 +776,14 @@ export async function archiveQuizArtifactCore(
       responseRef,
       artifactId,
       driveFileId,
-      storagePath
+      storagePath,
+      teacherUid
     );
 
   const existingEntry = readArchiveMap(response)[artifactId];
+  if (isDeleteTombstoned(existingEntry ?? {})) {
+    return { archiveStatus: 'deleted' };
+  }
   if (typeof existingEntry?.driveFileId === 'string') {
     return finalizeArchived(existingEntry.driveFileId);
   }
@@ -772,6 +811,7 @@ export async function archiveQuizArtifactCore(
     const fresh = await tx.get(responseRef);
     const archive = readArchiveMap(fresh.data());
     const entry = archive[artifactId];
+    if (isDeleteTombstoned(entry ?? {})) return { kind: 'deleted' as const };
     if (typeof entry?.driveFileId === 'string') {
       return { kind: 'archived' as const, driveFileId: entry.driveFileId };
     }
@@ -793,6 +833,7 @@ export async function archiveQuizArtifactCore(
     );
     return { kind: 'claimed' as const };
   });
+  if (claim.kind === 'deleted') return { archiveStatus: 'deleted' };
   if (claim.kind === 'archived') return finalizeArchived(claim.driveFileId);
   if (claim.kind === 'inflight') return { archiveStatus: 'syncing' };
 
@@ -804,9 +845,10 @@ export async function archiveQuizArtifactCore(
       error instanceof Error ? error.message : 'Drive archive failed';
     // `archiveStartedAt` survives and `lastAttemptAt` is stamped, so the sweep
     // measures from this attempt rather than retrying on its very next run.
-    await db.runTransaction(async (tx) => {
+    const tombstoned = await db.runTransaction(async (tx) => {
       const fresh = await tx.get(responseRef);
       const archive = readArchiveMap(fresh.data());
+      if (isDeleteTombstoned(archive[artifactId] ?? {})) return true;
       archive[artifactId] = {
         ...(archive[artifactId] ?? {}),
         archiveStatus: 'failed',
@@ -827,7 +869,18 @@ export async function archiveQuizArtifactCore(
         },
         { merge: true }
       );
+      return false;
     });
+    if (tombstoned && driveFileId) {
+      await discardArchivedCopy(
+        deps,
+        responseRef,
+        artifactId,
+        teacherUid,
+        driveFileId,
+        storagePath
+      );
+    }
   };
 
   try {
@@ -905,18 +958,109 @@ export async function archiveQuizArtifactCore(
   }
 }
 
+/**
+ * A compliance delete won the race, so the copy just made must not survive.
+ * The id is recorded on the tombstone BEFORE the delete is attempted: a
+ * swallowed failure here would leave a live student recording that nothing in
+ * the system knows about.
+ */
+async function discardArchivedCopy(
+  deps: ArchiveDeps,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string,
+  teacherUid: string,
+  driveFileId: string,
+  storagePath: string
+): Promise<void> {
+  await writeArchiveResidue(deps.db, responseRef, artifactId, {
+    orphanedDriveFileId: driveFileId,
+  });
+  let driveDeleted = false;
+  try {
+    await deps.deleteDriveFile(
+      await deps.getAccessToken(teacherUid),
+      driveFileId
+    );
+    driveDeleted = true;
+  } catch (error) {
+    console.error(
+      '[quizMediaArchive] orphaned Drive copy after delete race',
+      artifactId,
+      error
+    );
+  }
+  let storagePending = false;
+  if (storagePath) {
+    try {
+      await deps.deleteObject(storagePath);
+    } catch (error) {
+      storagePending = true;
+      console.error(
+        '[quizMediaArchive] orphaned transit object after delete race',
+        artifactId,
+        error
+      );
+    }
+  }
+  await writeArchiveResidue(deps.db, responseRef, artifactId, {
+    ...(driveDeleted ? { orphanedDriveFileId: null } : {}),
+    ...(storagePending ? { storageCleanupPending: true as const } : {}),
+  });
+}
+
+/** Bookkeeping the delete side has to finish; written even onto a tombstone. */
+async function writeArchiveResidue(
+  db: Firestore,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string,
+  fields: {
+    orphanedDriveFileId?: string | null;
+    storageCleanupPending?: true;
+  }
+): Promise<void> {
+  if (Object.keys(fields).length === 0) return;
+  await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    const entry: ArchiveEntryShape = { ...(archive[artifactId] ?? {}) };
+    const patch: Record<string, unknown> = {};
+    if (fields.orphanedDriveFileId === null) {
+      delete entry.orphanedDriveFileId;
+      patch.orphanedDriveFileId = admin.firestore.FieldValue.delete();
+    } else if (typeof fields.orphanedDriveFileId === 'string') {
+      entry.orphanedDriveFileId = fields.orphanedDriveFileId;
+      patch.orphanedDriveFileId = fields.orphanedDriveFileId;
+    }
+    if (fields.storageCleanupPending) {
+      entry.storageCleanupPending = true;
+      patch.storageCleanupPending = true;
+    }
+    archive[artifactId] = entry;
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: { [artifactId]: patch },
+        hasStuckArchive: computeHasStuckArchive(archive),
+      },
+      { merge: true }
+    );
+  });
+}
+
 /** Terminal `'archived'` write plus the retryable Storage delete. */
 async function finalizeArchivedEntry(
   deps: ArchiveDeps,
   responseRef: admin.firestore.DocumentReference,
   artifactId: string,
   driveFileId: string,
-  storagePath: string
+  storagePath: string,
+  teacherUid: string
 ): Promise<ArchiveResult> {
   const { db } = deps;
-  await db.runTransaction(async (tx) => {
+  const tombstoned = await db.runTransaction(async (tx) => {
     const fresh = await tx.get(responseRef);
     const archive = readArchiveMap(fresh.data());
+    if (isDeleteTombstoned(archive[artifactId] ?? {})) return true;
     archive[artifactId] = {
       ...(archive[artifactId] ?? {}),
       archiveStatus: 'archived',
@@ -939,7 +1083,19 @@ async function finalizeArchivedEntry(
       },
       { merge: true }
     );
+    return false;
   });
+  if (tombstoned) {
+    await discardArchivedCopy(
+      deps,
+      responseRef,
+      artifactId,
+      teacherUid,
+      driveFileId,
+      storagePath
+    );
+    return { archiveStatus: 'deleted' };
+  }
   try {
     if (await deps.statObject(storagePath)) {
       await deps.deleteObject(storagePath);
@@ -958,6 +1114,7 @@ async function markStorageCleanupPending(
   await db.runTransaction(async (tx) => {
     const fresh = await tx.get(responseRef);
     const archive = readArchiveMap(fresh.data());
+    if (isDeleteTombstoned(archive[artifactId] ?? {})) return;
     archive[artifactId] = {
       ...(archive[artifactId] ?? {}),
       storageCleanupPending: true,
@@ -991,6 +1148,8 @@ export async function retryStorageCleanup(
   const snap = await responseRef.get();
   if (!snap.exists) return;
   const data = snap.data() ?? {};
+  // A compliance delete already swept this artifact; nothing is owed.
+  if (isDeleteTombstoned(readArchiveMap(data)[input.artifactId] ?? {})) return;
   const studentUid = typeof data.studentUid === 'string' ? data.studentUid : '';
   const answers: StoredAnswer[] = Array.isArray(data.answers)
     ? (data.answers as StoredAnswer[])
@@ -1013,6 +1172,7 @@ export async function retryStorageCleanup(
   await db.runTransaction(async (tx) => {
     const fresh = await tx.get(responseRef);
     const archive = readArchiveMap(fresh.data());
+    if (isDeleteTombstoned(archive[input.artifactId] ?? {})) return;
     const entry = { ...(archive[input.artifactId] ?? {}) };
     delete entry.storageCleanupPending;
     archive[input.artifactId] = entry;

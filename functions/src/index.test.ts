@@ -3012,6 +3012,9 @@ describe('index barrel — deployed export set', () => {
     'archiveActivityWallPhoto',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
+    // Org-admin media review & compliance delete
+    'listQuizMediaForOrgAdmin',
+    'deleteQuizMediaForOrgAdmin',
     // Admin analytics endpoint
     'adminAnalytics',
     // Student identity

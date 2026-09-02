@@ -233,6 +233,14 @@ const SessionViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const MediaReviewDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/MediaReviewDevHarness').then((module) => ({
+        default: module.MediaReviewDevHarness,
+      }))
+    )
+  : null;
+
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
     <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
@@ -632,6 +640,21 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: visual harness for the org-admin student media review console
+  // (loading / empty / error / truncated / deleting / partial-failure states)
+  // against fixtures. Same import.meta.env.DEV gating as the harnesses above.
+  if (
+    import.meta.env.DEV &&
+    MediaReviewDevHarness &&
+    pathname === '/media-review-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <MediaReviewDevHarness />
       </Suspense>
     );
   }
