@@ -495,8 +495,15 @@ const App: React.FC = () => {
     pathname === '/remote' || pathname.startsWith('/remote/');
   const isVideoActivityRoute =
     pathname === '/activity' || pathname.startsWith('/activity/');
+  // `/activity-wall/gallery/{shareId}` is a chrome-free, provider-free
+  // "art gallery" page — checked before the submission-flow route below
+  // so it never mounts DialogProvider/StudentIdleTimeoutGuard.
+  const isActivityWallGalleryRoute = pathname.startsWith(
+    '/activity-wall/gallery/'
+  );
   const isActivityWallRoute =
-    pathname === '/activity-wall' || pathname.startsWith('/activity-wall/');
+    !isActivityWallGalleryRoute &&
+    (pathname === '/activity-wall' || pathname.startsWith('/activity-wall/'));
   const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
   const isInviteRoute = pathname.startsWith('/invite/');
   const isPlcInviteRoute = pathname.startsWith('/plc-invite/');
@@ -524,6 +531,18 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <ShortLinkRedirect />
+      </Suspense>
+    );
+  }
+
+  // Activity Wall gallery — chrome-free, view-only "art gallery" page for
+  // a wall's submissions. Mirrors the short-link resolver above: no
+  // providers, no auth, no Firestore listeners beyond what the view
+  // itself subscribes to, since viewers are anonymous by design.
+  if (isActivityWallGalleryRoute) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ActivityWallGalleryView />
       </Suspense>
     );
   }
@@ -774,22 +793,11 @@ const App: React.FC = () => {
   }
 
   if (isActivityWallRoute) {
-    // `/activity-wall/gallery/{shareId}` is a view-only "art gallery"
-    // page for an Activity Wall's submissions — distinct from the
-    // student submission flow that owns every other path under
-    // `/activity-wall/...`. Both are unauthenticated entries.
-    const isActivityWallGalleryRoute = pathname.startsWith(
-      '/activity-wall/gallery/'
-    );
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
         <Suspense fallback={<FullPageLoader />}>
-          {isActivityWallGalleryRoute ? (
-            <ActivityWallGalleryView />
-          ) : (
-            <ActivityWallStudentApp />
-          )}
+          <ActivityWallStudentApp />
         </Suspense>
         <DialogContainer />
       </DialogProvider>

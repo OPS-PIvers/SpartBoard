@@ -6,6 +6,11 @@ import type { SharedActivityWall } from '@/types';
 
 type SnapshotDoc = { id: string; data: () => Record<string, unknown> };
 type SnapshotHandler = (snap: { docs: SnapshotDoc[] }) => void;
+type DocSnapshotHandler = (snap: {
+  exists: () => boolean;
+  data: () => Record<string, unknown>;
+}) => void;
+type MockRef = { __path: string };
 
 const noop = (): void => undefined;
 
@@ -13,6 +18,7 @@ const {
   mockGetDoc,
   mockOnSnapshot,
   mockSignInAnonymously,
+  mockOnAuthStateChanged,
   mockCollection,
   mockDoc,
   mockAuth,
@@ -20,11 +26,11 @@ const {
   mockGetDoc: vi.fn(),
   mockOnSnapshot: vi.fn(),
   mockSignInAnonymously: vi.fn(),
+  mockOnAuthStateChanged: vi.fn(),
   mockCollection: vi.fn(),
   mockDoc: vi.fn(),
   mockAuth: {
     currentUser: { uid: 'viewer-1' } as { uid: string } | null,
-    onAuthStateChanged: vi.fn<(cb: unknown) => () => void>(),
   },
 }));
 
@@ -36,6 +42,7 @@ vi.mock('@/config/firebase', () => ({
 
 vi.mock('firebase/auth', () => ({
   signInAnonymously: mockSignInAnonymously,
+  onAuthStateChanged: mockOnAuthStateChanged,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -47,6 +54,14 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn((value: unknown) => value),
   setDoc: vi.fn(),
 }));
+
+// Builds a stable "path" marker for a mocked ref so onSnapshot can route
+// callbacks by which subscription they belong to, mirroring the real SDK's
+// distinct refs for submissions/session/likes/comments.
+const pathOf = (arg: unknown): string =>
+  typeof arg === 'object' && arg !== null && '__path' in arg
+    ? (arg as MockRef).__path
+    : String(arg);
 
 vi.mock('firebase/storage', () => ({
   getDownloadURL: vi.fn(),
@@ -88,29 +103,58 @@ const submissionDoc = (
 
 describe('ActivityWallGalleryView', () => {
   let submissionsHandler: SnapshotHandler | null;
+  let sessionHandler: DocSnapshotHandler | null;
 
   beforeEach(() => {
     vi.clearAllMocks();
     submissionsHandler = null;
+    sessionHandler = null;
     mockAuth.currentUser = { uid: 'viewer-1' };
 
     window.history.pushState({}, '', '/activity-wall/gallery/share-1');
 
-    mockAuth.onAuthStateChanged.mockImplementation(() => noop);
+    mockSignInAnonymously.mockResolvedValue({ user: { uid: 'anon-1' } });
+
+    // Default: auth resolves immediately with the existing viewer, mirroring
+    // a signed-in teacher opening the gallery in the same tab.
+    mockOnAuthStateChanged.mockImplementation(
+      (_auth: unknown, cb: (u: unknown) => void) => {
+        cb(mockAuth.currentUser);
+        return noop;
+      }
+    );
 
     mockGetDoc.mockResolvedValue({
       exists: () => true,
       data: () => buildShare(),
     });
 
-    // First onSnapshot registration is the submissions subscription;
-    // the likes/comments subscriptions follow and are no-ops here.
-    mockOnSnapshot.mockImplementation(
-      (_ref: unknown, next: SnapshotHandler) => {
-        submissionsHandler ??= next;
-        return noop;
-      }
+    // Builds a "collection" ref marker: path segments after the first arg
+    // (db, or a parent doc ref), joined so each subscription gets a
+    // distinguishable path.
+    mockCollection.mockImplementation(
+      (first: unknown, ...rest: string[]): MockRef => ({
+        __path: [pathOf(first), ...rest].filter(Boolean).join('/'),
+      })
     );
+    mockDoc.mockImplementation(
+      (first: unknown, ...rest: string[]): MockRef => ({
+        __path: [pathOf(first), ...rest].filter(Boolean).join('/'),
+      })
+    );
+
+    // Routes each onSnapshot registration by which ref it was called with,
+    // rather than assuming registration order — the component subscribes to
+    // submissions, the session doc, likes, and comments independently.
+    mockOnSnapshot.mockImplementation((ref: MockRef, next: unknown) => {
+      const path = ref.__path;
+      if (path.includes('submissions')) {
+        submissionsHandler = next as SnapshotHandler;
+      } else if (path.includes('activity_wall_sessions')) {
+        sessionHandler = next as DocSnapshotHandler;
+      }
+      return noop;
+    });
   });
 
   afterEach(() => {
@@ -187,6 +231,73 @@ describe('ActivityWallGalleryView', () => {
       expect(
         screen.getByText(/the link may be incorrect or has been removed/i)
       ).toBeInTheDocument()
+    );
+  });
+
+  it('does not sign in anonymously when a user already exists at first emission', async () => {
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(mockGetDoc).toHaveBeenCalled());
+    expect(mockSignInAnonymously).not.toHaveBeenCalled();
+  });
+
+  it('signs in anonymously when the first emission is null', async () => {
+    mockOnAuthStateChanged.mockImplementation(
+      (_auth: unknown, cb: (u: unknown) => void) => {
+        cb(null);
+        return noop;
+      }
+    );
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(mockSignInAnonymously).toHaveBeenCalled());
+  });
+
+  it('applies a color-kind session appearance to the rendered root', async () => {
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({
+          appearance: { kind: 'color', value: 'bg-emerald-600' },
+        }),
+      });
+    });
+
+    const root = await waitFor(() => {
+      const el = document.querySelector('div[data-chrome-free="true"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(root.className).toContain('bg-emerald-600');
+    expect(root.style.backgroundImage).toBe('');
+  });
+
+  it('applies an image-kind session appearance to the rendered root', async () => {
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({
+          appearance: { kind: 'image', value: 'https://example.com/bg.jpg' },
+        }),
+      });
+    });
+
+    const root = await waitFor(() => {
+      const el = document.querySelector('div[data-chrome-free="true"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(root.style.backgroundImage).toBe(
+      'url("https://example.com/bg.jpg")'
     );
   });
 
