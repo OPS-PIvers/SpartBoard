@@ -617,6 +617,41 @@ describe('toPublicQuestion', () => {
     expect(pub).not.toHaveProperty('correctAnswer');
   });
 
+  it('projects the recording block so the client and callable can read takeLimit', () => {
+    const q: QuizQuestion = {
+      id: 'q7',
+      timeLimit: 0,
+      text: 'Explain out loud',
+      type: 'short',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      recording: {
+        prepSeconds: 15,
+        limitSeconds: 90,
+        prepExpiry: 'auto-start',
+        takeLimit: 2,
+      },
+    };
+    expect(toPublicQuestion(q).recording).toEqual({
+      prepSeconds: 15,
+      limitSeconds: 90,
+      prepExpiry: 'auto-start',
+      takeLimit: 2,
+    });
+  });
+
+  it('omits recording entirely on a legacy question', () => {
+    const q: QuizQuestion = {
+      id: 'q8',
+      timeLimit: 30,
+      text: 'Legacy',
+      type: 'FIB',
+      correctAnswer: 'x',
+      incorrectAnswers: [],
+    };
+    expect(toPublicQuestion(q)).not.toHaveProperty('recording');
+  });
+
   it('omits rubricSnapshot when the question has none', () => {
     const q: QuizQuestion = {
       id: 'q6',
@@ -2107,6 +2142,176 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
       answers: Record<string, unknown>[];
     };
     expect(payload.answers[0].speedBonus).toBe(50);
+  });
+});
+
+describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () => {
+  let responseCallback: ((snap: unknown) => void) | null = null;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    responseCallback = null;
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { exists: () => false }
+    );
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'student-uid-1',
+    };
+    let snapshotCallIndex = 0;
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(
+      (_target: unknown, onNext: (snap: unknown) => void) => {
+        if (snapshotCallIndex === 1) responseCallback = onNext;
+        snapshotCallIndex += 1;
+        return vi.fn();
+      }
+    );
+    (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (
+      firestore.collection as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({});
+    (firestore.query as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (firestore.where as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (firestore.setDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+    (firestore.addDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+    (
+      firestore.updateDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(undefined);
+  });
+
+  async function joinAndSeed(answers: Record<string, unknown>[]) {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('sess-1', { status: 'active' })],
+    });
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', '1234');
+    });
+    act(() => {
+      responseCallback?.({
+        exists: () => true,
+        id: 'student-uid-1',
+        data: () => ({
+          studentUid: 'student-uid-1',
+          status: 'in-progress',
+          answers,
+        }),
+      });
+    });
+    return result;
+  }
+
+  function lastAnswers() {
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    const call = updateMock.mock.calls[updateMock.mock.calls.length - 1];
+    return (call[1] as { answers: Record<string, unknown>[] }).answers;
+  }
+
+  it('appends a second take as a sibling entry rather than replacing', async () => {
+    const result = await joinAndSeed([
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 100,
+        status: 'submitted',
+        takeIndex: 1,
+        artifacts: [makeTestArtifact({ id: 'art-1' })],
+      },
+    ]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.commitRecordingTake({
+        questionId: 'q1',
+        artifact: makeTestArtifact({ id: 'art-2' }),
+      });
+    });
+    const answers = lastAnswers();
+    expect(answers).toHaveLength(2);
+    expect(answers.map((a) => a.takeIndex)).toEqual([1, 2]);
+    expect(answers[1].status).toBe('submitted');
+    expect(answers[1].answer).toBe('');
+  });
+
+  it('starts at takeIndex 1 and leaves other questions untouched', async () => {
+    const result = await joinAndSeed([
+      { questionId: 'q2', answer: 'B', answeredAt: 50, status: 'submitted' },
+    ]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.commitRecordingTake({
+        questionId: 'q1',
+        artifact: makeTestArtifact({ id: 'art-1' }),
+        noticeAckedAt: 1700000000000,
+      });
+    });
+    const answers = lastAnswers();
+    expect(answers).toHaveLength(2);
+    expect(answers[0]).toMatchObject({ questionId: 'q2', answer: 'B' });
+    expect(answers[1]).toMatchObject({
+      questionId: 'q1',
+      takeIndex: 1,
+      noticeAckedAt: 1700000000000,
+    });
+  });
+
+  it('a non-recording submitAnswer still replaces', async () => {
+    const result = await joinAndSeed([
+      { questionId: 'q2', answer: 'B', answeredAt: 50, status: 'submitted' },
+    ]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q2', 'C');
+    });
+    const answers = lastAnswers();
+    expect(answers).toHaveLength(1);
+    expect(answers[0].answer).toBe('C');
+  });
+
+  it('markUnresponded writes the reason but never clobbers a real take', async () => {
+    const result = await joinAndSeed([]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.markUnresponded('q1', 'capture-unavailable');
+    });
+    expect(lastAnswers()[0]).toMatchObject({
+      questionId: 'q1',
+      unresponded: 'capture-unavailable',
+      status: 'submitted',
+    });
+  });
+
+  it('markUnresponded never clobbers a committed take', async () => {
+    const result = await joinAndSeed([
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 100,
+        status: 'submitted',
+        takeIndex: 1,
+        artifacts: [makeTestArtifact({ id: 'art-1' })],
+      },
+    ]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.markUnresponded('q1', 'expired');
+    });
+    expect(
+      (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mock.calls
+    ).toHaveLength(0);
   });
 });
 

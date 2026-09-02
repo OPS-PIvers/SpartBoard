@@ -14,3 +14,30 @@ export function selectRepresentativeAnswers<
   }
   return byQuestion;
 }
+
+/** Committed takes for one question — anything carrying an artifact. */
+export function countCommittedTakes<
+  T extends {
+    questionId: string;
+    unresponded?: string;
+    artifacts?: unknown[];
+  },
+>(answers: T[], questionId: string): number {
+  return answers.filter(
+    (a) =>
+      a.questionId === questionId &&
+      !a.unresponded &&
+      (a.artifacts?.length ?? 0) > 0
+  ).length;
+}
+
+/** Next `takeIndex` for a question; 1-based, so the first take is take 1. */
+export function nextTakeIndex<
+  T extends { questionId: string; takeIndex?: number },
+>(answers: T[], questionId: string): number {
+  return (
+    answers
+      .filter((a) => a.questionId === questionId)
+      .reduce((max, a) => Math.max(max, a.takeIndex ?? 0), 0) + 1
+  );
+}

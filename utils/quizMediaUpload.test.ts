@@ -134,7 +134,9 @@ describe('enqueueQuizMediaUpload', () => {
     const second = enqueueQuizMediaUpload(job({ artifactId: 'art-2' }), deps);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(order.filter((o) => o.startsWith('start'))).toHaveLength(1);
-    releaseFirst?.();
+    // Cast: the assignment happens inside an async closure, so control-flow
+    // analysis still narrows `releaseFirst` to `null` at this point.
+    (releaseFirst as (() => void) | null)?.();
     await Promise.all([first, second]);
 
     expect(order).toEqual([
