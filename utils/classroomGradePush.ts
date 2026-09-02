@@ -24,6 +24,7 @@ import {
   canScoreResponse,
   isResponseAwaitingGrade,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
+import { questionPointsFor } from '@/utils/mediaGrading';
 import type { QuizQuestion, QuizResponse } from '@/types';
 
 /** A single PII-free grade entry: ClassLink pseudonym → earned points. */
@@ -52,6 +53,11 @@ export interface ClassroomGradeEntry {
  * real Classroom gradebook is persistent and hard to notice/undo. Omitting a
  * student is the safe default — better no grade than a wrong 0.
  *
+ * A question the teacher EXCUSED for one student leaves that student's
+ * denominator (`questionPointsFor`), so an excused slot never counts against
+ * them in the gradebook — the same per-student denominator `getResponseScore`
+ * shows on the scoreboard.
+ *
  * Responses still `isResponseAwaitingGrade` (an ungraded essay, or a rubric with
  * criteria left unscored) are excluded for the same reason: the ungraded slot
  * counts as 0 in `getEarnedPoints`, so pushing now would write a grade the
@@ -79,12 +85,16 @@ export function buildQuizClassroomGradeEntries(
   // the scaling `(earned / currentTotal) * maxPoints` understates the grade.
   // Mirrors the identical fence in `getResponseScore`, `buildResultsSheetData`,
   // `buildContributionDoc`, and `publishAssignmentScores` (#1728–#1855).
-  const seenIds = new Set<string>();
-  const currentTotal = questions.reduce((s, q) => {
-    if (seenIds.has(q.id)) return s;
-    seenIds.add(q.id);
-    return s + (q.points ?? 1);
-  }, 0);
+  // The denominator is PER STUDENT: `questionPointsFor` drops a question this
+  // student was excused from, exactly as `getResponseScore` does.
+  const denominatorFor = (r: QuizResponse): number => {
+    const seenIds = new Set<string>();
+    return questions.reduce((s, q) => {
+      if (seenIds.has(q.id)) return s;
+      seenIds.add(q.id);
+      return s + questionPointsFor(q, r);
+    }, 0);
+  };
   return responses
     .filter(
       (r) =>
@@ -101,6 +111,7 @@ export function buildQuizClassroomGradeEntries(
       // the function doc for why the gradebook grade excludes gamification.
       const rawPoints = getEarnedPoints(r, questions);
       const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
+      const currentTotal = denominatorFor(r);
       const scaled = currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
       return {
         pseudonymUid: r.studentUid,

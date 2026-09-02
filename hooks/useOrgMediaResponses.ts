@@ -20,6 +20,8 @@ export interface MediaResponseRow {
   sessionId: string;
   responseKey: string;
   questionId: string;
+  /** Truncated prompt text; absent when the session no longer lists the question. */
+  questionText?: string;
   quizTitle: string;
   teacherUid: string;
   teacherEmail: string;

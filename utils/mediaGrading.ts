@@ -314,6 +314,7 @@ export function applyMediaSlots(
 export type TakeUnplayableReason =
   | 'archiving'
   | 'archive-failed'
+  | 'lost'
   | 'deleted'
   | 'unknown';
 
@@ -325,6 +326,8 @@ export function takeUnplayableReason(
   const status = take.archive?.archiveStatus;
   if (!status || status === 'syncing' || status === 'archived')
     return 'archiving';
+  // 'failed' is still retrying; 'lost' is terminal and needs its own copy.
+  if (status === 'lost') return 'lost';
   if (status === 'failed') return 'archive-failed';
   if (
     status === 'deleting' ||

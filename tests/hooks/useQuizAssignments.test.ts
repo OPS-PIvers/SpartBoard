@@ -1284,16 +1284,16 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
       questions: [],
       version: 6,
     });
-    mockGetDoc
-      .mockResolvedValueOnce({
-        exists: () => true,
-        data: () => ({
-          id: ASSIGNMENT_ID,
-          teacherUid: TEACHER_UID,
-          sync: { groupId: 'group-1', syncedVersion: 5 },
-        }),
-      })
-      .mockResolvedValueOnce({ data: () => ({ mediaResponseEnabled: true }) });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 5 },
+        // The assignment's own marker is what gates the artifact scan now.
+        mediaResponseEnabled: true,
+      }),
+    });
     mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
       docs: [
         {
@@ -1328,16 +1328,15 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
       questions: [],
       version: 7,
     });
-    mockGetDoc
-      .mockResolvedValueOnce({
-        exists: () => true,
-        data: () => ({
-          id: ASSIGNMENT_ID,
-          teacherUid: TEACHER_UID,
-          sync: { groupId: 'group-1', syncedVersion: 6 },
-        }),
-      })
-      .mockResolvedValueOnce({ data: () => ({ mediaResponseEnabled: true }) });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 6 },
+        mediaResponseEnabled: true,
+      }),
+    });
     mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
       docs: [{ data: () => ({ answers: [{ questionId: 'q1' }] }) }],
     });
@@ -1354,6 +1353,33 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(
       (sessionCall[1] as { mediaResponseEnabled: unknown }).mediaResponseEnabled
     ).not.toBe(true);
+  });
+
+  it('scans no responses for artifacts when the assignment never recorded', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 8,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 7 },
+      }),
+    });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    // Only the preSyncVersion==0 tagging query — no all-responses artifact scan.
+    expect(mockGetDocs).toHaveBeenCalledTimes(1);
   });
 });
 

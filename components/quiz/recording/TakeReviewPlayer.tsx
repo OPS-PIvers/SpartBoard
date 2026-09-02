@@ -47,17 +47,20 @@ export const TakeReviewPlayer: React.FC<{
     void Promise.resolve(audioRef.current?.play()).catch(() => undefined);
   }, [autoPlay, src]);
 
+  // Only a fresh nonce is a seek request; the ref makes `seekToMs` an honest
+  // dependency without re-seeking when the parent merely re-renders.
+  const handledSeekNonceRef = useRef(0);
+
   // The media element is external; a parent-driven seek must reach it.
   useEffect(() => {
-    if (!seekNonce) return;
+    if (!seekNonce || handledSeekNonceRef.current === seekNonce) return;
+    handledSeekNonceRef.current = seekNonce;
     const el = audioRef.current;
     if (!el) return;
+    // `onTimeUpdate` carries the new position back into state.
     el.currentTime = Math.max(0, seekToMs) / 1000;
-    setElapsedMs(Math.max(0, seekToMs));
     void Promise.resolve(el.play()).catch(() => undefined);
-    // `seekToMs` is read through the nonce, which is what signals a new request.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seekNonce]);
+  }, [seekNonce, seekToMs]);
 
   const toggle = () => {
     const el = audioRef.current;

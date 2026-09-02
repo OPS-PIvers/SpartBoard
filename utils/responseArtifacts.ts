@@ -1,5 +1,6 @@
 import type {
   ArtifactArchiveEntry,
+  ArtifactArchiveStatus,
   QuizResponseAnswer,
   ResponseArtifact,
   ArtifactSlot,
@@ -12,8 +13,11 @@ export function isArtifactPlayable(
   return entry?.archiveStatus === 'archived' && !!entry.driveFileId;
 }
 
-// `'lost'` is added by the sibling archive-status PR; guarded as a literal.
-const DEAD_ARCHIVE_STATUSES = new Set<string>(['failed', 'lost']);
+// Terminal-dead archive statuses: nothing rescues a take from these.
+const DEAD_ARCHIVE_STATUSES = new Set<string>([
+  'failed',
+  'lost',
+] satisfies ArtifactArchiveStatus[]);
 
 /**
  * Does this artifact count as a real take? The server-owned archive map is
@@ -57,8 +61,8 @@ export function resolveArtifactPlaybackState(
   ) {
     return 'deleted';
   }
-  // `'lost'` is the sibling PR's terminal status; guarded as a literal.
-  if ((status as string) === 'lost') return 'lost';
+  // Terminal: archival gave up, distinct from a 'failed' attempt still retrying.
+  if (status === 'lost') return 'lost';
   if (status === 'failed') return 'failed';
   return 'archiving';
 }

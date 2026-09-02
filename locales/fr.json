@@ -1807,6 +1807,7 @@
         "syncing": "Syncing",
         "archived": "Archived",
         "failed": "Archive failed",
+        "lost": "Recording lost",
         "deleting": "Delete pending",
         "deleted": "Deleted",
         "delete-failed": "Delete failed"
@@ -2104,6 +2105,7 @@
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
+          "lost": "Lost",
           "deleted": "Deleted",
           "unknown": "Unavailable"
         }
@@ -2140,6 +2142,10 @@
           "archive-failed": {
             "title": "Not saved",
             "body": "Saving this take to your Google Drive did not finish. It retries automatically every hour; nothing is lost in the meantime."
+          },
+          "lost": {
+            "title": "Lost",
+            "body": "Saving this take to your Google Drive failed too many times, so it is no longer being retried and the recording cannot be recovered. The student's other takes and any grade already given still stand."
           },
           "deleted": {
             "title": "Deleted",

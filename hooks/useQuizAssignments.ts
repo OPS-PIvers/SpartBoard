@@ -892,7 +892,11 @@ export const useQuizAssignments = (
       const batch = writeBatch(db);
       batch.set(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        assignment
+        // Teacher-side twin of the session marker, so a later sync knows
+        // whether to look for committed takes without reading the session.
+        sessionHasRecording
+          ? { ...assignment, mediaResponseEnabled: true }
+          : assignment
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), session);
       await batch.commit();
@@ -1954,25 +1958,21 @@ export const useQuizAssignments = (
       // takes already committed. Clearing the marker would hide the grader,
       // withhold the score and deny playback for work the student finished,
       // so the marker is sticky while any response still carries artifacts.
-      // The session read is skipped entirely for a quiz that still records.
+      // The already-loaded assignment carries the same marker, so a quiz that
+      // never recorded costs no extra reads at all.
       let stickyMediaMarker = false;
-      if (!syncHasRecording) {
-        const sessionSnap = await getDoc(
-          doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+      if (!syncHasRecording && assignment.mediaResponseEnabled === true) {
+        const allResponses = await getDocs(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            RESPONSES_COLLECTION
+          )
         );
-        if (sessionSnap?.data?.()?.mediaResponseEnabled === true) {
-          const allResponses = await getDocs(
-            collection(
-              db,
-              QUIZ_SESSIONS_COLLECTION,
-              assignmentId,
-              RESPONSES_COLLECTION
-            )
-          );
-          stickyMediaMarker = (allResponses?.docs ?? []).some((d) =>
-            responseHasArtifacts(d.data())
-          );
-        }
+        stickyMediaMarker = (allResponses?.docs ?? []).some((d) =>
+          responseHasArtifacts(d.data())
+        );
       }
       const now = Date.now();
       const responsesToTag = responsesSnap.docs;
@@ -2000,6 +2000,9 @@ export const useQuizAssignments = (
           groupId: assignment.sync.groupId,
           syncedVersion: canonical.version,
         },
+        // Kept in lockstep with the session marker below.
+        mediaResponseEnabled:
+          syncHasRecording || stickyMediaMarker ? true : deleteField(),
         updatedAt: now,
       });
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {

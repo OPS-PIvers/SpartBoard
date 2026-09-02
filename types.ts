@@ -3828,6 +3828,8 @@ export type ArtifactArchiveStatus =
   | 'syncing'
   | 'archived'
   | 'failed'
+  /** Terminal: archival gave up, so the sweep stops retrying and stops mailing. */
+  | 'lost'
   | 'deleting'
   | 'deleted'
   | 'delete-failed';
@@ -3840,6 +3842,8 @@ export interface ArtifactArchiveEntry {
   archiveStartedAt?: number;
   /** Server time of the most recent failed archive attempt; drives the sweep window. */
   lastAttemptAt?: number;
+  /** Failed attempts so far; at `MAX_ARCHIVE_ATTEMPTS` the status becomes `'lost'`. */
+  attemptCount?: number;
   archivedAt?: number;
   archiveError?: string;
   /** Drive holds the file but the Storage transit copy survived; the sweep retries the delete. */
@@ -4634,6 +4638,12 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Frozen at creation from the org-wide `assignment-modes` admin setting.
    *  Mirrors QuizSession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+  /**
+   * Teacher-side twin of `QuizSession.mediaResponseEnabled`, written by the
+   * same code path so a sync can tell whether this assignment ever recorded
+   * without reading the session doc. Absent means it never did.
+   */
+  mediaResponseEnabled?: boolean;
   /**
    * Score-publication visibility level. Absent / `'none'` means scores
    * have not been published to students yet. Mirrored to the matching

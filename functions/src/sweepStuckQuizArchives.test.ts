@@ -23,6 +23,7 @@ vi.mock('./functionsInit', () => ({}));
 vi.mock('./quizMediaArchive', () => ({
   archiveQuizArtifactCore: vi.fn(),
   buildDefaultArchiveDeps: vi.fn(),
+  isLostArchiveError: vi.fn(() => false),
   retryStorageCleanup: vi.fn(),
   QUIZ_MEDIA_ARCHIVE_SECRETS: [],
   STUCK_ARCHIVE_AGE_MS: 2 * 60 * 60 * 1000,
@@ -112,6 +113,7 @@ function makeDeps(overrides: Partial<SweepDeps> = {}): SweepDeps {
     archiveOne: vi.fn(() => Promise.resolve()),
     cleanUpStorage: vi.fn(() => Promise.resolve()),
     finishDelete: vi.fn(() => Promise.resolve()),
+    isPermanentFailure: vi.fn(() => false),
     getTeacherEmail: vi.fn(() => Promise.resolve('teacher@school.org')),
     resolveStudentLabel: vi.fn((_t: string, _u: string, pin: string) =>
       Promise.resolve(pin ? `Pin${pin}` : 'Ava Nguyen')
@@ -495,5 +497,79 @@ describe('unfinished compliance deletes', () => {
       deps
     );
     expect(summary).toMatchObject({ deletesFinished: 0, stillStuck: 1 });
+  });
+});
+
+describe("terminal 'lost' entries (INT-A / issue #2735)", () => {
+  const seedLost = (status: string) => ({
+    sessionId: 's1',
+    id: 'r1',
+    data: {
+      hasStuckArchive: true,
+      studentUid: 'stu-1',
+      answers: answersWith('q1', 'a1'),
+      artifactArchive: {
+        a1: {
+          archiveStatus: status,
+          archiveStartedAt: OLD,
+          lastAttemptAt: OLD,
+          attemptCount: 5,
+        },
+      },
+    },
+  });
+
+  it('never retries or re-mails an artifact archival gave up on', async () => {
+    const { db, mailWrites } = makeStubDb([seedLost('lost')], {
+      s1: { teacherUid: 't1', quizTitle: 'Unit 3' },
+    });
+    const deps = makeDeps();
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(isStuckArchiveEntry({ archiveStatus: 'lost' }, NOW)).toBe(false);
+    expect(deps.archiveOne).not.toHaveBeenCalled();
+    expect(mailWrites).toHaveLength(0);
+    expect(summary).toMatchObject({ retried: 0, stillStuck: 0, lost: 0 });
+  });
+
+  it('mails a newly-lost artifact once and counts it apart from stragglers', async () => {
+    const { db, mailWrites } = makeStubDb([seedLost('failed')], {
+      s1: { teacherUid: 't1', quizTitle: 'Unit 3' },
+    });
+    const deps = makeDeps({
+      archiveOne: vi.fn(() => Promise.reject(new Error('gone'))),
+      isPermanentFailure: vi.fn(() => true),
+    });
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(summary).toMatchObject({ retried: 1, lost: 1, stillStuck: 0 });
+    expect(mailWrites).toHaveLength(1);
+    const message = (mailWrites[0].data as { message: { text: string } })
+      .message;
+    expect(message.text).toContain('stopped retrying');
+  });
+
+  it('separates the retrying and given-up sections of the email', () => {
+    const email = buildStragglerEmail([
+      { quizTitle: 'Unit 3', questionId: 'q1', studentLabel: 'Ava Nguyen' },
+      {
+        quizTitle: 'Unit 3',
+        questionId: 'q2',
+        studentLabel: 'Pin1234',
+        permanent: true,
+      },
+    ]);
+    expect(email.subject).toContain('2 student recordings');
+    expect(email.text).toContain('Still retrying');
+    expect(email.text).toContain('stopped retrying');
+    const retryingAt = email.text.indexOf('Still retrying');
+    const lostAt = email.text.indexOf('stopped retrying');
+    expect(email.text.indexOf('Ava Nguyen')).toBeGreaterThan(retryingAt);
+    expect(email.text.indexOf('Ava Nguyen')).toBeLessThan(lostAt);
+    expect(email.text.indexOf('Pin1234')).toBeGreaterThan(lostAt);
   });
 });

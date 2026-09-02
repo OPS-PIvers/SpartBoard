@@ -579,6 +579,8 @@ describe('takeUnplayableReason', () => {
   it('reports every non-playable lifecycle value', () => {
     expect(takeUnplayableReason(take('syncing'))).toBe('archiving');
     expect(takeUnplayableReason(take('failed'))).toBe('archive-failed');
+    // Terminal, so the teacher sees "Lost", not the retrying "Not saved".
+    expect(takeUnplayableReason(take('lost'))).toBe('lost');
     expect(takeUnplayableReason(take('deleting'))).toBe('deleted');
     expect(takeUnplayableReason(take('deleted'))).toBe('deleted');
     expect(takeUnplayableReason(take('delete-failed'))).toBe('deleted');

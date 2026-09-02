@@ -80,6 +80,7 @@ export type ArtifactArchiveStatus =
   | 'syncing'
   | 'archived'
   | 'failed'
+  | 'lost' // INT-A: terminal — archival gave up after MAX_ARCHIVE_ATTEMPTS, or nothing is left to archive
   | 'deleting' // added by 4.1 review: claimed, physical deletes not yet confirmed
   | 'deleted' // added by 4.1
   | 'delete-failed'; // added by 4.1
@@ -91,6 +92,7 @@ export interface ArtifactArchiveEntry {
   archiveStatus: ArtifactArchiveStatus; // required — an entry is only created once a status is known
   archiveStartedAt?: number;
   lastAttemptAt?: number; // 3.3 review: stamped on every failed attempt; archiveStartedAt survives
+  attemptCount?: number; // INT-A: failed attempts so far; at MAX_ARCHIVE_ATTEMPTS the status becomes 'lost'
   archivedAt?: number;
   archiveError?: string;
   storageCleanupPending?: boolean; // 3.3 review: archived to Drive, Storage delete still owed
@@ -135,6 +137,35 @@ succeeds. `lastAttemptAt` is stamped on every failed attempt while
 `archiveStartedAt` is preserved, so the sweep's staleness window measures from
 `max(archiveStartedAt, lastAttemptAt)` and a just-failed entry is not retried
 on the very next hourly run.
+
+Retrying is bounded. Every failed attempt increments `attemptCount`, and once
+it reaches `MAX_ARCHIVE_ATTEMPTS` (5, `functions/src/quizMediaArchive.ts`) the
+entry settles at the terminal `'lost'`. A `statObject` that comes back `null` —
+the transit object is gone, so no future attempt can succeed — is `'lost'`
+immediately, whatever the count. `'lost'` is not stuck (`computeHasStuckArchive`
+excludes it, so the response drops out of the sweep's collection-group query),
+is not playable (`isArtifactPlayable` still requires `'archived'` plus a
+`driveFileId`), and is not a delete tombstone, so the org-admin console lists it
+and can still delete whatever residue the entry carries. The teacher is mailed
+about a `'lost'` artifact on the single sweep run that settles it, and never
+again — this is what closes GitHub issue #2735, where an unarchivable artifact
+re-queued a straggler email every hour forever.
+
+`'lost'` stays distinct from `'failed'` all the way to the surfaces, because the
+two mean opposite things to a person: `'failed'` is an attempt that will be
+retried, `'lost'` is the end of the road. `resolveArtifactPlaybackState`
+(`utils/responseArtifacts.ts`) therefore returns its own `ArtifactPlaybackState`
+`'lost'`, which `ResponsePlaybackCard` renders as
+`quizMediaResponse.playback.lost` ("could not be saved… can no longer be
+recovered") rather than the "still being saved" copy `'failed'` gets.
+`takeUnplayableReason` (`utils/mediaGrading.ts`) makes the same split for the
+teacher: `'lost'` for the terminal case, `'archive-failed'` for a retrying one,
+with matching `quizMediaResponse.grading.takes.status.*` and
+`quizMediaResponse.grading.player.unplayable.*` copy. Take counting does NOT
+split them: `artifactCountsAsTake` treats `'failed'` and `'lost'` alike, since
+neither rescues a `'failed'` upload. The admin console's own
+`admin.mediaReview.status.lost` label is the third surface and reads the raw
+`archiveStatus`.
 
 ## `RecordingConfig` (types.ts) — 3.1 (base) + 3.2 (`takeLimit`) is canonical
 

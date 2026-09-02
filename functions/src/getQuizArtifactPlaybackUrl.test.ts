@@ -209,6 +209,7 @@ describe('playbackBlockReason', () => {
     expect(playbackBlockReason(undefined)).toBe('archiving');
     expect(playbackBlockReason({ archiveStatus: 'syncing' })).toBe('archiving');
     expect(playbackBlockReason({ archiveStatus: 'failed' })).toBe('failed');
+    expect(playbackBlockReason({ archiveStatus: 'lost' })).toBe('failed');
     expect(playbackBlockReason({ archiveStatus: 'deleting' })).toBe('deleted');
     expect(playbackBlockReason({ archiveStatus: 'deleted' })).toBe('deleted');
     expect(playbackBlockReason({ archiveStatus: 'delete-failed' })).toBe(
