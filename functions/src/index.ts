@@ -40,6 +40,10 @@ export { fetchExternalProxy, checkUrlCompatibility } from './embedProxy';
 // ── Activity Wall photo → Google Drive archive ─────────────────────────────
 export { archiveActivityWallPhoto } from './driveArchive';
 
+// ── Quiz media response → transcode → teacher Drive archive + straggler sweep ─
+export { archiveQuizMediaArtifact } from './quizMediaArchive';
+export { sweepStuckQuizArchives } from './sweepStuckQuizArchives';
+
 // ── Admin analytics HTTP endpoint (snapshot read) ──────────────────────────
 export { adminAnalytics } from './adminAnalyticsEndpoint';
 

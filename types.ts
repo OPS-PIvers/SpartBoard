@@ -3822,8 +3822,12 @@ export interface ArtifactArchiveEntry {
   /** Required - an entry only exists once a status is known. */
   archiveStatus: ArtifactArchiveStatus;
   archiveStartedAt?: number;
+  /** Server time of the most recent failed archive attempt; drives the sweep window. */
+  lastAttemptAt?: number;
   archivedAt?: number;
   archiveError?: string;
+  /** Drive holds the file but the Storage transit copy survived; the sweep retries the delete. */
+  storageCleanupPending?: boolean;
   deletedAt?: number;
   /** Admin uid that ran the compliance delete. */
   deletedBy?: string;
@@ -4013,6 +4017,14 @@ export interface QuizResponse {
    * array rewrite - and must never appear in the student write whitelist.
    */
   artifactArchive?: Record<string, ArtifactArchiveEntry>;
+  /**
+   * Server-maintained denormalization of "some `artifactArchive` entry is still
+   * `'syncing'`/`'failed'`". Firestore cannot query into map values, so this is
+   * what makes the hourly `sweepStuckQuizArchives` straggler sweep an indexed
+   * collection-group query instead of a full scan. Absent on every response
+   * without media; never written by the client.
+   */
+  hasStuckArchive?: boolean;
   /**
    * Server-stamped time the student raised their hand from the live quiz UI,
    * or null when lowered (by the student or cleared by the teacher). Absent on
