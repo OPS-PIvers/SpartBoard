@@ -119,7 +119,10 @@ import {
   applyHiddenOptions,
   applyTimeMultiplier,
 } from '@/utils/quizOverrideServing';
-import { countAnsweredQuestions } from '@/utils/quizCompleteness';
+import {
+  countAnsweredQuestions,
+  countOpenQuestions,
+} from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import {
@@ -1322,7 +1325,7 @@ const ActiveQuiz: React.FC<{
   override,
   effectiveCloseAt,
 }) => {
-  const { showAlert } = useDialog();
+  const { showAlert, showConfirm } = useDialog();
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [handBusy, setHandBusy] = useState(false);
@@ -2468,6 +2471,30 @@ const ActiveQuiz: React.FC<{
   // guard). Skipping the write lets the student move on while any saved answer
   // on the server is preserved untouched. A deliberate clear (cache holds '')
   // still writes through — `submittableAnswer` is '' there, not null.
+  // The Tennessen notice promises an unrecorded question "stays unanswered",
+  // not a hard block — so a deliberate submit names what is still open and
+  // then lets it through. Closed and capture-unavailable slots are resolved,
+  // not open, so they never count against the student here.
+  const confirmOpenQuestions = async (
+    justWroteQuestionId?: string
+  ): Promise<boolean> => {
+    if (session.mediaResponseEnabled !== true) return true;
+    const ids = servedPublicQuestions
+      .map((q) => q.id)
+      .filter((id) => id !== justWroteQuestionId);
+    const open = countOpenQuestions(myResponse?.answers ?? [], ids);
+    if (open <= 0) return true;
+    return showConfirm(
+      t('quizMediaResponse.capture.submitUnansweredBody', { count: open }),
+      {
+        title: t('quizMediaResponse.capture.submitUnansweredTitle'),
+        variant: 'warning',
+        confirmLabel: t('quizMediaResponse.capture.submitUnansweredConfirm'),
+        cancelLabel: t('quizMediaResponse.capture.submitUnansweredCancel'),
+      }
+    );
+  };
+
   const handleSubmitAndAdvance = async (answer: string, skipWrite = false) => {
     if (advancingRef.current || submitting) return;
     // Self-paced revisits are intentional re-submissions — let them through
@@ -2507,6 +2534,10 @@ const ActiveQuiz: React.FC<{
 
       const isLast = currentIndex >= effectiveTotalQuestions - 1;
       if (isLast) {
+        const proceed = await confirmOpenQuestions(
+          skipWrite ? undefined : currentQuestion.id
+        );
+        if (!proceed) return;
         setSelectedAnswer(answer);
         setSubmitted(true);
         if (myResponse?.status !== 'completed') {
@@ -2559,6 +2590,15 @@ const ActiveQuiz: React.FC<{
       });
     } else if (expiry === 'unanswered') {
       void onMarkUnresponded(currentQuestion.id, 'expired');
+    }
+  };
+
+  const handleRecordingSubmit = async () => {
+    if (!(await confirmOpenQuestions())) return;
+    try {
+      await onComplete();
+    } catch (err) {
+      console.error('[QuizStudentApp] onComplete failed:', err);
     }
   };
 
@@ -2902,6 +2942,7 @@ const ActiveQuiz: React.FC<{
                     : undefined
                 }
                 latestArtifact={latestRecordingArtifact}
+                light={light}
                 slotClosed={recordingSlotClosed}
                 onPrepExpired={handleRecordingPrepExpired}
                 onCaptureUnavailable={handleRecordingCaptureUnavailable}
@@ -2912,7 +2953,7 @@ const ActiveQuiz: React.FC<{
                     type="button"
                     onClick={
                       currentIndex >= effectiveTotalQuestions - 1
-                        ? () => void onComplete()
+                        ? () => void handleRecordingSubmit()
                         : handleNext
                     }
                     className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"

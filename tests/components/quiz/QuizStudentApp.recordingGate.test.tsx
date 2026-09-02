@@ -6,11 +6,15 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
 
-const { mockAuth, hookState } = vi.hoisted(() => ({
+const { mockAuth, hookState, spies } = vi.hoisted(() => ({
+  spies: {
+    completeQuiz: vi.fn().mockResolvedValue(undefined),
+    showConfirm: vi.fn().mockResolvedValue(true),
+  },
   mockAuth: {
     onAuthStateChanged: vi.fn(),
     signInWithPopup: vi.fn(),
@@ -27,6 +31,14 @@ const { mockAuth, hookState } = vi.hoisted(() => ({
     session: null as QuizSession | null,
     myResponse: null as QuizResponse | null,
   },
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: spies.showConfirm,
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
 }));
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
@@ -64,7 +76,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
     setArtifactUploadState: vi.fn().mockResolvedValue(undefined),
     markUnresponded: vi.fn().mockResolvedValue(undefined),
     acknowledgeRecordingNotice: vi.fn().mockResolvedValue(undefined),
-    completeQuiz: vi.fn().mockResolvedValue(undefined),
+    completeQuiz: spies.completeQuiz,
     reportTabSwitch: vi.fn(),
     setHandRaised: vi.fn(),
     recordStimulusPlay: vi.fn(),
@@ -127,6 +139,7 @@ function buildSession(overrides: Partial<QuizSession> = {}): QuizSession {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  spies.showConfirm.mockResolvedValue(true);
   hookState.myResponse = buildResponse();
   window.history.replaceState({}, '', '/quiz?code=ABC123');
 });
@@ -183,6 +196,58 @@ describe('QuizStudentApp — recording gate', () => {
 
     expect(await screen.findByText(/Thinking time/i)).toBeInTheDocument();
     expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
+  });
+
+  it('treats an unrecorded question as unanswered at submit', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+    });
+    render(<QuizStudentApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
+
+    await waitFor(() => expect(spies.showConfirm).toHaveBeenCalledTimes(1));
+    expect(spies.showConfirm.mock.calls[0][0]).toMatch(
+      /1 question still has no answer/i
+    );
+    await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the student on the quiz when they choose to keep working', async () => {
+    spies.showConfirm.mockResolvedValue(false);
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+    });
+    render(<QuizStudentApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
+
+    await waitFor(() => expect(spies.showConfirm).toHaveBeenCalledTimes(1));
+    expect(spies.completeQuiz).not.toHaveBeenCalled();
+  });
+
+  it('does not warn when a dead microphone already resolved the slot', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1700000001000,
+          status: 'submitted',
+          unresponded: 'capture-unavailable',
+        },
+      ],
+    });
+    render(<QuizStudentApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
+
+    await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
+    expect(spies.showConfirm).not.toHaveBeenCalled();
   });
 
   it('mounts capture when the session carries the marker', async () => {

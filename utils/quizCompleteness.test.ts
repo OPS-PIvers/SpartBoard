@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   isQuestionAnswered,
+  isQuestionOpen,
   countAnsweredQuestions,
+  countOpenQuestions,
   type CompletenessAnswer,
 } from './quizCompleteness';
 
@@ -68,5 +70,75 @@ describe('countAnsweredQuestions', () => {
 
   it('returns 0 for an empty answers array', () => {
     expect(countAnsweredQuestions([], ['q1', 'q2'])).toBe(0);
+  });
+});
+
+describe('recording takes', () => {
+  const failedTake: CompletenessAnswer = {
+    questionId: 'q1',
+    artifacts: [
+      {
+        id: 'a1',
+        slot: 'primary',
+        kind: 'audio',
+        uploadState: 'failed',
+      },
+    ],
+  };
+  const sentTake: CompletenessAnswer = {
+    questionId: 'q1',
+    artifacts: [
+      {
+        id: 'a2',
+        slot: 'primary',
+        kind: 'audio',
+        uploadState: 'uploaded',
+      },
+    ],
+  };
+
+  it('does not count a take whose only artifact failed to upload', () => {
+    expect(isQuestionAnswered([failedTake], 'q1')).toBe(false);
+  });
+
+  it('counts a take whose artifact reached the teacher', () => {
+    expect(isQuestionAnswered([sentTake], 'q1')).toBe(true);
+  });
+
+  it('leaves a failed-only recording question open to record again', () => {
+    expect(isQuestionOpen([failedTake], 'q1')).toBe(true);
+  });
+});
+
+describe('isQuestionOpen', () => {
+  it('is open when nothing has been written for the question', () => {
+    expect(isQuestionOpen([], 'q1')).toBe(true);
+  });
+
+  it('is closed once the question is answered', () => {
+    expect(isQuestionOpen([{ questionId: 'q1' }], 'q1')).toBe(false);
+  });
+
+  it('is closed for every unresponded reason — those are resolved, not open', () => {
+    for (const reason of [
+      'passed',
+      'expired',
+      'abandoned',
+      'capture-unavailable',
+    ] as const) {
+      expect(
+        isQuestionOpen([{ questionId: 'q1', unresponded: reason }], 'q1')
+      ).toBe(false);
+    }
+  });
+});
+
+describe('countOpenQuestions', () => {
+  it('counts only the questions the student can still fill', () => {
+    const answers: CompletenessAnswer[] = [
+      { questionId: 'q1' },
+      { questionId: 'q2', unresponded: 'capture-unavailable' },
+    ];
+    expect(countOpenQuestions(answers, ['q1', 'q2', 'q3', 'q4'])).toBe(2);
   });
 });
