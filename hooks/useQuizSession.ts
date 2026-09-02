@@ -50,7 +50,10 @@ import {
   UnrespondedReason,
 } from '@/types';
 import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
-import { nextTakeIndex } from '@/utils/answerTakeOrdering';
+import {
+  isRecordingSlotClosed,
+  nextTakeIndex,
+} from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
 import {
@@ -2635,6 +2638,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       if (!mediaResponseEnabledRef.current) return null;
 
       const existingAnswers = myResponseRef.current?.answers ?? [];
+      // Symmetric to markUnresponded: a closed slot never accepts a take.
+      if (isRecordingSlotClosed(existingAnswers, input.questionId)) return null;
       const takeIndex = nextTakeIndex(existingAnswers, input.questionId);
 
       const newAnswer: QuizResponseAnswer = {

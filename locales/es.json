@@ -1936,7 +1936,8 @@
       "recipientsLabel": "Who receives your recording",
       "recipientsBody": "Your recording is saved to your teacher’s Google Drive under your real name. Your teacher, and school staff who are allowed to see your school records, can listen to it.",
       "acknowledge": "I have read this",
-      "whyLink": "Why we’re asking"
+      "whyLink": "Why we’re asking",
+      "close": "Close"
     },
     "capture": {
       "title": "Spoken answer",
@@ -1951,7 +1952,10 @@
       "wrapUp": "Wrap it up — recording stops at {{seconds}} seconds.",
       "reviewLabel": "Listen back",
       "reviewBody": "Nothing has been sent yet. Keep this take, or discard it and record again.",
-      "reviewPlayerLabel": "Play back your recording",
+      "playbackPosition": "Playback position",
+      "playbackValueText": "{{elapsed}} of {{total}}",
+      "windowClosedTitle": "Recording time is over",
+      "windowClosedBody": "The time to record an answer to this question has passed, so there is nothing left to record here. Your teacher will see this question without a recording. Move on when you are ready.",
       "armedBody": "When you press record you will have {{seconds}} seconds.",
       "record": "Record",
       "recordAgain": "Record again",

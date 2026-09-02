@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, ShieldCheck } from 'lucide-react';
+import { Mic, ShieldCheck, X } from 'lucide-react';
 
 /**
  * Minn. Stat. § 13.04 subd. 2 Tennessen warning, shown once per assignment
@@ -11,7 +11,9 @@ import { Mic, ShieldCheck } from 'lucide-react';
 export const RecordingConsentNotice: React.FC<{
   onAcknowledge: () => void;
   busy?: boolean;
-}> = ({ onAcknowledge, busy = false }) => {
+  /** 'reminder' is the re-read overlay: it closes, it never re-acknowledges. */
+  variant?: 'acknowledge' | 'reminder';
+}> = ({ onAcknowledge, busy = false, variant = 'acknowledge' }) => {
   const { t } = useTranslation();
 
   const elements: { key: string; label: string; body: string }[] = [
@@ -81,25 +83,36 @@ export const RecordingConsentNotice: React.FC<{
         disabled={busy}
         className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <Mic aria-hidden className="h-4 w-4" />
-        {t('quizMediaResponse.notice.acknowledge')}
+        {variant === 'reminder' ? (
+          <X aria-hidden className="h-4 w-4" />
+        ) : (
+          <Mic aria-hidden className="h-4 w-4" />
+        )}
+        {variant === 'reminder'
+          ? t('quizMediaResponse.notice.close')
+          : t('quizMediaResponse.notice.acknowledge')}
       </button>
     </section>
   );
 };
 
 /** Persistent "why we're asking" link that stays on the recorder itself. */
-export const RecordingNoticeReminder: React.FC<{ onOpen: () => void }> = ({
-  onOpen,
-}) => {
+export const RecordingNoticeReminder = React.forwardRef<
+  HTMLButtonElement,
+  { onOpen: () => void; disabled?: boolean }
+>(({ onOpen, disabled = false }, ref) => {
   const { t } = useTranslation();
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onOpen}
-      className="rounded-lg text-xs font-semibold text-brand-blue-primary underline underline-offset-2 transition hover:text-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+      disabled={disabled}
+      className="rounded-lg text-xs font-semibold text-brand-blue-primary underline underline-offset-2 transition hover:text-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:no-underline disabled:text-slate-500"
     >
       {t('quizMediaResponse.notice.whyLink')}
     </button>
   );
-};
+});
+
+RecordingNoticeReminder.displayName = 'RecordingNoticeReminder';

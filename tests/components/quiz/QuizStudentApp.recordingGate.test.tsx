@@ -77,19 +77,34 @@ vi.mock('@/hooks/useQuizSession', () => ({
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
 
+const RECORDING_BLOCK: NonNullable<QuizPublicQuestion['recording']> = {
+  prepSeconds: 30,
+  limitSeconds: 60,
+  prepExpiry: 'armed',
+  takeLimit: null,
+};
+
 const RECORDING_QUESTION: QuizPublicQuestion = {
   id: 'q1',
   type: 'MC',
   text: 'Say it out loud',
   timeLimit: 0,
   choices: ['Alpha', 'Bravo'],
-  recording: {
-    prepSeconds: 30,
-    limitSeconds: 60,
-    prepExpiry: 'armed',
-    takeLimit: null,
-  },
+  recording: RECORDING_BLOCK,
 };
+
+function buildResponse(overrides: Partial<QuizResponse> = {}): QuizResponse {
+  return {
+    studentUid: 'sso-uid-1',
+    joinedAt: Date.now(),
+    status: 'in-progress',
+    answers: [],
+    score: null,
+    submittedAt: null,
+    completedAttempts: 0,
+    ...overrides,
+  };
+}
 
 function buildSession(overrides: Partial<QuizSession> = {}): QuizSession {
   return {
@@ -112,15 +127,7 @@ function buildSession(overrides: Partial<QuizSession> = {}): QuizSession {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  hookState.myResponse = {
-    studentUid: 'sso-uid-1',
-    joinedAt: Date.now(),
-    status: 'in-progress',
-    answers: [],
-    score: null,
-    submittedAt: null,
-    completedAttempts: 0,
-  };
+  hookState.myResponse = buildResponse();
   window.history.replaceState({}, '', '/quiz?code=ABC123');
 });
 
@@ -131,6 +138,50 @@ describe('QuizStudentApp — recording gate', () => {
 
     expect(await screen.findByText(/Say it out loud/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Alpha' })).toBeInTheDocument();
+    expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
+  });
+
+  it('locks the recorder once prep expiry closed the slot', async () => {
+    hookState.session = buildSession({
+      mediaResponseEnabled: true,
+      sessionMode: 'teacher',
+      publicQuestions: [
+        {
+          ...RECORDING_QUESTION,
+          recording: { ...RECORDING_BLOCK, prepExpiry: 'unanswered' },
+        },
+      ],
+    });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1700000001000,
+          status: 'submitted',
+          unresponded: 'expired',
+        },
+      ],
+    });
+    render(<QuizStudentApp />);
+
+    expect(
+      await screen.findByText(/Recording time is over/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^Record/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('skips the notice when the response already carries the ack', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+    });
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText(/Thinking time/i)).toBeInTheDocument();
     expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
   });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   countCommittedTakes,
+  isRecordingSlotClosed,
   nextTakeIndex,
   selectRepresentativeAnswers,
 } from './answerTakeOrdering';
@@ -59,5 +60,41 @@ describe('nextTakeIndex / countCommittedTakes', () => {
 
   it('counts zero on a legacy answers array with no artifacts at all', () => {
     expect(countCommittedTakes([{ questionId: 'q1' }], 'q1')).toBe(0);
+  });
+});
+
+describe('isRecordingSlotClosed', () => {
+  it('closes on the prep-expiry markers only', () => {
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q1', unresponded: 'expired' }],
+        'q1'
+      )
+    ).toBe(true);
+    expect(
+      isRecordingSlotClosed([{ questionId: 'q1', unresponded: 'passed' }], 'q1')
+    ).toBe(true);
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q1', unresponded: 'capture-unavailable' }],
+        'q1'
+      )
+    ).toBe(false);
+  });
+
+  it('stays open for an untouched question and for one with a take', () => {
+    expect(isRecordingSlotClosed([], 'q1')).toBe(false);
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q1', unresponded: 'expired' }, { questionId: 'q1' }],
+        'q1'
+      )
+    ).toBe(false);
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q2', unresponded: 'expired' }],
+        'q1'
+      )
+    ).toBe(false);
   });
 });

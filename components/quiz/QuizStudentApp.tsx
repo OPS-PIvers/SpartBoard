@@ -82,7 +82,10 @@ import {
   type ResponseArtifact,
   type UnrespondedReason,
 } from '@/types';
-import { countCommittedTakes } from '@/utils/answerTakeOrdering';
+import {
+  countCommittedTakes,
+  isRecordingSlotClosed,
+} from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
@@ -635,11 +638,12 @@ const QuizJoinFlow: React.FC<{
   }, [completeQuiz, isViewOnly]);
 
   // Tennessen acknowledgment. localStorage is the once-per-device fast path;
-  // the durable proof is `recordingNoticeAckedAt` on the response doc.
+  // `recordingNoticeAckedAt` on the response doc is the durable proof and
+  // carries the ack to a student who continues on another device.
   const noticeAckKey = session?.id
     ? `spart_quiz_recording_ack_${session.id}`
     : null;
-  const [noticeAckedAt, setNoticeAckedAt] = useState<number | null>(null);
+  const [localNoticeAckedAt, setNoticeAckedAt] = useState<number | null>(null);
   const [ackKeyRead, setAckKeyRead] = useState<string | null>(null);
   if (noticeAckKey && ackKeyRead !== noticeAckKey) {
     setAckKeyRead(noticeAckKey);
@@ -652,6 +656,8 @@ const QuizJoinFlow: React.FC<{
     }
     setNoticeAckedAt(stored);
   }
+  const noticeAckedAt =
+    localNoticeAckedAt ?? myResponse?.recordingNoticeAckedAt ?? null;
 
   const handleAcknowledgeNotice = useCallback(() => {
     const at = Date.now();
@@ -2530,6 +2536,9 @@ const ActiveQuiz: React.FC<{
   const committedTakes = currentQuestion
     ? countCommittedTakes(myResponse?.answers ?? [], currentQuestion.id)
     : 0;
+  const recordingSlotClosed = currentQuestion
+    ? isRecordingSlotClosed(myResponse?.answers ?? [], currentQuestion.id)
+    : false;
   const latestRecordingArtifact = answersForQuestion
     .filter((a) => (a.artifacts?.length ?? 0) > 0)
     .sort((a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0))
@@ -2888,6 +2897,7 @@ const ActiveQuiz: React.FC<{
                     : undefined
                 }
                 latestArtifact={latestRecordingArtifact}
+                slotClosed={recordingSlotClosed}
                 onPrepExpired={handleRecordingPrepExpired}
                 onCaptureUnavailable={handleRecordingCaptureUnavailable}
               />

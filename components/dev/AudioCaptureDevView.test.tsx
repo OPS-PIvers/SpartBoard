@@ -21,6 +21,7 @@ const EXPECTED: Record<string, RegExp> = {
   committing: /Listen back/i,
   'archive-failed': /Not yet submitted/i,
   'take-limit': /No takes left/i,
+  'window-closed': /Recording time is over/i,
   'mic-unavailable': /microphone did not work/i,
 };
 
