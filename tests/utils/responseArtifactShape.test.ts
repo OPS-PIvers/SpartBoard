@@ -95,6 +95,9 @@ describe('artifactArchive shape', () => {
     expect(
       isArtifactPlayable({ archiveStatus: 'deleting', driveFileId: 'd1' })
     ).toBe(false);
+    expect(
+      isArtifactPlayable({ archiveStatus: 'lost', driveFileId: 'd1' })
+    ).toBe(false);
     expect(isArtifactPlayable(undefined)).toBe(false);
   });
 
@@ -183,6 +186,7 @@ describe('playback helpers', () => {
     expect(state('archived')).toBe('archiving');
     expect(state('syncing')).toBe('archiving');
     expect(state('failed')).toBe('failed');
+    expect(state('lost')).toBe('failed');
     expect(state('deleting')).toBe('deleted');
     expect(state('deleted')).toBe('deleted');
     expect(state('delete-failed')).toBe('deleted');

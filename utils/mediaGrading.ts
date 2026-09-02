@@ -272,7 +272,7 @@ export function takeUnplayableReason(
   const status = take.archive?.archiveStatus;
   if (!status || status === 'syncing' || status === 'archived')
     return 'archiving';
-  if (status === 'failed') return 'archive-failed';
+  if (status === 'failed' || status === 'lost') return 'archive-failed';
   if (
     status === 'deleting' ||
     status === 'deleted' ||

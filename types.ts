@@ -3823,6 +3823,8 @@ export type ArtifactArchiveStatus =
   | 'syncing'
   | 'archived'
   | 'failed'
+  /** Terminal: archival gave up, so the sweep stops retrying and stops mailing. */
+  | 'lost'
   | 'deleting'
   | 'deleted'
   | 'delete-failed';
@@ -3835,6 +3837,8 @@ export interface ArtifactArchiveEntry {
   archiveStartedAt?: number;
   /** Server time of the most recent failed archive attempt; drives the sweep window. */
   lastAttemptAt?: number;
+  /** Failed attempts so far; at `MAX_ARCHIVE_ATTEMPTS` the status becomes `'lost'`. */
+  attemptCount?: number;
   archivedAt?: number;
   archiveError?: string;
   /** Drive holds the file but the Storage transit copy survived; the sweep retries the delete. */

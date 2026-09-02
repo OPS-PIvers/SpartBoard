@@ -71,6 +71,8 @@ export interface MediaResponseRow {
   sessionId: string;
   responseKey: string;
   questionId: string;
+  /** Prompt text from `session.publicQuestions`, truncated; absent when unknown. */
+  questionText?: string;
   quizTitle: string;
   teacherUid: string;
   teacherEmail: string;
@@ -193,6 +195,35 @@ export function collectQuestionArtifacts(
   return out;
 }
 
+/** Keeps a prompt readable in one table cell without a tooltip. */
+export const MAX_QUESTION_TEXT_CHARS = 80;
+
+/** Collapses whitespace and truncates on a whole word where it can. */
+export function truncateQuestionText(raw: unknown): string {
+  const text = asString(raw).replace(/\s+/g, ' ').trim();
+  if (text.length <= MAX_QUESTION_TEXT_CHARS) return text;
+  const cut = text.slice(0, MAX_QUESTION_TEXT_CHARS);
+  const lastSpace = cut.lastIndexOf(' ');
+  const kept =
+    lastSpace > MAX_QUESTION_TEXT_CHARS / 2 ? cut.slice(0, lastSpace) : cut;
+  return `${kept.trimEnd()}\u2026`;
+}
+
+/** questionId -> truncated prompt, from the session's student-safe question list. */
+export function buildQuestionTextMap(
+  publicQuestions: unknown
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!Array.isArray(publicQuestions)) return map;
+  for (const raw of publicQuestions) {
+    const id = asString((raw as { id?: unknown })?.id);
+    if (!id) continue;
+    const text = truncateQuestionText((raw as { text?: unknown })?.text);
+    if (text) map[id] = text;
+  }
+  return map;
+}
+
 /** Pseudonymous only. No PII-resolution path is reachable from an org admin. */
 export function buildStudentLabel(pin: unknown, studentUid: unknown): string {
   const pinValue = asString(pin);
@@ -244,6 +275,8 @@ export function buildRowsForResponse(
     quizTitle: string;
     teacherUid: string;
     teacherEmail: string;
+    /** questionId -> truncated prompt; `{}` when the session lists none. */
+    questionTextById?: Record<string, string>;
   },
   data: Record<string, unknown>
 ): MediaResponseRow[] {
@@ -288,10 +321,12 @@ export function buildRowsForResponse(
       });
     }
     if (takes.length === 0) continue;
+    const questionText = input.questionTextById?.[questionId];
     rows.push({
       sessionId: input.sessionId,
       responseKey: input.responseKey,
       questionId,
+      ...(questionText ? { questionText } : {}),
       quizTitle: input.quizTitle,
       teacherUid: input.teacherUid,
       teacherEmail: input.teacherEmail,
@@ -399,6 +434,7 @@ export async function listOrgQuizMedia(
       const session = sessionDoc.data() ?? {};
       const teacherUid = asString(session.teacherUid);
       const quizTitle = asString(session.quizTitle) || 'Untitled quiz';
+      const questionTextById = buildQuestionTextMap(session.publicQuestions);
       const responses = await sessionDoc.ref
         .collection('responses')
         .limit(MAX_RESPONSES_SCANNED - responsesScanned)
@@ -414,6 +450,7 @@ export async function listOrgQuizMedia(
               quizTitle,
               teacherUid,
               teacherEmail: teacherMap.get(teacherUid) ?? '',
+              questionTextById,
             },
             data
           )

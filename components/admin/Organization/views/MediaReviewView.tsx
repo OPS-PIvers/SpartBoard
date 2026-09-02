@@ -39,6 +39,7 @@ const STATUS_COLOR: Record<string, AccentColor> = {
   archived: 'emerald',
   syncing: 'amber',
   failed: 'rose',
+  lost: 'rose',
   deleting: 'amber',
   deleted: 'slate',
   'delete-failed': 'rose',
@@ -76,6 +77,9 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
   onDelete,
 }) => {
   const { t } = useTranslation();
+  // Prompt text where the session still has it; the raw id is the fallback.
+  const questionLabel = (row: MediaResponseRow) =>
+    row.questionText?.trim() ? row.questionText : row.questionId;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState('');
@@ -369,7 +373,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                             onChange={() => toggleRow(key)}
                             aria-label={t('admin.mediaReview.selectRow', {
                               student: row.studentLabel,
-                              question: row.questionId,
+                              question: questionLabel(row),
                             })}
                           />
                         </td>
@@ -381,8 +385,13 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                             {row.quizTitle}
                           </div>
                         </td>
-                        <td className="px-4 py-3 align-top text-sm font-mono text-slate-700">
-                          {row.questionId}
+                        <td className="px-4 py-3 align-top">
+                          <div className="text-sm text-slate-800 max-w-[280px]">
+                            {questionLabel(row)}
+                          </div>
+                          <div className="text-xs font-mono text-slate-500 truncate max-w-[280px]">
+                            {row.questionId}
+                          </div>
                         </td>
                         <td className="px-4 py-3 align-top text-sm text-slate-700 break-all">
                           {row.teacherEmail || '—'}
@@ -459,8 +468,13 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
               key={mediaRowKey(row)}
               className="px-3 py-2 text-xs text-slate-700 flex items-center justify-between gap-3"
             >
-              <span className="truncate">
-                {row.studentLabel} · {row.questionId} · {row.quizTitle}
+              <span className="min-w-0">
+                <span className="block truncate">
+                  {row.studentLabel} · {questionLabel(row)} · {row.quizTitle}
+                </span>
+                <span className="block truncate font-mono text-slate-500">
+                  {row.questionId}
+                </span>
               </span>
               <span className="font-mono shrink-0 text-slate-500">
                 {t('admin.mediaReview.takeCount', {

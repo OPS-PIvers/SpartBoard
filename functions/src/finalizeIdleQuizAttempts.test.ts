@@ -44,6 +44,7 @@ vi.mock('firebase-functions/v2/scheduler', () => ({
 
 import {
   runFinalizeIdleQuizAttempts,
+  resolveUnrespondedQuestionIds,
   MAX_READ_PER_RUN,
   RESPONSE_PAGE_SIZE,
 } from './finalizeIdleQuizAttempts';
@@ -605,5 +606,61 @@ describe('finalizeIdleQuizAttempts — scheduled wrapper', () => {
   it('imports and exposes the onSchedule handler', async () => {
     const mod = await import('./finalizeIdleQuizAttempts');
     expect(typeof mod.finalizeIdleQuizAttempts).toBe('function');
+  });
+});
+
+// ===========================================================================
+// M17 served-subset override (INT-A)
+// ===========================================================================
+
+describe('runFinalizeIdleQuizAttempts - served-subset abandoned markers', () => {
+  it('falls back to the whole session list when no subset was recorded', () => {
+    expect(resolveUnrespondedQuestionIds(['q1', 'q2'], undefined)).toEqual([
+      'q1',
+      'q2',
+    ]);
+    expect(resolveUnrespondedQuestionIds(['q1', 'q2'], 'q1')).toEqual([
+      'q1',
+      'q2',
+    ]);
+  });
+
+  it('intersects with the served subset, ignoring ids the session dropped', () => {
+    expect(
+      resolveUnrespondedQuestionIds(['q1', 'q2', 'q3'], ['q3', 'q1', 'gone'])
+    ).toEqual(['q1', 'q3']);
+    expect(resolveUnrespondedQuestionIds(['q1'], [])).toEqual([]);
+  });
+
+  it('only marks the questions this student was actually served', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'r1',
+          sid: 'sess1',
+          data: {
+            status: 'in-progress',
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+            servedQuestionIds: ['q1', 'q2'],
+            answers: [{ questionId: 'q1', answer: 'a', status: 'submitted' }],
+          },
+        },
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          completenessModel: 1,
+          publicQuestions: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
+        },
+      },
+    });
+
+    const result = await runFinalizeIdleQuizAttempts(db, NOW);
+
+    expect(result.finalized).toBe(1);
+    const answers = responses[0].data.answers as Record<string, unknown>[];
+    expect(answers.map((a) => a.questionId)).toEqual(['q1', 'q2']);
+    expect(answers[1].unresponded).toBe('abandoned');
   });
 });

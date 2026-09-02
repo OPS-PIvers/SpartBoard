@@ -113,6 +113,25 @@ interface QuizResponseDoc {
   lastWriteAt?: admin.firestore.Timestamp;
   completedAttempts?: number;
   answers?: QuizAnswer[];
+  /** M17 per-student subset of `publicQuestions`; absent means "all of them". */
+  servedQuestionIds?: unknown;
+}
+
+/**
+ * The questions this student was actually shown. M17 lets a session serve a
+ * per-student subset, snapshotted on the response doc; marking every
+ * `publicQuestion` abandoned would fabricate misses for questions the student
+ * never had. A non-array value means no subset was recorded.
+ */
+export function resolveUnrespondedQuestionIds(
+  sessionQuestionIds: readonly string[],
+  servedQuestionIds: unknown
+): string[] {
+  if (!Array.isArray(servedQuestionIds)) return [...sessionQuestionIds];
+  const served = new Set(
+    servedQuestionIds.filter((id): id is string => typeof id === 'string')
+  );
+  return sessionQuestionIds.filter((id) => served.has(id));
 }
 
 interface QuizSessionDoc {
@@ -471,9 +490,10 @@ export async function runFinalizeIdleQuizAttempts(
         // Absence of an entry must mean "never reached," so every question
         // the student left behind gets an explicit `abandoned` marker
         // (RR-08 sub-decision 1/5). There is no per-question requiredness
-        // field yet, so EVERY missing question is marked; brief 3.5 should
-        // narrow this to required slots once that field exists. The session
-        // doc was already batch-read above — no extra Firestore read.
+        // field yet, so EVERY missing question the student was SERVED is
+        // marked (M17 subsets intersect); brief 3.5 should narrow this to
+        // required slots once that field exists. The session doc was already
+        // batch-read above — no extra Firestore read.
         //
         // DEPLOY GATE: this branch runs only for sessions the NEW teacher
         // client created (`completenessModel: 1`). Every push to dev-paul
@@ -488,7 +508,11 @@ export async function runFinalizeIdleQuizAttempts(
               .map((a) => a.questionId)
               .filter((id): id is string => typeof id === 'string')
           );
-          for (const qid of meta.questionIds) {
+          const servedIds = resolveUnrespondedQuestionIds(
+            meta.questionIds,
+            fresh.servedQuestionIds
+          );
+          for (const qid of servedIds) {
             if (answeredIds.has(qid)) continue;
             missingEntries.push({
               questionId: qid,
