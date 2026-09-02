@@ -4341,10 +4341,13 @@ service cloud.firestore {
         // Teacher/admins read+delete submissions, EXCEPT a published view-only
         // gallery (publiclyShared == true) is readable by any authed caller (incl.
         // anon gallery viewers). Delete stays teacher/admin-only.
+        // A student can list/get their own posts via a where('authorUid','==',uid)
+        // query even on a non-public wall (Padlet-lite "my posts" view).
         allow read: if request.auth != null &&
                             (isAdmin() ||
                              sessionId.matches(request.auth.uid + '_.*') ||
-                             awSession().get('publiclyShared', false) == true);
+                             awSession().get('publiclyShared', false) == true ||
+                             resource.data.authorUid == request.auth.uid);
         allow delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
         // Students may retract their own post while the wall is open and the

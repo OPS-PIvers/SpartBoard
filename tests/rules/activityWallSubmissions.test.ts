@@ -19,7 +19,17 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  collection,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-activity-wall-submissions';
 const TEACHER_UID = 'teacher-uid';
@@ -641,6 +651,53 @@ describe('activity wall submissions — owner update type checks', () => {
   it('denies rewriting type to an unknown value', async () => {
     await assertFails(
       updateDoc(doc(asTeacher(), submissionPath('sub-1')), { type: 'sticker' })
+    );
+  });
+});
+
+describe('activity wall submissions — author self-read', () => {
+  beforeEach(async () => {
+    await seedSession(padletSession());
+    await seedSubmission(
+      'sub-mine',
+      newSubmission({ id: 'sub-mine', authorUid: STUDENT_UID })
+    );
+    await seedSubmission(
+      'sub-theirs',
+      newSubmission({ id: 'sub-theirs', authorUid: OTHER_STUDENT_UID })
+    );
+  });
+
+  it('author can get their own post on a non-public wall', async () => {
+    await assertSucceeds(getDoc(doc(asStudent(), submissionPath('sub-mine'))));
+  });
+
+  it('author can query their own posts with a matching authorUid filter', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(
+            asStudent(),
+            `activity_wall_sessions/${SESSION_ID}/submissions`
+          ),
+          where('authorUid', '==', STUDENT_UID)
+        )
+      )
+    );
+  });
+
+  it("a different student cannot get another student's post on a non-public wall", async () => {
+    await assertFails(getDoc(doc(asStudent(), submissionPath('sub-theirs'))));
+  });
+
+  it('a student query without the authorUid filter is denied', async () => {
+    await assertFails(
+      getDocs(
+        collection(
+          asStudent(),
+          `activity_wall_sessions/${SESSION_ID}/submissions`
+        )
+      )
     );
   });
 });

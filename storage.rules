@@ -147,11 +147,15 @@ service firebase.storage {
     // nothing student-uploaded persists in Storage long term.
     match /activity_wall_media/{sessionId}/{submissionId}/{fileName} {
       // Owning teacher/admin always; any authed caller once the wall is
-      // published as a gallery, so the gallery can render pre-archive media.
+      // published as a gallery, so the gallery can render pre-archive media;
+      // the uploader can also read their own object (submissionId path segment
+      // matches the create rule's ownership proof) before archival/publish.
       allow read: if request.auth != null &&
         (
           isAdmin() ||
           sessionId.matches(request.auth.uid + '_.*') ||
+          submissionId == request.auth.uid ||
+          submissionId.matches('^' + request.auth.uid + '__.*') ||
           firestore.get(
             /databases/(default)/documents/activity_wall_sessions/$(sessionId)
           ).data.get('publiclyShared', false) == true
