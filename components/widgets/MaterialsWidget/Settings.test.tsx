@@ -7,7 +7,12 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import { MaterialDefinition, MaterialsConfig, WidgetData } from '@/types';
+import {
+  MaterialDefinition,
+  MaterialsConfig,
+  MaterialsPreferences,
+  WidgetData,
+} from '@/types';
 import { TEACHER_MATERIAL_ID_PREFIX } from './constants';
 
 vi.mock('@/context/useDashboard', () => ({
@@ -56,6 +61,7 @@ interface SetupOptions {
   buildingId?: string;
   dashboards?: unknown[];
   confirmResult?: boolean;
+  materialsPreferences?: MaterialsPreferences;
 }
 
 const setup = (options: SetupOptions = {}) => {
@@ -63,6 +69,7 @@ const setup = (options: SetupOptions = {}) => {
   const saveCustomMaterials = vi.fn().mockResolvedValue(undefined);
   const updateWidgetConfigsAcrossBoards = vi.fn().mockResolvedValue(undefined);
   const showConfirm = vi.fn().mockResolvedValue(options.confirmResult ?? true);
+  const saveMaterialsPreferences = vi.fn();
 
   mockedUseDashboard.mockReturnValue({
     updateWidget,
@@ -73,6 +80,8 @@ const setup = (options: SetupOptions = {}) => {
     featurePermissions: options.featurePermissions ?? [],
     customMaterials: options.customMaterials ?? [],
     saveCustomMaterials,
+    materialsPreferences: options.materialsPreferences ?? {},
+    saveMaterialsPreferences,
   } as unknown as ReturnType<typeof useAuth>);
   mockedUseDialog.mockReturnValue({ showConfirm } as unknown as ReturnType<
     typeof useDialog
@@ -84,6 +93,7 @@ const setup = (options: SetupOptions = {}) => {
     saveCustomMaterials,
     updateWidgetConfigsAcrossBoards,
     showConfirm,
+    saveMaterialsPreferences,
   };
 };
 
@@ -334,5 +344,134 @@ describe('MaterialsSettings — teacher custom materials', () => {
     expect(saveCustomMaterials).toHaveBeenCalledWith([
       expect.objectContaining({ id: GLUE.id, label: 'Glue' }),
     ]);
+  });
+});
+
+describe('MaterialsSettings — account-wide preferences', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('saves the selection as the default for new widgets', async () => {
+    const user = userEvent.setup();
+    const { saveMaterialsPreferences } = setup({
+      customMaterials: [GLUE],
+      materialsPreferences: { hiddenMaterialIds: ['calculator'] },
+    });
+    render(<MaterialsSettings widget={makeWidget({ selectedItems: [] })} />);
+
+    await user.click(screen.getByText('Glue Sticks'));
+
+    expect(saveMaterialsPreferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedItems: [GLUE.id],
+        customMaterialSnapshots: [GLUE],
+        hiddenMaterialIds: ['calculator'],
+      })
+    );
+  });
+
+  it('saves the title as a default too', async () => {
+    const user = userEvent.setup();
+    const { saveMaterialsPreferences } = setup();
+    render(<MaterialsSettings widget={makeWidget({ title: '' })} />);
+
+    await user.type(screen.getByLabelText('Title Text'), 'B');
+
+    expect(saveMaterialsPreferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: 'B' })
+    );
+  });
+
+  it('hides a built-in material, deselects it here, and keeps it hidden account-wide', async () => {
+    const user = userEvent.setup();
+    const { saveMaterialsPreferences, updateWidget } = setup();
+    render(
+      <MaterialsSettings
+        widget={makeWidget({
+          selectedItems: ['calculator', 'pencil'],
+          activeItems: ['calculator'],
+        })}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Hide Calculator' }));
+
+    const [, updates] = updateWidget.mock.calls[0] as [
+      string,
+      { config: MaterialsConfig },
+    ];
+    expect(updates.config.selectedItems).toEqual(['pencil']);
+    expect(updates.config.activeItems).toEqual([]);
+    expect(saveMaterialsPreferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedItems: ['pencil'],
+        hiddenMaterialIds: ['calculator'],
+      })
+    );
+  });
+
+  it('lists hidden materials in a collapsed section and can show them again', async () => {
+    const user = userEvent.setup();
+    const { saveMaterialsPreferences } = setup({
+      customMaterials: [GLUE],
+      materialsPreferences: { hiddenMaterialIds: ['calculator', GLUE.id] },
+    });
+    render(<MaterialsSettings widget={widget} />);
+
+    const list = screen.getByRole('group', { name: 'Available Materials' });
+    expect(within(list).queryByText('Calculator')).not.toBeInTheDocument();
+    expect(within(list).queryByText('Glue Sticks')).not.toBeInTheDocument();
+    expect(within(list).getByText('Pencil')).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Hidden materials (2)' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Show Calculator' }));
+
+    expect(saveMaterialsPreferences).toHaveBeenLastCalledWith({
+      hiddenMaterialIds: [GLUE.id],
+    });
+  });
+
+  it('select all only touches visible materials', async () => {
+    const user = userEvent.setup();
+    const { updateWidget } = setup({
+      materialsPreferences: { hiddenMaterialIds: ['calculator'] },
+    });
+    render(<MaterialsSettings widget={widget} />);
+
+    await user.click(screen.getByRole('button', { name: 'Select All' }));
+
+    const [, updates] = updateWidget.mock.calls[0] as [
+      string,
+      { config: MaterialsConfig },
+    ];
+    expect(updates.config.selectedItems).not.toContain('calculator');
+    expect(updates.config.selectedItems).toContain('pencil');
+  });
+
+  it('forgets a deleted custom material in the preferences', async () => {
+    const user = userEvent.setup();
+    const { saveMaterialsPreferences } = setup({
+      customMaterials: [GLUE],
+      materialsPreferences: {
+        selectedItems: [GLUE.id, 'pencil'],
+        customMaterialSnapshots: [GLUE],
+        hiddenMaterialIds: [],
+      },
+    });
+    render(<MaterialsSettings widget={widget} />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit Glue Sticks' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Delete Glue Sticks' })
+    );
+
+    expect(saveMaterialsPreferences).toHaveBeenLastCalledWith({
+      selectedItems: ['pencil'],
+      customMaterialSnapshots: [],
+      hiddenMaterialIds: [],
+    });
   });
 });

@@ -50,6 +50,7 @@ import {
   AssignmentWidgetKey,
   UserTier,
   MaterialDefinition,
+  MaterialsPreferences,
 } from '@/types';
 import type { MemberRecord, BuildingRecord } from '@/types/organization';
 import { AuthContext } from './AuthContextValue';
@@ -319,6 +320,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [customMaterials, setCustomMaterials] = useState<MaterialDefinition[]>(
     []
   );
+  const [materialsPreferences, setMaterialsPreferences] =
+    useState<MaterialsPreferences>({});
   // Initialise from i18n.language. If i18n.init() hasn't resolved its async
   // language detection yet, the useEffect below will sync the state once it fires.
   const [language, setLanguageState] = useState<string>(
@@ -391,6 +394,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const materialsPrefsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const widgetPresetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const migratedConfigsForUidRef = useRef<string | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
@@ -1607,6 +1611,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             setCustomMaterials([]);
           }
+          setMaterialsPreferences(
+            isConfigMap('materialsPreferences')
+              ? (data.materialsPreferences as MaterialsPreferences)
+              : {}
+          );
 
           // Decide setupCompleted. The wizard writes `setupCompleted: true` on
           // finish, so any of the following counts as "already set up":
@@ -2212,6 +2221,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  const saveMaterialsPreferences = useCallback(
+    (preferences: MaterialsPreferences) => {
+      setMaterialsPreferences(preferences);
+      if (materialsPrefsTimeoutRef.current) {
+        clearTimeout(materialsPrefsTimeoutRef.current);
+      }
+      materialsPrefsTimeoutRef.current = setTimeout(() => {
+        if (!user || isAuthBypass) return;
+        const myToken = ++writeTokenRef.current;
+        setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { materialsPreferences: preferences },
+          { merge: true }
+        ).catch((error) => {
+          if (myToken === writeTokenRef.current) {
+            console.error('Error saving materials preferences:', error);
+          }
+        });
+      }, 1000);
+    },
+    [user]
+  );
+
   const RECENT_CAP = 12;
 
   const toggleFavoriteBackground = useCallback(
@@ -2798,6 +2830,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         saveWidgetPreset,
         customMaterials,
         saveCustomMaterials,
+        materialsPreferences,
+        saveMaterialsPreferences,
         profileLoaded,
         setupCompleted,
         completeSetup,

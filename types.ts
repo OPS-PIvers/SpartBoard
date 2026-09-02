@@ -2395,6 +2395,18 @@ export interface MaterialDefinition {
   textColor?: string;
 }
 
+/** Account-wide Materials widget preferences: seed for new widgets + hidden picker entries. */
+export interface MaterialsPreferences {
+  /** Selection every new Materials widget starts with. */
+  selectedItems?: string[];
+  /** Snapshots of the non-built-in materials referenced by `selectedItems`. */
+  customMaterialSnapshots?: MaterialDefinition[];
+  title?: string;
+  titleFont?: string;
+  /** Materials (built-in or custom) the teacher removed from the picker. */
+  hiddenMaterialIds?: string[];
+}
+
 export interface MaterialsGlobalConfig {
   customMaterials?: MaterialDefinition[];
   buildingDefaults: Record<string, BuildingMaterialsDefaults>;
