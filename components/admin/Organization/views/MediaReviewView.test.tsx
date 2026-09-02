@@ -315,3 +315,55 @@ describe('MediaReviewView partial failure', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('MediaReviewView question identity (INT-A)', () => {
+  const withText: MediaResponseRow[] = [
+    { ...ROWS[0], questionText: 'Read the passage aloud' },
+  ];
+
+  it('names the question by its prompt and keeps the id as detail', () => {
+    renderView({ rows: withText });
+    expect(screen.getByText('Read the passage aloud')).toBeInTheDocument();
+    expect(screen.getAllByText('q-1').length).toBeGreaterThan(0);
+  });
+
+  it('uses the prompt in the row checkbox name and the confirm list', () => {
+    renderView({ rows: withText });
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: 'Select Pin 4821, question Read the passage aloud',
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Delete media \(1\)/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText(/Read the passage aloud/)
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('q-1')).toBeInTheDocument();
+  });
+
+  it('falls back to the raw id when the session lists no prompt', () => {
+    renderView();
+    expect(
+      screen.getByRole('checkbox', { name: 'Select Pin 4821, question q-1' })
+    ).toBeInTheDocument();
+  });
+
+  it("labels a terminal 'lost' take honestly", () => {
+    renderView({
+      rows: [
+        {
+          ...ROWS[0],
+          takes: [
+            {
+              artifactId: 'a1',
+              archiveStatus: 'lost',
+              hasStorageObject: true,
+            },
+          ],
+        },
+      ],
+    });
+    expect(screen.getByText('Recording lost')).toBeInTheDocument();
+  });
+});

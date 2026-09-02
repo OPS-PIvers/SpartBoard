@@ -64,12 +64,15 @@ vi.mock('./secrets', () => {
 
 import {
   assertOrgMediaAdmin,
+  buildQuestionTextMap,
   buildRowsForResponse,
   collectQuestionArtifacts,
   deleteOrgQuizMediaSets,
   finishStuckMediaDelete,
   listOrgQuizMedia,
   matchesDateWindow,
+  truncateQuestionText,
+  MAX_QUESTION_TEXT_CHARS,
   MAX_RESPONSES_SCANNED,
   parseDeleteRequest,
   parseListRequest,
@@ -1002,5 +1005,79 @@ describe('finishStuckMediaDelete', () => {
       /drive down/
     );
     expect(entry().orphanedDriveFileId).toBe('drive-orphan');
+  });
+});
+
+// ===========================================================================
+// Question prompt projection (INT-A) — a raw questionId is unreadable in the
+// console, so rows carry the prompt text the session already publishes.
+// ===========================================================================
+
+describe('question prompt projection', () => {
+  it('collapses whitespace and truncates on a word boundary', () => {
+    expect(truncateQuestionText('  Explain\n  your  reasoning ')).toBe(
+      'Explain your reasoning'
+    );
+    const long =
+      'Describe in your own words how the numerator and the denominator each change when you simplify a fraction completely';
+    const cut = truncateQuestionText(long);
+    expect(cut.length).toBeLessThanOrEqual(MAX_QUESTION_TEXT_CHARS + 1);
+    expect(cut.endsWith('\u2026')).toBe(true);
+    expect(cut.startsWith('Describe in your own words')).toBe(true);
+  });
+
+  it('skips questions with no id or no text', () => {
+    expect(
+      buildQuestionTextMap([
+        { id: 'q1', text: 'Read aloud' },
+        { id: '', text: 'orphan' },
+        { id: 'q2' },
+      ])
+    ).toEqual({ q1: 'Read aloud' });
+    expect(buildQuestionTextMap(undefined)).toEqual({});
+  });
+
+  it('projects the prompt onto each row, keeping the id', () => {
+    const rows = buildRowsForResponse(
+      {
+        sessionId: 's1',
+        responseKey: 'r1',
+        quizTitle: 'Fractions',
+        teacherUid: 't',
+        teacherEmail: 't@x.org',
+        questionTextById: { q1: 'Read the passage aloud' },
+      },
+      {
+        answers: [
+          { questionId: 'q1', artifacts: [{ id: 'a1', kind: 'audio' }] },
+        ],
+        artifactArchive: {
+          a1: { archiveStatus: 'archived', driveFileId: 'd' },
+        },
+      }
+    );
+    expect(rows[0].questionId).toBe('q1');
+    expect(rows[0].questionText).toBe('Read the passage aloud');
+  });
+
+  it('omits questionText when the session no longer lists the question', async () => {
+    const db = createFakeDb();
+    seedOrg(db);
+    seedResponse(db);
+    db.set('quiz_sessions/s1', {
+      teacherUid: 'teacher-uid',
+      quizTitle: 'Fractions',
+      publicQuestions: [{ id: 'q1', text: 'Read the passage aloud' }],
+    });
+    const { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows.find((r) => r.questionId === 'q1')?.questionText).toBe(
+      'Read the passage aloud'
+    );
+    expect(
+      rows.find((r) => r.questionId === 'q2')?.questionText
+    ).toBeUndefined();
   });
 });
