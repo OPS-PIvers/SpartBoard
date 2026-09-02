@@ -42,12 +42,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     [rosters, activeRosterId]
   );
 
-  // `legacyId` is set only for name-derived (non-roster) entries: the raw
-  // typed name, which is what completedNames used to be keyed by before
-  // this fix. Two students sharing the same typed name used to collide on
-  // that name string (same completion state, duplicate React key) — `id`
-  // is now positional and unique, while `legacyId` lets us still recognize
-  // completions saved under the old name-keyed scheme.
+  // legacyId (name-derived entries only) recognizes completions saved under the old name-keyed scheme.
   const students = useMemo((): {
     id: string;
     label: string;
@@ -111,9 +106,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
           config: { ...config, items: newItems } as ChecklistConfig,
         });
       } else {
-        // Recognize completion under either the current id or the legacy
-        // name token, and drop both on toggle-off — this self-heals old
-        // name-keyed data onto the new id-keyed scheme on first interaction.
+        // Matches on id or legacyId so old name-keyed completions still register; drops both on toggle-off.
         const isCompleted =
           completedNames.includes(idOrName) ||
           (legacyName !== undefined && completedNames.includes(legacyName));
