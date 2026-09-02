@@ -290,8 +290,8 @@ describe('QuizStudentApp — enforced word limits', () => {
     const next = screen.getByRole('button', { name: /NEXT/i });
     expect(next).toBeEnabled();
     expect(
-      screen.getByText('Write at least 100 words to submit. 97 to go.')
-    ).toBeInTheDocument();
+      screen.queryByText('Write at least 100 words to submit. 97 to go.')
+    ).not.toBeInTheDocument();
     fireEvent.click(next);
     expect(await screen.findByText(/Second question/i)).toBeInTheDocument();
     expect(mockSubmitAnswer).not.toHaveBeenCalled();

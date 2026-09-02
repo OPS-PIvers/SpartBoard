@@ -114,10 +114,13 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             size="sm"
             showLabels={false}
             label="Enforce limit"
+            aria-describedby="word-limit-enforce-hint"
           />
           <div>
-            <p className="text-sm font-bold text-slate-700">Enforce limit</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-sm font-bold text-slate-700" aria-hidden>
+              Enforce limit
+            </p>
+            <p id="word-limit-enforce-hint" className="text-xs text-slate-500">
               Students can&apos;t submit outside this range
             </p>
           </div>

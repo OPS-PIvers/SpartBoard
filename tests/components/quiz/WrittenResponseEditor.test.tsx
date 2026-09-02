@@ -60,7 +60,7 @@ describe('WrittenResponseEditor', () => {
     expect(screen.getByText(/3 \/?\s*words?/i)).toBeInTheDocument();
   });
 
-  it('warns past maxWords cap', () => {
+  it('marks the counter amber past maxWords', () => {
     render(
       <WrittenResponseEditor
         value="one two three four five"
@@ -69,12 +69,10 @@ describe('WrittenResponseEditor', () => {
         questionKey="q1"
       />
     );
-    expect(
-      screen.getByText(/outside the suggested word range/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText('5 / 3 words').className).toContain('amber');
   });
 
-  it('does NOT warn when at or below maxWords', () => {
+  it('keeps the counter neutral at or below maxWords', () => {
     render(
       <WrittenResponseEditor
         value="one two three"
@@ -83,9 +81,7 @@ describe('WrittenResponseEditor', () => {
         questionKey="q1"
       />
     );
-    expect(
-      screen.queryByText(/outside the suggested word range/i)
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('3 / 5 words').className).not.toContain('amber');
   });
 
   it('renders both bounds as a range in the counter', () => {
@@ -142,7 +138,7 @@ describe('WrittenResponseEditor', () => {
     );
   });
 
-  it('warns below the minimum too, not just above the maximum', () => {
+  it('marks the counter amber below the minimum too, not just above the maximum', () => {
     render(
       <WrittenResponseEditor
         value="one two"
@@ -151,25 +147,20 @@ describe('WrittenResponseEditor', () => {
         questionKey="q1"
       />
     );
-    expect(
-      screen.getByText(/outside the suggested word range/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText('2 / 50+ words').className).toContain('amber');
   });
 
-  it('suppresses the advisory copy when the limit is enforced', () => {
+  it('keeps a blank draft neutral even under a minimum', () => {
     render(
       <WrittenResponseEditor
-        value="one two"
+        value=""
         onChange={vi.fn()}
         minWords={50}
         enforceWordLimit
         questionKey="q1"
       />
     );
-    expect(
-      screen.queryByText(/outside the suggested word range/i)
-    ).not.toBeInTheDocument();
-    expect(screen.getByText('2 / 50+ words').className).toContain('amber');
+    expect(screen.getByText('0 / 50+ words').className).not.toContain('amber');
   });
 
   it('remounts and reseeds when questionKey changes (pause/resume)', () => {

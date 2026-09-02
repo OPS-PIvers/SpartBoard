@@ -347,7 +347,9 @@ const WrittenResponseEditorInner: React.FC<
               ? light
                 ? 'bg-amber-100 text-amber-700'
                 : 'bg-amber-500/20 text-amber-300'
-              : 'text-slate-500'
+              : light
+                ? 'text-slate-500'
+                : 'text-slate-300'
           }`}
           aria-live="polite"
         >
@@ -394,7 +396,7 @@ const WrittenResponseEditorInner: React.FC<
         />
         {isEmpty && placeholder && (
           <div
-            className="absolute inset-0 px-5 py-4 text-slate-500 text-sm pointer-events-none select-none"
+            className={`absolute inset-0 px-5 py-4 text-sm pointer-events-none select-none ${light ? 'text-slate-500' : 'text-slate-300'}`}
             aria-hidden
           >
             {placeholder}
@@ -420,15 +422,6 @@ const WrittenResponseEditorInner: React.FC<
           </button>
         )}
       </div>
-
-      {outsideRange && !enforceWordLimit && (
-        <p
-          className={`text-xs italic ${light ? 'text-amber-700' : 'text-amber-400'}`}
-        >
-          You&apos;re outside the suggested word range. Your teacher may take
-          this into account when grading.
-        </p>
-      )}
     </div>
   );
 };

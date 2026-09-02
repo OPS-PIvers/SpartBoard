@@ -3314,7 +3314,8 @@ const ActiveQuiz: React.FC<{
                             currentIndex >= effectiveTotalQuestions - 1)
                         }
                         aria-describedby={
-                          writtenLimit?.message
+                          writtenLimit?.message &&
+                          currentIndex >= effectiveTotalQuestions - 1
                             ? 'word-limit-status'
                             : undefined
                         }
@@ -3334,15 +3335,16 @@ const ActiveQuiz: React.FC<{
                           </>
                         )}
                       </button>
-                      {writtenLimit?.message && (
-                        <p
-                          id="word-limit-status"
-                          role="status"
-                          className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
-                        >
-                          {writtenLimit.message}
-                        </p>
-                      )}
+                      {writtenLimit?.message &&
+                        currentIndex >= effectiveTotalQuestions - 1 && (
+                          <p
+                            id="word-limit-status"
+                            role="status"
+                            className={`text-sm font-semibold ${light ? 'text-brand-red-primary' : 'text-red-300'}`}
+                          >
+                            {writtenLimit.message}
+                          </p>
+                        )}
                     </>
                   )
                 ) : !submitted ? (

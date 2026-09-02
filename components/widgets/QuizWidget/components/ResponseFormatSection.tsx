@@ -31,7 +31,7 @@ import {
   RECORDING_MODE_LABEL_KEYS,
 } from '@/utils/quizRecordingModes';
 
-const hintClass = 'text-xxs text-slate-500 mt-1';
+const hintClass = 'text-xs text-slate-600 mt-1';
 
 /** The third "Student's choice" option is deferred; kept data-driven for it. */
 type ResponseFormat = 'typed' | 'spoken';
@@ -153,7 +153,7 @@ export const ResponseFormatSection: React.FC<ResponseFormatSectionProps> = ({
                   }}
                   className={`${inputClass} pr-12`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
                   {tk('secondsUnit')}
                 </span>
               </div>
@@ -191,7 +191,7 @@ export const ResponseFormatSection: React.FC<ResponseFormatSectionProps> = ({
                     clamped ? 'bg-slate-100 text-slate-600' : ''
                   }`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
                   {tk('secondsUnit')}
                 </span>
               </div>

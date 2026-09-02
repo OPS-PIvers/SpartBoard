@@ -561,7 +561,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 }
                 className={`${inputClass} pr-12 disabled:bg-slate-100 disabled:text-slate-600`}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
                 Sec
               </span>
             </div>
