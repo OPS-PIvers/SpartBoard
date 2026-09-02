@@ -14,6 +14,13 @@ export {
   visibleSubmissions,
 } from './scale';
 export type { WallScale } from './scale';
+export {
+  columnsDropPatch,
+  tableDropPatch,
+  timelineDropPatch,
+  useWallSensors,
+  UNSORTED_ID,
+} from './wallDrag';
 export type {
   WallMovePatch,
   WallRenderActions,

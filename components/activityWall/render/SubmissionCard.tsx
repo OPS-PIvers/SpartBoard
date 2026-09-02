@@ -55,25 +55,33 @@ const isArchived = (submission: ActivityWallSubmission): boolean =>
 const drivePreviewUrl = (driveFileId: string): string =>
   `https://drive.google.com/file/d/${driveFileId}/preview`;
 
-/**
- * Resolves the renderable URL for an upload. While `archiveStatus` is not
- * `archived`, `content` holds the Storage path, so the download URL has to be
- * fetched; afterwards the Drive URL in `driveUrl` / `content` is used directly.
- */
-const useMediaUrl = (submission: ActivityWallSubmission): string | null => {
+const STORAGE_BACKED_TYPES = new Set(['photo', 'video', 'file']);
+
+interface MediaUrlState {
+  url: string | null;
+  failed: boolean;
+}
+
+/** Resolves an upload's renderable URL: a Storage download URL while in transit, the Drive URL once archived. */
+const useMediaUrl = (submission: ActivityWallSubmission): MediaUrlState => {
   const archived = isArchived(submission);
   const transitPath = submission.storagePath ?? submission.content;
+  const storageBacked = STORAGE_BACKED_TYPES.has(submission.type ?? 'text');
   const [resolvedByPath, setResolvedByPath] = useState<Record<string, string>>(
     {}
   );
+  const [failedPaths, setFailedPaths] = useState<Record<string, true>>({});
   const alreadyResolved = Boolean(resolvedByPath[transitPath]);
+  const alreadyFailed = Boolean(failedPaths[transitPath]);
 
   useEffect(() => {
     if (
+      !storageBacked ||
       archived ||
       !transitPath ||
       isSafeHttpUrl(transitPath) ||
-      alreadyResolved
+      alreadyResolved ||
+      alreadyFailed
     ) {
       return;
     }
@@ -93,16 +101,21 @@ const useMediaUrl = (submission: ActivityWallSubmission): string | null => {
           transitPath,
           error
         );
+        if (!cancelled) {
+          setFailedPaths((previous) => ({ ...previous, [transitPath]: true }));
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [alreadyResolved, archived, transitPath]);
+  }, [alreadyFailed, alreadyResolved, archived, storageBacked, transitPath]);
 
-  if (archived) return submission.driveUrl ?? submission.content;
-  if (isSafeHttpUrl(transitPath)) return transitPath;
-  return resolvedByPath[transitPath] ?? null;
+  if (archived)
+    return { url: submission.driveUrl ?? submission.content, failed: false };
+  if (isSafeHttpUrl(transitPath)) return { url: transitPath, failed: false };
+  if (!storageBacked) return { url: null, failed: false };
+  return { url: resolvedByPath[transitPath] ?? null, failed: alreadyFailed };
 };
 
 const PrivateFileNote: React.FC<{ fontSize: string }> = ({ fontSize }) => (
@@ -126,7 +139,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   onReject,
 }) => {
   const scale = wallScale(mode);
-  const mediaUrl = useMediaUrl(submission);
+  const { url: mediaUrl, failed: mediaFailed } = useMediaUrl(submission);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const isTeacher = mode === 'teacher';
   const isPending = submission.status === 'pending';
@@ -136,7 +149,8 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   const body = (() => {
     if (type === 'photo') {
       if (isPrivate) return <PrivateFileNote fontSize={scale.meta} />;
-      const failed = Boolean(mediaUrl) && failedImageUrl === mediaUrl;
+      const failed =
+        mediaFailed || (Boolean(mediaUrl) && failedImageUrl === mediaUrl);
       if (!mediaUrl || failed) {
         return (
           <p className="text-slate-300" style={{ fontSize: scale.meta }}>

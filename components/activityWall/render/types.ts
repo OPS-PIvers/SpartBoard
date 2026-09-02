@@ -7,10 +7,10 @@ import type {
 /** Where the wall is being rendered; drives sizing units and teacher affordances. */
 export type WallRenderMode = 'widget' | 'gallery' | 'teacher';
 
-/** Placement fields a teacher drag can change. */
+/** Placement fields a teacher drag can change; `null` clears the field and consumers must translate it to `deleteField()`. */
 export interface WallMovePatch {
-  sectionId?: string;
-  cellKey?: string;
+  sectionId?: string | null;
+  cellKey?: string | null;
   order?: number;
 }
 

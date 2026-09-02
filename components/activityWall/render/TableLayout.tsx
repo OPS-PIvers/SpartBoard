@@ -2,6 +2,7 @@ import React from 'react';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { SubmissionCard } from './SubmissionCard';
 import { DraggableCard, DropZone } from './dnd';
+import { tableDropPatch, UNSORTED_ID, useWallSensors } from './wallDrag';
 import { prepareSubmissions, wallScale } from './scale';
 import type { WallRenderProps } from './types';
 
@@ -17,15 +18,47 @@ export const TableLayout: React.FC<WallRenderProps> = ({
   ...actions
 }) => {
   const scale = wallScale(mode);
+  const sensors = useWallSensors();
   const items = prepareSubmissions(submissions, mode);
   const rows = session.tableRows ?? [];
   const cols = session.tableCols ?? [];
   const isTeacher = mode === 'teacher';
+  const isWidget = mode === 'widget';
+  const labelTrack = isWidget
+    ? 'minmax(min(90px, 20cqw), 0.6fr)'
+    : 'minmax(90px, 0.6fr)';
+  const cellTrack = isWidget
+    ? 'minmax(min(160px, 35cqw), 1fr)'
+    : 'minmax(160px, 1fr)';
+
+  const validKeys = new Set(
+    rows.flatMap((row) => cols.map((col) => cellKey(row.id, col.id)))
+  );
+  const unsorted = items.filter(
+    (submission) => !submission.cellKey || !validKeys.has(submission.cellKey)
+  );
+
+  const renderCards = (cards: typeof items) =>
+    cards.map((submission) => (
+      <DraggableCard
+        key={submission.id}
+        id={submission.id}
+        disabled={!isTeacher || !onMove}
+        handleSize={scale.icon}
+      >
+        <SubmissionCard
+          submission={submission}
+          mode={mode}
+          showNames={showNames}
+          {...actions}
+        />
+      </DraggableCard>
+    ));
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const target = event.over?.id;
-    if (!onMove || typeof target !== 'string') return;
-    onMove(String(event.active.id), { cellKey: target });
+    const patch = tableDropPatch(event);
+    if (!onMove || !patch) return;
+    onMove(String(event.active.id), patch);
   };
 
   const grid = (
@@ -38,7 +71,7 @@ export const TableLayout: React.FC<WallRenderProps> = ({
         className="grid min-w-full"
         style={{
           gap: scale.gap,
-          gridTemplateColumns: `minmax(90px, 0.6fr) repeat(${Math.max(cols.length, 1)}, minmax(160px, 1fr))`,
+          gridTemplateColumns: `${labelTrack} repeat(${Math.max(cols.length, 1)}, ${cellTrack})`,
         }}
       >
         <div />
@@ -69,33 +102,46 @@ export const TableLayout: React.FC<WallRenderProps> = ({
                   className="flex flex-col rounded-xl border border-white/10 bg-white/5"
                   style={{ gap: scale.gap, padding: scale.pad }}
                 >
-                  {items
-                    .filter((submission) => submission.cellKey === key)
-                    .map((submission) => (
-                      <DraggableCard
-                        key={submission.id}
-                        id={submission.id}
-                        disabled={!isTeacher || !onMove}
-                      >
-                        <SubmissionCard
-                          submission={submission}
-                          mode={mode}
-                          showNames={showNames}
-                          {...actions}
-                        />
-                      </DraggableCard>
-                    ))}
+                  {renderCards(
+                    items.filter((submission) => submission.cellKey === key)
+                  )}
                 </DropZone>
               );
             })}
           </React.Fragment>
         ))}
+        {unsorted.length > 0 && (
+          <>
+            <h3
+              className="font-bold uppercase tracking-wide text-slate-200"
+              style={{ fontSize: scale.heading }}
+            >
+              Unsorted
+            </h3>
+            <DropZone
+              id={UNSORTED_ID}
+              disabled={!isTeacher}
+              className="flex flex-col rounded-xl border border-white/10 bg-white/5"
+              style={{
+                gap: scale.gap,
+                padding: scale.pad,
+                gridColumn: `span ${Math.max(cols.length, 1)}`,
+              }}
+            >
+              {renderCards(unsorted)}
+            </DropZone>
+          </>
+        )}
       </div>
     </div>
   );
 
   if (!isTeacher || !onMove) return grid;
-  return <DndContext onDragEnd={handleDragEnd}>{grid}</DndContext>;
+  return (
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      {grid}
+    </DndContext>
+  );
 };
 
 export default TableLayout;

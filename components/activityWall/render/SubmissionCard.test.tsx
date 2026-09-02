@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SubmissionCard } from './SubmissionCard';
 import { makeSubmission } from './fixtures';
 
@@ -18,6 +18,11 @@ vi.mock('firebase/storage', () => ({
 }));
 
 describe('SubmissionCard', () => {
+  beforeEach(() => {
+    mockGetDownloadURL.mockClear();
+    mockGetDownloadURL.mockResolvedValue('https://storage.test/photo.png');
+  });
+
   it('renders text content', () => {
     render(
       <SubmissionCard
@@ -64,6 +69,53 @@ describe('SubmissionCard', () => {
       )
     );
     expect(mockGetDownloadURL).toHaveBeenCalled();
+  });
+
+  it('never touches Storage for text, word or link submissions', () => {
+    render(
+      <SubmissionCard
+        submission={makeSubmission({
+          type: 'text',
+          content: 'activity_wall_media/s/sub-1/not-a-path',
+        })}
+        mode="gallery"
+        showNames={false}
+      />
+    );
+    render(
+      <SubmissionCard
+        submission={makeSubmission({
+          id: 'sub-2',
+          type: 'link',
+          content: 'https://example.com/article',
+        })}
+        mode="gallery"
+        showNames={false}
+      />
+    );
+    expect(mockGetDownloadURL).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the unavailable state when the download URL rejects', async () => {
+    mockGetDownloadURL.mockRejectedValueOnce(new Error('denied'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(vi.fn());
+    render(
+      <SubmissionCard
+        submission={makeSubmission({
+          type: 'photo',
+          content: 'activity_wall_media/s/sub-1/p.png',
+          storagePath: 'activity_wall_media/s/sub-1/p.png',
+          archiveStatus: 'firebase',
+        })}
+        mode="gallery"
+        showNames={false}
+      />
+    );
+    await waitFor(() =>
+      expect(screen.getByText('Photo unavailable')).toBeInTheDocument()
+    );
+    expect(screen.queryByText('Loading photo…')).not.toBeInTheDocument();
+    warn.mockRestore();
   });
 
   it('uses the Drive URL once archived', () => {

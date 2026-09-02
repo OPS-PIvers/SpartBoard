@@ -6,6 +6,13 @@ import { WallLayout } from './WallLayout';
 import { ColumnsLayout } from './ColumnsLayout';
 import { TableLayout } from './TableLayout';
 import { TimelineLayout } from './TimelineLayout';
+import {
+  columnsDropPatch,
+  tableDropPatch,
+  timelineDropPatch,
+  UNSORTED_ID,
+} from './wallDrag';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { WordCloudLayout } from './WordCloudLayout';
 import { LayoutRouter } from './LayoutRouter';
 import { makeSession, makeSubmission } from './fixtures';
@@ -95,6 +102,27 @@ describe('wall layouts', () => {
     );
   });
 
+  it('TableLayout keeps submissions whose cellKey matches no cell in an Unsorted row', () => {
+    render(
+      <TableLayout
+        session={makeSession({
+          layout: 'table',
+          tableRows: [{ id: 'r1', label: 'Before' }],
+          tableCols: [{ id: 'k1', label: 'Know' }],
+        })}
+        mode="gallery"
+        showNames={false}
+        submissions={[
+          makeSubmission({ id: 'a', content: 'stale', cellKey: 'gone|k9' }),
+          makeSubmission({ id: 'b', content: 'never placed' }),
+        ]}
+      />
+    );
+    const unsorted = screen.getByTestId(`aw-dropzone-${UNSORTED_ID}`);
+    expect(unsorted).toHaveTextContent('stale');
+    expect(unsorted).toHaveTextContent('never placed');
+  });
+
   it('TimelineLayout orders by the order field and shows the label', () => {
     render(
       <TimelineLayout
@@ -140,6 +168,34 @@ describe('wall layouts', () => {
     expect(screen.getByTitle('curious (2)')).toBeInTheDocument();
     expect(screen.getByTitle('brave (1)')).toBeInTheDocument();
     expect(screen.queryByText('the')).not.toBeInTheDocument();
+  });
+
+  it('drag handlers emit the placement patch each layout owns', () => {
+    const dropOn = (activeId: string, overId: string) =>
+      ({
+        active: { id: activeId },
+        over: { id: overId },
+      }) as unknown as DragEndEvent;
+
+    expect(columnsDropPatch(dropOn('a', 'c1'))).toEqual({ sectionId: 'c1' });
+    expect(columnsDropPatch(dropOn('a', '__unsorted'))).toEqual({
+      sectionId: null,
+    });
+    expect(tableDropPatch(dropOn('a', 'r1|k2'))).toEqual({
+      cellKey: 'r1|k2',
+    });
+    expect(tableDropPatch(dropOn('a', UNSORTED_ID))).toEqual({
+      cellKey: null,
+    });
+
+    const items = [
+      makeSubmission({ id: 'a', order: 10 }),
+      makeSubmission({ id: 'b', order: 20 }),
+      makeSubmission({ id: 'c', order: 30 }),
+    ];
+    expect(timelineDropPatch(items, dropOn('a', 'c'))).toEqual({ order: 31 });
+    expect(timelineDropPatch(items, dropOn('c', 'b'))).toEqual({ order: 15 });
+    expect(timelineDropPatch(items, dropOn('a', 'a'))).toBeNull();
   });
 
   it('LayoutRouter picks the layout named on the session and paints appearance', () => {

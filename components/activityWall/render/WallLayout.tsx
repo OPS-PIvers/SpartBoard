@@ -13,10 +13,16 @@ export const WallLayout: React.FC<WallRenderProps> = ({
   const scale = wallScale(mode);
   const items = prepareSubmissions(submissions, mode);
 
+  const trackMin = mode === 'widget' ? 'min(180px, 45cqw)' : '180px';
+
   return (
     <div
-      className="grid h-full w-full grid-cols-[repeat(auto-fill,minmax(180px,1fr))] content-start overflow-auto"
-      style={{ gap: scale.gap, padding: scale.pad }}
+      className="grid h-full w-full content-start overflow-auto"
+      style={{
+        gap: scale.gap,
+        padding: scale.pad,
+        gridTemplateColumns: `repeat(auto-fill, minmax(${trackMin}, 1fr))`,
+      }}
       data-testid="aw-layout-wall"
     >
       {items.map((submission) => (
