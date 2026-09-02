@@ -725,14 +725,23 @@ service cloud.firestore {
     // Admin-created short links resolved at /r/:code.
     // - get: public (anyone can follow a known shortlink).
     // - list: admin-only (blocks anonymous enumeration of all codes + targets).
-    // - create/edit/delete: admin-only.
+    // - create: admins, plus non-anonymous users minting an Activity Wall
+    //   gallery link stamped with their own uid.
+    // - edit/delete: admin-only.
     // - update: narrow anonymous path — the resolver may only bump `clicks` by
     //   exactly 1 and stamp `lastClickedAt`, clamped to ±5min of server time
     //   (prevents counter inflation/reset and far-future timestamp poisoning).
     match /short_links/{code} {
       allow get: if true;
       allow list: if isAdmin();
-      allow create: if isAdmin();
+      // Teachers may also mint a code, but only for an Activity Wall gallery
+      // destination they stamp with their own uid — not an arbitrary redirect.
+      allow create: if isAdmin() ||
+        (request.auth != null &&
+         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+         request.resource.data.createdBy == request.auth.uid &&
+         request.resource.data.destination is string &&
+         request.resource.data.destination.matches('^https://[^/]+/activity-wall/gallery/[A-Za-z0-9_-]+$'));
       allow update: if isAdmin()
         || (request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['clicks', 'lastClickedAt'])
@@ -4197,13 +4206,18 @@ service cloud.firestore {
       allow delete: if false;
 
       match /submissions/{submissionId} {
+        // Single cached read of the parent session (same-path get() is cached
+        // per evaluation, so the helpers below don't multiply billed reads).
+        function awSession() {
+          return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data;
+        }
         function awSessionClassId() {
-          return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('classId', '');
+          return awSession().get('classId', '');
         }
         // Phase-5A multi-class targeting field. Mirrors the quiz/VA/GL/miniapp
         // session shape so the create gate below can use the compat helper.
         function awSessionClassIds() {
-          return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('classIds', []);
+          return awSession().get('classIds', []);
         }
         // Moderation flag: when true the client submits 'pending' for teacher
         // review; when false/absent it auto-approves. Pinning create's status
@@ -4211,7 +4225,40 @@ service cloud.firestore {
         // submitter could set status: 'approved' directly and skip the review
         // queue even though the teacher enabled moderation.
         function awSessionModerationEnabled() {
-          return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('moderationEnabled', false);
+          return awSession().get('moderationEnabled', false);
+        }
+        // Padlet-lite marker. The deployed prod client mirrors sessions WITHOUT
+        // a `layout` field and posts submissions with no `type`/`authorUid`, so
+        // every new create gate below is opt-in on this flag: legacy sessions
+        // keep exactly the pre-redesign contract until P3-3 retires them.
+        function awIsPadletSession() {
+          return 'layout' in awSession();
+        }
+        function awAcceptingResponses() {
+          return awSession().get('acceptingResponses', true) != false;
+        }
+        // Anonymous callers only reach a wall that opted into guest posting.
+        function awGuestGateOk() {
+          return request.auth.token.firebase.sign_in_provider != 'anonymous' ||
+                 awSession().get('allowGuests', false) == true;
+        }
+        // `word` is wordcloud-only; the four media types each need their
+        // per-wall toggle. `text` is always available.
+        function awTypeAllowed() {
+          let t = request.resource.data.get('type', 'text');
+          return t in ['text', 'word', 'photo', 'link', 'file', 'video'] &&
+                 (t != 'word' || awSession().get('layout', '') == 'wordcloud') &&
+                 (!(t in ['photo', 'link', 'file', 'video']) ||
+                  awSession().get('allowedTypes', {}).get(t, false) == true);
+        }
+        // Per-student cap is enforced through the doc id: `{uid}__{n}` with
+        // n < maxPostsPerStudent. One-doc-per-slot means a student cannot
+        // exceed the cap by racing writes (same pattern as quiz responses).
+        function awWithinPostCap() {
+          let cap = awSession().get('maxPostsPerStudent', 0);
+          return !(cap is int) || cap <= 0 ||
+                 (submissionId.matches('^' + request.auth.uid + '__[0-9]{1,3}$') &&
+                  int(submissionId.split('__')[1]) < cap);
         }
 
         // Any authed user (incl. anon) can create a submission (photo subs may
@@ -4228,7 +4275,10 @@ service cloud.firestore {
           passesStudentClassGateCompat(awSessionClassIds(), awSessionClassId()) &&
           request.resource.data.keys().hasOnly([
             'id', 'activityId', 'content', 'submittedAt', 'status',
-            'participantLabel', 'storagePath', 'archiveStatus'
+            'participantLabel', 'storagePath', 'archiveStatus',
+            'type', 'authorUid', 'isGuest', 'title', 'sectionId', 'cellKey',
+            'order', 'label', 'lat', 'lng', 'pinned', 'linkPreview',
+            'fileName', 'mimeType', 'sizeBytes', 'editedAt'
           ]) &&
           request.resource.data.id is string &&
           request.resource.data.content is string &&
@@ -4239,20 +4289,47 @@ service cloud.firestore {
           (!('activityId' in request.resource.data) || request.resource.data.activityId is string) &&
           (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
           (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
-          (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase');
+          (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase') &&
+          (!('title' in request.resource.data) || request.resource.data.title is string) &&
+          (!('sectionId' in request.resource.data) || request.resource.data.sectionId is string) &&
+          (!('cellKey' in request.resource.data) || request.resource.data.cellKey is string) &&
+          (!('label' in request.resource.data) || request.resource.data.label is string) &&
+          (!('fileName' in request.resource.data) || request.resource.data.fileName is string) &&
+          (!('mimeType' in request.resource.data) || request.resource.data.mimeType is string) &&
+          (!('sizeBytes' in request.resource.data) || request.resource.data.sizeBytes is int) &&
+          (!('order' in request.resource.data) || request.resource.data.order is number) &&
+          (!('lat' in request.resource.data) || request.resource.data.lat is number) &&
+          (!('lng' in request.resource.data) || request.resource.data.lng is number) &&
+          (!('pinned' in request.resource.data) || request.resource.data.pinned is bool) &&
+          (!('isGuest' in request.resource.data) || request.resource.data.isGuest is bool) &&
+          (!('editedAt' in request.resource.data) || request.resource.data.editedAt is int) &&
+          (!('linkPreview' in request.resource.data) || request.resource.data.linkPreview is map) &&
+          (!awIsPadletSession() ||
+            (awAcceptingResponses() &&
+             awGuestGateOk() &&
+             request.resource.data.authorUid == request.auth.uid &&
+             awTypeAllowed() &&
+             awWithinPostCap()));
         // Teacher/admins read+delete submissions, EXCEPT a published view-only
         // gallery (publiclyShared == true) is readable by any authed caller (incl.
         // anon gallery viewers). Delete stays teacher/admin-only.
         allow read: if request.auth != null &&
                             (isAdmin() ||
                              sessionId.matches(request.auth.uid + '_.*') ||
-                             get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('publiclyShared', false) == true);
+                             awSession().get('publiclyShared', false) == true);
         allow delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+        // Students may retract their own post while the wall is open and the
+        // teacher enabled deletion (Padlet-lite sessions only).
+        allow delete: if request.auth != null &&
+                            awIsPadletSession() &&
+                            resource.data.get('authorUid', '') == request.auth.uid &&
+                            awSession().get('allowStudentDelete', false) == true &&
+                            awAcceptingResponses();
         // hasOnly() lists every field this doc can ever carry (create-time
         // fields + the Admin-SDK-written archive fields) since request.resource
         // .data on an update is the doc AFTER merge — untouched existing fields
-        // (e.g. driveFileId set server-side by archiveActivityWallPhoto) stay
+        // (e.g. driveFileId set server-side by the archive pipeline) stay
         // present and must pass the whitelist too. See create's comment above
         // for why an unbounded extra field matters here.
         allow update: if request.auth != null &&
@@ -4260,7 +4337,13 @@ service cloud.firestore {
                             request.resource.data.keys().hasOnly([
                               'id', 'activityId', 'content', 'submittedAt', 'status',
                               'participantLabel', 'storagePath', 'archiveStatus',
-                              'driveFileId', 'archiveError', 'archivedAt', 'archiveStartedAt'
+                              'driveFileId', 'driveUrl', 'archiveError', 'archivedAt',
+                              'archiveStartedAt', 'attemptCount', 'lastAttemptAt',
+                              'storageCleanupPending', 'drivePermission',
+                              'type', 'authorUid', 'isGuest', 'title', 'sectionId',
+                              'cellKey', 'order', 'label', 'lat', 'lng', 'pinned',
+                              'linkPreview', 'fileName', 'mimeType', 'sizeBytes',
+                              'editedAt'
                             ]) &&
                             request.resource.data.id is string &&
                             request.resource.data.content is string &&
@@ -4271,11 +4354,34 @@ service cloud.firestore {
                             (!('activityId' in request.resource.data) || request.resource.data.activityId is string) &&
                             (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
                             (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
-                            (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed']) &&
+                            (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed', 'lost']) &&
                             (!('driveFileId' in request.resource.data) || request.resource.data.driveFileId is string) &&
+                            (!('driveUrl' in request.resource.data) || request.resource.data.driveUrl is string) &&
                             (!('archiveError' in request.resource.data) || request.resource.data.archiveError is string) &&
                             (!('archivedAt' in request.resource.data) || request.resource.data.archivedAt is int) &&
-                            (!('archiveStartedAt' in request.resource.data) || request.resource.data.archiveStartedAt is int);
+                            (!('archiveStartedAt' in request.resource.data) || request.resource.data.archiveStartedAt is int) &&
+                            (!('attemptCount' in request.resource.data) || request.resource.data.attemptCount is int) &&
+                            (!('lastAttemptAt' in request.resource.data) || request.resource.data.lastAttemptAt is int) &&
+                            (!('storageCleanupPending' in request.resource.data) || request.resource.data.storageCleanupPending is bool) &&
+                            (!('drivePermission' in request.resource.data) || request.resource.data.drivePermission is string);
+        // Student self-edit: only the author, only while the wall is open and
+        // the teacher enabled editing, only content-shaped fields, and never
+        // `status` (that would bypass the moderation queue).
+        allow update: if request.auth != null &&
+                            awIsPadletSession() &&
+                            resource.data.get('authorUid', '') == request.auth.uid &&
+                            awSession().get('allowStudentEdit', false) == true &&
+                            awAcceptingResponses() &&
+                            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                              'content', 'title', 'label', 'sectionId', 'cellKey',
+                              'lat', 'lng', 'editedAt', 'linkPreview', 'storagePath',
+                              'archiveStatus', 'fileName', 'mimeType', 'sizeBytes'
+                            ]) &&
+                            request.resource.data.status == resource.data.status &&
+                            request.resource.data.content is string &&
+                            request.resource.data.content.size() > 0 &&
+                            request.resource.data.content.size() <= 5000 &&
+                            (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed', 'lost']);
       }
     }
 

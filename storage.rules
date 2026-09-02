@@ -142,6 +142,52 @@ service firebase.storage {
         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
     }
 
+    // Activity Wall media (Padlet-lite) — transit buffer only. A server-side
+    // job archives each object to the teacher's Drive and deletes it here, so
+    // nothing student-uploaded persists in Storage long term.
+    match /activity_wall_media/{sessionId}/{submissionId}/{fileName} {
+      // Owning teacher/admin always; any authed caller once the wall is
+      // published as a gallery, so the gallery can render pre-archive media.
+      allow read: if request.auth != null &&
+        (
+          isAdmin() ||
+          sessionId.matches(request.auth.uid + '_.*') ||
+          firestore.get(
+            /databases/(default)/documents/activity_wall_sessions/$(sessionId)
+          ).data.get('publiclyShared', false) == true
+        );
+      // Create only (no update/overwrite). Ownership is proven by the path:
+      // the submissionId segment must start with the caller's uid, which is
+      // exactly what P1-5 writes (`{uid}__{n}` when capped, `{uid}__{random}`
+      // otherwise) — the upload happens before the submission doc exists, so
+      // a Firestore ownership lookup is not available at this point.
+      allow create: if request.auth != null &&
+        (submissionId == request.auth.uid ||
+         submissionId.matches('^' + request.auth.uid + '__.*')) &&
+        firestore.exists(
+          /databases/(default)/documents/activity_wall_sessions/$(sessionId)
+        ) &&
+        firestore.get(
+          /databases/(default)/documents/activity_wall_sessions/$(sessionId)
+        ).data.get('acceptingResponses', true) != false &&
+        (
+          (request.resource.contentType.matches('image/(jpeg|png|gif|webp|heic)') &&
+           request.resource.size < 15 * 1024 * 1024) ||
+          (request.resource.contentType.matches('video/(mp4|webm|quicktime)') &&
+           request.resource.size < 200 * 1024 * 1024) ||
+          (request.resource.contentType in [
+             'application/pdf',
+             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+             'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+           ] &&
+           request.resource.size < 25 * 1024 * 1024)
+        );
+      // The owning teacher/admin (and the Admin SDK archive job) clean up.
+      allow delete: if request.auth != null &&
+        (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+    }
+
     // Quiz recorded media — transit buffer only. The path segment is the
     // response key, so ownership is proven by the response doc's studentUid.
     match /quiz_response_media/{sessionId}/{responseKey}/{fileName} {
