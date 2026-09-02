@@ -17,7 +17,7 @@ export const LayoutPicker: React.FC<LayoutPickerProps> = ({
       Pick how posts are arranged. Everything else is set on the next step.
     </p>
     <div
-      role="radiogroup"
+      role="group"
       aria-label="Wall layout"
       className="grid grid-cols-2 gap-3 sm:grid-cols-3"
     >
@@ -27,8 +27,7 @@ export const LayoutPicker: React.FC<LayoutPickerProps> = ({
           <button
             key={option.layout}
             type="button"
-            role="radio"
-            aria-checked={selected}
+            aria-pressed={selected}
             onClick={() => onSelect(option.layout)}
             className={`flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
               selected

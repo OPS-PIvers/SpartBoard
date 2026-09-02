@@ -69,7 +69,14 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   );
 
   const makeDraft = (): ActivityWallLibraryEntry => {
-    if (entry) return normalizeActivityWallLibraryEntry(entry.id, entry);
+    if (entry) {
+      const normalized = normalizeActivityWallLibraryEntry(entry.id, entry);
+      // Legacy walls only stored a single classId; seed classIds so saving doesn't strip the class gate.
+      if (!normalized.classIds?.length && normalized.classId) {
+        normalized.classIds = [normalized.classId];
+      }
+      return normalized;
+    }
     const blank = buildDefaultWall(buildingDefaults);
     return {
       ...blank,
@@ -170,6 +177,11 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       setError('Give the wall a title.');
       return;
     }
+    const prompt = draft.prompt.trim();
+    if (!prompt) {
+      setError('Add a prompt for students.');
+      return;
+    }
     const trimSections = (items: { id: string; label: string }[] | undefined) =>
       (items ?? [])
         .map((item) => ({ ...item, label: item.label.trim() }))
@@ -196,7 +208,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       ...draft,
       ...legacyFieldsFor(draft),
       title,
-      prompt: draft.prompt.trim(),
+      prompt,
       sections: trimmedSections,
       tableRows: trimmedRows,
       tableCols: trimmedCols,
