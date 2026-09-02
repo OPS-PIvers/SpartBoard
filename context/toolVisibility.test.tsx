@@ -56,6 +56,11 @@ vi.mock('./useAuth', () => {
     selectedBuildings: [],
     savedWidgetConfigs: {},
     saveWidgetConfig: vi.fn(),
+    materialsPreferences: {
+      selectedItems: ['pencil', 'notebook'],
+      title: 'Bring to class',
+      hiddenMaterialIds: ['calculator'],
+    },
     refreshGoogleToken: vi.fn(),
     remoteControlEnabled: true,
     profileLoaded: true,
@@ -444,6 +449,54 @@ describe('canvas isolation — useToolVisibility() consumers stay put', () => {
     });
 
     expect(probeCount('toolVis')).toBe(baseline);
+  });
+});
+
+describe('addWidget — Materials seeds from the teacher preferences', () => {
+  it('starts a new Materials widget from the saved selection and title', async () => {
+    setup();
+    await pushSnapshot([makeDashboard(TWO_WIDGETS())]);
+    await settleDock();
+
+    act(() => {
+      getDashboard().addWidget('materials');
+    });
+
+    await waitFor(() => {
+      expect(getDashboard().activeDashboard?.widgets.length).toBe(3);
+    });
+    const added = getDashboard().activeDashboard?.widgets.find(
+      (w) => w.type === 'materials'
+    );
+    expect(added?.config).toMatchObject({
+      selectedItems: ['pencil', 'notebook'],
+      activeItems: [],
+      title: 'Bring to class',
+    });
+    expect(added?.config).not.toHaveProperty('hiddenMaterialIds');
+  });
+
+  it('lets explicit overrides win over the seed', async () => {
+    setup();
+    await pushSnapshot([makeDashboard(TWO_WIDGETS())]);
+    await settleDock();
+
+    act(() => {
+      getDashboard().addWidget('materials', {
+        config: { selectedItems: ['paper'], activeItems: [] },
+      });
+    });
+
+    await waitFor(() => {
+      expect(getDashboard().activeDashboard?.widgets.length).toBe(3);
+    });
+    const added = getDashboard().activeDashboard?.widgets.find(
+      (w) => w.type === 'materials'
+    );
+    expect(added?.config).toMatchObject({
+      selectedItems: ['paper'],
+      title: 'Bring to class',
+    });
   });
 });
 

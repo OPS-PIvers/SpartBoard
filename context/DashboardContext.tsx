@@ -96,6 +96,7 @@ import {
 import { ToolVisibilityContext } from './ToolVisibilityContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
+import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
@@ -240,6 +241,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetConfig,
+    materialsPreferences,
     profileLoaded,
     setupCompleted,
     lastActiveCollectionId,
@@ -4531,7 +4533,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               defaults.config,
               adminConfig,
               savedWidgetConfigs?.[type],
-              overrides?.config
+              type === 'materials'
+                ? {
+                    ...seedMaterialsConfig(materialsPreferences),
+                    ...overrides?.config,
+                  }
+                : overrides?.config
             ),
           };
           // Overrides (e.g. starter packs) may have supplied legacy pixel
@@ -4564,7 +4571,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId, getAdminBuildingConfig, savedWidgetConfigs]
+    [activeId, getAdminBuildingConfig, materialsPreferences, savedWidgetConfigs]
   );
 
   const addWidgets = useCallback(

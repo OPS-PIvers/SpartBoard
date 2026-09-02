@@ -14,6 +14,7 @@ import {
   AssignmentWidgetKey,
   UserTier,
   MaterialDefinition,
+  MaterialsPreferences,
 } from '@/types';
 import type { BuildingRecord } from '@/types/organization';
 
@@ -169,6 +170,10 @@ export interface AuthContextType {
   customMaterials: MaterialDefinition[];
   /** Replace the teacher's custom materials library (immediate Firestore write) */
   saveCustomMaterials: (materials: MaterialDefinition[]) => Promise<void>;
+  /** Account-wide Materials widget preferences (new-widget seed + hidden picker entries) */
+  materialsPreferences: MaterialsPreferences;
+  /** Replace the Materials preferences (debounced Firestore write) */
+  saveMaterialsPreferences: (preferences: MaterialsPreferences) => void;
   /** True once the profile Firestore fetch has resolved (success or error) */
   profileLoaded: boolean;
   /** True after the user completes the first-time setup wizard */

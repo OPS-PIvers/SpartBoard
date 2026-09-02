@@ -15,7 +15,21 @@ import {
 } from './constants';
 import { CustomMaterialForm } from './CustomMaterialForm';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
-import { Type, Palette, Edit3, Pencil, Plus } from 'lucide-react';
+import {
+  Type,
+  Palette,
+  Edit3,
+  Pencil,
+  Plus,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
+import {
+  forgetMaterial,
+  preferencesFromConfig,
+} from '@/utils/materialsPreferences';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -31,8 +45,13 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, dashboards, updateWidgetConfigsAcrossBoards } =
     useDashboard();
-  const { featurePermissions, customMaterials, saveCustomMaterials } =
-    useAuth();
+  const {
+    featurePermissions,
+    customMaterials,
+    saveCustomMaterials,
+    materialsPreferences,
+    saveMaterialsPreferences,
+  } = useAuth();
   const { showConfirm } = useDialog();
   const buildingId = useWidgetBuildingId(widget);
   const config = widget.config as MaterialsConfig;
@@ -41,6 +60,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   const titleTextId = useId();
   const titleColorLabelId = useId();
   const [form, setForm] = React.useState<FormState>({ mode: 'closed' });
+  const [showHidden, setShowHidden] = React.useState(false);
   const {
     selectedItems = [],
     activeItems = [],
@@ -83,6 +103,24 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     [catalogOptions, materialsConfig]
   );
 
+  const hiddenMaterialIds = React.useMemo(
+    () => materialsPreferences.hiddenMaterialIds ?? [],
+    [materialsPreferences.hiddenMaterialIds]
+  );
+  const hiddenSet = React.useMemo(
+    () => new Set(hiddenMaterialIds),
+    [hiddenMaterialIds]
+  );
+  // Hidden rows leave the picker and live in their own collapsed section.
+  const visibleCatalog = React.useMemo(
+    () => materialsCatalog.filter((item) => !hiddenSet.has(item.id)),
+    [hiddenSet, materialsCatalog]
+  );
+  const hiddenCatalog = React.useMemo(
+    () => materialsCatalog.filter((item) => hiddenSet.has(item.id)),
+    [hiddenSet, materialsCatalog]
+  );
+
   const teacherMaterialIds = React.useMemo(
     () => new Set(customMaterials.map((material) => material.id)),
     [customMaterials]
@@ -109,13 +147,46 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     [snapshotCatalog]
   );
 
-  const applySelection = (nextSelected: string[], nextActive: string[]) => {
-    updateWidget(widget.id, {
-      config: withSnapshots({
+  // Every settings write also refreshes the account-wide defaults that seed
+  // the next Materials widget on any board.
+  const commitConfig = (
+    next: MaterialsConfig,
+    nextHiddenIds: string[] = hiddenMaterialIds
+  ) => {
+    updateWidget(widget.id, { config: next });
+    saveMaterialsPreferences({
+      ...preferencesFromConfig(materialsPreferences, next),
+      hiddenMaterialIds: nextHiddenIds,
+    });
+  };
+
+  const applySelection = (
+    nextSelected: string[],
+    nextActive: string[],
+    nextHiddenIds?: string[]
+  ) => {
+    commitConfig(
+      withSnapshots({
         ...config,
         selectedItems: nextSelected,
         activeItems: nextActive,
       }),
+      nextHiddenIds
+    );
+  };
+
+  const hideMaterial = (id: string) => {
+    applySelection(
+      selectedItems.filter((selectedId) => selectedId !== id),
+      activeItems.filter((activeId) => activeId !== id),
+      [...hiddenMaterialIds.filter((hidden) => hidden !== id), id]
+    );
+  };
+
+  const unhideMaterial = (id: string) => {
+    saveMaterialsPreferences({
+      ...materialsPreferences,
+      hiddenMaterialIds: hiddenMaterialIds.filter((hidden) => hidden !== id),
     });
   };
 
@@ -134,14 +205,15 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   };
 
   const isAllSelected =
-    materialsCatalog.length > 0 && selectedSet.size === materialsCatalog.length;
+    visibleCatalog.length > 0 &&
+    visibleCatalog.every((item) => selectedSet.has(item.id));
 
   const toggleAll = () => {
     if (isAllSelected) {
       applySelection([], []);
     } else {
       applySelection(
-        materialsCatalog.map((i) => i.id),
+        visibleCatalog.map((i) => i.id),
         activeItems
       );
     }
@@ -204,6 +276,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     await saveCustomMaterials(
       customMaterials.filter((item) => item.id !== materialId)
     );
+    saveMaterialsPreferences(forgetMaterial(materialsPreferences, materialId));
     // updateWidgetConfigsAcrossBoards handles and toasts its own save
     // failures internally (see DashboardContext.tsx) — it never rejects.
     await updateWidgetConfigsAcrossBoards('materials', (widgetConfig) => {
@@ -252,11 +325,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
             id={titleTextId}
             type="text"
             value={title}
-            onChange={(e) =>
-              updateWidget(widget.id, {
-                config: { ...config, title: e.target.value },
-              })
-            }
+            onChange={(e) => commitConfig({ ...config, title: e.target.value })}
             placeholder="What you need"
             className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
@@ -274,11 +343,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
             {fonts.map((f) => (
               <button
                 key={f.id}
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, titleFont: f.id },
-                  })
-                }
+                onClick={() => commitConfig({ ...config, titleFont: f.id })}
                 className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
                   titleFont === f.id || (!titleFont && f.id === 'global')
                     ? 'border-blue-500 bg-blue-50 shadow-sm'
@@ -373,11 +438,16 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
         ) : (
           <>
             <div
-              className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1"
+              className="flex flex-col gap-2 max-h-[280px] overflow-y-auto pr-1"
               role="group"
               aria-labelledby={availableMaterialsLabelId}
             >
-              {materialsCatalog.map((item) => {
+              {visibleCatalog.length === 0 && (
+                <p className="text-xs text-slate-500 italic py-2">
+                  Every material is hidden. Show one below to use it.
+                </p>
+              )}
+              {visibleCatalog.map((item) => {
                 const isSelected = selectedSet.has(item.id);
                 const isEditable = teacherMaterialIds.has(item.id);
                 return (
@@ -410,7 +480,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
                         }`}
                       />
                       <span
-                        className={`text-sm font-medium truncate ${
+                        className={`text-sm font-medium leading-tight break-words ${
                           isSelected ? 'text-slate-900' : 'text-slate-500'
                         }`}
                       >
@@ -424,15 +494,65 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
                         }
                         aria-label={`Edit ${item.label}`}
                         title={`Edit ${item.label}`}
-                        className="flex-shrink-0 p-2 mr-0.5 rounded-md text-slate-500 transition-colors hover:bg-white hover:text-blue-600"
+                        className="flex-shrink-0 p-2 rounded-md text-slate-500 transition-colors hover:bg-white hover:text-blue-600"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                     )}
+                    <button
+                      onClick={() => hideMaterial(item.id)}
+                      aria-label={`Hide ${item.label}`}
+                      title={`Hide ${item.label} from this list`}
+                      className="flex-shrink-0 p-2 mr-0.5 rounded-md text-slate-500 transition-colors hover:bg-white hover:text-slate-800"
+                    >
+                      <EyeOff className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 );
               })}
             </div>
+            {hiddenCatalog.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  onClick={() => setShowHidden((prev) => !prev)}
+                  aria-expanded={showHidden}
+                  className="flex items-center gap-1 text-xs text-slate-600 font-bold hover:underline"
+                >
+                  {showHidden ? (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  )}
+                  Hidden materials ({hiddenCatalog.length})
+                </button>
+                {showHidden && (
+                  <ul
+                    className="flex flex-col gap-2"
+                    aria-label="Hidden materials"
+                  >
+                    {hiddenCatalog.map((item) => (
+                      <li
+                        key={item.id}
+                        className="flex items-center gap-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-2"
+                      >
+                        <item.iconComponent className="w-4 h-4 flex-shrink-0 text-slate-400" />
+                        <span className="flex-1 min-w-0 text-sm font-medium leading-tight break-words text-slate-500">
+                          {item.label}
+                        </span>
+                        <button
+                          onClick={() => unhideMaterial(item.id)}
+                          aria-label={`Show ${item.label}`}
+                          title={`Show ${item.label} in the list again`}
+                          className="flex-shrink-0 p-2 rounded-md text-slate-500 transition-colors hover:bg-white hover:text-blue-600"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             {allowTeacherMaterials && atMaterialCap && (
               <p className="text-xxs text-slate-400 leading-tight italic">
                 You have reached the {MAX_TEACHER_MATERIALS} custom material
@@ -441,7 +561,8 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
             )}
             <p className="text-xxs text-slate-400 leading-tight italic">
               Selected materials will appear on the widget face when focused.
-              Tap them to toggle their visibility for students.
+              Tap them to toggle their visibility for students. Your selection
+              and hidden materials carry over to new Materials widgets.
             </p>
           </>
         )}
