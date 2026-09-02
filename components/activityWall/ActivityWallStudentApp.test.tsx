@@ -162,8 +162,12 @@ describe('ActivityWallStudentApp', () => {
     mockHttpsCallable.mockReturnValue(mockCallable);
     mockCallable.mockResolvedValue({ data: { domain: 'example.com' } });
     mockGetDownloadURL.mockResolvedValue('https://cdn.example/file.png');
-    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(
-      '11111111-1111-1111-1111-111111111111'
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(
+      // Deterministic 10-byte fill so the uncapped id suffix is always "AAAAAAAAAA".
+      (arr: ArrayBufferView) => {
+        new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength).fill(0);
+        return arr;
+      }
     );
   });
 
@@ -183,6 +187,7 @@ describe('ActivityWallStudentApp', () => {
       expect(mockSetDoc).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          id: 'sso-1__AAAAAAAAAA',
           type: 'text',
           content: 'Ready to learn',
           authorUid: 'sso-1',
@@ -191,6 +196,35 @@ describe('ActivityWallStudentApp', () => {
         })
       );
     });
+  });
+
+  it('generates uncapped ids matching the Storage rule ownership prefix (never bare digits)', async () => {
+    const user = userEvent.setup();
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    // Byte 52 maps to alphabet index 52 ('0'), so an unguarded fill would
+    // produce an all-digit suffix — exercises the anti-collision guard.
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(
+      (arr: ArrayBufferView) => {
+        new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength).fill(52);
+        return arr;
+      }
+    );
+    wireSnapshots(buildSession());
+
+    render(<ActivityWallStudentApp />);
+
+    await user.type(
+      await screen.findByLabelText(/your response/i),
+      'Another idea'
+    );
+    submitForm();
+
+    await waitFor(() => {
+      expect(mockSetDoc).toHaveBeenCalled();
+    });
+    const [, payload] = mockSetDoc.mock.calls[0] as [unknown, { id: string }];
+    expect(payload.id).toMatch(/^sso-1__[A-Za-z0-9]{8,}$/);
+    expect(payload.id.split('__')[1]).not.toMatch(/^[0-9]+$/);
   });
 
   it('signs a visitor in anonymously when the wall allows guests', async () => {
@@ -282,7 +316,7 @@ describe('ActivityWallStudentApp', () => {
         expect.anything(),
         expect.objectContaining({
           type: 'photo',
-          storagePath: `activity_wall_media/${SESSION_ID}/11111111-1111-1111-1111-111111111111/my_photo.png`,
+          storagePath: `activity_wall_media/${SESSION_ID}/sso-1__AAAAAAAAAA/my_photo.png`,
           archiveStatus: 'firebase',
           fileName: 'my_photo.png',
           mimeType: 'image/png',

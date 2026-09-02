@@ -58,18 +58,38 @@ const availableTypes = (
   return types;
 };
 
+/** Matches only the numeric `${uid}__${n}` capped-slot id shape (never the uncapped `${uid}__${random}` shape). */
+const cappedSlotIdPattern = (uid: string): RegExp =>
+  new RegExp(`^${uid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}__[0-9]{1,3}$`);
+
 /** Lowest free `${uid}__${n}` slot, or null when the cap is exhausted. */
 const nextCappedSlot = (
   uid: string,
   posts: ActivityWallSubmission[],
   max: number
 ): string | null => {
-  const used = new Set(posts.map((post) => post.id));
+  const slotPattern = cappedSlotIdPattern(uid);
+  const used = new Set(
+    posts.map((post) => post.id).filter((id) => slotPattern.test(id))
+  );
   for (let index = 0; index < max; index += 1) {
     const candidate = `${uid}__${index}`;
     if (!used.has(candidate)) return candidate;
   }
   return null;
+};
+
+/** 8+ url-safe chars for uncapped `${uid}__${suffix}` ids; never purely digits (so it can't collide with the capped `[0-9]{1,3}` shape). */
+const uncappedSubmissionSuffix = (): string => {
+  const alphabet =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  let suffix = Array.from(
+    bytes,
+    (byte) => alphabet[byte % alphabet.length]
+  ).join('');
+  if (/^[0-9]+$/.test(suffix)) suffix = `x${suffix.slice(1)}`;
+  return suffix;
 };
 
 const youTubeVideoId = (url: string): string | null => {
@@ -314,7 +334,7 @@ export const ActivityWallStudentApp: React.FC = () => {
       uploadFile = file;
     }
 
-    const submissionId = cappedSlot ?? crypto.randomUUID();
+    const submissionId = cappedSlot ?? `${uid}__${uncappedSubmissionSuffix()}`;
     setSubmitting(true);
 
     try {
