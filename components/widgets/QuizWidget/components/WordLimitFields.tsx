@@ -7,6 +7,8 @@ import { isInvalidWordRange, wordLimitBounds } from '@/utils/wordLimit';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 
 const MAX_WORD_BOUND = 5000;
+const suffixClass =
+  'absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider pointer-events-none';
 
 interface Props {
   question: QuizQuestion;
@@ -60,8 +62,8 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
   return (
     <div>
       <label className={labelClass}>Word limit (optional)</label>
-      <div className="flex items-start gap-2">
-        <div className="flex-1">
+      <div className="flex items-start gap-3">
+        <div className="relative flex-1">
           <input
             type="number"
             min={1}
@@ -73,11 +75,11 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
               setMinRaw(e.target.value);
               commit(e.target.value, maxRaw);
             }}
-            className={inputClass}
+            className={`${inputClass} pr-12`}
           />
-          <p className="mt-1 text-xs text-slate-500">Min</p>
+          <span className={suffixClass}>Min</span>
         </div>
-        <div className="flex-1">
+        <div className="relative flex-1">
           <input
             type="number"
             min={1}
@@ -89,9 +91,9 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
               setMaxRaw(e.target.value);
               commit(minRaw, e.target.value);
             }}
-            className={inputClass}
+            className={`${inputClass} pr-12`}
           />
-          <p className="mt-1 text-xs text-slate-500">Max</p>
+          <span className={suffixClass}>Max</span>
         </div>
       </div>
       {backwards && (
