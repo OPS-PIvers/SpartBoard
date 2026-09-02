@@ -89,7 +89,9 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             data-testid="clock-time-container"
             className={`flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()}`}
             style={{
-              fontSize: showSeconds ? '40cqmin' : '50cqmin',
+              fontSize: showSeconds
+                ? 'min(140px, 40cqmin)'
+                : 'min(160px, 50cqmin)',
               color: themeColor,
               textShadow: glow
                 ? `0 0 0.1em ${themeColor}, 0 0 0.25em ${themeColor}66`
@@ -145,7 +147,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <div
             data-testid="clock-date"
             className={`opacity-80 uppercase tracking-[0.2em] text-slate-300 ${getFontClass()}`}
-            style={{ fontSize: '12cqmin', fontWeight: 900 }}
+            style={{ fontSize: 'min(16px, 12cqmin)', fontWeight: 900 }}
           >
             {time.toLocaleDateString(i18n.language, {
               weekday: 'long',
