@@ -23,6 +23,10 @@ import {
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
+import {
+  buildDefaultOrgMediaDeps,
+  finishStuckMediaDelete,
+} from './deleteQuizMediaForOrgAdmin';
 import './functionsInit';
 
 type Firestore = admin.firestore.Firestore;
@@ -45,6 +49,8 @@ export interface SweepDeps {
   archiveOne: (input: StuckArtifact) => Promise<void>;
   /** Second pass: the Drive copy exists, only the transit object is owed. */
   cleanUpStorage: (input: StuckArtifact) => Promise<void>;
+  /** Third pass: a compliance delete still owes Drive or Storage bytes. */
+  finishDelete: (input: StuckArtifact) => Promise<void>;
   getTeacherEmail: (teacherUid: string) => Promise<string | null>;
   /** Real name where the roster resolves it, else `Pin{pin}` — never a raw uid. */
   resolveStudentLabel: (
@@ -61,6 +67,7 @@ export interface SweepSummary {
   recovered: number;
   stillStuck: number;
   cleanedUp: number;
+  deletesFinished: number;
   mailQueued: number;
 }
 
@@ -69,6 +76,41 @@ interface ArchiveEntry {
   archiveStartedAt?: unknown;
   lastAttemptAt?: unknown;
   storageCleanupPending?: unknown;
+  deletedAt?: unknown;
+  deleteAttemptedAt?: unknown;
+  orphanedDriveFileId?: unknown;
+}
+
+/** Statuses a compliance delete owns; the sweep must never re-archive these. */
+export function isDeleteOwnedEntry(entry: ArchiveEntry | undefined): boolean {
+  const status = entry?.archiveStatus;
+  return (
+    status === 'deleting' || status === 'deleted' || status === 'delete-failed'
+  );
+}
+
+/**
+ * A delete that never confirmed its bytes. A `'deleting'` claim is retry-
+ * eligible once it ages past the same window archives use; a settled tombstone
+ * qualifies only while it still carries an orphaned Drive copy or an unswept
+ * transit object.
+ */
+export function needsDeleteCompletion(
+  entry: ArchiveEntry | undefined,
+  now: number
+): boolean {
+  if (entry?.archiveStatus === 'deleting') {
+    const started =
+      typeof entry.deleteAttemptedAt === 'number' ? entry.deleteAttemptedAt : 0;
+    const claimed = typeof entry.deletedAt === 'number' ? entry.deletedAt : 0;
+    const lastTouched = Math.max(started, claimed);
+    return lastTouched === 0 || now - lastTouched >= STUCK_ARCHIVE_AGE_MS;
+  }
+  if (!isDeleteOwnedEntry(entry)) return false;
+  return (
+    typeof entry?.orphanedDriveFileId === 'string' ||
+    entry?.storageCleanupPending === true
+  );
 }
 
 /**
@@ -151,6 +193,7 @@ export async function runSweepStuckQuizArchives(
     recovered: 0,
     stillStuck: 0,
     cleanedUp: 0,
+    deletesFinished: 0,
     mailQueued: 0,
   };
 
@@ -208,6 +251,22 @@ export async function runSweepStuckQuizArchives(
 
       for (const [artifactId, entry] of Object.entries(archive)) {
         const target = { sessionId, responseKey: docSnap.id, artifactId };
+        // A compliance delete owns this artifact; never re-archive it.
+        if (isDeleteOwnedEntry(entry)) {
+          if (!needsDeleteCompletion(entry, now)) continue;
+          const questionId = findQuestionIdForArtifact(
+            data.answers,
+            artifactId
+          );
+          if (!questionId) continue;
+          try {
+            await deps.finishDelete({ ...target, questionId });
+            summary.deletesFinished++;
+          } catch {
+            summary.stillStuck++;
+          }
+          continue;
+        }
         // Second pass: archived to Drive, only the transit object is owed.
         if (entry?.storageCleanupPending === true) {
           const questionId = findQuestionIdForArtifact(
@@ -278,6 +337,7 @@ export const sweepStuckQuizArchives = onSchedule(
   async () => {
     const db = admin.firestore();
     const archiveDeps = buildDefaultArchiveDeps();
+    const orgMediaDeps = buildDefaultOrgMediaDeps();
     const summary = await runSweepStuckQuizArchives(db, {
       archiveOne: async (input) => {
         await archiveQuizArtifactCore(
@@ -286,6 +346,7 @@ export const sweepStuckQuizArchives = onSchedule(
         );
       },
       cleanUpStorage: (input) => retryStorageCleanup(input, archiveDeps),
+      finishDelete: (input) => finishStuckMediaDelete(input, orgMediaDeps),
       getTeacherEmail: async (teacherUid) => {
         try {
           return (await admin.auth().getUser(teacherUid)).email ?? null;

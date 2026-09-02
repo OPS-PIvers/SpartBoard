@@ -3821,6 +3821,7 @@ export type ArtifactArchiveStatus =
   | 'syncing'
   | 'archived'
   | 'failed'
+  | 'deleting'
   | 'deleted'
   | 'delete-failed';
 
@@ -3840,6 +3841,8 @@ export interface ArtifactArchiveEntry {
   /** Admin uid that ran the compliance delete. */
   deletedBy?: string;
   deleteAttemptedAt?: number;
+  /** Drive copy an archive created after a delete claimed the artifact; still owed a delete. */
+  orphanedDriveFileId?: string;
 }
 
 /**
