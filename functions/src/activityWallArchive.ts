@@ -273,24 +273,65 @@ export function buildDriveUrl(type: ArchivableType, fileId: string): string {
   return `https://drive.google.com/file/d/${fileId}/view`;
 }
 
-/** A missing `driveVisibility` on a legacy session doc means domain-restricted. */
-export function buildDrivePermission(
+/**
+ * Consumer webmail domains a "domain-restricted" share must never trust:
+ * `driveVisibility: 'domain'` on one of these is effectively public, since
+ * the domain isn't the school's and anyone with a Google account is on it.
+ */
+export const PUBLIC_WEBMAIL_DOMAINS: ReadonlySet<string> = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'yahoo.com',
+  'icloud.com',
+  'me.com',
+  'aol.com',
+  'proton.me',
+  'protonmail.com',
+]);
+
+export type DrivePermissionValue = 'private' | 'domain' | 'anyone';
+
+export interface ResolvedDrivePermission {
+  /** `null` means: apply no Drive permission — the file stays private. */
+  permission: DrivePermission | null;
+  /** Persisted on the submission as `drivePermission`. */
+  value: DrivePermissionValue;
+}
+
+/**
+ * A missing `driveVisibility` on a legacy session doc means domain-restricted.
+ * A domain-restricted share on a public webmail domain gets no Drive
+ * permission at all and settles at 'private' instead of leaking the file to
+ * every Gmail/Outlook/etc. account holder.
+ */
+export function resolveDrivePermission(
   driveVisibility: unknown,
   teacherEmail: string | null
-): DrivePermission {
-  if (driveVisibility === 'anyone') return { type: 'anyone', role: 'reader' };
-  const domain = (teacherEmail ?? '').split('@')[1] ?? '';
+): ResolvedDrivePermission {
+  if (driveVisibility === 'anyone') {
+    return { permission: { type: 'anyone', role: 'reader' }, value: 'anyone' };
+  }
+  const domain = (teacherEmail ?? '').split('@')[1]?.toLowerCase() ?? '';
   if (!domain) {
     throw new HttpsError(
       'failed-precondition',
       'Cannot resolve the teacher email domain for a domain-restricted share.'
     );
   }
+  if (PUBLIC_WEBMAIL_DOMAINS.has(domain)) {
+    return { permission: null, value: 'private' };
+  }
   return {
-    type: 'domain',
-    domain,
-    role: 'reader',
-    allowFileDiscovery: false,
+    permission: {
+      type: 'domain',
+      domain,
+      role: 'reader',
+      allowFileDiscovery: false,
+    },
+    value: 'domain',
   };
 }
 
@@ -334,6 +375,7 @@ export function isLostArchiveError(error: unknown): boolean {
 export type ArchiveClaim =
   | { kind: 'claimed' }
   | { kind: 'archived'; driveFileId?: string }
+  | { kind: 'resume'; driveFileId: string }
   | { kind: 'skipped'; archiveStatus: string | null };
 
 /**
@@ -352,8 +394,23 @@ export async function claimSubmissionForArchive(
     const status = effectiveArchiveStatus(data);
     const driveFileId =
       typeof data.driveFileId === 'string' ? data.driveFileId : undefined;
-    if (status === 'archived' || driveFileId) {
+    if (status === 'archived') {
       return { kind: 'archived', driveFileId };
+    }
+    if (driveFileId) {
+      // The Drive copy already exists from a prior attempt; only the
+      // permission or the terminal Firestore write failed. Resume from
+      // there instead of uploading a duplicate.
+      tx.set(
+        submissionRef,
+        {
+          archiveStatus: 'syncing',
+          archiveStartedAt: now,
+          archiveError: admin.firestore.FieldValue.delete(),
+        },
+        { merge: true }
+      );
+      return { kind: 'resume', driveFileId };
     }
     if (status === 'syncing') {
       const startedAt =
@@ -614,10 +671,10 @@ export async function archiveActivityWallMediaCore(
     throw new HttpsError('not-found', 'Activity Wall session not found.');
   }
   const session = (sessionSnap.data() ?? {}) as Record<string, unknown>;
-  const teacherUid =
-    typeof session.teacherUid === 'string' && session.teacherUid
-      ? session.teacherUid
-      : teacherUidFromSessionId(sessionId);
+  // `session.teacherUid` is client-writable; the sessionId prefix is what
+  // `firestore.rules` actually pins to the owner, so that is the only uid a
+  // Drive token is ever minted for.
+  const teacherUid = teacherUidFromSessionId(sessionId);
   if (!teacherUid) {
     throw new HttpsError('failed-precondition', 'Session has no teacher.');
   }
@@ -630,6 +687,8 @@ export async function archiveActivityWallMediaCore(
     throw new HttpsError('not-found', 'Submission not found.');
   }
   const submission = (submissionSnap.data() ?? {}) as Record<string, unknown>;
+  const storagePath =
+    typeof submission.storagePath === 'string' ? submission.storagePath : '';
 
   const claim = await claimSubmissionForArchive(db, submissionRef, deps.now());
   if (claim.kind === 'archived') {
@@ -641,10 +700,10 @@ export async function archiveActivityWallMediaCore(
     };
   }
 
-  const storagePath =
-    typeof submission.storagePath === 'string' ? submission.storagePath : '';
-  let driveFileId: string | null = null;
+  let driveFileId: string | null =
+    claim.kind === 'resume' ? claim.driveFileId : null;
   let unrecoverable = false;
+  let drivePermissionValue: DrivePermissionValue = 'domain';
 
   /** Resolves true when this attempt settled the submission at 'lost'. */
   const writeFailure = async (error: unknown): Promise<boolean> => {
@@ -696,12 +755,12 @@ export async function archiveActivityWallMediaCore(
     const mimeType =
       stat.contentType ||
       (typeof submission.mimeType === 'string' ? submission.mimeType : '');
-    const resolved = resolveArchivableType(submission.type, mimeType);
-    if (!resolved) {
+    const resolvedType = resolveArchivableType(submission.type, mimeType);
+    if (!resolvedType) {
       unrecoverable = true;
       throw new HttpsError('invalid-argument', 'Submission is not archivable.');
     }
-    type = resolved;
+    type = resolvedType;
     if (!isAllowedMimeForType(type, mimeType)) {
       unrecoverable = true;
       throw new HttpsError('invalid-argument', 'File type is not allowed.');
@@ -717,47 +776,60 @@ export async function archiveActivityWallMediaCore(
     }
 
     const teacherEmail = await deps.getUserEmail(teacherUid);
-    const permission = buildDrivePermission(
+    const resolved = resolveDrivePermission(
       session.driveVisibility,
       teacherEmail
     );
+    drivePermissionValue = resolved.value;
     const accessToken = await deps.getAccessToken(teacherUid);
-    const wallTitle =
-      typeof session.title === 'string' && session.title.trim()
-        ? session.title
-        : 'Untitled Wall';
-    const fileName = buildArchiveFileName(
-      submissionId,
-      submission.fileName,
-      mimeType
-    );
-    const folderPath = buildWallFolderPath(wallTitle, sessionId);
-    const contentType = mimeType || 'application/octet-stream';
-    let driveFile: { id: string };
-    if (stat.size > STREAM_DOWNLOAD_THRESHOLD_BYTES) {
-      const tempPath = await deps.downloadObjectToTempFile(storagePath);
-      try {
-        driveFile = await deps.uploadFileToDrive(
+
+    if (!driveFileId) {
+      const wallTitle =
+        typeof session.title === 'string' && session.title.trim()
+          ? session.title
+          : 'Untitled Wall';
+      const fileName = buildArchiveFileName(
+        submissionId,
+        submission.fileName,
+        mimeType
+      );
+      const folderPath = buildWallFolderPath(wallTitle, sessionId);
+      const contentType = mimeType || 'application/octet-stream';
+      let driveFile: { id: string };
+      if (stat.size > STREAM_DOWNLOAD_THRESHOLD_BYTES) {
+        const tempPath = await deps.downloadObjectToTempFile(storagePath);
+        try {
+          driveFile = await deps.uploadFileToDrive(
+            accessToken,
+            tempPath,
+            contentType,
+            fileName,
+            folderPath
+          );
+        } finally {
+          await deps.discardTempFile(tempPath).catch(() => undefined);
+        }
+      } else {
+        driveFile = await deps.uploadToDrive(
           accessToken,
-          tempPath,
+          await deps.downloadObject(storagePath),
           contentType,
           fileName,
           folderPath
         );
-      } finally {
-        await deps.discardTempFile(tempPath).catch(() => undefined);
       }
-    } else {
-      driveFile = await deps.uploadToDrive(
+      driveFileId = driveFile.id;
+    }
+    // Re-applied even when resuming: a prior attempt may have uploaded the
+    // file and then failed to share it, so the permission was never set.
+    // `null` (a public-webmail domain share) means no permission is added.
+    if (resolved.permission) {
+      await deps.setDrivePermission(
         accessToken,
-        await deps.downloadObject(storagePath),
-        contentType,
-        fileName,
-        folderPath
+        driveFileId,
+        resolved.permission
       );
     }
-    driveFileId = driveFile.id;
-    await deps.setDrivePermission(accessToken, driveFile.id, permission);
   } catch (error: unknown) {
     throw toArchiveFailure(error, await writeFailure(error));
   }
@@ -775,6 +847,7 @@ export async function archiveActivityWallMediaCore(
         content: driveUrl,
         driveFileId: uploadedId,
         driveUrl,
+        drivePermission: drivePermissionValue,
         archiveStatus: 'archived',
         archivedAt: deps.now(),
         storagePath: admin.firestore.FieldValue.delete(),
@@ -798,12 +871,23 @@ export async function archiveActivityWallMediaCore(
   return { archiveStatus: 'archived', driveFileId: uploadedId };
 }
 
-/** True when a written submission is one the archive pipeline owns. */
+/**
+ * True when a written submission is one the archive pipeline owns. Gated to
+ * the new client's `activity_wall_media/` prefix only: the deployed legacy
+ * client still writes `activity_wall_photos/` submissions, and these triggers
+ * write fields the current `firestore.rules` submissions update whitelist
+ * does not allow, which would break the legacy client's own updates until the
+ * separate rules PR (P1-4) lands. Legacy submissions stay on the existing
+ * `archiveActivityWallPhoto` callable.
+ */
 export function shouldArchiveSubmission(
   data: Record<string, unknown> | undefined
 ): boolean {
   if (!data) return false;
   if (typeof data.storagePath !== 'string' || !data.storagePath) return false;
+  if (!data.storagePath.startsWith(`${ACTIVITY_WALL_MEDIA_ROOT}/`)) {
+    return false;
+  }
   return effectiveArchiveStatus(data) === 'firebase';
 }
 

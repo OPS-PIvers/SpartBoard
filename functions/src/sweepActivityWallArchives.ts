@@ -58,6 +58,8 @@ export interface WallSweepSummary {
   objectsScanned: number;
   objectsDeleted: number;
   markedLost: number;
+  cleanupRetried: number;
+  cleanupCleared: number;
 }
 
 /** Untouched for longer than the retry window, measured from the last attempt. */
@@ -120,6 +122,11 @@ async function retryStragglers(
 ): Promise<void> {
   let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
   while (summary.scanned < MAX_SUBMISSIONS_PER_RUN) {
+    // Only these two literal values are queried: the new client always
+    // writes `archiveStatus` explicitly (unlike a legacy submission, which
+    // can imply 'firebase' from `storagePath` alone via
+    // `effectiveArchiveStatus` without the field being set), so a Firestore
+    // equality filter on the field catches every straggler this sweep owns.
     let query = db
       .collectionGroup(SUBMISSIONS_COLLECTION)
       .where('archiveStatus', 'in', ['firebase', 'failed'])
@@ -137,6 +144,11 @@ async function retryStragglers(
       summary.scanned++;
       const data = (docSnap.data() ?? {}) as Record<string, unknown>;
       if (typeof data.storagePath !== 'string' || !data.storagePath) continue;
+      // New-client submissions only; the legacy callable owns the rest (see
+      // shouldArchiveSubmission in activityWallArchive.ts).
+      if (!data.storagePath.startsWith(`${ACTIVITY_WALL_MEDIA_ROOT}/`)) {
+        continue;
+      }
       if (!isStuckSubmission(data, now)) continue;
       summary.retried++;
       try {
@@ -151,6 +163,44 @@ async function retryStragglers(
     }
 
     if (page.size < SUBMISSION_PAGE_SIZE) break;
+  }
+}
+
+/**
+ * `storageCleanupPending` is set when an archive succeeded but the transit
+ * delete failed; nothing else in the codebase reads the flag, so this is the
+ * only retry path for those leftover objects.
+ */
+async function retryStorageCleanup(
+  db: Firestore,
+  deps: WallSweepDeps,
+  summary: WallSweepSummary
+): Promise<void> {
+  const page = await db
+    .collectionGroup(SUBMISSIONS_COLLECTION)
+    .where('storageCleanupPending', '==', true)
+    .limit(SUBMISSION_PAGE_SIZE)
+    .get();
+  for (const docSnap of page.docs) {
+    const sessionRef = docSnap.ref.parent.parent;
+    // The collection group also matches unrelated `submissions` subtrees.
+    if (!sessionRef || sessionRef.parent.id !== SESSIONS_COLLECTION) continue;
+    summary.cleanupRetried++;
+    try {
+      const objects = await deps.listObjects(
+        `${ACTIVITY_WALL_MEDIA_ROOT}/${sessionRef.id}/${docSnap.id}/`
+      );
+      for (const object of objects) {
+        await deps.deleteObject(object.name);
+      }
+      await docSnap.ref.set(
+        { storageCleanupPending: admin.firestore.FieldValue.delete() },
+        { merge: true }
+      );
+      summary.cleanupCleared++;
+    } catch {
+      continue;
+    }
   }
 }
 
@@ -216,8 +266,11 @@ export async function runSweepActivityWallArchives(
     objectsScanned: 0,
     objectsDeleted: 0,
     markedLost: 0,
+    cleanupRetried: 0,
+    cleanupCleared: 0,
   };
   await retryStragglers(db, deps, summary, now);
+  await retryStorageCleanup(db, deps, summary);
   await sweepOrphanedObjects(db, deps, summary, now);
   return summary;
 }

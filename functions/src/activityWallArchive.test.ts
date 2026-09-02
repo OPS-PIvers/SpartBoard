@@ -58,7 +58,7 @@ import {
   archiveActivityWallMediaCore,
   buildArchiveFileName,
   buildDriveUrl,
-  buildDrivePermission,
+  resolveDrivePermission,
   buildWallFolderPath,
   effectiveArchiveStatus,
   hasActivityWallStoragePrefix,
@@ -70,6 +70,7 @@ import {
   shouldArchiveSubmission,
   teacherUidFromSessionId,
   MAX_ARCHIVE_ATTEMPTS,
+  SESSIONS_COLLECTION,
   STREAM_DOWNLOAD_THRESHOLD_BYTES,
   type WallArchiveDeps,
 } from './activityWallArchive';
@@ -282,17 +283,31 @@ describe('pure helpers', () => {
   });
 
   it('defaults an absent driveVisibility to a domain permission', () => {
-    expect(buildDrivePermission(undefined, 'teacher@school.org')).toEqual({
-      type: 'domain',
-      domain: 'school.org',
-      role: 'reader',
-      allowFileDiscovery: false,
+    expect(resolveDrivePermission(undefined, 'teacher@school.org')).toEqual({
+      permission: {
+        type: 'domain',
+        domain: 'school.org',
+        role: 'reader',
+        allowFileDiscovery: false,
+      },
+      value: 'domain',
     });
-    expect(buildDrivePermission('anyone', null)).toEqual({
-      type: 'anyone',
-      role: 'reader',
+    expect(resolveDrivePermission('anyone', null)).toEqual({
+      permission: { type: 'anyone', role: 'reader' },
+      value: 'anyone',
     });
-    expect(() => buildDrivePermission('domain', null)).toThrow();
+    expect(() => resolveDrivePermission('domain', null)).toThrow();
+  });
+
+  it('adds no permission for a domain share on a public webmail domain', () => {
+    expect(resolveDrivePermission(undefined, 'teacher@gmail.com')).toEqual({
+      permission: null,
+      value: 'private',
+    });
+    expect(resolveDrivePermission(undefined, 'teacher@Outlook.com')).toEqual({
+      permission: null,
+      value: 'private',
+    });
   });
 
   it('builds folder path and file name', () => {
@@ -456,6 +471,62 @@ describe('archiveActivityWallMediaCore', () => {
     expect(deps.uploadToDrive).not.toHaveBeenCalled();
   });
 
+  it('finalizes instead of re-uploading when a prior attempt already reached Drive', async () => {
+    const { db, state } = makeStubDb(
+      baseSeed({
+        submission: {
+          archiveStatus: 'failed',
+          driveFileId: 'drive-orphaned',
+          attemptCount: 2,
+        },
+      })
+    );
+    const deps = makeDeps(db);
+    const result = await call(deps);
+
+    expect(result).toEqual({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-orphaned',
+    });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    expect(deps.setDrivePermission).toHaveBeenCalledWith(
+      'token',
+      'drive-orphaned',
+      {
+        type: 'domain',
+        domain: 'school.org',
+        role: 'reader',
+        allowFileDiscovery: false,
+      }
+    );
+    expect(deps.deleteObject).toHaveBeenCalledWith(GOOD_PATH);
+    expect(state?.archiveStatus).toBe('archived');
+    expect(state?.driveFileId).toBe('drive-orphaned');
+    expect(state?.content).toBe(
+      'https://drive.google.com/thumbnail?id=drive-orphaned&sz=w2000'
+    );
+    expect(state?.storagePath).toBeUndefined();
+  });
+
+  it('ignores a client-writable session.teacherUid and derives it from the sessionId', async () => {
+    const { db } = makeStubDb(
+      baseSeed({ session: { teacherUid: 'attacker-uid' } })
+    );
+    const deps = makeDeps(db);
+    await call(deps);
+    expect(deps.getAccessToken).toHaveBeenCalledWith(TEACHER_UID);
+  });
+
+  it('writes a private permission for a domain share to a public webmail domain', async () => {
+    const { db, state } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      getUserEmail: vi.fn(() => Promise.resolve('teacher@gmail.com')),
+    });
+    await call(deps);
+    expect(deps.setDrivePermission).not.toHaveBeenCalled();
+    expect(state?.drivePermission).toBe('private');
+  });
+
   it('returns the existing Drive id when already archived', async () => {
     const { db } = makeStubDb(
       baseSeed({
@@ -525,6 +596,9 @@ describe('sweepActivityWallArchives', () => {
               get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
             }),
           }),
+          limit: () => ({
+            get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
+          }),
         }),
       }),
       collection: () => ({
@@ -555,5 +629,60 @@ describe('sweepActivityWallArchives', () => {
     expect(summary.markedLost).toBe(1);
     expect(submissionState.archiveStatus).toBe('lost');
     expect(submissionState.storagePath).toBeUndefined();
+  });
+
+  it('retries a pending storage cleanup and clears the flag on success', async () => {
+    const submissionState: Bag = {
+      archiveStatus: 'archived',
+      storageCleanupPending: true,
+    };
+    const submissionRef = {
+      id: SUBMISSION_ID,
+      parent: {
+        parent: { id: SESSION_ID, parent: { id: SESSIONS_COLLECTION } },
+      },
+      set: (data: Bag) => {
+        mergeInto(submissionState, data);
+        return Promise.resolve();
+      },
+    };
+    const docSnap = { id: SUBMISSION_ID, ref: submissionRef };
+    const db = {
+      collectionGroup: () => ({
+        where: (field: string) => ({
+          limit: () => ({
+            get: () =>
+              Promise.resolve(
+                field === 'storageCleanupPending'
+                  ? { empty: false, size: 1, docs: [docSnap] }
+                  : { empty: true, size: 0, docs: [] }
+              ),
+          }),
+          orderBy: () => ({
+            limit: () => ({
+              get: () => Promise.resolve({ empty: true, size: 0, docs: [] }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const deleteObject = vi.fn(() => Promise.resolve());
+    const summary = await runSweepActivityWallArchives(db as never, {
+      archiveOne: vi.fn(() => Promise.resolve()),
+      listObjects: vi.fn((prefix: string) =>
+        Promise.resolve(
+          prefix === `activity_wall_media/${SESSION_ID}/${SUBMISSION_ID}/`
+            ? [{ name: GOOD_PATH, createdAt: NOW }]
+            : []
+        )
+      ),
+      deleteObject,
+      now: () => NOW,
+    });
+
+    expect(deleteObject).toHaveBeenCalledWith(GOOD_PATH);
+    expect(summary.cleanupRetried).toBe(1);
+    expect(summary.cleanupCleared).toBe(1);
+    expect(submissionState.storageCleanupPending).toBeUndefined();
   });
 });
