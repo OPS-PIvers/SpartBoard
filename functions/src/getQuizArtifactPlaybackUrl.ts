@@ -19,7 +19,7 @@ import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   isQuizMediaResponseGranted,
-  QUIZ_MEDIA_ARCHIVE_SECRETS,
+  QUIZ_MEDIA_GOOGLE_SECRETS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
@@ -330,7 +330,7 @@ export const getQuizArtifactPlaybackUrl = onCall(
     memory: '512MiB',
     timeoutSeconds: 60,
     cors: ALLOWED_ORIGINS,
-    secrets: QUIZ_MEDIA_ARCHIVE_SECRETS,
+    secrets: QUIZ_MEDIA_GOOGLE_SECRETS,
     invoker: 'public',
   },
   async (request) => {

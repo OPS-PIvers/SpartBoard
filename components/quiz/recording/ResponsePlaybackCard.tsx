@@ -57,7 +57,13 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
 
   const { state, load } = useQuizArtifactPlayback(
     take && responseKey
-      ? { sessionId, responseKey, questionId, slot: take.artifact.slot }
+      ? {
+          sessionId,
+          responseKey,
+          questionId,
+          slot: take.artifact.slot,
+          artifactId: take.artifact.id,
+        }
       : null,
     fetchPlayback
   );
@@ -69,6 +75,9 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
   const noticeCls = light
     ? 'border-slate-200 bg-slate-50'
     : 'border-slate-700 bg-slate-800/60';
+  const retryCls = light
+    ? 'border-slate-300 text-slate-700 hover:bg-slate-100'
+    : 'border-slate-600 text-slate-200 hover:bg-slate-700/60';
 
   const notice = (
     icon: React.ReactNode,
@@ -103,6 +112,8 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
           : reason === 'no-recording'
             ? t('quizMediaResponse.playback.missing')
             : t('quizMediaResponse.playback.archiving');
+
+  const playerShowing = archiveState === 'playable' && state.phase === 'ready';
 
   const body = () => {
     // Archive state comes off the student's own response doc, so the honest
@@ -157,7 +168,7 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
           <button
             type="button"
             onClick={load}
-            className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+            className={`mt-2 inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary ${retryCls}`}
           >
             {t('quizMediaResponse.playback.retry')}
           </button>
@@ -198,7 +209,8 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
           })}
         </p>
       )}
-      <div aria-live="polite">{body()}</div>
+      {/* Live only for notices; the player's progress bar must not chatter. */}
+      <div aria-live={playerShowing ? undefined : 'polite'}>{body()}</div>
     </div>
   );
 };

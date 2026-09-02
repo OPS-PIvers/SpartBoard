@@ -169,6 +169,46 @@ describe('QuizStudentApp — published results on an active (self-paced) session
     expect(screen.queryByText('Quiz Submitted!')).not.toBeInTheDocument();
   });
 
+  it('does not call a recorded answer "no response"', async () => {
+    // The take IS the answer; the text slot is empty by design.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      mediaResponseEnabled: true,
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      _responseKey: 'resp-1',
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 3,
+          takeIndex: 1,
+          artifacts: [
+            {
+              id: 'artifact-1',
+              slot: 'primary',
+              kind: 'audio',
+              durationMs: 5000,
+              uploadState: 'uploaded',
+            },
+          ],
+        },
+      ],
+      artifactArchive: {
+        'artifact-1': { archiveStatus: 'archived', driveFileId: 'drive-1' },
+      },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your recorded answer|quizMediaResponse.playback.label/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/no response/)).not.toBeInTheDocument();
+  });
+
   it('keeps a completed student on the submitted-wait screen until scores are published', async () => {
     // scoreVisibility absent (defaults to 'none') → not yet published.
     hookState.session = buildSession();

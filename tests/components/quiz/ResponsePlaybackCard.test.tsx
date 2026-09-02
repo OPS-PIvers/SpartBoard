@@ -175,6 +175,88 @@ describe('ResponsePlaybackCard', () => {
     );
   });
 
+  it('themes the retry button for the surface it renders on', async () => {
+    for (const light of [true, false]) {
+      const { unmount } = render(
+        <ResponsePlaybackCard
+          sessionId="s1"
+          responseKey="r1"
+          questionId="q1"
+          answers={answers()}
+          artifactArchive={{ 'artifact-1': archived }}
+          light={light}
+          fetchPlayback={() => Promise.reject(new Error('x'))}
+        />
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+      );
+      const retry = await screen.findByRole('button', {
+        name: 'quizMediaResponse.playback.retry',
+      });
+      expect(retry.className).toContain(
+        light ? 'text-slate-700' : 'text-slate-200'
+      );
+      expect(retry.className).not.toContain(
+        light ? 'text-slate-200' : 'text-slate-700'
+      );
+      unmount();
+    }
+  });
+
+  it('keeps the player out of the live region', async () => {
+    const { container } = renderCard({ 'artifact-1': archived });
+    expect(container.querySelector('[aria-live="polite"]')).not.toBeNull();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    );
+    expect(container.querySelector('[aria-live="polite"]')).toBeNull();
+  });
+
+  it('refetches when the teacher re-pins a different graded take', async () => {
+    const fetchPlayback = vi.fn(ready);
+    const archive = {
+      'artifact-1': archived,
+      'artifact-2': archived,
+    };
+    const { rerender } = render(
+      <ResponsePlaybackCard
+        sessionId="s1"
+        responseKey="r1"
+        questionId="q1"
+        answers={answers([1, 2])}
+        artifactArchive={archive}
+        gradedTakeIndex={1}
+        fetchPlayback={fetchPlayback}
+      />
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+    );
+    await waitFor(() => expect(fetchPlayback).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <ResponsePlaybackCard
+        sessionId="s1"
+        responseKey="r1"
+        questionId="q1"
+        answers={answers([1, 2])}
+        artifactArchive={archive}
+        gradedTakeIndex={2}
+        fetchPlayback={fetchPlayback}
+      />
+    );
+    await userEvent.click(
+      await screen.findByRole('button', {
+        name: 'quizMediaResponse.playback.play',
+      })
+    );
+    await waitFor(() => expect(fetchPlayback).toHaveBeenCalledTimes(2));
+  });
+
   it('asks for the take the teacher graded, not the newest one', async () => {
     const fetchPlayback = vi.fn(ready);
     render(

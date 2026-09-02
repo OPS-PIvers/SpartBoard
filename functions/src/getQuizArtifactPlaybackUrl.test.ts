@@ -69,6 +69,10 @@ import {
   selectPlaybackTake,
   type PlaybackDeps,
 } from './getQuizArtifactPlaybackUrl';
+import {
+  QUIZ_MEDIA_ARCHIVE_SECRETS,
+  QUIZ_MEDIA_GOOGLE_SECRETS,
+} from './quizMediaArchive';
 
 const STUDENT = 'student-1';
 const TEACHER = 'teacher-1';
@@ -156,6 +160,18 @@ const REQ = {
   slot: 'primary' as const,
   callerUid: STUDENT,
 };
+
+describe('playback secrets', () => {
+  it('takes only the Google OAuth trio, not the archive bundle', () => {
+    expect(QUIZ_MEDIA_GOOGLE_SECRETS).toHaveLength(3);
+    expect(QUIZ_MEDIA_ARCHIVE_SECRETS.length).toBeGreaterThan(
+      QUIZ_MEDIA_GOOGLE_SECRETS.length
+    );
+    for (const s of QUIZ_MEDIA_GOOGLE_SECRETS) {
+      expect(QUIZ_MEDIA_ARCHIVE_SECRETS).toContain(s);
+    }
+  });
+});
 
 describe('parsePlaybackRequest', () => {
   it('fails closed on missing identifiers', () => {

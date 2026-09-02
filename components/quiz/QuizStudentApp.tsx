@@ -88,7 +88,10 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
-import { hasUngradedRecording } from '@/utils/responseArtifacts';
+import {
+  hasUngradedRecording,
+  selectPlaybackTake,
+} from '@/utils/responseArtifacts';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
@@ -4170,6 +4173,11 @@ export const PublishedScoreReview: React.FC<{
                   ? false
                   : ans?.isCorrect === false;
                 const correctAnswer = session.revealedAnswers?.[q.id];
+                // A recorded answer IS the response; "no response" would lie.
+                const hasRecordedTake =
+                  mediaEnabled &&
+                  !!responseKey &&
+                  selectPlaybackTake(myResponse.answers, q.id) !== null;
                 return (
                   <article
                     key={q.id}
@@ -4219,25 +4227,31 @@ export const PublishedScoreReview: React.FC<{
                           maxPoints={q.points ?? 1}
                           rubricSnapshot={q.rubricSnapshot}
                           light={light}
+                          hideEmptyResponse={hasRecordedTake}
                         />
                       ) : (
                         <>
-                          <p className={`text-xs ${subtleText}`}>
-                            Your answer:{' '}
-                            <span
-                              className={`font-mono ${
-                                isCorrect
-                                  ? answerCorrectText
-                                  : isIncorrect
-                                    ? answerIncorrectText
-                                    : answerNeutralText
-                              }`}
-                            >
-                              {studentAnswer
-                                ? formatAnswerForDisplay(studentAnswer, q.type)
-                                : '— no response'}
-                            </span>
-                          </p>
+                          {(studentAnswer || !hasRecordedTake) && (
+                            <p className={`text-xs ${subtleText}`}>
+                              Your answer:{' '}
+                              <span
+                                className={`font-mono ${
+                                  isCorrect
+                                    ? answerCorrectText
+                                    : isIncorrect
+                                      ? answerIncorrectText
+                                      : answerNeutralText
+                                }`}
+                              >
+                                {studentAnswer
+                                  ? formatAnswerForDisplay(
+                                      studentAnswer,
+                                      q.type
+                                    )
+                                  : '— no response'}
+                              </span>
+                            </p>
+                          )}
                           {showAnswers && correctAnswer && (
                             <p className={`text-xs ${subtleText}`}>
                               Correct answer:{' '}
@@ -4445,6 +4459,8 @@ export const WrittenAnswerReview: React.FC<{
   rubricSnapshot?: Rubric;
   /** LIGHT for the async/self-paced review; dark for a live-ended quiz. */
   light?: boolean;
+  /** Set when a recorded take is the response, so "no response" would lie. */
+  hideEmptyResponse?: boolean;
 }> = ({
   studentAnswer,
   grade,
@@ -4452,6 +4468,7 @@ export const WrittenAnswerReview: React.FC<{
   maxPoints,
   rubricSnapshot,
   light = false,
+  hideEmptyResponse = false,
 }) => {
   if (!showResponse) {
     return null;
@@ -4471,7 +4488,7 @@ export const WrittenAnswerReview: React.FC<{
           annotations={annotations}
           light={light}
         />
-      ) : (
+      ) : hideEmptyResponse ? null : (
         <p className="text-xs text-slate-500 italic">— no response</p>
       )}
       {hasGrade && (

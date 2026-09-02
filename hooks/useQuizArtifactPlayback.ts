@@ -27,6 +27,11 @@ export interface PlaybackRequest {
   slot: ArtifactSlot;
 }
 
+export interface PlaybackTarget extends PlaybackRequest {
+  /** Resolved take id; re-pinning a graded take must not replay the cached one. */
+  artifactId: string;
+}
+
 export type PlaybackResponse =
   | {
       status: 'ready';
@@ -64,12 +69,25 @@ function base64ToBlob(data: string, mimeType: string): Blob {
 }
 
 export function useQuizArtifactPlayback(
-  request: PlaybackRequest | null,
+  request: PlaybackTarget | null,
   fetchPlayback: FetchPlayback = defaultFetch
 ): { state: PlaybackState; load: () => void } {
   const [state, setState] = useState<PlaybackState>({ phase: 'idle' });
   const urlRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  const artifactId = request?.artifactId ?? null;
+  const [loadedArtifactId, setLoadedArtifactId] = useState(artifactId);
+  const artifactIdRef = useRef(artifactId);
+  artifactIdRef.current = artifactId;
+
+  // The teacher can re-pin the graded take live; the cached bytes are stale.
+  if (artifactId !== loadedArtifactId) {
+    setLoadedArtifactId(artifactId);
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    urlRef.current = null;
+    inFlightRef.current = false;
+    setState({ phase: 'idle' });
+  }
 
   // Object URLs are a browser resource, not React state - revoke on unmount.
   useEffect(() => {
@@ -85,7 +103,8 @@ export function useQuizArtifactPlayback(
   const slot = request?.slot;
 
   const load = useCallback(() => {
-    if (!sessionId || !responseKey || !questionId || !slot) return;
+    if (!sessionId || !responseKey || !questionId || !slot || !artifactId)
+      return;
     if (inFlightRef.current || urlRef.current) return;
     inFlightRef.current = true;
     setState({ phase: 'loading' });
@@ -97,6 +116,8 @@ export function useQuizArtifactPlayback(
           questionId,
           slot,
         });
+        // A take re-pinned mid-flight makes this answer the wrong one.
+        if (artifactIdRef.current !== artifactId) return;
         if (data.status !== 'ready') {
           setState({ phase: 'unavailable', reason: data.reason });
           return;
@@ -107,12 +128,12 @@ export function useQuizArtifactPlayback(
         urlRef.current = url;
         setState({ phase: 'ready', url, durationMs: data.durationMs ?? 0 });
       } catch {
-        setState({ phase: 'error' });
+        if (artifactIdRef.current === artifactId) setState({ phase: 'error' });
       } finally {
-        inFlightRef.current = false;
+        if (artifactIdRef.current === artifactId) inFlightRef.current = false;
       }
     })();
-  }, [fetchPlayback, sessionId, responseKey, questionId, slot]);
+  }, [fetchPlayback, sessionId, responseKey, questionId, slot, artifactId]);
 
   return { state, load };
 }
