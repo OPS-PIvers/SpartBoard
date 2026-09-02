@@ -6,6 +6,13 @@ import { STANDARD_COLORS } from '@/config/colors';
 
 import { WidgetLayout } from '../WidgetLayout';
 
+// Exported so tests can assert on the formula directly (jsdom drops min()/clamp() font-size from the rendered DOM).
+// eslint-disable-next-line react-refresh/only-export-components
+export const getClockTimeFontSize = (showSeconds: boolean): string =>
+  showSeconds ? 'min(140px, 40cqmin)' : 'min(160px, 50cqmin)';
+
+export const CLOCK_DATE_FONT_SIZE = 'min(16px, 12cqmin)';
+
 export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { i18n } = useTranslation();
   const globalStyle = useGlobalStyle();
@@ -89,7 +96,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             data-testid="clock-time-container"
             className={`flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()}`}
             style={{
-              fontSize: showSeconds ? '40cqmin' : '50cqmin',
+              fontSize: getClockTimeFontSize(showSeconds),
               color: themeColor,
               textShadow: glow
                 ? `0 0 0.1em ${themeColor}, 0 0 0.25em ${themeColor}66`
@@ -145,7 +152,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <div
             data-testid="clock-date"
             className={`opacity-80 uppercase tracking-[0.2em] text-slate-300 ${getFontClass()}`}
-            style={{ fontSize: '12cqmin', fontWeight: 900 }}
+            style={{ fontSize: CLOCK_DATE_FONT_SIZE, fontWeight: 900 }}
           >
             {time.toLocaleDateString(i18n.language, {
               weekday: 'long',

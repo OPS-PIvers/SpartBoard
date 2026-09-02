@@ -4,7 +4,11 @@ import type { ProfilerOnRenderCallback } from 'react';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { WidgetData, ClockConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
-import { ClockWidget } from './Widget';
+import {
+  ClockWidget,
+  getClockTimeFontSize,
+  CLOCK_DATE_FONT_SIZE,
+} from './Widget';
 
 vi.mock('@/context/dashboardCanvasStore');
 
@@ -337,28 +341,23 @@ describe('ClockWidget', () => {
   // height — near-invisible); a very wide clock (800×100) gives `min(82px, 160px)
   // = 82px` (82% of height — overflows into the date row). cqmin scales both axes
   // symmetrically: `40cqmin` = 40% of the smaller dimension in all orientations.
+  // Asserted against the exported formula directly — jsdom drops min()/clamp() font-size from the rendered DOM.
   it('time display uses cqmin units for font scaling (not cqh/cqw)', () => {
-    renderWidget(createWidget({ showSeconds: true }));
-
-    const fontSize = screen.getByTestId('clock-time-container').style.fontSize;
+    const fontSize = getClockTimeFontSize(true);
     expect(fontSize).not.toMatch(/cqh/);
     expect(fontSize).not.toMatch(/cqw/);
     expect(fontSize).toMatch(/cqmin/);
   });
 
   it('time display uses cqmin units in no-seconds path', () => {
-    renderWidget(createWidget({ showSeconds: false }));
-
-    const fontSize = screen.getByTestId('clock-time-container').style.fontSize;
+    const fontSize = getClockTimeFontSize(false);
     expect(fontSize).not.toMatch(/cqh/);
     expect(fontSize).not.toMatch(/cqw/);
     expect(fontSize).toMatch(/cqmin/);
   });
 
   it('date label uses cqmin units for font scaling (not cqh/cqw)', () => {
-    renderWidget(createWidget());
-
-    const fontSize = screen.getByTestId('clock-date').style.fontSize;
+    const fontSize = CLOCK_DATE_FONT_SIZE;
     expect(fontSize).not.toMatch(/cqh/);
     expect(fontSize).not.toMatch(/cqw/);
     expect(fontSize).toMatch(/cqmin/);

@@ -4,6 +4,38 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-09-02
+
+- PRs reviewed: 7 open at start of run (all into `dev-paul`; none had `main` or a `dev-*` branch as head, so none were read-only). #2736 merged upstream mid-run, leaving 6 open at close.
+  - #2742 — feat(quiz-media): student playback of their own recorded answer on published results (3.6) (head `feat/rr-3.6-student-playback`)
+  - #2741 — feat(3.4): grading surfaces for recorded media responses (head `feat/rr-3.4-media-grading`)
+  - #2740 — feat(quiz): per-question recording controls and the live authoring advisory (RR 3.5) (head `feat/rr-3.5-recording-authoring`)
+  - #2739 — audit(wednesday) + fix(css-scaling): ClockWidget cqmin ceiling (head `scheduled-tasks`)
+  - #2736 — feat(quiz): student audio responses — recording block, capture flow, appended takes (head `feat/rr-3.1-3.2-audio-capture`) — **merged during this run**
+  - #2732 — docs(unifier): log run 74 (head `nightly/unifier-log-2026-09-02`)
+  - #2731 — fix(video-activity): pair the Activity Title label to its input (head `nightly/unify-settings-labels-2026-09-02`)
+- Comments processed: 2 total — 1 fixed, 1 explained. Both were inline `claude[bot]` threads on #2736; the other six PRs had zero review threads and zero reviews.
+  - **Explained (no code change):** the "notice link can hide an active recording" thread was already closed by `663312d`, which landed after the reviewed commit — `RecordingNoticeReminder` now takes `disabled={phase === 'recording'}` and the notice renders as a focus-trapped overlay above a still-mounted recorder instead of replacing it via early return.
+  - **Fixed:** the `TakeReviewPlayer` stale-state thread. Verified it did *not* reproduce on #2736 (discard sets phase to `armed`, which unmounts the player), added `key={src}` anyway, and said so plainly rather than claiming a bug fix. That hedge turned out to matter — see below.
+- Fixes pushed: 5 commits across 4 branches.
+  - #2736 / `feat/rr-3.1-3.2-audio-capture` — `key` on `TakeReviewPlayer` + typed the `answerTakeOrdering` artifact fixture (unblocked `tsc`).
+  - #2732 / `nightly/unifier-log-2026-09-02` — repaired the Run Log markdown table the run-74 append corrupted.
+  - #2742 / `feat/rr-3.6-student-playback` — typed the same artifact fixture; separately keyed `TakeReviewPlayer` at both call sites.
+  - #2741 / `feat/rr-3.4-media-grading` — typed the `onSaveGrade` mock to the real prop signature + the same fixture fix (unblocked `tsc`).
+- Reviews posted: 6 (one per still-open PR). Merge-readiness calls:
+  - Ready: #2740, #2732, #2731
+  - Ready with minor notes: #2742, #2741, #2739
+  - Needs changes: none
+- Substantive findings this run:
+  - **Three of seven branches could not compile.** #2736, #2741 and #2742 all failed `tsc --noEmit`, so CI could not have passed on any of them. Two distinct root causes: (a) a weak-type `TS2559` on the shared `answerTakeOrdering.test.ts` artifact fixture, which had no property in common with the `{ uploadState?: string }[]` parameter type — present on three branches because the file was copied across the stack; (b) `MediaResponseGrader.test.tsx`'s default mock `vi.fn(() => Promise.resolve())` inferring a zero-argument signature, making `mock.calls[0]` the empty tuple and failing every three-element read (`TS2352`/`TS2493`). Fixed (b) by typing the mock as `vi.fn<MediaResponseGraderProps['onSaveGrade']>(...)`, so the test now tracks the real prop signature instead of hand-written tuples; the assertions it made redundant were removed under `no-unnecessary-type-assertion`.
+  - **The reviewer's #2736 `TakeReviewPlayer` comment was speculative there but genuinely correct on #2742.** #2742 extracts the player into a shared module and reuses it in `ResponsePlaybackCard`, where it keeps `elapsedMs`/`measuredMs` across a `src` change while its autoplay effect already depends on `src` — so a take swap could show the previous take's elapsed time and, when `durationMs` is absent or `Infinity`, fall back to the previous take's `measuredMs` for `totalMs`. Keyed by `src` at both call sites. Worth recording as a pattern: a finding that doesn't reproduce today can be a real bug one refactor later, so verify against the whole stack, not just the PR it was filed on.
+  - **#2732's own append corrupted the file it was logging to.** The Run Log's 2,050-character separator row was split at character 194; the remaining 1,856 characters were glued onto the end of the D5 row (leaving it at 2,180 characters), breaking the table. Confirmed as an exact split before repairing — the truncated line is a strict prefix of the original and the D5 row ended with exactly the missing remainder. This is the failure mode `docs/routines/unifier.md` warns about in its own run-58 note, and is concrete evidence for the archival proposal that doc has now deferred four runs running.
+  - **#2739's diff overstates itself by ~100x.** It shows ~4,200 insertions across 30 files, but its true net effect is 6 files / ~45 lines. Merge base is `b0b4ce5` while `dev-paul` took #2737 and #2738 through their own merges, so `scheduled-tasks`'s own copies of those commits read as additions. Verified the content already exists on `dev-paul` and that `vite.config.ts` is untouched here (so `dev-paul`'s watcher-ignore commits survive the merge). Recommended a rebase purely for reviewability.
+  - **#2739 weakens ClockWidget scaling coverage.** Three tests moved from asserting the rendered DOM to asserting newly exported constants. The jsdom rationale is real — it drops `min()` font sizes from both the CSSOM and the serialized style attribute — but the tests no longer verify the component *applies* the formula, so reverting the inline style to a hardcoded `'40cqmin'` would keep them green. Reported as an accepted, documented limitation rather than a defect.
+  - **#2742's `gradedTakeIndex` cast is a merge-order tripwire.** `QuizStudentApp.tsx` reads it through `as unknown as { gradedTakeIndex?: number }` because the field lands in #2741. Once #2741 merges the cast is dead and will silently suppress real type errors at that call site.
+  - **The `quiz-media-response` gate is genuinely fail-closed**, and this is worth stating positively given the subject matter: `defaultAccessLevel: 'admin'`, `defaultEnabled: false`, `missingDocPublic: false`, mirrored server-side by `isQuizMediaResponseGranted`. #2742's new `getQuizArtifactPlaybackUrl` callable stacks four independent gates, takes ownership from the response doc's own `studentUid` (so a forged `responseKey` dies), re-reads the publish state every call so an unpublish revokes access with no cleanup step, and never returns a Drive id or token. Its test suite covers each gate individually, including the forged-key and no-leak cases.
+- Environment note: `pnpm run lint` reports 19 pre-existing errors in `functions/src/quizMediaArchive.ts` in this container. These are an artifact of an incomplete offline install — `@types/fluent-ffmpeg@2.1.28` is in `functions/pnpm-lock.yaml` but was never materialised into `node_modules` — not a code defect. The file is byte-identical to `dev-paul`. All fixes were therefore verified with `tsc --noEmit` plus `eslint`/`prettier` scoped to the changed files, and the affected suites run directly.
+
 ## 2026-08-27
 
 - PRs reviewed: 11 (all open PRs). Ten are draft nightly-automation PRs into `dev-paul`; one is the `dev-paul` → `main` integration PR.
