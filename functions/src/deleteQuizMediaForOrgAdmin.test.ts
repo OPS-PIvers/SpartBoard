@@ -69,6 +69,7 @@ import {
   deleteOrgQuizMediaSets,
   listOrgQuizMedia,
   matchesDateWindow,
+  MAX_RESPONSES_SCANNED,
   parseDeleteRequest,
   parseListRequest,
   type OrgMediaDeps,
@@ -371,6 +372,46 @@ describe('listOrgQuizMedia', () => {
   });
 });
 
+describe('listOrgQuizMedia scan caps', () => {
+  it('stops querying later teacher chunks once the response cap is hit', async () => {
+    const db = createFakeDb();
+    for (let i = 0; i < 12; i++) {
+      db.set(`organizations/${ORG}/members/t${i}@x.org`, {
+        email: `t${i}@x.org`,
+        roleId: 'teacher',
+        uid: `uid-${i}`,
+      });
+    }
+    db.set('quiz_sessions/big', { teacherUid: 'uid-0', quizTitle: 'Big' });
+    for (let i = 0; i < MAX_RESPONSES_SCANNED; i++) {
+      db.set(`quiz_sessions/big/responses/r${i}`, { studentUid: 's' });
+    }
+    db.set('quiz_sessions/after', { teacherUid: 'uid-0', quizTitle: 'After' });
+    db.set('quiz_sessions/late', { teacherUid: 'uid-11', quizTitle: 'Late' });
+    db.set('quiz_sessions/late/responses/r1', {
+      studentUid: 'stu-late',
+      answers: [{ questionId: 'q1', artifacts: [{ id: 'z1', kind: 'audio' }] }],
+      artifactArchive: { z1: { archiveStatus: 'archived', driveFileId: 'd' } },
+    });
+    let sessionQueries = 0;
+    const counting = {
+      ...db,
+      collection: (path: string) => {
+        if (path === 'quiz_sessions') sessionQueries++;
+        return db.collection(path);
+      },
+    } as unknown as FakeStore;
+
+    const { rows, truncated } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(counting) }
+    );
+    expect(truncated).toBe(true);
+    expect(sessionQueries).toBe(1);
+    expect(rows).toEqual([]);
+  });
+});
+
 describe('date window filter', () => {
   it('keeps unstamped rows for a "before X" query', () => {
     expect(matchesDateWindow(0, undefined, 500)).toBe(true);
@@ -568,12 +609,29 @@ describe('deleteOrgQuizMediaSets', () => {
     expect(doc.hasStuckArchive).toBe(false);
   });
 
-  it('skips a take that is already deleted', async () => {
+  it('reports an already-deleted take without re-running the delete', async () => {
+    // A realistic storagePath: the old guard let this row be deleted twice.
     db.set('quiz_sessions/s1/responses/r1', {
       studentUid: 'stu1',
-      answers: [{ questionId: 'q1', artifacts: [{ id: 'a1', kind: 'audio' }] }],
+      answers: [
+        {
+          questionId: 'q1',
+          artifacts: [
+            {
+              id: 'a1',
+              kind: 'audio',
+              storagePath: 'quiz_response_media/s1/stu1/a1.webm',
+            },
+          ],
+        },
+      ],
       artifactArchive: {
-        a1: { archiveStatus: 'deleted', driveFileId: 'drive-a1' },
+        a1: {
+          archiveStatus: 'deleted',
+          driveFileId: 'drive-a1',
+          deletedAt: 500,
+          deletedBy: 'first-admin',
+        },
       },
     });
     const deps = makeDeps(db);
@@ -585,7 +643,132 @@ describe('deleteOrgQuizMediaSets', () => {
       },
       deps
     );
-    expect(results[0]?.status).toBe('skipped');
+    expect(results[0]?.status).toBe('already-deleted');
     expect(deps.deleteDriveFile).not.toHaveBeenCalled();
+    expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+    const doc = db.docs.get('quiz_sessions/s1/responses/r1') as {
+      artifactArchive: Record<string, Record<string, unknown>>;
+    };
+    expect(doc.artifactArchive.a1).toMatchObject({
+      deletedAt: 500,
+      deletedBy: 'first-admin',
+    });
+  });
+
+  it('keeps the original deletedAt when a delete-failed take is retried', async () => {
+    db.set('quiz_sessions/s1/responses/r1', {
+      studentUid: 'stu1',
+      answers: [{ questionId: 'q1', artifacts: [{ id: 'a1', kind: 'audio' }] }],
+      artifactArchive: {
+        a1: {
+          archiveStatus: 'delete-failed',
+          driveFileId: 'drive-a1',
+          deletedAt: 500,
+          deletedBy: 'first-admin',
+        },
+      },
+    });
+    await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'second-admin',
+      },
+      makeDeps(db)
+    );
+    const doc = db.docs.get('quiz_sessions/s1/responses/r1') as {
+      artifactArchive: Record<string, Record<string, unknown>>;
+    };
+    expect(doc.artifactArchive.a1).toMatchObject({
+      archiveStatus: 'deleted',
+      deletedAt: 500,
+      deletedBy: 'first-admin',
+    });
+  });
+
+  it('tombstones a take whose archive is still syncing', async () => {
+    db.set('quiz_sessions/s1/responses/r1', {
+      studentUid: 'stu1',
+      answers: [
+        {
+          questionId: 'q1',
+          artifacts: [
+            {
+              id: 'a1',
+              kind: 'audio',
+              storagePath: 'quiz_response_media/s1/stu1/a1.webm',
+            },
+          ],
+        },
+      ],
+      artifactArchive: {
+        a1: { archiveStatus: 'syncing', archiveStartedAt: 5 },
+      },
+    });
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(results[0]?.status).toBe('deleted');
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(
+      'quiz_response_media/s1/stu1/a1.webm'
+    );
+    const doc = db.docs.get('quiz_sessions/s1/responses/r1') as {
+      artifactArchive: Record<string, Record<string, unknown>>;
+    };
+    expect(doc.artifactArchive.a1).toMatchObject({
+      archiveStatus: 'deleted',
+      deletedAt: 1000,
+      deletedBy: 'admin-uid',
+    });
+    expect(doc.artifactArchive.a1.driveFileId).toBeUndefined();
+    expect(doc.artifactArchive.a1.archiveStartedAt).toBeUndefined();
+  });
+
+  it('deletes a driveFileId written after the call started', async () => {
+    db.set('quiz_sessions/s1/responses/r1', {
+      studentUid: 'stu1',
+      answers: [{ questionId: 'q1', artifacts: [{ id: 'a1', kind: 'audio' }] }],
+      artifactArchive: { a1: { archiveStatus: 'syncing' } },
+    });
+    let injected = false;
+    const deps = makeDeps(db, {
+      now: () => {
+        if (!injected) {
+          injected = true;
+          // The in-flight archive finishes between the read and the claim.
+          const doc = db.docs.get('quiz_sessions/s1/responses/r1') as {
+            artifactArchive: Record<string, Record<string, unknown>>;
+          };
+          doc.artifactArchive.a1 = {
+            archiveStatus: 'archived',
+            driveFileId: 'drive-late',
+          };
+        }
+        return 1000;
+      },
+    });
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(results[0]?.status).toBe('deleted');
+    expect(deps.deleteDriveFile).toHaveBeenCalledWith('token', 'drive-late');
+    const doc = db.docs.get('quiz_sessions/s1/responses/r1') as {
+      artifactArchive: Record<string, Record<string, unknown>>;
+    };
+    expect(doc.artifactArchive.a1).toMatchObject({
+      archiveStatus: 'deleted',
+      driveFileId: 'drive-late',
+    });
   });
 });

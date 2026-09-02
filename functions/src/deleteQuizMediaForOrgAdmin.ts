@@ -29,6 +29,7 @@ import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   computeHasStuckArchive,
+  deleteDriveFileById,
   hasQuizMediaStoragePrefix,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
 } from './quizMediaArchive';
@@ -51,8 +52,6 @@ export const MAX_ROWS_RETURNED = 500;
 const TEACHER_CHUNK = 10;
 /** One batch delete stays a single admin action, not a bulk purge job. */
 export const MAX_DELETE_TARGETS = 100;
-
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 
 // ── Wire shapes ────────────────────────────────────────────────────────────
 
@@ -107,7 +106,7 @@ export interface DeleteItemResult {
   responseKey: string;
   questionId: string;
   artifactId: string;
-  status: 'deleted' | 'failed' | 'skipped';
+  status: 'deleted' | 'already-deleted' | 'failed' | 'skipped';
   error?: string;
 }
 
@@ -147,6 +146,7 @@ type ArchiveEntry = {
   driveFileId?: unknown;
   archivedAt?: unknown;
   deletedAt?: unknown;
+  deletedBy?: unknown;
   archiveError?: unknown;
   archiveStartedAt?: unknown;
   lastAttemptAt?: unknown;
@@ -375,7 +375,8 @@ export async function listOrgQuizMedia(
   let responsesScanned = 0;
   let truncated = false;
 
-  for (const chunk of chunkList(uids, TEACHER_CHUNK)) {
+  // Labelled so a response-cap hit stops every remaining teacher chunk too.
+  scan: for (const chunk of chunkList(uids, TEACHER_CHUNK)) {
     if (sessionsScanned >= MAX_SESSIONS_SCANNED) {
       truncated = true;
       break;
@@ -389,7 +390,7 @@ export async function listOrgQuizMedia(
       sessionsScanned++;
       if (responsesScanned >= MAX_RESPONSES_SCANNED) {
         truncated = true;
-        break;
+        break scan;
       }
       const session = sessionDoc.data() ?? {};
       const teacherUid = asString(session.teacherUid);
@@ -428,21 +429,34 @@ export async function listOrgQuizMedia(
 
 // ── Delete core (reusable by a future retention sweep) ─────────────────────
 
-/** Marks one artifact deleted, preserving `driveFileId` as a historical record. */
-async function writeDeletedEntry(
+type DeletionClaim =
+  | { kind: 'already-deleted' }
+  | { kind: 'claimed'; driveFileId: string };
+
+/**
+ * Claims one artifact for deletion. The entry is read fresh inside the very
+ * transaction that writes the tombstone, so an archive still in flight cannot
+ * hand back a `driveFileId` this call never saw. `deletedAt`/`deletedBy` are
+ * written once and never overwritten by a later retry.
+ */
+async function claimArtifactForDeletion(
   db: Firestore,
   responseRef: admin.firestore.DocumentReference,
   artifactId: string,
-  deletedAt: number,
+  now: number,
   deletedBy: string
-): Promise<void> {
-  await db.runTransaction(async (tx) => {
+): Promise<DeletionClaim> {
+  return db.runTransaction(async (tx) => {
     const fresh = await tx.get(responseRef);
     const archive = readArchiveMap(fresh.data());
-    archive[artifactId] = {
-      ...(archive[artifactId] ?? {}),
-      archiveStatus: 'deleted',
-    };
+    const entry = archive[artifactId];
+    if (entry?.archiveStatus === 'deleted') {
+      return { kind: 'already-deleted' as const };
+    }
+    const driveFileId = asString(entry?.driveFileId);
+    const deletedAt = asNumber(entry?.deletedAt) ?? now;
+    const attributedTo = asString(entry?.deletedBy) || deletedBy;
+    archive[artifactId] = { ...(entry ?? {}), archiveStatus: 'deleted' };
     delete (archive[artifactId] as { storageCleanupPending?: unknown })
       .storageCleanupPending;
     tx.set(
@@ -452,7 +466,8 @@ async function writeDeletedEntry(
           [artifactId]: {
             archiveStatus: 'deleted',
             deletedAt,
-            deletedBy,
+            deletedBy: attributedTo,
+            ...(driveFileId ? { driveFileId } : {}),
             storageCleanupPending: admin.firestore.FieldValue.delete(),
             archiveError: admin.firestore.FieldValue.delete(),
             archiveStartedAt: admin.firestore.FieldValue.delete(),
@@ -468,6 +483,7 @@ async function writeDeletedEntry(
       },
       { merge: true }
     );
+    return { kind: 'claimed' as const, driveFileId };
   });
 }
 
@@ -581,7 +597,6 @@ export async function deleteOrgQuizMediaSets(
     }
     const data = responseSnap.data() ?? {};
     const studentUid = asString(data.studentUid);
-    const archive = readArchiveMap(data);
     const artifacts = collectQuestionArtifacts(data.answers, target.questionId);
     if (artifacts.length === 0) {
       results.push({
@@ -594,36 +609,28 @@ export async function deleteOrgQuizMediaSets(
     }
 
     for (const artifact of artifacts) {
-      const entry = archive[artifact.id];
-      const driveFileId = asString(entry?.driveFileId);
+      const claim = await claimArtifactForDeletion(
+        db,
+        responseRef,
+        artifact.id,
+        deps.now(),
+        input.deletedBy
+      );
+      if (claim.kind === 'already-deleted') {
+        results.push({
+          ...base,
+          artifactId: artifact.id,
+          status: 'already-deleted',
+        });
+        continue;
+      }
+      const driveFileId = claim.driveFileId;
       const storagePath = artifact.storagePath;
       const hasStorage = hasQuizMediaStoragePrefix(
         storagePath,
         target.sessionId,
         studentUid
       );
-      if (entry?.archiveStatus === 'deleted' && !hasStorage) {
-        results.push({
-          ...base,
-          artifactId: artifact.id,
-          status: 'skipped',
-          error: 'Already deleted.',
-        });
-        continue;
-      }
-      if (!driveFileId && !hasStorage) {
-        // Nothing durable was ever written for this take; record it as gone
-        // so the console stops offering it.
-        await writeDeletedEntry(
-          db,
-          responseRef,
-          artifact.id,
-          deps.now(),
-          input.deletedBy
-        );
-        results.push({ ...base, artifactId: artifact.id, status: 'deleted' });
-        continue;
-      }
 
       let failure: string | null = null;
       if (driveFileId) {
@@ -668,13 +675,6 @@ export async function deleteOrgQuizMediaSets(
         });
         continue;
       }
-      await writeDeletedEntry(
-        db,
-        responseRef,
-        artifact.id,
-        deps.now(),
-        input.deletedBy
-      );
       results.push({ ...base, artifactId: artifact.id, status: 'deleted' });
     }
   }
@@ -683,23 +683,6 @@ export async function deleteOrgQuizMediaSets(
 }
 
 // ── Default dependency implementations ─────────────────────────────────────
-
-/** Permanent delete, not a trash move — this is a compliance delete. */
-export async function deleteDriveFileById(
-  accessToken: string,
-  fileId: string
-): Promise<void> {
-  const response = await fetch(
-    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}`,
-    {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
-  // 404/410 means the file is already gone; the obligation is satisfied.
-  if (response.ok || response.status === 404 || response.status === 410) return;
-  throw new Error(`Drive responded ${response.status}`);
-}
 
 export function buildDefaultOrgMediaDeps(): OrgMediaDeps {
   const db = admin.firestore();

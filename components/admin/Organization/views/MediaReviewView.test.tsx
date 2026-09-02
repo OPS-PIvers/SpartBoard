@@ -202,6 +202,70 @@ describe('MediaReviewView delete confirmation', () => {
   });
 });
 
+describe('MediaReviewView tombstoned takes', () => {
+  const deletedRow: MediaResponseRow = {
+    ...ROWS[1],
+    responseKey: 'r3',
+    studentLabel: 'Pin 3000',
+    takes: [
+      {
+        artifactId: 'c1',
+        archiveStatus: 'deleted',
+        driveFileId: 'd4',
+        hasStorageObject: true,
+      },
+    ],
+  };
+
+  it('never offers an already-deleted set for re-deletion', () => {
+    const props = renderView({ rows: [...ROWS, deletedRow] });
+    expect(
+      screen.getByRole('checkbox', { name: 'Select Pin 3000, question q-1' })
+    ).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Select every deletable response' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Delete media \(2\)/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText(
+        /permanently delete 3 file\(s\) across 2 response\(s\)/i
+      )
+    ).toBeInTheDocument();
+    fireEvent.change(
+      within(dialog).getByLabelText(/Type "DELETE" to confirm/),
+      { target: { value: 'DELETE' } }
+    );
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Delete permanently' })
+    );
+    expect(props.onDelete).toHaveBeenCalledWith(ROWS);
+  });
+});
+
+describe('MediaReviewView progress and whole-request failure', () => {
+  it('names the batch position while a chunked delete runs', () => {
+    renderView({ deleting: true, deleteProgress: { done: 100, total: 250 } });
+    expect(screen.getByText('Deleting 100 of 250\u2026')).toBeInTheDocument();
+  });
+
+  it('labels a failure that carries no question id', () => {
+    renderView({
+      results: [
+        {
+          sessionId: '',
+          responseKey: '',
+          questionId: '',
+          artifactId: '',
+          status: 'failed',
+          error: 'internal',
+        },
+      ],
+    });
+    expect(screen.getByText(/Request failed/)).toBeInTheDocument();
+  });
+});
+
 describe('MediaReviewView partial failure', () => {
   it('lists each failed item rather than a single pass/fail message', () => {
     renderView({

@@ -22,6 +22,7 @@ import {
   EMPTY_MEDIA_FILTERS,
   mediaRowKey,
   useOrgMediaResponses,
+  type DeleteProgress,
   type MediaDeleteResult,
   type MediaResponseRow,
   type MediaReviewFilters,
@@ -49,6 +50,7 @@ export interface MediaReviewViewProps {
   error: string | null;
   truncated: boolean;
   deleting: boolean;
+  deleteProgress?: DeleteProgress | null;
   filters: MediaReviewFilters;
   results: MediaDeleteResult[] | null;
   onFiltersChange: (next: MediaReviewFilters) => void;
@@ -64,6 +66,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
   error,
   truncated,
   deleting,
+  deleteProgress,
   filters,
   results,
   onFiltersChange,
@@ -225,7 +228,9 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                         aria-hidden
                       />
                       <span>
-                        {failure.questionId} — {failure.error}
+                        {failure.questionId ||
+                          t('admin.mediaReview.requestFailed')}{' '}
+                        — {failure.error}
                       </span>
                     </li>
                   ))}
@@ -298,7 +303,12 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
               onClick={() => setConfirming(true)}
             >
               {deleting
-                ? t('admin.mediaReview.deleting')
+                ? deleteProgress && deleteProgress.total > 0
+                  ? t('admin.mediaReview.deletingProgress', {
+                      done: deleteProgress.done,
+                      total: deleteProgress.total,
+                    })
+                  : t('admin.mediaReview.deleting')
                 : t('admin.mediaReview.deleteSelected', {
                     count: selectedRows.length,
                   })}
@@ -497,6 +507,7 @@ export const MediaReviewSection: React.FC<{ orgId: string | null }> = ({
       error={media.error}
       truncated={media.truncated}
       deleting={media.deleting}
+      deleteProgress={media.deleteProgress}
       filters={filters}
       results={results}
       onFiltersChange={setFilters}

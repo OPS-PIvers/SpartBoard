@@ -38,8 +38,16 @@ export interface MediaDeleteResult {
   responseKey: string;
   questionId: string;
   artifactId: string;
-  status: 'deleted' | 'failed' | 'skipped';
+  status: 'deleted' | 'already-deleted' | 'failed' | 'skipped';
   error?: string;
+}
+
+/** Mirrors `MAX_DELETE_TARGETS` in the callable; pinned by a test. */
+export const MAX_DELETE_TARGETS = 100;
+
+export interface DeleteProgress {
+  done: number;
+  total: number;
 }
 
 export interface MediaReviewFilters {
@@ -82,6 +90,7 @@ export interface UseOrgMediaResponses {
   error: string | null;
   truncated: boolean;
   deleting: boolean;
+  deleteProgress: DeleteProgress | null;
   reload: () => void;
   deleteMedia: (
     targets: Array<{
@@ -102,6 +111,9 @@ export function useOrgMediaResponses(
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState<DeleteProgress | null>(
+    null
+  );
   const [reloadToken, setReloadToken] = useState(0);
 
   const { teacherUid, afterDate, beforeDate } = filters;
@@ -170,15 +182,37 @@ export function useOrgMediaResponses(
     ): Promise<MediaDeleteResult[]> => {
       if (!orgId || targets.length === 0) return [];
       setDeleting(true);
+      setDeleteProgress({ done: 0, total: targets.length });
       try {
         const callable = httpsCallable<
           { orgId: string; targets: typeof targets },
           { results: MediaDeleteResult[] }
         >(functions, 'deleteQuizMediaForOrgAdmin');
-        const result = await callable({ orgId, targets });
-        return result.data.results ?? [];
+        // The callable caps one request, so a larger selection goes out as
+        // sequential batches instead of failing whole.
+        const merged: MediaDeleteResult[] = [];
+        for (let i = 0; i < targets.length; i += MAX_DELETE_TARGETS) {
+          const batch = targets.slice(i, i + MAX_DELETE_TARGETS);
+          try {
+            const result = await callable({ orgId, targets: batch });
+            merged.push(...(result.data.results ?? []));
+          } catch (err) {
+            const error = err instanceof Error ? err.message : String(err);
+            merged.push(
+              ...batch.map((target) => ({
+                ...target,
+                artifactId: '',
+                status: 'failed' as const,
+                error,
+              }))
+            );
+          }
+          setDeleteProgress({ done: i + batch.length, total: targets.length });
+        }
+        return merged;
       } finally {
         setDeleting(false);
+        setDeleteProgress(null);
         setReloadToken((n) => n + 1);
       }
     },
@@ -192,6 +226,7 @@ export function useOrgMediaResponses(
     error,
     truncated,
     deleting,
+    deleteProgress,
     reload,
     deleteMedia,
   };
