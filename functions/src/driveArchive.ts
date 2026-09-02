@@ -8,6 +8,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import { claimSubmissionForArchive } from './activityWallArchive';
 import './functionsInit';
 
 interface ArchiveActivityWallPhotoData {
@@ -198,15 +199,17 @@ export const archiveActivityWallPhoto = onCall(
       .collection('submissions')
       .doc(submissionId);
 
-    await submissionRef.set(
-      {
-        status,
-        archiveStatus: 'syncing',
-        archiveStartedAt: Date.now(),
-        archiveError: admin.firestore.FieldValue.delete(),
-      },
-      { merge: true }
+    // Transactional claim: the server-side pipeline and this legacy callable
+    // must never upload the same object twice.
+    const claim = await claimSubmissionForArchive(
+      admin.firestore(),
+      submissionRef,
+      Date.now()
     );
+    if (claim.kind !== 'claimed') {
+      return { skipped: true, archiveStatus: claim.kind };
+    }
+    await submissionRef.set({ status }, { merge: true });
 
     try {
       const submissionSnap = await submissionRef.get();
