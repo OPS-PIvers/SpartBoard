@@ -35,6 +35,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import i18n from 'i18next';
 import { PlcQuizLibraryBody } from '@/components/plc/bodies/PlcQuizLibraryBody';
+import { pullSyncedQuizContent } from '@/hooks/useSyncedQuizGroups';
 import type {
   ClassRoster,
   Plc,
@@ -122,6 +123,7 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
     loading: false,
     unshareQuizFromPlc,
     restoreQuizInPlc,
+    mirrorPlcQuizHeader: vi.fn().mockResolvedValue(undefined),
   }),
   writePlcQuizEntry: vi.fn().mockResolvedValue(undefined),
 }));
@@ -327,6 +329,37 @@ describe('PlcQuizLibraryBody', () => {
           initialStatus: 'paused',
           skipPlcTemplateWrite: true,
         })
+      );
+    });
+
+    it('prefers the canonical behavior over the row run-settings and seeds the replica with it', async () => {
+      const behavior = {
+        sessionMode: 'student' as const,
+        sessionOptions: { shuffleQuestions: true },
+        attemptLimit: null,
+      };
+      vi.mocked(pullSyncedQuizContent).mockResolvedValueOnce({
+        title: 'Photosynthesis Quiz',
+        questions: [],
+        version: 4,
+        behavior,
+      });
+      mockPlcQuizzes = [makeQuizRow({ sessionMode: 'auto', attemptLimit: 3 })];
+      renderSubject();
+
+      openAssignModal();
+      await pickCopy();
+
+      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+      expect(createAssignment).toHaveBeenCalledWith(
+        expect.anything(),
+        behavior,
+        expect.anything()
+      );
+      expect(saveQuiz).toHaveBeenCalledWith(
+        expect.anything(),
+        undefined,
+        behavior
       );
     });
 

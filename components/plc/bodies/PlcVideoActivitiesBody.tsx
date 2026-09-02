@@ -144,6 +144,8 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     activity: VideoActivityData;
     meta: VideoActivityMetadata;
   } | null>(null);
+  // Replica whose save is in flight; its own canonical bump must not prompt.
+  const [savingReplicaId, setSavingReplicaId] = useState<string | null>(null);
   const [sharePickerOpen, setSharePickerOpen] = useState(false);
   // Open "Version history" panel target. Hidden for viewers (see `canEdit`).
   const [versionTarget, setVersionTarget] = useState<{
@@ -204,6 +206,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       replicas: syncedReplicas,
       canonicalGroups,
       dirtyReplicaId,
+      suspendedReplicaId: savingReplicaId,
       enabled: canEdit && isDriveConnected,
       pull: pullSyncedVideoActivity,
       acknowledgeVersion: (replica, canonicalVersion) => {
@@ -549,12 +552,13 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       behavior: VideoActivityBehaviorSettings
     ) => {
       if (!editing) return;
+      setSavingReplicaId(editing.meta.id);
       try {
         await saveActivity(updated, editing.meta.driveFileId, behavior);
         addToast(
           t('plcDashboard.videoActivities.editSaved', {
             defaultValue:
-              'Video activity saved — teammates will sync on next refresh.',
+              'Video activity saved — teammates will sync automatically.',
           }),
           'success'
         );
@@ -590,6 +594,8 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           return;
         }
         throw err;
+      } finally {
+        setSavingReplicaId(null);
       }
     },
     [addToast, editing, plc.id, pullSyncedVideoActivity, saveActivity, t]

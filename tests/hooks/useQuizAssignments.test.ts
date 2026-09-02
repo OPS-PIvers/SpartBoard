@@ -1228,6 +1228,98 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(sessionPatch.publicQuestions).toHaveLength(1);
   });
 
+  it('applies the canonical behavior to a paused assignment and its session', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 5,
+      behavior: {
+        sessionMode: 'student',
+        sessionOptions: { shuffleQuestions: true, showResultToStudent: true },
+        attemptLimit: null,
+      },
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        status: 'paused',
+        sessionMode: 'teacher',
+        sessionOptions: {},
+        attemptLimit: 1,
+        sync: { groupId: 'group-1', syncedVersion: 4 },
+      }),
+    });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('users/')
+    );
+    expect(assignmentCall?.[1]).toEqual(
+      expect.objectContaining({
+        sessionMode: 'student',
+        sessionOptions: { shuffleQuestions: true, showResultToStudent: true },
+        attemptLimit: null,
+      })
+    );
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    expect(sessionCall?.[1]).toEqual(
+      expect.objectContaining({
+        sessionMode: 'student',
+        attemptLimit: null,
+        shuffleQuestions: true,
+        showResultToStudent: true,
+        currentQuestionIndex: 0,
+        questionPhase: 'answering',
+      })
+    );
+  });
+
+  it('leaves run-settings alone on a non-paused assignment', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 5,
+      behavior: {
+        sessionMode: 'student',
+        sessionOptions: { shuffleQuestions: true },
+        attemptLimit: null,
+      },
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        status: 'active',
+        sessionMode: 'teacher',
+        sync: { groupId: 'group-1', syncedVersion: 4 },
+      }),
+    });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    for (const [, patch] of batchUpdate.mock.calls) {
+      expect(patch).not.toHaveProperty('sessionMode');
+    }
+  });
+
   it('queries only responses with preSyncVersion == 0 (server-side skip of already-tagged rows)', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');

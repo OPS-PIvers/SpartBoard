@@ -77,6 +77,13 @@ export interface UsePlcAutoPullSyncArgs<TMeta extends PlcSyncReplica> {
   canonicalGroups: ReadonlyMap<string, PlcCanonicalGroupVersion>;
   /** Replica id with unsaved local edits right now (open editor), or null. */
   dirtyReplicaId: string | null;
+  /**
+   * Replica whose own publish is in flight (save clicked, Drive/meta write
+   * not yet landed). Its canonical bump is the teacher's OWN edit, so it is
+   * neither a conflict nor something to pull — skip it entirely until the
+   * local `lastSyncedVersion` catches up.
+   */
+  suspendedReplicaId?: string | null;
   /** Pull canonical content into one replica; returns the refreshed meta. */
   pull: (replica: TMeta) => Promise<TMeta>;
   /**
@@ -113,6 +120,7 @@ export function usePlcAutoPullSync<TMeta extends PlcSyncReplica>({
   replicas,
   canonicalGroups,
   dirtyReplicaId,
+  suspendedReplicaId = null,
   pull,
   acknowledgeVersion,
   onAutoPulled,
@@ -154,6 +162,7 @@ export function usePlcAutoPullSync<TMeta extends PlcSyncReplica>({
     for (const replica of replicas) {
       const sync = replica.sync;
       if (!sync) continue;
+      if (replica.id === suspendedReplicaId) continue;
       const canonical = canonicalGroups.get(sync.groupId);
       if (!canonical) continue;
       const isDirty = replica.id === dirtyReplicaId;
@@ -181,7 +190,7 @@ export function usePlcAutoPullSync<TMeta extends PlcSyncReplica>({
         }
       })();
     }
-  }, [replicas, canonicalGroups, dirtyReplicaId, enabled]);
+  }, [replicas, canonicalGroups, dirtyReplicaId, suspendedReplicaId, enabled]);
 
   // Derive conflicts during render (no effect) so the prompt reflects the
   // current replica/canonical/dirty state on every commit. A conflict exists
@@ -192,6 +201,7 @@ export function usePlcAutoPullSync<TMeta extends PlcSyncReplica>({
     for (const replica of replicas) {
       const sync = replica.sync;
       if (!sync) continue;
+      if (replica.id === suspendedReplicaId) continue;
       const canonical = canonicalGroups.get(sync.groupId);
       if (!canonical) continue;
       const isDirty = replica.id === dirtyReplicaId;

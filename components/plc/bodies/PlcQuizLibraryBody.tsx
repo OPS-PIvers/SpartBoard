@@ -151,6 +151,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     loading,
     unshareQuizFromPlc,
     restoreQuizInPlc,
+    mirrorPlcQuizHeader,
   } = usePlcQuizzes(plc.id);
   const { softDelete } = usePlcSoftDelete(plc.id);
   // Read-time union with legacy assignment templates so template-only rows
@@ -188,6 +189,8 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     quiz: QuizData;
     meta: QuizMetadata;
   } | null>(null);
+  // Replica whose save is in flight; its own canonical bump must not prompt.
+  const [savingReplicaId, setSavingReplicaId] = useState<string | null>(null);
   const [sharePickerOpen, setSharePickerOpen] = useState(false);
   // Tracks the freshly-assigned assignment that still needs class-period
   // targeting. Holds enough data to render the picker before the
@@ -271,6 +274,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     replicas: syncedReplicas,
     canonicalGroups,
     dirtyReplicaId,
+    suspendedReplicaId: savingReplicaId,
     enabled: canEdit && isDriveConnected,
     pull: pullSyncedQuiz,
     acknowledgeVersion: (replica, canonicalVersion) => {
@@ -399,7 +403,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           createdAt: now,
           updatedAt: now,
         };
-        savedMeta = await saveQuiz(fresh);
+        savedMeta = await saveQuiz(fresh, undefined, canonical.behavior);
         if (mode === 'sync') {
           const joinResult = await callJoinPlcQuizSyncGroup(
             plc.id,
@@ -532,7 +536,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           createdAt: now,
           updatedAt: now,
         };
-        savedMeta = await saveQuiz(fresh);
+        savedMeta = await saveQuiz(fresh, undefined, canonical.behavior);
         if (mode === 'sync') {
           // Server-side participant write must precede the client-side
           // attachSyncLinkage so a later editor save doesn't publish from a
@@ -562,7 +566,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
               ? { stimuli: canonical.stimuli }
               : {}),
           },
-          {
+          // The canonical doc carries the behavior the author last published;
+          // the row's header is only a share-time snapshot, so it is the fallback.
+          canonical.behavior ?? {
             sessionMode: target.sessionMode,
             sessionOptions: target.sessionOptions,
             attemptLimit: target.attemptLimit,
@@ -689,7 +695,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
             createdAt: now,
             updatedAt: now,
           };
-          savedMeta = await saveQuiz(fresh);
+          savedMeta = await saveQuiz(fresh, undefined, canonical.behavior);
           const joinResult = await callJoinPlcQuizSyncGroup(
             plc.id,
             target.plcQuizId
@@ -779,11 +785,26 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   const handleSaveEdit = useCallback(
     async (updated: QuizData, behavior: QuizBehaviorSettings) => {
       if (!editing) return;
+      setSavingReplicaId(editing.meta.id);
       try {
         await saveQuiz(updated, editing.meta.driveFileId, behavior);
+        // Keep the library row's pickup defaults in step with what was published.
+        const groupId = editing.meta.sync?.groupId;
+        const header = groupId
+          ? plcQuizzes.find((q) => q.syncGroupId === groupId)
+          : undefined;
+        if (header) {
+          void mirrorPlcQuizHeader(header.id, {
+            title: updated.title,
+            questionCount: updated.questions.length,
+            sessionMode: behavior.sessionMode,
+            sessionOptions: behavior.sessionOptions,
+            attemptLimit: behavior.attemptLimit,
+          });
+        }
         addToast(
           t('plcDashboard.quizLibrary.editSaved', {
-            defaultValue: 'Quiz saved — teammates will sync on next refresh.',
+            defaultValue: 'Quiz saved — teammates will sync automatically.',
           }),
           'success'
         );
@@ -809,9 +830,20 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           return;
         }
         throw err;
+      } finally {
+        setSavingReplicaId(null);
       }
     },
-    [addToast, editing, plc.id, pullSyncedQuiz, saveQuiz, t]
+    [
+      addToast,
+      editing,
+      mirrorPlcQuizHeader,
+      plc.id,
+      plcQuizzes,
+      pullSyncedQuiz,
+      saveQuiz,
+      t,
+    ]
   );
 
   /**
