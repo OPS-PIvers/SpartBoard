@@ -10,7 +10,7 @@ import {
   ScoreboardTeam,
   QuizSession,
   QuizLeaderboardEntry,
-  isWrittenQuestionType,
+  isFreeResponseType,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
@@ -82,7 +82,7 @@ export function getEarnedPoints(
     // totals and streaks treat every essay as 0 points / incorrect, which
     // would break a student's streak any time their quiz mixes auto-graded
     // and written items.
-    const manualGrade = isWrittenQuestionType(q.type)
+    const manualGrade = isFreeResponseType(q.type)
       ? readSlotGrade(r.grading, q.id)
       : undefined;
     // Media slots fold in here (and only for questions with a `recording`
@@ -259,7 +259,7 @@ export function isResponseAwaitingGrade(
   for (const ans of representative.values()) {
     const q = qMap.get(ans.questionId);
     if (!q) continue;
-    const manualGrade = isWrittenQuestionType(q.type)
+    const manualGrade = isFreeResponseType(q.type)
       ? readSlotGrade(r.grading, q.id)
       : undefined;
     const grade = applyMediaSlots(

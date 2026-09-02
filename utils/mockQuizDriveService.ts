@@ -13,6 +13,7 @@
  * Only activated when isAuthBypass is true.
  */
 import { QuizData, QuizQuestion } from '@/types';
+import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 
 const STORAGE_PREFIX = 'mock_quiz_drive';
 
@@ -46,7 +47,7 @@ export class MockQuizDriveService implements QuizDriveLike {
     const raw = localStorage.getItem(this.key(fileId));
     if (!raw)
       return Promise.reject(new Error('Quiz file not found in mock drive'));
-    return Promise.resolve(JSON.parse(raw) as QuizData);
+    return Promise.resolve(normalizeQuizData(JSON.parse(raw) as QuizData));
   }
 
   deleteQuizFile(fileId: string): Promise<void> {

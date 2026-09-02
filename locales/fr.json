@@ -2059,7 +2059,7 @@
       "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
-      "unsupportedType": "Spoken answers are available on short-answer and essay questions. This question type keeps its own answer input.",
+      "unsupportedType": "Spoken answers are available on Free Response questions. This question type keeps its own answer input.",
       "unsupportedTypeRemove": "Turn off the spoken answer here",
       "advisory": {
         "title": "As authored",

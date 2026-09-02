@@ -26,7 +26,7 @@ const baseQuestion = (): QuizQuestion => ({
   id: 'dev-q1',
   timeLimit: 0,
   text: 'Explain how you solved problem 4 out loud.',
-  type: 'short',
+  type: 'free-response',
   correctAnswer: '',
   incorrectAnswers: [],
 });

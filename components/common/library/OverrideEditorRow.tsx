@@ -27,7 +27,7 @@ export interface OverrideEditorQuestionOption {
 
 /**
  * A question the override editor can target. `options` present ⇒ MC (hider
- * applies). `isWritten` true ⇒ short/essay (rubric swap applies). A question
+ * applies). `isWritten` true ⇒ free-response (rubric swap applies). A question
  * with neither (FIB/Matching/Ordering) is only selectable in the bare
  * question-subset picker — no per-question hider or rubric swap (F2 fix).
  */

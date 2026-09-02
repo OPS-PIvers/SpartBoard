@@ -2,7 +2,7 @@
  * Per-slot grading for media (audio) responses.
  *
  * Grades live in the same `QuizResponse.grading` map written by the
- * short/essay grader. An unsuffixed key is the primary slot, so every grade
+ * free-response grader. An unsuffixed key is the primary slot, so every grade
  * written before this file existed keeps its exact meaning; any other slot is
  * `${questionId}::${slot}`. Nothing here engages unless the question carries a
  * `recording` block, so a response with no media grades exactly as before.
@@ -61,7 +61,7 @@ export function readSlotGrade(
 
 /**
  * Does THIS slot need a human? Per-slot and per-response, unlike the
- * per-question `isWrittenQuestionType`, which keeps its own call sites.
+ * per-question `isFreeResponseType`, which keeps its own call sites.
  */
 export function slotNeedsManualGrading(
   question: Pick<QuizQuestion, 'type' | 'recording'> | undefined,

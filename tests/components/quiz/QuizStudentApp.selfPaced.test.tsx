@@ -1039,7 +1039,7 @@ describe('QuizStudentApp — current-answer ref + submit gating', () => {
 describe('QuizStudentApp — written blank-overwrite guard', () => {
   const ESSAY: QuizPublicQuestion = {
     id: 'qe',
-    type: 'essay',
+    type: 'free-response',
     text: 'Describe your summer',
     timeLimit: 0,
   };

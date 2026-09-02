@@ -40,7 +40,7 @@ function makeQuestions(): QuizQuestion[] {
     {
       id: 'q1',
       text: 'Explain, out loud, how you solved problem 4.',
-      type: 'short',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
       timeLimit: 0,
@@ -50,7 +50,7 @@ function makeQuestions(): QuizQuestion[] {
     {
       id: 'q2',
       text: 'Read the passage aloud and say what the author means by "drift".',
-      type: 'short',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
       timeLimit: 0,

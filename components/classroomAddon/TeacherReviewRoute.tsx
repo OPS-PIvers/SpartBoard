@@ -67,7 +67,7 @@ import {
 import { requestClassroomTeacherToken } from './gisOAuth';
 import { logError } from '@/utils/logError';
 import {
-  isWrittenQuestionType,
+  isFreeResponseType,
   type QuizData,
   type QuizScoreVisibility,
 } from '@/types';
@@ -211,7 +211,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
 
   const questions = useMemo(() => quizData?.questions ?? [], [quizData]);
   const hasWritten = useMemo(
-    () => questions.some((q) => isWrittenQuestionType(q.type)),
+    () => questions.some((q) => isFreeResponseType(q.type)),
     [questions]
   );
   const scoreSuffix = getScoreSuffix(session ?? undefined);

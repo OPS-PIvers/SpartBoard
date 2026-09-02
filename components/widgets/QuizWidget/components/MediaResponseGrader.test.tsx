@@ -54,7 +54,7 @@ const quiz = {
     {
       id: 'q1',
       text: 'Explain your reasoning out loud.',
-      type: 'short',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
       timeLimit: 0,
@@ -64,7 +64,7 @@ const quiz = {
     {
       id: 'q2',
       text: 'Read the passage aloud.',
-      type: 'short',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
       timeLimit: 0,

@@ -14,7 +14,7 @@ import {
   QuizQuestion,
   QuizQuestionType,
   QuizResponse,
-  isWrittenQuestionType,
+  isFreeResponseType,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
@@ -22,6 +22,7 @@ import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 
 /**
  * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
@@ -39,7 +40,7 @@ function quizGradeFnWithManualGrades(
   response?: QuizResponse
 ) {
   const manualGrade =
-    isWrittenQuestionType(question.type) && response
+    isFreeResponseType(question.type) && response
       ? readSlotGrade(response.grading, question.id)
       : undefined;
   const base = gradeAnswer(question, studentAnswer, manualGrade);
@@ -305,7 +306,7 @@ export class QuizDriveService {
       if (res.status === 404) throw new Error('Quiz file not found in Drive');
       throw new Error('Failed to download quiz from Drive');
     }
-    return (await res.json()) as QuizData;
+    return normalizeQuizData((await res.json()) as QuizData);
   }
 
   /** Delete a quiz file from Google Drive */

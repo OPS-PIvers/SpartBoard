@@ -36,7 +36,7 @@ import {
   QuizData,
   QuizQuestion,
   QuizConfig,
-  isWrittenQuestionType,
+  isFreeResponseType,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -438,7 +438,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // types. Used to surface the "Grade Written" entry-point only when
   // it's actually useful.
   const hasWrittenQuestions = useMemo(
-    () => quiz.questions.some((q) => isWrittenQuestionType(q.type)),
+    () => quiz.questions.some((q) => isFreeResponseType(q.type)),
     [quiz.questions]
   );
 
@@ -2074,7 +2074,7 @@ const QuestionsScreen: React.FC<{
           (s) =>
             s.slot === 'primary' && (s.takes.length > 0 || s.captureUnavailable)
         );
-        const manualPrimary = isWrittenQuestionType(q.type) || mediaPrimary;
+        const manualPrimary = isFreeResponseType(q.type) || mediaPrimary;
 
         if (manualPrimary) {
           qStats.manualTotal++;
@@ -2105,7 +2105,7 @@ const QuestionsScreen: React.FC<{
           manualTotal: 0,
         };
         // With no responses yet, fall back to the question's own shape.
-        const manualByShape = isWrittenQuestionType(q.type) || !!q.recording;
+        const manualByShape = isFreeResponseType(q.type) || !!q.recording;
         const showAuto =
           stats.autoTotal > 0 || (stats.manualTotal === 0 && !manualByShape);
         const showManual =

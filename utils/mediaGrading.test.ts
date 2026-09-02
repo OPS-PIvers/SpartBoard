@@ -32,7 +32,7 @@ const question = (over: Partial<QuizQuestion> = {}): QuizQuestion =>
   ({
     id: 'q1',
     text: 'Say it out loud',
-    type: 'short',
+    type: 'free-response',
     correctAnswer: '',
     incorrectAnswers: [],
     timeLimit: 0,
@@ -455,7 +455,7 @@ describe('applyMediaSlots', () => {
       state: 'awaiting-grade',
     };
     const result = applyMediaSlots(
-      question({ type: 'essay' }),
+      question({ type: 'free-response' }),
       {
         answers: [
           {
@@ -481,7 +481,7 @@ describe('applyMediaSlots', () => {
       state: 'awaiting-grade',
     };
     const result = applyMediaSlots(
-      question({ type: 'essay' }),
+      question({ type: 'free-response' }),
       {
         answers: [{ questionId: 'q1', answer: 'typed instead', answeredAt: 1 }],
         grading: { q1: grade({ pointsAwarded: 3 }) },

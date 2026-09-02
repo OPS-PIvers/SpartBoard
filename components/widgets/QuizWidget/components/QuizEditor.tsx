@@ -21,7 +21,7 @@ import {
   QuizQuestion,
   QuizQuestionType,
   Rubric,
-  isWrittenQuestionType,
+  isFreeResponseType,
 } from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
@@ -76,14 +76,9 @@ const QUESTION_TYPES: {
     hint: 'List items in the correct sequence. Drag rows or use arrows to reorder.',
   },
   {
-    value: 'short',
-    label: 'Short Answer',
-    hint: 'Single-paragraph written response. Graded manually by the teacher.',
-  },
-  {
-    value: 'essay',
-    label: 'Essay',
-    hint: 'Multi-paragraph written response with rich text. Graded manually.',
+    value: 'free-response',
+    label: 'Free Response',
+    hint: 'Open-ended answer, typed or spoken. Graded manually.',
   },
 ];
 
@@ -98,8 +93,7 @@ const TYPE_BADGE: Record<QuizQuestionType, string> = {
   FIB: 'bg-amber-100 text-amber-800',
   Matching: 'bg-purple-100 text-purple-700',
   Ordering: 'bg-teal-100 text-teal-700',
-  short: 'bg-rose-100 text-rose-700',
-  essay: 'bg-rose-100 text-rose-700',
+  'free-response': 'bg-rose-100 text-rose-700',
 };
 
 // ─── Context pane ────────────────────────────────────────────────────────────
@@ -305,7 +299,7 @@ const QuestionRow = React.memo(function QuestionRow({
       <span
         className={`shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
       >
-        {question.type}
+        {question.type === 'free-response' ? 'FRQ' : question.type}
       </span>
       <span className="flex-1 text-sm text-slate-700 truncate">
         {question.text || (
@@ -492,7 +486,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               aria-label="Type"
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
-                const isWritten = isWrittenQuestionType(nextType);
+                const isWritten = isFreeResponseType(nextType);
                 // A rubric only applies to written types, and its Detach button
                 // only renders there — so drop it here, restoring the stashed
                 // manual points, or Points stays locked with no way to unlock.
@@ -640,18 +634,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             correctAnswer={q.correctAnswer}
             onChange={handleOrderingChange}
           />
-        ) : isWrittenQuestionType(q.type) ? (
+        ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
-            <div className="flex gap-2 p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <p className="text-xs">
-                {q.type === 'short'
-                  ? 'Students answer in a single short paragraph. '
-                  : 'Students write a multi-paragraph response with rich text. '}
-                Responses are <strong>graded manually</strong> — open the
-                results panel after the quiz ends to award points.
-              </p>
-            </div>
             <div>
               <label className={labelClass}>Placeholder (optional)</label>
               <input
@@ -793,7 +777,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         )}
       </div>
 
-      {showRubricBuilder && isWrittenQuestionType(q.type) && (
+      {showRubricBuilder && isFreeResponseType(q.type) && (
         <RubricBuilderPanel
           key={q.id}
           questionId={q.id}

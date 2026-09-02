@@ -11,7 +11,7 @@ import React from 'react';
 import { Mic } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
-  isWrittenQuestionType,
+  isFreeResponseType,
   type QuizQuestion,
   type RecordingConfig,
   type RecordingPrepExpiry,
@@ -110,7 +110,7 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
 
   // A spoken answer replaces the student's answer input, so it only belongs on
   // question types whose input is a written response.
-  if (!isWrittenQuestionType(question.type)) {
+  if (!isFreeResponseType(question.type)) {
     return (
       <div className="border border-slate-200 rounded-lg bg-white">
         <div className="flex items-center gap-2 px-3 pt-2">

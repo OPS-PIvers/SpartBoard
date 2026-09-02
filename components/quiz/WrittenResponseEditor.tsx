@@ -51,11 +51,6 @@ interface WrittenResponseEditorProps {
    */
   blockClipboard?: boolean;
   /**
-   * When true, the toolbar exposes list controls and the editor grows to a
-   * multi-paragraph height. Short-answer questions stay single-paragraph.
-   */
-  isEssay?: boolean;
-  /**
    * Stable identity for the current question. Changing this remounts the
    * inner editor so a fresh `value` is loaded — used for cross-question
    * navigation and pause/resume rehydration without manually managing the
@@ -93,7 +88,6 @@ const countWords = (html: string): number => {
 };
 
 const ESSAY_MIN_HEIGHT_PX = 352; // ~22rem — comfortable on a laptop
-const SHORT_MIN_HEIGHT_PX = 128; // ~8rem
 const MAX_HEIGHT_PX_CAP = 900; // hard cap so the editor can't push the page
 const KEYBOARD_RESIZE_STEP_PX = 32;
 
@@ -105,7 +99,6 @@ const WrittenResponseEditorInner: React.FC<
   placeholder,
   maxWords,
   disabled,
-  isEssay,
   blockClipboard,
   light = false,
 }) => {
@@ -118,7 +111,7 @@ const WrittenResponseEditorInner: React.FC<
   // they can drag the bottom-right grip to enlarge it (or use ↑/↓ when the
   // handle has keyboard focus). Resets on remount per question via the
   // `questionKey` wrapper.
-  const minHeight = isEssay ? ESSAY_MIN_HEIGHT_PX : SHORT_MIN_HEIGHT_PX;
+  const minHeight = ESSAY_MIN_HEIGHT_PX;
   const [heightPx, setHeightPx] = useState<number>(minHeight);
   // Cap at the smaller of 70vh and MAX_HEIGHT_PX_CAP so very tall windows
   // can't stretch the editor past a reasonable working size.
@@ -341,29 +334,25 @@ const WrittenResponseEditorInner: React.FC<
         >
           <Underline className="w-4 h-4" />
         </ToolbarButton>
-        {isEssay && (
-          <>
-            <div
-              className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
-            />
-            <ToolbarButton
-              label="Bulleted list"
-              onClick={() => handleListToggle('ul')}
-              disabled={disabled}
-              light={light}
-            >
-              <List className="w-4 h-4" />
-            </ToolbarButton>
-            <ToolbarButton
-              label="Numbered list"
-              onClick={() => handleListToggle('ol')}
-              disabled={disabled}
-              light={light}
-            >
-              <ListOrdered className="w-4 h-4" />
-            </ToolbarButton>
-          </>
-        )}
+        <div
+          className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
+        />
+        <ToolbarButton
+          label="Bulleted list"
+          onClick={() => handleListToggle('ul')}
+          disabled={disabled}
+          light={light}
+        >
+          <List className="w-4 h-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Numbered list"
+          onClick={() => handleListToggle('ol')}
+          disabled={disabled}
+          light={light}
+        >
+          <ListOrdered className="w-4 h-4" />
+        </ToolbarButton>
         <div className="flex-1" />
         <span
           className={`text-xs font-mono px-2 py-0.5 rounded ${

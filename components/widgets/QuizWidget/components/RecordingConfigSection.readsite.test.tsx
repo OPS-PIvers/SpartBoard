@@ -23,7 +23,7 @@ const baseQuestion = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
   id: 'q1',
   timeLimit: 45,
   text: 'Explain your reasoning.',
-  type: 'short',
+  type: 'free-response',
   correctAnswer: '',
   incorrectAnswers: [],
   ...over,
