@@ -703,6 +703,75 @@ describe('a compliance delete that lands mid-archive', () => {
     expect(entry.deletedBy).toBe('admin-uid');
   });
 
+  it('records the losing upload on the tombstone before discarding it', async () => {
+    const { db, response } = makeStubDb(baseSeed());
+    const seen: unknown[] = [];
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        (response as Bag).artifactArchive = {
+          [ARTIFACT_ID]: { archiveStatus: 'deleted', deletedAt: 1 },
+        };
+        return Promise.resolve({ id: 'drive-late' });
+      }),
+      deleteDriveFile: vi.fn(() => {
+        const entry = (response?.artifactArchive as Record<string, Bag>)[
+          ARTIFACT_ID
+        ];
+        seen.push(entry.orphanedDriveFileId);
+        return Promise.reject(new Error('drive down'));
+      }),
+    });
+    const result = await call(deps);
+    expect(result.archiveStatus).toBe('deleted');
+    // Tracked before the delete was attempted, and still tracked after it failed.
+    expect(seen).toEqual(['drive-late']);
+    const entry = (response?.artifactArchive as Record<string, Bag>)[
+      ARTIFACT_ID
+    ];
+    expect(entry.archiveStatus).toBe('deleted');
+    expect(entry.orphanedDriveFileId).toBe('drive-late');
+    expect(response?.hasStuckArchive).toBe(true);
+  });
+
+  it('clears the orphan marker once the discard succeeds', async () => {
+    const { db, response } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        (response as Bag).artifactArchive = {
+          [ARTIFACT_ID]: { archiveStatus: 'deleted', deletedAt: 1 },
+        };
+        return Promise.resolve({ id: 'drive-late' });
+      }),
+    });
+    await call(deps);
+    const entry = (response?.artifactArchive as Record<string, Bag>)[
+      ARTIFACT_ID
+    ];
+    expect(entry.orphanedDriveFileId).toBeUndefined();
+    expect(entry.storageCleanupPending).toBeUndefined();
+    expect(response?.hasStuckArchive).toBe(false);
+  });
+
+  it('leaves storageCleanupPending when the transit delete fails', async () => {
+    const { db, response } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      uploadToDrive: vi.fn(() => {
+        (response as Bag).artifactArchive = {
+          [ARTIFACT_ID]: { archiveStatus: 'deleted', deletedAt: 1 },
+        };
+        return Promise.resolve({ id: 'drive-late' });
+      }),
+      deleteObject: vi.fn(() => Promise.reject(new Error('storage down'))),
+    });
+    await call(deps);
+    const entry = (response?.artifactArchive as Record<string, Bag>)[
+      ARTIFACT_ID
+    ];
+    expect(entry.orphanedDriveFileId).toBeUndefined();
+    expect(entry.storageCleanupPending).toBe(true);
+    expect(response?.hasStuckArchive).toBe(true);
+  });
+
   it('refuses to re-archive an entry that is already tombstoned', async () => {
     const seed = baseSeed();
     (seed.response as Bag).artifactArchive = {

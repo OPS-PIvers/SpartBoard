@@ -39,6 +39,7 @@ const STATUS_COLOR: Record<string, AccentColor> = {
   archived: 'emerald',
   syncing: 'amber',
   failed: 'rose',
+  deleting: 'amber',
   deleted: 'slate',
   'delete-failed': 'rose',
 };

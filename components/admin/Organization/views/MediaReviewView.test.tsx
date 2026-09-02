@@ -217,6 +217,28 @@ describe('MediaReviewView tombstoned takes', () => {
     ],
   };
 
+  const pendingRow: MediaResponseRow = {
+    ...ROWS[1],
+    responseKey: 'r4',
+    studentLabel: 'Pin 4000',
+    takes: [
+      {
+        artifactId: 'c2',
+        archiveStatus: 'deleting',
+        driveFileId: 'd5',
+        hasStorageObject: false,
+      },
+    ],
+  };
+
+  it('shows an unfinished delete as pending and still offers a retry', () => {
+    renderView({ rows: [pendingRow] });
+    expect(screen.getByText('Delete pending')).toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Select Pin 4000, question q-1' })
+    ).not.toBeDisabled();
+  });
+
   it('never offers an already-deleted set for re-deletion', () => {
     const props = renderView({ rows: [...ROWS, deletedRow] });
     expect(

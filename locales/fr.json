@@ -1807,6 +1807,7 @@
         "syncing": "Syncing",
         "archived": "Archived",
         "failed": "Archive failed",
+        "deleting": "Delete pending",
         "deleted": "Deleted",
         "delete-failed": "Delete failed"
       }

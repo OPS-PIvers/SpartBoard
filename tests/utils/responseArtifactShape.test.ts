@@ -62,6 +62,7 @@ describe('artifactArchive shape', () => {
       'syncing',
       'archived',
       'failed',
+      'deleting',
       'deleted',
       'delete-failed',
     ];
@@ -84,6 +85,9 @@ describe('artifactArchive shape', () => {
     ).toBe(false);
     expect(
       isArtifactPlayable({ archiveStatus: 'delete-failed', driveFileId: 'd1' })
+    ).toBe(false);
+    expect(
+      isArtifactPlayable({ archiveStatus: 'deleting', driveFileId: 'd1' })
     ).toBe(false);
     expect(isArtifactPlayable(undefined)).toBe(false);
   });

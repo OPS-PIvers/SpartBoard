@@ -240,7 +240,11 @@ export function computeHasStuckArchive(
   archive:
     | Record<
         string,
-        { archiveStatus?: unknown; storageCleanupPending?: unknown }
+        {
+          archiveStatus?: unknown;
+          storageCleanupPending?: unknown;
+          orphanedDriveFileId?: unknown;
+        }
       >
     | undefined
 ): boolean {
@@ -248,7 +252,9 @@ export function computeHasStuckArchive(
     (entry) =>
       entry?.archiveStatus === 'syncing' ||
       entry?.archiveStatus === 'failed' ||
-      entry?.storageCleanupPending === true
+      entry?.archiveStatus === 'deleting' ||
+      entry?.storageCleanupPending === true ||
+      typeof entry?.orphanedDriveFileId === 'string'
   );
 }
 
@@ -662,7 +668,9 @@ export function isDeleteTombstoned(entry: {
   archiveStatus?: unknown;
 }): boolean {
   return (
-    entry.archiveStatus === 'deleted' || entry.archiveStatus === 'delete-failed'
+    entry.archiveStatus === 'deleting' ||
+    entry.archiveStatus === 'deleted' ||
+    entry.archiveStatus === 'delete-failed'
   );
 }
 
@@ -671,6 +679,7 @@ type ArchiveEntryShape = {
   driveFileId?: unknown;
   archiveStartedAt?: unknown;
   storageCleanupPending?: unknown;
+  orphanedDriveFileId?: unknown;
 };
 
 type ArchiveMap = Record<string, ArchiveEntryShape>;
@@ -863,7 +872,14 @@ export async function archiveQuizArtifactCore(
       return false;
     });
     if (tombstoned && driveFileId) {
-      await discardArchivedCopy(deps, teacherUid, driveFileId, storagePath);
+      await discardArchivedCopy(
+        deps,
+        responseRef,
+        artifactId,
+        teacherUid,
+        driveFileId,
+        storagePath
+      );
     }
   };
 
@@ -942,26 +958,93 @@ export async function archiveQuizArtifactCore(
   }
 }
 
-/** A compliance delete won the race, so the copy just made must not survive. */
+/**
+ * A compliance delete won the race, so the copy just made must not survive.
+ * The id is recorded on the tombstone BEFORE the delete is attempted: a
+ * swallowed failure here would leave a live student recording that nothing in
+ * the system knows about.
+ */
 async function discardArchivedCopy(
   deps: ArchiveDeps,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string,
   teacherUid: string,
   driveFileId: string,
   storagePath: string
 ): Promise<void> {
+  await writeArchiveResidue(deps.db, responseRef, artifactId, {
+    orphanedDriveFileId: driveFileId,
+  });
+  let driveDeleted = false;
   try {
     await deps.deleteDriveFile(
       await deps.getAccessToken(teacherUid),
       driveFileId
     );
-  } catch {
-    // The tombstone already records the delete; a stale Drive copy is surfaced there.
+    driveDeleted = true;
+  } catch (error) {
+    console.error(
+      '[quizMediaArchive] orphaned Drive copy after delete race',
+      artifactId,
+      error
+    );
   }
-  try {
-    await deps.deleteObject(storagePath);
-  } catch {
-    // Transit object only; the sweep's storage pass still owns it.
+  let storagePending = false;
+  if (storagePath) {
+    try {
+      await deps.deleteObject(storagePath);
+    } catch (error) {
+      storagePending = true;
+      console.error(
+        '[quizMediaArchive] orphaned transit object after delete race',
+        artifactId,
+        error
+      );
+    }
   }
+  await writeArchiveResidue(deps.db, responseRef, artifactId, {
+    ...(driveDeleted ? { orphanedDriveFileId: null } : {}),
+    ...(storagePending ? { storageCleanupPending: true as const } : {}),
+  });
+}
+
+/** Bookkeeping the delete side has to finish; written even onto a tombstone. */
+async function writeArchiveResidue(
+  db: Firestore,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string,
+  fields: {
+    orphanedDriveFileId?: string | null;
+    storageCleanupPending?: true;
+  }
+): Promise<void> {
+  if (Object.keys(fields).length === 0) return;
+  await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    const entry: ArchiveEntryShape = { ...(archive[artifactId] ?? {}) };
+    const patch: Record<string, unknown> = {};
+    if (fields.orphanedDriveFileId === null) {
+      delete entry.orphanedDriveFileId;
+      patch.orphanedDriveFileId = admin.firestore.FieldValue.delete();
+    } else if (typeof fields.orphanedDriveFileId === 'string') {
+      entry.orphanedDriveFileId = fields.orphanedDriveFileId;
+      patch.orphanedDriveFileId = fields.orphanedDriveFileId;
+    }
+    if (fields.storageCleanupPending) {
+      entry.storageCleanupPending = true;
+      patch.storageCleanupPending = true;
+    }
+    archive[artifactId] = entry;
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: { [artifactId]: patch },
+        hasStuckArchive: computeHasStuckArchive(archive),
+      },
+      { merge: true }
+    );
+  });
 }
 
 /** Terminal `'archived'` write plus the retryable Storage delete. */
@@ -1003,7 +1086,14 @@ async function finalizeArchivedEntry(
     return false;
   });
   if (tombstoned) {
-    await discardArchivedCopy(deps, teacherUid, driveFileId, storagePath);
+    await discardArchivedCopy(
+      deps,
+      responseRef,
+      artifactId,
+      teacherUid,
+      driveFileId,
+      storagePath
+    );
     return { archiveStatus: 'deleted' };
   }
   try {

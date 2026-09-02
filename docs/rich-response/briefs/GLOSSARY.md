@@ -80,6 +80,7 @@ export type ArtifactArchiveStatus =
   | 'syncing'
   | 'archived'
   | 'failed'
+  | 'deleting' // added by 4.1 review: claimed, physical deletes not yet confirmed
   | 'deleted' // added by 4.1
   | 'delete-failed'; // added by 4.1
 
@@ -95,7 +96,8 @@ export interface ArtifactArchiveEntry {
   storageCleanupPending?: boolean; // 3.3 review: archived to Drive, Storage delete still owed
   deletedAt?: number; // 4.1
   deletedBy?: string; // 4.1, admin uid
-  deleteAttemptedAt?: number; // 4.1, dead-token failure path
+  deleteAttemptedAt?: number; // 4.1, stamped on every delete claim and failure
+  orphanedDriveFileId?: string; // 4.1 review: Drive copy an archive lost the race with
 }
 
 // On QuizResponse, sibling to `answers[]`.
@@ -108,6 +110,22 @@ holds by construction in 3.3/3.4/3.6's logic; 4.1's new values are additive
 and don't require those briefs to add new branches, only to confirm the
 "else not playable" fallback still catches them. `isArtifactPlayable`
 (`utils/responseArtifacts.ts`) is the shared helper for this check.
+
+A compliance delete is a two-phase state machine, because committing
+`'deleted'` before the Drive/Storage bytes are gone would leave a live file
+with no retry path. The transactional claim writes `'deleting'` (stamping
+`deletedAt`/`deletedBy` once, as the audit record), the physical deletes run,
+and only then does a second transaction advance to `'deleted'` — or to
+`'delete-failed'` with a fresh `deleteAttemptedAt`. A `'deleting'` entry older
+than `STUCK_ARCHIVE_AGE_MS` is retry-eligible: the org-admin delete re-claims
+it and `sweepStuckQuizArchives` finishes it. `'deleting'` counts as tombstoned
+for `isDeleteTombstoned`, so no archive write may resurrect it.
+
+When an archive loses that race, the Drive copy it just uploaded is recorded on
+the tombstone as `orphanedDriveFileId` **before** the discard is attempted, and
+cleared only once the delete succeeds; a failed transit delete sets
+`storageCleanupPending`. Both keep `hasStuckArchive` true so the sweep's
+cleanup pass and the console can finish the job.
 
 `archiveStatus: 'archived'` is durable the moment the Drive upload lands: the
 Storage delete that follows is a separate, retryable step. When it fails the

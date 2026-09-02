@@ -27,10 +27,15 @@ vi.mock('./quizMediaArchive', () => ({
   QUIZ_MEDIA_ARCHIVE_SECRETS: [],
   STUCK_ARCHIVE_AGE_MS: 2 * 60 * 60 * 1000,
 }));
+vi.mock('./deleteQuizMediaForOrgAdmin', () => ({
+  buildDefaultOrgMediaDeps: vi.fn(),
+  finishStuckMediaDelete: vi.fn(),
+}));
 
 import {
   runSweepStuckQuizArchives,
   isStuckArchiveEntry,
+  needsDeleteCompletion,
   findQuestionIdForArtifact,
   buildStragglerEmail,
   STUCK_ARCHIVE_AGE_MS,
@@ -106,6 +111,7 @@ function makeDeps(overrides: Partial<SweepDeps> = {}): SweepDeps {
   return {
     archiveOne: vi.fn(() => Promise.resolve()),
     cleanUpStorage: vi.fn(() => Promise.resolve()),
+    finishDelete: vi.fn(() => Promise.resolve()),
     getTeacherEmail: vi.fn(() => Promise.resolve('teacher@school.org')),
     resolveStudentLabel: vi.fn((_t: string, _u: string, pin: string) =>
       Promise.resolve(pin ? `Pin${pin}` : 'Ava Nguyen')
@@ -388,5 +394,106 @@ describe('runSweepStuckQuizArchives', () => {
     expect(text).toContain('Unit 3 — Pin4821: question q1');
     expect(text).toContain('Unit 3 — Ava Nguyen: question q2');
     expect(text).not.toContain('stu-1');
+  });
+});
+
+describe('unfinished compliance deletes', () => {
+  const seed = (entry: Record<string, unknown>) =>
+    makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            studentUid: 'stu-1',
+            answers: answersWith('q1', 'a1'),
+            artifactArchive: { a1: entry },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Unit 3' } }
+    );
+
+  it('flags an aged deleting claim and leaves a fresh one alone', () => {
+    expect(
+      needsDeleteCompletion(
+        { archiveStatus: 'deleting', deleteAttemptedAt: OLD },
+        NOW
+      )
+    ).toBe(true);
+    expect(
+      needsDeleteCompletion(
+        { archiveStatus: 'deleting', deleteAttemptedAt: FRESH },
+        NOW
+      )
+    ).toBe(false);
+  });
+
+  it('flags a settled tombstone only while it still owes bytes', () => {
+    expect(
+      needsDeleteCompletion(
+        { archiveStatus: 'deleted', orphanedDriveFileId: 'drive-orphan' },
+        NOW
+      )
+    ).toBe(true);
+    expect(needsDeleteCompletion({ archiveStatus: 'deleted' }, NOW)).toBe(
+      false
+    );
+  });
+
+  it('finishes a delete a crash left claimed, and never re-archives it', async () => {
+    const { db } = seed({
+      archiveStatus: 'deleting',
+      driveFileId: 'drive-1',
+      deletedAt: OLD,
+      deleteAttemptedAt: OLD,
+    });
+    const deps = makeDeps();
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.finishDelete).toHaveBeenCalledWith({
+      sessionId: 's1',
+      responseKey: 'r1',
+      questionId: 'q1',
+      artifactId: 'a1',
+    });
+    expect(deps.archiveOne).not.toHaveBeenCalled();
+    expect(deps.cleanUpStorage).not.toHaveBeenCalled();
+    expect(summary).toMatchObject({ deletesFinished: 1, retried: 0 });
+  });
+
+  it('sweeps the Drive copy an archive orphaned on a tombstone', async () => {
+    const { db } = seed({
+      archiveStatus: 'deleted',
+      deletedAt: OLD,
+      orphanedDriveFileId: 'drive-orphan',
+    });
+    const deps = makeDeps();
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.finishDelete).toHaveBeenCalledTimes(1);
+    expect(deps.cleanUpStorage).not.toHaveBeenCalled();
+    expect(summary).toMatchObject({ deletesFinished: 1 });
+  });
+
+  it('counts a still-failing delete as stuck rather than clearing it', async () => {
+    const { db } = seed({
+      archiveStatus: 'deleting',
+      driveFileId: 'drive-1',
+      deleteAttemptedAt: OLD,
+    });
+    const deps = makeDeps({
+      finishDelete: vi.fn(() => Promise.reject(new Error('drive down'))),
+    });
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(summary).toMatchObject({ deletesFinished: 0, stillStuck: 1 });
   });
 });
