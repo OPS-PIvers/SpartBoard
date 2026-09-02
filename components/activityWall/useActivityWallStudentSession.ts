@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { STUDENT_FIRST_NAME_KEY } from '@/context/StudentAuthContextValue';
 import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
 import {
   normalizeActivityWallSession,
@@ -13,7 +14,12 @@ import type { ActivityWallSession, ActivityWallSubmission } from '@/types';
 export function getSessionIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/activity-wall\/([^/?#]+)\/?$/);
   if (!match) return null;
-  const id = decodeURIComponent(match[1] ?? '');
+  let id: string;
+  try {
+    id = decodeURIComponent(match[1] ?? '');
+  } catch {
+    return null;
+  }
   return id && id !== 'gallery' ? id : null;
 }
 
@@ -30,10 +36,7 @@ export type ActivityWallStudentSessionState =
       myPosts: ActivityWallSubmission[];
     };
 
-const STUDENT_FIRST_NAME_KEY = 'sb_student_first_name';
-
-const readParticipantLabel = (isGuest: boolean): string => {
-  if (isGuest) return 'Guest';
+const readSsoFirstName = (): string => {
   try {
     const stored = window.sessionStorage.getItem(STUDENT_FIRST_NAME_KEY);
     if (stored && stored.trim()) return stored.trim();
@@ -43,11 +46,18 @@ const readParticipantLabel = (isGuest: boolean): string => {
   return 'Student';
 };
 
-/**
- * Resolves the wall session, the student's identity, and their own posts for
- * `/activity-wall/{sessionId}`. Guests are signed in only when the wall allows
- * them; otherwise the visitor is bounced to the student login page.
- */
+const participantLabelFor = (
+  isStudent: boolean,
+  isAnonymous: boolean,
+  displayName: string | null
+): string => {
+  if (isStudent) return readSsoFirstName();
+  const firstWord = displayName?.trim().split(/\s+/)[0];
+  if (!isAnonymous && firstWord) return firstWord;
+  return 'Guest';
+};
+
+/** Resolves the wall session, the visitor's identity, and their own posts for `/activity-wall/{sessionId}`. */
 export function useActivityWallStudentSession(
   sessionId: string | null
 ): ActivityWallStudentSessionState {
@@ -56,12 +66,22 @@ export function useActivityWallStudentSession(
   const [sessionMissing, setSessionMissing] = useState(false);
   const [claims, setClaims] = useState<{
     uid: string;
-    isStudentRole: boolean;
+    isStudent: boolean;
   } | null>(null);
   const [myPosts, setMyPosts] = useState<ActivityWallSubmission[]>([]);
 
+  const uid = user?.uid ?? null;
+
+  // The session doc requires auth to read, so guests get an anonymous identity first.
   useEffect(() => {
-    if (!sessionId) return;
+    if (!resolved || user) return;
+    void signInAnonymously(auth).catch((error) => {
+      console.error('[ActivityWallStudentApp] Guest sign-in failed:', error);
+    });
+  }, [resolved, user]);
+
+  useEffect(() => {
+    if (!sessionId || !uid) return;
     const unsubscribe = onSnapshot(
       doc(db, 'activity_wall_sessions', sessionId),
       (snap) => {
@@ -84,57 +104,43 @@ export function useActivityWallStudentSession(
       }
     );
     return unsubscribe;
-  }, [sessionId]);
+  }, [sessionId, uid]);
 
-  // Probe the custom claims of a non-anonymous user (external auth system).
+  // Custom claims come from the external auth system; read them once per user.
   useEffect(() => {
-    if (!user || user.isAnonymous) return;
+    if (!user) return;
     let cancelled = false;
     const probedUid = user.uid;
     void user
       .getIdTokenResult()
       .then((token) => {
-        if (cancelled) return;
-        setClaims({
-          uid: probedUid,
-          isStudentRole: token.claims?.studentRole === true,
-        });
+        if (!cancelled)
+          setClaims({
+            uid: probedUid,
+            isStudent: token.claims?.studentRole === true,
+          });
       })
       .catch(() => {
-        if (cancelled) return;
-        setClaims({ uid: probedUid, isStudentRole: false });
+        if (!cancelled) setClaims({ uid: probedUid, isStudent: false });
       });
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  const claimsChecked =
-    !user || user.isAnonymous ? resolved : claims?.uid === user.uid;
-  const isStudentRole =
-    !!user && !user.isAnonymous && claims?.uid === user.uid
-      ? claims.isStudentRole
-      : false;
+  const resolvedClaims = claims && claims.uid === uid ? claims : null;
+  const isStudent = resolvedClaims?.isStudent === true;
   const needsLogin =
-    resolved && claimsChecked && !!session && !user && !session.allowGuests;
+    !!resolvedClaims && !!session && !isStudent && !session.allowGuests;
 
-  // Guest sign-in / login bounce: both talk to external systems only.
   useEffect(() => {
-    if (!resolved || !claimsChecked || !session || user) return;
-    if (session.allowGuests) {
-      void signInAnonymously(auth).catch((error) => {
-        console.error('[ActivityWallStudentApp] Guest sign-in failed:', error);
-      });
-      return;
-    }
+    if (!needsLogin) return;
     const next = encodeURIComponent(window.location.pathname);
     window.location.replace(`/student/login?next=${next}`);
-  }, [resolved, claimsChecked, session, user]);
-
-  const uid = user?.uid ?? null;
+  }, [needsLogin]);
 
   useEffect(() => {
-    if (!sessionId || !uid) return;
+    if (!sessionId || !uid || needsLogin) return;
     const unsubscribe = onSnapshot(
       query(
         collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
@@ -155,33 +161,22 @@ export function useActivityWallStudentSession(
       }
     );
     return unsubscribe;
-  }, [sessionId, uid]);
+  }, [sessionId, uid, needsLogin]);
 
-  const buildState = useCallback((): ActivityWallStudentSessionState => {
-    if (!sessionId || sessionMissing) return { kind: 'not-found' };
-    if (needsLogin) return { kind: 'redirecting' };
-    if (!session || !resolved || !claimsChecked || !user)
-      return { kind: 'loading' };
-    const isGuest = user.isAnonymous || !isStudentRole;
-    return {
-      kind: 'ready',
-      session,
-      uid: user.uid,
-      isGuest,
-      participantLabel: readParticipantLabel(isGuest),
-      myPosts,
-    };
-  }, [
-    sessionId,
-    sessionMissing,
-    needsLogin,
+  if (!sessionId || sessionMissing) return { kind: 'not-found' };
+  if (needsLogin) return { kind: 'redirecting' };
+  if (!user || !session || !resolvedClaims) return { kind: 'loading' };
+
+  return {
+    kind: 'ready',
     session,
-    resolved,
-    claimsChecked,
-    user,
-    isStudentRole,
+    uid: user.uid,
+    isGuest: user.isAnonymous,
+    participantLabel: participantLabelFor(
+      isStudent,
+      user.isAnonymous,
+      user.displayName
+    ),
     myPosts,
-  ]);
-
-  return buildState();
+  };
 }

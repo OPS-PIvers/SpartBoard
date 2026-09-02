@@ -13,7 +13,7 @@ const {
   mockSetDoc,
   mockDeleteDoc,
   mockUploadBytesResumable,
-  mockGetDownloadURL,
+  mockDeleteObject,
   mockHttpsCallable,
   mockCallable,
 } = vi.hoisted(() => ({
@@ -24,7 +24,7 @@ const {
   mockSetDoc: vi.fn(),
   mockDeleteDoc: vi.fn(),
   mockUploadBytesResumable: vi.fn(),
-  mockGetDownloadURL: vi.fn(),
+  mockDeleteObject: vi.fn(),
   mockHttpsCallable: vi.fn(),
   mockCallable: vi.fn(),
 }));
@@ -55,7 +55,7 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('firebase/storage', () => ({
   ref: (...args: unknown[]) => ({ kind: 'storageRef', args }),
   uploadBytesResumable: mockUploadBytesResumable,
-  getDownloadURL: mockGetDownloadURL,
+  deleteObject: mockDeleteObject,
 }));
 
 vi.mock('firebase/functions', () => ({
@@ -129,24 +129,17 @@ const signIn = (user: {
   uid: string;
   isAnonymous: boolean;
   studentRole?: boolean;
+  displayName?: string | null;
 }) => {
   mockOnAuthStateChanged.mockImplementation(
     (_auth: unknown, cb: (next: unknown) => void) => {
       cb({
         uid: user.uid,
         isAnonymous: user.isAnonymous,
+        displayName: user.displayName ?? null,
         getIdTokenResult: () =>
           Promise.resolve({ claims: { studentRole: user.studentRole } }),
       });
-      return () => undefined;
-    }
-  );
-};
-
-const signedOut = () => {
-  mockOnAuthStateChanged.mockImplementation(
-    (_auth: unknown, cb: (next: unknown) => void) => {
-      cb(null);
       return () => undefined;
     }
   );
@@ -161,7 +154,7 @@ describe('ActivityWallStudentApp', () => {
     mockSignInAnonymously.mockResolvedValue({ user: { uid: 'anon' } });
     mockHttpsCallable.mockReturnValue(mockCallable);
     mockCallable.mockResolvedValue({ data: { domain: 'example.com' } });
-    mockGetDownloadURL.mockResolvedValue('https://cdn.example/file.png');
+    mockDeleteObject.mockResolvedValue(undefined);
     vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(
       // Deterministic 10-byte fill so the uncapped id suffix is always "AAAAAAAAAA".
       (arr: ArrayBufferView) => {
@@ -227,8 +220,24 @@ describe('ActivityWallStudentApp', () => {
     expect(payload.id.split('__')[1]).not.toMatch(/^[0-9]+$/);
   });
 
-  it('signs a visitor in anonymously when the wall allows guests', async () => {
-    signedOut();
+  it('signs a fresh visitor in anonymously and then shows the form', async () => {
+    let emit: ((next: unknown) => void) | null = null;
+    mockOnAuthStateChanged.mockImplementation(
+      (_auth: unknown, cb: (next: unknown) => void) => {
+        emit = cb;
+        cb(null);
+        return () => undefined;
+      }
+    );
+    mockSignInAnonymously.mockImplementation(() => {
+      emit?.({
+        uid: 'anon-1',
+        isAnonymous: true,
+        displayName: null,
+        getIdTokenResult: () => Promise.resolve({ claims: {} }),
+      });
+      return Promise.resolve({ user: { uid: 'anon-1' } });
+    });
     wireSnapshots(buildSession({ allowGuests: true }));
 
     render(<ActivityWallStudentApp />);
@@ -236,15 +245,16 @@ describe('ActivityWallStudentApp', () => {
     await waitFor(() => {
       expect(mockSignInAnonymously).toHaveBeenCalled();
     });
+    expect(await screen.findByLabelText(/your response/i)).toBeInTheDocument();
   });
 
-  it('redirects to student login when guests are not allowed', async () => {
+  it('redirects a persisted anonymous visitor when guests are not allowed', async () => {
     const replace = vi.fn();
     Object.defineProperty(window, 'location', {
       value: { pathname: `/activity-wall/${SESSION_ID}`, replace },
       writable: true,
     });
-    signedOut();
+    signIn({ uid: 'anon-1', isAnonymous: true });
     wireSnapshots(buildSession({ allowGuests: false }));
 
     render(<ActivityWallStudentApp />);
@@ -255,6 +265,54 @@ describe('ActivityWallStudentApp', () => {
       );
     });
     expect(mockSignInAnonymously).not.toHaveBeenCalled();
+  });
+
+  it('redirects a signed-in non-student when guests are not allowed', async () => {
+    const replace = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { pathname: `/activity-wall/${SESSION_ID}`, replace },
+      writable: true,
+    });
+    signIn({ uid: 'teacher-9', isAnonymous: false, studentRole: false });
+    wireSnapshots(buildSession({ allowGuests: false }));
+
+    render(<ActivityWallStudentApp />);
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith(
+        `/student/login?next=${encodeURIComponent(`/activity-wall/${SESSION_ID}`)}`
+      );
+    });
+  });
+
+  it('lets a signed-in non-student post on a guest wall as a named participant', async () => {
+    const user = userEvent.setup();
+    signIn({
+      uid: 'teacher-9',
+      isAnonymous: false,
+      studentRole: false,
+      displayName: 'Dana Ruiz',
+    });
+    wireSnapshots(buildSession({ allowGuests: true }));
+
+    render(<ActivityWallStudentApp />);
+
+    await user.type(
+      await screen.findByLabelText(/your response/i),
+      'Visiting idea'
+    );
+    submitForm();
+
+    await waitFor(() => {
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          authorUid: 'teacher-9',
+          isGuest: false,
+          participantLabel: 'Dana',
+        })
+      );
+    });
   });
 
   it('shows the closed screen when the wall stops accepting responses', async () => {
@@ -283,6 +341,20 @@ describe('ActivityWallStudentApp', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('treats the cap as used up when own posts use non-slot ids', async () => {
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    wireSnapshots(buildSession({ maxPostsPerStudent: 2 }), [
+      { id: 'sso-1__AbCdEfGhIj', data: { authorUid: 'sso-1', content: 'a' } },
+      { id: 'sso-1__KlMnOpQrSt', data: { authorUid: 'sso-1', content: 'b' } },
+    ]);
+
+    render(<ActivityWallStudentApp />);
+
+    expect(
+      await screen.findByText(/you have used all 2 of your posts/i)
+    ).toBeInTheDocument();
+  });
+
   it('uploads a photo to activity_wall_media and records archive metadata', async () => {
     const user = userEvent.setup();
     signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
@@ -303,7 +375,7 @@ describe('ActivityWallStudentApp', () => {
 
     render(<ActivityWallStudentApp />);
 
-    await user.click(await screen.findByRole('radio', { name: /photo/i }));
+    await user.click(await screen.findByRole('button', { name: /photo/i }));
     const photo = new File(['data'], 'my photo.png', { type: 'image/png' });
     await user.upload(
       screen.getByLabelText(/choose a photo to upload/i),
@@ -316,6 +388,7 @@ describe('ActivityWallStudentApp', () => {
         expect.anything(),
         expect.objectContaining({
           type: 'photo',
+          content: `activity_wall_media/${SESSION_ID}/sso-1__AAAAAAAAAA/my_photo.png`,
           storagePath: `activity_wall_media/${SESSION_ID}/sso-1__AAAAAAAAAA/my_photo.png`,
           archiveStatus: 'firebase',
           fileName: 'my_photo.png',
@@ -323,5 +396,38 @@ describe('ActivityWallStudentApp', () => {
         })
       );
     });
+  });
+  it('deletes the uploaded file when the submission write fails', async () => {
+    const user = userEvent.setup();
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    wireSnapshots(
+      buildSession({
+        allowedTypes: { photo: true, link: false, file: false, video: false },
+      })
+    );
+    mockUploadBytesResumable.mockImplementation(() => ({
+      snapshot: { ref: { fullPath: 'x' } },
+      on: (
+        _event: string,
+        _next: unknown,
+        _error: unknown,
+        complete: () => void
+      ) => complete(),
+    }));
+    mockSetDoc.mockRejectedValueOnce(new Error('permission-denied'));
+
+    render(<ActivityWallStudentApp />);
+
+    await user.click(await screen.findByRole('button', { name: /photo/i }));
+    await user.upload(
+      screen.getByLabelText(/choose a photo to upload/i),
+      new File(['data'], 'my photo.png', { type: 'image/png' })
+    );
+    submitForm();
+
+    await waitFor(() => {
+      expect(mockDeleteObject).toHaveBeenCalled();
+    });
+    expect(await screen.findByText(/could not post/i)).toBeInTheDocument();
   });
 });

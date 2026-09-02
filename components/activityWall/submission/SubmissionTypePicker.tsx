@@ -27,11 +27,7 @@ export const SubmissionTypePicker: React.FC<SubmissionTypePickerProps> = ({
   if (available.length < 2) return null;
 
   return (
-    <div
-      className="flex flex-wrap gap-2"
-      role="radiogroup"
-      aria-label="Post type"
-    >
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Post type">
       {available.map((type) => {
         const { label, icon: Icon } = TYPE_META[type];
         const selected = value === type;
@@ -39,8 +35,7 @@ export const SubmissionTypePicker: React.FC<SubmissionTypePickerProps> = ({
           <button
             key={type}
             type="button"
-            role="radio"
-            aria-checked={selected}
+            aria-pressed={selected}
             onClick={() => onChange(type)}
             className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
               selected

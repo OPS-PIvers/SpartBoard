@@ -9,7 +9,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import { deleteObject, ref, uploadBytesResumable } from 'firebase/storage';
 import type {
   ActivityWallLinkPreview,
   ActivityWallSession,
@@ -178,18 +178,13 @@ export const ActivityWallStudentApp: React.FC = () => {
   const session = state.kind === 'ready' ? state.session : null;
   const isWordCloud = session?.layout === 'wordcloud';
 
-  // Seed the placement selects once the session config arrives.
-  const sectionSeed = session?.sections?.[0]?.id ?? '';
-  const rowSeed = session?.tableRows?.[0]?.id ?? '';
-  const colSeed = session?.tableCols?.[0]?.id ?? '';
-  useEffect(() => {
-    setStructure((prev) => ({
-      ...prev,
-      sectionId: prev.sectionId || sectionSeed,
-      rowId: prev.rowId || rowSeed,
-      colId: prev.colId || colSeed,
-    }));
-  }, [sectionSeed, rowSeed, colSeed]);
+  // Placement selects fall back to the first option until the student picks one.
+  const placement: StructureValue = {
+    sectionId: structure.sectionId || (session?.sections?.[0]?.id ?? ''),
+    rowId: structure.rowId || (session?.tableRows?.[0]?.id ?? ''),
+    colId: structure.colId || (session?.tableCols?.[0]?.id ?? ''),
+    label: structure.label,
+  };
 
   if (state.kind === 'loading' || state.kind === 'redirecting') {
     return (
@@ -230,7 +225,8 @@ export const ActivityWallStudentApp: React.FC = () => {
   const max = wall.maxPostsPerStudent ?? 0;
   const capped = max > 0;
   const cappedSlot = capped ? nextCappedSlot(uid, myPosts, max) : null;
-  const capExhausted = capped && cappedSlot === null && editingId === null;
+  const capUsedUp = capped && (cappedSlot === null || myPosts.length >= max);
+  const capExhausted = capUsedUp && editingId === null;
   const types = availableTypes(wall);
   const effectiveType: ActivityWallSubmissionType = isWordCloud ? 'word' : type;
 
@@ -301,8 +297,8 @@ export const ActivityWallStudentApp: React.FC = () => {
         else if (effectiveType === 'link') patch.content = url.trim();
         else if (!isUploadType(effectiveType)) patch.content = body.trim();
         if (!isWordCloud) patch.title = title.trim();
-        if (wall.layout === 'timeline') patch.label = structure.label.trim();
-        if (wall.layout === 'columns') patch.sectionId = structure.sectionId;
+        if (wall.layout === 'timeline') patch.label = placement.label.trim();
+        if (wall.layout === 'columns') patch.sectionId = placement.sectionId;
         await updateDoc(
           doc(db, 'activity_wall_sessions', wall.id, 'submissions', editingId),
           patch
@@ -318,7 +314,7 @@ export const ActivityWallStudentApp: React.FC = () => {
       return;
     }
 
-    if (capped && !cappedSlot) {
+    if (capUsedUp || (capped && !cappedSlot)) {
       setError('You have used all of your posts for this wall.');
       return;
     }
@@ -365,7 +361,7 @@ export const ActivityWallStudentApp: React.FC = () => {
             () => resolve()
           );
         });
-        content = await getDownloadURL(task.snapshot.ref);
+        content = storagePath;
       } else if (effectiveType === 'link') {
         content = url.trim();
         const videoId = youTubeVideoId(content);
@@ -394,13 +390,13 @@ export const ActivityWallStudentApp: React.FC = () => {
         status: wall.moderationEnabled ? 'pending' : 'approved',
       };
       if (!isWordCloud && title.trim()) payload.title = title.trim();
-      if (wall.layout === 'columns' && structure.sectionId)
-        payload.sectionId = structure.sectionId;
-      if (wall.layout === 'table' && structure.rowId && structure.colId)
-        payload.cellKey = `${structure.rowId}|${structure.colId}`;
+      if (wall.layout === 'columns' && placement.sectionId)
+        payload.sectionId = placement.sectionId;
+      if (wall.layout === 'table' && placement.rowId && placement.colId)
+        payload.cellKey = `${placement.rowId}|${placement.colId}`;
       if (wall.layout === 'timeline') {
         payload.order = Date.now();
-        if (structure.label.trim()) payload.label = structure.label.trim();
+        if (placement.label.trim()) payload.label = placement.label.trim();
       }
       if (wall.layout === 'map' && pin) {
         payload.lat = pin.lat;
@@ -415,13 +411,20 @@ export const ActivityWallStudentApp: React.FC = () => {
         payload.sizeBytes = uploadFile.size;
       }
 
-      await setDoc(
-        doc(
-          collection(db, 'activity_wall_sessions', wall.id, 'submissions'),
-          submissionId
-        ),
-        payload
-      );
+      try {
+        await setDoc(
+          doc(
+            collection(db, 'activity_wall_sessions', wall.id, 'submissions'),
+            submissionId
+          ),
+          payload
+        );
+      } catch (writeError) {
+        // Best effort: drop the orphaned upload, but surface the write failure.
+        if (storagePath)
+          await deleteObject(ref(storage, storagePath)).catch(() => undefined);
+        throw writeError;
+      }
       resetForm();
       setJustPosted(true);
     } catch (submitError) {
@@ -507,7 +510,7 @@ export const ActivityWallStudentApp: React.FC = () => {
           {!isWordCloud && (
             <StructureFields
               session={wall}
-              value={structure}
+              value={placement}
               onChange={(patch) =>
                 setStructure((prev) => ({ ...prev, ...patch }))
               }

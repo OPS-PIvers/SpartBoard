@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -21,6 +21,9 @@ const pinIcon = divIcon({
   iconAnchor: [9, 9],
 });
 
+const inputClass =
+  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+
 const PinDropper: React.FC<{ onPick: (pin: MapPin) => void }> = ({
   onPick,
 }) => {
@@ -30,22 +33,103 @@ const PinDropper: React.FC<{ onPick: (pin: MapPin) => void }> = ({
   return null;
 };
 
+/** Keyboard-operable alternative to tapping the map. */
+const CoordinateEntry: React.FC<{ onPick: (pin: MapPin) => void }> = ({
+  onPick,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
+
+  const latValue = Number.parseFloat(lat);
+  const lngValue = Number.parseFloat(lng);
+  const valid =
+    Number.isFinite(latValue) &&
+    Number.isFinite(lngValue) &&
+    Math.abs(latValue) <= 90 &&
+    Math.abs(lngValue) <= 180;
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className="text-sm font-semibold text-brand-blue-primary hover:underline"
+      >
+        Enter coordinates
+      </button>
+      {open && (
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <div>
+            <label
+              className="mb-1 block text-sm font-semibold text-slate-700"
+              htmlFor="aw-pin-lat"
+            >
+              Latitude
+            </label>
+            <input
+              id="aw-pin-lat"
+              className={inputClass}
+              type="number"
+              step="any"
+              min={-90}
+              max={90}
+              value={lat}
+              onChange={(event) => setLat(event.target.value)}
+            />
+          </div>
+          <div>
+            <label
+              className="mb-1 block text-sm font-semibold text-slate-700"
+              htmlFor="aw-pin-lng"
+            >
+              Longitude
+            </label>
+            <input
+              id="aw-pin-lng"
+              className={inputClass}
+              type="number"
+              step="any"
+              min={-180}
+              max={180}
+              value={lng}
+              onChange={(event) => setLng(event.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={!valid}
+            onClick={() => onPick({ lat: latValue, lng: lngValue })}
+            className="col-span-2 rounded-xl border border-slate-300 py-2 text-sm font-semibold text-slate-700 transition disabled:opacity-60"
+          >
+            Set pin
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** Leaflet + OpenStreetMap pin picker. Lazy-loaded so Leaflet stays out of the main bundle. */
 const MapPinPicker: React.FC<MapPinPickerProps> = ({ center, pin, onPick }) => (
-  <div className="overflow-hidden rounded-xl border border-slate-300">
-    <MapContainer
-      center={[center.lat, center.lng]}
-      zoom={center.zoom}
-      style={{ height: 260, width: '100%' }}
-      scrollWheelZoom={false}
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution="&copy; OpenStreetMap contributors"
-      />
-      <PinDropper onPick={onPick} />
-      {pin && <Marker position={[pin.lat, pin.lng]} icon={pinIcon} />}
-    </MapContainer>
+  <div>
+    <div className="overflow-hidden rounded-xl border border-slate-300">
+      <MapContainer
+        center={[center.lat, center.lng]}
+        zoom={center.zoom}
+        style={{ height: 260, width: '100%' }}
+        scrollWheelZoom={false}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution="&copy; OpenStreetMap contributors"
+        />
+        <PinDropper onPick={onPick} />
+        {pin && <Marker position={[pin.lat, pin.lng]} icon={pinIcon} />}
+      </MapContainer>
+    </div>
+    <CoordinateEntry onPick={onPick} />
   </div>
 );
 

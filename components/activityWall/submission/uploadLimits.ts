@@ -4,6 +4,22 @@ export const IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 export const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
 export const FILE_MAX_BYTES = 25 * 1024 * 1024;
 
+/** Image MIME types accepted by the `photo` submission type (Storage rules). */
+export const IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+] as const;
+
+/** Video MIME types accepted by the `video` submission type (Storage rules). */
+export const VIDEO_MIME_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+] as const;
+
 /** Document MIME types accepted by the `file` submission type (Storage rules). */
 export const FILE_MIME_TYPES = [
   'application/pdf',
@@ -13,12 +29,15 @@ export const FILE_MIME_TYPES = [
 ] as const;
 
 export const ACCEPT_BY_TYPE: Record<'photo' | 'video' | 'file', string> = {
-  photo: 'image/*',
-  video: 'video/*',
+  photo: IMAGE_MIME_TYPES.join(','),
+  video: VIDEO_MIME_TYPES.join(','),
   file: FILE_MIME_TYPES.join(','),
 };
 
 const formatMb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
+
+const allows = (list: readonly string[], mimeType: string) =>
+  list.includes(mimeType.toLowerCase());
 
 /** Types that read a File from the device. */
 export const isUploadType = (
@@ -32,20 +51,22 @@ export function validateUpload(
   file: File
 ): string | null {
   if (type === 'photo') {
-    if (!file.type.startsWith('image/')) return 'Please choose an image file.';
+    if (!allows(IMAGE_MIME_TYPES, file.type))
+      return 'Please choose a JPEG, PNG, GIF, WebP, or HEIC image.';
     if (file.size > IMAGE_MAX_BYTES)
       return `Images must be smaller than ${formatMb(IMAGE_MAX_BYTES)}.`;
     return null;
   }
   if (type === 'video') {
-    if (!file.type.startsWith('video/')) return 'Please choose a video file.';
+    if (!allows(VIDEO_MIME_TYPES, file.type))
+      return 'Please choose an MP4, WebM, or MOV (QuickTime) video.';
     if (file.size > VIDEO_MAX_BYTES)
       return `Videos must be smaller than ${formatMb(VIDEO_MAX_BYTES)}.`;
     return null;
   }
   if (type === 'file') {
-    if (!(FILE_MIME_TYPES as readonly string[]).includes(file.type))
-      return 'Please choose a PDF, Word, PowerPoint, or Excel file.';
+    if (!allows(FILE_MIME_TYPES, file.type))
+      return 'Please choose a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file.';
     if (file.size > FILE_MAX_BYTES)
       return `Files must be smaller than ${formatMb(FILE_MAX_BYTES)}.`;
     return null;

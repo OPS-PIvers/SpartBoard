@@ -9,11 +9,7 @@ interface WallShellProps {
   children: React.ReactNode;
 }
 
-/**
- * Full-page background for the student submission screens. Renders the wall's
- * appearance directly (Tailwind class or preset image URL) — this page must
- * never import `useBackgrounds`, which requires the teacher auth context.
- */
+/** Full-page wall background; renders `appearance` directly because `useBackgrounds` needs teacher auth. */
 export const WallShell: React.FC<WallShellProps> = ({
   appearance,
   title,
