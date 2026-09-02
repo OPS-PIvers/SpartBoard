@@ -60,6 +60,7 @@ export interface WallSweepSummary {
   markedLost: number;
   cleanupRetried: number;
   cleanupCleared: number;
+  phaseErrors: string[];
 }
 
 /** Untouched for longer than the retry window, measured from the last attempt. */
@@ -268,10 +269,23 @@ export async function runSweepActivityWallArchives(
     markedLost: 0,
     cleanupRetried: 0,
     cleanupCleared: 0,
+    phaseErrors: [],
   };
-  await retryStragglers(db, deps, summary, now);
-  await retryStorageCleanup(db, deps, summary);
-  await sweepOrphanedObjects(db, deps, summary, now);
+  try {
+    await retryStragglers(db, deps, summary, now);
+  } catch (err) {
+    summary.phaseErrors.push(`retryStragglers: ${String(err)}`);
+  }
+  try {
+    await retryStorageCleanup(db, deps, summary);
+  } catch (err) {
+    summary.phaseErrors.push(`retryStorageCleanup: ${String(err)}`);
+  }
+  try {
+    await sweepOrphanedObjects(db, deps, summary, now);
+  } catch (err) {
+    summary.phaseErrors.push(`sweepOrphanedObjects: ${String(err)}`);
+  }
   return summary;
 }
 

@@ -397,6 +397,10 @@ export async function claimSubmissionForArchive(
     if (status === 'archived') {
       return { kind: 'archived', driveFileId };
     }
+    if (status === 'lost') {
+      // Terminal: never resume a submission the sweep already gave up on.
+      return { kind: 'skipped', archiveStatus: 'lost' };
+    }
     if (driveFileId) {
       // The Drive copy already exists from a prior attempt; only the
       // permission or the terminal Firestore write failed. Resume from
@@ -717,9 +721,13 @@ export async function archiveActivityWallMediaCore(
         typeof data.attemptCount === 'number' ? data.attemptCount : 0;
       // A teacher who never connected Drive must not exhaust the attempts.
       const attemptCount = needsConsent ? previous : previous + 1;
-      const archiveStatus = needsConsent
-        ? 'failed'
-        : resolveFailedArchiveStatus(attemptCount, unrecoverable);
+      // A resumed submission already has a Drive file; only post-upload
+      // steps can be failing, so the orphaned file is recoverable — never
+      // settle at 'lost', stay 'failed' and re-sweepable.
+      const archiveStatus =
+        needsConsent || driveFileId
+          ? 'failed'
+          : resolveFailedArchiveStatus(attemptCount, unrecoverable);
       tx.set(
         submissionRef,
         {
@@ -767,6 +775,7 @@ export async function archiveActivityWallMediaCore(
     }
     const limit = maxBytesForType(type);
     if (!Number.isFinite(stat.size) || stat.size > limit) {
+      unrecoverable = true;
       throw new HttpsError(
         'invalid-argument',
         Number.isFinite(stat.size)
@@ -842,33 +851,62 @@ export async function archiveActivityWallMediaCore(
 
   const driveUrl = buildDriveUrl(type, uploadedId);
   try {
-    await submissionRef.set(
-      {
-        content: driveUrl,
-        driveFileId: uploadedId,
-        driveUrl,
-        drivePermission: drivePermissionValue,
-        archiveStatus: 'archived',
-        archivedAt: deps.now(),
-        storagePath: admin.firestore.FieldValue.delete(),
-        archiveStartedAt: admin.firestore.FieldValue.delete(),
-        archiveError: admin.firestore.FieldValue.delete(),
-      },
-      { merge: true }
-    );
+    return await finalizeResumedSubmission(submissionRef, {
+      driveFileId: uploadedId,
+      driveUrl,
+      drivePermission: drivePermissionValue,
+      storagePath,
+      now: deps.now(),
+      deleteObject: deps.deleteObject,
+    });
   } catch (error: unknown) {
     throw toArchiveFailure(error, await writeFailure(error));
   }
+}
 
+/**
+ * Writes the terminal 'archived' doc and best-effort transit cleanup; shared
+ * by the core pipeline's own resume path and the legacy callable's resume
+ * path so both settle a submission the same way once Drive already has it.
+ */
+export async function finalizeResumedSubmission(
+  submissionRef: admin.firestore.DocumentReference,
+  input: {
+    driveFileId: string;
+    driveUrl: string;
+    drivePermission?: DrivePermissionValue;
+    storagePath: string;
+    now: number;
+    deleteObject: (path: string) => Promise<void>;
+    extraFields?: Record<string, unknown>;
+  }
+): Promise<{ archiveStatus: 'archived'; driveFileId: string }> {
+  await submissionRef.set(
+    {
+      content: input.driveUrl,
+      driveFileId: input.driveFileId,
+      driveUrl: input.driveUrl,
+      ...(input.drivePermission
+        ? { drivePermission: input.drivePermission }
+        : {}),
+      archiveStatus: 'archived',
+      archivedAt: input.now,
+      storagePath: admin.firestore.FieldValue.delete(),
+      archiveStartedAt: admin.firestore.FieldValue.delete(),
+      archiveError: admin.firestore.FieldValue.delete(),
+      ...(input.extraFields ?? {}),
+    },
+    { merge: true }
+  );
   // Separate step: the Drive copy is durable, the transit delete is retryable.
   try {
-    await deps.deleteObject(storagePath);
+    await input.deleteObject(input.storagePath);
   } catch {
     await submissionRef
       .set({ storageCleanupPending: true }, { merge: true })
       .catch(() => undefined);
   }
-  return { archiveStatus: 'archived', driveFileId: uploadedId };
+  return { archiveStatus: 'archived', driveFileId: input.driveFileId };
 }
 
 /**

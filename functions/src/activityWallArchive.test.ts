@@ -446,6 +446,55 @@ describe('archiveActivityWallMediaCore', () => {
     expect(state?.archiveStatus).toBe('lost');
   });
 
+  it('never settles a resume attempt at lost even past the attempt ceiling', async () => {
+    const { db, state } = makeStubDb(
+      baseSeed({
+        submission: {
+          archiveStatus: 'failed',
+          attemptCount: MAX_ARCHIVE_ATTEMPTS - 1,
+          driveFileId: 'drive-existing',
+        },
+      })
+    );
+    const deps = makeDeps(db, {
+      setDrivePermission: vi.fn(() => Promise.reject(new Error('drive 500'))),
+    });
+    await expect(call(deps)).rejects.toThrow('drive 500');
+    expect(state?.attemptCount).toBe(MAX_ARCHIVE_ATTEMPTS);
+    expect(state?.archiveStatus).toBe('failed');
+    expect(state?.driveFileId).toBe('drive-existing');
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('never resumes a submission already marked lost', async () => {
+    const { db, state } = makeStubDb(
+      baseSeed({
+        submission: {
+          archiveStatus: 'lost',
+          driveFileId: 'drive-existing',
+        },
+      })
+    );
+    const deps = makeDeps(db);
+    const result = await call(deps);
+    expect(result.archiveStatus).toBe('skipped');
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    expect(deps.setDrivePermission).not.toHaveBeenCalled();
+    expect(state?.archiveStatus).toBe('lost');
+  });
+
+  it('marks the submission unrecoverable when it exceeds the size limit', async () => {
+    const { db, state } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      statObject: vi.fn(() =>
+        Promise.resolve({ size: 999_999_999, contentType: 'image/jpeg' })
+      ),
+    });
+    await expect(call(deps)).rejects.toThrow();
+    expect(state?.archiveStatus).toBe('lost');
+    expect(state?.attemptCount).toBe(1);
+  });
+
   it('gives up immediately when the transit object is gone', async () => {
     const { db, state } = makeStubDb(baseSeed());
     const deps = makeDeps(db, {
