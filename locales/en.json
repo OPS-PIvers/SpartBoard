@@ -2060,6 +2060,114 @@
         "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
       }
     },
+    "grading": {
+      "title": "Grade recorded answers",
+      "close": "Close",
+      "student": "Student",
+      "questionLabel": "Question",
+      "questionOf": "Question {{index}} of {{total}}",
+      "studentOf": "Student {{index}} of {{total}}",
+      "queueLabel": "Students on this question",
+      "slotLabel": "Response slot",
+      "slot": {
+        "primary": "Recorded answer",
+        "addendum": "Addendum"
+      },
+      "state": {
+        "scored": "Graded",
+        "awaiting-grade": "Needs you",
+        "not-attempted": "No answer"
+      },
+      "badge": {
+        "graded": "Graded",
+        "provisional": "Provisional"
+      },
+      "points": "Points awarded",
+      "comment": "Overall comment (optional)",
+      "substituteNote": "Note (required)",
+      "commentPlaceholder": "Feedback for this student…",
+      "excusedNote": "Excused — omitted from the gradebook.",
+      "save": "Save grade",
+      "saveAndNext": "Save & next",
+      "prevStudent": "Previous student",
+      "nextStudent": "Next student",
+      "prevQuestion": "Previous question",
+      "nextQuestion": "Next question",
+      "keyboardHint": "← / → move between students. Esc closes the grader.",
+      "discardTitle": "Discard grade edits?",
+      "discardMessage": "You have unsaved grade edits. Discard them?",
+      "empty": {
+        "title": "No recorded answers to grade yet",
+        "body": "Once students record an answer to a question that asks for one, they show up here."
+      },
+      "takes": {
+        "title": "Takes",
+        "count_one": "{{count}} take recorded",
+        "count_other": "{{count}} takes recorded",
+        "take": "Take {{n}}",
+        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "status": {
+          "archiving": "Still saving",
+          "archive-failed": "Not saved",
+          "deleted": "Deleted",
+          "unknown": "Unavailable"
+        }
+      },
+      "unavailable": {
+        "title": "This student could not record",
+        "body": "Their device could not capture audio, so there is nothing to listen to. Choose how this question counts before the grade is final.",
+        "excuse": "Excuse",
+        "excuseHelp": "Leave it out of the gradebook entirely.",
+        "blank": "Blank",
+        "blankHelp": "Count it as a zero, like an unanswered question.",
+        "substitute": "Offline substitute",
+        "substituteHelp": "You heard the answer another way. A note is required."
+      },
+      "player": {
+        "loading": "Loading the recording…",
+        "loadFailed": "The recording could not be loaded from your Google Drive. Check that you are still signed in to Google and try again.",
+        "retry": "Try again",
+        "play": "Play this take",
+        "pause": "Pause this take",
+        "scrubber": "Playback position",
+        "valueText": "{{elapsed}} of {{total}}",
+        "addComment": "Comment here",
+        "noComments": "Play the take and add a comment at the moment you want to talk about.",
+        "commentLabel": "Comment at {{time}}",
+        "commentPlaceholder": "What happens at this moment…",
+        "seekTo": "Jump to {{time}}",
+        "removeComment": "Remove the comment at {{time}}",
+        "unplayable": {
+          "archiving": {
+            "title": "Still saving",
+            "body": "This take is still being saved to your Google Drive. It becomes playable as soon as that finishes — usually within a few minutes."
+          },
+          "archive-failed": {
+            "title": "Not saved",
+            "body": "Saving this take to your Google Drive did not finish. It retries automatically every hour; nothing is lost in the meantime."
+          },
+          "deleted": {
+            "title": "Deleted",
+            "body": "This recording was deleted for compliance and can no longer be played. Any grade already on it still stands."
+          },
+          "unknown": {
+            "title": "Not available",
+            "body": "This take cannot be played right now."
+          }
+        }
+      },
+      "errors": {
+        "noIdentifier": "Cannot save: this response is missing its identifier. Reload the quiz results and try again.",
+        "chooseOutcome": "Choose Excuse, Blank, or Offline substitute before saving.",
+        "noteRequired": "An offline substitute needs a note — it is the only record of the answer.",
+        "numericScore": "Enter a numeric score.",
+        "range": "Score must be between 0 and {{max}}.",
+        "saveFailed": "Failed to save grade."
+      }
+    },
+    "results": {
+      "gradeButton": "Grade recordings"
+    },
     "playback": {
       "label": "Your recorded answer",
       "play": "Play your recording",

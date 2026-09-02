@@ -76,7 +76,11 @@ import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
-import { doc, updateDoc } from 'firebase/firestore';
+import { MediaResponseGrader } from './MediaResponseGrader';
+import { collectMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
+import { doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
@@ -104,7 +108,8 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
 } from '@/hooks/useQuizSession';
-import { Pencil } from 'lucide-react';
+import { Mic, Pencil } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -265,8 +270,17 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
-  const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
-    useAuth();
+  const {
+    ensureGoogleScope,
+    user,
+    orgId,
+    canAccessFeature,
+    isExternalUser,
+    googleAccessToken,
+    refreshGoogleToken,
+    canAccessQuizMediaResponse,
+  } = useAuth();
+  const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
@@ -309,6 +323,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [showGrader, setShowGrader] = useState(false);
+  const [showMediaGrader, setShowMediaGrader] = useState(false);
   // In-widget screen navigation, mirroring the live monitor's calm-default
   // shell: a summary home face with drill-down screens instead of tabs.
   const [screen, setScreen] = useState<
@@ -421,6 +436,22 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     [quiz.questions]
   );
 
+  // Hidden, not disabled, when the fail-closed gate is off or the session was
+  // assigned by a client that never enabled media responses.
+  const showMediaGrading =
+    canAccessQuizMediaResponse() &&
+    session?.mediaResponseEnabled === true &&
+    quiz.questions.some((q) => !!q.recording);
+
+  const resolveTakeUrl = useMemo(
+    () =>
+      createDriveTakeUrlResolver({
+        getToken: () => googleAccessToken,
+        refreshToken: refreshGoogleToken,
+      }),
+    [googleAccessToken, refreshGoogleToken]
+  );
+
   // Build a display-name lookup keyed by the response's deterministic
   // doc key so the grader can show a real student name in its header
   // rather than the raw uid/pin.
@@ -444,7 +475,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const saveWrittenGrade = useCallback(
     async (
       responseKey: string,
-      questionId: string,
+      gradingKeyStr: string,
       grade: import('@/types').WrittenAnswerGrade
     ) => {
       const sessionId = session?.id;
@@ -460,8 +491,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         RESPONSES_COLLECTION,
         responseKey
       );
-      // Bracket-notation field path so Firestore merges this key only.
-      await updateDoc(ref, { [`grading.${questionId}`]: grade });
+      // FieldPath, not dot notation: a composite `qid::addendum` key is not a
+      // parseable dotted path. Still merges this one map key only.
+      await updateDoc(ref, new FieldPath('grading', gradingKeyStr), grade);
     },
     [session?.id]
   );
@@ -1655,6 +1687,26 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               Grade written
             </button>
           )}
+          {showMediaGrading && (
+            <button
+              onClick={() => setShowMediaGrader(true)}
+              className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+                fontSize: 'min(13px, 4.5cqmin)',
+              }}
+            >
+              <Mic
+                aria-hidden
+                style={{
+                  width: 'min(14px, 4.5cqmin)',
+                  height: 'min(14px, 4.5cqmin)',
+                }}
+              />
+              {t('quizMediaResponse.results.gradeButton')}
+            </button>
+          )}
           {/* Admin-managed `google-classroom` gate hides the draft grade-push
               entry point for users below the doc's minTier. */}
           {showClassroomPush && (
@@ -1801,6 +1853,18 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           onClose={() => setShowGrader(false)}
         />
       )}
+
+      {showMediaGrader && showMediaGrading && session?.id && user?.uid && (
+        <MediaResponseGrader
+          quiz={quiz}
+          responses={responses}
+          displayNameByResponseKey={displayNameByResponseKey}
+          teacherUid={user.uid}
+          resolveTakeUrl={resolveTakeUrl}
+          onSaveGrade={saveWrittenGrade}
+          onClose={() => setShowMediaGrader(false)}
+        />
+      )}
     </div>
   );
 };
@@ -1930,35 +1994,63 @@ const QuestionsScreen: React.FC<{
   responses: QuizResponse[];
 }> = ({ questions, responses }) => {
   // ⚡ Bolt: Pre-calculate counts per question in a single pass.
-  // Auto-graded types track answered/correct; written types track
-  // answered/graded so partial credit (7/10 essay) isn't bucketed as
-  // "Missed" — graders found that misleading.
+  // Counted per SLOT, not per question: an auto-graded primary tallies
+  // answered/correct while an audio addendum on the same question tallies
+  // its own grading progress, so a mixed question isn't stuck at 0% graded.
   const questionStats = React.useMemo(() => {
     const stats: Record<
       string,
-      { answered: number; correct: number; graded: number }
+      {
+        answered: number;
+        correct: number;
+        autoTotal: number;
+        graded: number;
+        manualTotal: number;
+      }
     > = {};
     const questionsById: Record<string, QuizQuestion> = {};
 
     questions.forEach((q) => {
-      stats[q.id] = { answered: 0, correct: 0, graded: 0 };
+      stats[q.id] = {
+        answered: 0,
+        correct: 0,
+        autoTotal: 0,
+        graded: 0,
+        manualTotal: 0,
+      };
       questionsById[q.id] = q;
     });
 
     responses.forEach((r) => {
-      r.answers.forEach((a) => {
-        const qStats = stats[a.questionId];
-        const q = questionsById[a.questionId];
+      // Takes put several answer entries on one question; count the student
+      // once, using the same representative answer getEarnedPoints scores.
+      const representative = selectRepresentativeAnswers(r.answers);
 
-        if (qStats && q) {
-          qStats.answered++;
-          const isWritten = q.type === 'short' || q.type === 'essay';
-          const manualGrade = isWritten ? r.grading?.[q.id] : undefined;
-          if (isWritten) {
-            if (manualGrade) qStats.graded++;
-          } else if (gradeAnswer(q, a.answer, manualGrade).isCorrect) {
-            qStats.correct++;
-          }
+      representative.forEach((entry, questionId) => {
+        const qStats = stats[questionId];
+        const q = questionsById[questionId];
+        if (!qStats || !q) return;
+        qStats.answered++;
+
+        const slots = q.recording ? collectMediaSlots(q, r) : [];
+        const mediaPrimary = slots.some(
+          (s) =>
+            s.slot === 'primary' && (s.takes.length > 0 || s.captureUnavailable)
+        );
+        const manualPrimary =
+          q.type === 'short' || q.type === 'essay' || mediaPrimary;
+
+        if (manualPrimary) {
+          qStats.manualTotal++;
+          if (readSlotGrade(r.grading, q.id)) qStats.graded++;
+        } else {
+          qStats.autoTotal++;
+          if (gradeAnswer(q, entry.answer).isCorrect) qStats.correct++;
+        }
+
+        if (slots.some((s) => s.slot === 'addendum')) {
+          qStats.manualTotal++;
+          if (readSlotGrade(r.grading, q.id, 'addendum')) qStats.graded++;
         }
       });
     });
@@ -1972,16 +2064,26 @@ const QuestionsScreen: React.FC<{
         const stats = questionStats[q.id] || {
           answered: 0,
           correct: 0,
+          autoTotal: 0,
           graded: 0,
+          manualTotal: 0,
         };
-        const isWritten = q.type === 'short' || q.type === 'essay';
-        const pct =
-          stats.answered > 0
-            ? Math.round(
-                ((isWritten ? stats.graded : stats.correct) / stats.answered) *
-                  100
-              )
+        // With no responses yet, fall back to the question's own shape.
+        const manualByShape =
+          q.type === 'short' || q.type === 'essay' || !!q.recording;
+        const showAuto =
+          stats.autoTotal > 0 || (stats.manualTotal === 0 && !manualByShape);
+        const showManual =
+          stats.manualTotal > 0 || (stats.autoTotal === 0 && manualByShape);
+        const autoPct =
+          stats.autoTotal > 0
+            ? Math.round((stats.correct / stats.autoTotal) * 100)
             : 0;
+        const gradedPct =
+          stats.manualTotal > 0
+            ? Math.round((stats.graded / stats.manualTotal) * 100)
+            : 0;
+        const pct = showAuto ? autoPct : gradedPct;
 
         return (
           <div
@@ -2009,14 +2111,13 @@ const QuestionsScreen: React.FC<{
                   }}
                 />
               )}
-              {isWritten ? (
-                <SessionBadge tone="warn" label="Manual" />
-              ) : (
+              {showManual && <SessionBadge tone="warn" label="Manual" />}
+              {showAuto && (
                 <span
-                  className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(pct).text}`}
+                  className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(autoPct).text}`}
                   style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                 >
-                  {pct}%
+                  {autoPct}%
                 </span>
               )}
             </div>
@@ -2028,46 +2129,84 @@ const QuestionsScreen: React.FC<{
             </p>
 
             <div
-              className="flex items-center"
+              className="flex items-center flex-wrap"
               style={{
                 gap: 'min(12px, 3cqmin)',
                 marginTop: 'min(6px, 1.5cqmin)',
               }}
             >
-              <div
-                className="flex items-center text-emerald-700 font-sans font-medium shrink-0"
-                style={{
-                  gap: 'min(4px, 1cqmin)',
-                  fontSize: 'min(11px, 3.8cqmin)',
-                }}
-              >
-                <CheckCircle2
-                  aria-hidden
-                  style={{
-                    width: 'min(13px, 4cqmin)',
-                    height: 'min(13px, 4cqmin)',
-                  }}
-                />
-                {isWritten ? stats.graded : stats.correct}{' '}
-                {isWritten ? 'Graded' : 'Correct'}
-              </div>
-              <div
-                className="flex items-center text-brand-red-primary font-sans font-medium shrink-0"
-                style={{
-                  gap: 'min(4px, 1cqmin)',
-                  fontSize: 'min(11px, 3.8cqmin)',
-                }}
-              >
-                <XCircle
-                  aria-hidden
-                  style={{
-                    width: 'min(13px, 4cqmin)',
-                    height: 'min(13px, 4cqmin)',
-                  }}
-                />
-                {stats.answered - (isWritten ? stats.graded : stats.correct)}{' '}
-                {isWritten ? 'Ungraded' : 'Missed'}
-              </div>
+              {showAuto && (
+                <>
+                  <div
+                    className="flex items-center text-emerald-700 font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <CheckCircle2
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.correct} Correct
+                  </div>
+                  <div
+                    className="flex items-center text-brand-red-primary font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <XCircle
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.autoTotal - stats.correct} Missed
+                  </div>
+                </>
+              )}
+              {showManual && (
+                <>
+                  <div
+                    className="flex items-center text-emerald-700 font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <CheckCircle2
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.graded} Graded
+                  </div>
+                  <div
+                    className="flex items-center text-brand-red-primary font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <XCircle
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.manualTotal - stats.graded} Ungraded
+                  </div>
+                </>
+              )}
               <div
                 className="flex-1 bg-brand-gray-lightest rounded-full overflow-hidden min-w-0"
                 style={{ height: 'min(8px, 2cqmin)' }}

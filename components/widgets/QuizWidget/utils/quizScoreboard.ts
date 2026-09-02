@@ -14,6 +14,12 @@ import {
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import {
+  applyMediaSlots,
+  collectMediaSlots,
+  readSlotGrade,
+  resolveSlotState,
+} from '@/utils/mediaGrading';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 import {
   resolveResponseDisplayName,
@@ -75,8 +81,16 @@ export function getEarnedPoints(
     // would break a student's streak any time their quiz mixes auto-graded
     // and written items.
     const manualGrade =
-      q.type === 'short' || q.type === 'essay' ? r.grading?.[q.id] : undefined;
-    const grade = gradeAnswer(q, ans.answer, manualGrade);
+      q.type === 'short' || q.type === 'essay'
+        ? readSlotGrade(r.grading, q.id)
+        : undefined;
+    // Media slots fold in here (and only for questions with a `recording`
+    // block) so a recorded answer isn't scored as a silent 0.
+    const grade = applyMediaSlots(
+      q,
+      r,
+      gradeAnswer(q, ans.answer, manualGrade)
+    );
 
     if (grade.pointsEarned <= 0) {
       streak = 0;
@@ -242,12 +256,27 @@ export function isResponseAwaitingGrade(
     const q = qMap.get(ans.questionId);
     if (!q) continue;
     const manualGrade =
-      q.type === 'short' || q.type === 'essay' ? r.grading?.[q.id] : undefined;
-    if (gradeAnswer(q, ans.answer, manualGrade).state === 'awaiting-grade') {
+      q.type === 'short' || q.type === 'essay'
+        ? readSlotGrade(r.grading, q.id)
+        : undefined;
+    const grade = applyMediaSlots(
+      q,
+      r,
+      gradeAnswer(q, ans.answer, manualGrade)
+    );
+    if (grade.state === 'awaiting-grade') {
       return true;
     }
   }
-  return false;
+  // A capture-unavailable slot has an `unresponded` marker, so it is skipped
+  // by the representative loop above; it still owes the teacher a decision.
+  return questions.some(
+    (q) =>
+      !!q.recording &&
+      collectMediaSlots(q, r).some(
+        (slot) => resolveSlotState(slot) === 'awaiting-grade'
+      )
+  );
 }
 
 /**

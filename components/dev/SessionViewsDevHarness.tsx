@@ -40,6 +40,11 @@ import {
   type RecordingControlStateKey,
 } from './RecordingControlsDevView';
 import {
+  MediaGradingDevView,
+  MEDIA_GRADING_STATES,
+  type MediaGradingStateKey,
+} from './MediaGradingDevView';
+import {
   ResultsPlaybackDevView,
   RESULTS_PLAYBACK_STATES,
   type ResultsPlaybackStateKey,
@@ -61,6 +66,7 @@ type ViewKey =
   | 'va-results'
   | 'audio-capture'
   | 'recording-controls'
+  | 'media-grading'
   | 'results-playback';
 type StateKey =
   | 'waiting'
@@ -73,6 +79,7 @@ type StateKey =
   | 'empty'
   | AudioCaptureStateKey
   | RecordingControlStateKey
+  | MediaGradingStateKey
   | ResultsPlaybackStateKey;
 
 const VIEWS: { key: ViewKey; label: string }[] = [
@@ -83,6 +90,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'va-results', label: 'VA Results' },
   { key: 'audio-capture', label: 'Audio capture' },
   { key: 'recording-controls', label: 'Recording controls' },
+  { key: 'media-grading', label: 'Media grading' },
   { key: 'results-playback', label: 'Results playback' },
 ];
 
@@ -107,6 +115,10 @@ const STATES: { key: StateKey; label: string }[] = [
     key: key as StateKey,
     label: `Recording: ${key.slice('rc-'.length)}`,
   })),
+  ...MEDIA_GRADING_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Grading: ${key}`,
+  })),
   ...RESULTS_PLAYBACK_STATES.map((key) => ({
     key: key as StateKey,
     label: `Playback: ${key}`,
@@ -122,6 +134,7 @@ const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
   'va-results': 'populated',
   'audio-capture': 'prep',
   'recording-controls': 'rc-enabled-defaults',
+  'media-grading': 'queue',
   'results-playback': 'playable',
 };
 
@@ -156,6 +169,15 @@ const SessionView: React.FC<{
       ? (state as RecordingControlStateKey)
       : 'rc-enabled-defaults';
     return <RecordingControlsDevView state={controlState} />;
+  }
+
+  if (view === 'media-grading') {
+    const gradingState = (MEDIA_GRADING_STATES as readonly string[]).includes(
+      state
+    )
+      ? (state as MediaGradingStateKey)
+      : 'queue';
+    return <MediaGradingDevView state={gradingState} />;
   }
 
   if (view === 'results-playback') {
