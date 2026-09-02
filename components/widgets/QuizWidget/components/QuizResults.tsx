@@ -78,6 +78,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { MediaResponseGrader } from './MediaResponseGrader';
 import { collectMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
 import { doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -2022,15 +2023,10 @@ const QuestionsScreen: React.FC<{
 
     responses.forEach((r) => {
       // Takes put several answer entries on one question; count the student
-      // once, then decide each slot separately.
-      const byQuestion = new Map<string, QuizResponse['answers']>();
-      r.answers.forEach((a) => {
-        const list = byQuestion.get(a.questionId) ?? [];
-        list.push(a);
-        byQuestion.set(a.questionId, list);
-      });
+      // once, using the same representative answer getEarnedPoints scores.
+      const representative = selectRepresentativeAnswers(r.answers);
 
-      byQuestion.forEach((entries, questionId) => {
+      representative.forEach((entry, questionId) => {
         const qStats = stats[questionId];
         const q = questionsById[questionId];
         if (!qStats || !q) return;
@@ -2049,7 +2045,6 @@ const QuestionsScreen: React.FC<{
           if (readSlotGrade(r.grading, q.id)) qStats.graded++;
         } else {
           qStats.autoTotal++;
-          const entry = entries.find((a) => !a.unresponded) ?? entries[0];
           if (gradeAnswer(q, entry.answer).isCorrect) qStats.correct++;
         }
 
