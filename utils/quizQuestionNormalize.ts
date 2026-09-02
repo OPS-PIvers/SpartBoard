@@ -1,4 +1,4 @@
-import type { QuizData, QuizQuestionType } from '@/types';
+import type { QuizData, QuizQuestionType, QuizSession } from '@/types';
 
 const LEGACY_WRITTEN_TYPES = new Set(['short', 'essay']);
 
@@ -39,4 +39,15 @@ export function normalizeQuizData(data: QuizData): QuizData {
   if (!Array.isArray(questions)) return data;
   const next = normalizeQuizQuestions(questions);
   return next === questions ? data : { ...data, questions: next };
+}
+
+/** Live session docs carry projected questions; same read-time mapping. */
+export function normalizeQuizSession<T extends QuizSession | null | undefined>(
+  session: T
+): T {
+  if (!session) return session;
+  const next = normalizeQuizQuestions(session.publicQuestions);
+  return next === session.publicQuestions
+    ? session
+    : { ...session, publicQuestions: next };
 }

@@ -64,6 +64,7 @@ import {
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
+import { normalizeQuizSession } from '@/utils/quizQuestionNormalize';
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
@@ -927,7 +928,11 @@ export const useQuizSessionTeacher = (
     return onSnapshot(
       sessionRef,
       (snap) => {
-        setSession(snap.exists() ? (snap.data() as QuizSession) : null);
+        setSession(
+          normalizeQuizSession(
+            snap.exists() ? (snap.data() as QuizSession) : null
+          )
+        );
         setLoading(false);
       },
       (err) => {
@@ -1716,7 +1721,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     return onSnapshot(
       doc(db, QUIZ_SESSIONS_COLLECTION, sessionIdState),
       (snap) => {
-        setSession(snap.exists() ? (snap.data() as QuizSession) : null);
+        setSession(
+          normalizeQuizSession(
+            snap.exists() ? (snap.data() as QuizSession) : null
+          )
+        );
         setError(null);
       },
       (err) => {

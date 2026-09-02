@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { QuizData, QuizQuestion } from '@/types';
+import type { QuizData, QuizQuestion, QuizSession } from '@/types';
 import {
   normalizeLegacyQuestionType,
   normalizeQuizData,
   normalizeQuizQuestions,
+  normalizeQuizSession,
 } from './quizQuestionNormalize';
 
 const question = (over: Partial<QuizQuestion> = {}): QuizQuestion =>
@@ -111,5 +112,32 @@ describe('normalizeQuizData', () => {
   it('passes through a quiz with no questions array', () => {
     const input = { id: 'x', title: 'x' } as unknown as QuizData;
     expect(normalizeQuizData(input)).toBe(input);
+  });
+});
+
+describe('normalizeQuizSession', () => {
+  it('maps legacy projected question types on a live session doc', () => {
+    const session = {
+      id: 's1',
+      publicQuestions: [
+        { id: 'q1', type: 'short' },
+        { id: 'q2', type: 'MC' },
+      ],
+    } as unknown as QuizSession;
+    const next = normalizeQuizSession(session);
+    expect(next.publicQuestions.map((q) => q.type)).toEqual([
+      'free-response',
+      'MC',
+    ]);
+    expect(next).not.toBe(session);
+  });
+
+  it('returns the same reference when nothing changed, and passes null through', () => {
+    const session = {
+      id: 's1',
+      publicQuestions: [{ id: 'q1', type: 'free-response' }],
+    } as unknown as QuizSession;
+    expect(normalizeQuizSession(session)).toBe(session);
+    expect(normalizeQuizSession(null)).toBeNull();
   });
 });
