@@ -87,6 +87,8 @@ import {
   isRecordingSlotClosed,
 } from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
+import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
+import { hasUngradedRecording } from '@/utils/responseArtifacts';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
   buildQuizMediaStoragePath,
@@ -3811,7 +3813,7 @@ const ResultsScreen: React.FC<{
 // student device can't manufacture a "correct" badge that isn't on the
 // authoritative response doc.
 
-const PublishedScoreReview: React.FC<{
+export const PublishedScoreReview: React.FC<{
   session: QuizSession;
   myResponse: NonNullable<
     ReturnType<typeof useQuizSessionStudent>['myResponse']
@@ -3840,6 +3842,7 @@ const PublishedScoreReview: React.FC<{
   watermarkNameOverride,
   override,
 }) => {
+  const { t } = useTranslation();
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
   // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
   // teacher-paced quiz that has ended keeps the dark, immersive treatment.
@@ -3923,6 +3926,18 @@ const PublishedScoreReview: React.FC<{
       )
     );
   });
+
+  // A committed recording with no grade entry is still owed a teacher grade,
+  // so the score is provisional whether or not the student presses play.
+  // Interim rule until Brief 3.4's per-slot GradeResult lands.
+  const mediaEnabled = session.mediaResponseEnabled === true;
+  const recordingAwaitingGrade =
+    mediaEnabled &&
+    hasUngradedRecording(
+      myResponse.answers,
+      myResponse.grading,
+      publicQuestions.map((q) => q.id)
+    );
 
   // Watermark overlay — rendered above content via fixed positioning, below
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
@@ -4101,12 +4116,23 @@ const PublishedScoreReview: React.FC<{
                   this score will change.
                 </p>
               )}
+              {recordingAwaitingGrade && (
+                <p
+                  className={`mt-2 text-sm font-semibold ${
+                    light ? 'text-amber-700' : 'text-amber-300'
+                  }`}
+                >
+                  {t('quizMediaResponse.playback.provisionalScore')}
+                </p>
+              )}
             </>
           ) : (
             <p className={`text-sm ${prepText}`}>
               {awaitingGrade
                 ? 'Your written response is still being graded. Check back soon.'
-                : 'Your score is being prepared. Check back soon.'}
+                : recordingAwaitingGrade
+                  ? t('quizMediaResponse.playback.provisionalScore')
+                  : 'Your score is being prepared. Check back soon.'}
             </p>
           )}
         </section>
@@ -4223,6 +4249,24 @@ const PublishedScoreReview: React.FC<{
                             </p>
                           )}
                         </>
+                      )}
+                      {mediaEnabled && responseKey && (
+                        <ResponsePlaybackCard
+                          sessionId={session.id}
+                          responseKey={responseKey}
+                          questionId={q.id}
+                          answers={myResponse.answers}
+                          artifactArchive={myResponse.artifactArchive}
+                          gradedTakeIndex={
+                            // Brief 3.4's field; absent until that lands.
+                            (
+                              myResponse.grading?.[q.id] as unknown as
+                                | { gradedTakeIndex?: number }
+                                | undefined
+                            )?.gradedTakeIndex
+                          }
+                          light={light}
+                        />
                       )}
                     </div>
                   </article>

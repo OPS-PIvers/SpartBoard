@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { makeTestArtifact } from '../testHelpers/responseArtifacts';
-import { isArtifactPlayable } from '@/utils/responseArtifacts';
+import {
+  artifactGradingKey,
+  hasUngradedRecording,
+  isArtifactPlayable,
+  resolveArtifactPlaybackState,
+  selectPlaybackTake,
+} from '@/utils/responseArtifacts';
 import type {
   ArtifactArchiveEntry,
   ArtifactArchiveStatus,
@@ -129,5 +135,70 @@ describe('backward compatibility', () => {
     };
     expect(legacy.artifactArchive).toBeUndefined();
     expect(Object.keys(legacy)).not.toContain('artifactArchive');
+  });
+});
+
+// Brief 3.6: take resolution + the honest-state mapping the student view uses.
+describe('playback helpers', () => {
+  const take = (
+    takeIndex: number,
+    slot: 'primary' | 'addendum' = 'primary'
+  ): QuizResponseAnswer => ({
+    questionId: 'q1',
+    answer: '',
+    answeredAt: 100 + takeIndex,
+    takeIndex,
+    artifacts: [makeTestArtifact({ id: `a${takeIndex}`, kind: 'audio', slot })],
+  });
+
+  it('selects the highest takeIndex when no grade pins one', () => {
+    expect(
+      selectPlaybackTake([take(1), take(3), take(2)], 'q1')?.takeIndex
+    ).toBe(3);
+  });
+
+  it('selects the graded take when the teacher pinned one', () => {
+    expect(
+      selectPlaybackTake([take(1), take(2)], 'q1', 'primary', 1)?.takeIndex
+    ).toBe(1);
+  });
+
+  it('falls back to the highest take when the pinned take is gone', () => {
+    expect(
+      selectPlaybackTake([take(1), take(2)], 'q1', 'primary', 7)?.takeIndex
+    ).toBe(2);
+  });
+
+  it('ignores other slots and questions', () => {
+    expect(selectPlaybackTake([take(4, 'addendum')], 'q1')).toBeNull();
+    expect(selectPlaybackTake([take(1)], 'other')).toBeNull();
+  });
+
+  it('maps every archive status to an honest playback state', () => {
+    const state = (
+      archiveStatus: ArtifactArchiveStatus,
+      driveFileId?: string
+    ) => resolveArtifactPlaybackState({ archiveStatus, driveFileId });
+    expect(state('archived', 'd1')).toBe('playable');
+    expect(state('archived')).toBe('archiving');
+    expect(state('syncing')).toBe('archiving');
+    expect(state('failed')).toBe('failed');
+    expect(state('deleting')).toBe('deleted');
+    expect(state('deleted')).toBe('deleted');
+    expect(state('delete-failed')).toBe('deleted');
+    expect(resolveArtifactPlaybackState(undefined)).toBe('archiving');
+  });
+
+  it('keys grading by question for the primary slot only', () => {
+    expect(artifactGradingKey('q1')).toBe('q1');
+    expect(artifactGradingKey('q1', 'addendum')).toBe('q1::addendum');
+  });
+
+  it('treats a recording with no grade entry as provisional', () => {
+    expect(hasUngradedRecording([take(1)], undefined, ['q1'])).toBe(true);
+    expect(
+      hasUngradedRecording([take(1)], { q1: { pointsAwarded: 3 } }, ['q1'])
+    ).toBe(false);
+    expect(hasUngradedRecording([], undefined, ['q1'])).toBe(false);
   });
 });
