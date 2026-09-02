@@ -48,12 +48,7 @@ jobs:
       - name: Check code formatting
         run: pnpm run format:check
 
-      # test:all above does NOT include test:rules (a separate script that
-      # boots the Firestore emulator — see pr-validation.yml's dedicated
-      # `rules` job). Without this, a firestore.rules regression that PR
-      # validation would have caught could still reach production via a
-      # direct push to main or a workflow_dispatch re-run, since this
-      # workflow deploys rules further below without re-checking them.
+      # test:all doesn't include test:rules; without this a firestore.rules regression could reach prod unverified.
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
