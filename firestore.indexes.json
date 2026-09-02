@@ -529,25 +529,6 @@
         }
       ],
       "density": "SPARSE_ALL"
-    },
-    {
-      "collectionGroup": "submissions",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "storageCleanupPending",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "archivedAt",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "ASCENDING"
-        }
-      ],
-      "density": "SPARSE_ALL"
     }
   ],
   "fieldOverrides": [
@@ -603,6 +584,16 @@
     {
       "collectionGroup": "responses",
       "fieldPath": "hasStuckArchive",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "submissions",
+      "fieldPath": "storageCleanupPending",
       "indexes": [
         {
           "order": "ASCENDING",

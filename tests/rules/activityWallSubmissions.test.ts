@@ -301,6 +301,16 @@ describe('activity wall submissions — type gating', () => {
     );
   });
 
+  it('denies a text submission on a wordcloud wall', async () => {
+    await seedSession(padletSession({ layout: 'wordcloud' }));
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({ type: 'text' })
+      )
+    );
+  });
+
   it('allows a word submission on a wordcloud wall', async () => {
     await seedSession(padletSession({ layout: 'wordcloud' }));
     await assertSucceeds(
@@ -340,6 +350,24 @@ describe('activity wall submissions — per-student cap', () => {
       setDoc(
         doc(asStudent(), submissionPath(`${STUDENT_UID}__3`)),
         newSubmission({ id: `${STUDENT_UID}__3` })
+      )
+    );
+  });
+
+  it('denies a zero-padded slot 0 (leading-zero cap bypass)', async () => {
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath(`${STUDENT_UID}__00`)),
+        newSubmission({ id: `${STUDENT_UID}__00` })
+      )
+    );
+  });
+
+  it('denies a zero-padded slot 1 (leading-zero cap bypass)', async () => {
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath(`${STUDENT_UID}__01`)),
+        newSubmission({ id: `${STUDENT_UID}__01` })
       )
     );
   });
@@ -512,6 +540,111 @@ describe('activity wall submissions — owner update whitelist', () => {
   });
 });
 
+describe('activity wall submissions — size bounds', () => {
+  it('denies a create with an oversize title', async () => {
+    await seedSession(padletSession());
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({ title: 'x'.repeat(201) })
+      )
+    );
+  });
+
+  it('allows a create with a title at the bound', async () => {
+    await seedSession(padletSession());
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({ title: 'x'.repeat(200) })
+      )
+    );
+  });
+
+  it('denies an owner update that grows the title past the bound', async () => {
+    await seedSession(padletSession());
+    await seedSubmission('sub-1', newSubmission({ id: 'sub-1' }));
+    await assertFails(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), {
+        title: 'x'.repeat(201),
+      })
+    );
+  });
+
+  it('denies a linkPreview carrying an unknown key', async () => {
+    await seedSession(padletSession({ allowedTypes: { link: true } }));
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({
+          type: 'link',
+          content: 'https://example.com',
+          linkPreview: { title: 'ok', script: '<img>' },
+        })
+      )
+    );
+  });
+
+  it('denies a linkPreview with an oversize description', async () => {
+    await seedSession(padletSession({ allowedTypes: { link: true } }));
+    await assertFails(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({
+          type: 'link',
+          content: 'https://example.com',
+          linkPreview: { description: 'x'.repeat(501) },
+        })
+      )
+    );
+  });
+
+  it('allows a well-formed linkPreview', async () => {
+    await seedSession(padletSession({ allowedTypes: { link: true } }));
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({
+          type: 'link',
+          content: 'https://example.com',
+          linkPreview: {
+            title: 'Example',
+            description: 'A page',
+            image: 'https://example.com/og.png',
+            domain: 'example.com',
+            videoId: 'abc123',
+          },
+        })
+      )
+    );
+  });
+});
+
+describe('activity wall submissions — owner update type checks', () => {
+  beforeEach(async () => {
+    await seedSession(padletSession());
+    await seedSubmission('sub-1', newSubmission({ id: 'sub-1' }));
+  });
+
+  it('denies a type-confused pinned value', async () => {
+    await assertFails(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), { pinned: 'yes' })
+    );
+  });
+
+  it('denies a type-confused order value', async () => {
+    await assertFails(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), { order: 'first' })
+    );
+  });
+
+  it('denies rewriting type to an unknown value', async () => {
+    await assertFails(
+      updateDoc(doc(asTeacher(), submissionPath('sub-1')), { type: 'sticker' })
+    );
+  });
+});
+
 describe('short_links — teacher-minted gallery codes', () => {
   const shortLink = (overrides: Record<string, unknown> = {}) => ({
     code: 'abc123',
@@ -534,6 +667,54 @@ describe('short_links — teacher-minted gallery codes', () => {
       setDoc(
         doc(asTeacher(), 'short_links/abc123'),
         shortLink({ destination: 'https://evil.example.com/phish' })
+      )
+    );
+  });
+
+  it('teacher cannot mint a gallery path on a foreign host', async () => {
+    await assertFails(
+      setDoc(
+        doc(asTeacher(), 'short_links/abc123'),
+        shortLink({
+          destination:
+            'https://evil.example.com/activity-wall/gallery/share-xyz',
+        })
+      )
+    );
+  });
+
+  it('teacher cannot mint a look-alike host', async () => {
+    await assertFails(
+      setDoc(
+        doc(asTeacher(), 'short_links/abc123'),
+        shortLink({
+          destination:
+            'https://spartboard.web.app.evil.com/activity-wall/gallery/share-xyz',
+        })
+      )
+    );
+  });
+
+  it('teacher can mint a dev preview-channel gallery link', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), 'short_links/abc123'),
+        shortLink({
+          destination:
+            'https://spartboard--dev-paul-1a2b3c4d.web.app/activity-wall/gallery/share-xyz',
+        })
+      )
+    );
+  });
+
+  it('teacher can mint a firebaseapp.com gallery link', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), 'short_links/abc123'),
+        shortLink({
+          destination:
+            'https://spartboard.firebaseapp.com/activity-wall/gallery/share-xyz',
+        })
       )
     );
   });

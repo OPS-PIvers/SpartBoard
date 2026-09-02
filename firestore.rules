@@ -741,7 +741,7 @@ service cloud.firestore {
          request.auth.token.firebase.sign_in_provider != 'anonymous' &&
          request.resource.data.createdBy == request.auth.uid &&
          request.resource.data.destination is string &&
-         request.resource.data.destination.matches('^https://[^/]+/activity-wall/gallery/[A-Za-z0-9_-]+$'));
+         request.resource.data.destination.matches('^https://(spartboard[.]web[.]app|spartboard[.]firebaseapp[.]com|spartboard--[a-z0-9-]+[.]web[.]app)/activity-wall/gallery/[A-Za-z0-9_-]+$'));
       allow update: if isAdmin()
         || (request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['clicks', 'lastClickedAt'])
@@ -4242,12 +4242,13 @@ service cloud.firestore {
           return request.auth.token.firebase.sign_in_provider != 'anonymous' ||
                  awSession().get('allowGuests', false) == true;
         }
-        // `word` is wordcloud-only; the four media types each need their
-        // per-wall toggle. `text` is always available.
+        // `word` is wordcloud-only and `text` is everywhere else; the four
+        // media types each need their per-wall toggle.
         function awTypeAllowed() {
           let t = request.resource.data.get('type', 'text');
           return t in ['text', 'word', 'photo', 'link', 'file', 'video'] &&
                  (t != 'word' || awSession().get('layout', '') == 'wordcloud') &&
+                 (t != 'text' || awSession().get('layout', '') != 'wordcloud') &&
                  (!(t in ['photo', 'link', 'file', 'video']) ||
                   awSession().get('allowedTypes', {}).get(t, false) == true);
         }
@@ -4257,8 +4258,51 @@ service cloud.firestore {
         function awWithinPostCap() {
           let cap = awSession().get('maxPostsPerStudent', 0);
           return !(cap is int) || cap <= 0 ||
-                 (submissionId.matches('^' + request.auth.uid + '__[0-9]{1,3}$') &&
+                 (submissionId.matches('^' + request.auth.uid + '__(0|[1-9][0-9]{0,2})$') &&
                   int(submissionId.split('__')[1]) < cap);
+        }
+
+        // Short authored labels stay bounded so no branch can grow a doc every
+        // gallery viewer re-downloads on each snapshot.
+        function awBoundedStrings() {
+          let d = request.resource.data;
+          return (!('title' in d) || (d.title is string && d.title.size() <= 200)) &&
+                 (!('label' in d) || (d.label is string && d.label.size() <= 200)) &&
+                 (!('sectionId' in d) || (d.sectionId is string && d.sectionId.size() <= 200)) &&
+                 (!('cellKey' in d) || (d.cellKey is string && d.cellKey.size() <= 200)) &&
+                 (!('fileName' in d) || (d.fileName is string && d.fileName.size() <= 200)) &&
+                 (!('mimeType' in d) || (d.mimeType is string && d.mimeType.size() <= 200)) &&
+                 (!('participantLabel' in d) || (d.participantLabel is string && d.participantLabel.size() <= 200));
+        }
+        // linkPreview is fetched metadata: closed key set, bounded text.
+        function awLinkPreviewOk() {
+          let lp = request.resource.data.get('linkPreview', {});
+          return !('linkPreview' in request.resource.data) ||
+                 (request.resource.data.linkPreview is map &&
+                  lp.keys().hasOnly(['title', 'description', 'image', 'domain', 'videoId']) &&
+                  (!('title' in lp) || (lp.title is string && lp.title.size() <= 500)) &&
+                  (!('description' in lp) || (lp.description is string && lp.description.size() <= 500)) &&
+                  (!('image' in lp) || (lp.image is string && lp.image.size() <= 2048)) &&
+                  (!('domain' in lp) || (lp.domain is string && lp.domain.size() <= 2048)) &&
+                  (!('videoId' in lp) || (lp.videoId is string && lp.videoId.size() <= 200)));
+        }
+        // Per-field type contract shared by create, the owner/admin update
+        // branch, and the student self-edit branch (all see the merged doc).
+        function awFieldTypesOk() {
+          let d = request.resource.data;
+          return (!('type' in d) || d.type in ['text', 'word', 'photo', 'link', 'file', 'video']) &&
+                 (!('authorUid' in d) || d.authorUid is string) &&
+                 (!('isGuest' in d) || d.isGuest is bool) &&
+                 (!('pinned' in d) || d.pinned is bool) &&
+                 (!('order' in d) || d.order is number) &&
+                 (!('lat' in d) || d.lat is number) &&
+                 (!('lng' in d) || d.lng is number) &&
+                 (!('sizeBytes' in d) || d.sizeBytes is int) &&
+                 (!('editedAt' in d) || d.editedAt is int) &&
+                 (!('storagePath' in d) || d.storagePath is string) &&
+                 (!('activityId' in d) || d.activityId is string) &&
+                 awBoundedStrings() &&
+                 awLinkPreviewOk();
         }
 
         // Any authed user (incl. anon) can create a submission (photo subs may
@@ -4286,24 +4330,8 @@ service cloud.firestore {
           request.resource.data.content.size() <= 5000 &&
           request.resource.data.submittedAt is int &&
           request.resource.data.status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
-          (!('activityId' in request.resource.data) || request.resource.data.activityId is string) &&
-          (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
-          (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
+          awFieldTypesOk() &&
           (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase') &&
-          (!('title' in request.resource.data) || request.resource.data.title is string) &&
-          (!('sectionId' in request.resource.data) || request.resource.data.sectionId is string) &&
-          (!('cellKey' in request.resource.data) || request.resource.data.cellKey is string) &&
-          (!('label' in request.resource.data) || request.resource.data.label is string) &&
-          (!('fileName' in request.resource.data) || request.resource.data.fileName is string) &&
-          (!('mimeType' in request.resource.data) || request.resource.data.mimeType is string) &&
-          (!('sizeBytes' in request.resource.data) || request.resource.data.sizeBytes is int) &&
-          (!('order' in request.resource.data) || request.resource.data.order is number) &&
-          (!('lat' in request.resource.data) || request.resource.data.lat is number) &&
-          (!('lng' in request.resource.data) || request.resource.data.lng is number) &&
-          (!('pinned' in request.resource.data) || request.resource.data.pinned is bool) &&
-          (!('isGuest' in request.resource.data) || request.resource.data.isGuest is bool) &&
-          (!('editedAt' in request.resource.data) || request.resource.data.editedAt is int) &&
-          (!('linkPreview' in request.resource.data) || request.resource.data.linkPreview is map) &&
           (!awIsPadletSession() ||
             (awAcceptingResponses() &&
              awGuestGateOk() &&
@@ -4351,9 +4379,7 @@ service cloud.firestore {
                             request.resource.data.content.size() <= 5000 &&
                             request.resource.data.submittedAt is int &&
                             request.resource.data.status in ['approved', 'pending'] &&
-                            (!('activityId' in request.resource.data) || request.resource.data.activityId is string) &&
-                            (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
-                            (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
+                            awFieldTypesOk() &&
                             (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed', 'lost']) &&
                             (!('driveFileId' in request.resource.data) || request.resource.data.driveFileId is string) &&
                             (!('driveUrl' in request.resource.data) || request.resource.data.driveUrl is string) &&
@@ -4381,6 +4407,7 @@ service cloud.firestore {
                             request.resource.data.content is string &&
                             request.resource.data.content.size() > 0 &&
                             request.resource.data.content.size() <= 5000 &&
+                            awFieldTypesOk() &&
                             (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed', 'lost']);
       }
     }
