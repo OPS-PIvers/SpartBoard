@@ -53,8 +53,27 @@ jobs:
           VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
           VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
 
+  # test:all above does NOT include test:rules (a separate script that boots
+  # the Firestore emulator — see pr-validation.yml's dedicated `rules` job).
+  # Without this job, a firestore.rules regression that PR validation would
+  # have caught could still reach a preview deploy's live Firestore project
+  # via a direct push to a dev-* branch or a workflow_dispatch re-run.
+  rules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      # The Firestore emulator is a Java process, so we need a JDK.
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Run Firestore rules tests
+        run: pnpm run test:rules
+
   deploy:
-    needs: [lint, type-check, test]
+    needs: [lint, type-check, test, rules]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6

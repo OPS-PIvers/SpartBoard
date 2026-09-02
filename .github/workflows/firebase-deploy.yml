@@ -48,6 +48,21 @@ jobs:
       - name: Check code formatting
         run: pnpm run format:check
 
+      # test:all above does NOT include test:rules (a separate script that
+      # boots the Firestore emulator — see pr-validation.yml's dedicated
+      # `rules` job). Without this, a firestore.rules regression that PR
+      # validation would have caught could still reach production via a
+      # direct push to main or a workflow_dispatch re-run, since this
+      # workflow deploys rules further below without re-checking them.
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Run Firestore rules tests
+        run: pnpm run test:rules
+
       - name: Create .env file for Vite and Firebase
         run: |
           echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
