@@ -48,6 +48,16 @@ jobs:
       - name: Check code formatting
         run: pnpm run format:check
 
+      # test:all doesn't include test:rules; without this a firestore.rules regression could reach prod unverified.
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Run Firestore rules tests
+        run: pnpm run test:rules
+
       - name: Create .env file for Vite and Firebase
         run: |
           echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
