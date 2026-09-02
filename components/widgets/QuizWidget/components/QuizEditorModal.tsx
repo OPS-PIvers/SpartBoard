@@ -90,6 +90,12 @@ const rubricSnapshotKey = (rubric: Rubric | undefined): string =>
       ])
     : '';
 
+/** Absent block and present block never collide: '' vs a 4-field key. */
+const recordingKey = (recording: QuizQuestion['recording']): string =>
+  recording
+    ? `${recording.prepSeconds}|${recording.limitSeconds}|${recording.prepExpiry}|${recording.takeLimit ?? 'null'}`
+    : '';
+
 const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -108,6 +114,7 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.maxWords ?? 0) !== (qb.maxWords ?? 0) ||
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
+      recordingKey(qa.recording) !== recordingKey(qb.recording) ||
       rubricSnapshotKey(qa.rubricSnapshot) !==
         rubricSnapshotKey(qb.rubricSnapshot)
     ) {
@@ -352,6 +359,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               folders={folders}
               folderId={folderId}
               onFolderChange={onFolderChange}
+              shuffleQuestionsEnabled={
+                behavior.sessionMode === 'student' &&
+                behavior.sessionOptions.shuffleQuestions === true
+              }
             />
           ) : editorTab === 'stimuli' ? (
             <StimulusManagerPanel state={editorState} />

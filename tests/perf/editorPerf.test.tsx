@@ -59,6 +59,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'perf-user', displayName: 'Perf Teacher' },
     isAdmin: false,
     canAccessFeature: () => false,
+    canAccessQuizMediaResponse: () => false,
   }),
 }));
 

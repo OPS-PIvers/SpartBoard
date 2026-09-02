@@ -35,6 +35,11 @@ import {
   type AudioCaptureStateKey,
 } from './AudioCaptureDevView';
 import {
+  RecordingControlsDevView,
+  RECORDING_CONTROL_STATES,
+  type RecordingControlStateKey,
+} from './RecordingControlsDevView';
+import {
   MediaGradingDevView,
   MEDIA_GRADING_STATES,
   type MediaGradingStateKey,
@@ -60,6 +65,7 @@ type ViewKey =
   | 'va-monitor'
   | 'va-results'
   | 'audio-capture'
+  | 'recording-controls'
   | 'media-grading'
   | 'results-playback';
 type StateKey =
@@ -72,6 +78,7 @@ type StateKey =
   | 'populated'
   | 'empty'
   | AudioCaptureStateKey
+  | RecordingControlStateKey
   | MediaGradingStateKey
   | ResultsPlaybackStateKey;
 
@@ -82,6 +89,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'va-monitor', label: 'VA Monitor' },
   { key: 'va-results', label: 'VA Results' },
   { key: 'audio-capture', label: 'Audio capture' },
+  { key: 'recording-controls', label: 'Recording controls' },
   { key: 'media-grading', label: 'Media grading' },
   { key: 'results-playback', label: 'Results playback' },
 ];
@@ -103,6 +111,10 @@ const STATES: { key: StateKey; label: string }[] = [
     key: key as StateKey,
     label: `Audio: ${key}`,
   })),
+  ...RECORDING_CONTROL_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Recording: ${key.slice('rc-'.length)}`,
+  })),
   ...MEDIA_GRADING_STATES.map((key) => ({
     key: key as StateKey,
     label: `Grading: ${key}`,
@@ -112,6 +124,19 @@ const STATES: { key: StateKey; label: string }[] = [
     label: `Playback: ${key}`,
   })),
 ];
+
+// Picking a view moves the State select onto a key that view actually reads.
+const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
+  'quiz-monitor': 'live',
+  'quiz-present': 'live',
+  'quiz-results': 'populated',
+  'va-monitor': 'live',
+  'va-results': 'populated',
+  'audio-capture': 'prep',
+  'recording-controls': 'rc-enabled-defaults',
+  'media-grading': 'queue',
+  'results-playback': 'playable',
+};
 
 const WIDTHS = [340, 520, 820];
 
@@ -135,6 +160,15 @@ const SessionView: React.FC<{
       ? (state as AudioCaptureStateKey)
       : 'prep';
     return <AudioCaptureDevView state={audioState} />;
+  }
+
+  if (view === 'recording-controls') {
+    const controlState = (
+      RECORDING_CONTROL_STATES as readonly string[]
+    ).includes(state)
+      ? (state as RecordingControlStateKey)
+      : 'rc-enabled-defaults';
+    return <RecordingControlsDevView state={controlState} />;
   }
 
   if (view === 'media-grading') {
@@ -283,7 +317,11 @@ export const SessionViewsDevHarness: React.FC = () => {
                     View
                     <select
                       value={view}
-                      onChange={(e) => setView(e.target.value as ViewKey)}
+                      onChange={(e) => {
+                        const next = e.target.value as ViewKey;
+                        setView(next);
+                        setState(DEFAULT_STATE_FOR_VIEW[next]);
+                      }}
                       className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
                     >
                       {VIEWS.map((v) => (

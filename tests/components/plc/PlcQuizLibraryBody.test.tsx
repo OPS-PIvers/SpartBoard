@@ -86,6 +86,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', email: 't@example.com' },
     canAccessFeature: () => true,
+    canAccessQuizMediaResponse: () => false,
   }),
 }));
 

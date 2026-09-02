@@ -3227,6 +3227,8 @@ export interface RecordingConfig {
   prepExpiry: RecordingPrepExpiry;
   /** Counts takes, not re-takes. `null` = unlimited (the default). */
   takeLimit: number | null;
+  /** Authoring-only stash of the `timeLimit` this block zeroed; never projected to students. */
+  priorTimeLimit?: number;
 }
 
 /**
