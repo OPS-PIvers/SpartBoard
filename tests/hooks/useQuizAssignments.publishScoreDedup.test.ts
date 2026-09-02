@@ -273,8 +273,8 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
   });
 
   it('scores the higher-takeIndex answer over take 0, regardless of array order', async () => {
-    // Take 0 is wrong; take 1 (a genuine retake) is correct and must win
-    // even though it appears first in the array and was answered earlier.
+    // Take 1 is wrong but must win because takeIndex outranks correctness,
+    // even though take 0 (correct) appears second in the array.
     const refStudent = { id: 'r-takeindex' };
     mockGetDocs.mockResolvedValueOnce({
       docs: [
@@ -367,6 +367,44 @@ describe('useQuizAssignments — publishAssignmentScores duplicate-answer dedup'
     );
     if (!responseCall) throw new Error('expected batch.update on response ref');
     // Earliest-answeredAt entry (correct) wins the tie → earned=1, max=2 → 50.
+    expect((responseCall[1] as { score: number }).score).toBe(50);
+  });
+
+  it('credits the earliest-answeredAt duplicate even when it is stored last in the array', async () => {
+    // No takeIndex on either entry, so they tie and fall through to the
+    // answeredAt tie-break — this must hold regardless of raw array order.
+    const refStudent = { id: 'r-reverse-order' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              // Wrong duplicate stored FIRST in the array, but answered LATER.
+              { questionId: 'q0', answer: 'b', answeredAt: 2 },
+              // Correct entry stored SECOND, but answered EARLIER.
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!responseCall) throw new Error('expected batch.update on response ref');
+    // Earliest-answeredAt (correct) entry wins → earned=1, max=2 (q1 unanswered) → 50.
     expect((responseCall[1] as { score: number }).score).toBe(50);
   });
 });

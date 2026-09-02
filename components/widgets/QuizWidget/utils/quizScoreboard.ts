@@ -126,7 +126,7 @@ export function isGamificationActive(session?: QuizScoringSession): boolean {
  *
  * Drive-sync duplication and arrayUnion races can write the same question id
  * twice into `questions`. `getEarnedPoints` already guards the *answer* side
- * via `seenQuestionIds`, but the *denominator* must also dedup — otherwise
+ * via `selectRepresentativeAnswers`, but the *denominator* must also dedup — otherwise
  * `maxPoints` inflates while `earned` stays correct, deflating the score (e.g.
  * a student who answered the only real question correctly scores 50% instead of
  * 100% when that question appears twice). Mirrors the identical guard in
