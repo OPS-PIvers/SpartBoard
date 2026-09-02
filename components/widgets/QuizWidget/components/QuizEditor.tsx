@@ -16,7 +16,13 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { LibraryFolder, QuizQuestion, QuizQuestionType, Rubric } from '@/types';
+import {
+  LibraryFolder,
+  QuizQuestion,
+  QuizQuestionType,
+  Rubric,
+  isWrittenQuestionType,
+} from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -486,7 +492,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               aria-label="Type"
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
-                const isWritten = nextType === 'short' || nextType === 'essay';
+                const isWritten = isWrittenQuestionType(nextType);
                 // A rubric only applies to written types, and its Detach button
                 // only renders there — so drop it here, restoring the stashed
                 // manual points, or Points stays locked with no way to unlock.
@@ -634,7 +640,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             correctAnswer={q.correctAnswer}
             onChange={handleOrderingChange}
           />
-        ) : q.type === 'short' || q.type === 'essay' ? (
+        ) : isWrittenQuestionType(q.type) ? (
           <div className="space-y-3">
             <div className="flex gap-2 p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -787,7 +793,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         )}
       </div>
 
-      {showRubricBuilder && (q.type === 'short' || q.type === 'essay') && (
+      {showRubricBuilder && isWrittenQuestionType(q.type) && (
         <RubricBuilderPanel
           key={q.id}
           questionId={q.id}

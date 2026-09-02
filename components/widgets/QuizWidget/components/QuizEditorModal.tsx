@@ -19,6 +19,7 @@ import {
   QuizQuestion,
   QuizStimulus,
   Rubric,
+  isWrittenQuestionType,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
@@ -261,7 +262,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
       // Written response types (short/essay) have no correct answer — they
       // are manually graded by the teacher after the quiz closes.
-      const isWritten = q.type === 'short' || q.type === 'essay';
+      const isWritten = isWrittenQuestionType(q.type);
       if (!isWritten && !q.correctAnswer.trim())
         errors.push(`Question ${i + 1}: correct answer is required`);
     });
