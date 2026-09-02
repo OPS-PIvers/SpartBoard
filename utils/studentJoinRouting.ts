@@ -13,7 +13,8 @@
  * root-relative path to a known student-join route:
  *   - must start with a single `/` (reject `//host` protocol-relative URLs),
  *   - must contain no backslash (some engines normalise `\` to `/`),
- *   - its path (sans query/hash) must be exactly `/quiz` or `/join`.
+ *   - its path (sans query/hash) must be exactly `/quiz`, `/join`, or a
+ *     `/activity-wall/{sessionId}` submission page.
  *
  * Anything else returns `null` and the caller should fall back to its default
  * destination.
@@ -29,7 +30,13 @@ export function resolveNextTarget(rawNext: string | null): string | null {
   }
   // Compare on the path alone so `/quiz?code=ABC` (with its query) is allowed.
   const path = rawNext.split(/[?#]/)[0];
-  return path === '/quiz' || path === '/join' ? rawNext : null;
+  if (path === '/quiz' || path === '/join') return rawNext;
+  // Activity Wall submission pages: `/activity-wall/{sessionId}` only. The
+  // gallery sub-route is public and never a post-login destination.
+  return /^\/activity-wall\/[A-Za-z0-9_-]+$/.test(path) &&
+    !path.startsWith('/activity-wall/gallery')
+    ? rawNext
+    : null;
 }
 
 /**

@@ -1,530 +1,590 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, ImagePlus, Loader2, Send, X } from 'lucide-react';
-import { ActivityWallIdentificationMode, ActivityWallMode } from '@/types';
-import { db, auth, storage } from '@/config/firebase';
-import { signInAnonymously } from 'firebase/auth';
-import { doc, collection, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes } from 'firebase/storage';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Loader2, Send } from 'lucide-react';
+import { db, functions, storage } from '@/config/firebase';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { deleteObject, ref, uploadBytesResumable } from 'firebase/storage';
+import type {
+  ActivityWallLinkPreview,
+  ActivityWallSession,
+  ActivityWallSubmission,
+  ActivityWallSubmissionType,
+} from '@/types';
+import {
+  getSessionIdFromPath,
+  useActivityWallStudentSession,
+} from './useActivityWallStudentSession';
+import { WallShell } from './submission/WallShell';
+import { SubmissionTypePicker } from './submission/SubmissionTypePicker';
+import {
+  StructureFields,
+  type StructureValue,
+} from './submission/StructureFields';
+import {
+  FileField,
+  LinkField,
+  TextField,
+  WordField,
+} from './submission/ContentFields';
+import { MyPostsList } from './submission/MyPostsList';
+import {
+  isUploadType,
+  safeFileName,
+  validateUpload,
+} from './submission/uploadLimits';
+import type { MapPin } from './submission/MapPinPicker';
 
-type ActivityPayload = {
-  id: string;
-  title: string;
-  prompt: string;
-  mode: ActivityWallMode;
-  moderationEnabled: boolean;
-  identificationMode: ActivityWallIdentificationMode;
-  teacherUid: string;
+const MapPinPicker = lazy(() => import('./submission/MapPinPicker'));
+
+const DEFAULT_MAP_CENTER = { lat: 39.5, lng: -98.35, zoom: 4 };
+
+type UploadType = 'photo' | 'video' | 'file';
+
+const availableTypes = (
+  session: ActivityWallSession
+): Exclude<ActivityWallSubmissionType, 'word'>[] => {
+  const allowed = session.allowedTypes;
+  const types: Exclude<ActivityWallSubmissionType, 'word'>[] = ['text'];
+  if (allowed?.photo) types.push('photo');
+  if (allowed?.link) types.push('link');
+  if (allowed?.file) types.push('file');
+  if (allowed?.video) types.push('video');
+  return types;
 };
 
-/**
- * The `/activity-wall/:pathId` app supports two launch styles:
- *
- *   - **Legacy `?data=<base64>` payload** (teacher's code/PIN flow). The
- *     path segment is the `activityId` and the payload JSON carries the
- *     full activity config.
- *   - **Class-targeted link** from `/my-assignments` (Phase 3D). No
- *     `?data=` param; the path segment is the session doc id
- *     (`${teacherUid}_${activityId}`) and we read the activity config
- *     directly from `activity_wall_sessions/{sessionId}` via a one-shot
- *     `getDoc`. We deliberately do NOT use `onSnapshot` here — session
- *     config is write-once and re-rendering on every teacher tweak
- *     would multiply per-student Firestore reads across a class of 30.
- */
-type PayloadState =
-  | { kind: 'loading' }
-  | { kind: 'ready'; payload: ActivityPayload }
-  | { kind: 'error' };
+/** Matches only the numeric `${uid}__${n}` capped-slot id shape (never the uncapped `${uid}__${random}` shape). */
+const cappedSlotIdPattern = (uid: string): RegExp =>
+  new RegExp(`^${uid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}__[0-9]{1,3}$`);
 
-const isActivityPayload = (value: unknown): value is ActivityPayload => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const payload = value as {
-    id?: unknown;
-    title?: unknown;
-    prompt?: unknown;
-    mode?: unknown;
-    moderationEnabled?: unknown;
-    identificationMode?: unknown;
-    teacherUid?: unknown;
-  };
-
-  return (
-    typeof payload.id === 'string' &&
-    typeof payload.title === 'string' &&
-    typeof payload.prompt === 'string' &&
-    typeof payload.teacherUid === 'string' &&
-    typeof payload.moderationEnabled === 'boolean' &&
-    (payload.mode === 'text' || payload.mode === 'photo') &&
-    (payload.identificationMode === 'anonymous' ||
-      payload.identificationMode === 'name' ||
-      payload.identificationMode === 'pin' ||
-      payload.identificationMode === 'name-pin')
+/** Lowest free `${uid}__${n}` slot, or null when the cap is exhausted. */
+const nextCappedSlot = (
+  uid: string,
+  posts: ActivityWallSubmission[],
+  max: number
+): string | null => {
+  const slotPattern = cappedSlotIdPattern(uid);
+  const used = new Set(
+    posts.map((post) => post.id).filter((id) => slotPattern.test(id))
   );
+  for (let index = 0; index < max; index += 1) {
+    const candidate = `${uid}__${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return null;
 };
 
-const decodeBase64Utf8 = (value: string): string | null => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
+/** 8+ url-safe chars for uncapped `${uid}__${suffix}` ids; never purely digits (so it can't collide with the capped `[0-9]{1,3}` shape). */
+const uncappedSubmissionSuffix = (): string => {
+  const alphabet =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  let suffix = Array.from(
+    bytes,
+    (byte) => alphabet[byte % alphabet.length]
+  ).join('');
+  if (/^[0-9]+$/.test(suffix)) suffix = `x${suffix.slice(1)}`;
+  return suffix;
+};
 
+const youTubeVideoId = (url: string): string | null => {
   try {
-    const binary = atob(decodeURIComponent(trimmed));
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return new TextDecoder().decode(bytes);
+    const parsed = new URL(url);
+    if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1) || null;
+    if (parsed.hostname.endsWith('youtube.com'))
+      return parsed.searchParams.get('v');
   } catch {
     return null;
   }
+  return null;
 };
 
-const parsePayloadFromUrl = (): ActivityPayload | null => {
-  const params = new URLSearchParams(window.location.search);
-  const encoded = params.get('data');
-  if (!encoded) return null;
-
-  const decodedJson = decodeBase64Utf8(encoded);
-  if (!decodedJson) return null;
-
+const domainOf = (url: string): string => {
   try {
-    const parsed = JSON.parse(decodedJson) as unknown;
-    if (!isActivityPayload(parsed)) return null;
-    return parsed;
+    return new URL(url).hostname.replace(/^www\./, '');
   } catch {
-    return null;
+    return 'link';
   }
 };
 
-/**
- * Normalise a raw Firestore `activity_wall_sessions/{sessionId}` doc
- * into the same `ActivityPayload` shape the base64 URL carries. Returns
- * null when required fields are missing or malformed — the student app
- * treats that as an error state (no deep-link resolution possible).
- *
- * Session docs written before Phase 3D may be missing `moderationEnabled`
- * and `identificationMode` (those fields were added alongside this
- * fallback). We default `moderationEnabled` to false and
- * `identificationMode` to 'anonymous' so legacy sessions still render —
- * both are the safest possible defaults (no submissions auto-hidden,
- * no PII collected).
- */
-const normaliseSessionDoc = (
-  sessionId: string,
-  raw: Record<string, unknown>
-): ActivityPayload | null => {
-  const {
-    activityId,
-    teacherUid,
-    title,
-    prompt,
-    mode,
-    moderationEnabled,
-    identificationMode,
-  } = raw;
-
-  if (typeof activityId !== 'string' || activityId.length === 0) return null;
-  if (typeof teacherUid !== 'string' || teacherUid.length === 0) return null;
-  if (typeof title !== 'string') return null;
-  if (typeof prompt !== 'string') return null;
-  if (mode !== 'text' && mode !== 'photo') return null;
-
-  // The submit handler expects a specific sessionId: `${teacherUid}_${id}`.
-  // Refuse to proceed if the doc id doesn't match that convention, so
-  // submission paths never write to an unexpected collection.
-  if (sessionId !== `${teacherUid}_${activityId}`) return null;
-
-  const resolvedModeration =
-    typeof moderationEnabled === 'boolean' ? moderationEnabled : false;
-  const resolvedIdentification: ActivityWallIdentificationMode =
-    identificationMode === 'name' ||
-    identificationMode === 'pin' ||
-    identificationMode === 'name-pin' ||
-    identificationMode === 'anonymous'
-      ? identificationMode
-      : 'anonymous';
-
-  return {
-    id: activityId,
-    teacherUid,
-    title,
-    prompt,
-    mode,
-    moderationEnabled: resolvedModeration,
-    identificationMode: resolvedIdentification,
-  };
-};
-
-const getSafePreviewUrl = (value: string | null): string | null => {
-  if (!value) return null;
-  return value.startsWith('blob:') ? value : null;
-};
-
-const buildParticipantLabel = (
-  identificationMode: ActivityWallIdentificationMode,
-  name: string,
-  pin: string
-): string => {
-  if (identificationMode === 'name') return name || 'Student';
-  if (identificationMode === 'pin') return `PIN: ${pin}`;
-  if (identificationMode === 'name-pin') return `${name} (${pin})`;
-  return 'Anonymous';
+const fetchPreview = async (
+  url: string
+): Promise<ActivityWallLinkPreview | null> => {
+  try {
+    const callable = httpsCallable<
+      { url: string },
+      Partial<ActivityWallLinkPreview> & { videoId?: string }
+    >(functions, 'fetchLinkPreview');
+    const result = await callable({ url });
+    const data = result.data;
+    if (!data) return null;
+    const preview: ActivityWallLinkPreview = {
+      domain: data.domain ?? domainOf(url),
+    };
+    if (data.title) preview.title = data.title;
+    if (data.description) preview.description = data.description;
+    if (data.image) preview.image = data.image;
+    return preview;
+  } catch (error) {
+    console.warn('[ActivityWallStudentApp] Link preview failed:', error);
+    return null;
+  }
 };
 
 export const ActivityWallStudentApp: React.FC = () => {
-  // The URL payload — when present — is authoritative. We parse it
-  // synchronously in the same render as mount so URL-based launches
-  // render immediately without a loading flash.
-  const urlPayload = useMemo(() => parsePayloadFromUrl(), []);
-  const pathSegment = useMemo(
-    () =>
-      window.location.pathname.replace(/^\/activity-wall\/?/, '').split('/')[0],
+  const sessionId = useMemo(
+    () => getSessionIdFromPath(window.location.pathname),
     []
   );
+  const state = useActivityWallStudentSession(sessionId);
 
-  const [payloadState, setPayloadState] = useState<PayloadState>(() => {
-    if (urlPayload && pathSegment && urlPayload.id === pathSegment) {
-      return { kind: 'ready', payload: urlPayload };
-    }
-    // No usable URL payload (either missing or mismatched against the
-    // path) — fall back to a Firestore read, but only when we have a
-    // non-empty path segment we can use as a sessionId.
-    if (!pathSegment) return { kind: 'error' };
-    if (urlPayload) {
-      // Param was present but mismatched — that's a genuinely bad link,
-      // not a class-targeted deep-link. Surface the error immediately
-      // rather than wasting a Firestore read.
-      return { kind: 'error' };
-    }
-    return { kind: 'loading' };
-  });
-  const [name, setName] = useState('');
-  const [pin, setPin] = useState('');
-  const [response, setResponse] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [type, setType] = useState<ActivityWallSubmissionType>('text');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [word, setWord] = useState('');
+  const [url, setUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [pin, setPin] = useState<MapPin | null>(null);
+  const [structure, setStructure] = useState<StructureValue>({
+    sectionId: '',
+    rowId: '',
+    colId: '',
+    label: '',
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [justPosted, setJustPosted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Firestore session-config fallback (Phase 3D). Runs only when the URL
-  // didn't carry a `?data=` payload — i.e. a class-targeted launch from
-  // `/my-assignments`. Uses a one-shot `getDoc` rather than `onSnapshot`:
-  // session config is write-once (teachers don't mutate title/prompt
-  // mid-activity) and subscribing would multiply per-student reads for
-  // zero benefit. Firestore rules (`passesStudentClassGate`) enforce
-  // that ClassLink-authenticated students can only read the doc when
-  // their `classIds` claim contains the session's `classId`.
-  //
-  // Syncs with the Firestore external system, which is exactly what
-  // `useEffect` is for.
+  // Object URLs are an external browser resource; revoke on change.
   useEffect(() => {
-    if (payloadState.kind !== 'loading') return;
-    if (!pathSegment) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const snap = await getDoc(
-          doc(db, 'activity_wall_sessions', pathSegment)
-        );
-        if (cancelled) return;
-        if (!snap.exists()) {
-          setPayloadState({ kind: 'error' });
-          return;
-        }
-        const normalised = normaliseSessionDoc(
-          pathSegment,
-          snap.data() as Record<string, unknown>
-        );
-        if (!normalised) {
-          setPayloadState({ kind: 'error' });
-          return;
-        }
-        setPayloadState({ kind: 'ready', payload: normalised });
-      } catch (error) {
-        // Firestore permission-denied and network failures both land
-        // here. We don't expose the specific reason to the student —
-        // just show the same clean "not available" state so the UI
-        // never leaks access-control hints.
-        console.error(
-          '[ActivityWallStudentApp] Session-config fallback failed:',
-          error
-        );
-        if (cancelled) return;
-        setPayloadState({ kind: 'error' });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [payloadState.kind, pathSegment]);
-
-  // Keep previewUrl in sync with selectedFile and revoke the blob URL on cleanup
-  // to avoid leaking browser memory (synchronization with an external resource).
-  // Must be called before any early return to satisfy the Rules of Hooks.
-  React.useEffect(() => {
-    if (!selectedFile) {
+    if (!file) {
       setPreviewUrl(null);
       return;
     }
-    const url = URL.createObjectURL(selectedFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedFile]);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
 
-  const safePreviewUrl = getSafePreviewUrl(previewUrl);
+  const session = state.kind === 'ready' ? state.session : null;
+  const isWordCloud = session?.layout === 'wordcloud';
 
-  if (payloadState.kind === 'loading') {
+  // Placement selects fall back to the first option until the student picks one.
+  const placement: StructureValue = {
+    sectionId: structure.sectionId || (session?.sections?.[0]?.id ?? ''),
+    rowId: structure.rowId || (session?.tableRows?.[0]?.id ?? ''),
+    colId: structure.colId || (session?.tableCols?.[0]?.id ?? ''),
+    label: structure.label,
+  };
+
+  if (state.kind === 'loading' || state.kind === 'redirecting') {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 text-center text-slate-600">
-        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 text-center text-slate-700">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
         Loading activity…
       </div>
     );
   }
 
-  if (payloadState.kind === 'error') {
+  if (state.kind === 'not-found') {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 text-center">
-        This activity isn&apos;t available right now. Ask your teacher for a new
-        link.
-      </div>
+      <WallShell>
+        <p className="text-center font-medium text-slate-700">
+          This wall isn&apos;t available right now. Ask your teacher for a new
+          link.
+        </p>
+      </WallShell>
     );
   }
 
-  const payload = payloadState.payload;
+  const { uid, isGuest, participantLabel, myPosts } = state;
+  const wall = state.session;
 
-  const requiresName =
-    payload.identificationMode === 'name' ||
-    payload.identificationMode === 'name-pin';
-  const requiresPin =
-    payload.identificationMode === 'pin' ||
-    payload.identificationMode === 'name-pin';
+  if (wall.acceptingResponses === false) {
+    return (
+      <WallShell appearance={wall.appearance} title={wall.title}>
+        <p className="text-center text-lg font-bold text-slate-800">
+          This wall is closed
+        </p>
+        <p className="text-center text-sm text-slate-600">
+          Your teacher has stopped accepting new posts.
+        </p>
+      </WallShell>
+    );
+  }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFile(e.target.files?.[0] ?? null);
+  const max = wall.maxPostsPerStudent ?? 0;
+  const capped = max > 0;
+  const cappedSlot = capped ? nextCappedSlot(uid, myPosts, max) : null;
+  const capUsedUp = capped && (cappedSlot === null || myPosts.length >= max);
+  const capExhausted = capUsedUp && editingId === null;
+  const types = availableTypes(wall);
+  const effectiveType: ActivityWallSubmissionType = isWordCloud ? 'word' : type;
+
+  const resetForm = () => {
+    setTitle('');
+    setBody('');
+    setWord('');
+    setUrl('');
+    setFile(null);
+    setPin(null);
+    setEditingId(null);
+    setProgress(null);
   };
 
-  const clearPhoto = () => {
-    setSelectedFile(null);
+  const beginEdit = (post: ActivityWallSubmission) => {
+    setEditingId(post.id);
+    setType(post.type ?? 'text');
+    setTitle(post.title ?? '');
+    setBody(post.type === 'link' ? '' : post.content);
+    setWord(post.type === 'word' ? post.content : '');
+    setUrl(post.type === 'link' ? post.content : '');
+    const [postRowId, postColId] = post.cellKey?.split('|') ?? [];
+    setStructure((prev) => ({
+      ...prev,
+      sectionId: post.sectionId ?? prev.sectionId,
+      rowId: postRowId ?? prev.rowId,
+      colId: postColId ?? prev.colId,
+      label: post.label ?? '',
+    }));
+    setJustPosted(false);
+    setError(null);
   };
+
+  const removePost = async (post: ActivityWallSubmission) => {
+    setBusyId(post.id);
+    try {
+      await deleteDoc(
+        doc(db, 'activity_wall_sessions', wall.id, 'submissions', post.id)
+      );
+      if (editingId === post.id) resetForm();
+    } catch (deleteError) {
+      console.error('[ActivityWallStudentApp] Delete failed:', deleteError);
+      setError('Could not delete that post. Please try again.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const contentValid = (() => {
+    if (effectiveType === 'word') return word.trim().length > 0;
+    if (effectiveType === 'link') return url.trim().startsWith('http');
+    if (isUploadType(effectiveType)) return editingId !== null || file !== null;
+    return body.trim().length > 0;
+  })();
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (requiresName && !name.trim()) return;
-    if (requiresPin && !pin.trim()) return;
-    if (payload.mode === 'text' && !response.trim()) return;
-    if (payload.mode === 'photo' && !selectedFile) return;
+    if (submitting || !contentValid) return;
+    setError(null);
 
-    if (payload.mode === 'photo' && selectedFile) {
-      if (selectedFile.size >= 10 * 1024 * 1024) {
-        setSubmitError(
-          'Photo must be smaller than 10 MB. Please choose a smaller image.'
-        );
-        return;
-      }
-      if (!selectedFile.type.startsWith('image/')) {
-        setSubmitError('Please select a valid image file.');
-        return;
-      }
+    if (wall.layout === 'map' && !editingId && !pin) {
+      setError('Tap the map to drop a pin first.');
+      return;
     }
 
+    if (editingId) {
+      setSubmitting(true);
+      try {
+        const patch: Record<string, unknown> = { editedAt: Date.now() };
+        if (effectiveType === 'word') patch.content = word.trim();
+        else if (effectiveType === 'link') patch.content = url.trim();
+        else if (!isUploadType(effectiveType)) patch.content = body.trim();
+        if (!isWordCloud) patch.title = title.trim();
+        if (wall.layout === 'timeline') patch.label = placement.label.trim();
+        if (wall.layout === 'columns') patch.sectionId = placement.sectionId;
+        if (wall.layout === 'table' && placement.rowId && placement.colId)
+          patch.cellKey = `${placement.rowId}|${placement.colId}`;
+        await updateDoc(
+          doc(db, 'activity_wall_sessions', wall.id, 'submissions', editingId),
+          patch
+        );
+        resetForm();
+        setJustPosted(true);
+      } catch (updateError) {
+        console.error('[ActivityWallStudentApp] Edit failed:', updateError);
+        setError('Could not save your changes. Please try again.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (capUsedUp || (capped && !cappedSlot)) {
+      setError('You have used all of your posts for this wall.');
+      return;
+    }
+
+    let uploadFile: File | null = null;
+    if (isUploadType(effectiveType)) {
+      if (!file) return;
+      const invalid = validateUpload(effectiveType, file);
+      if (invalid) {
+        setError(invalid);
+        return;
+      }
+      uploadFile = file;
+    }
+
+    const submissionId = cappedSlot ?? `${uid}__${uncappedSubmissionSuffix()}`;
     setSubmitting(true);
-    setSubmitError(null);
 
     try {
-      if (!auth.currentUser) {
-        await signInAnonymously(auth);
-      }
-
-      const sessionId = `${payload.teacherUid}_${payload.id}`;
-      const submissionId = crypto.randomUUID();
-      const submissionDoc = doc(
-        collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
-        submissionId
-      );
-
-      let content: string;
+      let content = '';
       let storagePath: string | undefined;
+      let linkPreview: ActivityWallLinkPreview | undefined;
 
-      if (payload.mode === 'photo' && selectedFile) {
-        storagePath = `activity_wall_photos/${sessionId}/${submissionId}`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, selectedFile);
+      if (uploadFile) {
+        const fileName = safeFileName(uploadFile.name);
+        storagePath = `activity_wall_media/${wall.id}/${submissionId}/${fileName}`;
+        const task = uploadBytesResumable(
+          ref(storage, storagePath),
+          uploadFile
+        );
+        await new Promise<void>((resolve, reject) => {
+          task.on(
+            'state_changed',
+            (snapshot) => {
+              setProgress(
+                snapshot.totalBytes > 0
+                  ? Math.round(
+                      (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+                    )
+                  : 0
+              );
+            },
+            reject,
+            () => resolve()
+          );
+        });
         content = storagePath;
+      } else if (effectiveType === 'link') {
+        content = url.trim();
+        const videoId = youTubeVideoId(content);
+        if (videoId) {
+          linkPreview = { domain: 'youtube.com', title: `YouTube ${videoId}` };
+        } else {
+          linkPreview =
+            (await fetchPreview(content)) ??
+            ({ domain: domainOf(content) } as ActivityWallLinkPreview);
+        }
+      } else if (effectiveType === 'word') {
+        content = word.trim();
       } else {
-        content = response.trim();
+        content = body.trim();
       }
 
-      await setDoc(submissionDoc, {
+      const payload: Record<string, unknown> = {
         id: submissionId,
-        activityId: payload.id,
+        activityId: wall.activityId,
+        type: effectiveType,
         content,
+        authorUid: uid,
+        isGuest,
+        participantLabel,
         submittedAt: Date.now(),
-        status: payload.moderationEnabled ? 'pending' : 'approved',
-        participantLabel: buildParticipantLabel(
-          payload.identificationMode,
-          name.trim(),
-          pin.trim()
-        ),
-        ...(storagePath
-          ? {
-              storagePath,
-              archiveStatus: 'firebase',
-            }
-          : {}),
-      });
+        status: wall.moderationEnabled ? 'pending' : 'approved',
+      };
+      if (!isWordCloud && title.trim()) payload.title = title.trim();
+      if (wall.layout === 'columns' && placement.sectionId)
+        payload.sectionId = placement.sectionId;
+      if (wall.layout === 'table' && placement.rowId && placement.colId)
+        payload.cellKey = `${placement.rowId}|${placement.colId}`;
+      if (wall.layout === 'timeline') {
+        payload.order = Date.now();
+        if (placement.label.trim()) payload.label = placement.label.trim();
+      }
+      if (wall.layout === 'map' && pin) {
+        payload.lat = pin.lat;
+        payload.lng = pin.lng;
+      }
+      if (linkPreview) payload.linkPreview = linkPreview;
+      if (storagePath && uploadFile) {
+        payload.storagePath = storagePath;
+        payload.archiveStatus = 'firebase';
+        payload.fileName = safeFileName(uploadFile.name);
+        payload.mimeType = uploadFile.type;
+        payload.sizeBytes = uploadFile.size;
+      }
 
-      setSubmitted(true);
-    } catch (error) {
-      console.error('[ActivityWallStudentApp] Submission failed:', error);
-      setSubmitError(
-        'Could not submit your response. Please check your connection and try again.'
-      );
+      try {
+        await setDoc(
+          doc(
+            collection(db, 'activity_wall_sessions', wall.id, 'submissions'),
+            submissionId
+          ),
+          payload
+        );
+      } catch (writeError) {
+        // Best effort: drop the orphaned upload, but surface the write failure.
+        if (storagePath)
+          await deleteObject(ref(storage, storagePath)).catch(() => undefined);
+        throw writeError;
+      }
+      resetForm();
+      setJustPosted(true);
+    } catch (submitError) {
+      console.error('[ActivityWallStudentApp] Submission failed:', submitError);
+      setError('Could not post. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
+      setProgress(null);
     }
   };
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-100">
-      <div className="min-h-full flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="bg-brand-blue-primary text-white px-5 py-4">
-            <p className="text-xs uppercase tracking-widest font-bold opacity-90">
-              Activity
-            </p>
-            <h1 className="text-xl font-black">{payload.title}</h1>
-          </div>
-
-          <div className="p-5 space-y-4">
-            <p className="text-slate-700 font-medium">{payload.prompt}</p>
-
-            {!submitted ? (
-              <form className="space-y-3" onSubmit={onSubmit}>
-                {requiresName && (
-                  <input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Your name"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                  />
-                )}
-                {requiresPin && (
-                  <input
-                    value={pin}
-                    onChange={(event) => setPin(event.target.value)}
-                    placeholder="PIN"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                  />
-                )}
-
-                {payload.mode === 'text' ? (
-                  <div className="space-y-1">
-                    <textarea
-                      value={response}
-                      onChange={(event) => setResponse(event.target.value)}
-                      rows={4}
-                      placeholder="Type your response"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                      maxLength={5000}
-                    />
-                    <p className="text-right text-xs text-slate-400">
-                      {response.length}/5000
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="block cursor-pointer">
-                      <div
-                        className={`flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl transition-colors ${
-                          selectedFile
-                            ? 'border-emerald-400 bg-emerald-50'
-                            : 'border-slate-300 hover:border-brand-blue-primary'
-                        }`}
-                      >
-                        {safePreviewUrl ? (
-                          <img
-                            src={safePreviewUrl}
-                            alt="Preview"
-                            className="max-h-48 w-full object-contain rounded-lg"
-                          />
-                        ) : (
-                          <>
-                            <div className="flex gap-3 text-slate-400">
-                              <Camera className="w-8 h-8" />
-                              <ImagePlus className="w-8 h-8" />
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm font-semibold text-brand-blue-primary">
-                                Take or select a photo
-                              </p>
-                              <p className="text-xs text-slate-400 mt-1">
-                                Tap to use your camera or photo library
-                              </p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        aria-label="Choose a photo to upload"
-                        className="sr-only"
-                        onChange={handleFileChange}
-                      />
-                    </label>
-                    {selectedFile && (
-                      <button
-                        type="button"
-                        onClick={clearPhoto}
-                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                        Remove photo
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {submitError && (
-                  <p className="text-sm text-red-600 font-medium">
-                    {submitError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={
-                    submitting ||
-                    (payload.mode === 'photo' && !selectedFile) ||
-                    (payload.mode === 'text' && !response.trim())
-                  }
-                  className="w-full bg-emerald-600 text-white rounded-xl py-2 font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : payload.mode === 'text' ? (
-                    <Send className="w-4 h-4" />
-                  ) : (
-                    <Camera className="w-4 h-4" />
-                  )}
-                  {submitting
-                    ? payload.mode === 'photo'
-                      ? 'Uploading…'
-                      : 'Submitting…'
-                    : 'Submit response'}
-                </button>
-              </form>
-            ) : (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700 text-sm font-medium text-center">
-                Your response has been submitted!
-              </div>
-            )}
-          </div>
+    <WallShell
+      appearance={wall.appearance}
+      title={wall.title}
+      prompt={wall.prompt}
+    >
+      {justPosted && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm font-semibold text-emerald-800">
+          {wall.moderationEnabled
+            ? 'Sent to your teacher for review.'
+            : 'Posted!'}
         </div>
-      </div>
-    </div>
+      )}
+
+      {capExhausted ? (
+        <p className="text-center text-sm font-medium text-slate-700">
+          You have used all {max} of your posts for this wall.
+        </p>
+      ) : (
+        <form className="space-y-4" onSubmit={onSubmit}>
+          {!isWordCloud && !editingId && (
+            <SubmissionTypePicker
+              available={types}
+              value={type}
+              onChange={(next) => {
+                setType(next);
+                setFile(null);
+              }}
+            />
+          )}
+
+          {isWordCloud ? (
+            <WordField value={word} onChange={setWord} />
+          ) : effectiveType === 'link' ? (
+            <LinkField
+              url={url}
+              title={title}
+              onUrlChange={setUrl}
+              onTitleChange={setTitle}
+            />
+          ) : isUploadType(effectiveType) ? (
+            <>
+              {editingId ? (
+                <p className="text-sm text-slate-600">
+                  You can change the title of an uploaded post.
+                </p>
+              ) : (
+                <FileField
+                  type={effectiveType as UploadType}
+                  file={file}
+                  previewUrl={previewUrl}
+                  onSelect={setFile}
+                />
+              )}
+              <TextField
+                title={title}
+                body=""
+                hideBody
+                onTitleChange={setTitle}
+                onBodyChange={() => undefined}
+              />
+            </>
+          ) : (
+            <TextField
+              title={title}
+              body={body}
+              onTitleChange={setTitle}
+              onBodyChange={setBody}
+            />
+          )}
+
+          {!isWordCloud && (
+            <StructureFields
+              session={wall}
+              value={placement}
+              onChange={(patch) =>
+                setStructure((prev) => ({ ...prev, ...patch }))
+              }
+            />
+          )}
+
+          {wall.layout === 'map' && !editingId && (
+            <Suspense
+              fallback={
+                <div className="h-64 animate-pulse rounded-xl bg-slate-200" />
+              }
+            >
+              <MapPinPicker
+                center={wall.mapCenter ?? DEFAULT_MAP_CENTER}
+                pin={pin}
+                onPick={setPin}
+              />
+            </Suspense>
+          )}
+
+          {progress !== null && (
+            <div
+              className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
+              role="progressbar"
+              aria-label="Upload progress"
+              aria-valuenow={progress}
+            >
+              <div
+                className="h-full bg-brand-blue-primary transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+
+          {error && <p className="text-sm font-medium text-red-700">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={submitting || !contentValid}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 font-bold text-white transition disabled:opacity-60"
+          >
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Send className="h-4 w-4" aria-hidden="true" />
+            )}
+            {editingId ? 'Save changes' : 'Post'}
+          </button>
+
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="w-full text-sm font-semibold text-slate-600 hover:text-slate-900"
+            >
+              Cancel edit
+            </button>
+          )}
+        </form>
+      )}
+
+      <MyPostsList
+        posts={myPosts}
+        allowEdit={wall.allowStudentEdit === true}
+        allowDelete={wall.allowStudentDelete === true}
+        busyId={busyId}
+        onEdit={beginEdit}
+        onDelete={(post) => void removePost(post)}
+      />
+    </WallShell>
   );
 };
