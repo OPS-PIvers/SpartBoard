@@ -12,19 +12,25 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { usePlcQuizzes, writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
+import {
+  mirrorPlcQuizHeadersBySyncGroup,
+  usePlcQuizzes,
+  writePlcQuizEntry,
+} from '@/hooks/usePlcQuizzes';
 import { logError } from '@/utils/logError';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
   doc: vi.fn(),
+  getDocs: vi.fn(),
   onSnapshot: vi.fn(),
   orderBy: vi.fn((field: string, dir: 'asc' | 'desc') => ({
     __orderBy: { field, dir },
@@ -32,6 +38,9 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
+  where: vi.fn((field: string, op: string, value: unknown) => ({
+    __where: { field, op, value },
+  })),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -51,6 +60,7 @@ vi.mock('@/utils/logError', () => ({
 const mockCollection = collection as Mock;
 const mockDeleteDoc = deleteDoc as Mock;
 const mockDoc = doc as Mock;
+const mockGetDocs = getDocs as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockOrderBy = orderBy as Mock;
 const mockQuery = query as Mock;
@@ -565,6 +575,65 @@ describe('usePlcQuizzes - mutators', () => {
     expect(fields).not.toHaveProperty('id');
     expect(fields).not.toHaveProperty('syncGroupId');
     expect(fields).not.toHaveProperty('sharedBy');
+  });
+
+  it('mirrorPlcQuizHeadersBySyncGroup patches every matching row in every PLC', async () => {
+    mockGetDocs.mockImplementation((q: { __query: unknown[] }) => {
+      // Two rows in plc-1, none in plc-2.
+      const constraint = q.__query[0] as { __where: { value: string } };
+      expect(constraint.__where.value).toBe('sync-1');
+      return Promise.resolve({
+        docs:
+          mockGetDocs.mock.calls.length === 1
+            ? [
+                { ref: 'plcs/plc-1/quizzes/pq-a' },
+                { ref: 'plcs/plc-1/quizzes/pq-b' },
+              ]
+            : [],
+      });
+    });
+
+    await mirrorPlcQuizHeadersBySyncGroup(['plc-1', 'plc-2'], 'sync-1', {
+      title: 'Renamed',
+      questionCount: 4,
+      sessionMode: 'student',
+      attemptLimit: null,
+    });
+
+    expect(mockCollection).toHaveBeenCalledWith(
+      expect.anything(),
+      'plcs',
+      'plc-1',
+      'quizzes'
+    );
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(2);
+    const [ref, fields] = mockUpdateDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(ref).toBe('plcs/plc-1/quizzes/pq-a');
+    expect(fields).toMatchObject({
+      title: 'Renamed',
+      questionCount: 4,
+      sessionMode: 'student',
+      attemptLimit: null,
+    });
+    expect(fields).not.toHaveProperty('sessionOptions');
+  });
+
+  it('mirrorPlcQuizHeadersBySyncGroup logs per-PLC failures and never rejects', async () => {
+    const err = new Error('permission-denied');
+    mockGetDocs.mockRejectedValueOnce(err);
+
+    await expect(
+      mirrorPlcQuizHeadersBySyncGroup(['plc-1'], 'sync-1', { title: 'X' })
+    ).resolves.toBeUndefined();
+
+    expect(mockLogError).toHaveBeenCalledWith(
+      'usePlcQuizzes.mirrorHeadersBySyncGroup',
+      err,
+      { plcId: 'plc-1', syncGroupId: 'sync-1' }
+    );
   });
 
   it('mirrorPlcQuizHeader swallows errors via logError (caller never rejects)', async () => {

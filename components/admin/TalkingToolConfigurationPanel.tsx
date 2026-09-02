@@ -6,6 +6,10 @@ import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicke
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { HexColorField } from './HexColorField';
 
@@ -21,15 +25,21 @@ export const TalkingToolConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
-  const buildingDefaults = config.buildingDefaults ?? {};
-  const currentBuildingConfig = buildingDefaults[selectedBuildingId] ?? {
-    buildingId: selectedBuildingId,
+  // useAdminBuildings() can hand back a legacy long-form id (e.g.
+  // `schumann-elementary`) when an org's building doc predates the short-id
+  // migration, so buildingDefaults reads/writes must key off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
+  const currentBuildingConfig = buildingDefaults[canonicalId] ?? {
+    buildingId: canonicalId,
   };
 
   const updateBuildingDefaults = (
     updates: Partial<typeof currentBuildingConfig>
   ) => {
-    if (!selectedBuildingId) return;
+    if (!canonicalId) return;
     onChange({
       // Pass through only what was already persisted — never force the
       // DEFAULT_TALKING_TOOL_CATEGORIES fallback into storage just because
@@ -39,7 +49,7 @@ export const TalkingToolConfigurationPanel: React.FC<
         : {}),
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: { ...currentBuildingConfig, ...updates },
+        [canonicalId]: { ...currentBuildingConfig, ...updates },
       },
     });
   };

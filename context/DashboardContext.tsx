@@ -96,6 +96,7 @@ import {
 import { ToolVisibilityContext } from './ToolVisibilityContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
+import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
@@ -240,6 +241,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetConfig,
+    materialsPreferences,
     profileLoaded,
     setupCompleted,
     lastActiveCollectionId,
@@ -487,6 +489,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Helper to centralize active dashboard switching and its side-effects (like zoom reset)
   const updateActiveId = useCallback((id: string | null) => {
+    const outgoingId = activeIdRef.current;
+    if (outgoingId && outgoingId !== id) {
+      // Close open settings panels on the outgoing board. Inactive boards
+      // stay mounted (display:none) but the settings panel portals to
+      // document.body, so a flipped widget would otherwise float over the
+      // new board and be impossible to dismiss.
+      setDashboards((prev) =>
+        prev.map((d) => {
+          if (d.id !== outgoingId) return d;
+          if (d.linkedShareRole === 'viewer' && !d.linkedShareEnded) return d;
+          if (!d.widgets.some((w) => w.flipped)) return d;
+          lastLocalUpdateAt.current = Date.now();
+          lastUpdateWasSettingsOnly.current = false;
+          return {
+            ...d,
+            widgets: d.widgets.map((w) =>
+              w.flipped ? { ...w, flipped: false } : w
+            ),
+          };
+        })
+      );
+    }
     setActiveId(id);
     setZoom(1);
     // Auto-close annotation when switching dashboards — annotations are
@@ -4531,7 +4555,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               defaults.config,
               adminConfig,
               savedWidgetConfigs?.[type],
-              overrides?.config
+              type === 'materials'
+                ? {
+                    ...seedMaterialsConfig(materialsPreferences),
+                    ...overrides?.config,
+                  }
+                : overrides?.config
             ),
           };
           // Overrides (e.g. starter packs) may have supplied legacy pixel
@@ -4564,7 +4593,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId, getAdminBuildingConfig, savedWidgetConfigs]
+    [activeId, getAdminBuildingConfig, materialsPreferences, savedWidgetConfigs]
   );
 
   const addWidgets = useCallback(

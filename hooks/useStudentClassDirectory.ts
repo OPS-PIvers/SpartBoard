@@ -112,7 +112,8 @@ export function useStudentClassDirectory({
 
   useEffect(() => {
     if (cacheKey === null) return;
-    if (directoryCache.has(cacheKey) && retryNonce === 0) return;
+    // retryNonce is a dep so retry() re-runs this effect; it must not gate the cache check.
+    if (directoryCache.has(cacheKey)) return;
 
     let cancelled = false;
     const callable = httpsCallable<

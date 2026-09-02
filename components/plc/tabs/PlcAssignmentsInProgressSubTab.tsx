@@ -5,6 +5,7 @@ import type {
   Plc,
   PlcAssignmentIndexEntry,
   PlcAssignmentTemplate,
+  QuizBehaviorSettings,
   QuizData,
   QuizSessionMode,
   QuizSessionOptions,
@@ -22,6 +23,7 @@ import {
 } from '@/hooks/useSyncedQuizGroups';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
+import { getPlcMemberEmails } from '@/utils/plc';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
 import { PlcAssignmentSessionModal } from '@/components/plc/assignments/PlcAssignmentSessionModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
@@ -50,6 +52,8 @@ interface InProgressImportTarget {
   sessionMode: QuizSessionMode;
   sessionOptions: QuizSessionOptions;
   attemptLimit: number | null;
+  /** The originator's shared PLC sheet; the pickup routes its exports there too. */
+  sheetUrl: string;
 }
 
 /**
@@ -195,7 +199,14 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           createdAt: now,
           updatedAt: now,
         };
-        savedMeta = await saveQuiz(fresh);
+        // The canonical doc carries the author's latest run-settings; the
+        // template is only a snapshot from when it was first assigned.
+        const behavior: QuizBehaviorSettings = canonical.behavior ?? {
+          sessionMode: target.sessionMode,
+          sessionOptions: target.sessionOptions,
+          attemptLimit: target.attemptLimit,
+        };
+        savedMeta = await saveQuiz(fresh, undefined, behavior);
 
         if (mode === 'sync') {
           const joinResult = await callJoinPlcAssignmentSyncGroup(
@@ -221,9 +232,15 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
               : {}),
           },
           {
-            sessionMode: target.sessionMode,
-            sessionOptions: target.sessionOptions,
-            attemptLimit: target.attemptLimit,
+            ...behavior,
+            // PLC linkage so this pickup registers on the In-progress tab
+            // alongside the originator's run.
+            plc: {
+              id: plc.id,
+              name: plc.name,
+              sheetUrl: target.sheetUrl,
+              memberEmails: getPlcMemberEmails(plc),
+            },
           },
           {
             initialStatus: 'paused',
@@ -301,7 +318,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
       createAssignment,
       deleteQuiz,
       isDriveConnected,
-      plc.id,
+      plc,
       saveQuiz,
       t,
       user,
@@ -391,6 +408,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
                         sessionMode: template.sessionMode,
                         sessionOptions: template.sessionOptions,
                         attemptLimit: template.attemptLimit,
+                        sheetUrl: entry.sheetUrl,
                       })
                   : undefined
               }

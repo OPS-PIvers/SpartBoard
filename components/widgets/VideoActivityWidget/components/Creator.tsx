@@ -12,7 +12,7 @@
  * draft) is unchanged from PR2a.
  */
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
   ArrowLeft,
   Youtube,
@@ -57,6 +57,7 @@ export const Creator: React.FC<CreatorProps> = ({
   isAdmin,
   createTemplateSheet,
 }) => {
+  const activityTitleFieldId = useId();
   const [step, setStep] = useState<Step>('info');
   const [discoverTab, setDiscoverTab] = useState<DiscoverTab>('paste');
   const [url, setUrl] = useState('');
@@ -282,12 +283,14 @@ export const Creator: React.FC<CreatorProps> = ({
               <div className="space-y-4">
                 <div>
                   <label
+                    htmlFor={activityTitleFieldId}
                     className="block font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1"
                     style={{ fontSize: 'min(10px, 3.5cqmin)' }}
                   >
                     Activity Title
                   </label>
                   <input
+                    id={activityTitleFieldId}
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}

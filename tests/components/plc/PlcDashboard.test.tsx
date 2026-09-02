@@ -22,7 +22,7 @@
  *   (4) the member-count sub-header reflects plc.memberUids.length
  *   (5) "You lead this PLC" shows iff plc.leadUid === user.uid
  *   (6) Escape key fires onClose
- *   (7) the back/close button calls onClose
+ *   (7) the close button calls onClose; the mobile back button does not
  */
 
 import React from 'react';
@@ -388,15 +388,37 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onClose when the back/close button is clicked (mobile menu shown)', () => {
+  it('calls onClose when the close button is clicked', () => {
     const onClose = vi.fn();
     render(
       <PlcDashboard plc={fakePlc} activeSection="home" onClose={onClose} />
     );
 
-    // Landing on home shows the mobile menu, so the header button closes.
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes on the first click after navigating into a section', () => {
+    const onClose = vi.fn();
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="settings" onClose={onClose} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a separate mobile back button that returns to the section list', () => {
+    const onClose = vi.fn();
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="settings" onClose={onClose} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
   });
 });

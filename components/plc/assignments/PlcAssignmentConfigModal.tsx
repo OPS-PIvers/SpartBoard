@@ -74,6 +74,8 @@ type PlcAssignmentConfigModalProps = {
   plc: Plc;
   isOpen: boolean;
   onClose: () => void;
+  /** Called once the quiz's synced group exists so the caller can link its library copy. */
+  onQuizSyncGroupCreated?: (syncGroupId: string) => Promise<void>;
 } & (
   | {
       kind: 'quiz';
@@ -153,6 +155,7 @@ export const PlcAssignmentConfigModal: React.FC<
   activityRef,
   quizBehavior,
   vaBehavior,
+  onQuizSyncGroupCreated,
   isOpen,
   onClose,
 }) => {
@@ -258,6 +261,15 @@ export const PlcAssignmentConfigModal: React.FC<
             plcId: plc.id,
             behavior: quizBehavior,
           });
+          // Link the author's own library copy so their later edits publish to teammates.
+          try {
+            await onQuizSyncGroupCreated?.(syncGroupId);
+          } catch (err) {
+            logError('PlcAssignmentConfigModal.attachSyncLinkage', err, {
+              plcId: plc.id,
+              syncGroupId,
+            });
+          }
         } catch (err) {
           logError('PlcAssignmentConfigModal.createSyncedQuizGroup', err, {
             plcId: plc.id,
@@ -426,6 +438,7 @@ export const PlcAssignmentConfigModal: React.FC<
     }
   }, [
     user,
+    onQuizSyncGroupCreated,
     rosters,
     picker,
     ensureGoogleScope,

@@ -68,6 +68,10 @@ const mockAuth: AuthContextType = {
   },
   customMaterials: [],
   saveCustomMaterials: () => Promise.resolve(),
+  materialsPreferences: {},
+  saveMaterialsPreferences: () => {
+    // No-op
+  },
   profileLoaded: true,
   setupCompleted: true,
   completeSetup: async () => {

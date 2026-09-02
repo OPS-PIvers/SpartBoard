@@ -138,6 +138,7 @@ interface DraggableWindowProps {
   skipCloseConfirmation?: boolean;
   headerActions?: React.ReactNode;
   globalStyle: GlobalStyle;
+  isBoardActive?: boolean;
 }
 
 const ResizeHandleIcon = ({
@@ -180,6 +181,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   skipCloseConfirmation = false,
   headerActions,
   globalStyle,
+  isBoardActive = true,
 }) => {
   const { t } = useTranslation();
   // Mount-stable actions surface — identities never change, so dep arrays
@@ -3366,7 +3368,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         )}
 
       {/* SETTINGS PANEL PORTAL */}
-      {widget.flipped && typeof document !== 'undefined' && (
+      {widget.flipped && isBoardActive && typeof document !== 'undefined' && (
         <SettingsPanel
           key={widget.id}
           widget={widget}

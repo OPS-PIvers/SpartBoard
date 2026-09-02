@@ -33,7 +33,12 @@ import {
   createSyncedQuizGroup,
   useSyncedQuizGroupsByIds,
 } from '@/hooks/useSyncedQuizGroups';
-import { writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
+import {
+  mirrorPlcQuizHeadersBySyncGroup,
+  writePlcQuizEntry,
+} from '@/hooks/usePlcQuizzes';
+import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
+import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import type { AssignDestination } from './components/AssignDestinationModal';
@@ -331,6 +336,58 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Editor modal state — ephemeral, not persisted to Firestore.
   const [editingQuiz, setEditingQuiz] = useState<QuizData | null>(null);
   const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
+  // Quiz whose own publish is in flight; its canonical bump is not a peer edit.
+  const [savingQuizId, setSavingQuizId] = useState<string | null>(null);
+
+  // Auto-pull teammates' published versions into clean local replicas (same
+  // rule the PLC library uses); an open editor routes to a conflict prompt.
+  const syncedReplicas = useMemo(
+    () => quizzes.filter((q) => !!q.sync),
+    [quizzes]
+  );
+  const { conflicts: syncConflicts, resolveConflict: resolveSyncConflict } =
+    usePlcAutoPullSync<QuizMetadata>({
+      replicas: syncedReplicas,
+      canonicalGroups: syncedGroups,
+      dirtyReplicaId: editingMeta?.id ?? null,
+      suspendedReplicaId: savingQuizId,
+      enabled: isDriveConnected,
+      pull: pullSyncedQuiz,
+      acknowledgeVersion: (replica, canonicalVersion) => {
+        if (!replica.sync) return Promise.resolve();
+        return attachSyncLinkage(replica.id, {
+          groupId: replica.sync.groupId,
+          lastSyncedVersion: canonicalVersion,
+        });
+      },
+      onAutoPulled: (replica) =>
+        addToast(
+          `"${replica.title}" updated to your teammate's latest version.`,
+          'info'
+        ),
+      onAutoPullError: (replica) =>
+        addToast(
+          `Couldn't pull the latest version of "${replica.title}". We'll retry on the next update.`,
+          'error'
+        ),
+      onConflictPulled: (replica) =>
+        addToast(
+          `Pulled your teammate's version of "${replica.title}". Your unsaved edits were discarded.`,
+          'info'
+        ),
+      onConflictKept: (replica) =>
+        addToast(
+          `Kept your edits to "${replica.title}". Save to publish them to your team.`,
+          'info'
+        ),
+      onError: (replica, err) =>
+        addToast(
+          err instanceof Error
+            ? err.message
+            : `Couldn't resolve the sync conflict for "${replica.title}". Try again.`,
+          'error'
+        ),
+    });
 
   // "Share with PLC" targets — when non-empty, the PlcShareTargetModal is
   // open for these quizzes (one entry for the kebab action, many for bulk).
@@ -451,6 +508,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const ownerEmailLower =
         getPlcMemberEmail(plc, user.uid) ??
         (user.email ? user.email.toLowerCase() : '');
+      // Run-settings ride along so a teammate's pickup starts from the same config.
+      const { sessionMode, sessionOptions, attemptLimit } =
+        getQuizBehavior(quizMeta);
       await writePlcQuizEntry(plcId, user.uid, {
         plcQuizId: crypto.randomUUID(),
         syncGroupId,
@@ -458,6 +518,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         questionCount: data.questions.length,
         sharedByName: user.displayName ?? '',
         sharedByEmail: ownerEmailLower,
+        sessionMode,
+        sessionOptions,
+        attemptLimit,
+        quizId: quizMeta.id,
       });
     },
     [attachSyncLinkage, loadQuizData, plcs, user]
@@ -2188,8 +2252,28 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
+          setSavingQuizId(editingMeta?.id ?? null);
           try {
-            await saveQuiz(updated, editingMeta?.driveFileId, behavior);
+            const saved = await saveQuiz(
+              updated,
+              editingMeta?.driveFileId,
+              behavior
+            );
+            // Keep every PLC library row for this quiz in step with what was published.
+            if (saved.sync && plcs.length > 0) {
+              const published = getQuizBehavior(saved);
+              void mirrorPlcQuizHeadersBySyncGroup(
+                plcs.map((p) => p.id),
+                saved.sync.groupId,
+                {
+                  title: saved.title,
+                  questionCount: saved.questionCount,
+                  sessionMode: published.sessionMode,
+                  sessionOptions: published.sessionOptions,
+                  attemptLimit: published.attemptLimit,
+                }
+              );
+            }
           } catch (err) {
             if (err instanceof SyncedQuizVersionConflictError) {
               // A peer published a newer version of this synced quiz
@@ -2222,11 +2306,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               return;
             }
             throw err;
+          } finally {
+            setSavingQuizId(null);
           }
           setLoadedQuizData(updated);
           addToast(isNew ? 'Quiz created!' : 'Quiz saved!', 'success');
         }}
       />
+      {syncConflicts[0] && (
+        <PlcSyncConflictPrompt
+          conflict={syncConflicts[0]}
+          onResolve={resolveSyncConflict}
+        />
+      )}
       {editingAssignment && (
         <QuizAssignmentSettingsModal
           assignment={editingAssignment}

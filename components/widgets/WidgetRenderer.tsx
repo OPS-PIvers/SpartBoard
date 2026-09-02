@@ -350,6 +350,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       appearanceSettings={widgetAppearanceSettings}
       style={customStyle}
       isSpotlighted={isSpotlighted}
+      isBoardActive={isActive}
       skipCloseConfirmation={
         widget.type === 'classes' || accountDisableCloseConfirmation
       }

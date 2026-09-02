@@ -22,7 +22,6 @@ import {
   CollisionDetection,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   horizontalListSortingStrategy,
   verticalListSortingStrategy,
@@ -40,6 +39,7 @@ import {
   WidgetType,
   WidgetData,
   DockFolder,
+  DockItem,
   MiniAppItem,
   InternalToolType,
 } from '@/types';
@@ -85,7 +85,11 @@ import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
-import { shouldShowFolder } from './dock/folderPermissions';
+import {
+  reorderDockItemsPreservingHidden,
+  dockItemId,
+  isDockItemVisible as isDockItemVisibleHelper,
+} from './dock/folderPermissions';
 
 export const Dock: React.FC = () => {
   const { t } = useTranslation();
@@ -646,6 +650,23 @@ export const Dock: React.FC = () => {
     setShowLibrary(true);
   }, []);
 
+  const canAccessTool = useCallback(
+    (type: WidgetType | InternalToolType) => {
+      if (type === 'record') return canAccessFeature('screen-recording');
+      if (type === 'magic') return canAccessFeature('magic-layout');
+      if (type === 'remote') return canAccessFeature('remote-control');
+      return canAccessWidget(type as WidgetType);
+    },
+    [canAccessFeature, canAccessWidget]
+  );
+
+  // Shared with the render loop's own per-entry gate below, so reorderDockItemsPreservingHidden can't drift from what actually renders.
+  const isDockItemVisible = useCallback(
+    (item: DockItem) =>
+      isDockItemVisibleHelper(item, isEditMode, canAccessTool),
+    [canAccessTool, isEditMode]
+  );
+
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -728,24 +749,20 @@ export const Dock: React.FC = () => {
         }
       }
 
-      // Standard reordering
+      // Standard reordering — pins any permission-gated entry to its absolute slot (reorderDockItemsPreservingHidden).
       if (activeId !== overId) {
-        const oldIndex = items.findIndex((item) => {
-          const id = item.type === 'tool' ? item.toolType : item.folder.id;
-          return id === activeId;
-        });
-        const newIndex = items.findIndex((item) => {
-          const id = item.type === 'tool' ? item.toolType : item.folder.id;
-          return id === overId;
-        });
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          const next = arrayMove(items, oldIndex, newIndex);
+        const next = reorderDockItemsPreservingHidden(
+          items,
+          isDockItemVisible,
+          activeId,
+          overId
+        );
+        if (next) {
           reorderDockItems(next);
         }
       }
     },
-    [dockItems, addItemToFolder, reorderDockItems]
+    [dockItems, addItemToFolder, reorderDockItems, isDockItemVisible]
   );
 
   // Memoize minimized widgets by type to avoid O(N*M) filtering in render loop
@@ -773,16 +790,6 @@ export const Dock: React.FC = () => {
   const customWidgetTitleById = useMemo(
     () => new Map(customWidgets.map((w) => [w.id, w.title])),
     [customWidgets]
-  );
-
-  const canAccessTool = useCallback(
-    (type: WidgetType | InternalToolType) => {
-      if (type === 'record') return canAccessFeature('screen-recording');
-      if (type === 'magic') return canAccessFeature('magic-layout');
-      if (type === 'remote') return canAccessFeature('remote-control');
-      return canAccessWidget(type as WidgetType);
-    },
-    [canAccessFeature, canAccessWidget]
   );
 
   // Position-aware anchoring: bottom-center (default), left-center, right-center.
@@ -1095,9 +1102,7 @@ export const Dock: React.FC = () => {
                   onDragCancel={handleDragCancel}
                 >
                   <SortableContext
-                    items={dockItems.map((item) =>
-                      item.type === 'tool' ? item.toolType : item.folder.id
-                    )}
+                    items={dockItems.filter(isDockItemVisible).map(dockItemId)}
                     strategy={
                       isVerticalDock
                         ? verticalListSortingStrategy
@@ -1109,7 +1114,7 @@ export const Dock: React.FC = () => {
                         const tool = TOOLS.find(
                           (t) => t.type === item.toolType
                         );
-                        if (!tool || !canAccessTool(tool.type)) return null;
+                        if (!tool || !isDockItemVisible(item)) return null;
 
                         // Handle special internal tools that aren't standard widgets
                         if (
@@ -1304,14 +1309,7 @@ export const Dock: React.FC = () => {
                           />
                         );
                       } else {
-                        if (
-                          !shouldShowFolder(
-                            isEditMode,
-                            item.folder.items,
-                            canAccessTool
-                          )
-                        )
-                          return null;
+                        if (!isDockItemVisible(item)) return null;
                         return (
                           <FolderItem
                             key={item.folder.id}

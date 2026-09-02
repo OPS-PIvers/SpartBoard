@@ -343,9 +343,10 @@ function usePresenceListener(plcId: string): PlcPresenceEntry[] {
       (snap) => {
         const list: PlcPresenceEntry[] = [];
         snap.forEach((d) => {
+          // 'estimate' keeps our own just-written heartbeat fresh instead of dropping it while serverTimestamp() is pending.
           const parsed = parsePresence(
             d.id,
-            d.data() as Record<string, unknown>
+            d.data({ serverTimestamps: 'estimate' }) as Record<string, unknown>
           );
           if (parsed) list.push(parsed);
         });
