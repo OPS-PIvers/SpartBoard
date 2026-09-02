@@ -7,6 +7,7 @@ import {
   ActivityWallBuildingConfig,
   ActivityWallMode,
   ActivityWallIdentificationMode,
+  ActivityWallLayout,
 } from '@/types';
 
 interface ActivityWallConfigurationPanelProps {
@@ -55,6 +56,15 @@ export const ActivityWallConfigurationPanel: React.FC<
 
   const MODE_OPTIONS: ActivityWallMode[] = ['text', 'photo'];
 
+  const LAYOUT_OPTIONS: { value: ActivityWallLayout; label: string }[] = [
+    { value: 'wall', label: 'Wall' },
+    { value: 'columns', label: 'Columns' },
+    { value: 'table', label: 'Table' },
+    { value: 'timeline', label: 'Timeline' },
+    { value: 'map', label: 'Map' },
+    { value: 'wordcloud', label: 'Word Cloud' },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,6 +78,84 @@ export const ActivityWallConfigurationPanel: React.FC<
       </div>
 
       <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+        <div className="space-y-1">
+          <label className="block text-sm font-bold text-slate-700">
+            Default Layout
+          </label>
+          <p className="text-xxs text-slate-500 mb-2">
+            The layout new walls start on.
+          </p>
+          <select
+            value={currentBuildingConfig.defaultLayout ?? 'wall'}
+            onChange={(event) =>
+              handleUpdateBuilding({
+                defaultLayout: event.target.value as ActivityWallLayout,
+              })
+            }
+            className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+          >
+            {LAYOUT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+          <span className="text-sm font-semibold text-slate-700">
+            Allow Guests by Default
+          </span>
+          <input
+            type="checkbox"
+            checked={currentBuildingConfig.defaultAllowGuests ?? false}
+            onChange={(event) =>
+              handleUpdateBuilding({ defaultAllowGuests: event.target.checked })
+            }
+            className="h-4 w-4 accent-brand-blue-primary"
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+          <span className="text-sm font-semibold text-slate-700">
+            Show Student Names by Default
+          </span>
+          <input
+            type="checkbox"
+            checked={currentBuildingConfig.defaultShowNames ?? false}
+            onChange={(event) =>
+              handleUpdateBuilding({ defaultShowNames: event.target.checked })
+            }
+            className="h-4 w-4 accent-brand-blue-primary"
+          />
+        </label>
+
+        <div className="space-y-1">
+          <label
+            className="block text-sm font-bold text-slate-700"
+            htmlFor="aw-default-max-posts"
+          >
+            Default Max Posts Per Student
+          </label>
+          <p className="text-xxs text-slate-500 mb-2">0 means unlimited.</p>
+          <input
+            id="aw-default-max-posts"
+            type="number"
+            min={0}
+            max={999}
+            value={currentBuildingConfig.defaultMaxPostsPerStudent ?? 0}
+            onChange={(event) => {
+              const parsed = Number.parseInt(event.target.value, 10);
+              handleUpdateBuilding({
+                defaultMaxPostsPerStudent: Number.isFinite(parsed)
+                  ? Math.min(999, Math.max(0, parsed))
+                  : 0,
+              });
+            }}
+            className="w-32 px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+          />
+        </div>
+
         <div className="space-y-1">
           <h3 className="text-sm font-bold text-slate-700">
             Default Activity Type

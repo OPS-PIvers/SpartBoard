@@ -72,6 +72,44 @@ describe('resolveActivityWallBuildingDefaults', () => {
     expect(resolveActivityWallBuildingDefaults([perm], ['high'])).toEqual({});
   });
 
+  it('resolves the Padlet-lite defaults alongside the legacy fields', () => {
+    const perm = makePerm({
+      high: {
+        defaultMode: 'photo',
+        defaultLayout: 'columns',
+        defaultAllowGuests: true,
+        defaultShowNames: true,
+        defaultMaxPostsPerStudent: 3,
+      },
+    });
+    expect(resolveActivityWallBuildingDefaults([perm], ['high'])).toEqual({
+      mode: 'photo',
+      layout: 'columns',
+      allowGuests: true,
+      showNames: true,
+      maxPostsPerStudent: 3,
+    });
+  });
+
+  it('ignores invalid Padlet-lite values', () => {
+    const perm = makePerm({
+      high: {
+        defaultLayout: 'grid',
+        defaultAllowGuests: 'yes',
+        defaultShowNames: 1,
+        defaultMaxPostsPerStudent: -2,
+      },
+    });
+    expect(resolveActivityWallBuildingDefaults([perm], ['high'])).toEqual({});
+  });
+
+  it('keeps maxPostsPerStudent:0 (an explicit unlimited default)', () => {
+    const perm = makePerm({ high: { defaultMaxPostsPerStudent: 0 } });
+    expect(resolveActivityWallBuildingDefaults([perm], ['high'])).toEqual({
+      maxPostsPerStudent: 0,
+    });
+  });
+
   it('keeps moderationEnabled:false (a meaningful explicit default)', () => {
     const perm = makePerm({ high: { defaultModerationEnabled: false } });
     expect(resolveActivityWallBuildingDefaults([perm], ['high'])).toEqual({

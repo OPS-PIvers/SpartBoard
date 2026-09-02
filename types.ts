@@ -1827,6 +1827,11 @@ export interface ActivityWallBuildingConfig {
   defaultMode?: ActivityWallMode;
   defaultIdentificationMode?: ActivityWallIdentificationMode;
   defaultModerationEnabled?: boolean;
+  /** Padlet-lite redesign (P2-2); the legacy fields above stay mapped. */
+  defaultLayout?: ActivityWallLayout;
+  defaultAllowGuests?: boolean;
+  defaultShowNames?: boolean;
+  defaultMaxPostsPerStudent?: number;
 }
 
 export interface ActivityWallGlobalConfig {
