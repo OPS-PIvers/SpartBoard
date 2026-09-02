@@ -32,7 +32,16 @@ export interface ExportableResponse {
   pin?: string;
   studentUid: string;
   classPeriod?: string;
-  answers: { questionId: string; answer: string }[];
+  answers: {
+    questionId: string;
+    answer: string;
+    /** Dedup tiebreak input; entries without it sort as 0. */
+    takeIndex?: number;
+    /** Dedup tiebreak input when `takeIndex` ties. */
+    answeredAt?: number;
+    /** Brief 2.2's marker — present means the student did not respond. */
+    unresponded?: unknown;
+  }[];
   /** 'completed' | 'in-progress' | other widget-specific status string. */
   status: string;
   /**
@@ -169,20 +178,30 @@ export function buildResultsSheetData<
       ? new Date(r.submittedAt).toLocaleString()
       : '';
     const warnings = r.tabSwitchWarnings?.toString() ?? '0';
-    // Deduplicate by questionId, keeping the FIRST occurrence in the array.
-    // Firestore arrayUnion races and Drive-sync double-writes can produce
-    // duplicate answer entries; `new Map([...entries])` would silently keep
-    // the LAST duplicate, but the scoring path (`getEarnedPoints`) keeps the
-    // first chronologically-sorted entry. Mismatching the two would produce an
-    // export score that contradicts the student's published grade — same root
-    // cause as #1827. Using a for-loop with a prior-seen guard preserves
-    // array insertion order (= natural arrival order) as the tiebreak, which
-    // matches what happens in practice when no `answeredAt` field is present
-    // on the ExportableResponse interface.
+    // Deduplicate by questionId, keeping the entry with the highest
+    // `takeIndex` (undated entries sort as 0); ties break on earliest
+    // `answeredAt`. Firestore arrayUnion races and Drive-sync double-writes
+    // can produce duplicate answer entries; this must agree with the
+    // scoring path's tiebreak — mismatching the two would produce an export
+    // score that contradicts the student's published grade — same root
+    // cause as #1827. Legacy entries carry neither field, so every
+    // comparison ties and the loop keeps the first occurrence, unchanged
+    // from today's behavior.
     const answerMap = new Map<string, R['answers'][number]>();
     const answers = r.answers ?? [];
     for (const a of answers) {
-      if (!answerMap.has(a.questionId)) {
+      const existing = answerMap.get(a.questionId);
+      if (!existing) {
+        answerMap.set(a.questionId, a);
+        continue;
+      }
+      const aTake = a.takeIndex ?? 0;
+      const existingTake = existing.takeIndex ?? 0;
+      if (
+        aTake > existingTake ||
+        (aTake === existingTake &&
+          (a.answeredAt ?? Infinity) < (existing.answeredAt ?? Infinity))
+      ) {
         answerMap.set(a.questionId, a);
       }
     }
@@ -193,7 +212,7 @@ export function buildResultsSheetData<
     const grades = new Map<string, ReturnType<typeof gradeFn>>();
     for (const q of questions) {
       const ans = answerMap.get(q.id);
-      if (!ans) continue;
+      if (!ans || ans.unresponded) continue; // absent OR unresponded === no cell
       grades.set(q.id, gradeFn(q, ans.answer, r));
     }
     // An `awaiting-grade` slot's 0 is a placeholder, not a score. Render the

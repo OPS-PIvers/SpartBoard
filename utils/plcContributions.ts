@@ -83,22 +83,39 @@ function buildContributionResponse(
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
-  // Sort by answeredAt asc, keep first occurrence per questionId — matches getEarnedPoints.
-  const sortedAnswers = [...response.answers].sort(
-    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
-  );
-  const answerByQuestionId = new Map<string, string>();
-  for (const a of sortedAnswers) {
-    if (!answerByQuestionId.has(a.questionId)) {
-      answerByQuestionId.set(a.questionId, a.answer);
+  // Dedup by questionId: highest `takeIndex` wins (undated entries sort as
+  // 0), ties break on earliest `answeredAt` — matches getEarnedPoints and
+  // the export path's tiebreak. Store the whole entry (not just `.answer`)
+  // so the `unresponded` check below has something to read.
+  type ContributionAnswerEntry = QuizResponse['answers'][number] & {
+    takeIndex?: number;
+    unresponded?: unknown;
+  };
+  const answerByQuestionId = new Map<string, ContributionAnswerEntry>();
+  const responseAnswers: ContributionAnswerEntry[] = response.answers;
+  for (const a of responseAnswers) {
+    const existing = answerByQuestionId.get(a.questionId);
+    if (!existing) {
+      answerByQuestionId.set(a.questionId, a);
+      continue;
+    }
+    const aTake = a.takeIndex ?? 0;
+    const existingTake = existing.takeIndex ?? 0;
+    if (
+      aTake > existingTake ||
+      (aTake === existingTake &&
+        (a.answeredAt ?? 0) < (existing.answeredAt ?? 0))
+    ) {
+      answerByQuestionId.set(a.questionId, a);
     }
   }
 
   const pointsByQuestionId: Record<string, number> = {};
   let pointsEarned = 0;
   for (const q of questions) {
-    const answer = answerByQuestionId.get(q.id);
-    if (answer === undefined) continue;
+    const entry = answerByQuestionId.get(q.id);
+    if (!entry || entry.unresponded) continue;
+    const answer = entry.answer;
     // Written types (`short`/`essay`) carry their points on the response's
     // top-level `grading` map; passing it in here keeps the PLC
     // contribution's per-question points and aggregate score in sync with

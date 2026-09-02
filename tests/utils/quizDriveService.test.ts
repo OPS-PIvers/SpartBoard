@@ -4,7 +4,7 @@ import {
   PlcSheetMissingError,
   PlcSheetSchemaMismatchError,
 } from '@/utils/quizDriveService';
-import type { QuizQuestion, QuizResponse } from '@/types';
+import type { QuizQuestion, QuizResponse, QuizResponseAnswer } from '@/types';
 
 /**
  * Mock helper: enqueues `fetch` responses in order so the tests can
@@ -731,6 +731,42 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
     expect(analysisRow[4]).toBe('1'); // # Correct (only B)
     expect(analysisRow[5]).toBe('2'); // # Answered (both)
     expect(analysisRow[6]).toBe('50%');
+  });
+
+  // RR-06 finding 4 / RR-08: once every passed-over question writes an
+  // entry, the `answeredSet`/"# Answered" builder must exclude entries
+  // marked `unresponded` (brief 2.2), not just count presence.
+  it('excludes an unresponded entry from "# Answered"', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'Unresponded Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [
+            {
+              questionId: 'q1',
+              answer: '',
+              answeredAt: 0,
+              unresponded: 'passed',
+            } as QuizResponseAnswer,
+          ],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('0'); // # Correct
+    expect(analysisRow[5]).toBe('0'); // # Answered — unresponded excluded
   });
 
   it('throws PlcSheetSchemaMismatchError when appending to an old-schema PLC sheet', async () => {

@@ -719,20 +719,35 @@ export class QuizDriveService {
       const answeredSet = new Set<string>();
       const correctSet = new Set<string>();
 
-      // First-occurrence dedup mirrors buildResultsSheetDataShared — correctSet must agree with the grader's first-occurrence semantics.
-      const firstOccurrenceAnswers = new Map<
-        string,
-        NonNullable<typeof r.answers>[number]
-      >();
-      for (const a of r.answers ?? []) {
-        if (!firstOccurrenceAnswers.has(a.questionId)) {
-          firstOccurrenceAnswers.set(a.questionId, a);
+      // Dedup mirrors buildResultsSheetDataShared: highest `takeIndex` wins
+      // (undated entries sort as 0), ties break on earliest `answeredAt` —
+      // correctSet must agree with the grader's tiebreak semantics.
+      type StatsAnswerEntry = NonNullable<typeof r.answers>[number] & {
+        takeIndex?: number;
+        unresponded?: unknown;
+      };
+      const dedupedAnswers = new Map<string, StatsAnswerEntry>();
+      for (const a of (r.answers ?? []) as StatsAnswerEntry[]) {
+        const existing = dedupedAnswers.get(a.questionId);
+        if (!existing) {
+          dedupedAnswers.set(a.questionId, a);
+          continue;
+        }
+        const aTake = a.takeIndex ?? 0;
+        const existingTake = existing.takeIndex ?? 0;
+        if (
+          aTake > existingTake ||
+          (aTake === existingTake &&
+            (a.answeredAt ?? Infinity) < (existing.answeredAt ?? Infinity))
+        ) {
+          dedupedAnswers.set(a.questionId, a);
         }
       }
 
-      for (const a of firstOccurrenceAnswers.values()) {
+      for (const a of dedupedAnswers.values()) {
         const q = questionMap.get(a.questionId);
         if (!q) continue;
+        if (a.unresponded) continue; // don't count a passed-over slot as answered
 
         answeredSet.add(a.questionId);
         if (gradeFn(q, a.answer, r).isCorrect) {
