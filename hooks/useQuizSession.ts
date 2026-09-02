@@ -45,7 +45,15 @@ import {
   QuizPublicQuestion,
   QuizAttemptLedger,
   GradeResult,
+  ResponseArtifact,
+  ArtifactUploadState,
+  UnrespondedReason,
 } from '@/types';
+import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
+import {
+  isRecordingSlotClosed,
+  nextTakeIndex,
+} from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
 import {
@@ -59,6 +67,13 @@ export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
 export const RESPONSES_COLLECTION = 'responses';
+
+/** `unresponded` reasons only the recording flow emits; gated on the session marker. */
+const RECORDING_UNRESPONDED_REASONS = new Set<UnrespondedReason>([
+  'passed',
+  'expired',
+  'capture-unavailable',
+]);
 /**
  * Archive subcollection for responses removed by the teacher. Holds a
  * copy of the original response doc plus archive metadata
@@ -143,6 +158,13 @@ export function servedSnapshotPatch(
   return Array.isArray(onDoc) && onDoc.length > 0
     ? { servedQuestionIds: deleteField() }
     : {};
+}
+
+export interface CommitRecordingTakeInput {
+  questionId: string;
+  artifact: ResponseArtifact;
+  /** Tennessen acknowledgment time, stamped on the take it authorised. */
+  noticeAckedAt?: number;
 }
 
 /**
@@ -353,6 +375,10 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
   if (q.stimulusIds && q.stimulusIds.length > 0) {
     base.stimulusIds = [...q.stimulusIds];
   }
+  // Carries no answer key; the student client and the archival callable both
+  // read `takeLimit`/`limitSeconds` off the session doc. Absent stays absent.
+  const recording = normalizeRecordingConfig(q.recording);
+  if (recording) base.recording = recording;
   return base;
 }
 
@@ -1562,6 +1588,27 @@ export interface UseQuizSessionStudentResult {
     speedBonus?: number,
     opts?: { isDraft?: boolean }
   ) => Promise<void>;
+  /**
+   * Appends a committed recording take as a sibling `answers[]` entry with an
+   * explicit `takeIndex`. Resolves to the written index, or null when there
+   * is no live response doc.
+   */
+  commitRecordingTake: (
+    input: CommitRecordingTakeInput
+  ) => Promise<number | null>;
+  /** Flips one artifact's `uploadState` after the upload/archive settles. */
+  setArtifactUploadState: (
+    questionId: string,
+    artifactId: string,
+    uploadState: ArtifactUploadState
+  ) => Promise<void>;
+  /** Writes the terminal entry for a slot the student never filled. */
+  markUnresponded: (
+    questionId: string,
+    reason: UnrespondedReason
+  ) => Promise<void>;
+  /** Stamps the response-level Tennessen ack, provable without a committed take. */
+  acknowledgeRecordingNotice: (at: number) => Promise<void>;
   completeQuiz: () => Promise<void>;
   /**
    * Increments the tab switch warning count for the student in Firestore.
@@ -1619,6 +1666,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // Keep a ref to current answers to avoid stale closure issues
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
+
+  // The teacher-side media gate, carried on the session doc. `/quiz` mounts no
+  // AuthProvider, so this marker is the only thing that can authorise a take.
+  const mediaResponseEnabledRef = useRef(false);
+  mediaResponseEnabledRef.current = session?.mediaResponseEnabled === true;
 
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
@@ -2572,6 +2624,188 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     []
   );
 
+  /**
+   * Appends one committed recording take. Deliberately NOT part of
+   * `submitAnswer`: recordings append as siblings with an explicit
+   * `takeIndex`, every other answer type keeps replacing. `takeLimit` is
+   * advisory here — the archival callable is the authoritative gate.
+   */
+  const commitRecordingTake = useCallback(
+    async (input: CommitRecordingTakeInput): Promise<number | null> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return null;
+      if (!mediaResponseEnabledRef.current) return null;
+
+      const existingAnswers = myResponseRef.current?.answers ?? [];
+      // Symmetric to markUnresponded: a closed slot never accepts a take.
+      if (isRecordingSlotClosed(existingAnswers, input.questionId)) return null;
+      const takeIndex = nextTakeIndex(existingAnswers, input.questionId);
+
+      const newAnswer: QuizResponseAnswer = {
+        questionId: input.questionId,
+        // A recording answer's text slot is legitimately empty; the artifact
+        // is the response. `isUnsafeBlankDraft` only guards drafts, and a
+        // committed take is never a draft.
+        answer: '',
+        answeredAt: Date.now(),
+        status: 'submitted',
+        takeIndex,
+        artifacts: [input.artifact],
+      };
+      if (input.noticeAckedAt) newAnswer.noticeAckedAt = input.noticeAckedAt;
+
+      const updated = [...existingAnswers, newAnswer];
+      const nextStatus =
+        myResponseRef.current?.status === 'completed'
+          ? 'completed'
+          : 'in-progress';
+
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        {
+          status: nextStatus,
+          answers: updated,
+          lastWriteAt: serverTimestamp(),
+          ...servedSnapshotPatch(
+            servedQuestionIdsRef.current,
+            myResponseRef.current?.servedQuestionIds
+          ),
+        }
+      );
+      return takeIndex;
+    },
+    []
+  );
+
+  /**
+   * Stamps the response-level Tennessen ack. Whitelisted in `firestore.rules`
+   * by #2737, so the acknowledgement is provable even when the student then
+   * refuses and no take is ever committed.
+   */
+  const acknowledgeRecordingNotice = useCallback(async (at: number) => {
+    const sessionId = sessionIdRef.current;
+    const responseKey = responseKeyRef.current;
+    if (!sessionId || !responseKey) return;
+    if (myResponseRef.current?.recordingNoticeAckedAt) return;
+    await updateDoc(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      ),
+      { recordingNoticeAckedAt: at, lastWriteAt: serverTimestamp() }
+    );
+  }, []);
+
+  /** Flips one artifact's `uploadState` after the upload/archive settles. */
+  const setArtifactUploadState = useCallback(
+    async (
+      questionId: string,
+      artifactId: string,
+      uploadState: ArtifactUploadState
+    ) => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return;
+      const existingAnswers = myResponseRef.current?.answers ?? [];
+      let changed = false;
+      const updated = existingAnswers.map((a) => {
+        if (a.questionId !== questionId || !a.artifacts?.length) return a;
+        const artifacts = a.artifacts.map((art) => {
+          if (art.id !== artifactId || art.uploadState === uploadState)
+            return art;
+          changed = true;
+          return { ...art, uploadState };
+        });
+        return changed ? { ...a, artifacts } : a;
+      });
+      if (!changed) return;
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        { answers: updated, lastWriteAt: serverTimestamp() }
+      );
+    },
+    []
+  );
+
+  /**
+   * Writes the terminal entry for a slot the student never filled — prep
+   * expiry (`passed`/`expired`) or a dead mic (`capture-unavailable`).
+   * Replaces rather than appends: it is not a take.
+   */
+  const markUnresponded = useCallback(
+    async (questionId: string, reason: UnrespondedReason) => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return;
+      if (
+        RECORDING_UNRESPONDED_REASONS.has(reason) &&
+        !mediaResponseEnabledRef.current
+      )
+        return;
+
+      const existingAnswers = myResponseRef.current?.answers ?? [];
+      // Never overwrite a real response — a student who already recorded a
+      // take on this question has answered it.
+      if (
+        existingAnswers.some(
+          (a) => a.questionId === questionId && !a.unresponded
+        )
+      )
+        return;
+
+      const entry: QuizResponseAnswer = {
+        questionId,
+        answer: '',
+        answeredAt: Date.now(),
+        status: reason === 'passed' ? 'draft' : 'submitted',
+        unresponded: reason,
+      };
+      const updated = [
+        ...existingAnswers.filter((a) => a.questionId !== questionId),
+        entry,
+      ];
+      const nextStatus =
+        myResponseRef.current?.status === 'completed'
+          ? 'completed'
+          : 'in-progress';
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        {
+          status: nextStatus,
+          answers: updated,
+          lastWriteAt: serverTimestamp(),
+          ...servedSnapshotPatch(
+            servedQuestionIdsRef.current,
+            myResponseRef.current?.servedQuestionIds
+          ),
+        }
+      );
+    },
+    []
+  );
+
   const completeQuiz = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     const responseKey = responseKeyRef.current;
@@ -2920,6 +3154,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     joinQuizSession,
     subscribeForReview,
     submitAnswer,
+    commitRecordingTake,
+    setArtifactUploadState,
+    markUnresponded,
+    acknowledgeRecordingNotice,
     completeQuiz,
     reportTabSwitch,
     setHandRaised,

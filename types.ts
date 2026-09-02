@@ -3199,6 +3199,34 @@ export interface QuizQuestion {
    * consecutive questions carrying the same id form a stimulus set.
    */
   stimulusIds?: string[];
+  /**
+   * Opt-in media-response block. Absent on every question authored before
+   * this feature and on every non-recording question — its absence is the
+   * marker that the whole capture flow stays dormant.
+   */
+  recording?: RecordingConfig;
+}
+
+/** What happens when a recording question's prep countdown runs out. */
+export type RecordingPrepExpiry =
+  | 'auto-start'
+  | 'auto-advance'
+  | 'armed'
+  | 'unanswered';
+
+/**
+ * Per-question audio capture settings. `limitSeconds` is a hard stop with a
+ * wrap-up warning before it and no grace tail; `timeLimit` is forced to 0 on
+ * a recording question and never doubles as the recording limit.
+ */
+export interface RecordingConfig {
+  /** Thinking time before the recorder arms. */
+  prepSeconds: number;
+  /** Hard cap on one take; {@link AUDIO_LIMIT_SECONDS_MAX} is the ceiling. */
+  limitSeconds: number;
+  prepExpiry: RecordingPrepExpiry;
+  /** Counts takes, not re-takes. `null` = unlimited (the default). */
+  takeLimit: number | null;
 }
 
 /**
@@ -3404,6 +3432,12 @@ export interface QuizPublicQuestion {
   rubricSnapshot?: Rubric;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
+  /**
+   * Projected verbatim from {@link QuizQuestion.recording} so the student
+   * client and the archival callable (`takeLimit`) can read it off the
+   * session doc without a Drive fetch. Carries no answer key.
+   */
+  recording?: RecordingConfig;
 }
 
 export interface QuizLeaderboardEntry {
@@ -3447,6 +3481,14 @@ export interface QuizSession {
   publicQuestions: QuizPublicQuestion[];
   /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
   completenessModel?: number;
+  /**
+   * Deploy-safety marker for student media responses. Stamped `true` by the
+   * teacher client only when `canAccessQuizMediaResponse()` passed AND at
+   * least one public question kept its `recording` block. The student app
+   * mounts capture and writes takes only when this is `true`, which is how the
+   * fail-closed gate reaches `/quiz` — a route that mounts no AuthProvider.
+   */
+  mediaResponseEnabled?: boolean;
   /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`
@@ -3751,6 +3793,13 @@ export interface QuizResponseAnswer {
   takeIndex?: number;
   /** Media/text sub-responses. A sibling to `answer`, which it never overloads. */
   artifacts?: ResponseArtifact[];
+  /**
+   * When the student acknowledged the Tennessen notice for this assignment.
+   * Stamped on the take it authorised, inside `answers[]`, because the
+   * student write whitelist in `firestore.rules` admits no new top-level
+   * response field. Absent on every non-recording answer.
+   */
+  noticeAckedAt?: number;
 }
 
 /**
@@ -3855,6 +3904,12 @@ export interface QuizResponse {
    * behavior (don't retroactively auto-submit historical attempts).
    */
   lastWriteAt?: import('firebase/firestore').Timestamp;
+  /**
+   * Epoch ms at which this student acknowledged the Tennessen recording
+   * notice. Response-level so the acknowledgement is provable even when the
+   * student then refused and no take was ever committed.
+   */
+  recordingNoticeAckedAt?: number;
   /**
    * Set by the idle auto-submit Cloud Function when a stale response
    * was finalized without the student clicking Submit. Lets the
@@ -6911,7 +6966,9 @@ export type GlobalFeature =
   | 'share-link-tracking'
   | 'personal-spotify'
   | 'google-classroom'
-  | 'anonymous-join';
+  | 'anonymous-join'
+  /** Fail-closed: read it through `canAccessQuizMediaResponse`, never `canAccessFeature`. */
+  | 'quiz-media-response';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
