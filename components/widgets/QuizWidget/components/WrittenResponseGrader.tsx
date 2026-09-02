@@ -37,7 +37,7 @@ import {
   WrittenAnswerAnnotation,
   WrittenAnswerGrade,
   WrittenAnswerRubricScore,
-  isWrittenQuestionType,
+  isFreeResponseType,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
@@ -97,7 +97,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
 }) => {
   // Surface only the questions that actually need manual grading.
   const writtenQuestions = useMemo(
-    () => quiz.questions.filter((q) => isWrittenQuestionType(q.type)),
+    () => quiz.questions.filter((q) => isFreeResponseType(q.type)),
     [quiz.questions]
   );
 
@@ -431,7 +431,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       <EmptyStateShell onClose={onClose}>
         <p className="text-lg font-bold">No written questions in this quiz.</p>
         <p className="text-sm text-slate-500 mt-2">
-          Manual grading is only available for short-answer and essay questions.
+          Manual grading is only available for Free Response questions.
         </p>
       </EmptyStateShell>
     );

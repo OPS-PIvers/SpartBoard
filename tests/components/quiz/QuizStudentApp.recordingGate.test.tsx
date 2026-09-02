@@ -89,7 +89,7 @@ const RECORDING_BLOCK: NonNullable<QuizPublicQuestion['recording']> = {
 
 const RECORDING_QUESTION: QuizPublicQuestion = {
   id: 'q1',
-  type: 'short',
+  type: 'free-response',
   text: 'Say it out loud',
   timeLimit: 0,
   recording: RECORDING_BLOCK,

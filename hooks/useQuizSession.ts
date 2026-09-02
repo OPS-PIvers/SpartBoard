@@ -48,7 +48,7 @@ import {
   ResponseArtifact,
   ArtifactUploadState,
   UnrespondedReason,
-  isWrittenQuestionType,
+  isFreeResponseType,
 } from '@/types';
 import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
 import {
@@ -365,7 +365,7 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     // a student pop devtools and read off exactly which entries are wrong.
   } else if (q.type === 'Ordering') {
     base.orderingItems = fisherYatesShuffle(q.correctAnswer.split('|'));
-  } else if (isWrittenQuestionType(q.type)) {
+  } else if (isFreeResponseType(q.type)) {
     if (q.placeholder) base.placeholder = q.placeholder;
     if (q.maxWords && q.maxWords > 0) base.maxWords = q.maxWords;
     if (q.points && q.points > 0) base.points = q.points;
@@ -380,7 +380,7 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
   // read `takeLimit`/`limitSeconds` off the session doc. Absent stays absent.
   // Only written types render a recorder; a stray block elsewhere would hide
   // the student's choice input, so it never reaches the public payload.
-  const recording = isWrittenQuestionType(q.type)
+  const recording = isFreeResponseType(q.type)
     ? normalizeRecordingConfig(q.recording)
     : undefined;
   if (recording) base.recording = recording;
@@ -517,7 +517,7 @@ export function gradeAnswer(
   // Written question types are graded manually by the teacher. Until a grade
   // exists the slot is `awaiting-grade`: `pointsEarned: 0` is a placeholder,
   // and callers must not publish or push it as a real score.
-  if (isWrittenQuestionType(question.type)) {
+  if (isFreeResponseType(question.type)) {
     // A partial rubric save persists its points but stays provisional.
     const awaiting = isWrittenAnswerAwaitingGrade(
       question,

@@ -3091,23 +3091,20 @@ export interface RecessGearConfig {
  * Question types supported in the quiz widget.
  * MC = Multiple Choice, FIB = Fill in the Blank,
  * Matching = Match left to right, Ordering = Place items in correct sequence,
- * short = single-paragraph written response (manually graded),
- * essay = multi-paragraph written response (manually graded).
+ * free-response = open-ended written or spoken answer (manually graded).
+ * Legacy 'short'/'essay' values are normalized on read; see
+ * `utils/quizQuestionNormalize.ts`.
  */
 export type QuizQuestionType =
   | 'MC'
   | 'FIB'
   | 'Matching'
   | 'Ordering'
-  | 'short'
-  | 'essay';
+  | 'free-response';
 
-/**
- * True iff the question type requires manual teacher grading
- * (i.e. there is no auto-grader for student responses).
- */
-export function isWrittenQuestionType(type: QuizQuestionType): boolean {
-  return type === 'short' || type === 'essay';
+/** True iff the question type requires manual teacher grading. */
+export function isFreeResponseType(type: QuizQuestionType): boolean {
+  return type === 'free-response';
 }
 
 /**
@@ -3151,7 +3148,7 @@ export interface QuizQuestion {
    * MC/FIB: the correct answer text.
    * Matching: pipe-separated pairs "term1:def1|term2:def2"
    * Ordering: pipe-separated items in correct order "item1|item2|item3"
-   * short/essay: always empty string (no key — graded manually).
+   * free-response: always empty string (no key — graded manually).
    */
   correctAnswer: string;
   /** MC only: up to 4 incorrect answer choices */
@@ -3167,11 +3164,11 @@ export interface QuizQuestion {
   matchingDistractors?: string[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering. Ignored
-   * for MC/FIB/short/essay. Defaults to false.
+   * for MC/FIB/free-response. Defaults to false.
    */
   allowPartialCredit?: boolean;
   /**
-   * short/essay only. Optional placeholder shown inside the student's
+   * Free Response only. Optional placeholder shown inside the student's
    * editor (e.g. "Cite at least two pieces of evidence.").
    */
   placeholder?: string;
@@ -3182,13 +3179,13 @@ export interface QuizQuestion {
    */
   maxWords?: number;
   /**
-   * short/essay only (M12 rubrics). Id of the rubric in the teacher's
+   * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
    * Informational only — graders always read the snapshot.
    */
   rubricId?: string;
   /**
-   * short/essay only (M12 rubrics). Frozen copy of the rubric captured at
+   * Free Response only (M12 rubrics). Frozen copy of the rubric captured at
    * attach time; library edits never alter authored quizzes or past grades.
    * When present, the rubric's criteria max-sum is the question's `points`.
    */
@@ -3425,14 +3422,14 @@ export interface QuizPublicQuestion {
   matchingRight?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
-  /** short/essay only: optional editor placeholder */
+  /** Free Response only: optional editor placeholder */
   placeholder?: string;
   /** short/essay only: optional soft word cap shown in the editor */
   maxWords?: number;
-  /** short/essay only: max points the teacher can award. */
+  /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
-   * short/essay only (M12 decision 6). Frozen rubric snapshot, projected
+   * Free Response only (M12 decision 6). Frozen rubric snapshot, projected
    * unchanged from `QuizQuestion.rubricSnapshot` — contains no answer key,
    * so it's safe to expose to students while answering and in results.
    */
@@ -4954,7 +4951,13 @@ export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
  */
 export type VideoActivityQuestion = Omit<
   QuizQuestion,
-  'type' | 'matchingDistractors' | 'stimulusIds'
+  | 'type'
+  | 'matchingDistractors'
+  | 'stimulusIds'
+  | 'placeholder'
+  | 'maxWords'
+  | 'minWords'
+  | 'enforceWordLimit'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */

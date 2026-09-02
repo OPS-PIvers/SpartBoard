@@ -28,7 +28,7 @@ const QUESTIONS: QuizQuestion[] = [
   },
   {
     id: 'q3',
-    type: 'short',
+    type: 'free-response',
     text: 'Explain.',
     timeLimit: 0,
     correctAnswer: '',

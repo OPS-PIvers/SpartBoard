@@ -590,7 +590,7 @@ describe('toPublicQuestion', () => {
       id: 'q5',
       timeLimit: 0,
       text: 'Explain your reasoning',
-      type: 'essay',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
       points: 6,
@@ -622,7 +622,7 @@ describe('toPublicQuestion', () => {
       id: 'q7',
       timeLimit: 0,
       text: 'Explain out loud',
-      type: 'short',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
       recording: {
@@ -677,7 +677,7 @@ describe('toPublicQuestion', () => {
       id: 'q6',
       timeLimit: 0,
       text: 'Short answer',
-      type: 'short',
+      type: 'free-response',
       correctAnswer: '',
       incorrectAnswers: [],
     };

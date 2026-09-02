@@ -58,7 +58,8 @@ import type {
   SharedQuizAssignment,
   StudentOverride,
 } from '@/types';
-import { isWrittenQuestionType } from '@/types';
+import { isFreeResponseType } from '@/types';
+import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { projectSessionStimuli } from '@/utils/quizStimuli';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
@@ -1640,7 +1641,7 @@ export const useQuizAssignments = (
       const effectiveMode: SharedAssignmentImportMode =
         requestedMode === 'sync' && shared.syncGroupId ? 'sync' : 'copy';
 
-      let initialQuestions = shared.questions;
+      let initialQuestions = normalizeQuizQuestions(shared.questions);
       let initialTitle = shared.title;
       let initialStimuli = shared.stimuli;
       let canonicalVersion: number | undefined = undefined;
@@ -2263,7 +2264,7 @@ export const useQuizAssignments = (
           // a quiz that contained essays would freeze them at 0 points
           // and the archive would silently disagree with the live results
           // view forever after.
-          const manualGrade = isWrittenQuestionType(q.type)
+          const manualGrade = isFreeResponseType(q.type)
             ? readSlotGrade(data.grading, q.id)
             : undefined;
           const result = applyMediaSlots(

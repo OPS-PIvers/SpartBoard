@@ -11,7 +11,7 @@
  * `translateHiddenOptionIdsToText` later resolves — can't drift between them.
  */
 
-import { isWrittenQuestionType, type QuizQuestion } from '@/types';
+import { isFreeResponseType, type QuizQuestion } from '@/types';
 import type { OverrideEditorQuestion } from './OverrideEditorRow';
 
 export function toOverrideEditorQuestions(
@@ -34,6 +34,6 @@ export function toOverrideEditorQuestions(
         : undefined,
     // F2 fix — only short/essay are rubric-swappable; FIB/Matching/Ordering
     // are neither MC-hideable nor rubric-swappable, just subset-selectable.
-    isWritten: isWrittenQuestionType(q.type),
+    isWritten: isFreeResponseType(q.type),
   }));
 }

@@ -92,7 +92,11 @@ const SESSION = {
   scoreVisibility: 'score-and-responses',
   mediaResponseEnabled: true,
   publicQuestions: [
-    { id: 'q1', text: 'Explain how you solved question 4.', type: 'short' },
+    {
+      id: 'q1',
+      text: 'Explain how you solved question 4.',
+      type: 'free-response',
+    },
   ],
 } as unknown as QuizSession;
 

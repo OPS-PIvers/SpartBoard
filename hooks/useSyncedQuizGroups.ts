@@ -40,6 +40,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import type {
   PlcQuizVersionContent,
   QuizBehaviorSettings,
@@ -232,7 +233,7 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
   >;
   return {
     title: data.title,
-    questions: data.questions ?? [],
+    questions: normalizeQuizQuestions(data.questions ?? []),
     stimuli: data.stimuli,
     behavior: data.behavior,
     version: data.version ?? 1,
@@ -473,7 +474,7 @@ export async function restoreSyncedVersion(
   const restoredStimuli = content.stimuli ?? current.stimuli;
   return publishSyncedQuiz(groupId, {
     title: content.title,
-    questions: content.questions,
+    questions: normalizeQuizQuestions(content.questions),
     expectedVersion: current.version,
     uid,
     ...(restoredStimuli && restoredStimuli.length > 0

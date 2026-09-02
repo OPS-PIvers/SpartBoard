@@ -61,7 +61,7 @@ export function readSlotGrade(
 
 /**
  * Does THIS slot need a human? Per-slot and per-response, unlike the
- * per-question `isWrittenQuestionType`, which keeps its own call sites.
+ * per-question `isFreeResponseType`, which keeps its own call sites.
  */
 export function slotNeedsManualGrading(
   question: Pick<QuizQuestion, 'type' | 'recording'> | undefined,

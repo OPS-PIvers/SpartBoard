@@ -91,7 +91,7 @@ const FIB_QUESTION: QuizPublicQuestion = {
 
 const SHORT_QUESTION: QuizPublicQuestion = {
   id: 'q1',
-  type: 'short',
+  type: 'free-response',
   text: 'Explain why the sky is blue.',
   timeLimit: 0,
 };

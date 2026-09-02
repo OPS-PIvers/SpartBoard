@@ -94,7 +94,7 @@ const quiz: QuizData = {
     {
       id: 'q1',
       text: 'Question one',
-      type: 'essay',
+      type: 'free-response',
       points: 5,
       incorrectAnswers: [],
       correctAnswer: '',
@@ -103,7 +103,7 @@ const quiz: QuizData = {
     {
       id: 'q2',
       text: 'Question two',
-      type: 'short',
+      type: 'free-response',
       points: 9,
       incorrectAnswers: [],
       correctAnswer: '',
@@ -112,7 +112,7 @@ const quiz: QuizData = {
     {
       id: 'q3',
       text: 'Question three',
-      type: 'essay',
+      type: 'free-response',
       points: 7,
       incorrectAnswers: [],
       correctAnswer: '',
@@ -218,20 +218,6 @@ describe('QuizEditor — rubric attach/detach points stash', () => {
 
     expect(pointsInput()).toBeEnabled();
     expect(pointsInput().valueAsNumber).toBe(7);
-  });
-
-  it('switching between written types keeps the attached rubric', () => {
-    open();
-    selectQuestion('Question three');
-
-    fireEvent.change(detail().getByRole('combobox', { name: 'Type' }), {
-      target: { value: 'short' },
-    });
-
-    expect(pointsInput()).toBeDisabled();
-    expect(
-      detail().getByText('Points come from the attached rubric.')
-    ).toBeInTheDocument();
   });
 
   it('switching questions closes an open rubric builder', () => {

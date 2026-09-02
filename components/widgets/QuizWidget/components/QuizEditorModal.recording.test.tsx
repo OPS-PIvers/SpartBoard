@@ -83,7 +83,7 @@ const quiz: QuizData = {
     {
       id: 'q1',
       text: 'What is photosynthesis?',
-      type: 'short',
+      type: 'free-response',
       correctAnswer: 'A',
       incorrectAnswers: ['B', 'C', 'D'],
       timeLimit: 30,
@@ -179,9 +179,7 @@ describe('QuizEditorModal recording controls', () => {
     );
     expect(detail().getByText('Spoken answer')).toBeTruthy();
     expect(detail().queryByLabelText('Ask for a spoken answer')).toBeNull();
-    expect(
-      detail().getByText(/short-answer and essay questions/i)
-    ).toBeTruthy();
+    expect(detail().getByText(/Free Response questions/i)).toBeTruthy();
   });
 
   it('keeps the advisory out of the save-error banner', () => {

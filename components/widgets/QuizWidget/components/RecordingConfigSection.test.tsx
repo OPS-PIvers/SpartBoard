@@ -10,7 +10,7 @@ const question = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
   id: 'q1',
   timeLimit: 45,
   text: 'Explain your reasoning.',
-  type: 'short',
+  type: 'free-response',
   correctAnswer: '',
   incorrectAnswers: [],
   ...over,
@@ -296,21 +296,16 @@ describe('RecordingConfigSection', () => {
 });
 
 describe('RecordingConfigSection — question types', () => {
-  it.each(['short', 'essay'] as const)(
-    'offers the controls on a %s question',
-    (type) => {
-      render(
-        <RecordingConfigSection
-          question={question({ type })}
-          onChange={vi.fn()}
-        />
-      );
-      expect(screen.getByLabelText('Ask for a spoken answer')).toBeTruthy();
-      expect(
-        screen.queryByText(/short-answer and essay questions/i)
-      ).toBeNull();
-    }
-  );
+  it('offers the controls on a free-response question', () => {
+    render(
+      <RecordingConfigSection
+        question={question({ type: 'free-response' })}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText('Ask for a spoken answer')).toBeTruthy();
+    expect(screen.queryByText(/Free Response questions/i)).toBeNull();
+  });
 
   it.each(['MC', 'FIB', 'Matching', 'Ordering'] as const)(
     'advises instead of offering the controls on a %s question',
@@ -322,9 +317,7 @@ describe('RecordingConfigSection — question types', () => {
         />
       );
       expect(screen.queryByLabelText('Ask for a spoken answer')).toBeNull();
-      expect(
-        screen.getByText(/short-answer and essay questions/i)
-      ).toBeTruthy();
+      expect(screen.getByText(/Free Response questions/i)).toBeTruthy();
     }
   );
 

@@ -101,7 +101,7 @@ const quizData = {
     {
       id: 'r1',
       text: 'Say it out loud',
-      type: 'short' as const,
+      type: 'free-response' as const,
       correctAnswer: '',
       incorrectAnswers: [],
       timeLimit: 0,

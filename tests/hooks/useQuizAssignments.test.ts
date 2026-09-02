@@ -1984,7 +1984,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     questions: [
       {
         id: 'q-rec',
-        type: 'short' as const,
+        type: 'free-response' as const,
         text: 'Say it out loud',
         correctAnswer: '',
         incorrectAnswers: [],

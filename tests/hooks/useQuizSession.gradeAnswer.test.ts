@@ -9,7 +9,7 @@ const q = (overrides: Partial<QuizQuestion> = {}): QuizQuestion => ({
   id: 'q1',
   text: 'Explain photosynthesis.',
   timeLimit: 0,
-  type: 'essay',
+  type: 'free-response',
   correctAnswer: '',
   incorrectAnswers: [],
   points: 10,
@@ -27,7 +27,7 @@ const grade = (
 
 const rubricQuestion = (criterionIds: string[]): QuizQuestion =>
   q({
-    type: 'essay',
+    type: 'free-response',
     points: 6,
     rubricSnapshot: {
       id: 'rub-1',
@@ -47,7 +47,10 @@ const rubricQuestion = (criterionIds: string[]): QuizQuestion =>
 
 describe('gradeAnswer — written types', () => {
   it('returns awaiting-grade (0 points, isCorrect=false) when no manual grade exists for an essay', () => {
-    const result = gradeAnswer(q({ type: 'essay', points: 10 }), '<p>...</p>');
+    const result = gradeAnswer(
+      q({ type: 'free-response', points: 10 }),
+      '<p>...</p>'
+    );
     expect(result).toEqual({
       isCorrect: false,
       pointsEarned: 0,
@@ -57,7 +60,10 @@ describe('gradeAnswer — written types', () => {
   });
 
   it('returns awaiting-grade when no manual grade exists for a short-answer', () => {
-    const result = gradeAnswer(q({ type: 'short', points: 5 }), 'my answer');
+    const result = gradeAnswer(
+      q({ type: 'free-response', points: 5 }),
+      'my answer'
+    );
     expect(result).toEqual({
       isCorrect: false,
       pointsEarned: 0,
@@ -68,7 +74,7 @@ describe('gradeAnswer — written types', () => {
 
   it('returns awarded points when a manual grade is supplied', () => {
     const result = gradeAnswer(
-      q({ type: 'essay', points: 10 }),
+      q({ type: 'free-response', points: 10 }),
       '<p>...</p>',
       grade({ pointsAwarded: 7 })
     );
@@ -78,7 +84,7 @@ describe('gradeAnswer — written types', () => {
 
   it('flags isCorrect when awarded points equal max', () => {
     const result = gradeAnswer(
-      q({ type: 'short', points: 4 }),
+      q({ type: 'free-response', points: 4 }),
       'answer',
       grade({ pointsAwarded: 4 })
     );
@@ -88,7 +94,7 @@ describe('gradeAnswer — written types', () => {
 
   it('does NOT flag isCorrect when awarded < max', () => {
     const result = gradeAnswer(
-      q({ type: 'short', points: 4 }),
+      q({ type: 'free-response', points: 4 }),
       'answer',
       grade({ pointsAwarded: 3 })
     );
@@ -98,7 +104,7 @@ describe('gradeAnswer — written types', () => {
 
   it('clamps awarded points to question max', () => {
     const result = gradeAnswer(
-      q({ type: 'essay', points: 5 }),
+      q({ type: 'free-response', points: 5 }),
       '<p>...</p>',
       grade({ pointsAwarded: 99 })
     );
@@ -109,7 +115,7 @@ describe('gradeAnswer — written types', () => {
 
   it('clamps negative awarded points to zero', () => {
     const result = gradeAnswer(
-      q({ type: 'essay', points: 5 }),
+      q({ type: 'free-response', points: 5 }),
       '<p>...</p>',
       grade({ pointsAwarded: -3 })
     );
@@ -130,8 +136,10 @@ describe('gradeAnswer — written types', () => {
 
 describe('gradeAnswer — GradeResult.state (M12 3-G)', () => {
   it("a blank written answer with no grade is 'not-attempted', not 'awaiting-grade'", () => {
-    expect(gradeAnswer(q({ type: 'essay' }), '').state).toBe('not-attempted');
-    expect(gradeAnswer(q({ type: 'short' }), '   ').state).toBe(
+    expect(gradeAnswer(q({ type: 'free-response' }), '').state).toBe(
+      'not-attempted'
+    );
+    expect(gradeAnswer(q({ type: 'free-response' }), '   ').state).toBe(
       'not-attempted'
     );
   });
@@ -139,20 +147,20 @@ describe('gradeAnswer — GradeResult.state (M12 3-G)', () => {
   it("an untouched rich-text editor ('<p><br></p>') is 'not-attempted'", () => {
     // A bare .trim() would read the markup as an attempt and block the whole
     // response from the gradebook push forever.
-    expect(gradeAnswer(q({ type: 'essay' }), '<p><br></p>').state).toBe(
+    expect(gradeAnswer(q({ type: 'free-response' }), '<p><br></p>').state).toBe(
       'not-attempted'
     );
-    expect(gradeAnswer(q({ type: 'essay' }), '<p>&nbsp;</p>').state).toBe(
-      'not-attempted'
-    );
-    expect(gradeAnswer(q({ type: 'essay' }), '<p>Real text</p>').state).toBe(
-      'awaiting-grade'
-    );
+    expect(
+      gradeAnswer(q({ type: 'free-response' }), '<p>&nbsp;</p>').state
+    ).toBe('not-attempted');
+    expect(
+      gradeAnswer(q({ type: 'free-response' }), '<p>Real text</p>').state
+    ).toBe('awaiting-grade');
   });
 
   it("a saved manual grade makes a written slot 'scored'", () => {
     const result = gradeAnswer(
-      q({ type: 'essay', points: 10 }),
+      q({ type: 'free-response', points: 10 }),
       '<p>...</p>',
       grade({ pointsAwarded: 7 })
     );

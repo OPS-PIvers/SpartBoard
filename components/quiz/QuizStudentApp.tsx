@@ -77,7 +77,7 @@ import {
   WrittenAnswerGrade,
   Rubric,
   StudentOverride,
-  isWrittenQuestionType,
+  isFreeResponseType,
   isAnswerSubmitted,
   type ResponseArtifact,
   type UnrespondedReason,
@@ -2283,7 +2283,7 @@ const ActiveQuiz: React.FC<{
     // Written question types have no canonical correct answer — they are
     // manually graded. Skip the reveal/feedback path entirely.
     const isWritten =
-      !!currentQuestion && isWrittenQuestionType(currentQuestion.type);
+      !!currentQuestion && isFreeResponseType(currentQuestion.type);
     if (
       currentRevealed &&
       submitted &&
@@ -2457,7 +2457,7 @@ const ActiveQuiz: React.FC<{
     session.mediaResponseEnabled === true
       ? orderedPublicQuestions
           .map((q, index) => ({ q, index }))
-          .filter(({ q }) => q.recording && isWrittenQuestionType(q.type))
+          .filter(({ q }) => q.recording && isFreeResponseType(q.type))
       : [];
   const openRecordingIds = new Set(
     listOpenQuestions(
@@ -2563,7 +2563,7 @@ const ActiveQuiz: React.FC<{
   const recordingConfig =
     session.mediaResponseEnabled === true &&
     currentQuestion &&
-    isWrittenQuestionType(currentQuestion.type)
+    isFreeResponseType(currentQuestion.type)
       ? currentQuestion.recording
       : undefined;
   const answersForQuestion = currentQuestion
@@ -2837,22 +2837,9 @@ const ActiveQuiz: React.FC<{
           className={`flex flex-col p-6 w-full min-w-0 ${
             docStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'
           } ${
-            // Per-type width caps. Tuned for the personal-device viewport
-            // a student actually uses (laptop / Chromebook / tablet), not
-            // a projector:
-            //   essay     → max-w-7xl  ~1280px. Long-form writing benefits
-            //                from elbow room more than line-length
-            //                discipline; the editor wraps its own prose.
-            //   short     → max-w-5xl  ~1024px. Paragraph-length answers
-            //                still want room without becoming sprawling.
-            //   MC/FIB/   → max-w-2xl   ~672px. Short answer options and
-            //   Matching/   structured inputs read worse when stretched
-            //   Ordering    across a widescreen — keep them compact.
-            currentQuestion.type === 'essay'
-              ? 'max-w-7xl'
-              : currentQuestion.type === 'short'
-                ? 'max-w-5xl'
-                : 'max-w-2xl'
+            // Free Response gets elbow room for long-form writing; structured
+            // inputs read worse stretched across a widescreen.
+            currentQuestion.type === 'free-response' ? 'max-w-7xl' : 'max-w-2xl'
           }`}
         >
           {/* Header */}
@@ -2901,9 +2888,7 @@ const ActiveQuiz: React.FC<{
                     ? 'Matching'
                     : currentQuestion.type === 'Ordering'
                       ? 'Ordering'
-                      : currentQuestion.type === 'short'
-                        ? 'Short Answer'
-                        : 'Essay'}
+                      : 'Free Response'}
             </span>
           </div>
 
@@ -3224,7 +3209,7 @@ const ActiveQuiz: React.FC<{
               />
             )}
 
-          {!recordingConfig && isWrittenQuestionType(currentQuestion.type) && (
+          {!recordingConfig && isFreeResponseType(currentQuestion.type) && (
             <div className="space-y-4">
               {currentQuestion.rubricSnapshot && (
                 <CollapsibleRubric
@@ -3267,7 +3252,6 @@ const ActiveQuiz: React.FC<{
                   placeholder={currentQuestion.placeholder}
                   maxWords={currentQuestion.maxWords}
                   disabled={submitted && !isStudentPaced}
-                  isEssay={currentQuestion.type === 'essay'}
                   blockClipboard={blockCopyPaste}
                   light={light}
                 />
@@ -3960,9 +3944,7 @@ export const PublishedScoreReview: React.FC<{
     override?.questionIds
   );
   const autoGradedQuestionIds = new Set(
-    publicQuestions
-      .filter((q) => !isWrittenQuestionType(q.type))
-      .map((q) => q.id)
+    publicQuestions.filter((q) => !isFreeResponseType(q.type)).map((q) => q.id)
   );
   const autoGradedCount = autoGradedQuestionIds.size;
   const correctCount = myResponse.answers.filter(
@@ -3973,7 +3955,7 @@ export const PublishedScoreReview: React.FC<{
   // student's own response — no answer key is exposed to this view.
   const writtenQuestionsById = new Map(
     publicQuestions
-      .filter((q) => isWrittenQuestionType(q.type))
+      .filter((q) => isFreeResponseType(q.type))
       .map((q) => [q.id, q] as const)
   );
   const awaitingGrade = myResponse.answers.some((a) => {
@@ -4210,7 +4192,7 @@ export const PublishedScoreReview: React.FC<{
               {publicQuestions.map((q, idx) => {
                 const ans = answerById.get(q.id);
                 const studentAnswer = ans?.answer ?? '';
-                const isWritten = isWrittenQuestionType(q.type);
+                const isWritten = isFreeResponseType(q.type);
                 const writtenGrade = isWritten
                   ? myResponse.grading?.[q.id]
                   : undefined;

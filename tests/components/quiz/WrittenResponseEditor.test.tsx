@@ -107,25 +107,9 @@ describe('WrittenResponseEditor', () => {
     expect(getEditor().textContent).toContain('second answer');
   });
 
-  it('shows list controls only in essay mode', () => {
-    const { rerender } = render(
-      <WrittenResponseEditor
-        value=""
-        onChange={vi.fn()}
-        questionKey="q1"
-        isEssay={false}
-      />
-    );
-    expect(
-      screen.queryByRole('button', { name: /bulleted list/i })
-    ).not.toBeInTheDocument();
-    rerender(
-      <WrittenResponseEditor
-        value=""
-        onChange={vi.fn()}
-        questionKey="q1"
-        isEssay={true}
-      />
+  it('always shows list controls', () => {
+    render(
+      <WrittenResponseEditor value="" onChange={vi.fn()} questionKey="q1" />
     );
     expect(
       screen.getByRole('button', { name: /bulleted list/i })

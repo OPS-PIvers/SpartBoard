@@ -95,7 +95,7 @@ const quizData = {
     {
       id: 'e1',
       text: 'Explain',
-      type: 'essay' as const,
+      type: 'free-response' as const,
       correctAnswer: '',
       incorrectAnswers: [],
       timeLimit: 0,
