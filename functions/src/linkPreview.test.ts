@@ -36,6 +36,13 @@ vi.mock('axios', () => ({
   },
 }));
 
+function makeRedirectError(status: number, location: string) {
+  return {
+    isAxiosError: true,
+    response: { status, headers: { location } },
+  };
+}
+
 import { fetchLinkPreview } from './linkPreview';
 
 type Handler = (request: {
@@ -68,6 +75,23 @@ describe('fetchLinkPreview', () => {
 
   it('rejects a hostname that resolves to a private IP (SSRF)', async () => {
     dnsLookup.mockResolvedValue([{ address: '10.0.0.5' }]);
+    await expect(
+      call({ auth: AUTH, data: { url: 'https://internal.example.com/page' } })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(axiosGet).not.toHaveBeenCalled();
+  });
+
+  it('rejects an IPv4-mapped IPv6 private address (dotted form)', async () => {
+    dnsLookup.mockResolvedValue([{ address: '::ffff:10.0.0.5' }]);
+    await expect(
+      call({ auth: AUTH, data: { url: 'https://internal.example.com/page' } })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(axiosGet).not.toHaveBeenCalled();
+  });
+
+  it('rejects an IPv4-mapped IPv6 metadata address (hex form)', async () => {
+    // ::ffff:169.254.169.254 in hex form is ::ffff:a9fe:a9fe
+    dnsLookup.mockResolvedValue([{ address: '::ffff:a9fe:a9fe' }]);
     await expect(
       call({ auth: AUTH, data: { url: 'https://internal.example.com/page' } })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
@@ -144,6 +168,59 @@ describe('fetchLinkPreview', () => {
       title: 'Plain Title',
       domain: 'example.com',
     });
+  });
+
+  it('follows a 302 redirect to a final 200 page', async () => {
+    axiosGet
+      .mockRejectedValueOnce(
+        makeRedirectError(302, 'https://redirected.example.com/final')
+      )
+      .mockResolvedValueOnce({
+        data: '<html><head><title>Redirected Title</title></head></html>',
+        headers: { 'content-type': 'text/html' },
+      });
+
+    const result = await call({
+      auth: AUTH,
+      data: { url: 'https://example.com/short-link' },
+    });
+
+    expect(result).toMatchObject({
+      title: 'Redirected Title',
+      domain: 'redirected.example.com',
+    });
+    expect(axiosGet).toHaveBeenCalledTimes(2);
+    // The redirect target's host must be re-validated (a second DNS lookup).
+    expect(dnsLookup).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after exceeding the max redirect hops', async () => {
+    axiosGet.mockRejectedValue(
+      makeRedirectError(302, 'https://example.com/next')
+    );
+    await expect(
+      call({ auth: AUTH, data: { url: 'https://example.com/loop' } })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('pins the connection to the DNS-validated address instead of re-resolving', async () => {
+    dnsLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+    axiosGet.mockResolvedValue({
+      data: '<html><head><title>T</title></head></html>',
+      headers: { 'content-type': 'text/html' },
+    });
+
+    await call({ auth: AUTH, data: { url: 'https://example.com/page' } });
+
+    const options = axiosGet.mock.calls[0][1] as {
+      httpsAgent: { options: { lookup: (...a: unknown[]) => void } };
+    };
+    expect(options.httpsAgent).toBeTruthy();
+    const lookupCallback = vi.fn();
+    options.httpsAgent.options.lookup('example.com', {}, lookupCallback);
+    expect(lookupCallback).toHaveBeenCalledWith(null, '93.184.216.34', 4);
+    // Pinning must not trigger an extra DNS lookup beyond the initial validation.
+    expect(dnsLookup).toHaveBeenCalledTimes(1);
   });
 
   it('rejects non-html content types', async () => {
