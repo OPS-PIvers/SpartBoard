@@ -1,237 +1,293 @@
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ActivityWallSession } from '@/types';
 import { ActivityWallStudentApp } from './ActivityWallStudentApp';
 
 const {
-  mockSetDoc,
-  mockSignInAnonymously,
-  mockUploadBytes,
-  mockCollection,
-  mockDoc,
-  mockStorageRef,
   mockAuth,
-  mockDb,
-  mockStorage,
+  mockOnAuthStateChanged,
+  mockSignInAnonymously,
+  mockOnSnapshot,
+  mockSetDoc,
+  mockDeleteDoc,
+  mockUploadBytesResumable,
+  mockGetDownloadURL,
+  mockHttpsCallable,
+  mockCallable,
 } = vi.hoisted(() => ({
-  mockSetDoc: vi.fn(),
+  mockAuth: {},
+  mockOnAuthStateChanged: vi.fn(),
   mockSignInAnonymously: vi.fn(),
-  mockUploadBytes: vi.fn(),
-  mockCollection: vi.fn(),
-  mockDoc: vi.fn(),
-  mockStorageRef: vi.fn(),
-  mockAuth: { currentUser: null as { uid: string } | null },
-  mockDb: {},
-  mockStorage: {},
+  mockOnSnapshot: vi.fn(),
+  mockSetDoc: vi.fn(),
+  mockDeleteDoc: vi.fn(),
+  mockUploadBytesResumable: vi.fn(),
+  mockGetDownloadURL: vi.fn(),
+  mockHttpsCallable: vi.fn(),
+  mockCallable: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
   auth: mockAuth,
-  db: mockDb,
-  storage: mockStorage,
+  db: {},
+  storage: {},
+  functions: {},
 }));
 
 vi.mock('firebase/auth', () => ({
+  onAuthStateChanged: mockOnAuthStateChanged,
   signInAnonymously: mockSignInAnonymously,
 }));
 
 vi.mock('firebase/firestore', () => ({
-  collection: mockCollection,
-  doc: mockDoc,
+  collection: (...args: unknown[]) => ({ kind: 'collection', args }),
+  doc: (...args: unknown[]) => ({ kind: 'doc', args }),
+  query: (base: unknown) => ({ kind: 'query', base }),
+  where: (...args: unknown[]) => ({ kind: 'where', args }),
+  onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
+  deleteDoc: mockDeleteDoc,
+  updateDoc: vi.fn(),
 }));
 
 vi.mock('firebase/storage', () => ({
-  ref: mockStorageRef,
-  uploadBytes: mockUploadBytes,
+  ref: (...args: unknown[]) => ({ kind: 'storageRef', args }),
+  uploadBytesResumable: mockUploadBytesResumable,
+  getDownloadURL: mockGetDownloadURL,
 }));
 
-describe('ActivityWallStudentApp', () => {
-  const originalCreateObjectURL = URL.createObjectURL.bind(URL);
-  const originalRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+vi.mock('firebase/functions', () => ({
+  httpsCallable: mockHttpsCallable,
+}));
 
-  const buildPayload = (overrides: Record<string, unknown> = {}) => ({
-    id: 'activity-1',
-    title: 'Warm Up',
-    prompt: 'Share one idea',
-    mode: 'text',
-    moderationEnabled: false,
-    identificationMode: 'anonymous',
-    teacherUid: 'teacher-1',
-    ...overrides,
-  });
+const SESSION_ID = 'teacher-1_activity-1';
 
-  const encodePayload = (payload: Record<string, unknown>) => {
-    const bytes = new TextEncoder().encode(JSON.stringify(payload));
-    let binary = '';
-    for (let index = 0; index < bytes.length; index += 1) {
-      binary += String.fromCharCode(bytes[index]);
+/** jsdom does not submit forms from a button click; dispatch the event directly. */
+const submitForm = () => {
+  fireEvent.submit(
+    screen
+      .getByRole('button', { name: /^post$/i })
+      .closest('form') as HTMLFormElement
+  );
+};
+
+const buildSession = (
+  overrides: Partial<ActivityWallSession> = {}
+): Partial<ActivityWallSession> => ({
+  activityId: 'activity-1',
+  teacherUid: 'teacher-1',
+  title: 'Warm Up',
+  prompt: 'Share one idea',
+  mode: 'text',
+  moderationEnabled: false,
+  identificationMode: 'anonymous',
+  updatedAt: 1,
+  layout: 'wall',
+  allowedTypes: { photo: false, link: false, file: false, video: false },
+  allowGuests: false,
+  showNames: false,
+  maxPostsPerStudent: 0,
+  allowStudentEdit: false,
+  allowStudentDelete: false,
+  acceptingResponses: true,
+  ...overrides,
+});
+
+/** Wires onSnapshot: first call is the session doc, second the student's posts. */
+const wireSnapshots = (
+  session: Partial<ActivityWallSession> | null,
+  posts: { id: string; data: Record<string, unknown> }[] = []
+) => {
+  mockOnSnapshot.mockImplementation(
+    (
+      target: { kind: string },
+      onNext: (snap: unknown) => void,
+      _onError?: unknown
+    ) => {
+      if (target.kind === 'doc') {
+        onNext({
+          id: SESSION_ID,
+          exists: () => session !== null,
+          data: () => session,
+        });
+      } else {
+        onNext({
+          docs: posts.map((post) => ({
+            id: post.id,
+            data: () => post.data,
+          })),
+        });
+      }
+      return () => undefined;
     }
-    return encodeURIComponent(btoa(binary));
-  };
+  );
+};
 
-  const setActivityUrl = (payload: ReturnType<typeof buildPayload>) => {
-    const encoded = encodePayload(payload);
-    window.history.pushState(
-      {},
-      '',
-      `/activity-wall/${payload.id}?data=${encoded}`
-    );
-  };
+const signIn = (user: {
+  uid: string;
+  isAnonymous: boolean;
+  studentRole?: boolean;
+}) => {
+  mockOnAuthStateChanged.mockImplementation(
+    (_auth: unknown, cb: (next: unknown) => void) => {
+      cb({
+        uid: user.uid,
+        isAnonymous: user.isAnonymous,
+        getIdTokenResult: () =>
+          Promise.resolve({ claims: { studentRole: user.studentRole } }),
+      });
+      return () => undefined;
+    }
+  );
+};
 
+const signedOut = () => {
+  mockOnAuthStateChanged.mockImplementation(
+    (_auth: unknown, cb: (next: unknown) => void) => {
+      cb(null);
+      return () => undefined;
+    }
+  );
+};
+
+describe('ActivityWallStudentApp', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.pushState({}, '', `/activity-wall/${SESSION_ID}`);
+    mockSetDoc.mockResolvedValue(undefined);
+    mockDeleteDoc.mockResolvedValue(undefined);
+    mockSignInAnonymously.mockResolvedValue({ user: { uid: 'anon' } });
+    mockHttpsCallable.mockReturnValue(mockCallable);
+    mockCallable.mockResolvedValue({ data: { domain: 'example.com' } });
+    mockGetDownloadURL.mockResolvedValue('https://cdn.example/file.png');
     vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(
       '11111111-1111-1111-1111-111111111111'
     );
-    Object.defineProperty(URL, 'createObjectURL', {
-      value: vi.fn(() => 'blob:preview-url'),
-      writable: true,
-    });
-    Object.defineProperty(URL, 'revokeObjectURL', {
-      value: vi.fn(),
-      writable: true,
-    });
-    mockAuth.currentUser = null;
-    mockCollection.mockReturnValue('submissions-collection');
-    mockDoc.mockReturnValue('submission-doc');
-    mockStorageRef.mockImplementation((_storage, path: string) => ({
-      fullPath: path,
-    }));
-    mockUploadBytes.mockResolvedValue({
-      ref: {
-        fullPath:
-          'activity_wall_photos/teacher-1_activity-1/11111111-1111-1111-1111-111111111111',
-      },
-    });
-    mockSignInAnonymously.mockResolvedValue({ user: { uid: 'anon-user' } });
-    mockSetDoc.mockResolvedValue(undefined);
   });
 
-  afterEach(() => {
-    Object.defineProperty(URL, 'createObjectURL', {
-      value: originalCreateObjectURL,
-      writable: true,
-    });
-    Object.defineProperty(URL, 'revokeObjectURL', {
-      value: originalRevokeObjectURL,
-      writable: true,
-    });
-  });
-
-  it('writes approved text submissions when moderation is off', async () => {
+  it('lets an SSO student post without signing in anonymously', async () => {
     const user = userEvent.setup();
-    setActivityUrl(buildPayload());
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    wireSnapshots(buildSession());
 
     render(<ActivityWallStudentApp />);
 
-    await user.type(
-      screen.getByPlaceholderText(/type your response/i),
-      'Ready to learn'
-    );
-    fireEvent.submit(
-      screen
-        .getByRole('button', { name: /submit response/i })
-        .closest('form') as HTMLFormElement
-    );
+    await screen.findByLabelText(/your response/i);
+    expect(mockSignInAnonymously).not.toHaveBeenCalled();
 
+    await user.type(screen.getByLabelText(/your response/i), 'Ready to learn');
+    submitForm();
     await waitFor(() => {
       expect(mockSetDoc).toHaveBeenCalledWith(
-        'submission-doc',
+        expect.anything(),
         expect.objectContaining({
-          activityId: 'activity-1',
+          type: 'text',
           content: 'Ready to learn',
+          authorUid: 'sso-1',
+          isGuest: false,
           status: 'approved',
-          participantLabel: 'Anonymous',
         })
       );
     });
   });
 
-  it('writes pending text submissions when moderation is on', async () => {
-    const user = userEvent.setup();
-    setActivityUrl(buildPayload({ moderationEnabled: true }));
+  it('signs a visitor in anonymously when the wall allows guests', async () => {
+    signedOut();
+    wireSnapshots(buildSession({ allowGuests: true }));
 
     render(<ActivityWallStudentApp />);
-
-    await user.type(
-      screen.getByPlaceholderText(/type your response/i),
-      'Needs review'
-    );
-    fireEvent.submit(
-      screen
-        .getByRole('button', { name: /submit response/i })
-        .closest('form') as HTMLFormElement
-    );
 
     await waitFor(() => {
-      expect(mockSetDoc).toHaveBeenCalledWith(
-        'submission-doc',
-        expect.objectContaining({
-          content: 'Needs review',
-          status: 'pending',
-        })
-      );
+      expect(mockSignInAnonymously).toHaveBeenCalled();
     });
   });
 
-  it('writes pending photo submissions with archive metadata and exposes an accessible picker label', async () => {
-    const user = userEvent.setup();
-    setActivityUrl(buildPayload({ mode: 'photo', moderationEnabled: true }));
+  it('redirects to student login when guests are not allowed', async () => {
+    const replace = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { pathname: `/activity-wall/${SESSION_ID}`, replace },
+      writable: true,
+    });
+    signedOut();
+    wireSnapshots(buildSession({ allowGuests: false }));
 
     render(<ActivityWallStudentApp />);
-
-    const input = screen.getByLabelText(/choose a photo to upload/i);
-    const photo = new File(['photo-data'], 'photo.png', { type: 'image/png' });
-    await user.upload(input, photo);
-    fireEvent.submit(
-      screen
-        .getByRole('button', { name: /submit response/i })
-        .closest('form') as HTMLFormElement
-    );
 
     await waitFor(() => {
-      expect(mockUploadBytes).toHaveBeenCalled();
-      expect(mockSetDoc).toHaveBeenCalledWith(
-        'submission-doc',
-        expect.objectContaining({
-          content:
-            'activity_wall_photos/teacher-1_activity-1/11111111-1111-1111-1111-111111111111',
-          status: 'pending',
-          storagePath:
-            'activity_wall_photos/teacher-1_activity-1/11111111-1111-1111-1111-111111111111',
-          archiveStatus: 'firebase',
-        })
+      expect(replace).toHaveBeenCalledWith(
+        `/student/login?next=${encodeURIComponent(`/activity-wall/${SESSION_ID}`)}`
       );
     });
+    expect(mockSignInAnonymously).not.toHaveBeenCalled();
   });
 
-  it('rejects photos that are exactly 10 MB to match storage rules', async () => {
-    const user = userEvent.setup();
-    setActivityUrl(buildPayload({ mode: 'photo' }));
+  it('shows the closed screen when the wall stops accepting responses', async () => {
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    wireSnapshots(buildSession({ acceptingResponses: false }));
 
     render(<ActivityWallStudentApp />);
 
-    const photo = new File(['x'], 'photo.png', { type: 'image/png' });
-    Object.defineProperty(photo, 'size', {
-      value: 10 * 1024 * 1024,
-    });
+    expect(await screen.findByText(/this wall is closed/i)).toBeInTheDocument();
+  });
 
+  it('blocks posting once the per-student cap is used up', async () => {
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    wireSnapshots(buildSession({ maxPostsPerStudent: 2 }), [
+      { id: 'sso-1__0', data: { authorUid: 'sso-1', content: 'a' } },
+      { id: 'sso-1__1', data: { authorUid: 'sso-1', content: 'b' } },
+    ]);
+
+    render(<ActivityWallStudentApp />);
+
+    expect(
+      await screen.findByText(/you have used all 2 of your posts/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^post$/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('uploads a photo to activity_wall_media and records archive metadata', async () => {
+    const user = userEvent.setup();
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    wireSnapshots(
+      buildSession({
+        allowedTypes: { photo: true, link: false, file: false, video: false },
+      })
+    );
+    mockUploadBytesResumable.mockImplementation(() => ({
+      snapshot: { ref: { fullPath: 'x' } },
+      on: (
+        _event: string,
+        _next: unknown,
+        _error: unknown,
+        complete: () => void
+      ) => complete(),
+    }));
+
+    render(<ActivityWallStudentApp />);
+
+    await user.click(await screen.findByRole('radio', { name: /photo/i }));
+    const photo = new File(['data'], 'my photo.png', { type: 'image/png' });
     await user.upload(
       screen.getByLabelText(/choose a photo to upload/i),
       photo
     );
-    fireEvent.submit(
-      screen
-        .getByRole('button', { name: /submit response/i })
-        .closest('form') as HTMLFormElement
-    );
+    submitForm();
 
-    expect(
-      await screen.findByText(/photo must be smaller than 10 mb/i)
-    ).toBeInTheDocument();
-    expect(mockUploadBytes).not.toHaveBeenCalled();
-    expect(mockSetDoc).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: 'photo',
+          storagePath: `activity_wall_media/${SESSION_ID}/11111111-1111-1111-1111-111111111111/my_photo.png`,
+          archiveStatus: 'firebase',
+          fileName: 'my_photo.png',
+          mimeType: 'image/png',
+        })
+      );
+    });
   });
 });
