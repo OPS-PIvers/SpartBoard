@@ -96,10 +96,11 @@ describe('wordLimitStatus', () => {
     );
   });
 
-  it('blocks a blank answer under an enforced minimum', () => {
-    expect(
-      wordLimitStatus(0, { minWords: 50, enforceWordLimit: true }).blocked
-    ).toBe(true);
+  it('never blocks a blank draft, even under an enforced minimum', () => {
+    const status = wordLimitStatus(0, { minWords: 50, enforceWordLimit: true });
+    expect(status.blocked).toBe(false);
+    expect(status.message).toBeNull();
+    expect(status.tone).toBe('warn');
   });
 
   it('does not block at the exact bounds', () => {

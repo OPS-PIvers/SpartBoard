@@ -7,7 +7,7 @@ const question = (extra: Partial<QuizQuestion> = {}): QuizQuestion => ({
   id: 'q1',
   timeLimit: 0,
   text: 'Explain',
-  type: 'essay',
+  type: 'free-response',
   correctAnswer: '',
   incorrectAnswers: [],
   ...extra,

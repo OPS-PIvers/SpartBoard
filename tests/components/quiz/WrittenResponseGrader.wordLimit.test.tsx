@@ -19,7 +19,7 @@ const quizWith = (limits: Partial<QuizQuestion>): QuizData => ({
   questions: [
     {
       id: 'q1',
-      type: 'essay',
+      type: 'free-response',
       text: 'Write something.',
       timeLimit: 0,
       correctAnswer: '',

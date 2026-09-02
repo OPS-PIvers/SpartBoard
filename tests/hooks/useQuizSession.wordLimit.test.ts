@@ -6,7 +6,7 @@ const written = (extra: Partial<QuizQuestion> = {}): QuizQuestion => ({
   id: 'q-written',
   timeLimit: 0,
   text: 'Explain your reasoning',
-  type: 'essay',
+  type: 'free-response',
   correctAnswer: '',
   incorrectAnswers: [],
   ...extra,

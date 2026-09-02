@@ -136,7 +136,7 @@ const essayQuestion = (
   extra: Partial<QuizPublicQuestion> = {}
 ): QuizPublicQuestion => ({
   id: 'q1',
-  type: 'essay',
+  type: 'free-response',
   text: 'Explain your reasoning.',
   timeLimit: 0,
   ...extra,
