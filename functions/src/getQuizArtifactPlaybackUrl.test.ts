@@ -271,6 +271,22 @@ describe('selectPlaybackTake', () => {
   });
 });
 
+// INT-B8: one composite grading key. Drift between this and the client's
+// `gradingKey` (utils/mediaGrading.ts) would grade the addendum under the
+// primary's key and silently overwrite it. `functions/` has no path alias to
+// the client tree, so the contract is pinned as a shared table here and
+// asserted against `gradingKey` in utils/mediaGrading.test.ts.
+export const GRADING_KEY_CONTRACT: [string, string, string][] = [
+  ['q1', 'primary', 'q1'],
+  ['q1', 'addendum', 'q1::addendum'],
+];
+
+describe('gradingKeyFor matches the client helper for every ArtifactSlot', () => {
+  it.each(GRADING_KEY_CONTRACT)('%s / %s', (questionId, slot, expected) => {
+    expect(gradingKeyFor(questionId, slot)).toBe(expected);
+  });
+});
+
 describe('resolveArtifactPlayback', () => {
   it('denies before the teacher publishes', async () => {
     const docs = makeDocs({ session: { scoreVisibility: undefined } });

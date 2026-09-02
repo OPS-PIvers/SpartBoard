@@ -17,7 +17,11 @@ import {
   type ResponseArtifact,
   type WrittenAnswerGrade,
 } from '@/types';
-import { isArtifactPlayable } from '@/utils/responseArtifacts';
+import {
+  artifactCountsAsTake,
+  isArtifactPlayable,
+  selectPlaybackTake,
+} from '@/utils/responseArtifacts';
 
 const SLOT_SEP = '::';
 
@@ -79,6 +83,8 @@ export function questionHasRecordingSlot(
 /** One committed take of one slot, newest first in {@link MediaGradingSlot.takes}. */
 export interface MediaTake {
   takeIndex: number;
+  /** 1-based position among the visible takes; what any "Take N" label shows. */
+  displayIndex: number;
   answeredAt: number;
   artifact: ResponseArtifact;
   archive?: ArtifactArchiveEntry;
@@ -122,14 +128,17 @@ export function collectMediaSlots(
     if (entry.unresponded) continue;
     for (const artifact of entry.artifacts ?? []) {
       if (!slotNeedsManualGrading(question, artifact)) continue;
-      if (artifact.uploadState === 'failed') continue;
+      const archive = response.artifactArchive?.[artifact.id];
+      // The archive map is authoritative: a swept-up take is still a take.
+      if (!artifactCountsAsTake(artifact, archive)) continue;
       const list = bySlot.get(artifact.slot) ?? [];
       list.push({
         takeIndex: entry.takeIndex ?? 0,
+        displayIndex: 0,
         answeredAt: entry.answeredAt ?? 0,
         artifact,
-        archive: response.artifactArchive?.[artifact.id],
-        playable: isArtifactPlayable(response.artifactArchive?.[artifact.id]),
+        archive,
+        playable: isArtifactPlayable(archive),
       });
       bySlot.set(artifact.slot, list);
     }
@@ -144,6 +153,10 @@ export function collectMediaSlots(
     const takes = (bySlot.get(slot) ?? []).sort(
       (a, b) => b.takeIndex - a.takeIndex || a.answeredAt - b.answeredAt
     );
+    // Newest first, so position counts up from the end of the list.
+    takes.forEach((take, i) => {
+      take.displayIndex = takes.length - i;
+    });
     const unavailable =
       slot === 'primary' && captureUnavailable && !takes.length;
     const grade = readSlotGrade(response.grading, question.id, slot);
@@ -172,20 +185,27 @@ export function selectGradedTake(
   return slot.takes[0];
 }
 
+/** The teacher excused this slot: terminal, and worth no points either way. */
+export function isSlotExcused(slot: MediaGradingSlot): boolean {
+  return !!slot.grade?.excused;
+}
+
 /**
  * Lifecycle state of one slot, mapped onto the shipped `GradeState` tri-state.
  *
- * `excused` and "recorded but ungraded" both read `awaiting-grade` (omitted
- * from the gradebook). On a `capture-unavailable` slot the teacher's
- * adjudication is encoded by the grade itself: no grade is still pending, a
- * grade with a note is the offline substitute (`scored`), and a grade without
- * one is Blank (`not-attempted`, a real 0).
+ * `excused` is TERMINAL, not pending: it reads `scored` and carries zero
+ * points over a zero maximum, so it neither holds up publishing nor lands in
+ * the gradebook. On a `capture-unavailable` slot the teacher's adjudication is
+ * encoded by the grade itself: no grade is still pending, a grade with a note
+ * is the offline substitute (`scored`), and a grade without one is Blank
+ * (`not-attempted`, a real 0).
  */
 export function resolveSlotState(
   slot: MediaGradingSlot,
   /** Auto/manual state this slot would replace; a provisional base wins. */
   baseState?: GradeResult['state']
 ): GradeResult['state'] {
+  if (isSlotExcused(slot)) return 'scored';
   const resolved = resolveSlotStateRaw(slot);
   // A partial rubric save is `awaiting-grade` in `base`; a grade existing on
   // the slot must not promote it to `scored`.
@@ -195,7 +215,6 @@ export function resolveSlotState(
 }
 
 function resolveSlotStateRaw(slot: MediaGradingSlot): GradeResult['state'] {
-  if (slot.grade?.excused) return 'awaiting-grade';
   if (slot.captureUnavailable) {
     if (!slot.grade) return 'awaiting-grade';
     return slot.grade.overallComment?.trim() ? 'scored' : 'not-attempted';
@@ -205,8 +224,31 @@ function resolveSlotStateRaw(slot: MediaGradingSlot): GradeResult['state'] {
 }
 
 function slotPoints(slot: MediaGradingSlot, maxPoints: number): number {
+  if (isSlotExcused(slot)) return 0;
   if (resolveSlotState(slot) !== 'scored') return 0;
   return Math.max(0, Math.min(maxPoints, slot.grade?.pointsAwarded ?? 0));
+}
+
+/**
+ * Is this question excused for this student? An excused slot leaves the
+ * student's denominator, so their percentage is computed over what remains.
+ */
+export function isQuestionExcused(
+  question: Pick<QuizQuestion, 'id' | 'type' | 'recording'>,
+  response: MediaGradingResponse
+): boolean {
+  if (!questionHasRecordingSlot(question)) return false;
+  const slots = collectMediaSlots(question, response);
+  const primary = slots.find((s) => s.slot === 'primary');
+  return !!primary && isSlotExcused(primary);
+}
+
+/** Points this question contributes to ONE student's denominator. */
+export function questionPointsFor(
+  question: Pick<QuizQuestion, 'id' | 'type' | 'points' | 'recording'>,
+  response: MediaGradingResponse
+): number {
+  return isQuestionExcused(question, response) ? 0 : (question.points ?? 1);
 }
 
 /**
@@ -232,6 +274,17 @@ export function applyMediaSlots(
   // already accounts for, rubric completeness included.
   const primaryIsMedia =
     !!primary && (primary.takes.length > 0 || primary.captureUnavailable);
+
+  // An excused primary is out of this student's total entirely: 0 of 0.
+  if (primary && isSlotExcused(primary)) {
+    return {
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 0,
+      state: 'scored',
+      excused: true,
+    };
+  }
 
   let points =
     primaryIsMedia && primary ? slotPoints(primary, max) : base.pointsEarned;
@@ -280,4 +333,27 @@ export function takeUnplayableReason(
   )
     return 'deleted';
   return 'unknown';
+}
+
+/**
+ * Interim provisional detector for recording slots: a committed audio take
+ * with no `grading` entry is still owed a teacher grade.
+ */
+export function hasUngradedRecording(
+  answers: readonly QuizResponseAnswer[],
+  grading: Record<string, unknown> | undefined,
+  questionIds: readonly string[],
+  archive?: Record<string, ArtifactArchiveEntry>
+): boolean {
+  return questionIds.some((questionId) => {
+    const take = selectPlaybackTake(
+      answers,
+      questionId,
+      'primary',
+      undefined,
+      archive
+    );
+    if (!take) return false;
+    return grading?.[gradingKey(questionId, take.artifact.slot)] == null;
+  });
 }

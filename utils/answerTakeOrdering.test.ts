@@ -66,6 +66,40 @@ describe('nextTakeIndex / countCommittedTakes', () => {
   it('counts zero on a legacy answers array with no artifacts at all', () => {
     expect(countCommittedTakes([{ questionId: 'q1' }], 'q1')).toBe(0);
   });
+
+  it('counts a failed upload the sweep rescued, and drops one it did not', () => {
+    const answers = [
+      {
+        questionId: 'q1',
+        artifacts: [{ id: 'rescued', uploadState: 'failed' }],
+      },
+      { questionId: 'q1', artifacts: [{ id: 'lost', uploadState: 'failed' }] },
+    ];
+    const archive = {
+      rescued: { archiveStatus: 'archived', driveFileId: 'd1' },
+    };
+    expect(countCommittedTakes(answers, 'q1', archive)).toBe(1);
+    // With no archive map at all, both failed takes stay uncounted.
+    expect(countCommittedTakes(answers, 'q1')).toBe(0);
+  });
+
+  it('keeps numbering from the raw index even when a take stops counting', () => {
+    const answers = [
+      {
+        questionId: 'q1',
+        takeIndex: 1,
+        artifacts: [{ id: 'ok', uploadState: 'uploaded' }],
+      },
+      {
+        questionId: 'q1',
+        takeIndex: 2,
+        artifacts: [{ id: 'gone', uploadState: 'failed' }],
+      },
+    ];
+    expect(countCommittedTakes(answers, 'q1')).toBe(1);
+    // Gap-free numbering is NOT required; reusing 2 would collide with its row.
+    expect(nextTakeIndex(answers, 'q1')).toBe(3);
+  });
 });
 
 describe('isRecordingSlotClosed', () => {
