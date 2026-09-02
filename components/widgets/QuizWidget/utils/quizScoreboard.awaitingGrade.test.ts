@@ -305,6 +305,24 @@ describe('isResponseAwaitingGrade — media slots', () => {
     expect(getEarnedPoints(r, qs)).toBe(2);
   });
 
+  it('a partial rubric stays awaiting-grade even when the question also records', () => {
+    const snap = rubric(['c1', 'c2']);
+    const spokenEssay: QuizQuestion = {
+      ...essay('q1', snap),
+      recording: RECORDING,
+    };
+    const r = recordedResponse({
+      q1: {
+        pointsAwarded: 3,
+        rubricScores: [{ criterionId: 'c1', levelId: 'c1-hi', points: 3 }],
+        gradedBy: 't1',
+        gradedAt: 1,
+      },
+    });
+    expect(isResponseAwaitingGrade(r, [spokenEssay])).toBe(true);
+    expect(selectPushableResponses([r], [spokenEssay])).toEqual([]);
+  });
+
   it('leaves a question with no recording block completely alone', () => {
     const qs = [mc('q1')];
     const r = response([{ questionId: 'q1', answer: 'A' }]);

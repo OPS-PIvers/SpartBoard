@@ -8,8 +8,11 @@ import '@/i18n';
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: () => undefined }),
 }));
+const { showConfirm } = vi.hoisted(() => ({
+  showConfirm: vi.fn(() => Promise.resolve(true)),
+}));
 vi.mock('@/context/useDialog', () => ({
-  useDialog: () => ({ showConfirm: () => Promise.resolve(true) }),
+  useDialog: () => ({ showConfirm }),
 }));
 
 import {
@@ -136,7 +139,8 @@ const renderGrader = (
   responses: QuizResponse[],
   onSaveGrade = vi.fn<MediaResponseGraderProps['onSaveGrade']>(() =>
     Promise.resolve()
-  )
+  ),
+  onClose: () => void = () => undefined
 ) => {
   render(
     <MediaResponseGrader
@@ -146,7 +150,7 @@ const renderGrader = (
       teacherUid="teacher-1"
       resolveTakeUrl={() => Promise.resolve('blob:take')}
       onSaveGrade={onSaveGrade}
-      onClose={() => undefined}
+      onClose={onClose}
     />
   );
   return onSaveGrade;
@@ -326,5 +330,22 @@ describe('MediaResponseGrader time-anchored comments', () => {
       to: 0,
       comment: 'Nice framing here.',
     });
+  });
+});
+
+describe('MediaResponseGrader close guard', () => {
+  it('routes Escape through the shell dirty-check instead of closing outright', async () => {
+    showConfirm.mockClear();
+    const onClose = vi.fn();
+    renderGrader([recorded('ada', 1)], undefined, onClose);
+    await screen.findByLabelText(/Points awarded/i);
+    fireEvent.change(screen.getByLabelText(/Points awarded/i), {
+      target: { value: '3' },
+    });
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

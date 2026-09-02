@@ -9,7 +9,6 @@
  */
 
 import {
-  isWrittenQuestionType,
   type ArtifactArchiveEntry,
   type ArtifactSlot,
   type GradeResult,
@@ -182,7 +181,20 @@ export function selectGradedTake(
  * grade with a note is the offline substitute (`scored`), and a grade without
  * one is Blank (`not-attempted`, a real 0).
  */
-export function resolveSlotState(slot: MediaGradingSlot): GradeResult['state'] {
+export function resolveSlotState(
+  slot: MediaGradingSlot,
+  /** Auto/manual state this slot would replace; a provisional base wins. */
+  baseState?: GradeResult['state']
+): GradeResult['state'] {
+  const resolved = resolveSlotStateRaw(slot);
+  // A partial rubric save is `awaiting-grade` in `base`; a grade existing on
+  // the slot must not promote it to `scored`.
+  if (resolved === 'scored' && baseState === 'awaiting-grade')
+    return 'awaiting-grade';
+  return resolved;
+}
+
+function resolveSlotStateRaw(slot: MediaGradingSlot): GradeResult['state'] {
   if (slot.grade?.excused) return 'awaiting-grade';
   if (slot.captureUnavailable) {
     if (!slot.grade) return 'awaiting-grade';
@@ -215,16 +227,18 @@ export function applyMediaSlots(
 
   const primary = slots.find((s) => s.slot === 'primary');
   const addendum = slots.find((s) => s.slot === 'addendum');
+  // Media only owns the primary slot when the student actually recorded (or
+  // could not); a bare grade on it is the ordinary written grade `base`
+  // already accounts for, rubric completeness included.
   const primaryIsMedia =
-    !!primary &&
-    (primary.takes.length > 0 ||
-      primary.captureUnavailable ||
-      isWrittenQuestionType(question.type));
+    !!primary && (primary.takes.length > 0 || primary.captureUnavailable);
 
   let points =
     primaryIsMedia && primary ? slotPoints(primary, max) : base.pointsEarned;
   let state: GradeResult['state'] =
-    primaryIsMedia && primary ? resolveSlotState(primary) : base.state;
+    primaryIsMedia && primary
+      ? resolveSlotState(primary, base.state)
+      : base.state;
 
   if (addendum) {
     points += slotPoints(addendum, max);

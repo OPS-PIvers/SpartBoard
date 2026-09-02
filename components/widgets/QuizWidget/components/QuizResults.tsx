@@ -77,7 +77,7 @@ import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { MediaResponseGrader } from './MediaResponseGrader';
-import { readSlotGrade } from '@/utils/mediaGrading';
+import { collectMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
 import { doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -1993,38 +1993,69 @@ const QuestionsScreen: React.FC<{
   responses: QuizResponse[];
 }> = ({ questions, responses }) => {
   // ⚡ Bolt: Pre-calculate counts per question in a single pass.
-  // Auto-graded types track answered/correct; written types track
-  // answered/graded so partial credit (7/10 essay) isn't bucketed as
-  // "Missed" — graders found that misleading.
+  // Counted per SLOT, not per question: an auto-graded primary tallies
+  // answered/correct while an audio addendum on the same question tallies
+  // its own grading progress, so a mixed question isn't stuck at 0% graded.
   const questionStats = React.useMemo(() => {
     const stats: Record<
       string,
-      { answered: number; correct: number; graded: number }
+      {
+        answered: number;
+        correct: number;
+        autoTotal: number;
+        graded: number;
+        manualTotal: number;
+      }
     > = {};
     const questionsById: Record<string, QuizQuestion> = {};
 
     questions.forEach((q) => {
-      stats[q.id] = { answered: 0, correct: 0, graded: 0 };
+      stats[q.id] = {
+        answered: 0,
+        correct: 0,
+        autoTotal: 0,
+        graded: 0,
+        manualTotal: 0,
+      };
       questionsById[q.id] = q;
     });
 
     responses.forEach((r) => {
+      // Takes put several answer entries on one question; count the student
+      // once, then decide each slot separately.
+      const byQuestion = new Map<string, QuizResponse['answers']>();
       r.answers.forEach((a) => {
-        const qStats = stats[a.questionId];
-        const q = questionsById[a.questionId];
+        const list = byQuestion.get(a.questionId) ?? [];
+        list.push(a);
+        byQuestion.set(a.questionId, list);
+      });
 
-        if (qStats && q) {
-          qStats.answered++;
-          const isWritten =
-            q.type === 'short' || q.type === 'essay' || !!q.recording;
-          const manualGrade = isWritten
-            ? readSlotGrade(r.grading, q.id)
-            : undefined;
-          if (isWritten) {
-            if (manualGrade) qStats.graded++;
-          } else if (gradeAnswer(q, a.answer, manualGrade).isCorrect) {
-            qStats.correct++;
-          }
+      byQuestion.forEach((entries, questionId) => {
+        const qStats = stats[questionId];
+        const q = questionsById[questionId];
+        if (!qStats || !q) return;
+        qStats.answered++;
+
+        const slots = q.recording ? collectMediaSlots(q, r) : [];
+        const mediaPrimary = slots.some(
+          (s) =>
+            s.slot === 'primary' && (s.takes.length > 0 || s.captureUnavailable)
+        );
+        const manualPrimary =
+          q.type === 'short' || q.type === 'essay' || mediaPrimary;
+
+        if (manualPrimary) {
+          qStats.manualTotal++;
+          if (readSlotGrade(r.grading, q.id)) qStats.graded++;
+        } else {
+          qStats.autoTotal++;
+          const entry = entries.find((a) => !a.unresponded) ?? entries[0];
+          if (gradeAnswer(q, entry.answer).isCorrect) qStats.correct++;
+        }
+
+        if (slots.some((s) => s.slot === 'addendum')) {
+          qStats.manualTotal++;
+          if (readSlotGrade(r.grading, q.id, 'addendum')) qStats.graded++;
         }
       });
     });
@@ -2038,17 +2069,26 @@ const QuestionsScreen: React.FC<{
         const stats = questionStats[q.id] || {
           answered: 0,
           correct: 0,
+          autoTotal: 0,
           graded: 0,
+          manualTotal: 0,
         };
-        const isWritten =
+        // With no responses yet, fall back to the question's own shape.
+        const manualByShape =
           q.type === 'short' || q.type === 'essay' || !!q.recording;
-        const pct =
-          stats.answered > 0
-            ? Math.round(
-                ((isWritten ? stats.graded : stats.correct) / stats.answered) *
-                  100
-              )
+        const showAuto =
+          stats.autoTotal > 0 || (stats.manualTotal === 0 && !manualByShape);
+        const showManual =
+          stats.manualTotal > 0 || (stats.autoTotal === 0 && manualByShape);
+        const autoPct =
+          stats.autoTotal > 0
+            ? Math.round((stats.correct / stats.autoTotal) * 100)
             : 0;
+        const gradedPct =
+          stats.manualTotal > 0
+            ? Math.round((stats.graded / stats.manualTotal) * 100)
+            : 0;
+        const pct = showAuto ? autoPct : gradedPct;
 
         return (
           <div
@@ -2076,14 +2116,13 @@ const QuestionsScreen: React.FC<{
                   }}
                 />
               )}
-              {isWritten ? (
-                <SessionBadge tone="warn" label="Manual" />
-              ) : (
+              {showManual && <SessionBadge tone="warn" label="Manual" />}
+              {showAuto && (
                 <span
-                  className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(pct).text}`}
+                  className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(autoPct).text}`}
                   style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                 >
-                  {pct}%
+                  {autoPct}%
                 </span>
               )}
             </div>
@@ -2095,46 +2134,84 @@ const QuestionsScreen: React.FC<{
             </p>
 
             <div
-              className="flex items-center"
+              className="flex items-center flex-wrap"
               style={{
                 gap: 'min(12px, 3cqmin)',
                 marginTop: 'min(6px, 1.5cqmin)',
               }}
             >
-              <div
-                className="flex items-center text-emerald-700 font-sans font-medium shrink-0"
-                style={{
-                  gap: 'min(4px, 1cqmin)',
-                  fontSize: 'min(11px, 3.8cqmin)',
-                }}
-              >
-                <CheckCircle2
-                  aria-hidden
-                  style={{
-                    width: 'min(13px, 4cqmin)',
-                    height: 'min(13px, 4cqmin)',
-                  }}
-                />
-                {isWritten ? stats.graded : stats.correct}{' '}
-                {isWritten ? 'Graded' : 'Correct'}
-              </div>
-              <div
-                className="flex items-center text-brand-red-primary font-sans font-medium shrink-0"
-                style={{
-                  gap: 'min(4px, 1cqmin)',
-                  fontSize: 'min(11px, 3.8cqmin)',
-                }}
-              >
-                <XCircle
-                  aria-hidden
-                  style={{
-                    width: 'min(13px, 4cqmin)',
-                    height: 'min(13px, 4cqmin)',
-                  }}
-                />
-                {stats.answered - (isWritten ? stats.graded : stats.correct)}{' '}
-                {isWritten ? 'Ungraded' : 'Missed'}
-              </div>
+              {showAuto && (
+                <>
+                  <div
+                    className="flex items-center text-emerald-700 font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <CheckCircle2
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.correct} Correct
+                  </div>
+                  <div
+                    className="flex items-center text-brand-red-primary font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <XCircle
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.autoTotal - stats.correct} Missed
+                  </div>
+                </>
+              )}
+              {showManual && (
+                <>
+                  <div
+                    className="flex items-center text-emerald-700 font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <CheckCircle2
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.graded} Graded
+                  </div>
+                  <div
+                    className="flex items-center text-brand-red-primary font-sans font-medium shrink-0"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
+                    }}
+                  >
+                    <XCircle
+                      aria-hidden
+                      style={{
+                        width: 'min(13px, 4cqmin)',
+                        height: 'min(13px, 4cqmin)',
+                      }}
+                    />
+                    {stats.manualTotal - stats.graded} Ungraded
+                  </div>
+                </>
+              )}
               <div
                 className="flex-1 bg-brand-gray-lightest rounded-full overflow-hidden min-w-0"
                 style={{ height: 'min(8px, 2cqmin)' }}

@@ -34,7 +34,6 @@ import type {
   WrittenAnswerAnnotation,
   WrittenAnswerGrade,
 } from '@/types';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import {
   collectMediaSlots,
@@ -298,12 +297,6 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (isEscapeFromWidgetInput(e)) return;
-        e.preventDefault();
-        onClose();
-        return;
-      }
       const target = e.target as HTMLElement | null;
       if (
         target instanceof HTMLInputElement ||
@@ -321,7 +314,7 @@ export const MediaResponseGrader: React.FC<MediaResponseGraderProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [goPrevStudent, goNextStudent, onClose]);
+  }, [goPrevStudent, goNextStudent]);
 
   const handleSave = useCallback(async () => {
     if (!response || !question || !slot) return;

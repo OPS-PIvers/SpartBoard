@@ -248,6 +248,13 @@ describe('resolveSlotState', () => {
     expect(resolveSlotState(unavailableSlot())).toBe('awaiting-grade');
   });
 
+  it('keeps a provisional base state instead of promoting the slot to scored', () => {
+    expect(resolveSlotState(slotWithTake({}), 'awaiting-grade')).toBe(
+      'awaiting-grade'
+    );
+    expect(resolveSlotState(slotWithTake({}), 'scored')).toBe('scored');
+  });
+
   it('maps Blank to not-attempted and an offline substitute to scored', () => {
     expect(resolveSlotState(unavailableSlot(grade({ pointsAwarded: 0 })))).toBe(
       'not-attempted'
@@ -379,6 +386,50 @@ describe('applyMediaSlots', () => {
       base
     );
     expect(result.state).toBe('awaiting-grade');
+  });
+
+  it('leaves a partially-scored rubric awaiting-grade on a recorded essay', () => {
+    const base: GradeResult = {
+      isCorrect: false,
+      pointsEarned: 3,
+      pointsMax: 4,
+      state: 'awaiting-grade',
+    };
+    const result = applyMediaSlots(
+      question({ type: 'essay' }),
+      {
+        answers: [
+          {
+            questionId: 'q1',
+            answer: '',
+            answeredAt: 1,
+            takeIndex: 1,
+            artifacts: [audio('a')],
+          },
+        ],
+        grading: { q1: grade({ pointsAwarded: 3 }) },
+      },
+      base
+    );
+    expect(result.state).toBe('awaiting-grade');
+  });
+
+  it('does not treat a written grade with no take as a media primary slot', () => {
+    const base: GradeResult = {
+      isCorrect: false,
+      pointsEarned: 3,
+      pointsMax: 4,
+      state: 'awaiting-grade',
+    };
+    const result = applyMediaSlots(
+      question({ type: 'essay' }),
+      {
+        answers: [{ questionId: 'q1', answer: 'typed instead', answeredAt: 1 }],
+        grading: { q1: grade({ pointsAwarded: 3 }) },
+      },
+      base
+    );
+    expect(result).toMatchObject({ pointsEarned: 3, state: 'awaiting-grade' });
   });
 
   it('an excused slot omits the student rather than scoring a zero', () => {
