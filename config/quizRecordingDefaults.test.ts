@@ -36,6 +36,15 @@ describe('normalizeRecordingConfig', () => {
     ).toBe('armed');
   });
 
+  it('tolerates the authoring-only stash and drops it from the result', () => {
+    const normalized = normalizeRecordingConfig({
+      ...DEFAULT_RECORDING_CONFIG,
+      priorTimeLimit: 45,
+    });
+    expect(normalized).toEqual(DEFAULT_RECORDING_CONFIG);
+    expect(normalized && 'priorTimeLimit' in normalized).toBe(false);
+  });
+
   it('treats a non-numeric takeLimit as unlimited', () => {
     expect(normalizeRecordingConfig({ takeLimit: 0 })?.takeLimit).toBe(1);
     expect(

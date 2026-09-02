@@ -97,9 +97,20 @@ const STATES: { key: StateKey; label: string }[] = [
   })),
   ...RECORDING_CONTROL_STATES.map((key) => ({
     key: key as StateKey,
-    label: `Recording: ${key}`,
+    label: `Recording: ${key.slice('rc-'.length)}`,
   })),
 ];
+
+// Picking a view moves the State select onto a key that view actually reads.
+const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
+  'quiz-monitor': 'live',
+  'quiz-present': 'live',
+  'quiz-results': 'populated',
+  'va-monitor': 'live',
+  'va-results': 'populated',
+  'audio-capture': 'prep',
+  'recording-controls': 'rc-enabled-defaults',
+};
 
 const WIDTHS = [340, 520, 820];
 
@@ -130,7 +141,7 @@ const SessionView: React.FC<{
       RECORDING_CONTROL_STATES as readonly string[]
     ).includes(state)
       ? (state as RecordingControlStateKey)
-      : 'enabled-defaults';
+      : 'rc-enabled-defaults';
     return <RecordingControlsDevView state={controlState} />;
   }
 
@@ -262,7 +273,11 @@ export const SessionViewsDevHarness: React.FC = () => {
                     View
                     <select
                       value={view}
-                      onChange={(e) => setView(e.target.value as ViewKey)}
+                      onChange={(e) => {
+                        const next = e.target.value as ViewKey;
+                        setView(next);
+                        setState(DEFAULT_STATE_FOR_VIEW[next]);
+                      }}
                       className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm font-normal normal-case tracking-normal text-white"
                     >
                       {VIEWS.map((v) => (

@@ -154,12 +154,14 @@ describe('QuizEditorModal recording controls', () => {
     fireEvent.click(toggle());
     fireEvent.click(toggle());
     expect(context().queryByText(/Records up to/)).toBeNull();
-    // timeLimit stays at the zero the enable wrote; the block itself is gone.
     expect(detail().queryByText('Spoken answer')).toBeTruthy();
-    expect(
-      detail().getByRole<HTMLInputElement>('spinbutton', { name: 'Time Limit' })
-        .disabled
-    ).toBe(false);
+    const timeLimit = detail().getByRole<HTMLInputElement>('spinbutton', {
+      name: 'Time Limit',
+    });
+    expect(timeLimit.disabled).toBe(false);
+    // The teacher's clock comes back, so nothing is left to save.
+    expect(timeLimit.value).toBe('30');
+    expect(dirtyAttr()).toBe('false');
   });
 
   it('keeps the advisory out of the save-error banner', () => {

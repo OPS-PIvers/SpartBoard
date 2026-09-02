@@ -27,10 +27,45 @@ describe('RecordingConfigSection', () => {
     expect(screen.queryByLabelText('Takes allowed')).toBeNull();
   });
 
+  it('reports the enable switch state to assistive tech', () => {
+    const { unmount } = render(
+      <RecordingConfigSection question={question()} onChange={vi.fn()} />
+    );
+    expect(
+      screen
+        .getByLabelText('Ask for a spoken answer')
+        .getAttribute('aria-checked')
+    ).toBe('false');
+    unmount();
+    render(
+      <RecordingConfigSection question={withRecording()} onChange={vi.fn()} />
+    );
+    expect(
+      screen
+        .getByLabelText('Ask for a spoken answer')
+        .getAttribute('aria-checked')
+    ).toBe('true');
+  });
+
   it('writes the default block and zeroes the speed-bonus clock on enable', () => {
     const onChange = vi.fn();
     render(
       <RecordingConfigSection question={question()} onChange={onChange} />
+    );
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    expect(onChange).toHaveBeenCalledWith({
+      recording: { ...DEFAULT_RECORDING_CONFIG, priorTimeLimit: 45 },
+      timeLimit: 0,
+    });
+  });
+
+  it('stashes nothing when there was no clock to replace', () => {
+    const onChange = vi.fn();
+    render(
+      <RecordingConfigSection
+        question={question({ timeLimit: 0 })}
+        onChange={onChange}
+      />
     );
     fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
     expect(onChange).toHaveBeenCalledWith({
@@ -46,6 +81,44 @@ describe('RecordingConfigSection', () => {
     );
     fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
     expect(onChange).toHaveBeenCalledWith({ recording: undefined });
+  });
+
+  it('restores the stashed time limit on disable', () => {
+    const onChange = vi.fn();
+    render(
+      <RecordingConfigSection
+        question={question({
+          timeLimit: 0,
+          recording: { ...DEFAULT_RECORDING_CONFIG, priorTimeLimit: 45 },
+        })}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    expect(onChange).toHaveBeenCalledWith({
+      recording: undefined,
+      timeLimit: 45,
+    });
+  });
+
+  it('leaves the question deep-equal to its original across a round trip', () => {
+    const original = question();
+    let current = original;
+    const apply = (updates: Partial<QuizQuestion>) => {
+      const next = { ...current, ...updates } as Record<string, unknown>;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined) delete next[key];
+      }
+      current = next as unknown as QuizQuestion;
+    };
+    const view = () => (
+      <RecordingConfigSection question={current} onChange={apply} />
+    );
+    const { rerender } = render(view());
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    rerender(view());
+    fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    expect(current).toEqual(original);
   });
 
   it('writes prep seconds through the caller', () => {
@@ -109,6 +182,21 @@ describe('RecordingConfigSection', () => {
     expect(onChange).toHaveBeenLastCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, takeLimit: 3 },
     });
+  });
+
+  it('points both duration fields at their hint text', () => {
+    render(
+      <RecordingConfigSection question={withRecording()} onChange={vi.fn()} />
+    );
+    const hintFor = (label: string) => {
+      const id =
+        screen.getByLabelText(label).getAttribute('aria-describedby') ?? '';
+      return document.getElementById(id)?.textContent ?? '';
+    };
+    expect(hintFor('Thinking time')).toMatch(
+      /Seconds before the recorder arms/
+    );
+    expect(hintFor('Recording limit')).toMatch(/Hard stop for one take/);
   });
 
   it('marks the active take limit as pressed', () => {

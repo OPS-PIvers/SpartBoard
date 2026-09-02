@@ -150,11 +150,18 @@ export interface RecordingConfig {
   limitSeconds: number; // default 60, max 300 for audio (mode-dependent ceiling)
   prepExpiry: RecordingPrepExpiry;
   takeLimit: number | null; // added by 3.2 — null = unlimited (default)
+  priorTimeLimit?: number; // added by 3.5 — authoring-only, see below
 }
 ```
 
 `recording?: RecordingConfig` lives on `QuizQuestion` and
 `QuizPublicQuestion` (3.1). `takeLimit` counts takes, not re-takes.
+
+`priorTimeLimit` is the editor's stash of the `timeLimit` the block replaced
+with 0 (RR-A1 sub-decision 3), so turning the block back off restores the
+teacher's clock instead of leaving a silent zero. It is authoring-only:
+`normalizeRecordingConfig` drops it, so `toPublicQuestion` never projects it
+and no runtime surface reads it.
 
 ## `GlobalFeature` id + gating helper — 3.1 is canonical (introduced via owner note)
 

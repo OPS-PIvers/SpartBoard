@@ -41,6 +41,7 @@ export function wrapUpThresholdSeconds(limitSeconds: number): number {
 /**
  * Coerces a stored/authored block into a usable one. Returns `undefined` for
  * absent input so a legacy question stays legacy — never synthesise a block.
+ * The rebuilt object drops the authoring-only `priorTimeLimit` by design.
  */
 export function normalizeRecordingConfig(
   raw: Partial<RecordingConfig> | undefined | null

@@ -10,12 +10,13 @@ import { QuizAuthoringAdvisory } from '@/components/widgets/QuizWidget/component
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
 import type { QuizQuestion } from '@/types';
 
+// Prefixed so no key collides with AUDIO_CAPTURE_STATES in the harness picker.
 export const RECORDING_CONTROL_STATES = [
-  'disabled',
-  'enabled-defaults',
-  'clamped-limit',
-  'take-limit',
-  'advisory',
+  'rc-disabled',
+  'rc-enabled-defaults',
+  'rc-clamped-limit',
+  'rc-take-limit',
+  'rc-advisory',
 ] as const;
 
 export type RecordingControlStateKey =
@@ -32,15 +33,15 @@ const baseQuestion = (): QuizQuestion => ({
 
 function seedQuestion(state: RecordingControlStateKey): QuizQuestion {
   const q = baseQuestion();
-  if (state === 'disabled') return { ...q, timeLimit: 45 };
-  if (state === 'clamped-limit') {
+  if (state === 'rc-disabled') return { ...q, timeLimit: 45 };
+  if (state === 'rc-clamped-limit') {
     // Over the audio ceiling, as an imported quiz can be.
     return {
       ...q,
       recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 420 },
     };
   }
-  if (state === 'take-limit') {
+  if (state === 'rc-take-limit') {
     return { ...q, recording: { ...DEFAULT_RECORDING_CONFIG, takeLimit: 2 } };
   }
   return { ...q, recording: { ...DEFAULT_RECORDING_CONFIG } };
@@ -61,7 +62,7 @@ export const RecordingControlsDevView: React.FC<{
   }
 
   const advisoryQuestions = useMemo(() => {
-    if (state !== 'advisory') return [question];
+    if (state !== 'rc-advisory') return [question];
     const second: QuizQuestion = {
       ...baseQuestion(),
       id: 'dev-q2',
@@ -77,7 +78,7 @@ export const RecordingControlsDevView: React.FC<{
       <div className="max-w-md space-y-3">
         <QuizAuthoringAdvisory
           questions={advisoryQuestions}
-          shuffleQuestionsEnabled={state === 'advisory'}
+          shuffleQuestionsEnabled={state === 'rc-advisory'}
         />
         <RecordingConfigSection
           question={question}

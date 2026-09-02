@@ -16,6 +16,8 @@ import type {
   RecordingPrepExpiry,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { AttemptLimitRow } from '@/components/common/library/AssignmentSettingsToggleGroup';
+import { labelClass, inputClass } from './quizEditorFieldStyles';
 import {
   DEFAULT_RECORDING_CONFIG,
   PREP_SECONDS_MAX,
@@ -27,12 +29,6 @@ import {
   RECORDING_MODE_LABELS,
 } from '@/utils/quizRecordingModes';
 
-// Mirrors the field styling in QuizEditor.tsx; kept local so the section can
-// be imported by the editor without a cycle.
-const labelClass =
-  'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
-const inputClass =
-  'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 const hintClass = 'text-xxs text-slate-500 mt-1';
 
 const EXPIRY_ORDER: RecordingPrepExpiry[] = [
@@ -54,8 +50,6 @@ const EXPIRY_KEYS: Record<
   },
   unanswered: { label: 'expiryUnanswered', hint: 'expiryUnansweredHint' },
 };
-
-const TAKE_LIMIT_OPTIONS: (number | null)[] = [1, 2, 3, null];
 
 export interface RecordingConfigSectionProps {
   question: QuizQuestion;
@@ -83,10 +77,23 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
   const toggle = (next: boolean) => {
     if (next) {
       // Speed bonus and the recording timer cannot both own the clock
-      // (RR-A1 sub-decision 3), so the editor writes the zero it implies.
-      onChange({ recording: { ...DEFAULT_RECORDING_CONFIG }, timeLimit: 0 });
+      // (RR-A1 sub-decision 3), so the editor writes the zero it implies and
+      // stashes the clock it replaced.
+      const prior = question.timeLimit;
+      onChange({
+        recording: {
+          ...DEFAULT_RECORDING_CONFIG,
+          ...(prior ? { priorTimeLimit: prior } : {}),
+        },
+        timeLimit: 0,
+      });
     } else {
-      onChange({ recording: undefined });
+      const prior = recording?.priorTimeLimit;
+      onChange(
+        prior === undefined
+          ? { recording: undefined }
+          : { recording: undefined, timeLimit: prior }
+      );
     }
   };
 
@@ -127,6 +134,7 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
                   min={0}
                   max={PREP_SECONDS_MAX}
                   value={recording.prepSeconds}
+                  aria-describedby="recording-prep-hint"
                   onChange={(e) => {
                     const raw = parseInt(e.target.value, 10);
                     patch({
@@ -142,7 +150,9 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
                   {tk('secondsUnit')}
                 </span>
               </div>
-              <p className={hintClass}>{tk('prepHint')}</p>
+              <p id="recording-prep-hint" className={hintClass}>
+                {tk('prepHint')}
+              </p>
             </div>
 
             <div>
@@ -236,39 +246,14 @@ export const RecordingConfigSection: React.FC<RecordingConfigSectionProps> = ({
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold text-brand-blue-dark">
-                {tk('takeLimitLabel')}
-              </span>
-              <div
-                role="group"
-                aria-label={tk('takeLimitLabel')}
-                className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
-              >
-                {TAKE_LIMIT_OPTIONS.map((option) => {
-                  const active = (recording.takeLimit ?? null) === option;
-                  return (
-                    <button
-                      key={option ?? 'unlimited'}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => patch({ takeLimit: option })}
-                      className={
-                        'px-3 py-1.5 text-xs font-bold transition ' +
-                        (active
-                          ? 'bg-brand-blue-primary text-white'
-                          : 'text-slate-600 hover:bg-slate-50')
-                      }
-                    >
-                      {option ?? tk('takeLimitUnlimited')}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <p className={hintClass}>{tk('takeLimitHint')}</p>
-          </div>
+          <AttemptLimitRow
+            value={recording.takeLimit ?? null}
+            onChange={(takeLimit) => patch({ takeLimit })}
+            label={tk('takeLimitLabel')}
+            ariaLabel={tk('takeLimitLabel')}
+            unlimitedLabel={tk('takeLimitUnlimited')}
+            hint={tk('takeLimitHint')}
+          />
         </div>
       )}
     </div>

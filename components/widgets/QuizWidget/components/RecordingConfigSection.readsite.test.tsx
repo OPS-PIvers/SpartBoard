@@ -132,12 +132,22 @@ describe('authored recording controls reach a runtime reader', () => {
   });
 
   it('writes nothing onto a question with the block turned off', () => {
-    const { question } = author(baseQuestion(), () => {
+    const seed = baseQuestion();
+    const { question } = author(seed, () => {
       fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
       fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
     });
     expect('recording' in question).toBe(false);
+    expect(question).toEqual(seed);
     expect(toPublicQuestion(question).recording).toBeUndefined();
+  });
+
+  it('keeps the authoring-only stash off the student payload', () => {
+    const { question, config } = author(baseQuestion(), () => {
+      fireEvent.click(screen.getByLabelText('Ask for a spoken answer'));
+    });
+    expect(question.recording?.priorTimeLimit).toBe(45);
+    expect('priorTimeLimit' in config).toBe(false);
   });
 
   it('prepSeconds drives the student prep countdown', () => {
