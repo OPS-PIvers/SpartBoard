@@ -27,7 +27,11 @@ const commonServerConfig = {
 };
 
 export default defineConfig({
-  server: commonServerConfig,
+  server: {
+    ...commonServerConfig,
+    // Agent worktrees live inside the repo; watching them stalls the dev server.
+    watch: { ignored: ['**/.claude/worktrees/**'] },
+  },
   preview: commonServerConfig,
   plugins: [react()],
   define: {
