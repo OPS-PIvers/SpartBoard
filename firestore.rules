@@ -3357,7 +3357,7 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt']) &&
            // M17 served-subset snapshot: a student may only stamp
            // servedQuestionIds when it exactly equals the override subset the
            // setAssignmentTargetsV1 CF fanned out to their own pointer doc —
