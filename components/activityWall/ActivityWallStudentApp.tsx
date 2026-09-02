@@ -248,9 +248,12 @@ export const ActivityWallStudentApp: React.FC = () => {
     setBody(post.type === 'link' ? '' : post.content);
     setWord(post.type === 'word' ? post.content : '');
     setUrl(post.type === 'link' ? post.content : '');
+    const [postRowId, postColId] = post.cellKey?.split('|') ?? [];
     setStructure((prev) => ({
       ...prev,
       sectionId: post.sectionId ?? prev.sectionId,
+      rowId: postRowId ?? prev.rowId,
+      colId: postColId ?? prev.colId,
       label: post.label ?? '',
     }));
     setJustPosted(false);
@@ -299,6 +302,8 @@ export const ActivityWallStudentApp: React.FC = () => {
         if (!isWordCloud) patch.title = title.trim();
         if (wall.layout === 'timeline') patch.label = placement.label.trim();
         if (wall.layout === 'columns') patch.sectionId = placement.sectionId;
+        if (wall.layout === 'table' && placement.rowId && placement.colId)
+          patch.cellKey = `${placement.rowId}|${placement.colId}`;
         await updateDoc(
           doc(db, 'activity_wall_sessions', wall.id, 'submissions', editingId),
           patch

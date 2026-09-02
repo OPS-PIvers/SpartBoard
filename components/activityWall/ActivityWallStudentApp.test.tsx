@@ -12,6 +12,7 @@ const {
   mockOnSnapshot,
   mockSetDoc,
   mockDeleteDoc,
+  mockUpdateDoc,
   mockUploadBytesResumable,
   mockDeleteObject,
   mockHttpsCallable,
@@ -23,6 +24,7 @@ const {
   mockOnSnapshot: vi.fn(),
   mockSetDoc: vi.fn(),
   mockDeleteDoc: vi.fn(),
+  mockUpdateDoc: vi.fn(),
   mockUploadBytesResumable: vi.fn(),
   mockDeleteObject: vi.fn(),
   mockHttpsCallable: vi.fn(),
@@ -49,7 +51,7 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
   deleteDoc: mockDeleteDoc,
-  updateDoc: vi.fn(),
+  updateDoc: mockUpdateDoc,
 }));
 
 vi.mock('firebase/storage', () => ({
@@ -151,6 +153,7 @@ describe('ActivityWallStudentApp', () => {
     window.history.pushState({}, '', `/activity-wall/${SESSION_ID}`);
     mockSetDoc.mockResolvedValue(undefined);
     mockDeleteDoc.mockResolvedValue(undefined);
+    mockUpdateDoc.mockResolvedValue(undefined);
     mockSignInAnonymously.mockResolvedValue({ user: { uid: 'anon' } });
     mockHttpsCallable.mockReturnValue(mockCallable);
     mockCallable.mockResolvedValue({ data: { domain: 'example.com' } });
@@ -429,5 +432,55 @@ describe('ActivityWallStudentApp', () => {
       expect(mockDeleteObject).toHaveBeenCalled();
     });
     expect(await screen.findByText(/could not post/i)).toBeInTheDocument();
+  });
+
+  it('edits a table post by seeding row/col from cellKey and writes the new cellKey', async () => {
+    const user = userEvent.setup();
+    signIn({ uid: 'sso-1', isAnonymous: false, studentRole: true });
+    wireSnapshots(
+      buildSession({
+        layout: 'table',
+        allowStudentEdit: true,
+        tableRows: [
+          { id: 'row-1', label: 'Row 1' },
+          { id: 'row-2', label: 'Row 2' },
+        ],
+        tableCols: [
+          { id: 'col-1', label: 'Col 1' },
+          { id: 'col-2', label: 'Col 2' },
+        ],
+      }),
+      [
+        {
+          id: 'sso-1__AAAAAAAAAA',
+          data: {
+            authorUid: 'sso-1',
+            content: 'Original',
+            cellKey: 'row-1|col-1',
+          },
+        },
+      ]
+    );
+
+    render(<ActivityWallStudentApp />);
+
+    await user.click(await screen.findByRole('button', { name: /^edit/i }));
+
+    expect(screen.getByLabelText(/^row$/i)).toHaveValue('row-1');
+    expect(screen.getByLabelText(/^column$/i)).toHaveValue('col-1');
+
+    await user.selectOptions(screen.getByLabelText(/^column$/i), 'col-2');
+    fireEvent.submit(
+      screen
+        .getByRole('button', { name: /save changes/i })
+        .closest('form') as HTMLFormElement
+    );
+
+    await waitFor(() => {
+      expect(mockUpdateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ cellKey: 'row-1|col-2' })
+      );
+    });
   });
 });
