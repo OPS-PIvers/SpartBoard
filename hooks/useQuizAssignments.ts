@@ -1961,18 +1961,32 @@ export const useQuizAssignments = (
       // The already-loaded assignment carries the same marker, so a quiz that
       // never recorded costs no extra reads at all.
       let stickyMediaMarker = false;
-      if (!syncHasRecording && assignment.mediaResponseEnabled === true) {
-        const allResponses = await getDocs(
-          collection(
-            db,
-            QUIZ_SESSIONS_COLLECTION,
-            assignmentId,
-            RESPONSES_COLLECTION
-          )
-        );
-        stickyMediaMarker = (allResponses?.docs ?? []).some((d) =>
-          responseHasArtifacts(d.data())
-        );
+      if (!syncHasRecording && assignment.mediaResponseEnabled !== false) {
+        // Absent mirror predates this field; fall back to the session doc.
+        let shouldScanArtifacts = assignment.mediaResponseEnabled === true;
+        if (assignment.mediaResponseEnabled === undefined) {
+          const sessionSnap = await getDoc(
+            doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+          );
+          const sessionData = sessionSnap.data() as
+            | { mediaResponseEnabled?: boolean }
+            | undefined;
+          shouldScanArtifacts =
+            shouldScanArtifacts || !!sessionData?.mediaResponseEnabled;
+        }
+        if (shouldScanArtifacts) {
+          const allResponses = await getDocs(
+            collection(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              assignmentId,
+              RESPONSES_COLLECTION
+            )
+          );
+          stickyMediaMarker = (allResponses?.docs ?? []).some((d) =>
+            responseHasArtifacts(d.data())
+          );
+        }
       }
       const now = Date.now();
       const responsesToTag = responsesSnap.docs;

@@ -62,6 +62,14 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
     gradedTakeIndex,
     artifactArchive
   );
+  // Reset a stale comment seek when the pinned take changes underneath us.
+  const [seekTakeKey, setSeekTakeKey] = useState<string | undefined>(
+    take?.artifact.id
+  );
+  if (take?.artifact.id !== seekTakeKey) {
+    setSeekTakeKey(take?.artifact.id);
+    setSeek({ ms: 0, nonce: 0 });
+  }
   const timelineComments = useMemo(
     () =>
       [...(annotations ?? [])]
