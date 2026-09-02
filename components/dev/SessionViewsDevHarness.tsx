@@ -35,6 +35,11 @@ import {
   type AudioCaptureStateKey,
 } from './AudioCaptureDevView';
 import {
+  ResultsPlaybackDevView,
+  RESULTS_PLAYBACK_STATES,
+  type ResultsPlaybackStateKey,
+} from './ResultsPlaybackDevView';
+import {
   makeQuizSession,
   makeQuizResponses,
   makeQuizData,
@@ -49,7 +54,8 @@ type ViewKey =
   | 'quiz-results'
   | 'va-monitor'
   | 'va-results'
-  | 'audio-capture';
+  | 'audio-capture'
+  | 'results-playback';
 type StateKey =
   | 'waiting'
   | 'live'
@@ -59,7 +65,8 @@ type StateKey =
   | 'ended'
   | 'populated'
   | 'empty'
-  | AudioCaptureStateKey;
+  | AudioCaptureStateKey
+  | ResultsPlaybackStateKey;
 
 const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
@@ -68,6 +75,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'va-monitor', label: 'VA Monitor' },
   { key: 'va-results', label: 'VA Results' },
   { key: 'audio-capture', label: 'Audio capture' },
+  { key: 'results-playback', label: 'Results playback' },
 ];
 
 // State keys are partitioned by view family: monitors use the lifecycle
@@ -86,6 +94,10 @@ const STATES: { key: StateKey; label: string }[] = [
   ...AUDIO_CAPTURE_STATES.map((key) => ({
     key: key as StateKey,
     label: `Audio: ${key}`,
+  })),
+  ...RESULTS_PLAYBACK_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Playback: ${key}`,
   })),
 ];
 
@@ -111,6 +123,15 @@ const SessionView: React.FC<{
       ? (state as AudioCaptureStateKey)
       : 'prep';
     return <AudioCaptureDevView state={audioState} />;
+  }
+
+  if (view === 'results-playback') {
+    const playbackState = (
+      RESULTS_PLAYBACK_STATES as readonly string[]
+    ).includes(state)
+      ? (state as ResultsPlaybackStateKey)
+      : 'playable';
+    return <ResultsPlaybackDevView state={playbackState} />;
   }
 
   if (view === 'quiz-monitor') {
