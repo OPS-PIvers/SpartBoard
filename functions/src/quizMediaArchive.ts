@@ -471,6 +471,38 @@ export async function deriveTeacherTier(
   return member?.exists ? 'org' : 'free';
 }
 
+/** Server twin of `utils/betaAccess.isBetaUser` — same four grant sources. */
+export async function isBetaTeacher(
+  db: Firestore,
+  betaUsers: readonly unknown[],
+  emailLower: string
+): Promise<boolean> {
+  if (!emailLower) return false;
+  const listHas = (list: unknown): boolean =>
+    Array.isArray(list) &&
+    list.some((e) => typeof e === 'string' && e.toLowerCase() === emailLower);
+  if (listHas(betaUsers)) return true;
+  const roles = await db
+    .doc('admin_settings/user_roles')
+    .get()
+    .catch(() => null);
+  if (roles?.exists) {
+    if (listHas(roles.get('betaTeachers'))) return true;
+    if (listHas(roles.get('superAdmins'))) return true;
+  }
+  const domain = normalizeEmailDomain(emailLower);
+  const orgId = domain
+    ? await resolveOrgIdForDomain(db, domain).catch(() => null)
+    : null;
+  if (!orgId) return false;
+  const member = await db
+    .doc(`organizations/${orgId}/members/${emailLower}`)
+    .get()
+    .catch(() => null);
+  const roleId: unknown = member?.exists ? member.get('roleId') : null;
+  return typeof roleId === 'string' && roleId.trim() === 'super_admin';
+}
+
 /**
  * Fail-closed gate, mirroring `resolvePermissionAccess` in
  * `context/AuthContext.tsx`: enabled → admin bypass → access level → `minTier`
@@ -499,10 +531,7 @@ export async function isQuizMediaResponseGranted(
   if (data.accessLevel === 'beta') {
     if (!email) return false;
     const betaUsers = Array.isArray(data.betaUsers) ? data.betaUsers : [];
-    const isBeta = betaUsers.some(
-      (u: unknown) => typeof u === 'string' && u.toLowerCase() === email
-    );
-    if (!isBeta) return false;
+    if (!(await isBetaTeacher(db, betaUsers, email))) return false;
   } else if (data.accessLevel !== 'public') {
     return false;
   }
@@ -702,15 +731,22 @@ export async function archiveQuizArtifactCore(
     );
   }
 
-  const alreadyArchived = readArchiveMap(response)[artifactId];
-  if (
-    alreadyArchived?.archiveStatus === 'archived' &&
-    typeof alreadyArchived.driveFileId === 'string'
-  ) {
-    return {
-      archiveStatus: 'archived',
-      driveFileId: alreadyArchived.driveFileId,
-    };
+  // The Drive copy is the durable one: once an id exists the file is already
+  // there, whatever status a later write failure left behind.
+  const finalizeArchived = async (
+    driveFileId: string
+  ): Promise<ArchiveResult> =>
+    finalizeArchivedEntry(
+      deps,
+      responseRef,
+      artifactId,
+      driveFileId,
+      storagePath
+    );
+
+  const existingEntry = readArchiveMap(response)[artifactId];
+  if (typeof existingEntry?.driveFileId === 'string') {
+    return finalizeArchived(existingEntry.driveFileId);
   }
 
   const publicQuestions = Array.isArray(session.publicQuestions)
@@ -736,10 +772,7 @@ export async function archiveQuizArtifactCore(
     const fresh = await tx.get(responseRef);
     const archive = readArchiveMap(fresh.data());
     const entry = archive[artifactId];
-    if (
-      entry?.archiveStatus === 'archived' &&
-      typeof entry.driveFileId === 'string'
-    ) {
+    if (typeof entry?.driveFileId === 'string') {
       return { kind: 'archived' as const, driveFileId: entry.driveFileId };
     }
     if (hasLiveOwner(entry, startedAt)) return { kind: 'inflight' as const };
@@ -760,10 +793,42 @@ export async function archiveQuizArtifactCore(
     );
     return { kind: 'claimed' as const };
   });
-  if (claim.kind === 'archived') {
-    return { archiveStatus: 'archived', driveFileId: claim.driveFileId };
-  }
+  if (claim.kind === 'archived') return finalizeArchived(claim.driveFileId);
   if (claim.kind === 'inflight') return { archiveStatus: 'syncing' };
+
+  // Stamped the instant Drive accepts the upload, so every later failure path
+  // can persist it and the retry never uploads a duplicate.
+  let driveFileId: string | null = null;
+  const writeFailure = async (error: unknown): Promise<void> => {
+    const message =
+      error instanceof Error ? error.message : 'Drive archive failed';
+    // `archiveStartedAt` survives and `lastAttemptAt` is stamped, so the sweep
+    // measures from this attempt rather than retrying on its very next run.
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive = readArchiveMap(fresh.data());
+      archive[artifactId] = {
+        ...(archive[artifactId] ?? {}),
+        archiveStatus: 'failed',
+        ...(driveFileId ? { driveFileId } : {}),
+      };
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [artifactId]: {
+              archiveStatus: 'failed',
+              archiveError: message.slice(0, 180),
+              lastAttemptAt: deps.now(),
+              ...(driveFileId ? { driveFileId } : {}),
+            },
+          },
+          hasStuckArchive: computeHasStuckArchive(archive),
+        },
+        { merge: true }
+      );
+    });
+  };
 
   try {
     const stat = await deps.statObject(storagePath);
@@ -811,68 +876,78 @@ export async function archiveQuizArtifactCore(
       fileName,
       `${QUIZ_DRIVE_FOLDER}/${quizTitle}`
     );
-
-    // `'archived'` is durable from here on: the Storage delete below is a
-    // separate retryable step and can never demote this entry.
-    await db.runTransaction(async (tx) => {
-      const fresh = await tx.get(responseRef);
-      const archive = readArchiveMap(fresh.data());
-      archive[artifactId] = { archiveStatus: 'archived' };
-      tx.set(
-        responseRef,
-        {
-          artifactArchive: {
-            [artifactId]: {
-              archiveStatus: 'archived',
-              driveFileId: driveFile.id,
-              archivedAt: deps.now(),
-              archiveStartedAt: admin.firestore.FieldValue.delete(),
-              lastAttemptAt: admin.firestore.FieldValue.delete(),
-              archiveError: admin.firestore.FieldValue.delete(),
-            },
-          },
-          hasStuckArchive: computeHasStuckArchive(archive),
-        },
-        { merge: true }
-      );
-    });
-
-    try {
-      await deps.deleteObject(storagePath);
-    } catch {
-      await markStorageCleanupPending(db, responseRef, artifactId);
-    }
-    return { archiveStatus: 'archived', driveFileId: driveFile.id };
+    driveFileId = driveFile.id;
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : 'Drive archive failed';
-    // `archiveStartedAt` survives and `lastAttemptAt` is stamped, so the sweep
-    // measures from this attempt rather than retrying on its very next run.
-    await db.runTransaction(async (tx) => {
-      const fresh = await tx.get(responseRef);
-      const archive = readArchiveMap(fresh.data());
-      archive[artifactId] = {
-        ...(archive[artifactId] ?? {}),
-        archiveStatus: 'failed',
-      };
-      tx.set(
-        responseRef,
-        {
-          artifactArchive: {
-            [artifactId]: {
-              archiveStatus: 'failed',
-              archiveError: message.slice(0, 180),
-              lastAttemptAt: deps.now(),
-            },
-          },
-          hasStuckArchive: computeHasStuckArchive(archive),
-        },
-        { merge: true }
-      );
-    });
+    await writeFailure(error);
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError('internal', message);
+    throw new HttpsError(
+      'internal',
+      error instanceof Error ? error.message : 'Drive archive failed'
+    );
   }
+
+  const uploadedId = driveFileId;
+  if (!uploadedId) {
+    await writeFailure(new Error('Drive upload returned no file id.'));
+    throw new HttpsError('internal', 'Drive upload returned no file id.');
+  }
+
+  // Separate try: a rejected terminal write must still record the Drive id.
+  try {
+    return await finalizeArchived(uploadedId);
+  } catch (error: unknown) {
+    await writeFailure(error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      'internal',
+      error instanceof Error ? error.message : 'Drive archive failed'
+    );
+  }
+}
+
+/** Terminal `'archived'` write plus the retryable Storage delete. */
+async function finalizeArchivedEntry(
+  deps: ArchiveDeps,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string,
+  driveFileId: string,
+  storagePath: string
+): Promise<ArchiveResult> {
+  const { db } = deps;
+  await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    archive[artifactId] = {
+      ...(archive[artifactId] ?? {}),
+      archiveStatus: 'archived',
+      driveFileId,
+    };
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: {
+          [artifactId]: {
+            archiveStatus: 'archived',
+            driveFileId,
+            archivedAt: deps.now(),
+            archiveStartedAt: admin.firestore.FieldValue.delete(),
+            lastAttemptAt: admin.firestore.FieldValue.delete(),
+            archiveError: admin.firestore.FieldValue.delete(),
+          },
+        },
+        hasStuckArchive: computeHasStuckArchive(archive),
+      },
+      { merge: true }
+    );
+  });
+  try {
+    if (await deps.statObject(storagePath)) {
+      await deps.deleteObject(storagePath);
+    }
+  } catch {
+    await markStorageCleanupPending(db, responseRef, artifactId);
+  }
+  return { archiveStatus: 'archived', driveFileId };
 }
 
 async function markStorageCleanupPending(
@@ -927,9 +1002,14 @@ export async function retryStorageCleanup(
   );
   const storagePath =
     typeof artifact?.storagePath === 'string' ? artifact.storagePath : '';
-  if (hasQuizMediaStoragePrefix(storagePath, input.sessionId, studentUid)) {
-    await deps.deleteObject(storagePath);
+  // Clearing the flag without a confirmed delete would strand the object.
+  if (!hasQuizMediaStoragePrefix(storagePath, input.sessionId, studentUid)) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Cannot resolve the transit object for this artifact.'
+    );
   }
+  await deps.deleteObject(storagePath);
   await db.runTransaction(async (tx) => {
     const fresh = await tx.get(responseRef);
     const archive = readArchiveMap(fresh.data());

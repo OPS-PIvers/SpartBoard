@@ -74,8 +74,10 @@ import {
   hasQuizMediaStoragePrefix,
   parseRefKey,
   questionLabelFor,
+  retryStorageCleanup,
   type ArchiveDeps,
 } from './quizMediaArchive';
+import { resolveOrgIdForDomain } from './classlinkShared';
 
 const SESSION_ID = 'sess-1';
 const RESPONSE_KEY = 'resp-1';
@@ -522,6 +524,42 @@ describe('archiveQuizArtifactCore', () => {
     ).toBe('drive-1');
   });
 
+  it('persists driveFileId when the terminal write fails, and never re-uploads', async () => {
+    const { db, response } = makeStubDb(baseSeed());
+    let transactions = 0;
+    const flakyDb = {
+      collection: db.collection,
+      runTransaction: (fn: Parameters<typeof db.runTransaction>[0]) => {
+        transactions++;
+        // 1 = claim, 2 = the terminal 'archived' write.
+        if (transactions === 2) {
+          return Promise.reject(new Error('aborted; transaction conflict'));
+        }
+        return db.runTransaction(fn);
+      },
+    };
+    const deps = makeDeps(flakyDb);
+
+    await expect(call(deps)).rejects.toMatchObject({ code: 'internal' });
+    const failed = (response?.artifactArchive as Record<string, Bag>)[
+      ARTIFACT_ID
+    ];
+    expect(failed).toMatchObject({
+      archiveStatus: 'failed',
+      driveFileId: 'drive-1',
+      lastAttemptAt: 1_700_000_000_000,
+    });
+
+    const second = await call(deps);
+    expect(second).toEqual({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-1',
+    });
+    expect(deps.uploadToDrive).toHaveBeenCalledTimes(1);
+    expect(deps.downloadObject).toHaveBeenCalledTimes(1);
+    expect(response?.hasStuckArchive).toBe(false);
+  });
+
   it('uploads once when two invocations race the same artifact', async () => {
     const { db } = makeStubDb(baseSeed());
     const deps = makeDeps(db);
@@ -635,14 +673,89 @@ describe('archiveQuizArtifactCore', () => {
   });
 });
 
+describe('retryStorageCleanup', () => {
+  function seedPending(storagePath: string): SeedOptions {
+    const seed = baseSeed();
+    (
+      seed.response as { answers: { artifacts: Bag[] }[] }
+    ).answers[0].artifacts[0].storagePath = storagePath;
+    (seed.response as Bag).artifactArchive = {
+      [ARTIFACT_ID]: {
+        archiveStatus: 'archived',
+        driveFileId: 'drive-1',
+        storageCleanupPending: true,
+      },
+    };
+    (seed.response as Bag).hasStuckArchive = true;
+    return seed;
+  }
+
+  const input = {
+    sessionId: SESSION_ID,
+    responseKey: RESPONSE_KEY,
+    questionId: QUESTION_ID,
+    artifactId: ARTIFACT_ID,
+  };
+
+  it('clears the flag only after the object is actually deleted', async () => {
+    const { db, response } = makeStubDb(seedPending(GOOD_PATH));
+    const deps = makeDeps(db);
+    await retryStorageCleanup(input, deps);
+    expect(deps.deleteObject).toHaveBeenCalledWith(GOOD_PATH);
+    expect(
+      (response?.artifactArchive as Record<string, Bag>)[ARTIFACT_ID]
+    ).not.toHaveProperty('storageCleanupPending');
+    expect(response?.hasStuckArchive).toBe(false);
+  });
+
+  it('leaves the flag set when the storage path is outside this response', async () => {
+    const { db, response } = makeStubDb(
+      seedPending(`quiz_response_media/other-session/${STUDENT_UID}/x.webm`)
+    );
+    const deps = makeDeps(db);
+    await expect(retryStorageCleanup(input, deps)).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+    expect(
+      (response?.artifactArchive as Record<string, Bag>)[ARTIFACT_ID]
+        .storageCleanupPending
+    ).toBe(true);
+  });
+
+  it('leaves the flag set when the artifact is missing from the response', async () => {
+    const { db, response } = makeStubDb(seedPending(GOOD_PATH));
+    const deps = makeDeps(db);
+    await expect(
+      retryStorageCleanup({ ...input, artifactId: 'gone' }, deps)
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+    expect(
+      (response?.artifactArchive as Record<string, Bag>)[ARTIFACT_ID]
+        .storageCleanupPending
+    ).toBe(true);
+  });
+});
+
 describe('isQuizMediaResponseGranted', () => {
   const TEACHER_EMAIL = 'teacher@school.org';
 
   function makeGateDb(
     permission: Record<string, unknown> | null,
     profile: Record<string, unknown> | null,
-    adminEmails: string[] = []
+    adminEmails: string[] = [],
+    docs: Record<string, Record<string, unknown>> = {}
   ) {
+    const snapFor = (path: string) => {
+      const data = path.endsWith('/userProfile/profile')
+        ? (profile ?? undefined)
+        : docs[path];
+      return {
+        exists: data !== undefined,
+        data: () => data,
+        get: (field: string) => data?.[field],
+      };
+    };
     return {
       collection: (name: string) => ({
         doc: (id: string) => ({
@@ -656,15 +769,66 @@ describe('isQuizMediaResponseGranted', () => {
             }),
         }),
       }),
-      doc: () => ({
-        get: () =>
-          Promise.resolve({
-            exists: profile !== null,
-            data: () => profile ?? undefined,
-          }),
+      doc: (path: string) => ({
+        get: () => Promise.resolve(snapFor(path)),
       }),
     } as unknown as Parameters<typeof isQuizMediaResponseGranted>[0];
   }
+
+  const BETA_RECORD = {
+    enabled: true,
+    accessLevel: 'beta',
+    betaUsers: [] as string[],
+  };
+
+  it('denies a beta record when no role source lists the teacher', async () => {
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(BETA_RECORD, null),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(false);
+  });
+
+  it('grants beta via admin_settings/user_roles.betaTeachers', async () => {
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(BETA_RECORD, null, [], {
+          'admin_settings/user_roles': { betaTeachers: ['Teacher@School.org'] },
+        }),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(true);
+  });
+
+  it('grants beta via admin_settings/user_roles.superAdmins', async () => {
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(BETA_RECORD, null, [], {
+          'admin_settings/user_roles': { superAdmins: [TEACHER_EMAIL] },
+        }),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(true);
+  });
+
+  it("grants beta via the org membership doc's super_admin roleId", async () => {
+    vi.mocked(resolveOrgIdForDomain).mockResolvedValueOnce('org-1');
+    await expect(
+      isQuizMediaResponseGranted(
+        makeGateDb(BETA_RECORD, null, [], {
+          [`organizations/org-1/members/${TEACHER_EMAIL}`]: {
+            roleId: 'super_admin',
+          },
+        }),
+        TEACHER_EMAIL,
+        't1'
+      )
+    ).resolves.toBe(true);
+  });
 
   it('denies when no permission record exists', async () => {
     await expect(
