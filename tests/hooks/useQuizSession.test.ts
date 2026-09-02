@@ -13,6 +13,7 @@ import {
   servedSnapshotPatch,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
+import { makeTestArtifact } from '../testHelpers/responseArtifacts';
 import type {
   QuizQuestion,
   QuizResponse,
@@ -2019,7 +2020,7 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
       isCorrect: true,
       // Fields this write does not own — must survive the rewrite.
       takeIndex: 0,
-      artifacts: [{ id: 'art-1', slot: 0, kind: 'audio' }],
+      artifacts: [makeTestArtifact({ id: 'art-1' })],
     });
 
     const updateMock = firestore.updateDoc as unknown as ReturnType<
@@ -2039,11 +2040,50 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     expect(written.answer).toBe('new answer');
     expect(written.status).toBe('submitted');
     expect(written.takeIndex).toBe(0);
-    expect(written.artifacts).toEqual([
-      { id: 'art-1', slot: 0, kind: 'audio' },
-    ]);
+    expect(written.artifacts).toEqual([makeTestArtifact({ id: 'art-1' })]);
     expect(written).not.toHaveProperty('speedBonus');
     expect(written).not.toHaveProperty('isCorrect');
+  });
+
+  it('preserves a multi-artifact array through a draft autosave that carries none', async () => {
+    const prior = [
+      makeTestArtifact({ id: 'art-1', slot: 'primary' }),
+      makeTestArtifact({
+        id: 'art-2',
+        slot: 'addendum',
+        kind: 'text',
+        text: 'My reasoning.',
+        storagePath: undefined,
+        mimeType: undefined,
+        bytes: undefined,
+        durationMs: undefined,
+      }),
+    ];
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'old answer',
+      answeredAt: 100,
+      status: 'draft',
+      artifacts: prior,
+    });
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'edited answer', undefined, {
+        isDraft: true,
+      });
+    });
+
+    const payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+    };
+    const written = payload.answers[0];
+    expect(written.answer).toBe('edited answer');
+    expect(written.status).toBe('draft');
+    expect(written.artifacts).toEqual(prior);
   });
 
   it('writes only the freshly-earned speedBonus, clamped to [0, 50]', async () => {
