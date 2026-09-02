@@ -142,6 +142,34 @@ service firebase.storage {
         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
     }
 
+    // Quiz recorded media — transit buffer only; the archival callable moves each
+    // take to the teacher's Drive and deletes the Storage object afterwards.
+    match /quiz_response_media/{sessionId}/{studentUid}/{fileName} {
+      allow read: if request.auth != null &&
+        (
+          isAdmin() ||
+          request.auth.uid == studentUid ||
+          firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)
+          ).data.get('teacherUid', '') == request.auth.uid
+        );
+      // The student uploads each take exactly once (create only, no update).
+      allow create: if request.auth != null &&
+        request.auth.uid == studentUid &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('audio/.*') &&
+        firestore.exists(
+          /databases/(default)/documents/quiz_sessions/$(sessionId)
+        );
+      allow delete: if request.auth != null &&
+        (
+          isAdmin() ||
+          firestore.get(
+            /databases/(default)/documents/quiz_sessions/$(sessionId)
+          ).data.get('teacherUid', '') == request.auth.uid
+        );
+    }
+
     // Default deny for everything else
     match /{allPaths=**} {
       allow read, write: if false;
