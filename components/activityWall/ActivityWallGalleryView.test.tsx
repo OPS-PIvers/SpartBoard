@@ -53,6 +53,7 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: mockOnSnapshot,
   query: vi.fn((value: unknown) => value),
   setDoc: vi.fn(),
+  where: vi.fn(),
 }));
 
 // Builds a stable "path" marker for a mocked ref so onSnapshot can route

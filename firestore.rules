@@ -4323,7 +4323,7 @@ service cloud.firestore {
             'id', 'activityId', 'content', 'submittedAt', 'status',
             'participantLabel', 'storagePath', 'archiveStatus',
             'type', 'authorUid', 'isGuest', 'title', 'sectionId', 'cellKey',
-            'label', 'lat', 'lng', 'linkPreview',
+            'label', 'lat', 'lng', 'linkPreview', 'order',
             'fileName', 'mimeType', 'sizeBytes', 'editedAt'
           ]) &&
           request.resource.data.id is string &&

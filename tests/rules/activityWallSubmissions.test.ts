@@ -753,9 +753,9 @@ describe('activity wall submissions — create-time moderation fields', () => {
     );
   });
 
-  it('create with order is denied', async () => {
-    await seedSession(padletSession());
-    await assertFails(
+  it('create with order allowed on a timeline session', async () => {
+    await seedSession(padletSession({ layout: 'timeline' }));
+    await assertSucceeds(
       setDoc(
         doc(asStudent(), submissionPath('sub-1')),
         newSubmission({ order: 1.5 })
