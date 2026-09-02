@@ -3,7 +3,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { GripVertical } from 'lucide-react';
 
 const gripClass =
-  'absolute right-1 top-1 z-10 cursor-grab rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
+  'absolute left-1 top-1 z-10 cursor-grab rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
 type DraggableBindings = ReturnType<typeof useDraggable>;
 
