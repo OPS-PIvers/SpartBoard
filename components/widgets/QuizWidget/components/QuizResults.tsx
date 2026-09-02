@@ -80,7 +80,7 @@ import { MediaResponseGrader } from './MediaResponseGrader';
 import { collectMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
-import { doc, updateDoc, FieldPath } from 'firebase/firestore';
+import { deleteField, doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
@@ -494,6 +494,32 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       // FieldPath, not dot notation: a composite `qid::addendum` key is not a
       // parseable dotted path. Still merges this one map key only.
       await updateDoc(ref, new FieldPath('grading', gradingKeyStr), grade);
+    },
+    [session?.id]
+  );
+
+  // Undo path for the media grader: removing the key returns the slot to
+  // "still owed a grade" — writing an empty grade would read as a real 0.
+  const clearWrittenGrade = useCallback(
+    async (responseKey: string, gradingKeyStr: string) => {
+      const sessionId = session?.id;
+      if (!sessionId) {
+        throw new Error(
+          'Cannot clear grade: no active session in scope. Reopen the quiz results and try again.'
+        );
+      }
+      const ref = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      await updateDoc(
+        ref,
+        new FieldPath('grading', gradingKeyStr),
+        deleteField()
+      );
     },
     [session?.id]
   );
@@ -1862,6 +1888,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           teacherUid={user.uid}
           resolveTakeUrl={resolveTakeUrl}
           onSaveGrade={saveWrittenGrade}
+          onClearGrade={clearWrittenGrade}
           onClose={() => setShowMediaGrader(false)}
         />
       )}
@@ -2030,6 +2057,10 @@ const QuestionsScreen: React.FC<{
         const qStats = stats[questionId];
         const q = questionsById[questionId];
         if (!qStats || !q) return;
+        // An `unresponded` marker is not an answer — counting it here scored
+        // every passed-over slot as answered-and-missed. Same skip the export,
+        // PLC contribution and Drive stats paths already apply.
+        if (entry.unresponded) return;
         qStats.answered++;
 
         const slots = q.recording ? collectMediaSlots(q, r) : [];
