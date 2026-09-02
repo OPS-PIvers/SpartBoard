@@ -7,7 +7,14 @@
 > is admin-gated behind the fail-closed `quiz-media-response` global permission
 > (no record exists yet; create it to enable). Follow-ups: #2735 (sweep retry
 > cap for lost Storage objects), #2749 (take-limit copy pluralisation).
-> Run conventions and glossary: `briefs/`.
+> **Integration review follow-ups (2026-09-02):** #2752 (submit block, dark
+> capture shell, written-only recording controls, self-paced-only sessions),
+> #2753 (terminal `lost` archives, ffmpeg guard, served-subset markers, prompt
+> text in the admin console), #2754 (archive map authoritative over
+> `uploadState`, excused as a terminal outcome incl. LMS pushes, sticky session
+> marker, timeline comments, `lost` playback state), #2755 (transit path keyed
+> by response key + matching Storage rule). Still open: #2750 (LTI origin during
+> rollout), #2751 (index wait script). Run conventions and glossary: `briefs/`.
 
 Execution plan for the locked spec in
 [`docs/rich-response-wayfinder.md`](../rich-response-wayfinder.md). Decided with
