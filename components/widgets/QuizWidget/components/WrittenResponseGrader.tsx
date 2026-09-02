@@ -39,7 +39,6 @@ import {
   WrittenAnswerRubricScore,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
-import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
@@ -304,12 +303,6 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   // want left/right inside the points input to jump students.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (isEscapeFromWidgetInput(e)) return;
-        e.preventDefault();
-        onClose();
-        return;
-      }
       const target = e.target as HTMLElement | null;
       const inField =
         target instanceof HTMLInputElement ||
@@ -326,7 +319,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [goPrevStudent, goNextStudent, onClose]);
+  }, [goPrevStudent, goNextStudent]);
 
   const handleSave = useCallback(async () => {
     if (!response || !question) return;

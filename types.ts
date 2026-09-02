@@ -4025,8 +4025,13 @@ export interface QuizResponse {
    *
    * Auto-graded question types (MC/FIB/Matching/Ordering) do not use
    * this map; their correctness is recomputed on the fly by `gradeAnswer`.
+   *
+   * Keys are composite: an unsuffixed `questionId` is the primary slot (so
+   * every grade written before media responses stays valid), and any other
+   * slot is `` `${questionId}::${slot}` ``. Always read and write through
+   * `gradingKey`/`parseGradingKey` in `utils/mediaGrading.ts`.
    */
-  grading?: { [questionId: string]: WrittenAnswerGrade };
+  grading?: { [gradingKey: string]: WrittenAnswerGrade };
   /**
    * Server-written only (Admin SDK, via the archival callable), keyed by
    * {@link ResponseArtifact.id}. Lives outside `answers[]` for the same reason
@@ -4079,6 +4084,19 @@ export interface WrittenAnswerGrade {
   annotations?: WrittenAnswerAnnotation[];
   /** Phase 3 (rubrics). Empty/undefined in Phase 1. */
   rubricScores?: WrittenAnswerRubricScore[];
+  /**
+   * Which committed take this manual grade is about (media responses only).
+   * Absent means "the winning take". Provenance only: auto-computed scoring
+   * and the leaderboard always read the highest `takeIndex` regardless.
+   */
+  gradedTakeIndex?: number;
+  /**
+   * The teacher excused this slot: permanently resolved, and omitted from the
+   * gradebook and both LMS pushes exactly like an ungraded slot. Distinct from
+   * "not yet graded" so the grading queue stops re-surfacing it; both compute
+   * to `GradeResult.state === 'awaiting-grade'` downstream.
+   */
+  excused?: boolean;
   /** Teacher's auth uid that wrote the grade. */
   gradedBy: string;
   /** Client timestamp (ms) when the grade was saved. */
@@ -4092,9 +4110,12 @@ export interface WrittenAnswerGrade {
  */
 export interface WrittenAnswerAnnotation {
   id: string;
-  /** Inclusive start offset into the sanitized plaintext projection. */
+  /**
+   * Inclusive start offset into the sanitized plaintext projection — or, when
+   * the graded slot holds an audio artifact, milliseconds into the take.
+   */
   from: number;
-  /** Exclusive end offset. */
+  /** Exclusive end offset, in the same unit as `from`. */
   to: number;
   highlightColor?: 'yellow' | 'green' | 'pink' | 'blue';
   comment?: string;

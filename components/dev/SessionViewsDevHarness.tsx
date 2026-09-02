@@ -35,6 +35,11 @@ import {
   type AudioCaptureStateKey,
 } from './AudioCaptureDevView';
 import {
+  MediaGradingDevView,
+  MEDIA_GRADING_STATES,
+  type MediaGradingStateKey,
+} from './MediaGradingDevView';
+import {
   ResultsPlaybackDevView,
   RESULTS_PLAYBACK_STATES,
   type ResultsPlaybackStateKey,
@@ -55,6 +60,7 @@ type ViewKey =
   | 'va-monitor'
   | 'va-results'
   | 'audio-capture'
+  | 'media-grading'
   | 'results-playback';
 type StateKey =
   | 'waiting'
@@ -66,6 +72,7 @@ type StateKey =
   | 'populated'
   | 'empty'
   | AudioCaptureStateKey
+  | MediaGradingStateKey
   | ResultsPlaybackStateKey;
 
 const VIEWS: { key: ViewKey; label: string }[] = [
@@ -75,6 +82,7 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'va-monitor', label: 'VA Monitor' },
   { key: 'va-results', label: 'VA Results' },
   { key: 'audio-capture', label: 'Audio capture' },
+  { key: 'media-grading', label: 'Media grading' },
   { key: 'results-playback', label: 'Results playback' },
 ];
 
@@ -94,6 +102,10 @@ const STATES: { key: StateKey; label: string }[] = [
   ...AUDIO_CAPTURE_STATES.map((key) => ({
     key: key as StateKey,
     label: `Audio: ${key}`,
+  })),
+  ...MEDIA_GRADING_STATES.map((key) => ({
+    key: key as StateKey,
+    label: `Grading: ${key}`,
   })),
   ...RESULTS_PLAYBACK_STATES.map((key) => ({
     key: key as StateKey,
@@ -123,6 +135,15 @@ const SessionView: React.FC<{
       ? (state as AudioCaptureStateKey)
       : 'prep';
     return <AudioCaptureDevView state={audioState} />;
+  }
+
+  if (view === 'media-grading') {
+    const gradingState = (MEDIA_GRADING_STATES as readonly string[]).includes(
+      state
+    )
+      ? (state as MediaGradingStateKey)
+      : 'queue';
+    return <MediaGradingDevView state={gradingState} />;
   }
 
   if (view === 'results-playback') {

@@ -76,6 +76,7 @@ import {
 import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { AuthContext } from '@/context/AuthContextValue';
 
 /** Import-mode picker result for shared-assignment paste flows. */
@@ -2203,9 +2204,13 @@ export const useQuizAssignments = (
           // view forever after.
           const manualGrade =
             q.type === 'short' || q.type === 'essay'
-              ? data.grading?.[q.id]
+              ? readSlotGrade(data.grading, q.id)
               : undefined;
-          const result = gradeAnswer(q, a.answer, manualGrade);
+          const result = applyMediaSlots(
+            q,
+            data,
+            gradeAnswer(q, a.answer, manualGrade)
+          );
           if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (
             representativeAnswers.get(a.questionId) === a &&
