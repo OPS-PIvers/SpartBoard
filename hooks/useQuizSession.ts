@@ -50,7 +50,10 @@ import {
   UnrespondedReason,
 } from '@/types';
 import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
-import { nextTakeIndex } from '@/utils/answerTakeOrdering';
+import {
+  isRecordingSlotClosed,
+  nextTakeIndex,
+} from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
 import {
@@ -64,6 +67,13 @@ export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
 export const RESPONSES_COLLECTION = 'responses';
+
+/** `unresponded` reasons only the recording flow emits; gated on the session marker. */
+const RECORDING_UNRESPONDED_REASONS = new Set<UnrespondedReason>([
+  'passed',
+  'expired',
+  'capture-unavailable',
+]);
 /**
  * Archive subcollection for responses removed by the teacher. Holds a
  * copy of the original response doc plus archive metadata
@@ -1597,6 +1607,8 @@ export interface UseQuizSessionStudentResult {
     questionId: string,
     reason: UnrespondedReason
   ) => Promise<void>;
+  /** Stamps the response-level Tennessen ack, provable without a committed take. */
+  acknowledgeRecordingNotice: (at: number) => Promise<void>;
   completeQuiz: () => Promise<void>;
   /**
    * Increments the tab switch warning count for the student in Firestore.
@@ -1654,6 +1666,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // Keep a ref to current answers to avoid stale closure issues
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
+
+  // The teacher-side media gate, carried on the session doc. `/quiz` mounts no
+  // AuthProvider, so this marker is the only thing that can authorise a take.
+  const mediaResponseEnabledRef = useRef(false);
+  mediaResponseEnabledRef.current = session?.mediaResponseEnabled === true;
 
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
@@ -2618,8 +2635,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
       if (!sessionId || !responseKey) return null;
+      if (!mediaResponseEnabledRef.current) return null;
 
       const existingAnswers = myResponseRef.current?.answers ?? [];
+      // Symmetric to markUnresponded: a closed slot never accepts a take.
+      if (isRecordingSlotClosed(existingAnswers, input.questionId)) return null;
       const takeIndex = nextTakeIndex(existingAnswers, input.questionId);
 
       const newAnswer: QuizResponseAnswer = {
@@ -2663,6 +2683,28 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     },
     []
   );
+
+  /**
+   * Stamps the response-level Tennessen ack. Whitelisted in `firestore.rules`
+   * by #2737, so the acknowledgement is provable even when the student then
+   * refuses and no take is ever committed.
+   */
+  const acknowledgeRecordingNotice = useCallback(async (at: number) => {
+    const sessionId = sessionIdRef.current;
+    const responseKey = responseKeyRef.current;
+    if (!sessionId || !responseKey) return;
+    if (myResponseRef.current?.recordingNoticeAckedAt) return;
+    await updateDoc(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      ),
+      { recordingNoticeAckedAt: at, lastWriteAt: serverTimestamp() }
+    );
+  }, []);
 
   /** Flips one artifact's `uploadState` after the upload/archive settles. */
   const setArtifactUploadState = useCallback(
@@ -2711,6 +2753,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
       if (!sessionId || !responseKey) return;
+      if (
+        RECORDING_UNRESPONDED_REASONS.has(reason) &&
+        !mediaResponseEnabledRef.current
+      )
+        return;
 
       const existingAnswers = myResponseRef.current?.answers ?? [];
       // Never overwrite a real response — a student who already recorded a
@@ -3110,6 +3157,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     commitRecordingTake,
     setArtifactUploadState,
     markUnresponded,
+    acknowledgeRecordingNotice,
     completeQuiz,
     reportTabSwitch,
     setHandRaised,

@@ -3482,6 +3482,14 @@ export interface QuizSession {
   /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
   completenessModel?: number;
   /**
+   * Deploy-safety marker for student media responses. Stamped `true` by the
+   * teacher client only when `canAccessQuizMediaResponse()` passed AND at
+   * least one public question kept its `recording` block. The student app
+   * mounts capture and writes takes only when this is `true`, which is how the
+   * fail-closed gate reaches `/quiz` — a route that mounts no AuthProvider.
+   */
+  mediaResponseEnabled?: boolean;
+  /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`
    * is kept — students enforce it client-side. Absent on pre-feature
@@ -3813,6 +3821,7 @@ export type ArtifactArchiveStatus =
   | 'syncing'
   | 'archived'
   | 'failed'
+  | 'deleting'
   | 'deleted'
   | 'delete-failed';
 
@@ -3822,12 +3831,18 @@ export interface ArtifactArchiveEntry {
   /** Required - an entry only exists once a status is known. */
   archiveStatus: ArtifactArchiveStatus;
   archiveStartedAt?: number;
+  /** Server time of the most recent failed archive attempt; drives the sweep window. */
+  lastAttemptAt?: number;
   archivedAt?: number;
   archiveError?: string;
+  /** Drive holds the file but the Storage transit copy survived; the sweep retries the delete. */
+  storageCleanupPending?: boolean;
   deletedAt?: number;
   /** Admin uid that ran the compliance delete. */
   deletedBy?: string;
   deleteAttemptedAt?: number;
+  /** Drive copy an archive created after a delete claimed the artifact; still owed a delete. */
+  orphanedDriveFileId?: string;
 }
 
 /**
@@ -3889,6 +3904,12 @@ export interface QuizResponse {
    * behavior (don't retroactively auto-submit historical attempts).
    */
   lastWriteAt?: import('firebase/firestore').Timestamp;
+  /**
+   * Epoch ms at which this student acknowledged the Tennessen recording
+   * notice. Response-level so the acknowledgement is provable even when the
+   * student then refused and no take was ever committed.
+   */
+  recordingNoticeAckedAt?: number;
   /**
    * Set by the idle auto-submit Cloud Function when a stale response
    * was finalized without the student clicking Submit. Lets the
@@ -4013,6 +4034,14 @@ export interface QuizResponse {
    * array rewrite - and must never appear in the student write whitelist.
    */
   artifactArchive?: Record<string, ArtifactArchiveEntry>;
+  /**
+   * Server-maintained denormalization of "some `artifactArchive` entry is still
+   * `'syncing'`/`'failed'`". Firestore cannot query into map values, so this is
+   * what makes the hourly `sweepStuckQuizArchives` straggler sweep an indexed
+   * collection-group query instead of a full scan. Absent on every response
+   * without media; never written by the client.
+   */
+  hasStuckArchive?: boolean;
   /**
    * Server-stamped time the student raised their hand from the live quiz UI,
    * or null when lowered (by the student or cleared by the teacher). Absent on

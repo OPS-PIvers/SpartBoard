@@ -2657,18 +2657,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return resolvePermissionAccess(permission, user.email);
   }, [user, globalPermissions, isAdmin, resolvePermissionAccess]);
 
-  // Fail-closed, and deliberately not routed through `resolvePermissionAccess`
-  // (which applies tier/building rules the server gate cannot see). Auth
-  // bypass is NOT granted here: this gate must read the same as production.
+  // Fail-closed on a missing record; everything else is the shared resolver,
+  // so tier and buildings apply. Auth bypass is NOT granted here: this gate
+  // must read the same as production.
   const canAccessQuizMediaResponseBound = useCallback((): boolean => {
     return canAccessQuizMediaResponse({
       permission: globalPermissions.find(
         (p) => p.featureId === QUIZ_MEDIA_FEATURE_ID
       ),
-      isAdmin: isAdmin === true,
       email: user?.email ?? null,
+      resolveAccess: resolvePermissionAccess,
     });
-  }, [globalPermissions, isAdmin, user]);
+  }, [globalPermissions, resolvePermissionAccess, user]);
 
   const signInWithGoogle = async () => {
     // A fresh sign-in attempt clears any sticky deactivation from a prior

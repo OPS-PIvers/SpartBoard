@@ -2188,12 +2188,21 @@ describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () =
     ).mockResolvedValue(undefined);
   });
 
-  async function joinAndSeed(answers: Record<string, unknown>[]) {
+  async function joinAndSeed(
+    answers: Record<string, unknown>[],
+    sessionOver: Partial<QuizSession> = {}
+  ) {
     (
       firestore.getDocs as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce({
       empty: false,
-      docs: [buildSessionDoc('sess-1', { status: 'active' })],
+      docs: [
+        buildSessionDoc('sess-1', {
+          status: 'active',
+          mediaResponseEnabled: true,
+          ...sessionOver,
+        }),
+      ],
     });
     const { result } = renderHook(() => useQuizSessionStudent());
     await act(async () => {
@@ -2268,6 +2277,34 @@ describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () =
     });
   });
 
+  it('writes nothing when the session carries no mediaResponseEnabled marker', async () => {
+    const result = await joinAndSeed([], { mediaResponseEnabled: undefined });
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      const takeIndex = await result.current.commitRecordingTake({
+        questionId: 'q1',
+        artifact: makeTestArtifact({ id: 'art-1' }),
+      });
+      expect(takeIndex).toBeNull();
+      await result.current.markUnresponded('q1', 'capture-unavailable');
+    });
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('stamps the response-level Tennessen ack once', async () => {
+    const result = await joinAndSeed([]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.acknowledgeRecordingNotice(1700000000000);
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    expect(updateMock.mock.calls[0][1]).toMatchObject({
+      recordingNoticeAckedAt: 1700000000000,
+    });
+  });
+
   it('a non-recording submitAnswer still replaces', async () => {
     const result = await joinAndSeed([
       { questionId: 'q2', answer: 'B', answeredAt: 50, status: 'submitted' },
@@ -2292,6 +2329,51 @@ describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () =
       unresponded: 'capture-unavailable',
       status: 'submitted',
     });
+  });
+
+  it.each(['expired', 'passed'])(
+    'refuses a take once prep expiry wrote the %s marker',
+    async (reason) => {
+      const result = await joinAndSeed([
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 100,
+          status: reason === 'passed' ? 'draft' : 'submitted',
+          unresponded: reason,
+        },
+      ]);
+      (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+      await act(async () => {
+        const takeIndex = await result.current.commitRecordingTake({
+          questionId: 'q1',
+          artifact: makeTestArtifact({ id: 'art-late' }),
+        });
+        expect(takeIndex).toBeNull();
+      });
+      expect(firestore.updateDoc).not.toHaveBeenCalled();
+    }
+  );
+
+  it('still accepts a take after a capture-unavailable marker', async () => {
+    const result = await joinAndSeed([
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 100,
+        status: 'submitted',
+        unresponded: 'capture-unavailable',
+      },
+    ]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      const takeIndex = await result.current.commitRecordingTake({
+        questionId: 'q1',
+        artifact: makeTestArtifact({ id: 'art-1' }),
+      });
+      expect(takeIndex).toBe(1);
+    });
+    expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
   });
 
   it('markUnresponded never clobbers a committed take', async () => {

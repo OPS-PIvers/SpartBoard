@@ -117,13 +117,13 @@ describe('enqueueQuizMediaUpload', () => {
 
   it('serializes takes for one student so take n+1 cannot race take n', async () => {
     const order: string[] = [];
-    let releaseFirst: (() => void) | null = null;
+    const gate: { release: (() => void) | null } = { release: null };
     const deps = makeDeps({
       uploadBlob: vi.fn(async (storagePath: string) => {
         order.push(`start:${storagePath}`);
         if (storagePath.includes('art-1')) {
           await new Promise<void>((resolve) => {
-            releaseFirst = resolve;
+            gate.release = resolve;
           });
         }
         order.push(`end:${storagePath}`);
@@ -134,9 +134,7 @@ describe('enqueueQuizMediaUpload', () => {
     const second = enqueueQuizMediaUpload(job({ artifactId: 'art-2' }), deps);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(order.filter((o) => o.startsWith('start'))).toHaveLength(1);
-    // Cast: the assignment happens inside an async closure, so control-flow
-    // analysis still narrows `releaseFirst` to `null` at this point.
-    (releaseFirst as (() => void) | null)?.();
+    gate.release?.();
     await Promise.all([first, second]);
 
     expect(order).toEqual([

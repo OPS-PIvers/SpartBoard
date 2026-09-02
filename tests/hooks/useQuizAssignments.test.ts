@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { createElement, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
+import { AuthContext } from '@/context/AuthContextValue';
+import type { AuthContextType } from '@/context/AuthContextValue';
 import {
   collection,
   deleteField,
@@ -1786,6 +1789,87 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(
       (sessionSet.publicQuestions as { id: string }[]).map((q) => q.id)
     ).toEqual(['q-dup', 'q-unique']);
+  });
+
+  // The `/quiz` route mounts no AuthProvider, so the media gate is decided
+  // here and travels on the session doc as `mediaResponseEnabled`.
+  function mediaWrapper(granted: boolean) {
+    const value = {
+      canAccessQuizMediaResponse: () => granted,
+    } as unknown as AuthContextType;
+    const MediaWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(AuthContext.Provider, { value }, children);
+    MediaWrapper.displayName = 'MediaWrapper';
+    return MediaWrapper;
+  }
+
+  const RECORDING_QUIZ = {
+    id: 'quiz-rec',
+    title: 'Spoken Quiz',
+    driveFileId: 'drive-rec',
+    questions: [
+      {
+        id: 'q-rec',
+        type: 'FIB' as const,
+        text: 'Say it out loud',
+        correctAnswer: '',
+        incorrectAnswers: [],
+        timeLimit: 30,
+        recording: {
+          prepSeconds: 30,
+          limitSeconds: 60,
+          prepExpiry: 'armed' as const,
+          takeLimit: null,
+        },
+      },
+    ],
+  };
+
+  it('strips the recording block and writes no marker when the gate is closed', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mediaWrapper(false),
+    });
+    await act(async () => {
+      await result.current.createAssignment(RECORDING_QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    const sessionSet = findSessionSet();
+    const questions = sessionSet.publicQuestions as { recording?: unknown }[];
+    expect(questions[0].recording).toBeUndefined();
+    expect(sessionSet.mediaResponseEnabled).toBeUndefined();
+  });
+
+  it('keeps the recording block and stamps the marker when the gate is open', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mediaWrapper(true),
+    });
+    await act(async () => {
+      await result.current.createAssignment(RECORDING_QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    const sessionSet = findSessionSet();
+    const questions = sessionSet.publicQuestions as {
+      recording?: { limitSeconds: number };
+    }[];
+    expect(questions[0].recording?.limitSeconds).toBe(60);
+    expect(sessionSet.mediaResponseEnabled).toBe(true);
+  });
+
+  it('writes no marker for a granted teacher whose quiz has no recording block', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: mediaWrapper(true),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet().mediaResponseEnabled).toBeUndefined();
   });
 
   it('writes an index entry to the PLC subcollection when settings.plc is set', async () => {

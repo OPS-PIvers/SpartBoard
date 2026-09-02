@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   countCommittedTakes,
+  isRecordingSlotClosed,
   nextTakeIndex,
   selectRepresentativeAnswers,
 } from './answerTakeOrdering';
 
-const artifact = { id: 'a', slot: 'primary', kind: 'audio' };
+const artifact = {
+  id: 'a',
+  slot: 'primary',
+  kind: 'audio',
+  uploadState: 'uploaded',
+};
 
 describe('selectRepresentativeAnswers with takes', () => {
   it('is a no-op for the one-entry-per-question arrays every legacy quiz has', () => {
@@ -43,7 +49,11 @@ describe('nextTakeIndex / countCommittedTakes', () => {
   });
 
   it('counts only artifact-bearing, responded entries', () => {
-    const answers = [
+    const answers: {
+      questionId: string;
+      unresponded?: string;
+      artifacts?: { uploadState?: string }[];
+    }[] = [
       { questionId: 'q1', artifacts: [artifact] },
       { questionId: 'q1', artifacts: [artifact] },
       { questionId: 'q1', artifacts: [], unresponded: undefined },
@@ -55,5 +65,41 @@ describe('nextTakeIndex / countCommittedTakes', () => {
 
   it('counts zero on a legacy answers array with no artifacts at all', () => {
     expect(countCommittedTakes([{ questionId: 'q1' }], 'q1')).toBe(0);
+  });
+});
+
+describe('isRecordingSlotClosed', () => {
+  it('closes on the prep-expiry markers only', () => {
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q1', unresponded: 'expired' }],
+        'q1'
+      )
+    ).toBe(true);
+    expect(
+      isRecordingSlotClosed([{ questionId: 'q1', unresponded: 'passed' }], 'q1')
+    ).toBe(true);
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q1', unresponded: 'capture-unavailable' }],
+        'q1'
+      )
+    ).toBe(false);
+  });
+
+  it('stays open for an untouched question and for one with a take', () => {
+    expect(isRecordingSlotClosed([], 'q1')).toBe(false);
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q1', unresponded: 'expired' }, { questionId: 'q1' }],
+        'q1'
+      )
+    ).toBe(false);
+    expect(
+      isRecordingSlotClosed(
+        [{ questionId: 'q2', unresponded: 'expired' }],
+        'q1'
+      )
+    ).toBe(false);
   });
 });

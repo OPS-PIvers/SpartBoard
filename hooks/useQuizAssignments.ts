@@ -11,7 +11,7 @@
  * submissions) or Inactive (URL dead, responses preserved).
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
   collection,
   deleteField,
@@ -46,6 +46,7 @@ import type {
   QuizAssignmentSyncLinkage,
   QuizData,
   QuizMetadataSyncLinkage,
+  QuizPublicQuestion,
   QuizQuestion,
   QuizResponse,
   QuizResponseAnswer,
@@ -75,6 +76,7 @@ import {
 import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { AuthContext } from '@/context/AuthContextValue';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -632,6 +634,26 @@ export const useQuizAssignments = (
     assignmentsRef.current = assignments;
   }, [assignments]);
 
+  // The fail-closed media gate lives here because `/quiz` mounts no
+  // AuthProvider: the teacher decides at assign time, and the decision travels
+  // on the session doc. Read via `useContext` rather than `useAuth()` so a
+  // provider-less caller denies instead of throwing.
+  const authContext = useContext(AuthContext);
+  const mediaResponseGranted =
+    authContext?.canAccessQuizMediaResponse?.() === true;
+
+  // Ungated teachers publish the question without its recording block, so the
+  // student app has nothing to mount even if it wanted to.
+  const toGatedPublicQuestion = useCallback(
+    (question: QuizQuestion): QuizPublicQuestion => {
+      const projected = toPublicQuestion(question);
+      if (mediaResponseGranted || !projected.recording) return projected;
+      const { recording: _stripped, ...rest } = projected;
+      return rest;
+    },
+    [mediaResponseGranted]
+  );
+
   // Adjust state during render when userId transitions away — avoids the
   // "set-state-in-effect" anti-pattern while still clearing stale data when
   // the user signs out.
@@ -786,6 +808,13 @@ export const useQuizAssignments = (
               ? 'active'
               : 'waiting';
 
+      const sessionPublicQuestions = sessionQuestions.map(
+        toGatedPublicQuestion
+      );
+      const sessionHasRecording = sessionPublicQuestions.some(
+        (q) => !!q.recording
+      );
+
       const session: QuizSession = {
         id: assignmentId,
         assignmentId,
@@ -799,10 +828,12 @@ export const useQuizAssignments = (
         endedAt: null,
         code,
         totalQuestions: sessionQuestions.length,
-        publicQuestions: sessionQuestions.map(toPublicQuestion),
+        publicQuestions: sessionPublicQuestions,
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
+        // Carries the teacher-side media gate to `/quiz`, which has no AuthProvider.
+        ...(sessionHasRecording ? { mediaResponseEnabled: true } : {}),
         // Stimuli referenced by at least one question, labels stripped.
         // Omitted entirely for stimulus-free quizzes.
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
@@ -921,7 +952,7 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId]
+    [userId, toGatedPublicQuestion]
   );
 
   const setStatus = useCallback(
@@ -1876,7 +1907,8 @@ export const useQuizAssignments = (
       // doesn't have to special-case post-sync state.
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
-      const publicQuestions = canonicalQuestions.map(toPublicQuestion);
+      const publicQuestions = canonicalQuestions.map(toGatedPublicQuestion);
+      const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({
         questions: canonicalQuestions,
         stimuli: canonical.stimuli,
@@ -1951,6 +1983,8 @@ export const useQuizAssignments = (
         // publicQuestions; deleteField clears stale entries when the
         // canonical edit removed the last stimulus.
         stimuli: canonicalStimuli.length > 0 ? canonicalStimuli : deleteField(),
+        // Re-derived every sync, so revoking the gate clears a stale marker.
+        mediaResponseEnabled: syncHasRecording ? true : deleteField(),
       });
       // 2 writes already used (assignment + session); fill the rest.
       const firstChunkSize = Math.min(
@@ -1986,7 +2020,7 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId]
+    [userId, toGatedPublicQuestion]
   );
 
   const unpublishAssignmentScores = useCallback<

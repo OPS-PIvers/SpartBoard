@@ -26,6 +26,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ClipboardList,
   Loader2,
@@ -81,7 +82,10 @@ import {
   type ResponseArtifact,
   type UnrespondedReason,
 } from '@/types';
-import { countCommittedTakes } from '@/utils/answerTakeOrdering';
+import {
+  countCommittedTakes,
+  isRecordingSlotClosed,
+} from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
@@ -352,6 +356,7 @@ const QuizJoinFlow: React.FC<{
     commitRecordingTake,
     setArtifactUploadState,
     markUnresponded,
+    acknowledgeRecordingNotice,
     completeQuiz,
     reportTabSwitch,
     setHandRaised,
@@ -632,13 +637,13 @@ const QuizJoinFlow: React.FC<{
     await completeQuiz();
   }, [completeQuiz, isViewOnly]);
 
-  // Tennessen acknowledgment. Kept per-device rather than on the response doc
-  // because the student write whitelist in firestore.rules admits no new
-  // top-level field; the ack timestamp itself rides on the take it authorised.
+  // Tennessen acknowledgment. localStorage is the once-per-device fast path;
+  // `recordingNoticeAckedAt` on the response doc is the durable proof and
+  // carries the ack to a student who continues on another device.
   const noticeAckKey = session?.id
     ? `spart_quiz_recording_ack_${session.id}`
     : null;
-  const [noticeAckedAt, setNoticeAckedAt] = useState<number | null>(null);
+  const [localNoticeAckedAt, setNoticeAckedAt] = useState<number | null>(null);
   const [ackKeyRead, setAckKeyRead] = useState<string | null>(null);
   if (noticeAckKey && ackKeyRead !== noticeAckKey) {
     setAckKeyRead(noticeAckKey);
@@ -651,17 +656,68 @@ const QuizJoinFlow: React.FC<{
     }
     setNoticeAckedAt(stored);
   }
+  const noticeAckedAt =
+    localNoticeAckedAt ?? myResponse?.recordingNoticeAckedAt ?? null;
 
   const handleAcknowledgeNotice = useCallback(() => {
     const at = Date.now();
     setNoticeAckedAt(at);
+    void acknowledgeRecordingNotice(at).catch((err) => {
+      console.error('[QuizStudentApp] notice ack write failed:', err);
+    });
     if (!noticeAckKey) return;
     try {
       window.localStorage.setItem(noticeAckKey, String(at));
     } catch {
       // A blocked storage quota only costs a repeat of the notice.
     }
-  }, [noticeAckKey]);
+  }, [acknowledgeRecordingNotice, noticeAckKey]);
+
+  // Bytes for takes whose archive failed, so "Try again" re-sends the SAME
+  // artifact (same storagePath) instead of pretending something is retrying.
+  const retryableTakesRef = useRef(new Map<string, Blob>());
+
+  const runRecordingUpload = useCallback(
+    async (questionId: string, artifact: ResponseArtifact, blob: Blob) => {
+      const sessionId = session?.id;
+      const studentUid = authedUid;
+      const responseKey = myResponse?._responseKey;
+      if (!sessionId || !studentUid || !responseKey) return;
+      const result = await enqueueQuizMediaUpload({
+        sessionId,
+        studentUid,
+        responseKey,
+        questionId,
+        artifactId: artifact.id,
+        blob,
+        mimeType: artifact.mimeType ?? blob.type,
+      });
+      if (result.uploadState === 'failed')
+        retryableTakesRef.current.set(artifact.id, blob);
+      else retryableTakesRef.current.delete(artifact.id);
+      await setArtifactUploadState(questionId, artifact.id, result.uploadState);
+      if (result.uploadState === 'failed') {
+        throw new Error(result.error ?? 'Archive failed');
+      }
+    },
+    [authedUid, myResponse?._responseKey, session?.id, setArtifactUploadState]
+  );
+
+  const handleRetryRecordingUpload = useCallback(
+    async (questionId: string, artifact: ResponseArtifact) => {
+      if (isViewOnly) return;
+      const blob = retryableTakesRef.current.get(artifact.id);
+      if (!blob) return;
+      await setArtifactUploadState(questionId, artifact.id, 'pending');
+      await runRecordingUpload(questionId, artifact, blob);
+    },
+    [isViewOnly, runRecordingUpload, setArtifactUploadState]
+  );
+
+  const canRetryRecordingUpload = useCallback(
+    (artifactId: string) => retryableTakesRef.current.has(artifactId),
+    []
+  );
 
   const handleCommitRecording = useCallback(
     async (questionId: string, take: AudioTake) => {
@@ -696,19 +752,7 @@ const QuizJoinFlow: React.FC<{
         noticeAckedAt: noticeAckedAt ?? undefined,
       });
 
-      const result = await enqueueQuizMediaUpload({
-        sessionId,
-        studentUid,
-        responseKey,
-        questionId,
-        artifactId,
-        blob: take.blob,
-        mimeType: take.mimeType,
-      });
-      await setArtifactUploadState(questionId, artifactId, result.uploadState);
-      if (result.uploadState === 'failed') {
-        throw new Error(result.error ?? 'Archive failed');
-      }
+      await runRecordingUpload(questionId, artifact, take.blob);
     },
     [
       authedUid,
@@ -716,8 +760,8 @@ const QuizJoinFlow: React.FC<{
       isViewOnly,
       myResponse?._responseKey,
       noticeAckedAt,
+      runRecordingUpload,
       session?.id,
-      setArtifactUploadState,
     ]
   );
 
@@ -1115,6 +1159,8 @@ const QuizJoinFlow: React.FC<{
         myResponse={myResponse}
         onAnswer={handleAnswer}
         onCommitRecording={handleCommitRecording}
+        onRetryRecordingUpload={handleRetryRecordingUpload}
+        canRetryRecordingUpload={canRetryRecordingUpload}
         onMarkUnresponded={handleMarkUnresponded}
         noticeAckedAt={noticeAckedAt}
         onAcknowledgeNotice={handleAcknowledgeNotice}
@@ -1221,6 +1267,13 @@ const ActiveQuiz: React.FC<{
   ) => Promise<void>;
   /** Appends one committed take; rejects so the recorder can show the failure. */
   onCommitRecording: (questionId: string, take: AudioTake) => Promise<void>;
+  /** Re-sends a failed take's own artifact; rejects if it fails again. */
+  onRetryRecordingUpload: (
+    questionId: string,
+    artifact: ResponseArtifact
+  ) => Promise<void>;
+  /** Whether this device still holds the bytes for a failed take. */
+  canRetryRecordingUpload: (artifactId: string) => boolean;
   onMarkUnresponded: (
     questionId: string,
     reason: UnrespondedReason
@@ -1248,6 +1301,8 @@ const ActiveQuiz: React.FC<{
   myResponse,
   onAnswer,
   onCommitRecording,
+  onRetryRecordingUpload,
+  canRetryRecordingUpload,
   onMarkUnresponded,
   noticeAckedAt,
   onAcknowledgeNotice,
@@ -1263,6 +1318,7 @@ const ActiveQuiz: React.FC<{
   effectiveCloseAt,
 }) => {
   const { showAlert } = useDialog();
+  const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [handBusy, setHandBusy] = useState(false);
   const handleToggleHand = async () => {
@@ -2466,8 +2522,12 @@ const ActiveQuiz: React.FC<{
     }
   };
 
-  // Recording questions: absent block = every existing quiz, unchanged.
-  const recordingConfig = currentQuestion?.recording;
+  // Recording questions: absent block = every existing quiz, unchanged. The
+  // session marker is the fail-closed gate — `/quiz` has no AuthProvider.
+  const recordingConfig =
+    session.mediaResponseEnabled === true
+      ? currentQuestion?.recording
+      : undefined;
   const answersForQuestion = currentQuestion
     ? (myResponse?.answers ?? []).filter(
         (a) => a.questionId === currentQuestion.id
@@ -2476,6 +2536,9 @@ const ActiveQuiz: React.FC<{
   const committedTakes = currentQuestion
     ? countCommittedTakes(myResponse?.answers ?? [], currentQuestion.id)
     : 0;
+  const recordingSlotClosed = currentQuestion
+    ? isRecordingSlotClosed(myResponse?.answers ?? [], currentQuestion.id)
+    : false;
   const latestRecordingArtifact = answersForQuestion
     .filter((a) => (a.artifacts?.length ?? 0) > 0)
     .sort((a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0))
@@ -2823,7 +2886,18 @@ const ActiveQuiz: React.FC<{
                 noticeAckedAt={noticeAckedAt}
                 onAcknowledgeNotice={onAcknowledgeNotice}
                 onCommit={(take) => onCommitRecording(currentQuestion.id, take)}
+                onRetryUpload={
+                  latestRecordingArtifact &&
+                  canRetryRecordingUpload(latestRecordingArtifact.id)
+                    ? () =>
+                        onRetryRecordingUpload(
+                          currentQuestion.id,
+                          latestRecordingArtifact
+                        )
+                    : undefined
+                }
                 latestArtifact={latestRecordingArtifact}
+                slotClosed={recordingSlotClosed}
                 onPrepExpired={handleRecordingPrepExpired}
                 onCaptureUnavailable={handleRecordingCaptureUnavailable}
               />
@@ -2839,8 +2913,8 @@ const ActiveQuiz: React.FC<{
                     className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
                   >
                     {currentIndex >= effectiveTotalQuestions - 1
-                      ? 'Submit quiz'
-                      : 'Next'}
+                      ? t('quizMediaResponse.capture.submitQuiz')
+                      : t('quizMediaResponse.capture.nextQuestion')}
                   </button>
                 </div>
               )}

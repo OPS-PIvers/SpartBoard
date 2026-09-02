@@ -15,19 +15,23 @@ export function selectRepresentativeAnswers<
   return byQuestion;
 }
 
-/** Committed takes for one question — anything carrying an artifact. */
+/**
+ * Committed takes for one question. A take whose artifacts all failed to
+ * upload never reaches the teacher, so it must not consume the student's
+ * budget — same rule the archival callable's `countCommittedTakes` applies.
+ */
 export function countCommittedTakes<
   T extends {
     questionId: string;
     unresponded?: string;
-    artifacts?: unknown[];
+    artifacts?: { uploadState?: string }[];
   },
 >(answers: T[], questionId: string): number {
   return answers.filter(
     (a) =>
       a.questionId === questionId &&
       !a.unresponded &&
-      (a.artifacts?.length ?? 0) > 0
+      (a.artifacts ?? []).some((art) => art?.uploadState !== 'failed')
   ).length;
 }
 
@@ -39,5 +43,24 @@ export function nextTakeIndex<
     answers
       .filter((a) => a.questionId === questionId)
       .reduce((max, a) => Math.max(max, a.takeIndex ?? 0), 0) + 1
+  );
+}
+
+/** Prep-expiry markers that close the slot; a dead mic does not. */
+const SLOT_CLOSING_REASONS = new Set(['passed', 'expired']);
+
+/**
+ * True once prep expiry wrote a terminal marker and no take exists. A late
+ * take would outrank that marker in `selectRepresentativeAnswers`, so the
+ * recorder must refuse to arm and the commit path must refuse to write.
+ */
+export function isRecordingSlotClosed<
+  T extends { questionId: string; unresponded?: string },
+>(answers: T[], questionId: string): boolean {
+  const forQuestion = answers.filter((a) => a.questionId === questionId);
+  if (forQuestion.some((a) => !a.unresponded)) return false;
+  return forQuestion.some(
+    (a) =>
+      a.unresponded !== undefined && SLOT_CLOSING_REASONS.has(a.unresponded)
   );
 }

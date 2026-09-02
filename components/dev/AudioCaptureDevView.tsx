@@ -17,6 +17,7 @@ export const AUDIO_CAPTURE_STATES = [
   'committing',
   'archive-failed',
   'take-limit',
+  'window-closed',
   'mic-unavailable',
 ] as const;
 
@@ -129,9 +130,15 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
             ? Promise.reject(new Error('archive failed'))
             : new Promise<void>(() => undefined)
         }
+        onRetryUpload={
+          state === 'archive-failed'
+            ? () => new Promise<void>(() => undefined)
+            : undefined
+        }
         latestArtifact={
           state === 'archive-failed' ? pendingArtifact : undefined
         }
+        slotClosed={state === 'window-closed'}
         commitStateOverride={
           state === 'committing'
             ? 'committing'
