@@ -341,10 +341,7 @@ describe('ClockWidget', () => {
   // height — near-invisible); a very wide clock (800×100) gives `min(82px, 160px)
   // = 82px` (82% of height — overflows into the date row). cqmin scales both axes
   // symmetrically: `40cqmin` = 40% of the smaller dimension in all orientations.
-  // Asserted directly against the exported formula rather than the rendered
-  // DOM style: jsdom's CSS engine silently drops `min()`/`clamp()` font-size
-  // values (in the CSSOM and the serialized style attribute alike), so a
-  // DOM-based assertion can't observe the px-capped cqmin formula at all.
+  // Asserted against the exported formula directly — jsdom drops min()/clamp() font-size from the rendered DOM.
   it('time display uses cqmin units for font scaling (not cqh/cqw)', () => {
     const fontSize = getClockTimeFontSize(true);
     expect(fontSize).not.toMatch(/cqh/);

@@ -6,10 +6,7 @@ import { STANDARD_COLORS } from '@/config/colors';
 
 import { WidgetLayout } from '../WidgetLayout';
 
-// Extracted so tests can assert on the formula directly: jsdom's CSS engine
-// silently drops `min()`/`clamp()` font-size values, so DOM-rendered style
-// can't be inspected for them. Constant/function export on a component file
-// is intentional here.
+// Exported so tests can assert on the formula directly (jsdom drops min()/clamp() font-size from the rendered DOM).
 // eslint-disable-next-line react-refresh/only-export-components
 export const getClockTimeFontSize = (showSeconds: boolean): string =>
   showSeconds ? 'min(140px, 40cqmin)' : 'min(160px, 50cqmin)';
