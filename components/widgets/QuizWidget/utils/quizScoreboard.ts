@@ -17,6 +17,7 @@ import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
   applyMediaSlots,
   collectMediaSlots,
+  questionPointsFor,
   readSlotGrade,
   resolveSlotState,
 } from '@/utils/mediaGrading';
@@ -92,6 +93,8 @@ export function getEarnedPoints(
       gradeAnswer(q, ans.answer, manualGrade)
     );
 
+    // An excused question is worth 0 of 0; it must not break the streak.
+    if (grade.excused || grade.pointsMax === 0) continue;
     if (grade.pointsEarned <= 0) {
       streak = 0;
       continue;
@@ -154,11 +157,12 @@ export function getResponseScore(
 ): number {
   // Deduplicate by question id before summing maxPoints so a Drive-sync
   // duplicate doesn't inflate the denominator while earned stays correct.
+  // A question this student was excused from leaves the denominator too.
   const seenIds = new Set<string>();
   const maxPoints = questions.reduce((sum, q) => {
     if (seenIds.has(q.id)) return sum;
     seenIds.add(q.id);
-    return sum + (q.points ?? 1);
+    return sum + questionPointsFor(q, r);
   }, 0);
   if (maxPoints === 0) return 0;
   return Math.round((getEarnedPoints(r, questions, session) / maxPoints) * 100);

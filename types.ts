@@ -3249,6 +3249,11 @@ export interface GradeResult {
    * Classroom pushes and marked provisional wherever a total displays.
    */
   state: GradeState;
+  /**
+   * The teacher excused this question for this student: terminal, and worth
+   * 0 of 0, so the percentage is computed over the questions that remain.
+   */
+  excused?: boolean;
 }
 
 /**
@@ -4084,6 +4089,13 @@ export interface WrittenAnswerGrade {
   gradingSnapshot?: string;
   /** Phase 2 (annotations). Empty/undefined when no highlights were added. */
   annotations?: WrittenAnswerAnnotation[];
+  /**
+   * Unit of the `annotations` offsets. Absent means character offsets into
+   * `gradingSnapshot` (every grade written before media responses); `'ms'`
+   * means milliseconds into the graded audio take, which only the audio
+   * playback surfaces can render.
+   */
+  annotationUnit?: 'chars' | 'ms';
   /** Phase 3 (rubrics). Empty/undefined in Phase 1. */
   rubricScores?: WrittenAnswerRubricScore[];
   /**

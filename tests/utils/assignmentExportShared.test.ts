@@ -472,4 +472,49 @@ describe('buildResultsSheetData', () => {
       expect(dataRows[0][11]).toBe('1');
     });
   });
+
+  // INT-B2: an excused question leaves only THAT student's denominator, so
+  // the exported percentage is computed over the questions that remain.
+  describe('excused questions', () => {
+    it('drops the excused question from Max Points and the percentage', () => {
+      const questions = [
+        q({ id: 'q1', points: 1 }),
+        q({ id: 'q2', points: 3 }),
+      ];
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'a' },
+          { questionId: 'q2', answer: '', unresponded: 'capture-unavailable' },
+        ],
+        grading: { q2: { excused: true } },
+      });
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        questions,
+        ALWAYS_FULL
+      );
+      expect(dataRows[0][6]).toBe('100%');
+      expect(dataRows[0][8]).toBe('1');
+    });
+
+    it('keeps the full denominator when nothing is excused', () => {
+      const questions = [
+        q({ id: 'q1', points: 1 }),
+        q({ id: 'q2', points: 3 }),
+      ];
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'a' },
+          { questionId: 'q2', answer: '', unresponded: 'capture-unavailable' },
+        ],
+      });
+      const { dataRows } = buildResultsSheetData(
+        [response],
+        questions,
+        ALWAYS_FULL
+      );
+      expect(dataRows[0][6]).toBe('25%');
+      expect(dataRows[0][8]).toBe('4');
+    });
+  });
 });
