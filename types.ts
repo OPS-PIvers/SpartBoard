@@ -3677,6 +3677,13 @@ export interface LtiAttachmentLink {
   contextId?: string;
 }
 
+/** Why an `answers[]` entry exists for a question the student never responded to. */
+export type UnrespondedReason =
+  | 'passed'
+  | 'expired'
+  | 'abandoned'
+  | 'capture-unavailable';
+
 export interface QuizResponseAnswer {
   questionId: string;
   /** MC/FIB: string. Matching: "term1:def1|term2:def2". Ordering: "item1|item2|item3" */
@@ -3698,6 +3705,8 @@ export interface QuizResponseAnswer {
    * treat missing as `'submitted'` via {@link isAnswerSubmitted}.
    */
   status?: 'draft' | 'submitted';
+  /** Absent means the student responded; see `utils/quizCompleteness.ts`. */
+  unresponded?: UnrespondedReason;
   /**
    * Which take this entry belongs to, for questions that allow more than
    * one submission (e.g. a media-response retake). Absent on every entry

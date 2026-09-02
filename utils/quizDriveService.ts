@@ -721,12 +721,7 @@ export class QuizDriveService {
       const correctSet = new Set<string>();
 
       // Dedup mirrors buildResultsSheetData: same take/answeredAt tiebreak.
-      type StatsAnswerEntry = NonNullable<typeof r.answers>[number] & {
-        unresponded?: unknown;
-      };
-      const dedupedAnswers = selectRepresentativeAnswers(
-        (r.answers ?? []) as StatsAnswerEntry[]
-      );
+      const dedupedAnswers = selectRepresentativeAnswers(r.answers ?? []);
 
       for (const a of dedupedAnswers.values()) {
         const q = questionMap.get(a.questionId);

@@ -316,6 +316,147 @@ describe('runFinalizeIdleQuizAttempts', () => {
 });
 
 // ===========================================================================
+// Unresponded sweep-write (brief 2.2 / RR-08 sub-decisions 1 + 5)
+// ===========================================================================
+
+describe('runFinalizeIdleQuizAttempts — unresponded markers', () => {
+  it('appends an abandoned marker for every publicQuestion with no answer', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'r1',
+          sid: 'sess1',
+          data: {
+            status: 'in-progress',
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+            answers: [{ questionId: 'q1', answer: 'a', status: 'draft' }],
+          },
+        },
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          publicQuestions: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
+        },
+      },
+    });
+
+    const result = await runFinalizeIdleQuizAttempts(db, NOW);
+
+    expect(result.finalized).toBe(1);
+    const answers = responses[0].data.answers as Record<string, unknown>[];
+    expect(answers).toHaveLength(3);
+    // The real answer is untouched apart from the draft promotion.
+    const real = answers.find((a) => a.questionId === 'q1')!;
+    expect(real.unresponded).toBeUndefined();
+    expect(real.status).toBe('submitted');
+    for (const qid of ['q2', 'q3']) {
+      const marker = answers.find((a) => a.questionId === qid)!;
+      expect(marker).toEqual({
+        questionId: qid,
+        answer: '',
+        answeredAt: NOW,
+        status: 'submitted',
+        unresponded: 'abandoned',
+      });
+    }
+    // The student answered one real question, so the attempt slot is used.
+    expect(responses[0].data.completedAttempts).toBe(1);
+  });
+
+  it('marks every question abandoned for a zero-answer student without consuming an attempt slot', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'r1',
+          sid: 'sess1',
+          data: {
+            status: 'joined',
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+            answers: [],
+          },
+        },
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          publicQuestions: [{ id: 'q1' }, { id: 'q2' }],
+        },
+      },
+    });
+
+    const result = await runFinalizeIdleQuizAttempts(db, NOW);
+
+    expect(result.finalized).toBe(1);
+    const answers = responses[0].data.answers as Record<string, unknown>[];
+    expect(answers).toHaveLength(2);
+    expect(answers.every((a) => a.unresponded === 'abandoned')).toBe(true);
+    // Critical regression: synthetic markers must NOT flip the
+    // "don't consume an attempt slot" rule for a student who never engaged.
+    expect(responses[0].data.completedAttempts).toBeUndefined();
+  });
+
+  it('writes no unresponded field when the session has no publicQuestions', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'r1',
+          sid: 'sess1',
+          data: {
+            status: 'in-progress',
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+            answers: [{ questionId: 'q1', answer: 'a' }],
+          },
+        },
+      ],
+      // Legacy session doc shape: no publicQuestions field at all.
+      sessions: { sess1: { status: 'active', createdAt: NOW - 2 * IDLE_MS } },
+    });
+
+    await runFinalizeIdleQuizAttempts(db, NOW);
+
+    const answers = responses[0].data.answers as Record<string, unknown>[];
+    expect(answers).toEqual([{ questionId: 'q1', answer: 'a' }]);
+  });
+
+  it('does not duplicate a question that already carries an unresponded entry', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'r1',
+          sid: 'sess1',
+          data: {
+            status: 'in-progress',
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+            answers: [
+              { questionId: 'q1', answer: '', unresponded: 'passed' },
+              { questionId: 'q2', answer: 'b' },
+            ],
+          },
+        },
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          publicQuestions: [{ id: 'q1' }, { id: 'q2' }],
+        },
+      },
+    });
+
+    await runFinalizeIdleQuizAttempts(db, NOW);
+
+    const answers = responses[0].data.answers as Record<string, unknown>[];
+    expect(answers).toHaveLength(2);
+    expect(answers.find((a) => a.questionId === 'q1')!.unresponded).toBe(
+      'passed'
+    );
+  });
+});
+
+// ===========================================================================
 // Pagination regression — a genuinely-idle ACTIVE response that sorts past a
 // large permanently-paused backlog (by lastWriteAt ascending) must still be
 // read and finalized in the same run. Before the fix, a single un-paginated

@@ -94,9 +94,18 @@ export const RESPONSE_PAGE_SIZE = 500;
  */
 const WAITING_ABANDONED_AGE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Cloud-Functions-local mirror of `QuizResponseAnswer` in the app's root
+ * `types.ts` (no shared import between the two type surfaces — keep them in
+ * sync by hand). Only the fields this sweep reads or writes are declared.
+ */
 interface QuizAnswer {
   questionId?: string;
+  answer?: string;
+  answeredAt?: number;
   status?: string;
+  /** Mirrors `UnrespondedReason`; absent means the student responded. */
+  unresponded?: 'passed' | 'expired' | 'abandoned' | 'capture-unavailable';
 }
 
 interface QuizResponseDoc {
@@ -109,6 +118,8 @@ interface QuizResponseDoc {
 interface QuizSessionDoc {
   status?: string;
   createdAt?: admin.firestore.Timestamp | number;
+  /** Student-safe question list; only `id` is read here. */
+  publicQuestions?: { id?: unknown }[];
 }
 
 type Firestore = admin.firestore.Firestore;
@@ -311,6 +322,8 @@ export async function runFinalizeIdleQuizAttempts(
   interface CachedSession {
     status: string | undefined;
     createdAtMs: number | null;
+    /** Question ids from the already-fetched doc; no extra read. */
+    questionIds: string[];
   }
   const sessionMetaBySid = new Map<string, CachedSession>();
   if (sessionRefs.length > 0) {
@@ -329,7 +342,16 @@ export async function runFinalizeIdleQuizAttempts(
       } else if (typeof data.createdAt === 'number') {
         createdAtMs = data.createdAt;
       }
-      sessionMetaBySid.set(sessionDoc.id, { status, createdAtMs });
+      const questionIds = Array.isArray(data.publicQuestions)
+        ? data.publicQuestions
+            .map((q) => (q && typeof q.id === 'string' ? q.id : null))
+            .filter((id): id is string => !!id)
+        : [];
+      sessionMetaBySid.set(sessionDoc.id, {
+        status,
+        createdAtMs,
+        questionIds,
+      });
     }
   }
 
@@ -439,6 +461,27 @@ export async function runFinalizeIdleQuizAttempts(
           a.status === 'draft' ? { ...a, status: 'submitted' } : a
         );
 
+        // Absence of an entry must mean "never reached," so every question
+        // the student left behind gets an explicit `abandoned` marker
+        // (RR-08 sub-decision 1/5). There is no per-question requiredness
+        // field yet, so EVERY missing question is marked; brief 3.5 should
+        // narrow this to required slots once that field exists. The session
+        // doc was already batch-read above — no extra Firestore read.
+        const answeredIds = new Set(
+          finalAnswers
+            .map((a) => a.questionId)
+            .filter((id): id is string => typeof id === 'string')
+        );
+        const missingEntries: QuizAnswer[] = meta.questionIds
+          .filter((qid) => !answeredIds.has(qid))
+          .map((qid) => ({
+            questionId: qid,
+            answer: '',
+            answeredAt: finalizedAt,
+            status: 'submitted',
+            unresponded: 'abandoned',
+          }));
+
         // Don't consume an attempt slot for a student who joined
         // but never wrote a single answer — they'd otherwise hit
         // the cap without seeing a question. The doc still flips
@@ -457,9 +500,11 @@ export async function runFinalizeIdleQuizAttempts(
           status: 'completed',
           submittedAt: finalizedAt,
           autoSubmitted: true,
-          answers: finalAnswers,
+          answers: [...finalAnswers, ...missingEntries],
           unlocked: false,
         };
+        // Deliberately `finalAnswers`, not the synthetic markers: a student
+        // who never answered anything must not consume an attempt slot.
         if (finalAnswers.length > 0) {
           update.completedAttempts = (fresh.completedAttempts ?? 0) + 1;
         }
