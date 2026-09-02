@@ -17,6 +17,7 @@
 import type { GradeResult, Rubric, WrittenAnswerRubricScore } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 /**
  * Format a points value for export. Whole numbers stay as integers;
@@ -178,33 +179,8 @@ export function buildResultsSheetData<
       ? new Date(r.submittedAt).toLocaleString()
       : '';
     const warnings = r.tabSwitchWarnings?.toString() ?? '0';
-    // Deduplicate by questionId, keeping the entry with the highest
-    // `takeIndex` (undated entries sort as 0); ties break on earliest
-    // `answeredAt`. Firestore arrayUnion races and Drive-sync double-writes
-    // can produce duplicate answer entries; this must agree with the
-    // scoring path's tiebreak — mismatching the two would produce an export
-    // score that contradicts the student's published grade — same root
-    // cause as #1827. Legacy entries carry neither field, so every
-    // comparison ties and the loop keeps the first occurrence, unchanged
-    // from today's behavior.
-    const answerMap = new Map<string, R['answers'][number]>();
-    const answers = r.answers ?? [];
-    for (const a of answers) {
-      const existing = answerMap.get(a.questionId);
-      if (!existing) {
-        answerMap.set(a.questionId, a);
-        continue;
-      }
-      const aTake = a.takeIndex ?? 0;
-      const existingTake = existing.takeIndex ?? 0;
-      if (
-        aTake > existingTake ||
-        (aTake === existingTake &&
-          (a.answeredAt ?? Infinity) < (existing.answeredAt ?? Infinity))
-      ) {
-        answerMap.set(a.questionId, a);
-      }
-    }
+    // Dedup by questionId via the take/answeredAt tiebreak shared with scoring.
+    const answerMap = selectRepresentativeAnswers(r.answers ?? []);
     // Grade once per question per response, cached by question id. The
     // previous shape called `gradeFn` twice (once for the answer column,
     // once for the row sum) which doubled normalization/regex work on

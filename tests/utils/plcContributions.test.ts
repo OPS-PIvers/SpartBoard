@@ -359,4 +359,56 @@ describe('buildContributionDoc', () => {
 
     expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
   });
+
+  it('credits the earliest answeredAt entry even when it is stored last in the array', () => {
+    const quiz = makeQuiz([makeMcQuestion('q1', 'Q1', 'a', 2)]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [
+        { questionId: 'q1', answer: 'x', answeredAt: 200 }, // wrong, later — stored first
+        { questionId: 'q1', answer: 'a', answeredAt: 100 }, // correct, EARLIEST — stored last, still wins
+      ],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
+  });
+
+  it('treats a duplicate missing answeredAt as earliest (sorts as 0)', () => {
+    const quiz = makeQuiz([makeMcQuestion('q1', 'Q1', 'a', 2)]);
+    const response = {
+      studentUid: 'uid-1',
+      pin: '1111',
+      classPeriod: 'Period 1',
+      answers: [
+        { questionId: 'q1', answer: 'x', answeredAt: 100 }, // wrong, timestamped
+        { questionId: 'q1', answer: 'a' }, // correct, no answeredAt — sorts as 0, wins
+      ],
+      status: 'completed',
+      submittedAt: 300,
+      tabSwitchWarnings: 0,
+    } as unknown as QuizResponse;
+
+    const doc = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz,
+      responses: [response],
+    });
+
+    expect(doc.responses[0].pointsByQuestionId.q1).toBe(2);
+  });
 });

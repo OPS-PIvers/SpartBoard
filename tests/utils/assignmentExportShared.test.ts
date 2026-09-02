@@ -451,5 +451,25 @@ describe('buildResultsSheetData', () => {
       const { dataRows } = buildResultsSheetData([response], [q()], gradeFn);
       expect(dataRows[0][11]).toBe('1');
     });
+
+    it('treats a duplicate missing answeredAt as earliest (sorts as 0)', () => {
+      const gradeFn = (
+        _q: ExportableQuestion,
+        answer: string
+      ): GradeResult => ({
+        isCorrect: answer === 'no-timestamp',
+        pointsEarned: answer === 'no-timestamp' ? 1 : 0,
+        pointsMax: 1,
+        state: 'scored',
+      });
+      const response = r({
+        answers: [
+          { questionId: 'q1', answer: 'timestamped', answeredAt: 100 },
+          { questionId: 'q1', answer: 'no-timestamp' },
+        ],
+      });
+      const { dataRows } = buildResultsSheetData([response], [q()], gradeFn);
+      expect(dataRows[0][11]).toBe('1');
+    });
   });
 });

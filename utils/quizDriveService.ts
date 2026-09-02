@@ -19,6 +19,7 @@ import { gradeAnswer } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 /**
  * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
@@ -719,30 +720,13 @@ export class QuizDriveService {
       const answeredSet = new Set<string>();
       const correctSet = new Set<string>();
 
-      // Dedup mirrors buildResultsSheetDataShared: highest `takeIndex` wins
-      // (undated entries sort as 0), ties break on earliest `answeredAt` —
-      // correctSet must agree with the grader's tiebreak semantics.
+      // Dedup mirrors buildResultsSheetData: same take/answeredAt tiebreak.
       type StatsAnswerEntry = NonNullable<typeof r.answers>[number] & {
-        takeIndex?: number;
         unresponded?: unknown;
       };
-      const dedupedAnswers = new Map<string, StatsAnswerEntry>();
-      for (const a of (r.answers ?? []) as StatsAnswerEntry[]) {
-        const existing = dedupedAnswers.get(a.questionId);
-        if (!existing) {
-          dedupedAnswers.set(a.questionId, a);
-          continue;
-        }
-        const aTake = a.takeIndex ?? 0;
-        const existingTake = existing.takeIndex ?? 0;
-        if (
-          aTake > existingTake ||
-          (aTake === existingTake &&
-            (a.answeredAt ?? Infinity) < (existing.answeredAt ?? Infinity))
-        ) {
-          dedupedAnswers.set(a.questionId, a);
-        }
-      }
+      const dedupedAnswers = selectRepresentativeAnswers(
+        (r.answers ?? []) as StatsAnswerEntry[]
+      );
 
       for (const a of dedupedAnswers.values()) {
         const q = questionMap.get(a.questionId);

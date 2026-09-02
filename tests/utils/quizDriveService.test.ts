@@ -769,6 +769,103 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
     expect(analysisRow[5]).toBe('0'); // # Answered — unresponded excluded
   });
 
+  it('keeps the highest-takeIndex entry when duplicates share a questionId (owner note, paired with brief 1.2)', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'TakeIndex Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [
+            {
+              questionId: 'q1',
+              answer: 'B',
+              answeredAt: 0,
+              takeIndex: 0,
+            } as QuizResponseAnswer, // wrong, earlier take
+            {
+              questionId: 'q1',
+              answer: 'A',
+              answeredAt: 1,
+              takeIndex: 1,
+            } as QuizResponseAnswer, // correct, later take — wins
+          ],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('1'); // # Correct
+    expect(analysisRow[5]).toBe('1'); // # Answered
+  });
+
+  it('breaks a takeIndex tie on earliest answeredAt, even when the winner is stored last', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'TakeIndex Tie Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [
+            { questionId: 'q1', answer: 'B', answeredAt: 200 }, // wrong, later — stored first
+            { questionId: 'q1', answer: 'A', answeredAt: 100 }, // correct, EARLIEST — stored last, still wins
+          ],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('1'); // # Correct
+    expect(analysisRow[5]).toBe('1'); // # Answered
+  });
+
+  it('treats a duplicate missing answeredAt as earliest (sorts as 0)', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+    await service.exportResultsToSheet(
+      'Missing AnsweredAt Test',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [
+            { questionId: 'q1', answer: 'B', answeredAt: 100 }, // wrong, timestamped
+            { questionId: 'q1', answer: 'A' } as QuizResponseAnswer, // correct, no answeredAt — sorts as 0, wins
+          ],
+        }),
+      ],
+      [makeQuestion('q1')]
+    );
+
+    const analysisRow = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(analysisRow[4]).toBe('1'); // # Correct
+    expect(analysisRow[5]).toBe('1'); // # Answered
+  });
+
   it('throws PlcSheetSchemaMismatchError when appending to an old-schema PLC sheet', async () => {
     queueFetchResponses([
       // Tab metadata

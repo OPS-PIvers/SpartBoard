@@ -25,6 +25,7 @@ import type {
   QuizResponse,
 } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 const PLC_CONTRIBUTION_SCHEMA_VERSION = 1 as const;
 
@@ -83,32 +84,12 @@ function buildContributionResponse(
   pinToName: Record<string, string>,
   byStudentUid?: Map<string, { givenName: string; familyName: string }>
 ): PlcContributionResponse {
-  // Dedup by questionId: highest `takeIndex` wins (undated entries sort as
-  // 0), ties break on earliest `answeredAt` — matches getEarnedPoints and
-  // the export path's tiebreak. Store the whole entry (not just `.answer`)
-  // so the `unresponded` check below has something to read.
+  // Dedup by questionId: same take/answeredAt tiebreak as getEarnedPoints and export.
   type ContributionAnswerEntry = QuizResponse['answers'][number] & {
-    takeIndex?: number;
     unresponded?: unknown;
   };
-  const answerByQuestionId = new Map<string, ContributionAnswerEntry>();
   const responseAnswers: ContributionAnswerEntry[] = response.answers;
-  for (const a of responseAnswers) {
-    const existing = answerByQuestionId.get(a.questionId);
-    if (!existing) {
-      answerByQuestionId.set(a.questionId, a);
-      continue;
-    }
-    const aTake = a.takeIndex ?? 0;
-    const existingTake = existing.takeIndex ?? 0;
-    if (
-      aTake > existingTake ||
-      (aTake === existingTake &&
-        (a.answeredAt ?? 0) < (existing.answeredAt ?? 0))
-    ) {
-      answerByQuestionId.set(a.questionId, a);
-    }
-  }
+  const answerByQuestionId = selectRepresentativeAnswers(responseAnswers);
 
   const pointsByQuestionId: Record<string, number> = {};
   let pointsEarned = 0;
