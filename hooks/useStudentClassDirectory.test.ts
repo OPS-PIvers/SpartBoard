@@ -34,8 +34,7 @@ describe('useStudentClassDirectory', () => {
   });
 
   it('does not refetch a cache hit for an unrelated key after a retry elsewhere', async () => {
-    // Unique uid per test — `directoryCache` is module-scoped and persists
-    // across tests in this file, so a shared uid would leak cache entries.
+    // Unique uid: directoryCache is module-scoped and persists across tests in this file.
     const uid = 'student-unrelated-retry';
     const { result, rerender } = renderHook(
       ({ classIds }: { classIds: readonly string[] }) =>
@@ -55,8 +54,7 @@ describe('useStudentClassDirectory', () => {
     await waitFor(() => expect(callCount).toBe(3));
 
     rerender({ classIds: ['classA'] });
-    // classA is still in directoryCache from the retry fetch above, so this
-    // should be an instant cache hit with no additional network call.
+    // classA is still cached from the retry fetch above — should be an instant hit, no network call.
     await waitFor(() => expect(result.current.status).toBe('ready'));
     expect(callCount).toBe(3);
   });
