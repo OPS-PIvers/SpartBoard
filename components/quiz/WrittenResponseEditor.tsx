@@ -377,7 +377,7 @@ const WrittenResponseEditorInner: React.FC<
           onCut={handleClipboardCopyCut}
           onDrop={handleDrop}
           spellCheck
-          className={`w-full px-5 py-4 border-2 border-t-0 ${
+          className={`rich-text-content w-full px-5 py-4 border-2 border-t-0 ${
             light ? 'bg-white' : 'bg-slate-800'
           } ${
             disabled

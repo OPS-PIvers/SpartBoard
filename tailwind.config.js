@@ -184,6 +184,7 @@ export default {
         modal: Z_INDEX.modal.toString(),
         'modal-content': Z_INDEX.modalContent.toString(),
         popover: Z_INDEX.popover.toString(),
+        'popover-menu': Z_INDEX.popoverMenu.toString(),
         'tool-menu': Z_INDEX.toolMenu.toString(),
         tooltip: Z_INDEX.tooltip.toString(),
         toast: Z_INDEX.toast.toString(),
