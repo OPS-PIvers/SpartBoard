@@ -286,6 +286,10 @@ export function buildDefaultWall(
     allowStudentEdit: false,
     allowStudentDelete: false,
     acceptingResponses: true,
+    studentsCanSeePosts: true,
+    allowLikes: false,
+    allowComments: false,
+    allowCommentResponses: false,
   };
 }
 
@@ -329,6 +333,10 @@ export function mirrorSessionFromEntry(
     allowStudentDelete: entry.allowStudentDelete ?? false,
     acceptingResponses: entry.acceptingResponses ?? true,
     driveVisibility: allowGuests ? 'anyone' : 'domain',
+    studentsCanSeePosts: entry.studentsCanSeePosts ?? true,
+    allowLikes: entry.allowLikes ?? false,
+    allowComments: entry.allowComments ?? false,
+    allowCommentResponses: entry.allowCommentResponses ?? false,
   };
 
   if (entry.classId) session.classId = entry.classId;

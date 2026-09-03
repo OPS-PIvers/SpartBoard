@@ -11,23 +11,14 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  CornerDownRight,
-  Heart,
-  Loader2,
-  Image as ImageIcon,
-  MessageSquare,
-  Send,
-} from 'lucide-react';
+import { Loader2, Image as ImageIcon } from 'lucide-react';
 import { signInAnonymously, type User } from 'firebase/auth';
 import {
   collection,
   doc,
-  deleteDoc,
   getDoc,
   onSnapshot,
   query,
-  setDoc,
   where,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
@@ -44,11 +35,15 @@ import {
   type WallImageSize,
   prepareSubmissions,
 } from '@/components/activityWall/render';
+import {
+  makeEngagementFooter,
+  useWallEngagement,
+  type EngagementFlags,
+  type WallEngagement,
+} from '@/components/activityWall/engagement';
 
 import type {
-  ActivityWallComment,
   ActivityWallIdentificationMode,
-  ActivityWallLike,
   ActivityWallSession,
   ActivityWallSubmission,
   SharedActivityWall,
@@ -96,16 +91,28 @@ const isShareDoc = (raw: unknown): raw is SharedActivityWall => {
   );
 };
 
-const buildParticipantLabel = (
-  identificationMode: ActivityWallIdentificationMode,
-  name: string,
-  pin: string
-): string => {
-  if (identificationMode === 'name') return name.trim() || 'Visitor';
-  if (identificationMode === 'pin') return `PIN: ${pin.trim()}`;
-  if (identificationMode === 'name-pin')
-    return `${name.trim()} (${pin.trim()})`;
-  return 'Anonymous';
+/** Session flags win once any of the three is set there; older shares keep their own. */
+const resolveEngagementFlags = (
+  session: ActivityWallSession | null,
+  share: SharedActivityWall
+): EngagementFlags => {
+  const fromSession =
+    session &&
+    (session.allowLikes !== undefined ||
+      session.allowComments !== undefined ||
+      session.allowCommentResponses !== undefined);
+  if (fromSession) {
+    return {
+      allowLikes: session.allowLikes ?? false,
+      allowComments: session.allowComments ?? false,
+      allowCommentResponses: session.allowCommentResponses ?? false,
+    };
+  }
+  return {
+    allowLikes: share.allowLikes,
+    allowComments: share.allowComments,
+    allowCommentResponses: share.allowCommentResponses,
+  };
 };
 
 /**
@@ -147,8 +154,6 @@ export const ActivityWallGalleryView: React.FC = () => {
   const [rawSubmissions, setRawSubmissions] = useState<RawSubmissionDoc[]>([]);
   const [submissionsReady, setSubmissionsReady] = useState(false);
   const [session, setSession] = useState<ActivityWallSession | null>(null);
-  const [likes, setLikes] = useState<ActivityWallLike[]>([]);
-  const [comments, setComments] = useState<ActivityWallComment[]>([]);
   const [driveSigninHint, setDriveSigninHint] = useState(false);
 
   // Load the share doc once. We don't subscribe — the share toggles are
@@ -253,68 +258,23 @@ export const ActivityWallGalleryView: React.FC = () => {
     return unsubscribe;
   }, [state, viewer]);
 
-  // Subscribe to likes + comments. These live under the share doc itself
-  // so they're scoped to this gallery instance (a teacher resharing the
-  // same session gets a fresh interaction set).
-  useEffect(() => {
-    if (state.kind !== 'ready' || !viewer) return;
-    const shareDocRef = doc(db, 'shared_activity_walls', state.share.id);
-    const unsubLikes = onSnapshot(
-      query(collection(shareDocRef, 'likes')),
-      (snap) => {
-        setLikes(
-          snap.docs.map((d) => {
-            const data = d.data() as Record<string, unknown>;
-            return {
-              id: d.id,
-              submissionId:
-                typeof data.submissionId === 'string' ? data.submissionId : '',
-              authorUid:
-                typeof data.authorUid === 'string' ? data.authorUid : '',
-              createdAt:
-                typeof data.createdAt === 'number' ? data.createdAt : 0,
-            };
-          })
-        );
-      }
-    );
-    const unsubComments = onSnapshot(
-      query(collection(shareDocRef, 'comments')),
-      (snap) => {
-        setComments(
-          snap.docs
-            .map((d) => {
-              const data = d.data() as Record<string, unknown>;
-              return {
-                id: typeof data.id === 'string' ? data.id : d.id,
-                submissionId:
-                  typeof data.submissionId === 'string'
-                    ? data.submissionId
-                    : '',
-                parentCommentId:
-                  typeof data.parentCommentId === 'string'
-                    ? data.parentCommentId
-                    : null,
-                content: typeof data.content === 'string' ? data.content : '',
-                participantLabel:
-                  typeof data.participantLabel === 'string'
-                    ? data.participantLabel
-                    : 'Anonymous',
-                authorUid:
-                  typeof data.authorUid === 'string' ? data.authorUid : '',
-                createdAt:
-                  typeof data.createdAt === 'number' ? data.createdAt : 0,
-              };
-            })
-            .sort((a, b) => a.createdAt - b.createdAt)
-        );
-      }
-    );
-    return () => {
-      unsubLikes();
-      unsubComments();
-    };
-  }, [state, viewer]);
+  const share = state.kind === 'ready' ? state.share : null;
+  const flags = useMemo(
+    () =>
+      share
+        ? resolveEngagementFlags(session, share)
+        : {
+            allowLikes: false,
+            allowComments: false,
+            allowCommentResponses: false,
+          },
+    [session, share]
+  );
+  const engagement = useWallEngagement(
+    share && viewer ? share.sessionId : null,
+    viewer?.uid ?? null,
+    { likes: flags.allowLikes, comments: flags.allowComments }
+  );
 
   // Derived (not stored) so a late session snapshot re-normalizes legacy
   // no-type photo posts instead of leaving them stuck as text.
@@ -402,8 +362,11 @@ export const ActivityWallGalleryView: React.FC = () => {
       session={effectiveSession}
       submissions={visibleSubmissions}
       submissionsReady={submissionsReady}
-      likes={likes}
-      comments={comments}
+      engagement={engagement}
+      flags={flags}
+      identificationMode={
+        session?.identificationMode ?? state.share.identificationMode
+      }
       driveSigninHint={driveSigninHint}
       onMediaError={handleMediaError}
     />
@@ -416,8 +379,9 @@ interface GalleryReadyProps {
   session: ActivityWallSession;
   submissions: ActivityWallSubmission[];
   submissionsReady: boolean;
-  likes: ActivityWallLike[];
-  comments: ActivityWallComment[];
+  engagement: WallEngagement;
+  flags: EngagementFlags;
+  identificationMode: ActivityWallIdentificationMode;
   driveSigninHint: boolean;
   onMediaError: (submission: ActivityWallSubmission) => void;
 }
@@ -428,8 +392,9 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   session,
   submissions,
   submissionsReady,
-  likes,
-  comments,
+  engagement,
+  flags,
+  identificationMode,
   driveSigninHint,
   onMediaError,
 }) => {
@@ -459,47 +424,17 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   }, []);
   const showNames = session.showNames ?? false;
   // Counts are visible to everyone; only signed-in viewers can post.
-  const showEngagement = share.allowLikes || share.allowComments;
   const canWrite = !viewer.isAnonymous;
-
-  const likeIndex = useMemo(() => {
-    const map = new Map<string, { count: number; viewerLiked: boolean }>();
-    likes.forEach((like) => {
-      const entry = map.get(like.submissionId) ?? {
-        count: 0,
-        viewerLiked: false,
-      };
-      entry.count += 1;
-      if (like.authorUid === viewer.uid) entry.viewerLiked = true;
-      map.set(like.submissionId, entry);
-    });
-    return map;
-  }, [likes, viewer.uid]);
-
-  const commentsBySubmission = useMemo(() => {
-    const map = new Map<string, ActivityWallComment[]>();
-    comments.forEach((comment) => {
-      const list = map.get(comment.submissionId) ?? [];
-      list.push(comment);
-      map.set(comment.submissionId, list);
-    });
-    return map;
-  }, [comments]);
-
-  const renderFooter = useCallback(
-    (submission: ActivityWallSubmission) => (
-      <EngagementFooter
-        share={share}
-        viewer={viewer}
-        submission={submission}
-        likeInfo={
-          likeIndex.get(submission.id) ?? { count: 0, viewerLiked: false }
-        }
-        comments={commentsBySubmission.get(submission.id) ?? []}
-        canWrite={canWrite}
-      />
-    ),
-    [share, viewer, likeIndex, commentsBySubmission, canWrite]
+  const renderFooter = useMemo(
+    () =>
+      makeEngagementFooter({
+        viewerUid: viewer.uid,
+        canWrite,
+        flags,
+        identificationMode,
+        engagement,
+      }),
+    [viewer.uid, canWrite, flags, identificationMode, engagement]
   );
 
   return (
@@ -564,7 +499,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
                 showNames={showNames}
                 imageSize={imageSize}
                 onMediaError={onMediaError}
-                renderFooter={showEngagement ? renderFooter : undefined}
+                renderFooter={renderFooter}
               />
               {driveSigninHint && (
                 <div className="absolute inset-x-0 bottom-0 bg-amber-400/95 px-4 py-2 text-center text-xs font-bold text-slate-900">
@@ -577,328 +512,5 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
         )}
       </main>
     </div>
-  );
-};
-
-interface EngagementFooterProps {
-  share: SharedActivityWall;
-  viewer: User;
-  submission: ActivityWallSubmission;
-  likeInfo: { count: number; viewerLiked: boolean };
-  comments: ActivityWallComment[];
-  /** Anonymous viewers see counts and threads but get no like button or composer. */
-  canWrite: boolean;
-}
-
-const EngagementFooter: React.FC<EngagementFooterProps> = ({
-  share,
-  viewer,
-  submission,
-  likeInfo,
-  comments,
-  canWrite,
-}) => {
-  const topLevel = comments.filter((c) => c.parentCommentId === null);
-  const repliesByParent = useMemo(() => {
-    const map = new Map<string, ActivityWallComment[]>();
-    comments
-      .filter((c) => c.parentCommentId !== null)
-      .forEach((c) => {
-        const list = map.get(c.parentCommentId as string) ?? [];
-        list.push(c);
-        map.set(c.parentCommentId as string, list);
-      });
-    return map;
-  }, [comments]);
-
-  const [likeBusy, setLikeBusy] = useState(false);
-
-  const toggleLike = async () => {
-    if (!share.allowLikes || likeBusy) return;
-    setLikeBusy(true);
-    try {
-      const likeDocId = `${submission.id}__${viewer.uid}`;
-      const likeRef = doc(
-        db,
-        'shared_activity_walls',
-        share.id,
-        'likes',
-        likeDocId
-      );
-      if (likeInfo.viewerLiked) {
-        await deleteDoc(likeRef);
-      } else {
-        await setDoc(likeRef, {
-          id: likeDocId,
-          submissionId: submission.id,
-          authorUid: viewer.uid,
-          createdAt: Date.now(),
-        });
-      }
-    } catch (err) {
-      console.error('[ActivityWallGallery] Like toggle failed:', err);
-    } finally {
-      setLikeBusy(false);
-    }
-  };
-
-  return (
-    <div className="mt-3 border-t border-white/10 pt-2">
-      <div className="flex items-center justify-end gap-3">
-        {share.allowLikes && (
-          <button
-            type="button"
-            onClick={() => void toggleLike()}
-            disabled={likeBusy || !canWrite}
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50 ${
-              likeInfo.viewerLiked
-                ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
-                : 'bg-white/10 text-slate-200 hover:bg-white/20'
-            }`}
-            aria-pressed={likeInfo.viewerLiked}
-            aria-label={likeInfo.viewerLiked ? 'Unlike' : 'Like'}
-          >
-            <Heart
-              aria-hidden="true"
-              className={`h-4 w-4 ${likeInfo.viewerLiked ? 'fill-rose-400' : ''}`}
-            />
-            {likeInfo.count}
-          </button>
-        )}
-      </div>
-
-      {share.allowComments && (
-        <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
-            <MessageSquare aria-hidden="true" className="h-3.5 w-3.5" />
-            {topLevel.length === 0
-              ? 'No comments yet'
-              : `${topLevel.length} comment${topLevel.length === 1 ? '' : 's'}`}
-          </div>
-          {topLevel.length > 0 && (
-            <ul className="space-y-2">
-              {topLevel.map((comment) => (
-                <CommentNode
-                  key={comment.id}
-                  share={share}
-                  viewer={viewer}
-                  submissionId={submission.id}
-                  comment={comment}
-                  replies={repliesByParent.get(comment.id) ?? []}
-                  canWrite={canWrite}
-                />
-              ))}
-            </ul>
-          )}
-          {canWrite && (
-            <CommentComposer
-              share={share}
-              viewer={viewer}
-              submissionId={submission.id}
-              parentCommentId={null}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface CommentNodeProps {
-  share: SharedActivityWall;
-  viewer: User;
-  submissionId: string;
-  comment: ActivityWallComment;
-  replies: ActivityWallComment[];
-  canWrite: boolean;
-}
-
-const CommentNode: React.FC<CommentNodeProps> = ({
-  share,
-  viewer,
-  submissionId,
-  comment,
-  replies,
-  canWrite,
-}) => {
-  const [replyOpen, setReplyOpen] = useState(false);
-  return (
-    <li className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="truncate text-xs font-bold text-slate-200">
-          {comment.participantLabel}
-        </p>
-        <span className="shrink-0 text-[11px] text-slate-300">
-          {new Date(comment.createdAt).toLocaleString()}
-        </span>
-      </div>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-200">
-        {comment.content}
-      </p>
-      {canWrite && share.allowCommentResponses && (
-        <button
-          type="button"
-          onClick={() => setReplyOpen((p) => !p)}
-          className="mt-1 inline-flex items-center gap-1 rounded text-[11px] font-semibold text-white/90 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-        >
-          <CornerDownRight aria-hidden="true" className="h-3 w-3" />
-          {replyOpen ? 'Cancel' : 'Reply'}
-        </button>
-      )}
-      {replies.length > 0 && (
-        <ul className="mt-2 ml-4 space-y-2 border-l border-white/10 pl-3">
-          {replies.map((reply) => (
-            <li key={reply.id} className="text-sm">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="truncate text-xs font-bold text-slate-200">
-                  {reply.participantLabel}
-                </p>
-                <span className="shrink-0 text-[11px] text-slate-300">
-                  {new Date(reply.createdAt).toLocaleString()}
-                </span>
-              </div>
-              <p className="mt-0.5 text-slate-200 whitespace-pre-wrap">
-                {reply.content}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-      {replyOpen && canWrite && share.allowCommentResponses && (
-        <div className="mt-2">
-          <CommentComposer
-            share={share}
-            viewer={viewer}
-            submissionId={submissionId}
-            parentCommentId={comment.id}
-            onDone={() => setReplyOpen(false)}
-          />
-        </div>
-      )}
-    </li>
-  );
-};
-
-interface CommentComposerProps {
-  share: SharedActivityWall;
-  viewer: User;
-  submissionId: string;
-  parentCommentId: string | null;
-  onDone?: () => void;
-}
-
-const CommentComposer: React.FC<CommentComposerProps> = ({
-  share,
-  viewer,
-  submissionId,
-  parentCommentId,
-  onDone,
-}) => {
-  const requiresName =
-    share.identificationMode === 'name' ||
-    share.identificationMode === 'name-pin';
-  const requiresPin =
-    share.identificationMode === 'pin' ||
-    share.identificationMode === 'name-pin';
-
-  const [name, setName] = useState('');
-  const [pin, setPin] = useState('');
-  const [content, setContent] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const onSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (submitting) return;
-    if (!content.trim()) return;
-    if (requiresName && !name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
-    if (requiresPin && !pin.trim()) {
-      setError('Please enter the PIN.');
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const commentId = crypto.randomUUID();
-      await setDoc(
-        doc(db, 'shared_activity_walls', share.id, 'comments', commentId),
-        {
-          id: commentId,
-          submissionId,
-          parentCommentId,
-          content: content.trim().slice(0, 2000),
-          participantLabel: buildParticipantLabel(
-            share.identificationMode,
-            name,
-            pin
-          ),
-          authorUid: viewer.uid,
-          createdAt: Date.now(),
-        }
-      );
-      setContent('');
-      setName('');
-      setPin('');
-      onDone?.();
-    } catch (err) {
-      console.error('[ActivityWallGallery] Comment submit failed:', err);
-      setError('Could not post your comment. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={onSubmit} className="space-y-2">
-      {(requiresName || requiresPin) && (
-        <div className="grid grid-cols-2 gap-2">
-          {requiresName && (
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              aria-label="Your name"
-              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            />
-          )}
-          {requiresPin && (
-            <input
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="PIN"
-              aria-label="PIN"
-              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            />
-          )}
-        </div>
-      )}
-      <div className="flex items-end gap-2">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={2}
-          maxLength={2000}
-          placeholder={parentCommentId ? 'Write a reply…' : 'Leave a comment…'}
-          aria-label={parentCommentId ? 'Write a reply' : 'Leave a comment'}
-          className="flex-1 resize-none rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-        />
-        <button
-          type="submit"
-          disabled={submitting || !content.trim()}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? (
-            <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Send className="w-3.5 h-3.5" />
-          )}
-          Post
-        </button>
-      </div>
-      {error && <p className="text-[11px] text-red-300">{error}</p>}
-    </form>
   );
 };

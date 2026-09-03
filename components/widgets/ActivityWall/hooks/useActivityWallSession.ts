@@ -1,11 +1,12 @@
 // Live session state + teacher actions for the active Activity Wall.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   collection,
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   setDoc,
@@ -17,6 +18,7 @@ import type {
   ActivityWallLibraryEntry,
   ActivityWallSession,
   ActivityWallSubmission,
+  SharedActivityWall,
 } from '@/types';
 import {
   mirrorSessionFromEntry,
@@ -72,6 +74,7 @@ export interface UseActivityWallSessionResult {
   ) => Promise<void>;
   clearPosts: (targetSessionId?: string) => Promise<void>;
   setAcceptingResponses: (accepting: boolean) => Promise<void>;
+  setStudentsCanSeePosts: (visible: boolean) => Promise<void>;
 }
 
 const submissionsCollection = (sessionId: string) =>
@@ -157,6 +160,39 @@ export const useActivityWallSession = (
     shareInfo.sessionId === sessionId ? shareInfo.latestShareCode : undefined;
   const latestShareId =
     shareInfo.sessionId === sessionId ? shareInfo.latestShareId : undefined;
+
+  // Walls saved before wall-level engagement flags inherit them once from their latest gallery share.
+  const seededEntryIdRef = useRef<string | null>(null);
+  const needsEngagementSeed =
+    !!entry &&
+    !!latestShareId &&
+    entry.allowLikes === undefined &&
+    entry.allowComments === undefined &&
+    entry.allowCommentResponses === undefined;
+  useEffect(() => {
+    if (!needsEngagementSeed || !entry || !latestShareId) return undefined;
+    if (seededEntryIdRef.current === entry.id) return undefined;
+    seededEntryIdRef.current = entry.id;
+    let cancelled = false;
+    void getDoc(doc(db, 'shared_activity_walls', latestShareId))
+      .then(async (snap) => {
+        const share = snap.data() as Partial<SharedActivityWall> | undefined;
+        if (cancelled || !share) return;
+        await saveActivity({
+          ...entry,
+          allowLikes: share.allowLikes === true,
+          allowComments: share.allowComments === true,
+          allowCommentResponses: share.allowCommentResponses === true,
+          updatedAt: Date.now(),
+        });
+      })
+      .catch((err) => {
+        console.error('[ActivityWall] Engagement seed failed:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsEngagementSeed, entry, latestShareId, saveActivity]);
 
   const isPhotoWall = entry?.mode === 'photo';
   useEffect(() => {
@@ -285,6 +321,20 @@ export const useActivityWallSession = (
     [entry, saveActivity, uid]
   );
 
+  const setStudentsCanSeePosts = useCallback(
+    async (visible: boolean) => {
+      if (!entry || !uid) return;
+      const next = {
+        ...entry,
+        studentsCanSeePosts: visible,
+        updatedAt: Date.now(),
+      };
+      await saveActivity(next);
+      await writeSessionMirror(uid, next);
+    },
+    [entry, saveActivity, uid]
+  );
+
   return {
     sessionId,
     session,
@@ -301,5 +351,6 @@ export const useActivityWallSession = (
     editPost,
     clearPosts,
     setAcceptingResponses,
+    setStudentsCanSeePosts,
   };
 };

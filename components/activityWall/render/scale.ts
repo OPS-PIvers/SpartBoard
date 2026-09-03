@@ -46,16 +46,16 @@ const TEACHER_SCALE: WallScale = {
 export const wallScale = (mode: WallRenderMode): WallScale =>
   mode === 'widget'
     ? WIDGET_SCALE
-    : mode === 'gallery'
+    : mode === 'gallery' || mode === 'student'
       ? GALLERY_SCALE
       : TEACHER_SCALE;
 
-/** Pending posts are teacher-only; everyone else sees approved work. */
+/** Pending posts are teacher-only; the student page already holds only the viewer's own pending posts. */
 export const visibleSubmissions = (
   submissions: ActivityWallSubmission[],
   mode: WallRenderMode
 ): ActivityWallSubmission[] =>
-  mode === 'teacher'
+  mode === 'teacher' || mode === 'student'
     ? submissions
     : submissions.filter((submission) => submission.status !== 'pending');
 

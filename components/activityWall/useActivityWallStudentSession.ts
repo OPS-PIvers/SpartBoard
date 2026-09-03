@@ -8,7 +8,11 @@ import {
   normalizeActivityWallSession,
   normalizeActivityWallSubmission,
 } from '@/utils/activityWallNormalize';
-import type { ActivityWallSession, ActivityWallSubmission } from '@/types';
+import type {
+  ActivityWallIdentificationMode,
+  ActivityWallSession,
+  ActivityWallSubmission,
+} from '@/types';
 
 /** Extracts the session id from `/activity-wall/{sessionId}`. */
 export function getSessionIdFromPath(pathname: string): string | null {
@@ -23,6 +27,19 @@ export function getSessionIdFromPath(pathname: string): string | null {
   return id && id !== 'gallery' ? id : null;
 }
 
+/** Same label shape the public gallery uses for commenters. */
+export const buildParticipantLabel = (
+  identificationMode: ActivityWallIdentificationMode,
+  name: string,
+  pin: string
+): string => {
+  if (identificationMode === 'name') return name.trim() || 'Visitor';
+  if (identificationMode === 'pin') return `PIN: ${pin.trim()}`;
+  if (identificationMode === 'name-pin')
+    return `${name.trim()} (${pin.trim()})`;
+  return 'Anonymous';
+};
+
 export type ActivityWallStudentSessionState =
   | { kind: 'loading' }
   | { kind: 'not-found' }
@@ -32,8 +49,13 @@ export type ActivityWallStudentSessionState =
       session: ActivityWallSession;
       uid: string;
       isGuest: boolean;
+      isStudent: boolean;
       participantLabel: string;
       myPosts: ActivityWallSubmission[];
+      /** Approved posts merged with the viewer's own (own copy wins). */
+      posts: ActivityWallSubmission[];
+      /** False when the teacher has hidden the wall (`studentsCanSeePosts === false`). */
+      wallVisible: boolean;
     };
 
 const readSsoFirstName = (): string => {
@@ -57,7 +79,18 @@ const participantLabelFor = (
   return 'Guest';
 };
 
-/** Resolves the wall session, the visitor's identity, and their own posts for `/activity-wall/{sessionId}`. */
+/** Approved ∪ own by id; the own-posts copy wins so pending edits show immediately. */
+export const mergeWallPosts = (
+  approved: ActivityWallSubmission[],
+  own: ActivityWallSubmission[]
+): ActivityWallSubmission[] => {
+  const byId = new Map<string, ActivityWallSubmission>();
+  approved.forEach((post) => byId.set(post.id, post));
+  own.forEach((post) => byId.set(post.id, post));
+  return Array.from(byId.values());
+};
+
+/** Resolves the wall session, the visitor's identity, and the posts they may see for `/activity-wall/{sessionId}`. */
 export function useActivityWallStudentSession(
   sessionId: string | null
 ): ActivityWallStudentSessionState {
@@ -69,6 +102,9 @@ export function useActivityWallStudentSession(
     isStudent: boolean;
   } | null>(null);
   const [myPosts, setMyPosts] = useState<ActivityWallSubmission[]>([]);
+  const [approvedPosts, setApprovedPosts] = useState<ActivityWallSubmission[]>(
+    []
+  );
 
   const uid = user?.uid ?? null;
 
@@ -130,8 +166,15 @@ export function useActivityWallStudentSession(
 
   const resolvedClaims = claims && claims.uid === uid ? claims : null;
   const isStudent = resolvedClaims?.isStudent === true;
+  // The wall's owner previewing the student link is never bounced to student login.
+  const isOwner = !!uid && !!sessionId && sessionId.startsWith(`${uid}_`);
   const needsLogin =
-    !!resolvedClaims && !!session && !isStudent && !session.allowGuests;
+    !!resolvedClaims &&
+    !!session &&
+    !isStudent &&
+    !isOwner &&
+    !session.allowGuests;
+  const wallVisible = !!session && session.studentsCanSeePosts !== false;
 
   useEffect(() => {
     if (!needsLogin) return;
@@ -163,6 +206,31 @@ export function useActivityWallStudentSession(
     return unsubscribe;
   }, [sessionId, uid, needsLogin]);
 
+  // Only subscribe while the wall is visible so a hidden wall never trips the rules denial; stale rows are ignored via `wallVisible`.
+  useEffect(() => {
+    if (!sessionId || !uid || needsLogin || !wallVisible) return;
+    const unsubscribe = onSnapshot(
+      query(
+        collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
+        where('status', '==', 'approved')
+      ),
+      (snap) => {
+        setApprovedPosts(
+          snap.docs.map((entry) =>
+            normalizeActivityWallSubmission(
+              entry.id,
+              entry.data() as Partial<ActivityWallSubmission>
+            )
+          )
+        );
+      },
+      (error) => {
+        console.error('[ActivityWallStudentApp] Wall read failed:', error);
+      }
+    );
+    return unsubscribe;
+  }, [sessionId, uid, needsLogin, wallVisible]);
+
   if (!sessionId || sessionMissing) return { kind: 'not-found' };
   if (needsLogin) return { kind: 'redirecting' };
   if (!user || !session || !resolvedClaims) return { kind: 'loading' };
@@ -172,11 +240,14 @@ export function useActivityWallStudentSession(
     session,
     uid: user.uid,
     isGuest: user.isAnonymous,
+    isStudent,
     participantLabel: participantLabelFor(
       isStudent,
       user.isAnonymous,
       user.displayName
     ),
     myPosts,
+    posts: wallVisible ? mergeWallPosts(approvedPosts, myPosts) : myPosts,
+    wallVisible,
   };
 }

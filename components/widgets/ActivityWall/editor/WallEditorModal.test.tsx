@@ -9,6 +9,13 @@ const { mockSaveActivity } = vi.hoisted(() => ({
   mockSaveActivity: vi.fn((_entry: unknown) => Promise.resolve()),
 }));
 
+vi.mock('@/config/firebase', () => ({ db: {} }));
+
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(() => ({})),
+  getDoc: vi.fn(() => Promise.resolve({ data: () => undefined })),
+}));
+
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({
     showAlert: vi.fn().mockResolvedValue(undefined),
@@ -261,5 +268,71 @@ describe('WallEditorModal', () => {
     const saved = mockSaveActivity.mock.calls[0][0] as ActivityWallLibraryEntry;
     expect(saved.classId).toBe('class-1');
     expect(saved.classIds).toEqual(['class-1']);
+  });
+
+  it('saves studentsCanSeePosts and the engagement flags from the new toggles', async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Wall/ }));
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Engaged' },
+    });
+    fireEvent.change(screen.getByLabelText('Prompt'), {
+      target: { value: 'Share' },
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Moderation & access' })
+    );
+    const seePosts = screen.getByRole('checkbox', {
+      name: /^Students can see posts/,
+    });
+    expect(seePosts).toBeChecked();
+    fireEvent.click(seePosts);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Engagement' }));
+    const replies = screen.getByRole('checkbox', {
+      name: /^Allow comment replies/,
+    });
+    expect(replies).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Allow likes/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Allow comments/ }));
+    expect(replies).toBeEnabled();
+    fireEvent.click(replies);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
+    await waitFor(() => expect(mockSaveActivity).toHaveBeenCalledTimes(1));
+    const saved = mockSaveActivity.mock.calls[0][0] as ActivityWallLibraryEntry;
+    expect(saved).toMatchObject({
+      studentsCanSeePosts: false,
+      allowLikes: true,
+      allowComments: true,
+      allowCommentResponses: true,
+    });
+  });
+
+  it('forces comment replies off when comments are turned off', () => {
+    renderModal({
+      id: 'wall-1',
+      title: 'Existing',
+      prompt: 'p',
+      mode: 'photo',
+      moderationEnabled: false,
+      identificationMode: 'anonymous',
+      createdAt: 0,
+      updatedAt: 0,
+      layout: 'wall',
+      allowLikes: false,
+      allowComments: true,
+      allowCommentResponses: true,
+    } as ActivityWallLibraryEntry);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Engagement' }));
+    const replies = screen.getByRole('checkbox', {
+      name: /^Allow comment replies/,
+    });
+    expect(replies).toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Allow comments/ }));
+    expect(replies).toBeDisabled();
+    expect(replies).not.toBeChecked();
   });
 });

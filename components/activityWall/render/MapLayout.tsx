@@ -1,10 +1,28 @@
 import React from 'react';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import {
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  useMapEvents,
+} from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { SubmissionCard } from './SubmissionCard';
-import { prepareSubmissions } from './scale';
-import type { WallRenderProps } from './types';
+import { prepareSubmissions, wallScale } from './scale';
+import { AddSpot } from './AddSpot';
+import { showsAddSpots } from './addSpots';
+import type { WallPlacement, WallRenderProps } from './types';
+
+/** Emits the clicked coordinate; markers stop propagation so popups still open. */
+const MapClickSpot: React.FC<{ onAddAt: (p: WallPlacement) => void }> = ({
+  onAddAt,
+}) => {
+  useMapEvents({
+    click: (event) => onAddAt({ lat: event.latlng.lat, lng: event.latlng.lng }),
+  });
+  return null;
+};
 
 const DEFAULT_CENTER = { lat: 39.5, lng: -98.35, zoom: 4 };
 
@@ -22,8 +40,11 @@ export const MapLayout: React.FC<WallRenderProps> = ({
   mode,
   showNames,
   onMove: _onMove,
+  onAddAt,
   ...actions
 }) => {
+  const scale = wallScale(mode);
+  const addSpots = showsAddSpots(mode, onAddAt);
   const center = session.mapCenter ?? DEFAULT_CENTER;
   const items = prepareSubmissions(submissions, mode).filter(
     (submission) =>
@@ -31,7 +52,7 @@ export const MapLayout: React.FC<WallRenderProps> = ({
   );
 
   return (
-    <div className="h-full w-full" data-testid="aw-layout-map">
+    <div className="group relative h-full w-full" data-testid="aw-layout-map">
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={center.zoom}
@@ -42,6 +63,7 @@ export const MapLayout: React.FC<WallRenderProps> = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
         />
+        {addSpots && <MapClickSpot onAddAt={onAddAt} />}
         {items.map((submission) => (
           <Marker
             key={submission.id}
@@ -59,6 +81,16 @@ export const MapLayout: React.FC<WallRenderProps> = ({
           </Marker>
         ))}
       </MapContainer>
+      {addSpots && (
+        <AddSpot
+          mode={mode}
+          placement={{}}
+          onAddAt={onAddAt}
+          alwaysVisible
+          className="absolute z-[1000] shadow-lg"
+          style={{ right: scale.pad, bottom: scale.pad }}
+        />
+      )}
     </div>
   );
 };

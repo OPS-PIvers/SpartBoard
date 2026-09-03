@@ -153,6 +153,32 @@ describe('SubmissionCard', () => {
       driveUrl: 'https://drive.google.com/thumbnail?id=abc',
     });
 
+  it('exposes teacher edit on the widget face when onEdit is supplied', () => {
+    const onEdit = vi.fn();
+    render(
+      <SubmissionCard
+        submission={makeSubmission()}
+        mode="widget"
+        showNames={false}
+        onEdit={onEdit}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit post' }));
+    expect(onEdit).toHaveBeenCalledWith(makeSubmission().id);
+  });
+
+  it('keeps the gallery face free of edit controls', () => {
+    render(
+      <SubmissionCard
+        submission={makeSubmission()}
+        mode="gallery"
+        showNames={false}
+        onEdit={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Edit post' })).toBeNull();
+  });
+
   it('caps photo dimensions in every layout mode, not just widget', () => {
     // jsdom drops CSS min(), so the widget's cqmin caps are asserted on the helper.
     expect(wallImageDimensions('medium', true).maxHeight).toContain('cqmin');
@@ -318,6 +344,106 @@ describe('SubmissionCard', () => {
       />
     );
     expect(screen.getByText('curiosity')).toBeInTheDocument();
+  });
+
+  describe('student mode', () => {
+    const own = (overrides = {}) =>
+      makeSubmission({ authorUid: 'me', status: 'pending', ...overrides });
+
+    it('shows Awaiting approval and edit/delete on the viewer’s own pending post', () => {
+      const onEdit = vi.fn();
+      const onDelete = vi.fn();
+      render(
+        <SubmissionCard
+          submission={own()}
+          mode="student"
+          showNames={false}
+          viewerUid="me"
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onApprove={vi.fn()}
+          onReject={vi.fn()}
+          onPin={vi.fn()}
+        />
+      );
+      expect(screen.getByText('Awaiting approval')).toBeInTheDocument();
+      expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit post' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete post' }));
+      expect(onEdit).toHaveBeenCalledWith('sub-1');
+      expect(onDelete).toHaveBeenCalledWith('sub-1');
+      for (const name of ['Approve post', 'Reject post', 'Pin post']) {
+        expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+      }
+    });
+
+    it('gives another student’s card no chip and no actions', () => {
+      render(
+        <SubmissionCard
+          submission={own({ authorUid: 'someone-else', status: 'approved' })}
+          mode="student"
+          showNames={false}
+          viewerUid="me"
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+      expect(screen.queryByText('Awaiting approval')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('never treats a card as own without a viewerUid', () => {
+      render(
+        <SubmissionCard
+          submission={makeSubmission({ status: 'pending' })}
+          mode="student"
+          showNames={false}
+          onEdit={vi.fn()}
+        />
+      );
+      expect(screen.queryByText('Awaiting approval')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('renders the footer in student mode as well as gallery', () => {
+      const renderFooter = vi.fn(() => <span>likes</span>);
+      const { rerender } = render(
+        <SubmissionCard
+          submission={makeSubmission()}
+          mode="student"
+          showNames={false}
+          renderFooter={renderFooter}
+        />
+      );
+      expect(screen.getByText('likes')).toBeInTheDocument();
+      rerender(
+        <SubmissionCard
+          submission={makeSubmission()}
+          mode="widget"
+          showNames={false}
+          renderFooter={renderFooter}
+        />
+      );
+      expect(screen.queryByText('likes')).not.toBeInTheDocument();
+    });
+  });
+
+  it('labels teacher posts with a Teacher chip in every mode', () => {
+    for (const mode of ['widget', 'gallery', 'teacher', 'student'] as const) {
+      const { unmount } = render(
+        <SubmissionCard
+          submission={makeSubmission({ authorRole: 'teacher' })}
+          mode={mode}
+          showNames={false}
+        />
+      );
+      expect(screen.getByText('Teacher')).toBeInTheDocument();
+      unmount();
+    }
+    render(
+      <SubmissionCard submission={makeSubmission()} mode="gallery" showNames />
+    );
+    expect(screen.queryByText('Teacher')).not.toBeInTheDocument();
   });
 
   it('shows the Pending ribbon and teacher actions only in teacher mode', () => {
