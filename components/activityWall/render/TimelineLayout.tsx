@@ -24,8 +24,12 @@ const SortableRow: React.FC<{
   return (
     <div
       ref={setNodeRef}
-      className="relative"
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className="flex items-start"
+      style={{
+        gap: '4px',
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
     >
       {!disabled && (
         <DragHandle
@@ -34,7 +38,7 @@ const SortableRow: React.FC<{
           size={handleSize}
         />
       )}
-      {children}
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 };

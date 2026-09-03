@@ -96,8 +96,13 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
         <img
           src={mediaUrl}
           alt={submission.title ?? 'Student photo'}
-          className="w-full rounded-lg object-cover"
-          style={isWidget ? { maxHeight: 'min(220px, 40cqmin)' } : undefined}
+          className="mx-auto rounded-lg object-cover"
+          // Cap dimensions in every layout so full-width rows (table/timeline) don't blow the image up.
+          style={{
+            maxHeight: 'min(220px, 40cqmin)',
+            maxWidth: 'min(420px, 60cqmin)',
+            width: '100%',
+          }}
           onError={() => {
             setFailedImageUrl(mediaUrl);
             onMediaError?.(submission);

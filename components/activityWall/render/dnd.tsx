@@ -2,8 +2,9 @@ import React from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { GripVertical } from 'lucide-react';
 
+// Static (non-absolute) so it sits in its own gutter column and never overlaps card text.
 const gripClass =
-  'absolute left-1 top-1 z-10 cursor-grab rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
+  'flex shrink-0 cursor-grab items-start rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
 type DraggableBindings = ReturnType<typeof useDraggable>;
 
@@ -52,7 +53,8 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className={`relative ${isDragging ? 'opacity-50' : ''}`}
+      className={`flex items-start ${isDragging ? 'opacity-50' : ''}`}
+      style={{ gap: '4px' }}
     >
       {!disabled && (
         <DragHandle
@@ -61,7 +63,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
           size={handleSize}
         />
       )}
-      {children}
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 };
