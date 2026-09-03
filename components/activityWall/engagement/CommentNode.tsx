@@ -11,6 +11,8 @@ export interface CommentNodeProps {
   flags: EngagementFlags;
   identificationMode: ActivityWallIdentificationMode;
   participantLabel?: string;
+  /** When false the wall hides names, so commenter labels are masked too. */
+  showNames: boolean;
   submissionId: string;
   comment: ActivityWallComment;
   replies: ActivityWallComment[];
@@ -22,6 +24,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({
   flags,
   identificationMode,
   participantLabel,
+  showNames,
   submissionId,
   comment,
   replies,
@@ -30,11 +33,13 @@ export const CommentNode: React.FC<CommentNodeProps> = ({
 }) => {
   const [replyOpen, setReplyOpen] = useState(false);
   const canReply = canWrite && flags.allowCommentResponses;
+  const labelOf = (c: ActivityWallComment) =>
+    showNames ? c.participantLabel : 'Anonymous';
   return (
     <li className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
       <div className="flex items-baseline justify-between gap-2">
         <p className="truncate text-xs font-bold text-slate-200">
-          {comment.participantLabel}
+          {labelOf(comment)}
         </p>
         <span className="shrink-0 text-[11px] text-slate-300">
           {new Date(comment.createdAt).toLocaleString()}
@@ -59,7 +64,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({
             <li key={reply.id} className="text-sm">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="truncate text-xs font-bold text-slate-200">
-                  {reply.participantLabel}
+                  {labelOf(reply)}
                 </p>
                 <span className="shrink-0 text-[11px] text-slate-300">
                   {new Date(reply.createdAt).toLocaleString()}

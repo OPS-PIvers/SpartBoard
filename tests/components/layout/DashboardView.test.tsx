@@ -1046,6 +1046,45 @@ describe('DashboardView Gestures & Navigation', () => {
     });
   });
 
+  describe('touch-origin tracking resets between gestures', () => {
+    const touch = (
+      el: HTMLElement,
+      type: string,
+      touchCount: number,
+      target: HTMLElement
+    ) => {
+      const evt = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(evt, 'touches', {
+        value: new Array(touchCount).fill({}),
+      });
+      Object.defineProperty(evt, 'target', { value: target });
+      el.dispatchEvent(evt);
+      return evt;
+    };
+
+    it('does not inherit a scrollable origin from the previous gesture', () => {
+      const { container } = renderView();
+      const root = container.querySelector('#dashboard-root') as HTMLElement;
+
+      const scrollable = document.createElement('div');
+      scrollable.style.overflowY = 'auto';
+      Object.defineProperty(scrollable, 'scrollHeight', { value: 500 });
+      Object.defineProperty(scrollable, 'clientHeight', { value: 100 });
+      root.appendChild(scrollable);
+
+      // Gesture 1 starts inside the scrollable widget — the browser scrolls it.
+      touch(root, 'touchstart', 1, scrollable);
+      expect(touch(root, 'touchmove', 1, scrollable).defaultPrevented).toBe(
+        false
+      );
+      touch(root, 'touchend', 0, scrollable);
+
+      // Gesture 2 begins with two fingers on the board itself.
+      touch(root, 'touchstart', 2, root);
+      expect(touch(root, 'touchmove', 2, root).defaultPrevented).toBe(true);
+    });
+  });
+
   // Regression: when focus is on a child element inside a widget (e.g., a
   // button rendered inside a widget's content area), the global Escape/Delete/
   // Alt+P keyboard handlers in DashboardView must still resolve the containing

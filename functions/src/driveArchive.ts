@@ -9,9 +9,13 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
+  buildDriveUrl,
   claimSubmissionForArchive,
   finalizeResumedSubmission,
+  resolveArchivableType,
+  resolveDrivePermission,
 } from './activityWallArchive';
+import type { DrivePermission } from './activityWallArchive';
 import './functionsInit';
 
 interface ArchiveActivityWallPhotoData {
@@ -144,20 +148,27 @@ const uploadBlobToDrive = async (
   return driveFile;
 };
 
-const makeDriveFilePublic = async (
+const applyDrivePermission = async (
   accessToken: string,
-  fileId: string
+  fileId: string,
+  permission: DrivePermission
 ): Promise<void> => {
   const response = await fetch(`${DRIVE_API_URL}/files/${fileId}/permissions`, {
     method: 'POST',
     headers: getDriveHeaders(accessToken),
-    body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    body: JSON.stringify(permission),
   });
 
   if (!response.ok) {
     throw new Error('Failed to share file in Drive');
   }
 };
+
+const makeDriveFilePublic = async (
+  accessToken: string,
+  fileId: string
+): Promise<void> =>
+  applyDrivePermission(accessToken, fileId, { role: 'reader', type: 'anyone' });
 
 // Every field this function writes to a submission doc must stay listed in firestore.rules' submissions update hasOnly() whitelist, or a later client update fails closed.
 export const archiveActivityWallPhoto = onCall(
@@ -214,19 +225,46 @@ export const archiveActivityWallPhoto = onCall(
       // permission or the terminal write failed. Finish it instead of
       // stranding the doc at 'syncing'.
       try {
-        await makeDriveFilePublic(accessToken, claim.driveFileId);
+        const sessionSnap = await admin
+          .firestore()
+          .collection('activity_wall_sessions')
+          .doc(sessionId)
+          .get();
+        const teacherEmail =
+          typeof request.auth.token?.email === 'string'
+            ? request.auth.token.email
+            : null;
+        const resolved = resolveDrivePermission(
+          (sessionSnap.data() ?? {}).driveVisibility,
+          teacherEmail
+        );
+        if (resolved.permission) {
+          await applyDrivePermission(
+            accessToken,
+            claim.driveFileId,
+            resolved.permission
+          );
+        }
         const submissionSnap = await submissionRef.get();
         const submission = (submissionSnap.data() ?? {}) as {
           storagePath?: unknown;
+          type?: unknown;
+          mimeType?: unknown;
         };
         const storagePath =
           typeof submission.storagePath === 'string'
             ? submission.storagePath
             : null;
-        const driveUrl = `https://lh3.googleusercontent.com/d/${claim.driveFileId}`;
+        const archivableType =
+          resolveArchivableType(
+            submission.type,
+            typeof submission.mimeType === 'string' ? submission.mimeType : ''
+          ) ?? 'photo';
+        const driveUrl = buildDriveUrl(archivableType, claim.driveFileId);
         const result = await finalizeResumedSubmission(submissionRef, {
           driveFileId: claim.driveFileId,
           driveUrl,
+          drivePermission: resolved.value,
           storagePath: storagePath ?? '',
           now: Date.now(),
           deleteObject: async (name) => {

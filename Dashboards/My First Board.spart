@@ -1,0 +1,42 @@
+{
+  "widgets": [
+    {
+      "version": 1,
+      "z": 1,
+      "hProp": 0.4198473282442748,
+      "yProp": 0.061068702290076333,
+      "type": "onboarding",
+      "xProp": 0.023305084745762712,
+      "h": 319,
+      "aspectRatio": 0.8636363636363636,
+      "flipped": false,
+      "w": 275,
+      "y": 62,
+      "wProp": 0.20127118644067796,
+      "id": "39fbaeb2-a04d-40bc-b35a-ea47b771514c",
+      "x": 65,
+      "config": {
+        "completedTasks": []
+      }
+    }
+  ],
+  "id": "7e8d0611-9030-42a8-84d8-bf2f4a2d6418",
+  "name": "My First Board",
+  "background": "bg-slate-900",
+  "collectionId": null,
+  "updatedAt": 1780516945810,
+  "globalStyle": {
+    "dockTextShadow": false,
+    "dockBorderRadius": "full",
+    "windowTransparency": 0.8,
+    "windowBorderRadius": "2xl",
+    "accentColor": "#ad2122",
+    "primaryColor": "#2d3f89",
+    "windowTitleColor": "#ffffff",
+    "dockTransparency": 0.4,
+    "fontFamily": "sans",
+    "dockTextColor": "#334155"
+  },
+  "isPinned": false,
+  "createdAt": 1780516930966
+}

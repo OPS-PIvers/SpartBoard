@@ -18,6 +18,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   setDoc,
+  updateDoc,
   deleteDoc,
   doc,
   getDoc,
@@ -439,6 +440,136 @@ describe('merged student page — session likes and comments', () => {
       getDocs(
         collection(asStudent(), `activity_wall_sessions/${SESSION_ID}/comments`)
       )
+    );
+  });
+});
+
+describe('merged student page — engagement on a closed wall', () => {
+  it('student cannot like a closed wall', async () => {
+    await seedSession(
+      padletSession({ allowLikes: true, acceptingResponses: false })
+    );
+    await assertFails(
+      setDoc(
+        doc(asStudent(), likePath('sub-1', STUDENT_UID)),
+        like('sub-1', STUDENT_UID)
+      )
+    );
+  });
+
+  it('student cannot comment on a closed wall', async () => {
+    await seedSession(
+      padletSession({ allowComments: true, acceptingResponses: false })
+    );
+    await assertFails(
+      setDoc(
+        doc(asStudent(), commentPath('c-closed')),
+        comment('c-closed', STUDENT_UID)
+      )
+    );
+  });
+
+  it('owner may still like and comment on a closed wall', async () => {
+    await seedSession(
+      padletSession({
+        allowLikes: true,
+        allowComments: true,
+        acceptingResponses: false,
+      })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), likePath('sub-1', TEACHER_UID)),
+        like('sub-1', TEACHER_UID)
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), commentPath('c-owner')),
+        comment('c-owner', TEACHER_UID)
+      )
+    );
+  });
+
+  it('student likes and comments while the wall is open', async () => {
+    await seedSession(padletSession({ allowLikes: true, allowComments: true }));
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), likePath('sub-1', STUDENT_UID)),
+        like('sub-1', STUDENT_UID)
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), commentPath('c-open')),
+        comment('c-open', STUDENT_UID)
+      )
+    );
+  });
+});
+
+describe('merged student page — self-edit and moderation', () => {
+  const seedOwnApprovedPost = async (
+    sessionOverrides: Record<string, unknown> = {}
+  ) => {
+    await seedSession(
+      padletSession({ allowStudentEdit: true, ...sessionOverrides })
+    );
+    await seedSubmission(
+      'mine',
+      submission({ authorUid: STUDENT_UID, status: 'approved' })
+    );
+  };
+
+  it('moderated content edit must move status back to pending', async () => {
+    await seedOwnApprovedPost({ moderationEnabled: true });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), submissionPath('mine')), {
+        content: 'Rewritten',
+        editedAt: 1_800_000,
+        status: 'pending',
+      })
+    );
+  });
+
+  it('moderated content edit cannot keep status approved', async () => {
+    await seedOwnApprovedPost({ moderationEnabled: true });
+    await assertFails(
+      updateDoc(doc(asStudent(), submissionPath('mine')), {
+        content: 'Rewritten',
+        editedAt: 1_800_000,
+      })
+    );
+  });
+
+  it('moderated non-content edit leaves status untouched', async () => {
+    await seedOwnApprovedPost({ moderationEnabled: true });
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), submissionPath('mine')), {
+        title: 'New title',
+        editedAt: 1_800_000,
+      })
+    );
+  });
+
+  it('unmoderated content edit keeps status approved', async () => {
+    await seedOwnApprovedPost();
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), submissionPath('mine')), {
+        content: 'Rewritten',
+        editedAt: 1_800_000,
+      })
+    );
+  });
+
+  it('unmoderated edit cannot flip status', async () => {
+    await seedOwnApprovedPost();
+    await assertFails(
+      updateDoc(doc(asStudent(), submissionPath('mine')), {
+        content: 'Rewritten',
+        editedAt: 1_800_000,
+        status: 'pending',
+      })
     );
   });
 });

@@ -253,6 +253,18 @@ describe('TimeToolWidget', () => {
 
       expect(screen.getByText('057')).toBeInTheDocument();
     });
+
+    it('Enter on a focused digit button activates the button instead of confirming', () => {
+      openKeypad();
+      const sevenBtn = screen.getByRole('button', { name: '7' });
+      sevenBtn.focus();
+
+      fireEvent.keyDown(sevenBtn, { key: 'Enter', bubbles: true });
+      fireEvent.click(sevenBtn);
+
+      expect(screen.getByText('057')).toBeInTheDocument();
+      expect(screen.getByLabelText('Close keypad')).toBeInTheDocument();
+    });
   });
 
   it('supports 3-digit minutes (e.g., 2 hours / 120 minutes)', () => {

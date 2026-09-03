@@ -53,21 +53,21 @@ export function validateUpload(
   if (type === 'photo') {
     if (!allows(IMAGE_MIME_TYPES, file.type))
       return 'Please choose a JPEG, PNG, GIF, WebP, or HEIC image.';
-    if (file.size > IMAGE_MAX_BYTES)
+    if (file.size >= IMAGE_MAX_BYTES)
       return `Images must be smaller than ${formatMb(IMAGE_MAX_BYTES)}.`;
     return null;
   }
   if (type === 'video') {
     if (!allows(VIDEO_MIME_TYPES, file.type))
       return 'Please choose an MP4, WebM, or MOV (QuickTime) video.';
-    if (file.size > VIDEO_MAX_BYTES)
+    if (file.size >= VIDEO_MAX_BYTES)
       return `Videos must be smaller than ${formatMb(VIDEO_MAX_BYTES)}.`;
     return null;
   }
   if (type === 'file') {
     if (!allows(FILE_MIME_TYPES, file.type))
       return 'Please choose a PDF, Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) file.';
-    if (file.size > FILE_MAX_BYTES)
+    if (file.size >= FILE_MAX_BYTES)
       return `Files must be smaller than ${formatMb(FILE_MAX_BYTES)}.`;
     return null;
   }

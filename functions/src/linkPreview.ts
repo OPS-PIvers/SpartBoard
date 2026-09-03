@@ -44,15 +44,15 @@ function isRateLimited(
   globalCallTimes = globalCallTimes.filter(
     (t) => now - t < RATE_LIMIT_WINDOW_MS
   );
-  globalCallTimes.push(now);
-  if (globalCallTimes.length > GLOBAL_RATE_LIMIT_MAX_CALLS) {
+  // Rejected calls must not count toward the limits, or a blocked caller
+  // keeps the window full and starves everyone else.
+  if (globalCallTimes.length >= GLOBAL_RATE_LIMIT_MAX_CALLS) {
     return true;
   }
 
   const calls = (callCounts.get(uid) ?? []).filter(
     (t) => now - t < RATE_LIMIT_WINDOW_MS
   );
-  calls.push(now);
   callCounts.set(uid, calls);
   // Evict other uids whose whole window has expired so the map can't grow unbounded.
   for (const [key, times] of callCounts) {
@@ -69,7 +69,12 @@ function isRateLimited(
   const maxCalls = isAnonymous
     ? RATE_LIMIT_ANON_MAX_CALLS
     : RATE_LIMIT_MAX_CALLS;
-  return calls.length > maxCalls;
+  if (calls.length >= maxCalls) {
+    return true;
+  }
+  globalCallTimes.push(now);
+  calls.push(now);
+  return false;
 }
 
 // IP-literal / reserved-range blocks, mirrored from embedProxy.ts's
@@ -301,10 +306,8 @@ export const fetchLinkPreview = onCall(
           continue;
         }
         console.error('Link preview fetch error:', error);
-        throw new HttpsError(
-          'internal',
-          error instanceof Error ? error.message : 'Failed to fetch URL.'
-        );
+        // Generic message: the detail is an SSRF signal channel for anonymous callers.
+        throw new HttpsError('internal', 'Failed to fetch URL.');
       }
 
       const contentType = (

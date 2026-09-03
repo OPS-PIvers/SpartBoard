@@ -21,6 +21,8 @@ export interface EngagementFooterProps {
   flags: EngagementFlags;
   identificationMode: ActivityWallIdentificationMode;
   participantLabel?: string;
+  /** When false the wall hides names, so commenter labels are masked too. */
+  showNames: boolean;
   likeInfo: LikeInfo;
   comments: ActivityWallComment[];
   onToggleLike: (submissionId: string) => Promise<void>;
@@ -34,6 +36,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
   flags,
   identificationMode,
   participantLabel,
+  showNames,
   likeInfo,
   comments,
   onToggleLike,
@@ -108,6 +111,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
                   flags={flags}
                   identificationMode={identificationMode}
                   participantLabel={participantLabel}
+                  showNames={showNames}
                   submissionId={submission.id}
                   comment={comment}
                   replies={repliesByParent.get(comment.id) ?? []}

@@ -166,11 +166,32 @@ service firebase.storage {
             /databases/(default)/documents/activity_wall_sessions/$(sessionId)/submissions/$(submissionId)
           ).data.get('status', '') == 'approved';
       }
+      // The owning teacher (uid prefix in sessionId) and admins post from the
+      // widget face and are never subject to the student/guest audience gates.
+      function awIsOwner() {
+        return isAdmin() || sessionId.matches(request.auth.uid + '_.*');
+      }
       // studentRole users always; anyone else only once the teacher opted into
       // guest posting (anonymous callers never carry the studentRole claim).
       function awCallerAllowed() {
-        return request.auth.token.get('studentRole', false) == true ||
+        return awIsOwner() ||
+               request.auth.token.get('studentRole', false) == true ||
                awSession().get('allowGuests', false) == true;
+      }
+      // Storage mirror of firestore.rules passesStudentClassGateCompat: a
+      // studentRole caller must be enrolled in one of the session's classes.
+      // Non-student callers (teachers, admins, anonymous guests) pass, exactly
+      // as they do on the Firestore submission-create gate.
+      function awStudentClassOk() {
+        let sessionClassIds = awSession().get('classIds', []);
+        let sessionClassId = awSession().get('classId', '');
+        let claimed = request.auth.token.get('classIds', []);
+        return request.auth.token.get('studentRole', false) != true ||
+               (sessionClassIds is list && sessionClassIds.size() > 0
+                 ? (claimed is list && sessionClassIds.hasAny(claimed))
+                 : (!(sessionClassId is string) ||
+                    sessionClassId.size() == 0 ||
+                    (claimed is list && sessionClassId in claimed)));
       }
       function awTypeEnabled(kind) {
         return awSession().get('allowedTypes', {}).get(kind, false) == true;
@@ -202,8 +223,11 @@ service firebase.storage {
         firestore.exists(
           /databases/(default)/documents/activity_wall_sessions/$(sessionId)
         ) &&
-        awSession().get('acceptingResponses', true) != false &&
+        // The owner is exempt from the closed-wall gate so this layer agrees
+        // with the Firestore teacher-create branch, which never checks it.
+        (awIsOwner() || awSession().get('acceptingResponses', true) != false) &&
         awCallerAllowed() &&
+        awStudentClassOk() &&
         (
           (request.resource.contentType.matches('image/(jpeg|png|gif|webp|heic)') &&
            awTypeEnabled('photo') &&

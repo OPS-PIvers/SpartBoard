@@ -336,13 +336,18 @@ export const updatePost = async (
   session: ActivityWallSession,
   postId: string,
   draft: PostDraft,
-  placement: WallPlacement
+  placement: WallPlacement,
+  options: { requeueForModeration?: boolean; currentContent?: string } = {}
 ): Promise<void> => {
   const type = effectiveType(session, draft.type);
   const patch: Record<string, unknown> = { editedAt: Date.now() };
   if (type === 'word') patch.content = draft.word.trim();
   else if (type === 'link') patch.content = draft.url.trim();
   else if (!isUploadType(type)) patch.content = draft.body.trim();
+  // Rules send a moderated post back to review only when its content actually changes.
+  const contentChanged =
+    'content' in patch && patch.content !== options.currentContent;
+  if (options.requeueForModeration && contentChanged) patch.status = 'pending';
   if (type !== 'word') patch.title = draft.title.trim();
   // Rules keep `order` off the student edit allowlist, so timeline edits only touch the label.
   if (session.layout === 'timeline') patch.label = draft.label.trim();
