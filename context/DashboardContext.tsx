@@ -1301,8 +1301,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (dashboard: Dashboard): Promise<void> => {
       if (!dashboardHasPII(dashboard)) return;
       if (!driveService) {
-        // No live Drive connection (token expired/missing) — must abort
-        // rather than let the caller scrub PII with nowhere to back it up.
+        // No live Drive connection — abort rather than scrub PII with nowhere to back it up.
         throw new Error(
           '[PII] Aborted dashboard save because Google Drive is not connected — PII supplement cannot be backed up'
         );
