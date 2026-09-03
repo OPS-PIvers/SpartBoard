@@ -10,7 +10,7 @@ const DEFAULT_CENTER = { lat: 39.5, lng: -98.35, zoom: 4 };
 
 const markerIcon = divIcon({
   className: '',
-  html: '<div style="width:18px;height:18px;border-radius:9999px;background:#ad2122;border:3px solid #ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+  html: '<div style="width:18px;height:18px;border-radius:9999px;background:var(--spart-accent, #ad2122);border:3px solid #ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 });
