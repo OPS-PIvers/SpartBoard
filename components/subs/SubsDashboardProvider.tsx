@@ -299,6 +299,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       clearAllWidgets: NOOP,
       undoWidgets: NOOP,
       redoWidgets: NOOP,
+      recordWidgetSnapshot: NOOP,
       canUndo: false,
       canRedo: false,
       moveWidgetLayer: NOOP,

@@ -136,6 +136,7 @@ export type DashboardActions = Pick<
   | 'updateWidgets'
   | 'removeWidget'
   | 'undoWidgets'
+  | 'recordWidgetSnapshot'
   | 'duplicateWidget'
   | 'bringToFront'
   | 'moveWidgetLayer'

@@ -203,6 +203,9 @@ const mockDashboard: DashboardContextValue = {
   redoWidgets: () => {
     // No-op
   },
+  recordWidgetSnapshot: () => {
+    // No-op
+  },
   canUndo: false,
   canRedo: false,
   updateWidget: () => {

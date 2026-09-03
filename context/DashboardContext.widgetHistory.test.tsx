@@ -156,10 +156,20 @@ interface ContextSnapshot {
     updates: Partial<WidgetData>,
     opts?: { immediate?: boolean; skipHistory?: boolean }
   ) => void;
+  updateWidgets: (
+    updates: Array<{
+      id: string;
+      changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
+    }>,
+    opts?: { skipHistory?: boolean }
+  ) => void;
   removeWidget: (id: string) => void;
   clearAllWidgets: () => void;
-  undoWidgets: () => void;
-  redoWidgets: () => void;
+  undoWidgets: (boardId?: string) => void;
+  redoWidgets: (boardId?: string) => void;
+  recordWidgetSnapshot: () => void;
+  moveWidgetLayer: (id: string, direction: 'up' | 'down') => void;
+  minimizeAllWidgets: () => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -174,10 +184,14 @@ const TestConsumer: React.FC<{
       activeDashboard: ctx.activeDashboard,
       loading: ctx.loading,
       updateWidget: ctx.updateWidget,
+      updateWidgets: ctx.updateWidgets,
       removeWidget: ctx.removeWidget,
       clearAllWidgets: ctx.clearAllWidgets,
       undoWidgets: ctx.undoWidgets,
       redoWidgets: ctx.redoWidgets,
+      recordWidgetSnapshot: ctx.recordWidgetSnapshot,
+      moveWidgetLayer: ctx.moveWidgetLayer,
+      minimizeAllWidgets: ctx.minimizeAllWidgets,
       canUndo: ctx.canUndo,
       canRedo: ctx.canRedo,
     };
@@ -195,7 +209,7 @@ function setup() {
   return stateRef;
 }
 
-function makeWidget(id: string): WidgetData {
+function makeWidget(id: string, z = 1): WidgetData {
   return {
     id,
     type: 'text',
@@ -203,7 +217,7 @@ function makeWidget(id: string): WidgetData {
     y: 0,
     w: 1,
     h: 1,
-    z: 1,
+    z,
     flipped: false,
     config: { text: 'test' } as WidgetData['config'],
   };
@@ -338,5 +352,70 @@ describe('DashboardContext widget undo/redo', () => {
     await pushSnapshot([makeDashboard([makeWidget('remote')])]);
     expect(widgetIds(stateRef)).toEqual(['remote']);
     expect(stateRef.current?.canUndo).toBe(false);
+  });
+
+  it('does not record a no-op layer move over the previous entry', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1', 1), makeWidget('w2', 2)]),
+    ]);
+    const initialX = stateRef.current?.activeDashboard?.widgets[0].x;
+
+    act(() => stateRef.current?.updateWidget('w1', { x: 300 }));
+    // w2 is already top of the z-order, so this move changes nothing.
+    act(() => stateRef.current?.moveWidgetLayer('w2', 'up'));
+
+    act(() => stateRef.current?.undoWidgets());
+    expect(stateRef.current?.activeDashboard?.widgets[0].x).toBe(initialX);
+    expect(stateRef.current?.canUndo).toBe(false);
+  });
+
+  it('does not record minimize-all when every widget is already minimized', async () => {
+    const stateRef = setup();
+    const minimized = { ...makeWidget('w1'), minimized: true };
+    await settleSnapshot(stateRef, [makeDashboard([minimized])]);
+    act(() => stateRef.current?.minimizeAllWidgets());
+    expect(stateRef.current?.canUndo).toBe(false);
+  });
+
+  it('collapses a snapshot plus skipHistory writes into one undo step', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), makeWidget('w2')]),
+    ]);
+    const before = stateRef.current?.activeDashboard?.widgets.map((w) => w.x);
+
+    // Mirrors a group drag: one snapshot, then leader + follower commits.
+    act(() => stateRef.current?.recordWidgetSnapshot());
+    act(() =>
+      stateRef.current?.updateWidget('w1', { x: 400 }, { skipHistory: true })
+    );
+    act(() =>
+      stateRef.current?.updateWidgets([{ id: 'w2', changes: { x: 400 } }], {
+        skipHistory: true,
+      })
+    );
+    expect(stateRef.current?.activeDashboard?.widgets.map((w) => w.x)).toEqual([
+      400, 400,
+    ]);
+
+    act(() => stateRef.current?.undoWidgets());
+    expect(stateRef.current?.activeDashboard?.widgets.map((w) => w.x)).toEqual(
+      before
+    );
+    expect(stateRef.current?.canUndo).toBe(false);
+  });
+
+  it('ignores an undo pinned to a board that is no longer active', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1'), makeWidget('w2')]),
+    ]);
+    act(() => stateRef.current?.removeWidget('w2'));
+    act(() => stateRef.current?.undoWidgets('some-other-board'));
+    expect(widgetIds(stateRef)).toEqual(['w1']);
+
+    act(() => stateRef.current?.undoWidgets('dash-1'));
+    expect(widgetIds(stateRef)).toEqual(['w1', 'w2']);
   });
 });

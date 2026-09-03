@@ -187,9 +187,15 @@ export interface DashboardContextValue {
     updates: Partial<WidgetData>,
     opts?: { immediate?: boolean; skipHistory?: boolean }
   ) => void;
-  /** Board-level undo/redo of widget add/remove/move/config changes. */
-  undoWidgets: () => void;
-  redoWidgets: () => void;
+  /**
+   * Board-level undo/redo of widget add/remove/move/config changes. Pass the
+   * board id an action was offered on to pin it there; omit it for the
+   * keyboard shortcut, which always targets the active board.
+   */
+  undoWidgets: (boardId?: string) => void;
+  redoWidgets: (boardId?: string) => void;
+  /** Capture one undo entry for a multi-call gesture (e.g. a group drag). */
+  recordWidgetSnapshot: () => void;
   canUndo: boolean;
   canRedo: boolean;
   bringToFront: (id: string) => void;
@@ -250,7 +256,8 @@ export interface DashboardContextValue {
     updates: Array<{
       id: string;
       changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
-    }>
+    }>,
+    opts?: { skipHistory?: boolean }
   ) => void;
   /**
    * Applies `transform` to the config of every widget of `type` on every board.

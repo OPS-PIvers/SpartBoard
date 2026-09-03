@@ -1068,7 +1068,12 @@ export const DashboardView: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
         const key = e.key.toLowerCase();
         if (key === 'z' || key === 'y') {
-          if (e.defaultPrevented || isTypingFieldActive()) return;
+          if (
+            e.defaultPrevented ||
+            isTypingFieldActive() ||
+            hasOpenModalRef.current
+          )
+            return;
           e.preventDefault();
           if (key === 'y' || e.shiftKey) redoWidgets();
           else undoWidgets();

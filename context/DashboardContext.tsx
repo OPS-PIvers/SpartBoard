@@ -4646,25 +4646,52 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     []
   );
 
-  const undoWidgets = useCallback(() => {
-    const id = activeIdRef.current;
-    if (!id || isActiveBoardReadOnlyRef.current) return;
-    const stack = widgetHistoryRef.current.get(id);
-    const active = dashboardsRef.current.find((d) => d.id === id);
-    if (!stack || !active) return;
-    const restored = undoWidgetHistory(stack, active.widgets);
-    if (restored) applyHistoryWidgets(restored, active.widgets);
-  }, [applyHistoryWidgets]);
+  // `boardId` pins the action to the board it was offered on. Undo toasts are
+  // global and outlive a board switch, so an unpinned undo would silently
+  // rewrite whichever board happens to be active when the toast is clicked.
+  const isHistoryTargetActive = useCallback(
+    (boardId: string | undefined, id: string | null) => {
+      if (!boardId || boardId === id) return true;
+      addToast('Switch back to that board to undo this', 'info');
+      return false;
+    },
+    [addToast]
+  );
 
-  const redoWidgets = useCallback(() => {
-    const id = activeIdRef.current;
-    if (!id || isActiveBoardReadOnlyRef.current) return;
-    const stack = widgetHistoryRef.current.get(id);
-    const active = dashboardsRef.current.find((d) => d.id === id);
-    if (!stack || !active) return;
-    const restored = redoWidgetHistory(stack, active.widgets);
-    if (restored) applyHistoryWidgets(restored, active.widgets);
-  }, [applyHistoryWidgets]);
+  const undoWidgets = useCallback(
+    (boardId?: string) => {
+      const id = activeIdRef.current;
+      if (!id || isActiveBoardReadOnlyRef.current) return;
+      if (!isHistoryTargetActive(boardId, id)) return;
+      const stack = widgetHistoryRef.current.get(id);
+      const active = dashboardsRef.current.find((d) => d.id === id);
+      if (!stack || !active) return;
+      const restored = undoWidgetHistory(stack, active.widgets);
+      if (restored) applyHistoryWidgets(restored, active.widgets);
+    },
+    [applyHistoryWidgets, isHistoryTargetActive]
+  );
+
+  // Public entry point for a gesture that mutates through several calls and
+  // wants them to collapse into one undo step.
+  const recordWidgetSnapshot = useCallback(
+    () => recordHistory(),
+    [recordHistory]
+  );
+
+  const redoWidgets = useCallback(
+    (boardId?: string) => {
+      const id = activeIdRef.current;
+      if (!id || isActiveBoardReadOnlyRef.current) return;
+      if (!isHistoryTargetActive(boardId, id)) return;
+      const stack = widgetHistoryRef.current.get(id);
+      const active = dashboardsRef.current.find((d) => d.id === id);
+      if (!stack || !active) return;
+      const restored = redoWidgetHistory(stack, active.widgets);
+      if (restored) applyHistoryWidgets(restored, active.widgets);
+    },
+    [applyHistoryWidgets, isHistoryTargetActive]
+  );
 
   // widgetHistoryVersion only exists to re-derive these after a ref mutation.
   const activeHistory = activeId
@@ -5071,7 +5098,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     addToast('All windows cleared', 'info', {
       label: 'Undo',
-      onClick: () => undoWidgets(),
+      onClick: () => undoWidgets(activeId),
     });
   }, [activeId, addToast, recordHistory, undoWidgets]);
 
@@ -5229,18 +5256,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updates: Array<{
         id: string;
         changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
-      }>
+      }>,
+      opts?: { skipHistory?: boolean }
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
-      recordHistory(
-        updates
-          .map((u) => u.id)
-          .sort()
-          .join(',')
-      );
+      if (!opts?.skipHistory)
+        recordHistory(
+          updates
+            .map((u) => u.id)
+            .sort()
+            .join(',')
+        );
       const updateMap = new Map(updates.map((u) => [u.id, u.changes]));
       setDashboards((prev) =>
         prev.map((d) => {
@@ -5277,7 +5306,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         (d) => d.id === activeIdRef.current
       );
       if (!active) return;
-      recordHistory();
 
       const widgetMap = new Map(active.widgets.map((w) => [w.id, w]));
       const eligible: string[] = [];
@@ -5301,6 +5329,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (eligible.length < 2) return;
 
+      recordHistory();
       const gid = crypto.randomUUID();
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
@@ -5420,6 +5449,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string, direction: 'up' | 'down') => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
+
+      // Record only once the move is known to mutate — a boundary widget is a
+      // no-op below, and a stray snapshot would cost the user a dead Ctrl+Z.
+      const current = dashboardsRef.current.find(
+        (d) => d.id === activeIdRef.current
+      );
+      if (!current) return;
+      const byZ = [...current.widgets].sort((a, b) => a.z - b.z);
+      const currentIdx = byZ.findIndex((w) => w.id === id);
+      if (currentIdx === -1) return;
+      if (direction === 'up' ? currentIdx >= byZ.length - 1 : currentIdx <= 0)
+        return;
       recordHistory();
 
       setDashboards((prev) => {
@@ -5474,6 +5515,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const minimizeAllWidgets = useCallback(() => {
     if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    const current = dashboardsRef.current.find(
+      (d) => d.id === activeIdRef.current
+    );
+    if (!current) return;
+    // Nothing to minimize means nothing to record — see moveWidgetLayer.
+    if (!current.widgets.some((w) => !w.minimized || w.flipped)) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     recordHistory();
@@ -5496,6 +5543,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const restoreAllWidgets = useCallback(() => {
     if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    const current = dashboardsRef.current.find(
+      (d) => d.id === activeIdRef.current
+    );
+    if (!current) return;
+    if (
+      !current.widgets.some(
+        (w) =>
+          w.minimized === true || w.flipped === true || w.maximized === true
+      )
+    )
+      return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     recordHistory();
@@ -5525,7 +5583,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     addToast('All widgets removed', 'info', {
       label: 'Undo',
-      onClick: () => undoWidgets(),
+      onClick: () => undoWidgets(activeId),
     });
   }, [activeId, addToast, recordHistory, undoWidgets]);
 
@@ -5883,6 +5941,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     updateWidgets,
     removeWidget,
     undoWidgets,
+    recordWidgetSnapshot,
     duplicateWidget,
     bringToFront,
     moveWidgetLayer,
@@ -5905,9 +5964,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         liveActionsRef.current.addWidget(type, overrides),
       updateWidget: (id, updates, opts) =>
         liveActionsRef.current.updateWidget(id, updates, opts),
-      updateWidgets: (updates) => liveActionsRef.current.updateWidgets(updates),
+      updateWidgets: (updates, opts) =>
+        liveActionsRef.current.updateWidgets(updates, opts),
       removeWidget: (id) => liveActionsRef.current.removeWidget(id),
-      undoWidgets: () => liveActionsRef.current.undoWidgets(),
+      undoWidgets: (boardId) => liveActionsRef.current.undoWidgets(boardId),
+      recordWidgetSnapshot: () => liveActionsRef.current.recordWidgetSnapshot(),
       duplicateWidget: (id) => liveActionsRef.current.duplicateWidget(id),
       bringToFront: (id) => liveActionsRef.current.bringToFront(id),
       moveWidgetLayer: (id, direction) =>
@@ -6030,6 +6091,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearAllWidgets,
       undoWidgets,
       redoWidgets,
+      recordWidgetSnapshot,
       canUndo,
       canRedo,
       rosters,
@@ -6146,6 +6208,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearAllWidgets,
       undoWidgets,
       redoWidgets,
+      recordWidgetSnapshot,
       canUndo,
       canRedo,
       rosters,
