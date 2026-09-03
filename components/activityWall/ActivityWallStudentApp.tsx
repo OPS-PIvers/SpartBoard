@@ -555,7 +555,7 @@ export const ActivityWallStudentApp: React.FC = () => {
           <button
             type="submit"
             disabled={submitting || !contentValid}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 font-bold text-white transition disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2 font-bold text-white transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:opacity-60"
           >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -569,7 +569,7 @@ export const ActivityWallStudentApp: React.FC = () => {
             <button
               type="button"
               onClick={resetForm}
-              className="w-full text-sm font-semibold text-slate-600 hover:text-slate-900"
+              className="w-full rounded-lg py-1 text-sm font-semibold text-slate-600 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             >
               Cancel edit
             </button>

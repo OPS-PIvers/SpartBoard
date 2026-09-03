@@ -1,16 +1,18 @@
 // Activity Wall front face — a live preview of the active wall plus its toolbar.
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   CloudOff,
   Copy,
   ExternalLink,
   LayoutGrid,
   LibraryBig,
+  MoreHorizontal,
   QrCode,
   Share2,
   ShieldCheck,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type {
   ActivityWallConfig,
   ActivityWallLibraryEntry,
@@ -21,6 +23,7 @@ import {
   useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -38,6 +41,9 @@ import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMig
 
 const toolbarButtonClass =
   'inline-flex items-center justify-center rounded-lg border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40';
+
+/** Below this widget width the secondary toolbar actions collapse into one menu. */
+const TOOLBAR_COMPACT_WIDTH = 460;
 
 const layoutSketch = (entry: ActivityWallLibraryEntry): React.ReactNode =>
   LAYOUT_OPTIONS.find((option) => option.layout === entry.layout)?.sketch ??
@@ -71,6 +77,9 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [moderationOpen, setModerationOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
+  const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
+  const toolbarMenuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(toolbarMenuRef, () => setToolbarMenuOpen(false));
 
   const clearLegacyActivities = useCallback(
     (widgetId: string) =>
@@ -213,6 +222,59 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const driveIssues = driveSync.failed + driveSync.lost;
 
+  const compactToolbar = widget.w < TOOLBAR_COMPACT_WIDTH;
+
+  const iconButtonSize = {
+    width: 'min(28px, 7.5cqmin)',
+    height: 'min(28px, 7.5cqmin)',
+  };
+
+  const secondaryActions: {
+    label: string;
+    icon: LucideIcon;
+    run: () => void;
+    disabled: boolean;
+  }[] = [
+    ...(canOfferAnonymousJoin
+      ? [
+          {
+            label: 'Copy student link',
+            icon: Copy,
+            run: () => void copyStudentLink(),
+            disabled: false,
+          },
+          {
+            label: 'Add join QR to board',
+            icon: QrCode,
+            run: spawnQrWidget,
+            disabled: isActiveBoardReadOnly,
+          },
+        ]
+      : []),
+    {
+      label: 'Share gallery',
+      icon: Share2,
+      run: () => setShareOpen(true),
+      disabled: false,
+    },
+    ...(galleryUrl
+      ? [
+          {
+            label: 'Open gallery',
+            icon: ExternalLink,
+            run: () => window.open(galleryUrl, '_blank', 'noopener'),
+            disabled: false,
+          },
+        ]
+      : []),
+    {
+      label: 'Open wall library',
+      icon: LibraryBig,
+      run: () => setLibraryOpen(true),
+      disabled: false,
+    },
+  ];
+
   const header = activeEntry && (
     <div
       className="flex items-center justify-between border-b border-white/15 bg-slate-900/70 backdrop-blur-sm"
@@ -267,11 +329,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             onClick={() => setModerationOpen(true)}
             aria-label={`Moderate posts, ${pendingCount} pending`}
             className={`${toolbarButtonClass} relative`}
-            style={{
-              width: 'min(28px, 7.5cqmin)',
-              height: 'min(28px, 7.5cqmin)',
-              marginRight: 'min(4px, 1.2cqmin)',
-            }}
+            style={{ ...iconButtonSize, marginRight: 'min(4px, 1.2cqmin)' }}
           >
             <ShieldCheck style={{ width: '60%', height: '60%' }} />
             {pendingCount > 0 && (
@@ -290,76 +348,58 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           </button>
         )}
 
-        {canOfferAnonymousJoin && (
-          <>
+        {compactToolbar ? (
+          <div className="relative" ref={toolbarMenuRef}>
             <button
               type="button"
-              onClick={() => void copyStudentLink()}
-              aria-label="Copy student link"
+              onClick={() => setToolbarMenuOpen((open) => !open)}
+              aria-label="More wall actions"
+              aria-expanded={toolbarMenuOpen}
+              aria-haspopup="menu"
               className={toolbarButtonClass}
-              style={{
-                width: 'min(28px, 7.5cqmin)',
-                height: 'min(28px, 7.5cqmin)',
-              }}
+              style={iconButtonSize}
             >
-              <Copy style={{ width: '55%', height: '55%' }} />
+              <MoreHorizontal style={{ width: '55%', height: '55%' }} />
             </button>
+            {toolbarMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-20 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 py-1 shadow-xl backdrop-blur-md"
+              >
+                {secondaryActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    role="menuitem"
+                    disabled={action.disabled}
+                    onClick={() => {
+                      setToolbarMenuOpen(false);
+                      action.run();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
+                  >
+                    <action.icon aria-hidden="true" className="h-4 w-4" />
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          secondaryActions.map((action) => (
             <button
+              key={action.label}
               type="button"
-              onClick={spawnQrWidget}
-              disabled={isActiveBoardReadOnly}
-              aria-label="Add join QR to board"
+              onClick={action.run}
+              disabled={action.disabled}
+              aria-label={action.label}
               className={toolbarButtonClass}
-              style={{
-                width: 'min(28px, 7.5cqmin)',
-                height: 'min(28px, 7.5cqmin)',
-              }}
+              style={iconButtonSize}
             >
-              <QrCode style={{ width: '55%', height: '55%' }} />
+              <action.icon style={{ width: '55%', height: '55%' }} />
             </button>
-          </>
+          ))
         )}
-
-        <button
-          type="button"
-          onClick={() => setShareOpen(true)}
-          aria-label="Share gallery"
-          className={toolbarButtonClass}
-          style={{
-            width: 'min(28px, 7.5cqmin)',
-            height: 'min(28px, 7.5cqmin)',
-          }}
-        >
-          <Share2 style={{ width: '55%', height: '55%' }} />
-        </button>
-
-        {galleryUrl && (
-          <button
-            type="button"
-            onClick={() => window.open(galleryUrl, '_blank', 'noopener')}
-            aria-label="Open gallery"
-            className={toolbarButtonClass}
-            style={{
-              width: 'min(28px, 7.5cqmin)',
-              height: 'min(28px, 7.5cqmin)',
-            }}
-          >
-            <ExternalLink style={{ width: '55%', height: '55%' }} />
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setLibraryOpen(true)}
-          aria-label="Open wall library"
-          className={toolbarButtonClass}
-          style={{
-            width: 'min(28px, 7.5cqmin)',
-            height: 'min(28px, 7.5cqmin)',
-          }}
-        >
-          <LibraryBig style={{ width: '55%', height: '55%' }} />
-        </button>
       </div>
     </div>
   );

@@ -248,7 +248,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       onClose={onClose}
       title={entry ? 'Edit wall' : 'New wall'}
       maxWidth="max-w-2xl"
-      contentClassName="px-6 max-h-[70vh] overflow-y-auto"
+      contentClassName="px-6 [scrollbar-gutter:stable]"
       footer={
         step === 2 ? (
           <div className="flex items-center justify-between gap-3">

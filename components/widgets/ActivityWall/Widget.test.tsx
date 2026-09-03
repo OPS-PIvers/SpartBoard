@@ -129,8 +129,8 @@ const baseWidget: WidgetData = {
   type: 'activity-wall',
   x: 0,
   y: 0,
-  w: 4,
-  h: 4,
+  w: 600,
+  h: 400,
   z: 1,
   flipped: false,
   config: { activeActivityId: 'wall-1' },
@@ -230,6 +230,21 @@ describe('ActivityWallWidget', () => {
         { status: 'approved' }
       )
     );
+  });
+
+  it('collapses secondary toolbar actions into a labelled menu when narrow', async () => {
+    render(<ActivityWallWidget widget={{ ...baseWidget, w: 300 }} />);
+
+    expect(
+      screen.queryByRole('button', { name: /open wall library/i })
+    ).toBeNull();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /more wall actions/i })
+    );
+    expect(
+      await screen.findByRole('menuitem', { name: /open wall library/i })
+    ).toBeInTheDocument();
   });
 
   it('duplicates a wall from the library with a new id and no posts', async () => {

@@ -17,10 +17,11 @@ export const WallLayout: React.FC<WallRenderProps> = ({
 
   return (
     <div
-      className="grid h-full w-full content-start overflow-auto"
+      className="grid h-full w-full content-start items-start overflow-auto"
       style={{
         gap: scale.gap,
         padding: scale.pad,
+        gridAutoRows: 'min-content',
         gridTemplateColumns: `repeat(auto-fill, minmax(${trackMin}, 1fr))`,
       }}
       data-testid="aw-layout-wall"

@@ -60,9 +60,9 @@ export const MyPostsList: React.FC<MyPostsListProps> = ({
                 aria-label={`Edit ${summarize(post)}`}
                 disabled={busyId === post.id}
                 onClick={() => onEdit(post)}
-                className="rounded-lg p-1.5 text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
+                className="rounded-lg p-1.5 text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50"
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil aria-hidden="true" className="h-4 w-4" />
               </button>
             )}
             {allowDelete && (
@@ -71,9 +71,9 @@ export const MyPostsList: React.FC<MyPostsListProps> = ({
                 aria-label={`Delete ${summarize(post)}`}
                 disabled={busyId === post.id}
                 onClick={() => onDelete(post)}
-                className="rounded-lg p-1.5 text-slate-600 transition hover:bg-red-100 hover:text-red-700 disabled:opacity-50"
+                className="rounded-lg p-1.5 text-slate-600 transition hover:bg-red-100 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 aria-hidden="true" className="h-4 w-4" />
               </button>
             )}
           </li>
