@@ -202,20 +202,17 @@ export const AnnotationOverlay: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [shouldRender]);
 
-  // Escape key exits annotation — but NOT while the user is editing text:
-  // pressing Escape inside the editor should cancel the text edit (handled
-  // locally in TextEditorOverlay), not close the whole annotation overlay.
-  // We resolve the priority issue by ALSO gating this listener on
-  // `editingText == null` (belt + suspenders alongside stopPropagation in
-  // the editor's React handler — window-capture listeners can fire before
-  // the React bubble phase).
-  // Commit any open text edit before the overlay goes away so Exit never
-  // drops unsaved content.
+  // Flush any open text edit before the overlay goes away. Today
+  // closeAnnotation still wipes objects, so this only matters once
+  // annotations persist per board; it keeps the commit ordering correct.
   const exitAnnotation = useCallback(() => {
     textEditorRef.current?.commit();
     closeAnnotation();
   }, [closeAnnotation]);
 
+  // Escape exits. A focused TextEditorOverlay stops propagation on its own
+  // keydown, so Escape inside the editor cancels the edit and never reaches
+  // here; an unfocused-but-open editor is flushed by exitAnnotation.
   useEffect(() => {
     if (!shouldRender) return undefined;
     const onKey = (e: KeyboardEvent) => {

@@ -198,9 +198,8 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     // canvas wrapper's key handler (which would delete the underlying object
     // on Backspace, or nudge it on Arrow keys) or the AnnotationOverlay's
     // window-level Escape handler (which would close the overlay entirely).
-    // The overlay's window listener is ALSO gated on editingText==null —
-    // belt + suspenders, since window-capture listeners can fire before
-    // React's bubble phase.
+    // That window listener is NOT gated on editing state, so this
+    // stopPropagation is the only thing keeping Escape local to the editor.
     e.stopPropagation();
     if (e.key === 'Escape') {
       e.preventDefault();
