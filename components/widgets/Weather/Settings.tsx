@@ -28,6 +28,8 @@ import {
   EARTH_NETWORKS_API,
 } from './constants';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { AccentColorSettings } from '@/components/common/AccentColorSettings';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 
 export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -518,17 +520,30 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
 export const WeatherAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
+  const { t } = useTranslation();
   const { updateWidget } = useDashboard();
   const config = widget.config as WeatherConfig;
+  const updateConfig = (updates: Partial<WeatherConfig>) =>
+    updateWidget(widget.id, { config: { ...config, ...updates } });
 
   return (
-    <TypographySettings
-      config={config}
-      updateConfig={(updates) =>
-        updateWidget(widget.id, {
-          config: { ...config, ...updates },
-        })
-      }
-    />
+    <div className="space-y-6">
+      <TypographySettings config={config} updateConfig={updateConfig} />
+      <AccentColorSettings
+        label={t('widgets.weather.secondaryColor')}
+        value={config.secondaryColor}
+        fallback={config.fontColor ?? '#334155'}
+        fallbackLabel={t('widgets.weather.matchText')}
+        onChange={(secondaryColor) => updateConfig({ secondaryColor })}
+      />
+      {!config.hideClothing && (
+        <SurfaceColorSettings
+          config={config}
+          updateConfig={updateConfig}
+          label={t('widgets.weather.clothingCard')}
+          icon={Shirt}
+        />
+      )}
+    </div>
   );
 };

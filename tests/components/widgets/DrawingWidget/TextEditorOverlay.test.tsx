@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
 import React from 'react';
-import { TextEditorOverlay } from '@/components/widgets/DrawingWidget/TextEditorOverlay';
+import {
+  TextEditorOverlay,
+  TextEditorHandle,
+} from '@/components/widgets/DrawingWidget/TextEditorOverlay';
 import type { TextObject } from '@/types';
 
 const baseObject = (overrides: Partial<TextObject> = {}): TextObject => ({
@@ -206,5 +209,106 @@ describe('TextEditorOverlay', () => {
     fireEvent.keyDown(editor, { key: 'Enter', metaKey: true });
     fireEvent.blur(editor);
     expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TextEditorOverlay — unsaved-content guards', () => {
+  it('REGRESSION: swapping to a new object while unfinalized commits the previous text first', () => {
+    // Clicking the canvas with the text tool spawns a fresh object BEFORE
+    // blur fires. Reseeding the editor used to wipe the old text so the
+    // late blur committed an empty string and the note vanished.
+    const onCommit = vi.fn();
+    const { container, rerender } = render(
+      <TextEditorOverlay
+        object={baseObject({ id: 'first' })}
+        canvasRect={canvasRect}
+        canvasSize={canvasSize}
+        onCommit={onCommit}
+        onCancel={vi.fn()}
+      />
+    );
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement;
+    act(() => {
+      editor.innerText = 'keep me';
+    });
+    rerender(
+      <TextEditorOverlay
+        object={baseObject({ id: 'second' })}
+        canvasRect={canvasRect}
+        canvasSize={canvasSize}
+        onCommit={onCommit}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    const committed = onCommit.mock.calls[0][0] as TextObject;
+    expect(committed.id).toBe('first');
+    expect(committed.content).toBe('keep me');
+    // The editor now holds the new (empty) object.
+    expect(editor.innerText).toBe('');
+    // A later blur commits the second object, not the first again.
+    fireEvent.blur(editor);
+    expect(onCommit).toHaveBeenCalledTimes(2);
+    expect((onCommit.mock.calls[1][0] as TextObject).id).toBe('second');
+  });
+
+  it('exposes an imperative commit() handle that commits once', () => {
+    const onCommit = vi.fn();
+    const ref = React.createRef<TextEditorHandle>();
+    const { container } = render(
+      <TextEditorOverlay
+        ref={ref}
+        object={baseObject()}
+        canvasRect={canvasRect}
+        canvasSize={canvasSize}
+        onCommit={onCommit}
+        onCancel={vi.fn()}
+      />
+    );
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement;
+    act(() => {
+      editor.innerText = 'via handle';
+    });
+    act(() => {
+      ref.current?.commit();
+    });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect((onCommit.mock.calls[0][0] as TextObject).content).toBe(
+      'via handle'
+    );
+    // The blur that follows unmount/refocus must not double-commit.
+    fireEvent.blur(editor);
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('wrap mode keeps the handle-set width on commit; free mode does not', () => {
+    const onCommit = vi.fn();
+    const { container, rerender } = render(
+      <TextEditorOverlay
+        object={baseObject({ w: 333, wrap: true })}
+        canvasRect={canvasRect}
+        canvasSize={canvasSize}
+        onCommit={onCommit}
+        onCancel={vi.fn()}
+      />
+    );
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement;
+    expect(editor.style.width).toBe('333px');
+    expect(editor.className).toContain('whitespace-pre-wrap');
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true });
+    expect((onCommit.mock.calls[0][0] as TextObject).w).toBe(333);
+
+    rerender(
+      <TextEditorOverlay
+        object={baseObject({ id: 'free', w: 333 })}
+        canvasRect={canvasRect}
+        canvasSize={canvasSize}
+        onCommit={onCommit}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(editor.style.width).toBe('');
+    expect(editor.className).toContain('whitespace-pre');
+    expect(editor.className).not.toContain('whitespace-pre-wrap');
   });
 });

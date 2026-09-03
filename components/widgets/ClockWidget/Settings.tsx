@@ -6,6 +6,8 @@ import { Palette, Sun, Sparkles } from 'lucide-react';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { AccentColorSettings } from '@/components/common/AccentColorSettings';
+import { STANDARD_COLORS } from '@/config/colors';
 
 export const ClockSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t } = useTranslation();
@@ -136,6 +138,16 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
           </span>
         </button>
       </div>
+
+      <AccentColorSettings
+        label={t('widgets.clock.dateColor')}
+        value={config.dateColor}
+        fallback={config.themeColor ?? STANDARD_COLORS.slate}
+        fallbackLabel={t('widgets.clock.matchTime')}
+        onChange={(dateColor) =>
+          updateWidget(widget.id, { config: { ...config, dateColor } })
+        }
+      />
     </div>
   );
 };

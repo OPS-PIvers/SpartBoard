@@ -30,6 +30,12 @@ vi.mock('@/components/common/UniversalStyleSettings', () => ({
   UniversalStyleSettings: () => null,
 }));
 
+// Help button coverage lives in SettingsPanel.help.test.tsx; keep this hook's
+// real useAuth/Firestore subscription out of these unrelated tests.
+vi.mock('@/hooks/useHelpResources', () => ({
+  useHelpItemsForWidget: () => [],
+}));
+
 // SettingsPanel now subscribes to useDashboard for zoom; tests do not render a
 // DashboardProvider, so stub the hook with stable defaults.
 vi.mock('@/context/useDashboard', () => ({

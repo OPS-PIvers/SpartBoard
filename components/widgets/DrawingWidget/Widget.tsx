@@ -37,6 +37,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { TextEditorOverlay } from './TextEditorOverlay';
+import { applyTextWrapOnResize } from './renderers/text';
 import { useImageInsertion } from './useImageInsertion';
 import { useSelection } from './useSelection';
 import { useCommandStack } from './useCommandStack';
@@ -428,6 +429,8 @@ export const DrawingWidget: React.FC<{
   // We DON'T persist the empty object — it's added to `objects[]` only on
   // commit, so an Esc/blur-with-no-text leaves the dashboard untouched.
   const handleTextSpawn = (obj: TextObject) => {
+    // Clicking away from an open editor only commits it via blur.
+    if (editingText) return;
     setEditingText(obj);
   };
 
@@ -453,7 +456,7 @@ export const DrawingWidget: React.FC<{
     }
     // Fresh spawn + empty falls through with no command — the unsaved local
     // object simply vanishes when we clear editingText below.
-    setEditingText(null);
+    setEditingText((prev) => (prev && prev.id !== next.id ? prev : null));
   };
 
   // Explicit Escape cancel: discard the editor's content and leave the
@@ -545,7 +548,11 @@ export const DrawingWidget: React.FC<{
     before: DrawableObject
   ) => {
     setPreviewObject(null);
-    commandStack.push({ kind: 'update', before, after: next });
+    commandStack.push({
+      kind: 'update',
+      before,
+      after: applyTextWrapOnResize(next, before),
+    });
   };
 
   const handleRemoveObject = (id: string) => {

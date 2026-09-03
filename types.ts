@@ -1206,6 +1206,8 @@ export interface TextObject extends BaseDrawableObject {
   fontFamily: string;
   fontSize: number;
   color: string;
+  /** True once a resize handle fixed the width; lines wrap to `w`. */
+  wrap?: boolean;
 }
 
 export interface ImageObject extends BaseDrawableObject {
@@ -1327,6 +1329,7 @@ export interface ClockConfig {
   fontFamily?: string;
   clockStyle?: string;
   glow?: boolean;
+  dateColor?: string;
 }
 
 export interface TrafficConfig {
@@ -2221,6 +2224,9 @@ export interface WeatherConfig {
   syncBackground?: boolean;
   fontFamily?: string;
   fontColor?: string;
+  secondaryColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
 }
 
 export interface WeatherTemperatureRange {

@@ -99,9 +99,13 @@ const MenuButton: React.FC<{
   children: React.ReactNode;
 }> = ({ icon, label, onClick, onClose, isOpen, children }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
+  // Start hidden at a fixed position so the first paint never lands at the
+  // body origin; useLayoutEffect anchors it under the button before paint.
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
+    position: 'fixed',
     top: 0,
     left: 0,
+    visibility: 'hidden',
   });
 
   useLayoutEffect(() => {
@@ -150,7 +154,7 @@ const MenuButton: React.FC<{
       {isOpen &&
         createPortal(
           <div
-            className="p-1 bg-white border border-slate-200 rounded-lg shadow-xl z-dropdown min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
+            className="p-1 bg-white border border-slate-200 rounded-lg shadow-xl z-popover-menu min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
             data-click-outside-ignore="true"
             data-widget-portal=""
             style={menuStyle}

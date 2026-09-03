@@ -46,10 +46,14 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingCanvas';
-import { TextEditorOverlay } from '@/components/widgets/DrawingWidget/TextEditorOverlay';
+import {
+  TextEditorOverlay,
+  TextEditorHandle,
+} from '@/components/widgets/DrawingWidget/TextEditorOverlay';
 import { useImageInsertion } from '@/components/widgets/DrawingWidget/useImageInsertion';
 import { useSelection } from '@/components/widgets/DrawingWidget/useSelection';
 import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
+import { applyTextWrapOnResize } from '@/components/widgets/DrawingWidget/renderers/text';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
@@ -159,6 +163,9 @@ export const AnnotationOverlay: React.FC = () => {
   // keep the in-flight TextObject in state until commit so a freshly spawned
   // (empty) text never reaches the shared overlay objects array.
   const [editingText, setEditingText] = useState<TextObject | null>(null);
+  const editingTextRef = useRef<TextObject | null>(null);
+  editingTextRef.current = editingText;
+  const textEditorRef = useRef<TextEditorHandle | null>(null);
   const [canvasRect, setCanvasRect] = useState<DOMRect | null>(null);
   useEffect(() => {
     if (!editingText) return;
@@ -195,22 +202,25 @@ export const AnnotationOverlay: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [shouldRender]);
 
-  // Escape key exits annotation — but NOT while the user is editing text:
-  // pressing Escape inside the editor should cancel the text edit (handled
-  // locally in TextEditorOverlay), not close the whole annotation overlay.
-  // We resolve the priority issue by ALSO gating this listener on
-  // `editingText == null` (belt + suspenders alongside stopPropagation in
-  // the editor's React handler — window-capture listeners can fire before
-  // the React bubble phase).
+  // Flush any open text edit before the overlay goes away. Today
+  // closeAnnotation still wipes objects, so this only matters once
+  // annotations persist per board; it keeps the commit ordering correct.
+  const exitAnnotation = useCallback(() => {
+    textEditorRef.current?.commit();
+    closeAnnotation();
+  }, [closeAnnotation]);
+
+  // Escape exits. A focused TextEditorOverlay stops propagation on its own
+  // keydown, so Escape inside the editor cancels the edit and never reaches
+  // here; an unfocused-but-open editor is flushed by exitAnnotation.
   useEffect(() => {
     if (!shouldRender) return undefined;
-    if (editingText) return undefined;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isEscapeFromWidgetInput(e)) closeAnnotation();
+      if (e.key === 'Escape' && !isEscapeFromWidgetInput(e)) exitAnnotation();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shouldRender, closeAnnotation, editingText]);
+  }, [shouldRender, exitAnnotation]);
 
   const canvasSize = useMemo(
     () => ({ width: viewport.width, height: viewport.height }),
@@ -218,6 +228,9 @@ export const AnnotationOverlay: React.FC = () => {
   );
 
   const handleTextSpawn = useCallback((obj: TextObject) => {
+    // Clicking away from an open editor only commits it (the blur that
+    // follows this pointer-down does the work); the next click spawns.
+    if (editingTextRef.current) return;
     // Hold the empty TextObject in local state until commit. Skipping the
     // persist-then-edit round-trip means a cancelled spawn never reaches
     // the live-share mirror.
@@ -246,8 +259,9 @@ export const AnnotationOverlay: React.FC = () => {
         addAnnotationObject(next);
       }
       // Fresh spawn + empty falls through with no write — the unsaved local
-      // object simply vanishes when we clear editingText below.
-      setEditingText(null);
+      // object simply vanishes when we clear editingText below. Only clear
+      // if this commit is for the editor still open (not a superseded one).
+      setEditingText((prev) => (prev && prev.id !== next.id ? prev : null));
     },
     [
       addAnnotationObject,
@@ -335,9 +349,9 @@ export const AnnotationOverlay: React.FC = () => {
     // The overlay does NOT use the widget's command stack (see the
     // long-form comment on the Undo/Redo buttons below for why) — it just
     // ignores the `before` snapshot Wave 5 added to the signature.
-    (next: DrawableObject, _before: DrawableObject) => {
+    (next: DrawableObject, before: DrawableObject) => {
       setPreviewObject(null);
-      updateAnnotationObject(next);
+      updateAnnotationObject(applyTextWrapOnResize(next, before));
     },
     [updateAnnotationObject]
   );
@@ -637,6 +651,7 @@ export const AnnotationOverlay: React.FC = () => {
 
       {interactive && editingText && canvasRect && (
         <TextEditorOverlay
+          ref={textEditorRef}
           object={editingText}
           canvasRect={canvasRect}
           canvasSize={canvasSize}
@@ -824,7 +839,7 @@ export const AnnotationOverlay: React.FC = () => {
           <div className="h-6 w-px bg-slate-200 mx-1" />
 
           <Button
-            onClick={closeAnnotation}
+            onClick={exitAnnotation}
             variant="secondary"
             size="sm"
             title="Exit annotation (Esc)"
