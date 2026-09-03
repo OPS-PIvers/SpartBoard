@@ -16,6 +16,7 @@ import {
   getCountFromServer,
 } from 'firebase/firestore';
 import { Modal } from '@/components/common/Modal';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
@@ -237,9 +238,30 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
           getId={(entry) => entry.id}
           dragDisabled
           emptyState={
-            <p className="p-6 text-center text-sm text-slate-500">
-              No walls yet. Create one to get started.
-            </p>
+            entries.length === 0 ? (
+              <ScaledEmptyState
+                icon={LayoutGrid}
+                title="No Walls Yet"
+                subtitle="Create your first Activity Wall to get started."
+                titleClassName="text-slate-500"
+                subtitleClassName="text-slate-400"
+                action={
+                  !readOnly && (
+                    <button
+                      type="button"
+                      onClick={onCreate}
+                      className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors px-4 py-2 text-sm"
+                    >
+                      New wall
+                    </button>
+                  )
+                }
+              />
+            ) : (
+              <p className="p-6 text-center text-sm text-slate-500">
+                No walls match your search.
+              </p>
+            )
           }
           renderCard={(entry) => (
             <LibraryItemCard
