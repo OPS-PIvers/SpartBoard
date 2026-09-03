@@ -189,6 +189,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const {
     updateWidget,
     removeWidget,
+    undoWidgets,
     duplicateWidget,
     bringToFront,
     addToast,
@@ -199,6 +200,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     setGroupBuildMode,
     setSelectedWidgetIds,
   } = useDashboardActions();
+  const closeWidget = React.useCallback(() => {
+    removeWidget(widget.id);
+    addToast(t('widgetWindow.closedToast'), 'info', {
+      label: t('widgetWindow.undo'),
+      onClick: () => undoWidgets(),
+    });
+  }, [removeWidget, addToast, t, undoWidgets, widget.id]);
   // Narrow primitive-returning subscriptions — foreign widget mutations
   // (another widget's selection, z-order, config) bail out via Object.is
   // instead of re-rendering every shell on the board.
@@ -949,7 +957,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       e.preventDefault();
       e.stopPropagation();
       if (skipCloseConfirmation) {
-        removeWidget(widget.id);
+        closeWidget();
       } else {
         setShowConfirm(true);
         handleCloseTools();
@@ -1989,7 +1997,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       } else if (key === 'Delete') {
         if (!isLocked) {
           if (skipCloseConfirmation) {
-            removeWidget(widget.id);
+            closeWidget();
           } else {
             setShowConfirm(true);
             handleCloseTools();
@@ -2005,6 +2013,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         handleCustomKeyboard
       );
   }, [
+    closeWidget,
     widget.id,
     widget.flipped,
     showConfirm,
@@ -2311,7 +2320,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isLocked) removeWidget(widget.id);
+                  if (!isLocked) closeWidget();
                 }}
                 disabled={isLocked}
                 className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3357,7 +3366,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   <IconButton
                     onClick={() => {
                       if (skipCloseConfirmation) {
-                        removeWidget(widget.id);
+                        closeWidget();
                       } else {
                         setShowConfirm(true);
                         handleCloseTools();

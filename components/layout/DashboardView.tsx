@@ -271,6 +271,8 @@ export const DashboardView: React.FC = () => {
     setSelectedWidgetIds,
     annotationActive,
     isActiveBoardReadOnly,
+    undoWidgets,
+    redoWidgets,
   } = useDashboard();
 
   // Surface fire-and-forget PLC sync failures as a toast. Helpers
@@ -1061,6 +1063,19 @@ export const DashboardView: React.FC = () => {
         return;
       }
 
+      // Ctrl/Cmd + Z / Shift+Z / Y: board-level undo/redo. Widgets with their
+      // own history (Drawing, Notebook) preventDefault first, so they win.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'z' || key === 'y') {
+          if (e.defaultPrevented || isTypingFieldActive()) return;
+          e.preventDefault();
+          if (key === 'y' || e.shiftKey) redoWidgets();
+          else undoWidgets();
+          return;
+        }
+      }
+
       // Ctrl + /: Open Cheat Sheet
       // Guard: don't intercept Ctrl+/ while the user is typing in a form
       // field — Ctrl+/ is a common "comment/uncomment" shortcut in many
@@ -1116,6 +1131,8 @@ export const DashboardView: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    undoWidgets,
+    redoWidgets,
     currentIndex,
     dashboards,
     loadDashboard,

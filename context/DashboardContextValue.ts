@@ -185,8 +185,13 @@ export interface DashboardContextValue {
   updateWidget: (
     id: string,
     updates: Partial<WidgetData>,
-    opts?: { immediate?: boolean }
+    opts?: { immediate?: boolean; skipHistory?: boolean }
   ) => void;
+  /** Board-level undo/redo of widget add/remove/move/config changes. */
+  undoWidgets: () => void;
+  redoWidgets: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   bringToFront: (id: string) => void;
   moveWidgetLayer: (id: string, direction: 'up' | 'down') => void;
   minimizeAllWidgets: () => void;

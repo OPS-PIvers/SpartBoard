@@ -1185,7 +1185,8 @@
     "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?",
     "clearBoardTitle": "Effacer le Tableau",
     "minimizedToast": "Réduit — retrouvez-le dans le Dock",
-    "minimizedAllToast": "Tous les widgets réduits"
+    "minimizedAllToast": "Tous les widgets réduits",
+    "closedToast": "Widget fermé"
   },
   "login": {
     "signInToAccess": "Connectez-vous pour accéder à vos tableaux",
