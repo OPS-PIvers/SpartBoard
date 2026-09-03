@@ -174,7 +174,7 @@ rule text they need in `concerns`; the rule text is drafted below so they can qu
 
 ### Phase 1 — data model, pipeline, auth (must land before Phase 2)
 
-#### P1-1 Types, normalizers, and defaults — `sonnet`
+#### P1-1 Types, normalizers, and defaults — `sonnet` — **shipped #2771**
 
 Key files: `types.ts:1662-1850`, `utils/activityWallNormalize.ts`, `hooks/useActivityWallLibrary.ts`, `config/widgetDefaults.ts:143-152`, `tests/utils/activityWallLibraryNormalize.test.ts`, `tests/hooks/useActivityWallLibrary.test.ts`.
 
@@ -184,7 +184,7 @@ Done when: unit tests cover the legacy mapping for all four legacy identificatio
 
 Notes: `ActivityWallActivity` (the pre-library type) stays untouched. Do not touch `Widget.tsx` beyond swapping `buildBlankActivity` to the new util if the type change forces it.
 
-#### P1-2 Server-driven Drive archive pipeline — `opus`
+#### P1-2 Server-driven Drive archive pipeline — `opus` — **shipped #2772**
 
 Key files: new `functions/src/activityWallArchive.ts`, new `functions/src/activityWallArchive.test.ts`, new `functions/src/sweepActivityWallArchives.ts`, `functions/src/index.ts`, reference `functions/src/quizMediaArchive.ts`, `functions/src/sweepStuckQuizArchives.ts`, `functions/src/driveArchive.ts`, `functions/src/googleOAuth.ts`.
 
@@ -201,7 +201,7 @@ Done when: `pnpm -C functions test` and `pnpm -C functions run type-check` pass;
 
 Notes: memory `1GiB`, timeout 300 s for the trigger (video up to 200 MB). Stream download to a temp file, not into memory, for anything over 50 MB. Never log Drive tokens or file contents.
 
-#### P1-3 Link preview callable — `sonnet`
+#### P1-3 Link preview callable — `sonnet` — **shipped #2770**
 
 Key files: new `functions/src/linkPreview.ts`, new `functions/src/linkPreview.test.ts`, `functions/src/index.ts`, reference `functions/src/embedProxy.ts`.
 
@@ -209,7 +209,7 @@ Do: `fetchLinkPreview` `onCall` (auth required, anonymous allowed) taking `{ url
 
 Done when: functions tests and type-check pass.
 
-#### P1-4 Rules and Storage rules (protected; orchestrator PR) — `opus`
+#### P1-4 Rules and Storage rules (protected; orchestrator PR) — `opus` — **shipped #2773**
 
 Key files: `firestore.rules:4188-4280, 732-744`, `storage.rules:112-143`, `firestore.indexes.json`, `tests/rules/sharedActivityWalls.test.ts`, new `tests/rules/activityWallSubmissions.test.ts`.
 
@@ -232,7 +232,7 @@ Tests: new rules test file covering guest gating, closed wall, cap (`uid__0` ok,
 
 Notes: rules tests are CI-only on this machine (memory `rules-emulator-local-limit`). Ship after P1-1 merges but before any Phase 2 client PR merges.
 
-#### P1-5 Student submission page rebuilt on SSO — `opus`
+#### P1-5 Student submission page rebuilt on SSO — `opus` — **shipped #2774**
 
 Key files: `components/activityWall/ActivityWallStudentApp.tsx` (rewrite), `components/activityWall/ActivityWallStudentApp.test.tsx`, `utils/studentJoinRouting.ts:21-33`, `hooks/useStudentAssignments.ts:268-284`, new `components/activityWall/submission/*` (form pieces per type), new `components/activityWall/useActivityWallStudentSession.ts`, new `hooks/useResolvedFirebaseUser.ts`.
 
@@ -252,7 +252,7 @@ Done when: component tests cover SSO pass-through, guest fallback, redirect when
 
 Notes: this is `skipScaling`-irrelevant (full page), use normal Tailwind. Light theme like other student pages. Keep the file under ~600 lines by splitting per-type inputs into `submission/`.
 
-#### P1-6 Chrome-free gallery route and Drive-logout fix — `sonnet`
+#### P1-6 Chrome-free gallery route and Drive-logout fix — `sonnet` — **shipped #2775**
 
 Key files: `App.tsx:498-506, 776-797`, `components/activityWall/ActivityWallGalleryView.tsx`, `components/activityWall/ActivityWallGalleryView.test.tsx`, `tests/perf/pageLoadPerf.test.tsx` (gallery case).
 
@@ -264,7 +264,7 @@ Notes: P1-5 and P1-6 share `hooks/useResolvedFirebaseUser.ts`; whichever merges 
 
 ### Phase 2 — teacher widget and layouts (after Phase 1 merges)
 
-#### P2-1 Shared wall rendering package — `opus`
+#### P2-1 Shared wall rendering package — `opus` — **shipped #2776**
 
 Key files: new `components/activityWall/render/` (`WallLayout.tsx`, `ColumnsLayout.tsx`, `TableLayout.tsx`, `TimelineLayout.tsx`, `MapLayout.tsx`, `WordCloudLayout.tsx`, `SubmissionCard.tsx`, `LayoutRouter.tsx`, `index.ts`), new `utils/activityWallWordCloud.ts` (moved from `Widget.tsx:155-259`), `package.json` (add `leaflet`, `react-leaflet`, `@types/leaflet`), `index.css` or a Leaflet CSS import in `MapLayout.tsx`.
 
@@ -274,7 +274,7 @@ Done when: a Vitest render test per layout with fixture submissions; `pnpm run l
 
 Notes: Leaflet CSS must be imported once; do it inside `MapLayout.tsx` so it lazy-loads with the layout. Lazy-load `MapLayout` via `React.lazy` so Leaflet is not in the main bundle.
 
-#### P2-2 Wall editor (layout picker + settings form) — `opus`
+#### P2-2 Wall editor (layout picker + settings form) — `opus` — **shipped #2777**
 
 Key files: new `components/widgets/ActivityWall/editor/` (`WallEditorModal.tsx`, `LayoutPicker.tsx`, `SectionsEditor.tsx`, `AppearancePicker.tsx`, `SubmissionTypesToggles.tsx`, `ModerationAndAccess.tsx`, `LimitsAndEditing.tsx`), `components/widgets/ActivityWall/buildingDefaults.ts`, `components/admin/ActivityWallConfigurationPanel.tsx`, `tests/components/activityWallBuildingDefaults.test.ts`.
 
@@ -284,7 +284,7 @@ Done when: unit tests for the resolver mapping and a render test that step 1 →
 
 Notes: Settings panels use normal Tailwind. Use the shared `CollapsibleSection` from `components/common/library/` for the form groups.
 
-#### P2-3 Widget front face, library modal, moderation, remote control — `opus`
+#### P2-3 Widget front face, library modal, moderation, remote control — `opus` — **shipped #2779**
 
 Key files: `components/widgets/ActivityWall/Widget.tsx` (rewrite to < 700 lines; move logic to hooks), new `components/widgets/ActivityWall/hooks/useActivityWallSession.ts` (session mirror + submissions listener + actions), new `components/widgets/ActivityWall/WallLibraryModal.tsx` (on `LibraryShell`/`LibraryToolbar`/`LibraryGrid`/`LibraryItemCard`), new `components/widgets/ActivityWall/ModerationDrawer.tsx`, `components/widgets/ActivityWall/Settings.tsx`, `components/widgets/ActivityWall/Widget.test.tsx`, `components/remote/controls/RemoteActivityWallControl.tsx` + test, `components/widgets/ActivityWall/ShareModal.tsx`.
 
@@ -303,7 +303,7 @@ Done when: widget tests cover open/closed toggle writes both docs, moderation ap
 
 Notes: this item depends on P2-1 and P2-2 and should be dispatched after both open PRs exist (it can branch from a combined base). Keep `DashboardActionsContext` usage, not `useDashboard()`, in the canvas path.
 
-#### P2-4 Gallery renders all layouts — `sonnet`
+#### P2-4 Gallery renders all layouts — `sonnet` — **shipped #2778**
 
 Key files: `components/activityWall/ActivityWallGalleryView.tsx`, its test.
 
@@ -313,23 +313,47 @@ Done when: tests for showNames on/off and anonymous viewer hides composer.
 
 ### Phase 3 — polish and cleanup (after Phase 2 merges)
 
-#### P3-1 Visual pass against the design system — `opus`
+#### P3-1 Visual pass against the design system — `opus` — **in review #2781**
 
 Key files: everything under `components/widgets/ActivityWall/`, `components/activityWall/`.
 
 Do: run `/pauls-skills:deslop --ui` style audit against CLAUDE.md "Design Context": glass surfaces, Lexend, restrained color, `cqmin` scaling on the front face, WCAG AA text on dark surfaces (`text-slate-300`+), `prefers-reduced-motion`, keyboard focus rings on every control, `aria-label` on icon buttons, projector legibility of the gallery. Capture before/after screenshots with the Vite dev server for the PR.
 
-#### P3-2 my-assignments continuity — `sonnet`
+#### P3-2 my-assignments continuity — `sonnet` — **in review #2780**
 
 Key files: `hooks/useStudentAssignments.ts:268-284`, `components/student/MyAssignmentsPage.tsx`.
 
 Do: wall rows show open/closed state (session `acceptingResponses`) and a secondary "View gallery" link when `publiclyShared` is true and a share exists (store `latestShareCode` on the session doc when the share modal creates a short link, written by P2-3; this item only reads it). Closed walls with a gallery still list under active.
 
-#### P3-3 Remove legacy paths — `sonnet`
+#### P3-3 Remove legacy paths — `sonnet` — **gated: one week in production first**
 
 Key files: `functions/src/driveArchive.ts`, `functions/src/index.ts`, `storage.rules` (protected), `types.ts`, `components/widgets/ActivityWall/*`, `components/remote/controls/RemoteActivityWallControl.tsx`.
 
 Do: after the new client has been in production for at least one week (orchestrator gates this), delete `archiveActivityWallPhoto`, the `activity_wall_photos` Storage block, the `?data=` decoder remnants, and the deprecated `mode` / `identificationMode` writes. Keep the read-side normalization forever.
+
+## Status (2026-09-03)
+
+Phases 1 and 2 are merged to `dev-paul` (ten PRs, #2770 to #2779, plus #2782 for the
+uploader-delete Storage rule). Phase 3 items P3-1 and P3-2 are open PRs. P3-3 stays gated until
+the new client has been in production for a week after `dev-paul` reaches `main`.
+
+Decisions made during implementation, beyond the interview:
+
+- Teachers signed in with a consumer webmail domain (gmail.com and similar) get no Drive share on
+  domain-restricted walls; the file stays private to the teacher and the submission records
+  `drivePermission: 'private'`.
+- The approved-only public gallery read applies only to sessions carrying `layout`. Legacy
+  sessions keep the unconditional public read so the production client built from `main`
+  keeps working while rules deploy from `dev-paul`.
+- Uncapped submission ids are `${uid}__${random}` (never all digits) so Storage rules can
+  prove upload ownership from the path.
+- A signed-in user without the `studentRole` claim may post on a wall that allows guests
+  without an anonymous sign-in; on SSO-only walls they are redirected to `/student/login`.
+- `order` is accepted on create (timeline posts); `pinned` is teacher-only.
+- Student self-edit may only reset `archiveStatus` to `firebase` and may only point
+  `storagePath` at the submission's own transit folder.
+- Teacher short-link minting is limited to the spartboard.web.app, spartboard.firebaseapp.com,
+  and `spartboard--*.web.app` origins and excludes student SSO sessions.
 
 ## Verification matrix (orchestrator, before each phase merge)
 
