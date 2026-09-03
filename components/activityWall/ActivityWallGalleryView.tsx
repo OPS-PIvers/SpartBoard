@@ -376,7 +376,7 @@ export const ActivityWallGalleryView: React.FC = () => {
   if (state.kind === 'loading' || !viewer) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6 text-center text-slate-600">
-        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        <Loader2 aria-hidden="true" className="mr-2 h-5 w-5 animate-spin" />
         Loading gallery…
       </div>
     );
@@ -492,16 +492,16 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
       <header className="shrink-0 bg-brand-blue-primary text-white">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-5 sm:py-3">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-black sm:text-lg">
+            <h1 className="truncate text-lg font-black sm:text-2xl">
               {share.title}
             </h1>
             {share.prompt && (
-              <p className="truncate text-xs text-white/80 sm:text-sm">
+              <p className="truncate text-sm text-white/90 sm:text-base">
                 {share.prompt}
               </p>
             )}
           </div>
-          <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-bold whitespace-nowrap">
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 text-sm font-bold">
             {submissions.length} post{submissions.length === 1 ? '' : 's'}
           </span>
         </div>
@@ -510,7 +510,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
       <main role="main" className="min-h-0 flex-1">
         {!submissionsReady ? (
           <div className="flex h-full items-center justify-center text-slate-300">
-            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+            <Loader2 aria-hidden="true" className="mr-2 h-5 w-5 animate-spin" />
             Loading submissions…
           </div>
         ) : submissions.length === 0 ? (
@@ -615,7 +615,7 @@ const EngagementFooter: React.FC<EngagementFooterProps> = ({
             type="button"
             onClick={() => void toggleLike()}
             disabled={likeBusy || !canWrite}
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors disabled:opacity-50 ${
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50 ${
               likeInfo.viewerLiked
                 ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
                 : 'bg-white/10 text-slate-200 hover:bg-white/20'
@@ -624,7 +624,8 @@ const EngagementFooter: React.FC<EngagementFooterProps> = ({
             aria-label={likeInfo.viewerLiked ? 'Unlike' : 'Like'}
           >
             <Heart
-              className={`w-4 h-4 ${likeInfo.viewerLiked ? 'fill-rose-400' : ''}`}
+              aria-hidden="true"
+              className={`h-4 w-4 ${likeInfo.viewerLiked ? 'fill-rose-400' : ''}`}
             />
             {likeInfo.count}
           </button>
@@ -634,7 +635,7 @@ const EngagementFooter: React.FC<EngagementFooterProps> = ({
       {share.allowComments && (
         <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
-            <MessageSquare className="w-3.5 h-3.5" />
+            <MessageSquare aria-hidden="true" className="h-3.5 w-3.5" />
             {topLevel.length === 0
               ? 'No comments yet'
               : `${topLevel.length} comment${topLevel.length === 1 ? '' : 's'}`}
@@ -687,25 +688,25 @@ const CommentNode: React.FC<CommentNodeProps> = ({
 }) => {
   const [replyOpen, setReplyOpen] = useState(false);
   return (
-    <li className="rounded-lg bg-white/5 border border-white/10 px-3 py-2">
+    <li className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-xs font-bold text-slate-200 truncate">
+        <p className="truncate text-xs font-bold text-slate-200">
           {comment.participantLabel}
         </p>
-        <span className="text-[10px] text-slate-400 shrink-0">
+        <span className="shrink-0 text-[11px] text-slate-300">
           {new Date(comment.createdAt).toLocaleString()}
         </span>
       </div>
-      <p className="mt-1 text-sm text-slate-200 whitespace-pre-wrap">
+      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-200">
         {comment.content}
       </p>
       {canWrite && share.allowCommentResponses && (
         <button
           type="button"
           onClick={() => setReplyOpen((p) => !p)}
-          className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-white/80 hover:text-white"
+          className="mt-1 inline-flex items-center gap-1 rounded text-[11px] font-semibold text-white/90 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
-          <CornerDownRight className="w-3 h-3" />
+          <CornerDownRight aria-hidden="true" className="h-3 w-3" />
           {replyOpen ? 'Cancel' : 'Reply'}
         </button>
       )}
@@ -714,10 +715,10 @@ const CommentNode: React.FC<CommentNodeProps> = ({
           {replies.map((reply) => (
             <li key={reply.id} className="text-sm">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-bold text-slate-200 truncate">
+                <p className="truncate text-xs font-bold text-slate-200">
                   {reply.participantLabel}
                 </p>
-                <span className="text-[10px] text-slate-400 shrink-0">
+                <span className="shrink-0 text-[11px] text-slate-300">
                   {new Date(reply.createdAt).toLocaleString()}
                 </span>
               </div>
@@ -736,7 +737,6 @@ const CommentNode: React.FC<CommentNodeProps> = ({
             submissionId={submissionId}
             parentCommentId={comment.id}
             onDone={() => setReplyOpen(false)}
-            compact
           />
         </div>
       )}
@@ -749,7 +749,6 @@ interface CommentComposerProps {
   viewer: User;
   submissionId: string;
   parentCommentId: string | null;
-  compact?: boolean;
   onDone?: () => void;
 }
 
@@ -758,7 +757,6 @@ const CommentComposer: React.FC<CommentComposerProps> = ({
   viewer,
   submissionId,
   parentCommentId,
-  compact = false,
   onDone,
 }) => {
   const requiresName =
@@ -819,7 +817,7 @@ const CommentComposer: React.FC<CommentComposerProps> = ({
   };
 
   return (
-    <form onSubmit={onSubmit} className={compact ? 'space-y-2' : 'space-y-2'}>
+    <form onSubmit={onSubmit} className="space-y-2">
       {(requiresName || requiresPin) && (
         <div className="grid grid-cols-2 gap-2">
           {requiresName && (
@@ -827,7 +825,8 @@ const CommentComposer: React.FC<CommentComposerProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
-              className="w-full px-2 py-1 border border-white/20 bg-white/10 rounded-md text-xs text-white placeholder:text-slate-400"
+              aria-label="Your name"
+              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             />
           )}
           {requiresPin && (
@@ -835,7 +834,8 @@ const CommentComposer: React.FC<CommentComposerProps> = ({
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="PIN"
-              className="w-full px-2 py-1 border border-white/20 bg-white/10 rounded-md text-xs text-white placeholder:text-slate-400"
+              aria-label="PIN"
+              className="w-full rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             />
           )}
         </div>
@@ -844,18 +844,19 @@ const CommentComposer: React.FC<CommentComposerProps> = ({
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          rows={compact ? 2 : 2}
+          rows={2}
           maxLength={2000}
           placeholder={parentCommentId ? 'Write a reply…' : 'Leave a comment…'}
-          className="flex-1 px-2 py-1 border border-white/20 bg-white/10 rounded-md text-sm text-white placeholder:text-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-white/40"
+          aria-label={parentCommentId ? 'Write a reply' : 'Leave a comment'}
+          className="flex-1 resize-none rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         />
         <button
           type="submit"
           disabled={submitting || !content.trim()}
-          className="shrink-0 inline-flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <Send className="w-3.5 h-3.5" />
           )}

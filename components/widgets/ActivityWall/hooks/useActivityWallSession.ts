@@ -57,6 +57,10 @@ export interface UseActivityWallSessionResult {
   submissions: ActivityWallSubmission[];
   pendingCount: number;
   driveSync: DriveSyncCounts;
+  /** Short-link code of the active wall's most recent gallery share, live from Firestore. */
+  latestShareCode: string | undefined;
+  /** Share id of the active wall's most recent gallery share, for the long-URL fallback. */
+  latestShareId: string | undefined;
   approve: (submissionId: string) => Promise<void>;
   reject: (submissionId: string) => Promise<void>;
   deletePost: (submissionId: string) => Promise<void>;
@@ -123,6 +127,36 @@ export const useActivityWallSession = (
       console.error('[ActivityWall] Failed to mirror session doc:', err);
     });
   }, [sessionId, mirrorKey]);
+
+  const [shareInfo, setShareInfo] = useState<{
+    sessionId: string | null;
+    latestShareCode: string | undefined;
+    latestShareId: string | undefined;
+  }>({ sessionId: null, latestShareCode: undefined, latestShareId: undefined });
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const unsubscribe = onSnapshot(
+      doc(db, 'activity_wall_sessions', sessionId),
+      (snap) => {
+        const data = snap.data() as ActivityWallSession | undefined;
+        setShareInfo({
+          sessionId,
+          latestShareCode: data?.latestShareCode,
+          latestShareId: data?.latestShareId,
+        });
+      },
+      (err) => {
+        console.error('[ActivityWall] Session share listener failed:', err);
+      }
+    );
+    return unsubscribe;
+  }, [sessionId]);
+
+  const latestShareCode =
+    shareInfo.sessionId === sessionId ? shareInfo.latestShareCode : undefined;
+  const latestShareId =
+    shareInfo.sessionId === sessionId ? shareInfo.latestShareId : undefined;
 
   const isPhotoWall = entry?.mode === 'photo';
   useEffect(() => {
@@ -257,6 +291,8 @@ export const useActivityWallSession = (
     submissions,
     pendingCount,
     driveSync,
+    latestShareCode,
+    latestShareId,
     approve,
     reject,
     deletePost,

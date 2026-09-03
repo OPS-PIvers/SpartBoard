@@ -32,6 +32,7 @@ const {
 }));
 
 let snapshotDocs: Record<string, unknown>[] = [];
+let sessionDocData: Record<string, Record<string, unknown>> = {};
 
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useDashboardActions: () => ({
@@ -129,8 +130,8 @@ const baseWidget: WidgetData = {
   type: 'activity-wall',
   x: 0,
   y: 0,
-  w: 4,
-  h: 4,
+  w: 600,
+  h: 400,
   z: 1,
   flipped: false,
   config: { activeActivityId: 'wall-1' },
@@ -139,6 +140,7 @@ const baseWidget: WidgetData = {
 beforeEach(() => {
   vi.clearAllMocks();
   snapshotDocs = [];
+  sessionDocData = {};
   mockLibraryEntries.current = [makeEntry()];
   mockSaveActivity.mockResolvedValue(undefined);
   mockDeleteActivity.mockResolvedValue(undefined);
@@ -146,18 +148,20 @@ beforeEach(() => {
   mockUpdateDoc.mockResolvedValue(undefined);
   mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 3 }) });
   mockOnSnapshot.mockImplementation(
-    (
-      _ref: unknown,
-      onNext: (value: {
-        docs: { id: string; data: () => Record<string, unknown> }[];
-      }) => void
-    ) => {
-      onNext({
-        docs: snapshotDocs.map((entry) => ({
-          id: entry.id as string,
-          data: () => entry,
-        })),
-      });
+    (ref: unknown, onNext: (value: unknown) => void) => {
+      if (typeof ref === 'string') {
+        // Collection ref (submissions listener).
+        onNext({
+          docs: snapshotDocs.map((entry) => ({
+            id: entry.id as string,
+            data: () => entry,
+          })),
+        });
+      } else {
+        // Doc ref (session-doc share-info listener).
+        const path = (ref as { __path: string }).__path;
+        onNext({ data: () => sessionDocData[path] });
+      }
       return vi.fn();
     }
   );
@@ -232,6 +236,21 @@ describe('ActivityWallWidget', () => {
     );
   });
 
+  it('collapses secondary toolbar actions into a labelled menu when narrow', async () => {
+    render(<ActivityWallWidget widget={{ ...baseWidget, w: 300 }} />);
+
+    expect(
+      screen.queryByRole('button', { name: /open wall library/i })
+    ).toBeNull();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /more wall actions/i })
+    );
+    expect(
+      await screen.findByRole('menuitem', { name: /open wall library/i })
+    ).toBeInTheDocument();
+  });
+
   it('duplicates a wall from the library with a new id and no posts', async () => {
     renderWidget();
 
@@ -271,6 +290,50 @@ describe('ActivityWallWidget', () => {
     expect(
       await screen.findByRole('button', { name: /connect google drive/i })
     ).toBeInTheDocument();
+  });
+
+  it('switching active walls changes the gallery target', async () => {
+    mockLibraryEntries.current = [
+      makeEntry({ id: 'wall-1' }),
+      makeEntry({ id: 'wall-2', title: 'Exit Ticket' }),
+    ];
+    sessionDocData['activity_wall_sessions/teacher-1_wall-1'] = {
+      latestShareCode: 'code-one',
+    };
+    sessionDocData['activity_wall_sessions/teacher-1_wall-2'] = {
+      latestShareCode: 'code-two',
+    };
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+    const { rerender } = render(
+      <ActivityWallWidget
+        widget={{ ...baseWidget, config: { activeActivityId: 'wall-1' } }}
+      />
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open gallery' })
+    );
+    expect(openSpy).toHaveBeenLastCalledWith(
+      `${window.location.origin}/r/code-one`,
+      '_blank',
+      'noopener'
+    );
+
+    rerender(
+      <ActivityWallWidget
+        widget={{ ...baseWidget, config: { activeActivityId: 'wall-2' } }}
+      />
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open gallery' })
+    );
+    expect(openSpy).toHaveBeenLastCalledWith(
+      `${window.location.origin}/r/code-two`,
+      '_blank',
+      'noopener'
+    );
+
+    openSpy.mockRestore();
   });
 
   it('shows the empty state and opens the library when no wall is active', async () => {

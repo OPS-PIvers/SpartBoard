@@ -43,7 +43,7 @@ export const SubmissionTypePicker: React.FC<SubmissionTypePickerProps> = ({
                 : 'border-slate-300 bg-white text-slate-700 hover:border-brand-blue-primary'
             }`}
           >
-            <Icon className="w-4 h-4" />
+            <Icon aria-hidden="true" className="h-4 w-4" />
             {label}
           </button>
         );

@@ -185,6 +185,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
       // Unlock viewer reads first, or every gallery submission read denies.
       await updateDoc(doc(db, 'activity_wall_sessions', sessionId), {
         publiclyShared: true,
+        latestShareId: shareId,
       });
 
       await setDoc(

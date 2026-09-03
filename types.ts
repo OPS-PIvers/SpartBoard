@@ -1865,7 +1865,13 @@ export interface ActivityWallConfig {
    * picks "No class" so the map stays small.
    */
   lastClassIdByActivityId?: Record<string, string>;
-  /** Short-link code of the most recent gallery share, for "Open gallery". */
+  /**
+   * @deprecated Was a per-widget cache of the active wall's gallery share
+   * code, but a widget is shared across walls so this leaked the previous
+   * wall's code into "Open gallery" after switching. Superseded by
+   * `ActivityWallSession.latestShareCode`, which `useActivityWallSession`
+   * subscribes to per active wall. Do not write new values here.
+   */
   latestShareCode?: string;
 }
 
@@ -1899,6 +1905,8 @@ export interface ActivityWallSession {
   publiclyShared?: boolean;
   /** Short-link code for the latest gallery share; read by `/my-assignments`. */
   latestShareCode?: string;
+  /** Share id of the latest gallery share, for the long-URL fallback when short-link minting fails. */
+  latestShareId?: string;
   /** Padlet-lite redesign (P1-1) — mirrors the library entry; all optional. */
   layout?: ActivityWallLayout;
   sections?: ActivityWallSection[];
