@@ -1,13 +1,9 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityWallWidget } from './Widget';
-import { WidgetData } from '@/types';
-
-type MockGoogleDriveHookResult = {
-  isConnected: boolean;
-};
+import type { ActivityWallLibraryEntry, WidgetData } from '@/types';
 
 const {
   mockAddWidget,
@@ -17,49 +13,22 @@ const {
   mockUpdateDoc,
   mockDeleteDoc,
   mockOnSnapshot,
-  mockCollection,
-  mockDoc,
-  mockUser,
-  mockUseGoogleDrive,
-  mockRefreshGoogleToken,
-  mockArchivePhotoCallable,
-  mockHttpsCallable,
-  mockGetDownloadURL,
-  mockStorageRef,
-  mockCanAccessFeature,
+  mockSaveActivity,
+  mockDeleteActivity,
+  mockGetCountFromServer,
+  mockLibraryEntries,
 } = vi.hoisted(() => ({
-  mockAddWidget: vi.fn<
-    (
-      type: string,
-      widget: {
-        w: number;
-        h: number;
-        config: {
-          url?: string;
-          showUrl?: boolean;
-        };
-      }
-    ) => void
-  >(),
+  mockAddWidget: vi.fn(),
   mockAddToast: vi.fn(),
   mockUpdateWidget: vi.fn(),
   mockSetDoc: vi.fn(),
   mockUpdateDoc: vi.fn(),
   mockDeleteDoc: vi.fn(),
   mockOnSnapshot: vi.fn(),
-  mockCollection: vi.fn(),
-  mockDoc: vi.fn(),
-  mockUser: { uid: 'teacher-1' },
-  mockUseGoogleDrive: vi.fn<() => MockGoogleDriveHookResult>(),
-  mockRefreshGoogleToken: vi.fn(),
-  mockArchivePhotoCallable: vi.fn(),
-  mockHttpsCallable: vi.fn(),
-  mockGetDownloadURL: vi.fn(),
-  mockStorageRef: vi.fn(),
-  // Phase 3b: gate on the no-sign-in (anonymous) join affordances. Defaults
-  // to allowed (set in beforeEach) so existing assertions about the
-  // "Copy link"/"Pop-out QR" buttons keep passing.
-  mockCanAccessFeature: vi.fn(() => true),
+  mockSaveActivity: vi.fn(),
+  mockDeleteActivity: vi.fn(),
+  mockGetCountFromServer: vi.fn(),
+  mockLibraryEntries: { current: [] as ActivityWallLibraryEntry[] },
 }));
 
 let snapshotDocs: Record<string, unknown>[] = [];
@@ -70,585 +39,251 @@ vi.mock('@/context/dashboardCanvasStore', () => ({
     addToast: mockAddToast,
     updateWidget: mockUpdateWidget,
   }),
-  // Tests don't set up a read-only board, so the widget renders in its
-  // default editable state (matching the prior mock, which omitted the flag).
   useIsActiveBoardReadOnly: () => false,
 }));
 
-// ActivityWallShareModal (a child still on the legacy useDashboard() value)
-// reads `addToast` when the live view mounts the share UI, so keep the legacy
-// mock for that unmigrated component.
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     addToast: mockAddToast,
+    updateWidget: mockUpdateWidget,
   }),
 }));
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    user: mockUser,
-    googleAccessToken: 'google-access-token',
-    refreshGoogleToken: mockRefreshGoogleToken,
+    user: { uid: 'teacher-1', email: 't@example.com' },
     featurePermissions: [],
     selectedBuildings: [],
-    canAccessFeature: mockCanAccessFeature,
+    canAccessFeature: () => true,
   }),
 }));
 
-vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: () => mockUseGoogleDrive(),
-}));
-
-// Tests stage activities on `config.activities`; the library hook is
-// exercised by the widget but doesn't need to surface anything in these
-// fixtures. Returning empty arrays + no-op CRUD keeps the legacy
-// `config.activities` merge path the source of truth for assertions.
 vi.mock('@/hooks/useActivityWallLibrary', () => ({
   useActivityWallLibrary: () => ({
-    activities: [],
+    activities: mockLibraryEntries.current,
     loading: false,
     error: null,
-    saveActivity: vi.fn().mockResolvedValue(undefined),
-    deleteActivity: vi.fn().mockResolvedValue(undefined),
+    saveActivity: mockSaveActivity,
+    deleteActivity: mockDeleteActivity,
   }),
 }));
 
-vi.mock('@/config/firebase', () => ({
-  db: {},
-  functions: {},
-  storage: {},
+// The editor modal pulls in ClassLink + backgrounds; the widget only needs to
+// know that it mounts, so stub it to a marker.
+vi.mock('./editor/WallEditorModal', () => ({
+  WallEditorModal: () => <div data-testid="wall-editor" />,
 }));
 
-vi.mock('firebase/functions', () => ({
-  httpsCallable: mockHttpsCallable,
+// LayoutRouter lazily imports Leaflet for the map layout; a marker keeps this
+// suite focused on the widget's own wiring.
+vi.mock('@/components/activityWall/render', () => ({
+  LayoutRouter: () => <div data-testid="layout-router" />,
 }));
 
-vi.mock('firebase/storage', () => ({
-  getDownloadURL: mockGetDownloadURL,
-  ref: mockStorageRef,
+vi.mock('@/utils/googleOAuthRefresh', () => ({
+  requestAndExchangeAuthCode: vi.fn().mockResolvedValue({ kind: 'cancelled' }),
 }));
+
+vi.mock('@/config/firebase', () => ({ db: {}, functions: {}, storage: {} }));
 
 vi.mock('firebase/firestore', () => ({
-  collection: mockCollection,
-  doc: mockDoc,
+  collection: vi.fn((...args: unknown[]) => args.join('/')),
+  doc: vi.fn((...args: unknown[]) => ({ __path: args.slice(1).join('/') })),
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
   updateDoc: mockUpdateDoc,
   deleteDoc: mockDeleteDoc,
   deleteField: vi.fn(() => '__delete__'),
-  // Stubs for the session-based library recovery path. Tests prepopulate
-  // `config.activities`, so the recovery effect short-circuits before
-  // touching these — keep them as no-ops returning empty results.
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+  getCountFromServer: mockGetCountFromServer,
   query: vi.fn((ref: unknown) => ref),
   where: vi.fn(),
+  writeBatch: vi.fn(() => ({ delete: vi.fn(), commit: vi.fn() })),
 }));
 
-// Phase 3D: the widget fetches ClassLink classes on mount to decide
-// whether to show the target-class selector. Tests don't exercise
-// ClassLink, so stub the service to a no-op that returns an empty
-// classes list.
-vi.mock('@/utils/classlinkService', () => ({
-  classLinkService: {
-    getRosters: vi.fn().mockResolvedValue({ classes: [], studentsByClass: {} }),
-  },
-}));
+const makeEntry = (
+  overrides: Partial<ActivityWallLibraryEntry> = {}
+): ActivityWallLibraryEntry => ({
+  id: 'wall-1',
+  title: 'Warm Up',
+  prompt: 'Share one idea',
+  mode: 'text',
+  moderationEnabled: true,
+  identificationMode: 'anonymous',
+  createdAt: 1,
+  updatedAt: 2,
+  layout: 'wall',
+  allowedTypes: { photo: false, link: false, file: false, video: false },
+  appearance: { kind: 'gradient', value: 'bg-slate-900' },
+  allowGuests: false,
+  showNames: false,
+  maxPostsPerStudent: 0,
+  allowStudentEdit: false,
+  allowStudentDelete: false,
+  acceptingResponses: true,
+  ...overrides,
+});
+
+const baseWidget: WidgetData = {
+  id: 'widget-1',
+  type: 'activity-wall',
+  x: 0,
+  y: 0,
+  w: 4,
+  h: 4,
+  z: 1,
+  flipped: false,
+  config: { activeActivityId: 'wall-1' },
+} as WidgetData;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  snapshotDocs = [];
+  mockLibraryEntries.current = [makeEntry()];
+  mockSaveActivity.mockResolvedValue(undefined);
+  mockDeleteActivity.mockResolvedValue(undefined);
+  mockSetDoc.mockResolvedValue(undefined);
+  mockUpdateDoc.mockResolvedValue(undefined);
+  mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 3 }) });
+  mockOnSnapshot.mockImplementation(
+    (
+      _ref: unknown,
+      onNext: (value: {
+        docs: { id: string; data: () => Record<string, unknown> }[];
+      }) => void
+    ) => {
+      onNext({
+        docs: snapshotDocs.map((entry) => ({
+          id: entry.id as string,
+          data: () => entry,
+        })),
+      });
+      return vi.fn();
+    }
+  );
+});
+
+const renderWidget = () => render(<ActivityWallWidget widget={baseWidget} />);
 
 describe('ActivityWallWidget', () => {
-  const baseWidget: WidgetData = {
-    id: 'widget-1',
-    type: 'activity-wall',
-    x: 0,
-    y: 0,
-    w: 4,
-    h: 4,
-    z: 1,
-    flipped: false,
-    config: {
-      activeActivityId: 'activity-1',
-      activities: [
-        {
-          id: 'activity-1',
-          title: 'Warm Up',
-          prompt: 'Share one idea',
-          mode: 'text',
-          moderationEnabled: true,
-          identificationMode: 'anonymous',
-          submissions: [],
-          startedAt: Date.now(),
-        },
-      ],
-    },
-  } as WidgetData;
+  it('mirrors the active wall onto the session doc', async () => {
+    renderWidget();
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    const call = mockSetDoc.mock.calls[0] as [
+      { __path: string },
+      Record<string, unknown>,
+    ];
+    const [ref, payload] = call;
+    expect(ref.__path).toBe('activity_wall_sessions/teacher-1_wall-1');
+    // Rules only enable the new gates once the session carries `layout`.
+    expect(payload).toMatchObject({ layout: 'wall', acceptingResponses: true });
+  });
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Default: teacher may offer the no-sign-in join link (anonymous-join
-    // is default-public). Individual tests override to exercise the gate.
-    mockCanAccessFeature.mockReturnValue(true);
-    mockUseGoogleDrive.mockReturnValue({
-      isConnected: false,
-    });
-    snapshotDocs = [];
-    mockCollection.mockReturnValue('submissions-ref');
-    mockDoc.mockReturnValue('session-doc');
-    mockSetDoc.mockResolvedValue(undefined);
-    mockUpdateDoc.mockResolvedValue(undefined);
-    mockDeleteDoc.mockResolvedValue(undefined);
-    mockRefreshGoogleToken.mockResolvedValue('refreshed-google-access-token');
-    mockStorageRef.mockImplementation((_storage, path: string) => ({
-      fullPath: path,
-    }));
-    mockGetDownloadURL.mockResolvedValue(
-      'https://firebase.example/teacher-preview.jpg'
+  it('toggling Open/Closed writes both the library entry and the session doc', async () => {
+    renderWidget();
+    mockSetDoc.mockClear();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Open' }));
+
+    await waitFor(() =>
+      expect(mockSaveActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'wall-1', acceptingResponses: false })
+      )
     );
-    mockArchivePhotoCallable.mockResolvedValue({
-      data: {
-        archiveStatus: 'archived',
-        driveFileId: 'drive-file-1',
-        driveUrl: 'https://lh3.googleusercontent.com/d/drive-file-1',
-      },
-    });
-    mockHttpsCallable.mockReturnValue(mockArchivePhotoCallable);
-    mockOnSnapshot.mockImplementation(
-      (
-        _ref,
-        callback: (value: {
-          docs: { data: () => Record<string, unknown> }[];
-        }) => void
-      ) => {
-        callback({
-          docs: snapshotDocs.map((entry) => ({
-            data: () => entry,
-          })),
-        });
-        return vi.fn();
-      }
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1',
+        }),
+        expect.objectContaining({ acceptingResponses: false }),
+        { merge: true }
+      )
     );
   });
 
-  it('keeps pending live submissions off the wall while showing the pending badge', async () => {
+  it('surfaces pending-only posts on the board and approves from the drawer', async () => {
     snapshotDocs = [
       {
-        id: 'submission-1',
-        content: 'Hidden response',
-        submittedAt: 123,
+        id: 'sub-1',
+        content: 'Pending idea',
+        submittedAt: 10,
         status: 'pending',
       },
     ];
-
-    render(<ActivityWallWidget widget={baseWidget} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    expect(await screen.findByText('1 pending')).toBeInTheDocument();
-    expect(screen.queryByText('hidden')).not.toBeInTheDocument();
-    expect(screen.getByText(/no responses yet/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/they'll appear here after participants submit/i)
-    ).toBeInTheDocument();
-  });
-
-  it('renders approved live submissions in the visible wall content', async () => {
-    snapshotDocs = [
-      {
-        id: 'submission-2',
-        content: 'Visible response',
-        submittedAt: 456,
-        status: 'approved',
-      },
-    ];
-
-    render(<ActivityWallWidget widget={baseWidget} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    await waitFor(() => {
-      expect(screen.getByText('visible')).toBeInTheDocument();
-      expect(screen.queryByText(/pending/i)).not.toBeInTheDocument();
-    });
-  });
-
-  it('lets photo submissions render using their natural aspect ratio', async () => {
-    snapshotDocs = [
-      {
-        id: 'submission-photo-1',
-        content: 'https://example.com/photo.jpg',
-        submittedAt: 789,
-        status: 'approved',
-        participantLabel: 'Student Photo',
-      },
-    ];
-
-    const photoWidget: WidgetData = {
-      ...baseWidget,
-      config: {
-        activeActivityId: 'activity-photo-1',
-        activities: [
-          {
-            id: 'activity-photo-1',
-            title: 'Snapshot',
-            prompt: 'Share a photo',
-            mode: 'photo',
-            moderationEnabled: true,
-            identificationMode: 'anonymous',
-            submissions: [],
-            startedAt: Date.now(),
-          },
-        ],
-      },
-    } as WidgetData;
-
-    render(<ActivityWallWidget widget={photoWidget} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    const image = await screen.findByRole('img', { name: 'Student Photo' });
-    Object.defineProperty(image, 'naturalWidth', {
-      configurable: true,
-      value: 1400,
-    });
-    Object.defineProperty(image, 'naturalHeight', {
-      configurable: true,
-      value: 700,
-    });
-    fireEvent.load(image);
-
-    expect(image).not.toHaveStyle({ aspectRatio: '4/3' });
-    expect(image).toHaveClass('block', 'w-full', 'h-auto');
-    await waitFor(() => {
-      expect(image.closest('div.rounded-lg')).toHaveStyle({
-        gridColumn: 'span 1',
-      });
-    });
-  });
-
-  it('resolves Firebase preview URLs for approved photo submissions that only store a storage path', async () => {
-    snapshotDocs = [
-      {
-        id: 'submission-photo-firebase-preview',
-        content: '',
-        submittedAt: 790,
-        status: 'approved',
-        participantLabel: 'Firebase Photo',
-        storagePath:
-          'activity_wall_photos/teacher-1_activity-photo-preview/submission-photo-firebase-preview',
-        archiveStatus: 'firebase',
-      },
-    ];
-
-    const photoWidget: WidgetData = {
-      ...baseWidget,
-      config: {
-        activeActivityId: 'activity-photo-preview',
-        activities: [
-          {
-            id: 'activity-photo-preview',
-            title: 'Snapshot',
-            prompt: 'Share a photo',
-            mode: 'photo',
-            moderationEnabled: true,
-            identificationMode: 'anonymous',
-            submissions: [],
-            startedAt: Date.now(),
-          },
-        ],
-      },
-    } as WidgetData;
-
-    render(<ActivityWallWidget widget={photoWidget} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    await waitFor(() => {
-      expect(mockStorageRef).toHaveBeenCalledWith(
-        {},
-        'activity_wall_photos/teacher-1_activity-photo-preview/submission-photo-firebase-preview'
-      );
-      expect(mockGetDownloadURL).toHaveBeenCalled();
-    });
+    renderWidget();
 
     expect(
-      await screen.findByRole('img', { name: 'Firebase Photo' })
-    ).toHaveAttribute('src', 'https://firebase.example/teacher-preview.jpg');
-    expect(
-      screen.queryByLabelText(/drive sync failed/i)
-    ).not.toBeInTheDocument();
-  });
-
-  it('shows only a small failure badge when Drive sync fails', async () => {
-    snapshotDocs = [
-      {
-        id: 'submission-photo-failed-badge',
-        content: 'https://example.com/photo.jpg',
-        submittedAt: 791,
-        status: 'approved',
-        participantLabel: 'Unsynced Photo',
-        archiveStatus: 'failed',
-        archiveError: 'Drive sync failed.',
-      },
-    ];
-
-    const photoWidget: WidgetData = {
-      ...baseWidget,
-      config: {
-        activeActivityId: 'activity-photo-failed-badge',
-        activities: [
-          {
-            id: 'activity-photo-failed-badge',
-            title: 'Snapshot',
-            prompt: 'Share a photo',
-            mode: 'photo',
-            moderationEnabled: true,
-            identificationMode: 'anonymous',
-            submissions: [],
-            startedAt: Date.now(),
-          },
-        ],
-      },
-    } as WidgetData;
-
-    render(<ActivityWallWidget widget={photoWidget} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    expect(
-      await screen.findByRole('img', { name: 'Unsynced Photo' })
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/drive sync failed/i)).toBeInTheDocument();
-    expect(screen.queryByText('Syncing')).not.toBeInTheDocument();
-    expect(screen.queryByText('Drive')).not.toBeInTheDocument();
-  });
-
-  it('reveals submission actions on tap and can delete a submission', async () => {
-    snapshotDocs = [
-      {
-        id: 'submission-photo-delete',
-        content: 'https://example.com/delete-me.jpg',
-        submittedAt: 900,
-        status: 'approved',
-        participantLabel: 'Delete Me',
-      },
-    ];
-
-    const photoWidget: WidgetData = {
-      ...baseWidget,
-      config: {
-        activeActivityId: 'activity-photo-delete',
-        activities: [
-          {
-            id: 'activity-photo-delete',
-            title: 'Snapshot',
-            prompt: 'Share a photo',
-            mode: 'photo',
-            moderationEnabled: true,
-            identificationMode: 'anonymous',
-            submissions: [],
-            startedAt: Date.now(),
-          },
-        ],
-      },
-    } as WidgetData;
-
-    render(<ActivityWallWidget widget={photoWidget} />);
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    await userEvent.click(
-      await screen.findByRole('img', { name: 'Delete Me' })
-    );
-    expect(
-      screen.getByRole('button', { name: /open fullscreen preview/i })
+      await screen.findByText('1 post waiting for review')
     ).toBeInTheDocument();
     await userEvent.click(
-      screen.getByRole('button', { name: /delete submission/i })
+      await screen.findByRole('button', { name: /moderate posts/i })
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /approve .*pending idea/i })
     );
 
-    await waitFor(() => {
-      expect(mockDeleteDoc).toHaveBeenCalled();
-      expect(mockAddToast).toHaveBeenCalledWith(
-        'Submission removed.',
-        'success'
-      );
-    });
-  });
-
-  it('archives photos through the callable backend flow instead of browser storage reads', async () => {
-    mockUseGoogleDrive.mockReturnValue({
-      isConnected: true,
-    });
-
-    const originalImage = window.Image;
-    class ReadyImage {
-      onload: null | (() => void) = null;
-      onerror: null | (() => void) = null;
-      set src(_value: string) {
-        this.onload?.();
-      }
-    }
-    // @ts-expect-error test stub only implements the pieces this code uses
-    window.Image = ReadyImage;
-
-    try {
-      snapshotDocs = [
-        {
-          id: 'submission-photo-sync',
-          content: 'https://firebasestorage.example/photo.jpg',
-          submittedAt: 111,
-          status: 'approved',
-          participantLabel: 'Drive Pending',
-          storagePath: 'activity_wall_photos/session/submission-photo-sync',
-          archiveStatus: 'firebase',
-        },
-      ];
-
-      const photoWidget: WidgetData = {
-        ...baseWidget,
-        config: {
-          activeActivityId: 'activity-photo-sync',
-          activities: [
-            {
-              id: 'activity-photo-sync',
-              title: 'Snapshot',
-              prompt: 'Share a photo',
-              mode: 'photo',
-              moderationEnabled: false,
-              identificationMode: 'anonymous',
-              submissions: [],
-              startedAt: Date.now(),
-            },
-          ],
-        },
-      } as WidgetData;
-
-      render(<ActivityWallWidget widget={photoWidget} />);
-
-      await waitFor(() => {
-        expect(mockHttpsCallable).toHaveBeenCalledWith(
-          {},
-          'archiveActivityWallPhoto'
-        );
-        expect(mockArchivePhotoCallable).toHaveBeenCalledWith({
-          accessToken: 'google-access-token',
-          sessionId: 'teacher-1_activity-photo-sync',
-          submissionId: 'submission-photo-sync',
-          activityId: 'activity-photo-sync',
-          status: 'approved',
-        });
-      });
-    } finally {
-      window.Image = originalImage;
-    }
-  });
-
-  it('marks stale syncing submissions as failed instead of leaving them stuck', async () => {
-    mockUseGoogleDrive.mockReturnValue({
-      isConnected: true,
-    });
-
-    snapshotDocs = [
-      {
-        id: 'submission-photo-stale-sync',
-        content: 'https://lh3.googleusercontent.com/d/stuck-file',
-        submittedAt: Date.now() - 60000,
-        status: 'approved',
-        participantLabel: 'Stale Sync',
-        storagePath: 'activity_wall_photos/session/submission-photo-stale-sync',
-        archiveStatus: 'syncing',
-        archiveStartedAt: Date.now() - 45000,
-      },
-    ];
-
-    const photoWidget: WidgetData = {
-      ...baseWidget,
-      config: {
-        activeActivityId: 'activity-photo-stale-sync',
-        activities: [
-          {
-            id: 'activity-photo-stale-sync',
-            title: 'Snapshot',
-            prompt: 'Share a photo',
-            mode: 'photo',
-            moderationEnabled: false,
-            identificationMode: 'anonymous',
-            submissions: [],
-            startedAt: Date.now(),
-          },
-        ],
-      },
-    } as WidgetData;
-
-    render(<ActivityWallWidget widget={photoWidget} />);
-
-    await waitFor(() => {
+    await waitFor(() =>
       expect(mockUpdateDoc).toHaveBeenCalledWith(
-        'session-doc',
         expect.objectContaining({
-          archiveStatus: 'failed',
-          archiveError:
-            'Drive sync timed out before completion. Retry after checking Drive connection and Firebase Storage CORS.',
-        })
-      );
-    });
-  });
-
-  it('spawns QR widgets with the participant URL hidden by default', async () => {
-    render(<ActivityWallWidget widget={baseWidget} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Pop-out QR' }));
-
-    expect(mockAddWidget).toHaveBeenCalled();
-    const [widgetType, widgetConfig] = mockAddWidget.mock.calls.at(-1) ?? [];
-
-    expect(widgetType).toBe('qr');
-    expect(widgetConfig).toMatchObject({
-      w: 200,
-      h: 250,
-      config: {
-        showUrl: false,
-      },
-    });
-    expect(widgetConfig?.config.url).toContain(
-      '/activity-wall/activity-1?data='
+          __path: 'activity_wall_sessions/teacher-1_wall-1/submissions/sub-1',
+        }),
+        { status: 'approved' }
+      )
     );
   });
 
-  it('shows the no-sign-in join affordances when anonymous-join is allowed', async () => {
-    render(<ActivityWallWidget widget={baseWidget} />);
+  it('duplicates a wall from the library with a new id and no posts', async () => {
+    renderWidget();
 
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: /open wall library/i })
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: /more actions/i })
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: /duplicate/i })
+    );
+
+    await waitFor(() => {
+      const copy = mockSaveActivity.mock.calls
+        .map((call) => call[0] as ActivityWallLibraryEntry)
+        .find((entry) => entry.title.includes('(copy)'));
+      expect(copy).toBeDefined();
+      expect(copy?.id).not.toBe('wall-1');
+    });
+  });
+
+  it('prompts to connect Drive when an upload needs consent', async () => {
+    snapshotDocs = [
+      {
+        id: 'sub-2',
+        content: 'photo',
+        submittedAt: 10,
+        status: 'approved',
+        type: 'photo',
+        archiveStatus: 'failed',
+        archiveError: 'needs-consent',
+      },
+    ];
+    renderWidget();
 
     expect(
-      screen.getByRole('button', { name: 'Copy link' })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Pop-out QR' })
-    ).toBeInTheDocument();
-    // The view-only gallery share is a separate affordance and stays visible.
-    expect(
-      screen.getByRole('button', { name: 'Share gallery' })
+      await screen.findByRole('button', { name: /connect google drive/i })
     ).toBeInTheDocument();
   });
 
-  it('hides the no-sign-in join affordances when anonymous-join is denied', async () => {
-    // Phase 3b: an admin has restricted `anonymous-join`. The teacher loses
-    // the anonymous link/QR but keeps the view-only gallery share, and the
-    // UI degrades cleanly (no error).
-    // The widget only consults canAccessFeature for 'anonymous-join', so a
-    // blanket false models the restricted state for this gate.
-    mockCanAccessFeature.mockReturnValue(false);
-    render(<ActivityWallWidget widget={baseWidget} />);
+  it('shows the empty state and opens the library when no wall is active', async () => {
+    mockLibraryEntries.current = [];
+    render(
+      <ActivityWallWidget
+        widget={{ ...baseWidget, config: { activeActivityId: null } }}
+      />
+    );
 
-    await userEvent.click(screen.getByRole('button', { name: 'View' }));
-
-    expect(
-      screen.queryByRole('button', { name: 'Copy link' })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Pop-out QR' })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Share gallery' })
-    ).toBeInTheDocument();
+    await userEvent.click(
+      await screen.findByRole('button', { name: /open library/i })
+    );
+    expect(await screen.findByText(/no walls yet/i)).toBeInTheDocument();
   });
 });

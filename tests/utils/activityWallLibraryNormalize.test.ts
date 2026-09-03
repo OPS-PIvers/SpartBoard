@@ -411,7 +411,7 @@ describe('buildDefaultWall', () => {
     expect(result.title).toBe('');
     expect(result.prompt).toBe('');
     expect(result.mode).toBe('text');
-    expect(result.layout).toBe('wordcloud');
+    expect(result.layout).toBe('wall');
     expect(result.allowGuests).toBe(true);
     expect(result.showNames).toBe(false);
     expect(result.acceptingResponses).toBe(true);
@@ -428,6 +428,8 @@ describe('buildDefaultWall', () => {
     });
     expect(result.mode).toBe('photo');
     expect(result.layout).toBe('wall');
+    // Legacy mode no longer picks the layout for a new wall.
+
     expect(result.moderationEnabled).toBe(true);
     expect(result.showNames).toBe(true);
   });

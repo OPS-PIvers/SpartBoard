@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Check,
   FileText,
@@ -8,11 +8,10 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { getDownloadURL, ref as storageRef } from 'firebase/storage';
-import { storage } from '@/config/firebase';
 import type { ActivityWallSubmission } from '@/types';
 import type { WallRenderActions, WallRenderMode } from './types';
 import { wallScale } from './scale';
+import { isArchived, isSafeHttpUrl, useMediaUrl } from './useMediaUrl';
 
 export interface SubmissionCardProps extends WallRenderActions {
   submission: ActivityWallSubmission;
@@ -21,15 +20,6 @@ export interface SubmissionCardProps extends WallRenderActions {
   /** Timeline label / column chip rendered under the card body. */
   footnote?: string;
 }
-
-const isSafeHttpUrl = (value: string): boolean => {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
-  } catch {
-    return false;
-  }
-};
 
 const youTubeEmbedUrl = (url: string): string | null => {
   try {
@@ -48,75 +38,9 @@ const youTubeEmbedUrl = (url: string): string | null => {
   }
 };
 
-const isArchived = (submission: ActivityWallSubmission): boolean =>
-  submission.archiveStatus === 'archived' || Boolean(submission.driveFileId);
-
 /** Drive preview URL for an archived video, derived from the stored file id. */
 const drivePreviewUrl = (driveFileId: string): string =>
   `https://drive.google.com/file/d/${driveFileId}/preview`;
-
-const STORAGE_BACKED_TYPES = new Set(['photo', 'video', 'file']);
-
-interface MediaUrlState {
-  url: string | null;
-  failed: boolean;
-}
-
-/** Resolves an upload's renderable URL: a Storage download URL while in transit, the Drive URL once archived. */
-const useMediaUrl = (submission: ActivityWallSubmission): MediaUrlState => {
-  const archived = isArchived(submission);
-  const transitPath = submission.storagePath ?? submission.content;
-  const storageBacked = STORAGE_BACKED_TYPES.has(submission.type ?? 'text');
-  const [resolvedByPath, setResolvedByPath] = useState<Record<string, string>>(
-    {}
-  );
-  const [failedPaths, setFailedPaths] = useState<Record<string, true>>({});
-  const alreadyResolved = Boolean(resolvedByPath[transitPath]);
-  const alreadyFailed = Boolean(failedPaths[transitPath]);
-
-  useEffect(() => {
-    if (
-      !storageBacked ||
-      archived ||
-      !transitPath ||
-      isSafeHttpUrl(transitPath) ||
-      alreadyResolved ||
-      alreadyFailed
-    ) {
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const url = await getDownloadURL(storageRef(storage, transitPath));
-        if (!cancelled) {
-          setResolvedByPath((previous) => ({
-            ...previous,
-            [transitPath]: url,
-          }));
-        }
-      } catch (error) {
-        console.warn(
-          '[ActivityWall] Failed to resolve media URL:',
-          transitPath,
-          error
-        );
-        if (!cancelled) {
-          setFailedPaths((previous) => ({ ...previous, [transitPath]: true }));
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [alreadyFailed, alreadyResolved, archived, storageBacked, transitPath]);
-
-  if (archived)
-    return { url: submission.driveUrl ?? submission.content, failed: false };
-  if (isSafeHttpUrl(transitPath)) return { url: transitPath, failed: false };
-  if (!storageBacked) return { url: null, failed: false };
-  return { url: resolvedByPath[transitPath] ?? null, failed: alreadyFailed };
-};
 
 const PrivateFileNote: React.FC<{ fontSize: string }> = ({ fontSize }) => (
   <p className="text-slate-300" style={{ fontSize }}>
@@ -143,8 +67,16 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   const scale = wallScale(mode);
   const { url: mediaUrl, failed: mediaFailed } = useMediaUrl(submission);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const isWidget = mode === 'widget';
+  const tight = isWidget ? 'min(4px, 1.2cqmin)' : '4px';
+  const edge = isWidget ? 'min(8px, 2cqmin)' : '8px';
+  const chipPad = isWidget ? 'min(8px, 2cqmin)' : '8px';
   const isTeacher = mode === 'teacher';
   const isPending = submission.status === 'pending';
+  const hasMeta =
+    Boolean(submission.pinned) ||
+    Boolean(footnote) ||
+    Boolean(showNames && submission.participantLabel);
   const isPrivate = submission.drivePermission === 'private';
   const type = submission.type ?? 'text';
 
@@ -164,7 +96,13 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
         <img
           src={mediaUrl}
           alt={submission.title ?? 'Student photo'}
-          className="w-full rounded-lg object-cover"
+          className="mx-auto rounded-lg object-cover"
+          // Cap dimensions in every layout so full-width rows (table/timeline) don't blow the image up.
+          style={{
+            maxHeight: 'min(220px, 40cqmin)',
+            maxWidth: 'min(420px, 60cqmin)',
+            width: '100%',
+          }}
           onError={() => {
             setFailedImageUrl(mediaUrl);
             onMediaError?.(submission);
@@ -255,7 +193,8 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
             <img
               src={preview.image}
               alt=""
-              className="mb-2 w-full rounded object-cover"
+              className="w-full rounded object-cover"
+              style={{ marginBottom: tight }}
             />
           )}
           <span
@@ -271,15 +210,15 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           </span>
           {preview?.description && (
             <span
-              className="mt-1 block text-slate-300"
-              style={{ fontSize: scale.meta }}
+              className="block text-slate-300"
+              style={{ marginTop: tight, fontSize: scale.meta }}
             >
               {preview.description}
             </span>
           )}
           <span
-            className="mt-1 block text-slate-300"
-            style={{ fontSize: scale.meta }}
+            className="block text-slate-300"
+            style={{ marginTop: tight, fontSize: scale.meta }}
           >
             {preview?.domain ?? new URL(url).hostname}
           </span>
@@ -305,18 +244,16 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
     >
       {isTeacher && isPending && (
         <span
-          className="absolute right-2 top-2 rounded-full bg-amber-400 px-2 font-bold uppercase tracking-wide text-slate-900"
-          style={{ fontSize: scale.meta }}
+          className="absolute rounded-full bg-amber-400 font-bold uppercase tracking-wide text-slate-900"
+          style={{
+            right: edge,
+            top: edge,
+            padding: `0 ${chipPad}`,
+            fontSize: scale.meta,
+          }}
         >
           Pending
         </span>
-      )}
-      {submission.pinned && (
-        <Pin
-          aria-label="Pinned"
-          style={{ width: scale.icon, height: scale.icon }}
-          className="absolute left-2 top-2 text-amber-300"
-        />
       )}
 
       {submission.title && (
@@ -329,15 +266,27 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
         {body}
       </div>
 
-      {footnote && (
-        <p className="mt-1 text-slate-300" style={{ fontSize: scale.meta }}>
-          {footnote}
-        </p>
-      )}
-
-      {showNames && submission.participantLabel && (
-        <p className="mt-1 text-slate-300" style={{ fontSize: scale.meta }}>
-          {submission.participantLabel}
+      {hasMeta && (
+        <p
+          className="flex flex-wrap items-center text-slate-300"
+          style={{ marginTop: tight, gap: tight, fontSize: scale.meta }}
+        >
+          {submission.pinned && (
+            <span
+              className="flex items-center text-amber-300"
+              style={{ gap: tight }}
+            >
+              <Pin
+                aria-hidden="true"
+                style={{ width: scale.meta, height: scale.meta }}
+              />
+              Pinned
+            </span>
+          )}
+          {footnote && <span>{footnote}</span>}
+          {showNames && submission.participantLabel && (
+            <span>{submission.participantLabel}</span>
+          )}
         </p>
       )}
 
@@ -345,8 +294,8 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
 
       {isTeacher && (
         <div
-          className="mt-2 flex flex-wrap items-center"
-          style={{ gap: scale.gap }}
+          className="flex flex-wrap items-center"
+          style={{ marginTop: scale.gap, gap: scale.gap }}
         >
           {isPending && onApprove && (
             <button

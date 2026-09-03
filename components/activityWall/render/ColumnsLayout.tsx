@@ -19,8 +19,9 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
   const sensors = useWallSensors();
   const items = prepareSubmissions(submissions, mode);
   const sections = session.sections ?? [];
-  const isTeacher = mode === 'teacher';
-  const columnMinWidth = mode === 'widget' ? 'min(180px, 40cqw)' : '180px';
+  // Drag belongs to whoever was handed a move callback; only the read-only gallery is exempt.
+  const canMove = mode !== 'gallery' && Boolean(onMove);
+  const columnMinWidth = mode === 'widget' ? 'min(180px, 60cqw)' : '180px';
 
   const columns = [...sections, { id: UNSORTED_ID, label: 'Unsorted' }].filter(
     (column) =>
@@ -50,49 +51,61 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
 
   const board = (
     <div
-      className="flex h-full w-full items-start overflow-auto"
-      style={{ gap: scale.gap, padding: scale.pad }}
+      className="flex h-full w-full items-start overflow-x-auto overflow-y-hidden"
+      style={{
+        gap: scale.gap,
+        padding: scale.pad,
+        scrollSnapType: 'x proximity',
+        scrollbarGutter: 'stable',
+        scrollbarWidth: 'thin',
+      }}
       data-testid="aw-layout-columns"
     >
       {columns.map((column) => (
         <DropZone
           key={column.id}
           id={column.id}
-          disabled={!isTeacher}
-          className="flex flex-1 flex-col rounded-xl border border-white/10 bg-white/5"
+          disabled={!canMove}
+          className="flex h-full flex-1 flex-col rounded-xl border border-white/10 bg-white/5"
           style={{
             gap: scale.gap,
             padding: scale.pad,
             minWidth: columnMinWidth,
+            scrollSnapAlign: 'start',
           }}
         >
           <h3
-            className="font-bold uppercase tracking-wide text-slate-200"
+            className="shrink-0 font-bold uppercase tracking-wide text-slate-200"
             style={{ fontSize: scale.heading }}
           >
             {column.label}
           </h3>
-          {cardsFor(column.id).map((submission) => (
-            <DraggableCard
-              key={submission.id}
-              id={submission.id}
-              disabled={!isTeacher || !onMove}
-              handleSize={scale.icon}
-            >
-              <SubmissionCard
-                submission={submission}
-                mode={mode}
-                showNames={showNames}
-                {...actions}
-              />
-            </DraggableCard>
-          ))}
+          <div
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+            style={{ gap: scale.gap }}
+          >
+            {cardsFor(column.id).map((submission) => (
+              <DraggableCard
+                key={submission.id}
+                id={submission.id}
+                disabled={!canMove}
+                handleSize={scale.icon}
+              >
+                <SubmissionCard
+                  submission={submission}
+                  mode={mode}
+                  showNames={showNames}
+                  {...actions}
+                />
+              </DraggableCard>
+            ))}
+          </div>
         </DropZone>
       ))}
     </div>
   );
 
-  if (!isTeacher || !onMove) return board;
+  if (!canMove) return board;
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       {board}

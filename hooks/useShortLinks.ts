@@ -96,7 +96,7 @@ interface UseShortLinksResult {
  * and bail (via a sentinel) if it already exists, so concurrent admins
  * creating the same slug can't clobber each other's links.
  */
-const createShortLinkAtomic = async (
+export const createShortLinkAtomic = async (
   code: string,
   link: ShortLink
 ): Promise<{ ok: true } | { ok: false; reason: 'taken' }> => {

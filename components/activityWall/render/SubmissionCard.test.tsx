@@ -138,6 +138,29 @@ describe('SubmissionCard', () => {
     );
   });
 
+  it('caps photo dimensions in every layout mode, not just widget', () => {
+    for (const mode of ['gallery', 'teacher', 'widget'] as const) {
+      const { unmount } = render(
+        <SubmissionCard
+          submission={makeSubmission({
+            type: 'photo',
+            archiveStatus: 'archived',
+            driveFileId: 'abc',
+            driveUrl: 'https://drive.google.com/thumbnail?id=abc',
+          })}
+          mode={mode}
+          showNames={false}
+        />
+      );
+      const img = screen.getByRole('img');
+      expect(img).toHaveStyle({
+        maxHeight: 'min(220px, 40cqmin)',
+        maxWidth: 'min(420px, 60cqmin)',
+      });
+      unmount();
+    }
+  });
+
   it('explains a private Drive file instead of showing a broken image', () => {
     render(
       <SubmissionCard

@@ -27,15 +27,15 @@ describe('ActivityWallSettings', () => {
     },
   } as WidgetData;
 
-  it('explains that activity management moved into the widget body', () => {
+  it('explains that wall management moved into the widget body', () => {
     render(<ActivityWallSettings widget={widget} />);
 
     expect(
-      screen.getByText(/activity management moved to the front of this widget/i)
+      screen.getByText(/walls are managed from the widget face/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /use the activity library in the widget body to create, view, edit, and delete activities/i
+        /use the library button to pick, create, edit, duplicate, or delete a wall/i
       )
     ).toBeInTheDocument();
   });

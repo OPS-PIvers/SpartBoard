@@ -198,6 +198,73 @@ describe('wall layouts', () => {
     expect(timelineDropPatch(items, dropOn('a', 'a'))).toBeNull();
   });
 
+  it('makes the columns strip horizontally scrollable with snap and vertical card scroll per column', () => {
+    const columns = makeSession({
+      layout: 'columns',
+      sections: [{ id: 'c1', label: 'Claims' }],
+    });
+    render(
+      <ColumnsLayout
+        session={columns}
+        mode="widget"
+        showNames={false}
+        submissions={[makeSubmission({ id: 'a', content: 'claim one' })]}
+        onMove={vi.fn()}
+      />
+    );
+    const strip = screen.getByTestId('aw-layout-columns');
+    expect(strip).toHaveStyle({ scrollSnapType: 'x proximity' });
+    const column = screen.getByTestId('aw-dropzone-c1');
+    expect(column).toHaveStyle({ scrollSnapAlign: 'start' });
+    // Card list inside the column scrolls independently so cards never clip at the bottom.
+    expect(column.querySelector('.overflow-y-auto')).not.toBeNull();
+  });
+
+  it('offers drag handles in widget mode when onMove is supplied, never in gallery', () => {
+    const columns = makeSession({
+      layout: 'columns',
+      sections: [{ id: 'c1', label: 'Claims' }],
+    });
+    const posts = [makeSubmission({ id: 'a', content: 'claim one' })];
+    const { rerender } = render(
+      <ColumnsLayout
+        session={columns}
+        mode="widget"
+        showNames={false}
+        submissions={posts}
+        onMove={vi.fn()}
+      />
+    );
+    expect(
+      screen.getAllByRole('button', { name: 'Drag to move' }).length
+    ).toBeGreaterThan(0);
+
+    rerender(
+      <ColumnsLayout
+        session={columns}
+        mode="widget"
+        showNames={false}
+        submissions={posts}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Drag to move' })
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ColumnsLayout
+        session={columns}
+        mode="gallery"
+        showNames={false}
+        submissions={posts}
+        onMove={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Drag to move' })
+    ).not.toBeInTheDocument();
+  });
+
   it('LayoutRouter picks the layout named on the session and paints appearance', () => {
     const { rerender, container } = render(
       <LayoutRouter

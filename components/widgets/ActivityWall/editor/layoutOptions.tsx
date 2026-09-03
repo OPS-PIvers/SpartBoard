@@ -31,8 +31,9 @@ const box = (
 const sketch = (children: React.ReactNode) => (
   <svg
     viewBox="0 0 64 40"
+    preserveAspectRatio="xMidYMid meet"
     aria-hidden="true"
-    className="h-10 w-16 text-brand-blue-primary"
+    className="h-full w-full text-brand-blue-primary"
   >
     {children}
   </svg>
