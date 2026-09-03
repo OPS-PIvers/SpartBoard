@@ -313,13 +313,13 @@ Done when: tests for showNames on/off and anonymous viewer hides composer.
 
 ### Phase 3 — polish and cleanup (after Phase 2 merges)
 
-#### P3-1 Visual pass against the design system — `opus` — **in review #2781**
+#### P3-1 Visual pass against the design system — `opus` — **shipped #2781**
 
 Key files: everything under `components/widgets/ActivityWall/`, `components/activityWall/`.
 
 Do: run `/pauls-skills:deslop --ui` style audit against CLAUDE.md "Design Context": glass surfaces, Lexend, restrained color, `cqmin` scaling on the front face, WCAG AA text on dark surfaces (`text-slate-300`+), `prefers-reduced-motion`, keyboard focus rings on every control, `aria-label` on icon buttons, projector legibility of the gallery. Capture before/after screenshots with the Vite dev server for the PR.
 
-#### P3-2 my-assignments continuity — `sonnet` — **in review #2780**
+#### P3-2 my-assignments continuity — `sonnet` — **shipped #2780**
 
 Key files: `hooks/useStudentAssignments.ts:268-284`, `components/student/MyAssignmentsPage.tsx`.
 
