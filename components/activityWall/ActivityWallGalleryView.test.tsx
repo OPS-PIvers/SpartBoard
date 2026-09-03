@@ -108,11 +108,18 @@ const submissionDoc = (
 describe('ActivityWallGalleryView', () => {
   let submissionsHandler: SnapshotHandler | null;
   let sessionHandler: DocSnapshotHandler | null;
+  let likesHandler: SnapshotHandler | null;
+  let commentsHandler: SnapshotHandler | null;
+
+  const subscribedPaths = (): string[] =>
+    mockOnSnapshot.mock.calls.map((call) => (call[0] as MockRef).__path);
 
   beforeEach(() => {
     vi.clearAllMocks();
     submissionsHandler = null;
     sessionHandler = null;
+    likesHandler = null;
+    commentsHandler = null;
     mockAuth.currentUser = { uid: 'viewer-1', isAnonymous: false };
 
     window.history.pushState({}, '', '/activity-wall/gallery/share-1');
@@ -154,6 +161,10 @@ describe('ActivityWallGalleryView', () => {
       const path = ref.__path;
       if (path.includes('submissions')) {
         submissionsHandler = next as SnapshotHandler;
+      } else if (path.endsWith('/likes')) {
+        likesHandler = next as SnapshotHandler;
+      } else if (path.endsWith('/comments')) {
+        commentsHandler = next as SnapshotHandler;
       } else if (path.includes('activity_wall_sessions')) {
         sessionHandler = next as DocSnapshotHandler;
       }
@@ -588,5 +599,138 @@ describe('ActivityWallGalleryView', () => {
         screen.getByText(/no submissions yet — check back soon/i)
       ).toBeInTheDocument()
     );
+  });
+
+  it('subscribes to session-level likes and comments (never the share subcollections)', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ allowLikes: true, allowComments: true }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(likesHandler).not.toBeNull());
+    await waitFor(() => expect(commentsHandler).not.toBeNull());
+    const paths = subscribedPaths();
+    expect(paths).toContain(
+      '[object Object]/activity_wall_sessions/teacher-1_activity-1/likes'
+    );
+    expect(paths).toContain(
+      '[object Object]/activity_wall_sessions/teacher-1_activity-1/comments'
+    );
+    expect(paths.some((p) => p.includes('shared_activity_walls'))).toBe(false);
+  });
+
+  it('lets session engagement flags win over the share flags', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ allowLikes: true, allowComments: true }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({
+          layout: 'wall',
+          allowLikes: false,
+          allowComments: true,
+        }),
+      });
+    });
+    act(() => {
+      submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
+    });
+
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-card-a"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(within(card).getByText(/no comments yet/i)).toBeInTheDocument();
+    expect(within(card).queryByLabelText('Like')).not.toBeInTheDocument();
+    // The session said no likes, so the likes subscription is torn down.
+    await waitFor(() =>
+      expect(subscribedPaths().filter((p) => p.endsWith('/likes')).length).toBe(
+        1
+      )
+    );
+  });
+
+  it('falls back to the share flags when the session has none (pre-merge shares)', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ allowLikes: true, allowComments: false }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
+    act(() => {
+      submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
+    });
+
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-card-a"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(within(card).getByLabelText('Like')).toBeInTheDocument();
+    expect(
+      within(card).queryByText(/no comments yet/i)
+    ).not.toBeInTheDocument();
+    expect(commentsHandler).toBeNull();
+  });
+
+  it('shows session-level like counts on the card', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ allowLikes: true }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
+    act(() => {
+      submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
+    });
+    await waitFor(() => expect(likesHandler).not.toBeNull());
+    act(() => {
+      likesHandler?.({
+        docs: [
+          {
+            id: 'a__viewer-1',
+            data: () => ({ submissionId: 'a', authorUid: 'viewer-1' }),
+          },
+          {
+            id: 'a__other',
+            data: () => ({ submissionId: 'a', authorUid: 'other' }),
+          },
+        ],
+      });
+    });
+
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-card-a"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    const button = await within(card).findByLabelText('Unlike');
+    expect(button).toHaveTextContent('2');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
   });
 });
