@@ -476,6 +476,102 @@ describe('ActivityWallGalleryView', () => {
     expect(image.src).toBe('https://example.com/photo.jpg');
   });
 
+  it('shows the Drive sign-in hint when an archived domain photo fails to load', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ mode: 'photo' }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({
+          mode: 'photo',
+          layout: 'wall',
+          driveVisibility: 'domain',
+        }),
+      });
+    });
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    act(() => {
+      submissionsHandler?.({
+        docs: [
+          submissionDoc('archived', 1000, {
+            type: 'photo',
+            content: 'https://example.com/photo.jpg',
+            archiveStatus: 'archived',
+            drivePermission: 'domain',
+          }),
+        ],
+      });
+    });
+
+    const image = await waitFor(() =>
+      screen.getByAltText<HTMLImageElement>('Student photo')
+    );
+    act(() => {
+      image.dispatchEvent(new Event('error'));
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/sign in to your school google account/i)
+      ).toBeInTheDocument()
+    );
+  });
+
+  it('does not show the Drive sign-in hint when a non-archived (in-transit) photo fails to load', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ mode: 'photo' }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({
+          mode: 'photo',
+          layout: 'wall',
+          driveVisibility: 'domain',
+        }),
+      });
+    });
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    act(() => {
+      submissionsHandler?.({
+        docs: [
+          submissionDoc('transit', 1000, {
+            type: 'photo',
+            content: 'https://example.com/photo.jpg',
+            archiveStatus: 'pending',
+            drivePermission: 'domain',
+          }),
+        ],
+      });
+    });
+
+    const image = await waitFor(() =>
+      screen.getByAltText<HTMLImageElement>('Student photo')
+    );
+    act(() => {
+      image.dispatchEvent(new Event('error'));
+    });
+
+    // Give the (absent) state update a tick to land before asserting it never does.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      screen.queryByText(/sign in to your school google account/i)
+    ).not.toBeInTheDocument();
+  });
+
   it('shows the empty state when every submission is pending', async () => {
     render(<ActivityWallGalleryView />);
 

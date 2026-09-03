@@ -326,9 +326,18 @@ export const ActivityWallGalleryView: React.FC = () => {
   );
 
   const driveVisibility = session?.driveVisibility;
-  const handleMediaError = useCallback(() => {
-    if (driveVisibility === 'domain') setDriveSigninHint(true);
-  }, [driveVisibility]);
+  // Only an archived Drive photo failing to load implies a Drive sign-in issue.
+  const handleMediaError = useCallback(
+    (submission: ActivityWallSubmission) => {
+      if (submission.archiveStatus !== 'archived') return;
+      const isDomainPermission =
+        submission.drivePermission !== undefined
+          ? submission.drivePermission === 'domain'
+          : driveVisibility === 'domain';
+      if (isDomainPermission) setDriveSigninHint(true);
+    },
+    [driveVisibility]
+  );
 
   if (!shareId || state.kind === 'not-found') {
     return (
@@ -402,7 +411,7 @@ interface GalleryReadyProps {
   likes: ActivityWallLike[];
   comments: ActivityWallComment[];
   driveSigninHint: boolean;
-  onMediaError: () => void;
+  onMediaError: (submission: ActivityWallSubmission) => void;
 }
 
 const GalleryReady: React.FC<GalleryReadyProps> = ({
@@ -524,7 +533,8 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
               />
               {driveSigninHint && (
                 <div className="absolute inset-x-0 bottom-0 bg-amber-400/95 px-4 py-2 text-center text-xs font-bold text-slate-900">
-                  Sign in to your school Google account to see photos.
+                  Sign in to your school Google account in this browser to see
+                  photos.
                 </div>
               )}
             </div>
