@@ -24,7 +24,13 @@ import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
-import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { HelpCenterModal } from '@/components/help/HelpCenterModal';
+import {
+  getLastHelpTab,
+  HELP_OPEN_EVENT,
+  type HelpOpenRequest,
+  type HelpTab,
+} from '@/components/help/helpCenterState';
 import { useHasOpenModal } from '@/components/common/modalStore';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { BoardActionsFab } from './BoardActionsFab';
@@ -50,7 +56,7 @@ import {
   LiveStudent,
   SpartStickerDropPayload,
 } from '@/types';
-import type { LiveSession } from '@/types';
+import type { LiveSession, WidgetType } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
@@ -387,7 +393,25 @@ export const DashboardView: React.FC = () => {
   }, []);
   const { uploadAndRegisterPdf } = useStorage();
 
-  const [isCheatSheetOpen, setIsCheatSheetOpen] = React.useState(false);
+  const [helpState, setHelpState] = React.useState<{
+    open: boolean;
+    tab: HelpTab;
+    widgetType?: WidgetType;
+  }>({ open: false, tab: 'shortcuts' });
+
+  // Any surface (widget settings "?", future entry points) can open Help via this event.
+  React.useEffect(() => {
+    const handleOpenHelp = (e: Event) => {
+      const detail = (e as CustomEvent<HelpOpenRequest>).detail ?? {};
+      setHelpState({
+        open: true,
+        tab: detail.tab ?? getLastHelpTab() ?? 'guides',
+        widgetType: detail.widgetType,
+      });
+    };
+    window.addEventListener(HELP_OPEN_EVENT, handleOpenHelp);
+    return () => window.removeEventListener(HELP_OPEN_EVENT, handleOpenHelp);
+  }, []);
   const onboardingShownRef = React.useRef(false);
 
   // Auto-add onboarding widget for brand-new users on their first empty board.
@@ -1068,7 +1092,11 @@ export const DashboardView: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         if (isTypingFieldActive()) return;
         e.preventDefault();
-        setIsCheatSheetOpen((prev) => !prev);
+        setHelpState((prev) => ({
+          open: !prev.open,
+          tab: 'shortcuts',
+          widgetType: undefined,
+        }));
         return;
       }
 
@@ -1585,7 +1613,15 @@ export const DashboardView: React.FC = () => {
           }}
         />
       )}
-      <BoardActionsFab onOpenCheatSheet={() => setIsCheatSheetOpen(true)} />
+      <BoardActionsFab
+        onOpenHelp={() =>
+          setHelpState({
+            open: true,
+            tab: getLastHelpTab() ?? 'guides',
+            widgetType: undefined,
+          })
+        }
+      />
 
       {/* Deep-link share-import machinery (Quiz / Video-Activity / PLC) —
           mounted lazily only once a pending share id appears, so the common
@@ -1654,18 +1690,13 @@ export const DashboardView: React.FC = () => {
         </button>
       )}
 
-      {/* Only mount the cheat sheet when open. CheatSheetModal builds its full
-          body (≈30 translation calls + the entire shortcut/gesture tree) on
-          every render, and Modal then returns null while closed — so rendering
-          it unconditionally cost ~2ms on every dashboard load for a panel
-          that's hidden. Gating here removes that from the mount path with no
-          behavior change: the open-effect fires on mount (isOpen=true) exactly
-          as it did on the false→true transition, and the entrance animation
-          still plays. */}
-      {isCheatSheetOpen && (
-        <CheatSheetModal
-          isOpen={isCheatSheetOpen}
-          onClose={() => setIsCheatSheetOpen(false)}
+      {/* Only mount Help when open — its body builds the whole shortcut tree. */}
+      {helpState.open && (
+        <HelpCenterModal
+          isOpen={helpState.open}
+          tab={helpState.tab}
+          onTabChange={(tab) => setHelpState((prev) => ({ ...prev, tab }))}
+          onClose={() => setHelpState((prev) => ({ ...prev, open: false }))}
         />
       )}
     </div>

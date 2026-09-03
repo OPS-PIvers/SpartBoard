@@ -1451,57 +1451,9 @@
           "hint": "Abre la barra lateral y haz clic en + Nuevo Tablero"
         },
         "openCheatsheet": {
-          "label": "Abre la Guía de Atajos",
+          "label": "Abrir el centro de ayuda",
           "hint": "Pulsa Ctrl/⌘+/ o haz clic en el botón ? de la esquina inferior derecha"
         }
-      }
-    },
-    "cheatSheet": {
-      "title": "Atajos y Gestos",
-      "keyboard": "Teclado",
-      "touchscreenGestures": "Gestos Táctiles",
-      "boardGestures": "Fondo del Tablero",
-      "widgetGestures": "Ventana de Widget",
-      "footer": "Pulsa <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> en cualquier momento para abrir este panel",
-      "shortcuts": {
-        "openCheatSheet": "Abrir esta guía",
-        "switchBoards": "Cambiar de tablero",
-        "widgetSettings": "Abrir / cerrar ajustes de widget",
-        "annotate": "Alternar modo de dibujo",
-        "maximize": "Maximizar / restaurar widget",
-        "resetSize": "Restablecer tamaño predeterminado",
-        "minimizeFocused": "Minimizar widget enfocado",
-        "minimizeAll": "Minimizar todos los widgets",
-        "closeFocused": "Cerrar widget enfocado",
-        "clearBoard": "Limpiar tablero completo"
-      },
-      "gestures": {
-        "switchBoards": "Cambiar de tablero",
-        "minimizeAll": "Minimizar todo al Dock",
-        "restoreAll": "Restaurar todos los widgets",
-        "toggleAnnotation": "Activar/desactivar anotación (mantener ~0,6 s)",
-        "screenshot": "Tomar captura",
-        "minimizeWidget": "Minimizar widget",
-        "minimizeOrRestoreWidget": "Minimizar widget (o restaurar si está maximizado)",
-        "openSidebar": "Abrir barra lateral",
-        "fullscreen": "Alternar pantalla completa",
-        "maximizeWidget": "Maximizar widget (deslizar ↑ de nuevo para primer plano)",
-        "spotlight": "Widget en primer plano",
-        "resize": "Redimensionar widget",
-        "panBoard": "Desplazar tablero"
-      },
-      "gestureNames": {
-        "oneFingerDoubleTap": "Doble toque con 1 dedo",
-        "oneFingerLongPress": "Mantener presionado con 1 dedo",
-        "oneFingerDrag": "Arrastrar con 1 dedo sobre el fondo",
-        "oneFingerSwipeEdge": "Deslizar 1 dedo desde el borde izquierdo",
-        "twoFingerSwipeLR": "Deslizar 2 dedos ←/→",
-        "twoFingerSwipeDown": "Deslizar 2 dedos ↓",
-        "twoFingerSwipeUp": "Deslizar 2 dedos ↑",
-        "twoFingerLongPress": "Mantener 2 dedos (~0,6 s)",
-        "dragDownToDock": "Arrastrar al dock ↓",
-        "widgetTwoFingerSwipeDown": "Deslizar 2 dedos ↓",
-        "widgetTwoFingerSwipeUp": "Deslizar 2 dedos ↑"
       }
     },
     "dashboard": {
@@ -2249,6 +2201,65 @@
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
+    }
+  },
+  "helpCenter": {
+    "title": "Ayuda",
+    "search": "Buscar en la ayuda",
+    "close": "Cerrar la ayuda",
+    "noResults": "No hay resultados para tu búsqueda",
+    "onboardingTask": "Abrir el centro de ayuda",
+    "footer": "Pulsa <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> en cualquier momento para abrir la ayuda",
+    "tabs": {
+      "shortcuts": "Atajos",
+      "guides": "Guías"
+    },
+    "sections": {
+      "keyboard": "Atajos de teclado",
+      "gestures": "Gestos táctiles"
+    },
+    "groups": {
+      "board": "Tablero",
+      "widget": "Widget"
+    },
+    "guides": {
+      "placeholder": "Las guías llegarán pronto"
+    },
+    "shortcuts": {
+      "open-help": "Abrir la ayuda",
+      "switch-boards": "Cambiar de tablero",
+      "zoom-board": "Acercar y alejar el tablero",
+      "pin-widget": "Fijar / soltar el widget",
+      "widget-settings": "Abrir / cerrar los ajustes del widget",
+      "annotate": "Alternar el modo de dibujo",
+      "maximize": "Maximizar / restaurar el widget",
+      "reset-size": "Restablecer el tamaño del widget",
+      "minimize-focused": "Minimizar el widget enfocado",
+      "minimize-all": "Minimizar todos los widgets",
+      "close-focused": "Cerrar el widget enfocado",
+      "clear-board": "Vaciar todo el tablero",
+      "annotation-delete-selected": "Eliminar la anotación seleccionada",
+      "annotation-nudge": "Mover la anotación seleccionada"
+    },
+    "gestures": {
+      "two-finger-swipe-lr": "Deslizar ←/→ con 2 dedos",
+      "two-finger-swipe-lrDescription": "Cambiar de tablero",
+      "two-finger-swipe-up": "Deslizar ↑ con 2 dedos sobre el fondo",
+      "two-finger-swipe-upDescription": "Restaurar todos los widgets",
+      "one-finger-drag": "Arrastrar con 1 dedo sobre el fondo",
+      "one-finger-dragDescription": "Desplazar el tablero con zoom",
+      "one-finger-swipe-edge": "Deslizar con 1 dedo desde el borde izquierdo",
+      "one-finger-swipe-edgeDescription": "Abrir la barra lateral",
+      "one-finger-double-tap": "Doble toque con 1 dedo",
+      "one-finger-double-tapDescription": "Alternar pantalla completa",
+      "widget-two-finger-swipe-down-restore": "Deslizar ↓ con 2 dedos sobre un widget",
+      "widget-two-finger-swipe-down-restoreDescription": "Restaurar un widget maximizado a su tamaño normal",
+      "widget-two-finger-swipe-up": "Deslizar ↑ con 2 dedos sobre un widget",
+      "widget-two-finger-swipe-upDescription": "Maximizar el widget o destacarlo si ya está maximizado",
+      "two-finger-long-press": "Mantener pulsado con 2 dedos sobre un widget",
+      "two-finger-long-pressDescription": "Alternar el modo de dibujo (mantén ~0,6 s)",
+      "one-finger-long-press": "Mantener pulsado con 1 dedo sobre un widget",
+      "one-finger-long-pressDescription": "Hacer una captura de pantalla (mantén ~0,6 s)"
     }
   }
 }

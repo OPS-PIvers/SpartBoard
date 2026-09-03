@@ -33,7 +33,7 @@ export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
       },
       {
         id: 'open-cheatsheet',
-        label: t('widgets.onboarding.tasks.openCheatsheet.label'),
+        label: t('helpCenter.onboardingTask'),
         hint: t('widgets.onboarding.tasks.openCheatsheet.hint'),
       },
     ],
