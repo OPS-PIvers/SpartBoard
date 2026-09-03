@@ -61,6 +61,8 @@ import {
   type MediaGradingSlot,
 } from '@/utils/mediaGrading';
 import type { TakeUrlResolver } from '@/utils/quizMediaPlayback';
+import { resolveStimuli } from '@/utils/quizStimuli';
+import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
 import {
   hasSubmittedContent,
   isWrittenAnswerAwaitingGrade,
@@ -1224,6 +1226,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             <p className="text-sm font-semibold leading-snug text-slate-900">
               {question.text}
             </p>
+            <CollapsibleStimuli
+              stimuli={resolveStimuli(question.stimulusIds, quiz.stimuli)}
+            />
           </div>
 
           <div className="flex flex-col gap-4 p-6">
