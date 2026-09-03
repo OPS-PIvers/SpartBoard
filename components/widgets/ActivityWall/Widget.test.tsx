@@ -16,6 +16,7 @@ const {
   mockSaveActivity,
   mockDeleteActivity,
   mockGetCountFromServer,
+  mockGetDoc,
   mockLibraryEntries,
 } = vi.hoisted(() => ({
   mockAddWidget: vi.fn(),
@@ -28,6 +29,7 @@ const {
   mockSaveActivity: vi.fn(),
   mockDeleteActivity: vi.fn(),
   mockGetCountFromServer: vi.fn(),
+  mockGetDoc: vi.fn().mockResolvedValue({ data: () => undefined }),
   mockLibraryEntries: { current: [] as ActivityWallLibraryEntry[] },
 }));
 
@@ -107,6 +109,7 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: mockUpdateDoc,
   deleteDoc: mockDeleteDoc,
   deleteField: vi.fn(() => '__delete__'),
+  getDoc: mockGetDoc,
   getDocs: vi.fn().mockResolvedValue({ docs: [] }),
   getCountFromServer: mockGetCountFromServer,
   query: vi.fn((ref: unknown) => ref),
@@ -327,6 +330,47 @@ describe('ActivityWallWidget', () => {
         { merge: true }
       )
     );
+  });
+
+  it('seeds engagement flags once from the latest gallery share for a pre-flag wall', async () => {
+    sessionDocData['activity_wall_sessions/teacher-1_wall-1'] = {
+      latestShareId: 'share-1',
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({
+        allowLikes: true,
+        allowComments: true,
+        allowCommentResponses: false,
+      }),
+    });
+    renderWidget();
+    await waitFor(() =>
+      expect(mockSaveActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'wall-1',
+          allowLikes: true,
+          allowComments: true,
+          allowCommentResponses: false,
+        })
+      )
+    );
+    expect(mockGetDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('never re-seeds a wall that already carries engagement flags', async () => {
+    sessionDocData['activity_wall_sessions/teacher-1_wall-1'] = {
+      latestShareId: 'share-1',
+    };
+    mockLibraryEntries.current = [
+      makeEntry({
+        allowLikes: false,
+        allowComments: false,
+        allowCommentResponses: false,
+      }),
+    ];
+    renderWidget();
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    expect(mockGetDoc).not.toHaveBeenCalled();
   });
 
   it('renders the Hidden pill when the wall hides posts', async () => {

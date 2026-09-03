@@ -4235,11 +4235,13 @@ service cloud.firestore {
                (isStudentRoleUser() || awParentSession().get('allowGuests', false) == true);
       }
       // Who may see engagement (likes/comments): the owner, the public
-      // gallery audience, or the student-page audience.
+      // gallery audience, or the student-page audience while the wall is
+      // visible (a hidden wall must not leak comments on unseen posts).
       function awViewerOk() {
         return awIsOwner() ||
                awParentSession().get('publiclyShared', false) == true ||
-               awStudentAudienceOk();
+               (awStudentAudienceOk() &&
+                awParentSession().get('studentsCanSeePosts', true) != false);
       }
 
       match /submissions/{submissionId} {

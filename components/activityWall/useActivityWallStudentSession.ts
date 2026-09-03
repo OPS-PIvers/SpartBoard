@@ -166,8 +166,14 @@ export function useActivityWallStudentSession(
 
   const resolvedClaims = claims && claims.uid === uid ? claims : null;
   const isStudent = resolvedClaims?.isStudent === true;
+  // The wall's owner previewing the student link is never bounced to student login.
+  const isOwner = !!uid && !!sessionId && sessionId.startsWith(`${uid}_`);
   const needsLogin =
-    !!resolvedClaims && !!session && !isStudent && !session.allowGuests;
+    !!resolvedClaims &&
+    !!session &&
+    !isStudent &&
+    !isOwner &&
+    !session.allowGuests;
   const wallVisible = !!session && session.studentsCanSeePosts !== false;
 
   useEffect(() => {

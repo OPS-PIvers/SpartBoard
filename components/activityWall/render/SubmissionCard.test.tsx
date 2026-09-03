@@ -153,6 +153,32 @@ describe('SubmissionCard', () => {
       driveUrl: 'https://drive.google.com/thumbnail?id=abc',
     });
 
+  it('exposes teacher edit on the widget face when onEdit is supplied', () => {
+    const onEdit = vi.fn();
+    render(
+      <SubmissionCard
+        submission={makeSubmission()}
+        mode="widget"
+        showNames={false}
+        onEdit={onEdit}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit post' }));
+    expect(onEdit).toHaveBeenCalledWith(makeSubmission().id);
+  });
+
+  it('keeps the gallery face free of edit controls', () => {
+    render(
+      <SubmissionCard
+        submission={makeSubmission()}
+        mode="gallery"
+        showNames={false}
+        onEdit={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Edit post' })).toBeNull();
+  });
+
   it('caps photo dimensions in every layout mode, not just widget', () => {
     // jsdom drops CSS min(), so the widget's cqmin caps are asserted on the helper.
     expect(wallImageDimensions('medium', true).maxHeight).toContain('cqmin');

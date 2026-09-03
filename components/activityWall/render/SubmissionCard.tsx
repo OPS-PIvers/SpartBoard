@@ -86,6 +86,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   const isStudent = mode === 'student';
   const isOwn = Boolean(viewerUid) && submission.authorUid === viewerUid;
   const showOwnActions = isStudent && isOwn && Boolean(onEdit ?? onDelete);
+  const showWidgetEdit = isWidget && Boolean(onEdit);
   const isTeacherPost = submission.authorRole === 'teacher';
   const hasMeta =
     Boolean(submission.pinned) ||
@@ -362,6 +363,22 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               <Trash2 style={{ width: scale.icon, height: scale.icon }} />
             </button>
           )}
+        </div>
+      )}
+
+      {showWidgetEdit && onEdit && (
+        <div
+          className="flex flex-wrap items-center"
+          style={{ marginTop: scale.gap, gap: scale.gap }}
+        >
+          <button
+            type="button"
+            aria-label="Edit post"
+            onClick={() => onEdit(submission.id)}
+            className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <Pencil style={{ width: scale.icon, height: scale.icon }} />
+          </button>
         </div>
       )}
 

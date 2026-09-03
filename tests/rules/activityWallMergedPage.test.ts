@@ -402,6 +402,32 @@ describe('merged student page — session likes and comments', () => {
     );
   });
 
+  it('student is denied likes and comments on a hidden wall', async () => {
+    await seedSession(
+      padletSession({
+        allowLikes: true,
+        allowComments: true,
+        studentsCanSeePosts: false,
+      })
+    );
+    await assertFails(
+      getDocs(
+        collection(asStudent(), `activity_wall_sessions/${SESSION_ID}/likes`)
+      )
+    );
+    await assertFails(
+      getDocs(
+        collection(asStudent(), `activity_wall_sessions/${SESSION_ID}/comments`)
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asStudent(), commentPath('c-hidden')),
+        comment('c-hidden', STUDENT_UID)
+      )
+    );
+  });
+
   it('student reads likes and comments on a visible wall', async () => {
     await seedSession(padletSession({ allowLikes: true, allowComments: true }));
     await assertSucceeds(
