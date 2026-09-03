@@ -2544,12 +2544,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         .exportDashboard(active)
         .then((newFileId) => {
           lastExportedDataRef.current = currentData;
-          // If we got a new ID (e.g. first sync), save it back to Firestore silently
-          if (newFileId !== active.driveFileId) {
-            // CRITICAL: Scrub PII before writing directly to Firestore.
-            void saveDashboardFirestore({
-              ...scrubDashboardPII(active),
-              driveFileId: newFileId,
+          // If we got a new ID (e.g. first sync), save it back to Firestore
+          // silently. Only `driveFileId` needs persisting, and `active` is a
+          // 5s-old closure plus a Drive round trip by now — writing the whole
+          // document would blind-overwrite whatever was saved in between, on
+          // this device or another.
+          if (newFileId !== active.driveFileId && !isAuthBypass) {
+            void updateDoc(
+              doc(db, 'users', user.uid, 'dashboards', active.id),
+              {
+                driveFileId: newFileId,
+                updatedAt: Date.now(),
+              }
+            ).catch((err: unknown) => {
+              console.error('[Drive Sync] Failed to persist driveFileId:', err);
             });
           }
         })
@@ -2566,15 +2574,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
     };
-  }, [
-    user,
-    isAdmin,
-    driveService,
-    dashboards,
-    activeId,
-    loading,
-    saveDashboardFirestore,
-  ]);
+  }, [user, isAdmin, driveService, dashboards, activeId, loading]);
 
   // --- PII RESTORE EFFECT ---
   // When the active dashboard changes, attempt to restore any custom widget
