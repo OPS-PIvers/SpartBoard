@@ -5603,10 +5603,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [setActiveAnnotationObjects]
   );
 
+  // Returns false when the ink was refused (no active board or size cap).
   const addAnnotationObject = useCallback(
-    (obj: DrawableObject) => {
+    (obj: DrawableObject): boolean => {
       const id = activeIdRef.current;
-      if (!id) return;
+      if (!id) return false;
       const stamped: DrawableObject = {
         ...obj,
         authorUid: obj.authorUid ?? user?.uid,
@@ -5622,7 +5623,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           'Annotation layer is full. Clear it (trash) to keep drawing.',
           'error'
         );
-        return;
+        return false;
       }
       if (
         nextBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
@@ -5643,6 +5644,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           prev.length === 0 ? prev : []
         );
       }
+      return true;
     },
     [addToast, setActiveAnnotationObjects, user?.uid]
   );
@@ -5713,14 +5715,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Flag the upcoming addAnnotationObject so it doesn't also clear our
       // redo branch — without this, `redo` would always leave the stack at 0.
       isRedoingAnnotationRef.current = true;
+      let added = false;
       try {
         // Re-emit through the canonical add path so the live-share mirror,
         // author-uid stamping, and listener semantics all stay consistent.
-        addAnnotationObject(top);
+        added = addAnnotationObject(top);
       } finally {
         isRedoingAnnotationRef.current = false;
       }
-      return prev.slice(0, -1);
+      // A refused add (size cap) keeps the stroke redoable after a clear.
+      return added ? prev.slice(0, -1) : prev;
     });
   }, [addAnnotationObject]);
 

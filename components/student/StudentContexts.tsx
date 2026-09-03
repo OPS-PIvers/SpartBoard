@@ -378,9 +378,7 @@ const mockDashboard: DashboardContextValue = {
   updateAnnotationState: () => {
     // No-op
   },
-  addAnnotationObject: () => {
-    // No-op
-  },
+  addAnnotationObject: () => false,
   updateAnnotationObject: () => {
     // No-op
   },

@@ -315,7 +315,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       openAnnotation: NOOP,
       closeAnnotation: NOOP,
       updateAnnotationState: NOOP,
-      addAnnotationObject: NOOP,
+      addAnnotationObject: () => false,
       updateAnnotationObject: NOOP,
       removeAnnotationObject: NOOP,
       undoAnnotation: NOOP,

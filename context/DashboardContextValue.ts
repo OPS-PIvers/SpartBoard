@@ -207,7 +207,8 @@ export interface DashboardContextValue {
   openAnnotation: () => void;
   closeAnnotation: () => void;
   updateAnnotationState: (updates: Partial<AnnotationState>) => void;
-  addAnnotationObject: (obj: DrawableObject) => void;
+  /** Returns false when the ink was refused (no board or size cap). */
+  addAnnotationObject: (obj: DrawableObject) => boolean;
   /** Phase 2 PR 2.1c — selection mutation: replace `next` (matched by id)
    *  in the active overlay objects. Routed through the same mirror-friendly
    *  setter as add/undo so synced participants see edits live. */

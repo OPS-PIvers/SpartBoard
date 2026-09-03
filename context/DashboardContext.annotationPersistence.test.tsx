@@ -128,8 +128,10 @@ interface Snap {
   objects: DrawableObject[];
   openAnnotation: () => void;
   closeAnnotation: () => void;
-  addAnnotationObject: (o: DrawableObject) => void;
+  addAnnotationObject: (o: DrawableObject) => boolean;
   undoAnnotation: () => void;
+  redoAnnotation: () => void;
+  canRedoAnnotation: boolean;
   clearAnnotation: () => void;
   annotationActive: boolean;
   toasts: { message: string; type?: string }[];
@@ -146,6 +148,8 @@ const Consumer: React.FC<{ stateRef: { current: Snap | null } }> = ({
       closeAnnotation: ctx.closeAnnotation,
       addAnnotationObject: ctx.addAnnotationObject,
       undoAnnotation: ctx.undoAnnotation,
+      redoAnnotation: ctx.redoAnnotation,
+      canRedoAnnotation: ctx.canRedoAnnotation,
       clearAnnotation: ctx.clearAnnotation,
       annotationActive: ctx.annotationActive,
       toasts: ctx.toasts,
@@ -209,7 +213,9 @@ describe('DashboardContext annotation persistence', () => {
     act(() => get().openAnnotation());
     expect(get().annotationActive).toBe(true);
     expect(get().objects.map((o) => o.id)).toEqual(['old']);
-    act(() => get().addAnnotationObject(rect('new')));
+    act(() => {
+      get().addAnnotationObject(rect('new'));
+    });
     act(() => get().closeAnnotation());
     expect(get().annotationActive).toBe(false);
     expect(get().objects.map((o) => o.id)).toEqual(['old', 'new']);
@@ -218,8 +224,12 @@ describe('DashboardContext annotation persistence', () => {
   it('undo only reaches ink added in the current toolbar session', async () => {
     const get = await mount([rect('old', 'test-user')]);
     act(() => get().openAnnotation());
-    act(() => get().addAnnotationObject(rect('a')));
-    act(() => get().addAnnotationObject(rect('b')));
+    act(() => {
+      get().addAnnotationObject(rect('a'));
+    });
+    act(() => {
+      get().addAnnotationObject(rect('b'));
+    });
     act(() => get().undoAnnotation());
     expect(get().objects.map((o) => o.id)).toEqual(['old', 'a']);
     act(() => get().undoAnnotation());
@@ -245,12 +255,53 @@ describe('DashboardContext annotation persistence', () => {
       fontSize: 24,
       color: '#000',
     };
-    act(() => get().addAnnotationObject(huge));
+    let added: boolean | undefined;
+    act(() => {
+      added = get().addAnnotationObject(huge);
+    });
+    expect(added).toBe(false);
     expect(get().objects).toEqual([]);
     expect(get().toasts.some((t) => t.type === 'error')).toBe(true);
     // Normal ink still works.
-    act(() => get().addAnnotationObject(rect('ok')));
+    act(() => {
+      get().addAnnotationObject(rect('ok'));
+    });
     expect(get().objects.map((o) => o.id)).toEqual(['ok']);
+  });
+
+  it('a redo refused by the size cap stays on the redo stack', async () => {
+    const get = await mount([]);
+    act(() => get().openAnnotation());
+    act(() => {
+      get().addAnnotationObject(rect('a'));
+    });
+    act(() => get().undoAnnotation());
+    expect(get().canRedoAnnotation).toBe(true);
+    // A collaborator fills the board (remote snapshot, so the redo stack
+    // survives) so re-adding 'a' would exceed the cap.
+    const filler: TextObject = {
+      id: 'filler',
+      kind: 'text',
+      z: 1,
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 10,
+      content: 'x'.repeat(ANNOTATION_HARD_LIMIT_BYTES - 100),
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    const cb = capturedSnapshotCb;
+    if (!cb) throw new Error('Provider not mounted');
+    await act(async () => {
+      cb([board([filler])], false);
+      await Promise.resolve();
+    });
+    expect(get().objects.map((o) => o.id)).toEqual(['filler']);
+    act(() => get().redoAnnotation());
+    expect(get().objects.map((o) => o.id)).toEqual(['filler']);
+    expect(get().canRedoAnnotation).toBe(true);
   });
 
   it('trash clears everything, including pre-session ink', async () => {
