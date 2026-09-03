@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mergeDashboardForSave, type SaveBaseline } from './dashboardSaveMerge';
+import {
+  DASHBOARD_FIELDS,
+  mergeDashboardForSave,
+  serializeDashboardField,
+  type SaveBaseline,
+} from './dashboardSaveMerge';
 import type { Dashboard, WidgetData } from '@/types';
 
 const textOf = (w: WidgetData) => (w.config as { text: string }).text;
@@ -33,6 +38,9 @@ const baselineOf = (d: Dashboard): SaveBaseline => ({
   name: d.name,
   libraryOrder: JSON.stringify(d.libraryOrder ?? []),
   settings: JSON.stringify(d.settings ?? {}),
+  dashboardFields: Object.fromEntries(
+    DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(d[f])])
+  ),
 });
 
 describe('mergeDashboardForSave', () => {
@@ -90,5 +98,43 @@ describe('mergeDashboardForSave', () => {
     expect(merged.name).toBe('Renamed locally');
     expect(merged.background).toBe('bg-red-500');
     expect(merged.settings).toEqual({ spotlight: true });
+  });
+
+  it('takes the server value for board fields this device has not touched', () => {
+    // pinBoard / moveBoardToCollection write these with a targeted updateDoc,
+    // so a stale autosave used to revert them.
+    const base = board([], { isPinned: false, collectionId: null, order: 0 });
+    const local = board([], { isPinned: false, collectionId: null, order: 5 });
+    const server = board([], { isPinned: true, collectionId: 'c1', order: 0 });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.isPinned).toBe(true);
+    expect(merged.collectionId).toBe('c1');
+    // Reordered locally, so the local value wins over the server's.
+    expect(merged.order).toBe(5);
+  });
+
+  it('keeps local board fields when the baseline does not describe them', () => {
+    const base = board([], { isPinned: true });
+    const local = board([], { isPinned: true });
+    const server = board([], { isPinned: false });
+
+    const merged = mergeDashboardForSave(local, server, {
+      ...baselineOf(base),
+      dashboardFields: {},
+    });
+
+    expect(merged.isPinned).toBe(true);
+  });
+
+  it('treats an absent field and an explicit null as the same baseline value', () => {
+    const base = board([]);
+    const local = board([]);
+    const server = board([], { thumbnailUrl: 'https://example.test/t.png' });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.thumbnailUrl).toBe('https://example.test/t.png');
   });
 });

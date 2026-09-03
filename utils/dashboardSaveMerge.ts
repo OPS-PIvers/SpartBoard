@@ -18,7 +18,43 @@ export interface SaveBaseline {
   name: string;
   libraryOrder: string;
   settings: string;
+  /** JSON of each DASHBOARD_FIELDS value as this device last saw it. */
+  dashboardFields: Partial<Record<MergedDashboardField, string>>;
 }
+
+/**
+ * Board-level fields the merge resolves against the baseline, on top of
+ * `widgets`/`background`/`name`/`libraryOrder`/`settings`, which have their own
+ * baseline entries because the snapshot merge shares them. Several of these are
+ * written by targeted `updateDoc` calls (pinBoard, moveBoardToCollection) or by
+ * the reorder batch, so a stale autosave would otherwise revert them.
+ *
+ * Deliberately absent, and last-write-wins from the local copy: `viewportWidth`
+ * and `viewportHeight` (device-local — each device records its own, and
+ * adopting another's would mis-scale the proportional layout);
+ * `annotationOverlay` (the live-share mirror owns that path); and the immutable
+ * `id`/`createdAt` plus the write's own `updatedAt`.
+ */
+export const DASHBOARD_FIELDS = [
+  'driveFileId',
+  'thumbnailUrl',
+  'globalStyle',
+  'sharedGroups',
+  'isDefault',
+  'order',
+  'collectionId',
+  'isPinned',
+  'linkedShareId',
+  'linkedShareRole',
+  'linkedShareHostName',
+  'linkedShareEnded',
+] as const;
+
+export type MergedDashboardField = (typeof DASHBOARD_FIELDS)[number];
+
+/** `undefined` and `null` must serialize alike so an absent field isn't a change. */
+export const serializeDashboardField = (value: unknown): string =>
+  JSON.stringify(value ?? null);
 
 const configChanged = (a: WidgetData, b: WidgetData) =>
   a.version !== undefined && b.version !== undefined
@@ -73,7 +109,7 @@ export function mergeDashboardForSave(
     if (!localIds.has(sw.id) && !baseById.has(sw.id)) widgets.push(sw); // added elsewhere
   }
 
-  return {
+  const merged: Dashboard = {
     ...local,
     widgets,
     background:
@@ -90,4 +126,18 @@ export function mergeDashboardForSave(
         ? local.settings
         : server.settings,
   };
+
+  // Same rule as the four above: a field this device hasn't touched since its
+  // last save takes the server value. A field missing from the baseline keeps
+  // local, so an older baseline can never discard an edit.
+  const writable = merged as unknown as Record<string, unknown>;
+  for (const field of DASHBOARD_FIELDS) {
+    const base = baseline.dashboardFields[field];
+    if (base === undefined) continue;
+    if (serializeDashboardField(local[field]) === base) {
+      writable[field] = server[field];
+    }
+  }
+
+  return merged;
 }

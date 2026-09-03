@@ -40,6 +40,7 @@ const baseline = (widgets: WidgetData[]) => ({
   name: 'B',
   libraryOrder: '[]',
   settings: '{}',
+  dashboardFields: {},
 });
 
 const mockTransaction = (serverDoc: Dashboard) => {

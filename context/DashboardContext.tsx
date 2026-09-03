@@ -32,7 +32,12 @@ import {
 } from '@/types';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import type { SaveBaseline } from '@/utils/dashboardSaveMerge';
+import {
+  DASHBOARD_FIELDS,
+  serializeDashboardField,
+  type MergedDashboardField,
+  type SaveBaseline,
+} from '@/utils/dashboardSaveMerge';
 import {
   LAYOUT_FIELDS,
   STYLE_FIELDS,
@@ -237,6 +242,10 @@ const getDashboardSaveState = (d: Dashboard) => ({
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
     settings: JSON.stringify(d.settings ?? {}),
+    // Only the save merge reads these; the snapshot merge uses the four above.
+    dashboardFields: Object.fromEntries(
+      DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(d[f])])
+    ) as Record<MergedDashboardField, string>,
   },
 });
 
@@ -2270,7 +2279,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     name: string;
     libraryOrder: string;
     settings: string;
-  }>({ widgets: '', background: '', name: '', libraryOrder: '', settings: '' });
+    dashboardFields: Partial<Record<MergedDashboardField, string>>;
+  }>({
+    widgets: '',
+    background: '',
+    name: '',
+    libraryOrder: '',
+    settings: '',
+    dashboardFields: {},
+  });
   const buildSaveBaseline = useCallback(
     (dashboardId: string): SaveBaseline | undefined => {
       if (lastSavedDashboardIdRef.current !== dashboardId) return undefined;
@@ -2291,6 +2308,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         name: lastSavedFieldsRef.current.name,
         libraryOrder: lastSavedFieldsRef.current.libraryOrder,
         settings: lastSavedFieldsRef.current.settings,
+        dashboardFields: lastSavedFieldsRef.current.dashboardFields,
       };
     },
     []
@@ -2428,6 +2446,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         name: active.name,
         libraryOrder: JSON.stringify(active.libraryOrder),
         settings: JSON.stringify(active.settings),
+        dashboardFields: Object.fromEntries(
+          DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(active[f])])
+        ) as Record<MergedDashboardField, string>,
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
