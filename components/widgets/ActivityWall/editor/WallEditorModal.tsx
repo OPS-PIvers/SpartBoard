@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { CollapsibleSection } from '@/components/common/library/CollapsibleSection';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { classLinkService } from '@/utils/classlinkService';
 import {
@@ -95,10 +96,29 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   const [showLayoutWarning, setShowLayoutWarning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState(() => JSON.stringify(draft));
+  const { showConfirm } = useDialog();
+  const isDirty = JSON.stringify(draft) !== baseline;
+  const requestClose = () => {
+    if (!isDirty || saving) {
+      onClose();
+      return;
+    }
+    void showConfirm('Discard your unsaved changes to this wall?', {
+      title: 'Discard changes',
+      variant: 'warning',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+    }).then((ok) => {
+      if (ok) onClose();
+    });
+  };
 
   if (prevKey !== sessionKey) {
     setPrevKey(sessionKey);
-    setDraft(makeDraft());
+    const fresh = makeDraft();
+    setDraft(fresh);
+    setBaseline(JSON.stringify(fresh));
     setStep(entry ? 2 : 1);
     setShowLayoutWarning(false);
     setError(null);
@@ -245,7 +265,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   return (
     <Modal
       isOpen
-      onClose={onClose}
+      onClose={requestClose}
       title={entry ? 'Edit wall' : 'New wall'}
       maxWidth="max-w-2xl"
       contentClassName="px-6 [scrollbar-gutter:stable]"
@@ -258,7 +278,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Cancel
@@ -277,7 +297,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Cancel

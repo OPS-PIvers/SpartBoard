@@ -9,6 +9,14 @@ const { mockSaveActivity } = vi.hoisted(() => ({
   mockSaveActivity: vi.fn((_entry: unknown) => Promise.resolve()),
 }));
 
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: vi.fn().mockResolvedValue(true),
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
+}));
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1' },

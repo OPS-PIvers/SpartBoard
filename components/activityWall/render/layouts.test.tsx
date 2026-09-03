@@ -220,7 +220,7 @@ describe('wall layouts', () => {
     expect(timelineDropPatch(items, dropOn('a', 'a'))).toBeNull();
   });
 
-  it('makes the columns strip horizontally scrollable with snap and vertical card scroll per column', () => {
+  it('wraps columns into a responsive grid that scrolls vertically, never sideways', () => {
     const columns = makeSession({
       layout: 'columns',
       sections: [{ id: 'c1', label: 'Claims' }],
@@ -234,12 +234,11 @@ describe('wall layouts', () => {
         onMove={vi.fn()}
       />
     );
-    const strip = screen.getByTestId('aw-layout-columns');
-    expect(strip).toHaveStyle({ scrollSnapType: 'x proximity' });
-    const column = screen.getByTestId('aw-dropzone-c1');
-    expect(column).toHaveStyle({ scrollSnapAlign: 'start' });
-    // Card list inside the column scrolls independently so cards never clip at the bottom.
-    expect(column.querySelector('.overflow-y-auto')).not.toBeNull();
+    const board = screen.getByTestId('aw-layout-columns');
+    expect(board.className).toContain('overflow-y-auto');
+    expect(board.className).toContain('overflow-x-hidden');
+    expect(board.style.gridTemplateColumns).toContain('auto-fit');
+    expect(screen.getByTestId('aw-dropzone-c1')).toBeInTheDocument();
   });
 
   it('offers drag handles in widget mode when onMove is supplied, never in gallery', () => {

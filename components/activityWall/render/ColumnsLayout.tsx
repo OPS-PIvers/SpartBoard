@@ -21,7 +21,8 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
   const sections = session.sections ?? [];
   // Drag belongs to whoever was handed a move callback; only the read-only gallery is exempt.
   const canMove = mode !== 'gallery' && Boolean(onMove);
-  const columnMinWidth = mode === 'widget' ? 'min(180px, 60cqw)' : '180px';
+  // Columns wrap into rows when the surface is narrow instead of side-scrolling.
+  const columnMinWidth = mode === 'widget' ? 'min(180px, 100%)' : '220px';
 
   const columns = [...sections, { id: UNSORTED_ID, label: 'Unsorted' }].filter(
     (column) =>
@@ -51,12 +52,11 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
 
   const board = (
     <div
-      className="flex h-full w-full items-start overflow-x-auto overflow-y-hidden"
+      className="grid h-full w-full content-start overflow-y-auto overflow-x-hidden"
       style={{
         gap: scale.gap,
         padding: scale.pad,
-        scrollSnapType: 'x proximity',
-        scrollbarGutter: 'stable',
+        gridTemplateColumns: `repeat(auto-fit, minmax(${columnMinWidth}, 1fr))`,
         scrollbarWidth: 'thin',
       }}
       data-testid="aw-layout-columns"
@@ -66,13 +66,8 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
           key={column.id}
           id={column.id}
           disabled={!canMove}
-          className="flex h-full flex-1 flex-col rounded-xl border border-white/10 bg-white/5"
-          style={{
-            gap: scale.gap,
-            padding: scale.pad,
-            minWidth: columnMinWidth,
-            scrollSnapAlign: 'start',
-          }}
+          className="flex min-w-0 flex-col rounded-xl border border-white/10 bg-white/5"
+          style={{ gap: scale.gap, padding: scale.pad }}
         >
           <h3
             className="shrink-0 font-bold uppercase tracking-wide text-slate-200"
@@ -80,10 +75,7 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
           >
             {column.label}
           </h3>
-          <div
-            className="flex min-h-0 flex-1 flex-col overflow-y-auto"
-            style={{ gap: scale.gap }}
-          >
+          <div className="flex min-w-0 flex-col" style={{ gap: scale.gap }}>
             {cardsFor(column.id).map((submission) => (
               <DraggableCard
                 key={submission.id}
