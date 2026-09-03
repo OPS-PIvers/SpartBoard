@@ -342,8 +342,20 @@ describe('DashboardContext PII backup with no live Drive connection', () => {
 
     // The save must fail loudly (matching the existing Drive-upload-failure
     // path) rather than silently succeeding with data loss.
-    const errorToast = stateRef.current?.toasts.find((t) => t.type === 'error');
-    expect(errorToast?.message).toContain('Failed to save the new board order');
+    const errorToasts =
+      stateRef.current?.toasts.filter((t) => t.type === 'error') ?? [];
+    expect(
+      errorToasts.some((t) =>
+        t.message.includes('Failed to save the new board order')
+      )
+    ).toBe(true);
+
+    // The abort routes through `authError`, so the teacher also gets the
+    // actionable "Reconnect" toast rather than only a generic sync failure.
+    const reconnectToast = errorToasts.find((t) =>
+      t.message.includes('Google Drive connection expired')
+    );
+    expect(reconnectToast?.action?.label).toBe('Reconnect');
 
     // The in-memory dashboard still has its PII field, ready to be backed up
     // and saved successfully once the Drive connection is restored.
