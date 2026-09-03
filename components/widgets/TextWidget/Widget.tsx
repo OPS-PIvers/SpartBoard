@@ -393,7 +393,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               >
                 <div
                   ref={editorRef}
-                  className="w-full outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400/60 empty:before:pointer-events-none"
+                  className="rich-text-content w-full outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400/60 empty:before:pointer-events-none"
                   style={{
                     padding: 'min(16px, 3.5cqmin)',
                     color: fontColor,

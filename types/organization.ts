@@ -37,6 +37,7 @@ export type CapabilityId =
   | 'configureWidgets'
   | 'manageBackgrounds'
   | 'postAnnouncements'
+  | 'manageHelpResources'
   // Organization
   | 'editOrg'
   | 'manageDomains'

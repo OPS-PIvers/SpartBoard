@@ -46,6 +46,7 @@ import {
   DashboardSettings,
 } from '@/types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
+import { resolveWindowBackgroundHex } from '@/config/widgetAppearance';
 import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
@@ -189,6 +190,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const {
     updateWidget,
     removeWidget,
+    undoWidgets,
     duplicateWidget,
     bringToFront,
     addToast,
@@ -198,6 +200,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     ungroupWidgets,
     setGroupBuildMode,
     setSelectedWidgetIds,
+    recordWidgetSnapshot,
   } = useDashboardActions();
   // Narrow primitive-returning subscriptions — foreign widget mutations
   // (another widget's selection, z-order, config) bail out via Object.is
@@ -212,6 +215,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const groupBuildMode = useDashboardCanvasSelector((s) => s.groupBuildMode);
   // Event-handler-time canvas reads (no render subscription).
   const getCanvasState = useDashboardCanvasStateGetter();
+
+  const closeWidget = React.useCallback(() => {
+    // Pin the undo to this board — the toast outlives a board switch.
+    const boardId = getCanvasState().activeDashboard?.id;
+    removeWidget(widget.id);
+    addToast(t('widgetWindow.closedToast'), 'info', {
+      label: t('widgetWindow.undo'),
+      onClick: () => undoWidgets(boardId),
+    });
+  }, [removeWidget, addToast, t, undoWidgets, widget.id, getCanvasState]);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -513,6 +526,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   >([]);
   // Track drag delta for group sibling commit (works for both DOM and state-driven widgets)
   const groupDragDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // True while a group gesture owns its own single undo entry.
+  const groupDragActiveRef = useRef(false);
 
   // Set to true by the Escape handler before calling setIsEditingTitle(false).
   // Checked by saveTitle to short-circuit the Firestore write when Escape
@@ -949,7 +964,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       e.preventDefault();
       e.stopPropagation();
       if (skipCloseConfirmation) {
-        removeWidget(widget.id);
+        closeWidget();
       } else {
         setShowConfirm(true);
         handleCloseTools();
@@ -1082,6 +1097,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       groupSiblingsRef.current = [];
     }
 
+    // A group drag mutates through per-frame leader updates plus one sibling
+    // batch at release. Snapshot once here and suppress the per-call records
+    // so a single Ctrl+Z restores the whole group.
+    const isGroupDrag = groupSiblingsRef.current.length > 0;
+    groupDragActiveRef.current = isGroupDrag;
+    if (isGroupDrag) recordWidgetSnapshot();
+
     document.body.classList.add('is-dragging-widget');
     const initialMouseX = e.clientX;
     const initialMouseY = e.clientY;
@@ -1118,6 +1140,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
       }
+      groupDragActiveRef.current = false;
     };
 
     const onPointerMove = (moveEvent: PointerEvent) => {
@@ -1215,11 +1238,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             dragState.current.x = newX;
             dragState.current.y = newY;
           }
+        } else if (groupDragActiveRef.current) {
+          updateWidget(widget.id, { x: newX, y: newY }, { skipHistory: true });
         } else {
-          updateWidget(widget.id, {
-            x: newX,
-            y: newY,
-          });
+          updateWidget(widget.id, { x: newX, y: newY });
         }
 
         // Move group siblings via direct DOM manipulation, each clamped to
@@ -1291,10 +1313,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           dragState.current &&
           (dragState.current.x !== widget.x || dragState.current.y !== widget.y)
         ) {
-          updateWidget(widget.id, {
-            x: dragState.current.x,
-            y: dragState.current.y,
-          });
+          const finalPos = { x: dragState.current.x, y: dragState.current.y };
+          if (groupDragActiveRef.current) {
+            updateWidget(widget.id, finalPos, { skipHistory: true });
+          } else {
+            updateWidget(widget.id, finalPos);
+          }
         }
       }
 
@@ -1320,7 +1344,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               vh
             );
             return { id: sib.id, changes: { x: c.x, y: c.y } };
-          })
+          }),
+          { skipHistory: true }
         );
         for (const sib of groupSiblingsRef.current) {
           setWidgetOverride(sib.id, null);
@@ -1328,6 +1353,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
       }
+      groupDragActiveRef.current = false;
 
       // Gesture finished normally — disarm the unmount cleanup.
       activeGestureCleanupRef.current = null;
@@ -1989,7 +2015,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       } else if (key === 'Delete') {
         if (!isLocked) {
           if (skipCloseConfirmation) {
-            removeWidget(widget.id);
+            closeWidget();
           } else {
             setShowConfirm(true);
             handleCloseTools();
@@ -2005,6 +2031,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         handleCustomKeyboard
       );
   }, [
+    closeWidget,
     widget.id,
     widget.flipped,
     showConfirm,
@@ -2165,7 +2192,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       className={`absolute select-none widget group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
         isMaximized ? 'border-none !shadow-none' : ''
       } ${isGroupActive || isGroupBuildSelected ? 'ring-2 ring-brand-blue-light/60' : ''}`}
-      bgClass={widget.backgroundColor}
+      bgHex={resolveWindowBackgroundHex(widget.backgroundColor)}
       style={{
         left: isMaximized
           ? 0
@@ -2311,7 +2338,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isLocked) removeWidget(widget.id);
+                  if (!isLocked) closeWidget();
                 }}
                 disabled={isLocked}
                 className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3357,7 +3384,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   <IconButton
                     onClick={() => {
                       if (skipCloseConfirmation) {
-                        removeWidget(widget.id);
+                        closeWidget();
                       } else {
                         setShowConfirm(true);
                         handleCloseTools();

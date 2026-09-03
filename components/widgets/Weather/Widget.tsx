@@ -13,7 +13,7 @@ import {
   GlobalWeatherData,
 } from '@/types';
 import { Sun, Cloud, CloudRain, CloudSnow, Wind } from 'lucide-react';
-import { getFontClass } from '@/utils/styles';
+import { getFontClass, hexToRgba } from '@/utils/styles';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
@@ -35,6 +35,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     syncBackground,
     fontFamily = 'global',
     fontColor = '#334155',
+    secondaryColor,
+    cardColor = '#ffffff',
+    cardOpacity = 1,
   } = config;
 
   const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
@@ -304,8 +307,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 style={{
                   fontSize: hideClothing ? 'min(12cqh, 10cqw)' : '5cqmin',
                   marginTop: hideClothing ? '1cqh' : 'min(2px, 0.5cqmin)',
-                  color: fontColor,
-                  opacity: 0.8,
+                  color: secondaryColor ?? fontColor,
+                  opacity: secondaryColor ? 1 : 0.8,
                 }}
               >
                 {showFeelsLike
@@ -317,8 +320,10 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
           {!hideClothing && (
             <div
-              className="w-full bg-white border border-slate-200 rounded-2xl flex items-center shadow-sm"
+              data-testid="weather-clothing-card"
+              className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-sm"
               style={{
+                backgroundColor: hexToRgba(cardColor, cardOpacity),
                 gap: 'min(16px, 4cqmin)',
                 padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)',
               }}

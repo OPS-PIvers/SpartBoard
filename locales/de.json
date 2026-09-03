@@ -1185,7 +1185,8 @@
     "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?",
     "clearBoardTitle": "Tafel löschen",
     "minimizedToast": "Minimiert — im Dock zu finden",
-    "minimizedAllToast": "Alle Widgets minimiert"
+    "minimizedAllToast": "Alle Widgets minimiert",
+    "closedToast": "Widget geschlossen"
   },
   "login": {
     "signInToAccess": "Melde dich an, um auf deine Tafeln zuzugreifen",
@@ -1316,57 +1317,8 @@
           "hint": "Öffnen Sie die Seitenleiste und klicken Sie auf + Neue Tafel"
         },
         "openCheatsheet": {
-          "label": "Tastenkürzel öffnen",
           "hint": "Drücken Sie Strg/⌘+/ oder klicken Sie auf das ?-Symbol unten rechts"
         }
-      }
-    },
-    "cheatSheet": {
-      "title": "Tastenkürzel & Gesten",
-      "keyboard": "Tastatur",
-      "touchscreenGestures": "Touchscreen-Gesten",
-      "boardGestures": "Tafel-Hintergrund",
-      "widgetGestures": "Widget-Fenster",
-      "footer": "Drücken Sie jederzeit <kbd>Strg/⌘</kbd> + <kbd>/</kbd>, um dieses Panel zu öffnen",
-      "shortcuts": {
-        "openCheatSheet": "Diese Übersicht öffnen",
-        "switchBoards": "Tafeln wechseln",
-        "widgetSettings": "Widget-Einstellungen öffnen / schließen",
-        "annotate": "Anmerkungsmodus umschalten",
-        "maximize": "Widget maximieren / wiederherstellen",
-        "resetSize": "Widget auf Standardgröße zurücksetzen",
-        "minimizeFocused": "Fokussiertes Widget minimieren",
-        "minimizeAll": "Alle Widgets minimieren",
-        "closeFocused": "Fokussiertes Widget schließen",
-        "clearBoard": "Gesamte Tafel löschen"
-      },
-      "gestures": {
-        "switchBoards": "Tafeln wechseln",
-        "minimizeAll": "Alle zum Dock minimieren",
-        "restoreAll": "Alle Widgets wiederherstellen",
-        "toggleAnnotation": "Anmerkungsmodus umschalten (ca. 0,6 s halten)",
-        "screenshot": "Screenshot aufnehmen",
-        "minimizeWidget": "Widget minimieren",
-        "minimizeOrRestoreWidget": "Widget minimieren (oder wiederherstellen wenn maximiert)",
-        "openSidebar": "Seitenleiste öffnen",
-        "fullscreen": "Vollbild umschalten",
-        "maximizeWidget": "Widget maximieren (erneut ↑ wischen für Spotlight)",
-        "spotlight": "Widget im Vordergrund",
-        "resize": "Widget-Größe ändern",
-        "panBoard": "Tafel verschieben"
-      },
-      "gestureNames": {
-        "oneFingerDoubleTap": "1-Finger-Doppeltippen",
-        "oneFingerLongPress": "1-Finger-Langer Druck",
-        "oneFingerDrag": "1-Finger-Ziehen auf Hintergrund",
-        "oneFingerSwipeEdge": "1-Finger-Wischen vom linken Rand",
-        "twoFingerSwipeLR": "2-Finger-Wischen ←/→",
-        "twoFingerSwipeDown": "2-Finger-Wischen ↓",
-        "twoFingerSwipeUp": "2-Finger-Wischen ↑",
-        "twoFingerLongPress": "2-Finger-Langer Druck",
-        "dragDownToDock": "Nach unten zum Dock ziehen ↓",
-        "widgetTwoFingerSwipeDown": "2-Finger-Wischen ↓",
-        "widgetTwoFingerSwipeUp": "2-Finger-Wischen ↑"
       }
     },
     "dashboard": {
@@ -1446,7 +1398,10 @@
         "lightJacket": "Leichte Jacke",
         "longSleeves": "Lange Ärmel",
         "shortSleeves": "Kurze Ärmel"
-      }
+      },
+      "secondaryColor": "Farbe des Zusatztexts",
+      "matchText": "Wie Text",
+      "clothingCard": "Kleidungskarte"
     },
     "clock": {
       "format24": "24-Stunden-Format",
@@ -1465,7 +1420,9 @@
         "default": "Standard",
         "lcd": "LCD-Panel",
         "minimal": "Minimalistisch"
-      }
+      },
+      "dateColor": "Datumsfarbe",
+      "matchTime": "Wie Uhrzeit"
     },
     "seatingChart": {
       "emptyStateAssignTitle": "Leeres Klassenzimmer",
@@ -2249,6 +2206,82 @@
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
+    }
+  },
+  "helpCenter": {
+    "title": "Hilfe",
+    "widgetHelp": "Anleitungen für dieses Widget",
+    "search": "Hilfe durchsuchen",
+    "close": "Hilfe schließen",
+    "noResults": "Keine Treffer für deine Suche",
+    "onboardingTask": "Das Hilfe-Center öffnen",
+    "footer": "Drücke jederzeit <kbd>Strg/⌘</kbd> + <kbd>/</kbd>, um die Hilfe zu öffnen",
+    "tabs": {
+      "shortcuts": "Tastenkürzel",
+      "guides": "Anleitungen"
+    },
+    "sections": {
+      "keyboard": "Tastenkürzel",
+      "gestures": "Touchscreen-Gesten"
+    },
+    "groups": {
+      "board": "Tafel",
+      "widget": "Widget"
+    },
+    "guides": {
+      "allCategories": "Alle",
+      "categories": "Kategorien",
+      "empty": "Deine Administration hat noch keine Anleitungen hinzugefügt",
+      "noMatches": "Keine Anleitungen passen zu deiner Suche",
+      "back": "Zurück",
+      "open": "Öffnen",
+      "openExternal": "In neuem Tab öffnen",
+      "orgBadge": "Deine Schule",
+      "clearWidgetFilter": "Widget-Filter entfernen",
+      "activityUnavailable": "Diese Aktivität ist nicht mehr verfügbar",
+      "kinds": {
+        "docs": "Dokumente",
+        "slides": "Präsentationen",
+        "videos": "Videos",
+        "activities": "Aktivitäten",
+        "other": "Sonstiges"
+      }
+    },
+    "shortcuts": {
+      "open-help": "Hilfe öffnen",
+      "switch-boards": "Tafel wechseln",
+      "zoom-board": "Tafel vergrößern und verkleinern",
+      "pin-widget": "Widget anheften / lösen",
+      "widget-settings": "Widget-Einstellungen öffnen / schließen",
+      "annotate": "Zeichenmodus umschalten",
+      "maximize": "Widget maximieren / wiederherstellen",
+      "reset-size": "Widget auf Standardgröße zurücksetzen",
+      "minimize-focused": "Fokussiertes Widget minimieren",
+      "minimize-all": "Alle Widgets minimieren",
+      "close-focused": "Fokussiertes Widget schließen",
+      "clear-board": "Gesamte Tafel leeren",
+      "annotation-delete-selected": "Ausgewählte Anmerkung löschen",
+      "annotation-nudge": "Ausgewählte Anmerkung verschieben"
+    },
+    "gestures": {
+      "two-finger-swipe-lr": "2-Finger-Wischen ←/→",
+      "two-finger-swipe-lrDescription": "Tafel wechseln",
+      "two-finger-swipe-up": "2-Finger-Wischen ↑ auf dem Hintergrund",
+      "two-finger-swipe-upDescription": "Alle Widgets wiederherstellen",
+      "one-finger-drag": "1-Finger-Ziehen auf dem Hintergrund",
+      "one-finger-dragDescription": "Tafel im Zoom verschieben",
+      "one-finger-swipe-edge": "1-Finger-Wischen vom linken Rand",
+      "one-finger-swipe-edgeDescription": "Seitenleiste öffnen",
+      "one-finger-double-tap": "1-Finger-Doppeltippen",
+      "one-finger-double-tapDescription": "Vollbild umschalten",
+      "widget-two-finger-swipe-down-restore": "2-Finger-Wischen ↓ auf einem Widget",
+      "widget-two-finger-swipe-down-restoreDescription": "Maximiertes Widget auf Normalgröße zurücksetzen",
+      "widget-two-finger-swipe-up": "2-Finger-Wischen ↑ auf einem Widget",
+      "widget-two-finger-swipe-upDescription": "Widget maximieren oder hervorheben, wenn es bereits maximiert ist",
+      "two-finger-long-press": "2-Finger langes Drücken auf einem Widget",
+      "two-finger-long-pressDescription": "Zeichenmodus umschalten (ca. 0,6 s halten)",
+      "one-finger-long-press": "1-Finger langes Drücken auf einem Widget",
+      "one-finger-long-pressDescription": "Screenshot aufnehmen (ca. 0,6 s halten)"
     }
   }
 }
