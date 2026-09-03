@@ -1249,3 +1249,98 @@ describe('QuizDriveService.regeneratePlcSheet — peer-row preservation', () => 
     errSpy.mockRestore();
   });
 });
+
+describe('QuizDriveService.exportResultsToSheet — Question Analysis Avg %', () => {
+  let service: QuizDriveService;
+  beforeEach(() => {
+    service = new QuizDriveService('test-token');
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const frq: QuizQuestion = {
+    id: 'q1',
+    text: 'Question q1 essay',
+    type: 'free-response',
+    correctAnswer: '',
+    incorrectAnswers: [],
+    timeLimit: 0,
+    points: 10,
+  };
+
+  const queueCreate = (): FetchSpy =>
+    queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+
+  it('adds an Avg % column after % Correct', async () => {
+    const fetchSpy = queueCreate();
+    await service.exportResultsToSheet(
+      'Hdr',
+      [makeResponse({ pin: '01' })],
+      [makeQuestion('q1')]
+    );
+    const rows = extractAllRows(fetchSpy);
+    const header =
+      rows[rows.findIndex((r) => r[0] === 'Question Analysis') + 1];
+    expect(header.slice(4)).toEqual([
+      '# Correct',
+      '# Answered',
+      '% Correct',
+      'Avg %',
+    ]);
+    // Auto rows keep their counts and mirror the percent into Avg %.
+    const row = findAnalysisRow(rows, 'q1');
+    expect(row.slice(4)).toEqual(['1', '1', '100%', '100%']);
+  });
+
+  it('reports the average earned percent for a free-response question', async () => {
+    const fetchSpy = queueCreate();
+    await service.exportResultsToSheet(
+      'FRQ',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [{ questionId: 'q1', answer: 'because', answeredAt: 0 }],
+          grading: { q1: { pointsAwarded: 8, gradedBy: 't', gradedAt: 1 } },
+        }),
+        makeResponse({
+          pin: '02',
+          answers: [{ questionId: 'q1', answer: 'because', answeredAt: 0 }],
+          grading: { q1: { pointsAwarded: 6, gradedBy: 't', gradedAt: 1 } },
+        }),
+        makeResponse({
+          pin: '03',
+          answers: [{ questionId: 'q1', answer: 'because', answeredAt: 0 }],
+        }),
+      ],
+      [frq]
+    );
+    const row = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    // # Correct and % Correct are blank for a manually graded question.
+    expect(row.slice(4)).toEqual(['', '3', '', '70%']);
+  });
+
+  it('leaves Avg % blank when no free-response answer is graded yet', async () => {
+    const fetchSpy = queueCreate();
+    await service.exportResultsToSheet(
+      'FRQ',
+      [
+        makeResponse({
+          pin: '01',
+          answers: [{ questionId: 'q1', answer: 'because', answeredAt: 0 }],
+        }),
+      ],
+      [frq]
+    );
+    const row = findAnalysisRow(extractAllRows(fetchSpy), 'q1');
+    expect(row.slice(4)).toEqual(['', '1', '', '']);
+  });
+});
