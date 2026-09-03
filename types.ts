@@ -7053,6 +7053,9 @@ export interface Dashboard {
   annotationOverlay?: {
     objects: DrawableObject[];
     updatedAt?: number;
+    /** Canvas the ink was authored on, so a different window scales it. */
+    canvasWidth?: number;
+    canvasHeight?: number;
   };
 }
 

@@ -101,9 +101,11 @@ import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import {
-  ANNOTATION_HARD_LIMIT_BYTES,
   ANNOTATION_SOFT_LIMIT_BYTES,
   estimateAnnotationBytes,
+  estimateWidgetBytes,
+  getAnnotationCapReason,
+  getAnnotationWorldRect,
 } from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
 import {
@@ -212,6 +214,17 @@ const stripDerivedPixels = (w: WidgetData) => {
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
 
+/**
+ * Annotation ink for change-detection. `updatedAt` is deliberately excluded —
+ * it is a write stamp, not content, and would make every board look dirty.
+ */
+const serializeAnnotationOverlay = (d: Dashboard): string =>
+  JSON.stringify({
+    objects: d.annotationOverlay?.objects ?? [],
+    canvasWidth: d.annotationOverlay?.canvasWidth,
+    canvasHeight: d.annotationOverlay?.canvasHeight,
+  });
+
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
   JSON.stringify({
@@ -227,6 +240,8 @@ const serializeDashboard = (d: Dashboard): string =>
     name: d.name,
     libraryOrder: d.libraryOrder,
     settings: d.settings,
+    // Ink-only edits must mark the board dirty so autosave picks them up.
+    annotationOverlay: serializeAnnotationOverlay(d),
   });
 
 /** Capture the serialized state used to populate lastSaved* refs. */
@@ -238,6 +253,7 @@ const getDashboardSaveState = (d: Dashboard) => ({
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
     settings: JSON.stringify(d.settings ?? {}),
+    annotationOverlay: serializeAnnotationOverlay(d),
   },
 });
 
@@ -1770,6 +1786,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const settingsChangedLocally =
                 JSON.stringify(currentActive.settings ?? {}) !==
                 (lastSavedFieldsRef.current.settings ?? '{}');
+              // Unsaved ink must survive an incoming snapshot, same as name
+              // and background — otherwise every remote echo erases it.
+              const annotationOverlayChangedLocally =
+                serializeAnnotationOverlay(currentActive) !==
+                lastSavedFieldsRef.current.annotationOverlay;
 
               // Per-widget merge: only keep a widget's local config when THAT
               // specific widget changed locally (e.g. running timer). Accept the
@@ -1986,6 +2007,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   db.settings ?? {}
                 );
               }
+              if (!annotationOverlayChangedLocally) {
+                lastSavedFieldsRef.current.annotationOverlay =
+                  serializeAnnotationOverlay(db);
+              }
 
               // For widgets, construct the array of what we would have saved if we had
               // accepted the server's widget baseline for non-locally-modified widgets.
@@ -2052,6 +2077,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 settings: settingsChangedLocally
                   ? currentActive.settings
                   : db.settings,
+                annotationOverlay: annotationOverlayChangedLocally
+                  ? currentActive.annotationOverlay
+                  : db.annotationOverlay,
               };
             }
             return db;
@@ -2312,7 +2340,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     name: string;
     libraryOrder: string;
     settings: string;
-  }>({ widgets: '', background: '', name: '', libraryOrder: '', settings: '' });
+    annotationOverlay: string;
+  }>({
+    widgets: '',
+    background: '',
+    name: '',
+    libraryOrder: '',
+    settings: '',
+    annotationOverlay: '',
+  });
 
   useEffect(() => {
     // Capture ref value for stable cleanup (react-hooks/exhaustive-deps)
@@ -2446,6 +2482,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         name: active.name,
         libraryOrder: JSON.stringify(active.libraryOrder),
         settings: JSON.stringify(active.settings),
+        annotationOverlay: serializeAnnotationOverlay(active),
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
@@ -5722,23 +5759,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (next: DrawableObject[]): boolean => {
       const id = activeIdRef.current;
       if (!id) return false;
-      const current =
-        dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
-          ?.objects ?? [];
-      // Persistent ink shares the dashboard doc: guard growth only.
+      const board = dashboardsRef.current.find((d) => d.id === id);
+      const overlay = board?.annotationOverlay;
+      const current = overlay?.objects ?? [];
+      // Ink and widgets share one 1 MiB document: measure both together.
       const nextBytes = estimateAnnotationBytes(next);
       const currentBytes = estimateAnnotationBytes(current);
+      const widgetBytes = estimateWidgetBytes(board?.widgets);
       if (nextBytes > currentBytes) {
-        if (nextBytes > ANNOTATION_HARD_LIMIT_BYTES) {
+        const capped = getAnnotationCapReason(nextBytes, widgetBytes);
+        if (capped) {
           addToast(
-            'Annotation layer is full. Clear it (trash) to keep drawing.',
+            capped === 'ink'
+              ? 'The annotation layer is full. Clear it (trash) to keep drawing.'
+              : 'This board is full, so the annotation layer cannot take more ink. Clear it (trash) or remove a widget.',
             'error'
           );
           return false;
         }
         if (
-          nextBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
-          currentBytes <= ANNOTATION_SOFT_LIMIT_BYTES
+          nextBytes + widgetBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
+          currentBytes + widgetBytes <= ANNOTATION_SOFT_LIMIT_BYTES
         ) {
           addToast(
             'Annotations on this board are getting large. Clear old ink soon.',
@@ -5746,6 +5787,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         }
       }
+      // Ink stores coordinates in the canvas it was authored on. Stamp that
+      // size once (when the layer goes from empty to inked) and keep it, so
+      // a different window scales the ink instead of clipping it.
+      const authored =
+        current.length > 0 && overlay?.canvasWidth && overlay?.canvasHeight
+          ? { width: overlay.canvasWidth, height: overlay.canvasHeight }
+          : getAnnotationWorldRect(
+              typeof window === 'undefined' ? 1280 : window.innerWidth,
+              typeof window === 'undefined' ? 720 : window.innerHeight
+            );
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -5756,6 +5807,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 annotationOverlay: {
                   objects: next,
                   updatedAt: Date.now(),
+                  ...(next.length > 0
+                    ? {
+                        canvasWidth: authored.width,
+                        canvasHeight: authored.height,
+                      }
+                    : {}),
                 },
               }
             : d
@@ -5808,15 +5865,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setAnnotationActive(false);
   }, []);
 
+  // Returns false when an `objects` write was refused (no board or size cap).
   const updateAnnotationState = useCallback(
-    (updates: Partial<AnnotationState>) => {
-      const { objects: nextObjects, ...rest } = updates;
+    (updates: Partial<AnnotationState>): boolean => {
+      // Canvas size is derived from the stored ink, never set by a consumer.
+      const {
+        objects: nextObjects,
+        canvasWidth: _cw,
+        canvasHeight: _ch,
+        ...rest
+      } = updates;
       if (Object.keys(rest).length > 0) {
         setAnnotationLocalState((prev) => ({ ...prev, ...rest }));
       }
       if (nextObjects !== undefined) {
-        setActiveAnnotationObjects(nextObjects);
+        return setActiveAnnotationObjects(nextObjects);
       }
+      return true;
     },
     [setActiveAnnotationObjects]
   );
@@ -5970,9 +6035,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     () => ({
       ...annotationLocalState,
       objects: activeDashboard?.annotationOverlay?.objects ?? [],
+      canvasWidth: activeDashboard?.annotationOverlay?.canvasWidth,
+      canvasHeight: activeDashboard?.annotationOverlay?.canvasHeight,
     }),
-    [annotationLocalState, activeDashboard?.annotationOverlay?.objects]
+    [
+      annotationLocalState,
+      activeDashboard?.annotationOverlay?.objects,
+      activeDashboard?.annotationOverlay?.canvasWidth,
+      activeDashboard?.annotationOverlay?.canvasHeight,
+    ]
   );
+
+  // Undo is session-scoped and per-author, so "there is ink" is not enough —
+  // mirror `undoAnnotation`'s scan so the button disables when it is a no-op.
+  const canUndoAnnotation = useMemo(() => {
+    if (!annotationActive) return false;
+    const sessionIds = annotationSessionIdsRef.current;
+    const uid = user?.uid;
+    return (activeDashboard?.annotationOverlay?.objects ?? []).some(
+      (o) => !sessionIds.has(o.id) && (!uid || o.authorUid === uid)
+    );
+  }, [
+    annotationActive,
+    activeDashboard?.annotationOverlay?.objects,
+    user?.uid,
+  ]);
 
   // ---- Canvas hot-path surfaces (whole-board re-render fix, Stage 1) ----
   // Latest-ref delegation: the ref is reassigned with the freshest action
@@ -6197,6 +6284,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       removeAnnotationObject,
       undoAnnotation,
       redoAnnotation,
+      canUndoAnnotation,
       canRedoAnnotation: annotationRedoStack.length > 0,
       clearAnnotation,
     }),
@@ -6314,6 +6402,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       undoAnnotation,
       redoAnnotation,
       annotationRedoStack.length,
+      canUndoAnnotation,
       clearAnnotation,
     ]
   );

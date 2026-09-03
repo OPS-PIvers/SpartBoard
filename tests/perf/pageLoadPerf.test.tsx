@@ -312,6 +312,7 @@ const { dashboardValue } = vi.hoisted(() => {
     removeAnnotationObject: noop,
     undoAnnotation: noop,
     redoAnnotation: noop,
+    canUndoAnnotation: false,
     canRedoAnnotation: false,
     clearAnnotation: noop,
     zoom: 1,

@@ -72,6 +72,7 @@ import {
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
+import { getAnnotationWorldRect } from '@/utils/annotationSize';
 import { nextZ } from '@/utils/migrateDrawingConfig';
 
 const TOOL_BUTTONS: ReadonlyArray<{
@@ -124,6 +125,7 @@ export const AnnotationOverlay: React.FC = () => {
     removeAnnotationObject,
     undoAnnotation,
     redoAnnotation,
+    canUndoAnnotation,
     canRedoAnnotation,
     clearAnnotation,
     activeDashboard,
@@ -234,14 +236,39 @@ export const AnnotationOverlay: React.FC = () => {
   const handleClear = useCallback(async () => {
     const ok = await showConfirm(
       'Clear all annotations on this board? This cannot be undone.',
-      { confirmLabel: 'Clear' }
+      { title: 'Clear annotations', variant: 'danger', confirmLabel: 'Clear' }
     );
     if (ok) clearAnnotation();
   }, [showConfirm, clearAnnotation]);
 
-  const canvasSize = useMemo(
-    () => ({ width: viewport.width, height: viewport.height }),
+  // The canvas covers the whole world rect, not the viewport: at ZOOM_MIN the
+  // zoom surface shows the entire world, so a viewport-sized canvas would
+  // leave the outer band un-inkable and passing through to the widgets.
+  const worldRect = useMemo(
+    () => getAnnotationWorldRect(viewport.width, viewport.height),
     [viewport.width, viewport.height]
+  );
+
+  // Internal resolution = the canvas the ink was authored on; the browser
+  // scales that bitmap into the world-rect CSS box and the pointer helpers'
+  // getBoundingClientRect ratio maps clicks back into it, so ink drawn on a
+  // laptop lands proportionally on a projector. Zero until `canvasTarget`
+  // resolves — the canvas mounts a render after the size/draw effect first
+  // ran, so without that transition persisted ink would never paint on load.
+  const canvasSize = useMemo(
+    () =>
+      canvasTarget
+        ? {
+            width: annotationState.canvasWidth ?? worldRect.width,
+            height: annotationState.canvasHeight ?? worldRect.height,
+          }
+        : { width: 0, height: 0 },
+    [
+      canvasTarget,
+      annotationState.canvasWidth,
+      annotationState.canvasHeight,
+      worldRect,
+    ]
   );
 
   const handleTextSpawn = useCallback((obj: TextObject) => {
@@ -263,17 +290,19 @@ export const AnnotationOverlay: React.FC = () => {
           // Re-edit erased to empty → remove the existing object.
           removeAnnotationObject(existing.id);
         } else {
-          // Re-edit: replace in place via the shared objects path.
+          // Re-edit: replace in place via the shared objects path. A refused
+          // write (size cap) keeps the editor open so the typed text isn't
+          // silently discarded.
           const replaced = annotationState.objects.map((o) =>
             o.id === next.id ? next : o
           );
-          updateAnnotationState({ objects: replaced });
+          if (!updateAnnotationState({ objects: replaced })) return;
         }
       } else if (!isEmpty) {
         // First commit of a freshly spawned object — append via the
         // standard add path so it picks up authorUid stamping for the
         // per-author undo logic.
-        addAnnotationObject(next);
+        if (!addAnnotationObject(next)) return;
       }
       // Fresh spawn + empty falls through with no write — the unsaved local
       // object simply vanishes when we clear editingText below. Only clear
@@ -295,8 +324,8 @@ export const AnnotationOverlay: React.FC = () => {
     setEditingText(null);
   }, []);
 
-  // Image insertion parity with DrawingWidget. Annotations are cleared on
-  // close so image cleanup is automatic — no asset bookkeeping needed here.
+  // Image insertion parity with DrawingWidget. Inserted images persist with
+  // the board's ink until the teacher trashes the annotation layer.
   const handleImageReady = useCallback(
     ({
       src,
@@ -647,7 +676,7 @@ export const AnnotationOverlay: React.FC = () => {
       onDragOver={interactive ? handleImageDragOver : undefined}
       data-selected-id={selectedId ?? ''}
       data-inking-surface="true"
-      className={`absolute inset-0 ${
+      className={`absolute ${
         interactive
           ? activeTool === 'select'
             ? 'pointer-events-auto cursor-default'
@@ -655,6 +684,10 @@ export const AnnotationOverlay: React.FC = () => {
           : 'pointer-events-none'
       }`}
       style={{
+        left: worldRect.left,
+        top: worldRect.top,
+        width: worldRect.width,
+        height: worldRect.height,
         touchAction: interactive ? 'none' : 'auto',
         zIndex: Z_INDEX.overlay,
       }}
@@ -778,7 +811,7 @@ export const AnnotationOverlay: React.FC = () => {
             aria-label="Undo"
             variant="ghost"
             size="icon"
-            disabled={objects.length === 0}
+            disabled={!canUndoAnnotation}
             icon={<Undo2 className="w-4 h-4" />}
           />
           <Button

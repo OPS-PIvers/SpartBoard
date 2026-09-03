@@ -506,6 +506,13 @@ export const useDrawingCanvas = ({
       }
 
       setIsDrawing(true);
+      // Capture the pointer so a stroke that crosses the Dock, a widget, or
+      // the window edge keeps streaming to this canvas instead of truncating.
+      try {
+        canvasRef.current?.setPointerCapture?.(e.pointerId);
+      } catch {
+        // Some browsers throw for a pointer that is already released.
+      }
 
       if (activeTool === 'pen' || activeTool === 'eraser') {
         inProgressRef.current = {

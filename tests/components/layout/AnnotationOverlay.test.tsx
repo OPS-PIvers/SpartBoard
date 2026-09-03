@@ -10,6 +10,8 @@ import type {
   DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import type { DrawableObject, TextObject } from '@/types';
+import { getAnnotationWorldRect } from '@/utils/annotationSize';
+import { ZOOM_MIN } from '@/utils/zoomMapping';
 
 // Mock the auth and dashboard contexts. Both are accessed as plain hooks by
 // AnnotationOverlay, so vi.mock + vi.mocked is the standard pattern (mirrors
@@ -106,12 +108,16 @@ interface ContextOverrides {
   annotationState?: AnnotationState;
   annotationActive?: boolean;
   isActiveBoardReadOnly?: boolean;
+  canUndoAnnotation?: boolean;
+  /** What the shared-objects writers report back (false = refused by the cap). */
+  writesAccepted?: boolean;
 }
 
 const setupContext = (overrides: ContextOverrides = {}) => {
+  const accepted = overrides.writesAccepted ?? true;
   const removeAnnotationObject = vi.fn();
-  const addAnnotationObject = vi.fn();
-  const updateAnnotationState = vi.fn();
+  const addAnnotationObject = vi.fn().mockReturnValue(accepted);
+  const updateAnnotationState = vi.fn().mockReturnValue(accepted);
   const closeAnnotation = vi.fn();
   const undoAnnotation = vi.fn();
   const redoAnnotation = vi.fn();
@@ -124,6 +130,7 @@ const setupContext = (overrides: ContextOverrides = {}) => {
     annotationActive: overrides.annotationActive ?? true,
     annotationState: overrides.annotationState ?? baseState(),
     isActiveBoardReadOnly: overrides.isActiveBoardReadOnly ?? false,
+    canUndoAnnotation: overrides.canUndoAnnotation ?? true,
     canRedoAnnotation: false,
     activeDashboard: { id: 'b1', widgets: [] },
     closeAnnotation,
@@ -148,6 +155,7 @@ const setupContext = (overrides: ContextOverrides = {}) => {
     addAnnotationObject,
     updateAnnotationState,
     closeAnnotation,
+    clearAnnotation,
   };
 };
 
@@ -278,6 +286,62 @@ describe('AnnotationOverlay', () => {
     expect(removeAnnotationObject).toHaveBeenCalledWith('txt-erase-me');
     expect(updateAnnotationState).not.toHaveBeenCalled();
     expect(addAnnotationObject).not.toHaveBeenCalled();
+  });
+
+  // Regression: a text commit refused by the size cap still closed the editor,
+  // throwing away everything the teacher had just typed.
+  it('REGRESSION: a refused text commit keeps the editor open', async () => {
+    const existing: TextObject = {
+      id: 'txt-refused',
+      kind: 'text',
+      z: 1,
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 40,
+      content: 'before',
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    const { updateAnnotationState } = setupContext({
+      annotationState: baseState({ activeTool: 'select', objects: [existing] }),
+      writesAccepted: false,
+    });
+    const VIEWPORT_W = 1024;
+    const VIEWPORT_H = 768;
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      'getBoundingClientRect'
+    ).mockReturnValue({
+      left: 0,
+      top: 0,
+      width: VIEWPORT_W,
+      height: VIEWPORT_H,
+      right: VIEWPORT_W,
+      bottom: VIEWPORT_H,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    canvas.width = VIEWPORT_W;
+    canvas.height = VIEWPORT_H;
+    fireEvent.doubleClick(canvas, { clientX: 150, clientY: 110 });
+    const editor = (await waitFor(() => {
+      const node = document.querySelector('[role="textbox"]');
+      if (!node) throw new Error('Editor not yet mounted');
+      return node;
+    })) as HTMLElement;
+    editor.innerText = 'typed but refused';
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true });
+
+    expect(updateAnnotationState).toHaveBeenCalledTimes(1);
+    // The editor survives the refusal so the text can be trimmed and retried.
+    expect(document.querySelector('[role="textbox"]')).not.toBeNull();
   });
 
   // Asserts ordering only: closeAnnotation still wipes objects until the
@@ -462,6 +526,86 @@ describe('AnnotationOverlay — persistence + layout', () => {
     mockShowConfirm.mockResolvedValueOnce(true);
     fireEvent.click(trash);
     await waitFor(() => expect(clearAnnotation).toHaveBeenCalledTimes(1));
+  });
+
+  // Regression: the canvas moved into `#dashboard-zoom-surface` but stayed
+  // sized to the viewport, so at ZOOM_MIN only the central quarter of the
+  // screen accepted ink and the outer band fell through to the widgets.
+  it('REGRESSION: the canvas covers the world rect, so the viewport edge is inkable at ZOOM_MIN', () => {
+    setupContext();
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const expected = getAnnotationWorldRect(vw, vh);
+    expect(canvas.style.left).toBe(`${expected.left}px`);
+    expect(canvas.style.top).toBe(`${expected.top}px`);
+    expect(canvas.style.width).toBe(`${expected.width}px`);
+    expect(canvas.style.height).toBe(`${expected.height}px`);
+    expect(canvas.className).not.toContain('inset-0');
+
+    // Apply the zoom surface's `scale(ZOOM_MIN)` about its center and confirm
+    // the rendered canvas still spans the whole viewport.
+    const toScreen = (coord: number, size: number) =>
+      size / 2 + (coord - size / 2) * ZOOM_MIN;
+    expect(toScreen(expected.left, vw)).toBeLessThanOrEqual(0);
+    expect(toScreen(expected.left + expected.width, vw)).toBeGreaterThanOrEqual(
+      vw
+    );
+    expect(toScreen(expected.top, vh)).toBeLessThanOrEqual(0);
+    expect(toScreen(expected.top + expected.height, vh)).toBeGreaterThanOrEqual(
+      vh
+    );
+  });
+
+  // Regression: ink stored in raw viewport pixels clipped and drifted when the
+  // board was reopened on a projector. The canvas now renders at the authored
+  // resolution and the browser scales it into the world-rect box.
+  it('REGRESSION: renders at the authored canvas resolution, not the current one', () => {
+    setupContext({
+      annotationState: baseState({
+        objects: [stroke],
+        canvasWidth: 640,
+        canvasHeight: 480,
+      }),
+    });
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    expect(canvas.width).toBe(640);
+    expect(canvas.height).toBe(480);
+    // The CSS box still fills the world rect, so the ink scales to fit it.
+    const expected = getAnnotationWorldRect(
+      window.innerWidth,
+      window.innerHeight
+    );
+    expect(canvas.style.width).toBe(`${expected.width}px`);
+  });
+
+  // Regression: the destructive button autofocused, so Enter wiped the board.
+  it('REGRESSION: the clear-all confirm is a danger dialog', async () => {
+    setupContext({ annotationState: baseState({ objects: [stroke] }) });
+    mockShowConfirm.mockResolvedValueOnce(false);
+    render(<AnnotationOverlay />);
+    fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+    expect(mockShowConfirm.mock.calls[0][1]).toMatchObject({
+      variant: 'danger',
+      confirmLabel: 'Clear',
+    });
+  });
+
+  // Regression: Undo was enabled for pre-session ink but is session-scoped, so
+  // the click did nothing at all.
+  it('REGRESSION: Undo is disabled when the context reports nothing to undo', () => {
+    setupContext({
+      annotationState: baseState({ objects: [stroke] }),
+      canUndoAnnotation: false,
+    });
+    render(<AnnotationOverlay />);
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
   });
 
   it('with the toolbar closed, persisted ink renders inert and Escape does nothing', () => {

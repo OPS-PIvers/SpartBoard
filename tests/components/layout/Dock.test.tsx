@@ -243,13 +243,19 @@ function setupMocks({
   canAccessWidget = vi.fn().mockReturnValue(true),
   canAccessFeature = vi.fn().mockReturnValue(true),
   dockItems = [] as MockDockItem[],
+  addWidget = vi.fn(),
+  annotationActive = false,
+  annotationTool = 'pen' as string,
 }: {
   canAccessWidget?: ReturnType<typeof vi.fn>;
   canAccessFeature?: ReturnType<typeof vi.fn>;
   dockItems?: MockDockItem[];
+  addWidget?: ReturnType<typeof vi.fn>;
+  annotationActive?: boolean;
+  annotationTool?: string;
 } = {}) {
   vi.mocked(useDashboard).mockReturnValue({
-    addWidget: vi.fn(),
+    addWidget,
     removeWidget: vi.fn(),
     removeWidgets: vi.fn(),
     activeDashboard: null,
@@ -257,6 +263,8 @@ function setupMocks({
     addToast: vi.fn(),
     setPendingQuizShareId: vi.fn(),
     setPendingAssignmentShareId: vi.fn(),
+    annotationActive,
+    annotationState: { activeTool: annotationTool },
   } as unknown as ReturnType<typeof useDashboard>);
 
   // F9 — tool-visibility fields now live on their own context.
@@ -911,5 +919,60 @@ describe('Dock screen-record – recording filename uses local time, not UTC', (
     expect(anchors[anchors.length - 1].download).toBe(
       'SPART-Board-Recording-2026-03-05T23-45-00.webm'
     );
+  });
+});
+
+describe('Dock – annotation overlay guards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** Dispatch a window-level text paste the way a real Ctrl+V does. */
+  function pasteText(text: string) {
+    const event = new Event('paste', { bubbles: true }) as ClipboardEvent;
+    Object.defineProperty(event, 'clipboardData', {
+      value: { getData: () => text, files: [] },
+    });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+  }
+
+  it('smart-paste still adds a widget when the overlay is closed', () => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget, annotationActive: false });
+    render(<Dock />);
+    pasteText('https://example.com/photo.png');
+    expect(addWidget).toHaveBeenCalledTimes(1);
+  });
+
+  // Regression: the Dock now stays mounted during annotation, so Ctrl+V while
+  // inking used to add a widget (or navigate away on a share link) mid-stroke.
+  it('REGRESSION: a text paste while annotating never reaches smart paste', () => {
+    const addWidget = vi.fn();
+    setupMocks({ addWidget, annotationActive: true });
+    render(<Dock />);
+    pasteText('https://example.com/photo.png');
+    expect(addWidget).not.toHaveBeenCalled();
+  });
+
+  // Regression: the lifted dock painted above the ink and swallowed pen
+  // strokes that crossed it (and drag-collapsed on a stroke starting there).
+  it('REGRESSION: the dock drops pointer events while a drawing tool is armed', () => {
+    setupMocks({ annotationActive: true, annotationTool: 'pen' });
+    const { container } = render(<Dock />);
+    const shell = container.querySelector<HTMLElement>(
+      '[style*="pointer-events"]'
+    );
+    expect(shell?.style.pointerEvents).toBe('none');
+  });
+
+  it('keeps the dock clickable when the Select tool is armed', () => {
+    setupMocks({ annotationActive: true, annotationTool: 'select' });
+    const { container } = render(<Dock />);
+    const shell = container.querySelector<HTMLElement>(
+      '[style*="pointer-events"]'
+    );
+    expect(shell).toBeNull();
   });
 });

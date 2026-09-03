@@ -103,6 +103,7 @@ export const Dock: React.FC = () => {
     setPendingQuizShareId,
     setPendingAssignmentShareId,
     annotationActive,
+    annotationState,
   } = useDashboard();
   const {
     visibleTools,
@@ -442,6 +443,10 @@ export const Dock: React.FC = () => {
     setDragOffset(0);
   };
 
+  // A pen/shape tool is armed: ink, not the dock, owns the pointer.
+  const inkingOwnsPointer =
+    annotationActive && annotationState?.activeTool !== 'select';
+
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
 
   const { processAndUploadImage } = useImageUpload();
@@ -451,6 +456,10 @@ export const Dock: React.FC = () => {
     if (!canAccessFeature('smart-paste')) return;
 
     const handlePaste = (e: ClipboardEvent) => {
+      // The annotation overlay owns paste while it is open (it inserts the
+      // clipboard image as ink); smart-paste here would add a widget or
+      // navigate away mid-stroke.
+      if (annotationActive) return;
       // Prevent multiple paste modals from stacking
       if (imagePastePending || smartPastePending || urlPastePending) {
         return;
@@ -568,6 +577,7 @@ export const Dock: React.FC = () => {
     setPendingQuizShareId,
     setPendingAssignmentShareId,
     importSharedNotebookCopy,
+    annotationActive,
   ]);
 
   const classesButtonRef = useRef<HTMLButtonElement>(null);
@@ -831,6 +841,9 @@ export const Dock: React.FC = () => {
         // Lift above the annotation canvas so the dock stays usable while
         // the toolbar is open (mirrors the Sidebar's lift).
         zIndex: annotationActive ? Z_INDEX.confirmOverlay : undefined,
+        // ...but never steal the pen: with a drawing tool selected the dock
+        // must let strokes through. Switching to Select re-arms it.
+        pointerEvents: inkingOwnsPointer ? 'none' : undefined,
         transform: `${baseTransform} ${dragTransform} scale(${scaleFactor})`,
         opacity: 1 - Math.min(dragOffset / 400, 0.4),
         touchAction: isVerticalDock ? 'pan-y' : 'pan-x',

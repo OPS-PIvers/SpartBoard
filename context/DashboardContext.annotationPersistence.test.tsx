@@ -9,47 +9,71 @@ import { Dashboard, WidgetData } from '@/types';
 // Mocks (mirrors tests/DashboardContext_removeWidgets.test.tsx)
 // ---------------------------------------------------------------------------
 
+// Stable singleton — a fresh object per render churns identity-sensitive deps
+// and pins `loading` true, which would trap the auto-save effect.
+const authMock = {
+  user: {
+    uid: 'test-user',
+    displayName: 'Test User',
+    email: 'test@example.com',
+  },
+  isAdmin: false,
+  featurePermissions: [],
+  selectedBuildings: [],
+  savedWidgetConfigs: {},
+  saveWidgetConfig: vi.fn(),
+  refreshGoogleToken: vi.fn(),
+  googleAccessToken: null,
+  remoteControlEnabled: true,
+  profileLoaded: true,
+};
+
 vi.mock('./useAuth', () => ({
-  useAuth: () => ({
-    user: {
-      uid: 'test-user',
-      displayName: 'Test User',
-      email: 'test@example.com',
-    },
-    isAdmin: false,
-    featurePermissions: [],
-    selectedBuildings: [],
-    savedWidgetConfigs: {},
-    saveWidgetConfig: vi.fn(),
-    refreshGoogleToken: vi.fn(),
-    remoteControlEnabled: true,
-    profileLoaded: true,
-  }),
+  useAuth: () => authMock,
+}));
+
+const driveMock = {
+  driveService: null,
+  userDomain: 'example.com',
+  isConnected: false,
+};
+
+vi.mock('@/hooks/useGoogleDrive', () => ({
+  useGoogleDrive: () => driveMock,
 }));
 
 type SnapshotCb = (dashboards: Dashboard[], hasPendingWrites: boolean) => void;
 let capturedSnapshotCb: SnapshotCb | null = null;
+// Replayed on every re-subscribe, mirroring real Firestore — otherwise the
+// load effect's re-subscriptions leave `loading` stuck true.
+let latestSnapshot: Dashboard[] | null = null;
+
+const mockSaveDashboard = vi.fn<(d: unknown) => Promise<number>>();
+
+// Stable singleton for the same reason as authMock above.
+const firestoreMock = {
+  saveDashboard: mockSaveDashboard,
+  saveDashboards: vi.fn().mockResolvedValue(undefined),
+  deleteDashboard: vi.fn().mockResolvedValue(undefined),
+  subscribeToDashboards: vi.fn((cb: SnapshotCb) => {
+    capturedSnapshotCb = cb;
+    if (latestSnapshot) cb(latestSnapshot, false);
+    return () => {
+      // cleanup
+    };
+  }),
+  shareDashboard: vi.fn(),
+  loadSharedDashboard: vi.fn().mockResolvedValue(null),
+  rosters: [],
+  addRoster: vi.fn(),
+  updateRoster: vi.fn(),
+  deleteRoster: vi.fn(),
+  setActiveRoster: vi.fn(),
+  activeRosterId: null,
+};
 
 vi.mock('@/hooks/useFirestore', () => ({
-  useFirestore: () => ({
-    saveDashboard: vi.fn().mockResolvedValue(Date.now()),
-    saveDashboards: vi.fn().mockResolvedValue(undefined),
-    deleteDashboard: vi.fn().mockResolvedValue(undefined),
-    subscribeToDashboards: vi.fn((cb: SnapshotCb) => {
-      capturedSnapshotCb = cb;
-      return () => {
-        // cleanup
-      };
-    }),
-    shareDashboard: vi.fn(),
-    loadSharedDashboard: vi.fn().mockResolvedValue(null),
-    rosters: [],
-    addRoster: vi.fn(),
-    updateRoster: vi.fn(),
-    deleteRoster: vi.fn(),
-    setActiveRoster: vi.fn(),
-    activeRosterId: null,
-  }),
+  useFirestore: () => firestoreMock,
 }));
 
 vi.mock('@/hooks/useRosters', () => ({
@@ -122,7 +146,10 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 // ---------------------------------------------------------------------------
 
 import type { DrawableObject, TextObject } from '@/types';
-import { ANNOTATION_HARD_LIMIT_BYTES } from '@/utils/annotationSize';
+import {
+  ANNOTATION_HARD_LIMIT_BYTES,
+  getAnnotationWorldRect,
+} from '@/utils/annotationSize';
 
 interface Snap {
   objects: DrawableObject[];
@@ -199,8 +226,9 @@ async function mount(objects: DrawableObject[]) {
   await waitFor(() => expect(capturedSnapshotCb).not.toBeNull());
   const cb = capturedSnapshotCb;
   if (!cb) throw new Error('Provider not mounted');
+  latestSnapshot = [board(objects)];
   await act(async () => {
-    cb([board(objects)], false);
+    cb(latestSnapshot ?? [], false);
     await Promise.resolve();
   });
   await waitFor(() => expect(get().objects).toHaveLength(objects.length));
@@ -210,6 +238,60 @@ async function mount(objects: DrawableObject[]) {
 describe('DashboardContext annotation persistence', () => {
   beforeEach(() => {
     capturedSnapshotCb = null;
+    latestSnapshot = null;
+    mockSaveDashboard.mockReset();
+    mockSaveDashboard.mockResolvedValue(Date.now());
+  });
+
+  // Regression: serializeDashboard hashed only widgets/background/name/
+  // libraryOrder/settings, so an ink-only change never marked the board dirty
+  // — it never autosaved and never armed the beforeunload flush.
+  it('REGRESSION: an ink-only change autosaves the drawn objects', async () => {
+    const get = await mount([]);
+    mockSaveDashboard.mockClear();
+    act(() => {
+      get().addAnnotationObject(rect('ink'));
+    });
+    await waitFor(() => expect(mockSaveDashboard).toHaveBeenCalled(), {
+      timeout: 4000,
+    });
+    const saved = mockSaveDashboard.mock.calls.at(-1)?.[0] as Dashboard;
+    expect(saved.annotationOverlay?.objects.map((o) => o.id)).toEqual(['ink']);
+  });
+
+  // Regression: both merge branches took annotationOverlay straight from the
+  // server doc, so any incoming snapshot erased ink that had not saved yet.
+  it('REGRESSION: an incoming snapshot does not drop unsaved ink', async () => {
+    const get = await mount([]);
+    act(() => {
+      get().addAnnotationObject(rect('unsaved'));
+    });
+    const cb = capturedSnapshotCb;
+    if (!cb) throw new Error('Provider not mounted');
+    await act(async () => {
+      cb([board([])], false);
+      await Promise.resolve();
+    });
+    expect(get().objects.map((o) => o.id)).toEqual(['unsaved']);
+  });
+
+  // Ink is stored in the canvas it was authored on so a projector scales it
+  // instead of clipping it.
+  it('stamps the authoring canvas size on the first stroke', async () => {
+    const get = await mount([]);
+    act(() => {
+      get().addAnnotationObject(rect('ink'));
+    });
+    await waitFor(() => expect(mockSaveDashboard).toHaveBeenCalled(), {
+      timeout: 4000,
+    });
+    const saved = mockSaveDashboard.mock.calls.at(-1)?.[0] as Dashboard;
+    const expected = getAnnotationWorldRect(
+      window.innerWidth,
+      window.innerHeight
+    );
+    expect(saved.annotationOverlay?.canvasWidth).toBe(expected.width);
+    expect(saved.annotationOverlay?.canvasHeight).toBe(expected.height);
   });
 
   it('open and close keep existing ink on the board', async () => {
