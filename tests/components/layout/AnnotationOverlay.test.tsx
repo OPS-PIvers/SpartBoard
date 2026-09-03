@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import { render, fireEvent, waitFor, screen } from '@testing-library/react';
 import React from 'react';
 import { AnnotationOverlay } from '@/components/layout/AnnotationOverlay';
 import { useDashboard } from '@/context/useDashboard';
@@ -272,6 +272,63 @@ describe('AnnotationOverlay', () => {
     expect(removeAnnotationObject).toHaveBeenCalledWith('txt-erase-me');
     expect(updateAnnotationState).not.toHaveBeenCalled();
     expect(addAnnotationObject).not.toHaveBeenCalled();
+  });
+
+  it('REGRESSION: Exit commits an open text edit instead of dropping it', async () => {
+    const existing: TextObject = {
+      id: 'txt-open',
+      kind: 'text',
+      z: 1,
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 40,
+      content: 'before',
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    const { updateAnnotationState, closeAnnotation } = setupContext({
+      annotationState: baseState({ activeTool: 'select', objects: [existing] }),
+    });
+    const VIEWPORT_W = 1024;
+    const VIEWPORT_H = 768;
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      'getBoundingClientRect'
+    ).mockReturnValue({
+      left: 0,
+      top: 0,
+      width: VIEWPORT_W,
+      height: VIEWPORT_H,
+      right: VIEWPORT_W,
+      bottom: VIEWPORT_H,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    canvas.width = VIEWPORT_W;
+    canvas.height = VIEWPORT_H;
+    fireEvent.doubleClick(canvas, { clientX: 150, clientY: 110 });
+    const editor = (await waitFor(() => {
+      const node = document.querySelector('[role="textbox"]');
+      if (!node) throw new Error('Editor not yet mounted');
+      return node;
+    })) as HTMLElement;
+    editor.innerText = 'after';
+
+    fireEvent.click(screen.getByRole('button', { name: /^exit/i }));
+
+    expect(updateAnnotationState).toHaveBeenCalledTimes(1);
+    const { objects } = updateAnnotationState.mock.calls[0][0] as {
+      objects: TextObject[];
+    };
+    expect(objects[0].content).toBe('after');
+    expect(closeAnnotation).toHaveBeenCalledTimes(1);
   });
 
   // Regression: the "Download PNG" filename was built from
