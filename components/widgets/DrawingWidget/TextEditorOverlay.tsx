@@ -1,6 +1,6 @@
 import React, { useEffect, useImperativeHandle, useRef } from 'react';
 import { TextObject } from '@/types';
-import { LINE_HEIGHT_RATIO } from './renderers/text';
+import { LINE_HEIGHT_RATIO, measureTextObject } from './renderers/text';
 
 export interface TextEditorHandle {
   /** Commit the editor's current content now (e.g. before Exit). */
@@ -115,13 +115,25 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     return { w, h };
   };
 
-  const commitContent = (obj: TextObject, node: HTMLDivElement | null) => {
+  const commitContent = (
+    obj: TextObject,
+    node: HTMLDivElement | null,
+    // On an object swap the DOM already wears the NEW object's styles, so
+    // size the previous object from its content rather than live layout.
+    fromContent = false
+  ) => {
     const raw = node?.innerText ?? '';
     // Normalize newlines (browsers sometimes emit \r\n in contenteditable
     // serialization) and strip trailing newline that contenteditable can add
     // when the cursor sits on an empty trailing line.
     const sanitized = raw.replace(/\r\n/g, '\n').replace(/\n+$/u, '');
-    const size = node ? measure(node, obj) : { w: obj.w, h: obj.h };
+    let size = { w: obj.w, h: obj.h };
+    if (fromContent) {
+      const natural = measureTextObject({ ...obj, content: sanitized });
+      size = { w: obj.wrap ? obj.w : natural.w, h: natural.h };
+    } else if (node) {
+      size = measure(node, obj);
+    }
     // Always commit with the editor's final content — including the empty
     // string. The caller decides what an empty commit means (remove for an
     // existing object, no-op for a fresh spawn).
@@ -148,7 +160,7 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     // the reseed below never wipes unsaved content.
     const prev = seededRef.current;
     if (prev && prev.id !== objectRef.current.id && !finalizedRef.current) {
-      commitContentRef.current(prev, node);
+      commitContentRef.current(prev, node, true);
     }
     seededRef.current = objectRef.current;
     // Set initial content via innerText so newline characters survive as
