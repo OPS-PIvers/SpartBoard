@@ -23,6 +23,7 @@ export {
 } from './wallDrag';
 export type {
   WallMovePatch,
+  WallPlacement,
   WallRenderActions,
   WallRenderMode,
   WallRenderProps,

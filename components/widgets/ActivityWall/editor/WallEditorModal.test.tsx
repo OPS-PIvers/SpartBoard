@@ -9,6 +9,13 @@ const { mockSaveActivity } = vi.hoisted(() => ({
   mockSaveActivity: vi.fn((_entry: unknown) => Promise.resolve()),
 }));
 
+vi.mock('@/config/firebase', () => ({ db: {} }));
+
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(() => ({})),
+  getDoc: vi.fn(() => Promise.resolve({ data: () => undefined })),
+}));
+
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({
     showAlert: vi.fn().mockResolvedValue(undefined),

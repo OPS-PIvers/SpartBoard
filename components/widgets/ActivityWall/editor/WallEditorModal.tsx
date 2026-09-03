@@ -1,4 +1,6 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { Modal } from '@/components/common/Modal';
 import { CollapsibleSection } from '@/components/common/library/CollapsibleSection';
 import { useAuth } from '@/context/useAuth';
@@ -10,10 +12,13 @@ import {
   normalizeActivityWallLibraryEntry,
 } from '@/utils/activityWallNormalize';
 import { resolveActivityWallBuildingDefaults } from '../buildingDefaults';
+import { activityWallSessionId } from '@/utils/activityWallLinks';
 import type {
   ActivityWallLayout,
   ActivityWallLibraryEntry,
+  ActivityWallSession,
   ClassLinkClass,
+  SharedActivityWall,
 } from '@/types';
 import { LayoutPicker } from './LayoutPicker';
 import { LAYOUT_OPTIONS } from './layoutOptions';
@@ -143,6 +148,61 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       cancelled = true;
     };
   }, [open]);
+
+  // Walls saved before wall-level engagement flags seed them once from their latest gallery share.
+  const uid = user?.uid;
+  const needsEngagementSeed =
+    open &&
+    !!entry &&
+    !!uid &&
+    entry.allowLikes === undefined &&
+    entry.allowComments === undefined &&
+    entry.allowCommentResponses === undefined;
+  useEffect(() => {
+    if (!needsEngagementSeed || !entry || !uid) return undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const sessionSnap = await getDoc(
+          doc(
+            db,
+            'activity_wall_sessions',
+            activityWallSessionId(uid, entry.id)
+          )
+        );
+        const shareId = (
+          sessionSnap.data() as Partial<ActivityWallSession> | undefined
+        )?.latestShareId;
+        if (!shareId || cancelled) return;
+        const shareSnap = await getDoc(
+          doc(db, 'shared_activity_walls', shareId)
+        );
+        const share = shareSnap.data() as
+          | Partial<SharedActivityWall>
+          | undefined;
+        if (cancelled || !share) return;
+        const seed = {
+          allowLikes: share.allowLikes === true,
+          allowComments: share.allowComments === true,
+          allowCommentResponses: share.allowCommentResponses === true,
+        };
+        setDraft((prev) => ({ ...prev, ...seed }));
+        setBaseline((prev) =>
+          JSON.stringify({
+            ...(JSON.parse(prev) as ActivityWallLibraryEntry),
+            ...seed,
+          })
+        );
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[WallEditorModal] Engagement seed failed:', err);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needsEngagementSeed, entry, uid]);
 
   if (!open) return null;
 

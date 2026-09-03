@@ -7,7 +7,16 @@ import type {
 } from '@/types';
 
 /** Where the wall is being rendered; drives sizing units and teacher affordances. */
-export type WallRenderMode = 'widget' | 'gallery' | 'teacher';
+export type WallRenderMode = 'widget' | 'gallery' | 'teacher' | 'student';
+
+/** Placement a hover-plus spot pre-fills for the composer; empty for layouts without structure. */
+export interface WallPlacement {
+  sectionId?: string;
+  cellKey?: string;
+  order?: number;
+  lat?: number;
+  lng?: number;
+}
 
 /** Placement fields a teacher drag can change; `null` clears the field and consumers must translate it to `deleteField()`. */
 export interface WallMovePatch {
@@ -24,6 +33,10 @@ export interface WallRenderActions {
   onDelete?: (submissionId: string) => void;
   onApprove?: (submissionId: string) => void;
   onReject?: (submissionId: string) => void;
+  /** Hover-plus spots render when supplied (student and widget modes); receives the spot's placement. */
+  onAddAt?: (placement: WallPlacement) => void;
+  /** Viewer uid; own posts get student affordances (pending badge, edit/delete) in student mode. */
+  viewerUid?: string;
   /** Fired when a submission's media (photo/video/file) fails to load, in any mode. */
   onMediaError?: (submission: ActivityWallSubmission) => void;
   /** Gallery-only footer rendered inside each card (likes / comments). */

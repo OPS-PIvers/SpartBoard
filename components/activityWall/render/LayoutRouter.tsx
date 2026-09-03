@@ -9,7 +9,12 @@ import { wallScale } from './scale';
 import type { WallRenderProps } from './types';
 import { WallCardStyleContext, WallImageSizeContext } from './imageSize';
 
-export type { WallRenderProps, WallRenderMode, WallMovePatch } from './types';
+export type {
+  WallRenderProps,
+  WallRenderMode,
+  WallMovePatch,
+  WallPlacement,
+} from './types';
 
 // Leaflet stays out of the main bundle; MapLayout imports its own CSS.
 const MapLayout = lazy(() => import('./MapLayout'));

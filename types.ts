@@ -1748,6 +1748,8 @@ export interface ActivityWallSubmission {
   driveUrl?: string;
   /** Drive sharing applied at archive time; `private` means only the teacher can open the file. */
   drivePermission?: 'private' | 'domain' | 'anyone';
+  /** Set only on posts the teacher wrote from the widget face. */
+  authorRole?: 'teacher';
 }
 
 export interface ActivityWallActivity {
@@ -1823,6 +1825,11 @@ export interface ActivityWallLibraryEntry {
   allowStudentEdit?: boolean;
   allowStudentDelete?: boolean;
   acceptingResponses?: boolean;
+  /** Merged student page: students see approved posts on the student link (default true). */
+  studentsCanSeePosts?: boolean;
+  allowLikes?: boolean;
+  allowComments?: boolean;
+  allowCommentResponses?: boolean;
 }
 
 export interface ActivityWallBuildingConfig {
@@ -1930,6 +1937,11 @@ export interface ActivityWallSession {
   rosterIds?: string[];
   /** Computed at mirror time from `allowGuests` (see `mirrorSessionFromEntry`). */
   driveVisibility?: 'domain' | 'anyone';
+  /** Merged student page flags, mirrored from the library entry. */
+  studentsCanSeePosts?: boolean;
+  allowLikes?: boolean;
+  allowComments?: boolean;
+  allowCommentResponses?: boolean;
 }
 
 /**
@@ -1971,8 +1983,9 @@ export interface SharedActivityWall {
 }
 
 /**
- * Comment posted by a gallery viewer on a specific submission.
- * Lives at `shared_activity_walls/{shareId}/comments/{commentId}`.
+ * Comment on a specific submission. Lives at
+ * `activity_wall_sessions/{sessionId}/comments/{commentId}` (share-level
+ * comments from before the merged student page are read-only history).
  */
 export interface ActivityWallComment {
   id: string;
@@ -1993,8 +2006,8 @@ export interface ActivityWallComment {
 }
 
 /**
- * Like on a submission within a shared gallery. Lives at
- * `shared_activity_walls/{shareId}/likes/{submissionId}__{authorUid}` —
+ * Like on a submission. Lives at
+ * `activity_wall_sessions/{sessionId}/likes/{submissionId}__{authorUid}` —
  * the deterministic doc id enforces one-like-per-viewer-per-submission
  * without a separate counter document.
  */

@@ -4217,6 +4217,31 @@ service cloud.firestore {
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       allow delete: if false;
 
+      // Merged student page helpers (shared by submissions, likes, comments).
+      function awParentSession() {
+        return get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data;
+      }
+      function awIsOwner() {
+        return isAdmin() || sessionId.matches(request.auth.uid + '_.*');
+      }
+      // Padlet-lite audience: an enrolled studentRole user, or anyone once the
+      // teacher opted into guests. Legacy sessions (no layout) never match.
+      function awStudentAudienceOk() {
+        return 'layout' in awParentSession() &&
+               passesStudentClassGateCompat(
+                 awParentSession().get('classIds', []),
+                 awParentSession().get('classId', '')
+               ) &&
+               (isStudentRoleUser() || awParentSession().get('allowGuests', false) == true);
+      }
+      // Who may see engagement (likes/comments): the owner, the public
+      // gallery audience, or the student-page audience.
+      function awViewerOk() {
+        return awIsOwner() ||
+               awParentSession().get('publiclyShared', false) == true ||
+               awStudentAudienceOk();
+      }
+
       match /submissions/{submissionId} {
         // Single cached read of the parent session (same-path get() is cached
         // per evaluation, so the helpers below don't multiply billed reads).
@@ -4315,6 +4340,7 @@ service cloud.firestore {
                  (!('editedAt' in d) || d.editedAt is int) &&
                  (!('storagePath' in d) || d.storagePath is string) &&
                  (!('activityId' in d) || d.activityId is string) &&
+                 (!('authorRole' in d) || d.authorRole == 'teacher') &&
                  awBoundedStrings() &&
                  awLinkPreviewOk();
         }
@@ -4344,6 +4370,7 @@ service cloud.firestore {
           request.resource.data.content.size() <= 5000 &&
           request.resource.data.submittedAt is int &&
           request.resource.data.status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
+          !('authorRole' in request.resource.data) &&
           awFieldTypesOk() &&
           // authorUid is an ownership claim on every session shape, not just padlet ones.
           (!('authorUid' in request.resource.data) ||
@@ -4356,6 +4383,30 @@ service cloud.firestore {
              request.resource.data.authorUid == request.auth.uid &&
              awTypeAllowed() &&
              awWithinPostCap()));
+        // Teacher posts from the widget face: auto-approved even under
+        // moderation, stamped authorRole 'teacher' so the card is labelled.
+        allow create: if request.auth != null &&
+          request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+          awIsOwner() &&
+          awIsPadletSession() &&
+          request.resource.data.keys().hasOnly([
+            'id', 'activityId', 'content', 'submittedAt', 'status',
+            'participantLabel', 'storagePath', 'archiveStatus',
+            'type', 'authorUid', 'isGuest', 'title', 'sectionId', 'cellKey',
+            'label', 'lat', 'lng', 'linkPreview', 'order',
+            'fileName', 'mimeType', 'sizeBytes', 'editedAt', 'authorRole'
+          ]) &&
+          request.resource.data.id is string &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() > 0 &&
+          request.resource.data.content.size() <= 5000 &&
+          request.resource.data.submittedAt is int &&
+          request.resource.data.status == 'approved' &&
+          request.resource.data.authorRole == 'teacher' &&
+          request.resource.data.authorUid == request.auth.uid &&
+          awFieldTypesOk() &&
+          awTypeAllowed() &&
+          (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase');
         // Teacher/admins read+delete submissions, EXCEPT a published view-only
         // gallery (publiclyShared == true) is readable by any authed caller (incl.
         // anon gallery viewers). Delete stays teacher/admin-only.
@@ -4366,12 +4417,17 @@ service cloud.firestore {
         // where('status','==','approved'). Legacy sessions keep the old
         // unconditional public read: the deployed prod gallery lists unfiltered
         // and would break the moment these rules ship.
+        // Merged student page: the student-link audience reads approved posts
+        // while the teacher keeps the wall visible (studentsCanSeePosts).
         allow read: if request.auth != null &&
                             (isAdmin() ||
                              sessionId.matches(request.auth.uid + '_.*') ||
                              (awSession().get('publiclyShared', false) == true &&
                               (!awIsPadletSession() ||
                                resource.data.status == 'approved')) ||
+                             (awStudentAudienceOk() &&
+                              awSession().get('studentsCanSeePosts', true) != false &&
+                              resource.data.status == 'approved') ||
                              resource.data.authorUid == request.auth.uid);
         allow delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
@@ -4399,7 +4455,7 @@ service cloud.firestore {
                               'type', 'authorUid', 'isGuest', 'title', 'sectionId',
                               'cellKey', 'order', 'label', 'lat', 'lng', 'pinned',
                               'linkPreview', 'fileName', 'mimeType', 'sizeBytes',
-                              'editedAt'
+                              'editedAt', 'authorRole'
                             ]) &&
                             request.resource.data.id is string &&
                             request.resource.data.content is string &&
@@ -4441,6 +4497,54 @@ service cloud.firestore {
                              request.resource.data.archiveStatus == 'firebase') &&
                             (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['storagePath']) ||
                              request.resource.data.storagePath.matches('^activity_wall_media/' + sessionId + '/' + submissionId + '/.+'));
+      }
+
+      // Likes — one per viewer per post ({submissionId}__{uid} doc id), shared
+      // by the student page and the public gallery. Gated on the wall's own
+      // allowLikes flag (share-level likes are read-only history).
+      match /likes/{likeId} {
+        allow read: if request.auth != null && awViewerOk();
+        allow create: if request.auth != null &&
+          awViewerOk() &&
+          awParentSession().get('allowLikes', false) == true &&
+          request.resource.data.keys().hasOnly([
+            'id', 'submissionId', 'authorUid', 'createdAt'
+          ]) &&
+          request.resource.data.submissionId is string &&
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.createdAt is int &&
+          likeId == request.resource.data.submissionId + '__' + request.auth.uid;
+        allow delete: if request.auth != null &&
+          (resource.data.get('authorUid', null) == request.auth.uid || awIsOwner());
+        allow update: if false;
+      }
+
+      // Comments — replies need allowCommentResponses; commenter or owner deletes.
+      match /comments/{commentId} {
+        allow read: if request.auth != null && awViewerOk();
+        allow create: if request.auth != null &&
+          awViewerOk() &&
+          awParentSession().get('allowComments', false) == true &&
+          (
+            request.resource.data.get('parentCommentId', null) == null ||
+            awParentSession().get('allowCommentResponses', false) == true
+          ) &&
+          request.resource.data.id == commentId &&
+          request.resource.data.keys().hasOnly([
+            'id', 'submissionId', 'content', 'participantLabel', 'authorUid',
+            'createdAt', 'parentCommentId'
+          ]) &&
+          request.resource.data.submissionId is string &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() > 0 &&
+          request.resource.data.content.size() <= 2000 &&
+          request.resource.data.participantLabel is string &&
+          request.resource.data.participantLabel.size() <= 200 &&
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.createdAt is int;
+        allow delete: if request.auth != null &&
+          (resource.data.get('authorUid', null) == request.auth.uid || awIsOwner());
+        allow update: if false;
       }
     }
 
