@@ -432,9 +432,10 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
         canWrite,
         flags,
         identificationMode,
+        showNames,
         engagement,
       }),
-    [viewer.uid, canWrite, flags, identificationMode, engagement]
+    [viewer.uid, canWrite, flags, identificationMode, showNames, engagement]
   );
 
   return (

@@ -1,4 +1,4 @@
-// Unit tests for the legacy `archiveActivityWallPhoto` callable's resume path.
+// Unit tests for the legacy `archiveActivityWallPhoto` callable.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -37,6 +37,7 @@ const SUBMISSION_ID = 'sub-1';
 const STORAGE_PATH = `activity_wall_photos/${SESSION_ID}_${SUBMISSION_ID}`;
 
 let submissionState: Bag | null;
+let sessionState: Bag | null;
 let deletedFiles: string[];
 
 vi.mock('firebase-admin', () => ({
@@ -49,6 +50,11 @@ vi.mock('firebase-admin', () => ({
           collection: () => ({
             doc: () => submissionRef,
           }),
+          get: () =>
+            Promise.resolve({
+              exists: sessionState !== null,
+              data: () => sessionState ?? undefined,
+            }),
         }),
       }),
       runTransaction: async (
@@ -73,6 +79,9 @@ vi.mock('firebase-admin', () => ({
           deletedFiles.push(name);
           return Promise.resolve();
         },
+        getMetadata: () =>
+          Promise.resolve([{ size: '1024', contentType: 'image/jpeg' }]),
+        download: () => Promise.resolve([Buffer.from('photo')]),
       }),
     }),
   })),
@@ -93,13 +102,16 @@ const submissionRef = {
 import { archiveActivityWallPhoto } from './driveArchive';
 
 const callableHandler = archiveActivityWallPhoto as unknown as (request: {
-  auth: { uid: string };
+  auth: { uid: string; token?: { email?: string } };
   data: Bag;
 }) => Promise<Bag>;
+
+const AUTH = { uid: 'teacher-1', token: { email: 'teacher@school.org' } };
 
 beforeEach(() => {
   vi.clearAllMocks();
   deletedFiles = [];
+  sessionState = { driveVisibility: 'domain' };
   submissionState = {
     storagePath: STORAGE_PATH,
     archiveStatus: 'failed',
@@ -113,7 +125,7 @@ beforeEach(() => {
 describe('archiveActivityWallPhoto resume path', () => {
   it('finishes a resumed submission instead of stranding it at syncing', async () => {
     const result = await callableHandler({
-      auth: { uid: 'teacher-1' },
+      auth: AUTH,
       data: {
         accessToken: 'tok',
         sessionId: SESSION_ID,
@@ -127,14 +139,47 @@ describe('archiveActivityWallPhoto resume path', () => {
     });
     expect(submissionState?.archiveStatus).toBe('archived');
     expect(deletedFiles).toContain(STORAGE_PATH);
-    // Reapplies the legacy 'anyone' permission, not a fresh upload.
+    // Honours the session's driveVisibility, not a hardcoded 'anyone' share.
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/drive-existing/permissions'),
-      expect.objectContaining({ method: 'POST' })
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'domain',
+          domain: 'school.org',
+          role: 'reader',
+          allowFileDiscovery: false,
+        }),
+      })
     );
+    expect(submissionState?.drivePermission).toBe('domain');
   });
 
-  it('stays failed (never lost) when finishing a resumed submission errors', async () => {
+  it('writes a drive.google.com url and no permission for a private share', async () => {
+    sessionState = { driveVisibility: 'domain' };
+    submissionState = {
+      storagePath: STORAGE_PATH,
+      archiveStatus: 'failed',
+      driveFileId: 'drive-existing',
+      type: 'video',
+    };
+    const result = await callableHandler({
+      auth: { uid: 'teacher-1', token: { email: 'teacher@gmail.com' } },
+      data: {
+        accessToken: 'tok',
+        sessionId: SESSION_ID,
+        submissionId: SUBMISSION_ID,
+        activityId: 'wall-abc123456',
+      },
+    });
+    expect(result.driveUrl).toBe(
+      'https://drive.google.com/file/d/drive-existing/preview'
+    );
+    expect(submissionState?.drivePermission).toBe('private');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('stays failed when finishing a resumed submission errors', async () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({
         ok: false,
@@ -144,7 +189,7 @@ describe('archiveActivityWallPhoto resume path', () => {
 
     await expect(
       callableHandler({
-        auth: { uid: 'teacher-1' },
+        auth: AUTH,
         data: {
           accessToken: 'tok',
           sessionId: SESSION_ID,
@@ -156,5 +201,69 @@ describe('archiveActivityWallPhoto resume path', () => {
 
     expect(submissionState?.archiveStatus).toBe('failed');
     expect(submissionState?.driveFileId).toBe('drive-existing');
+  });
+});
+
+describe('archiveActivityWallPhoto fresh upload path', () => {
+  beforeEach(() => {
+    submissionState = { storagePath: STORAGE_PATH, archiveStatus: 'firebase' };
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ id: 'drive-new', files: [] }),
+      } as Response)
+    ) as unknown as typeof fetch;
+  });
+
+  it('shares a fresh upload per the session driveVisibility', async () => {
+    const result = await callableHandler({
+      auth: AUTH,
+      data: {
+        accessToken: 'tok',
+        sessionId: SESSION_ID,
+        submissionId: SUBMISSION_ID,
+        activityId: 'wall-abc123456',
+      },
+    });
+    expect(result).toMatchObject({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-new',
+      driveUrl: 'https://drive.google.com/thumbnail?id=drive-new&sz=w2000',
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/drive-new/permissions'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'domain',
+          domain: 'school.org',
+          role: 'reader',
+          allowFileDiscovery: false,
+        }),
+      })
+    );
+    expect(submissionState?.drivePermission).toBe('domain');
+    expect(submissionState?.content).toBe(
+      'https://drive.google.com/thumbnail?id=drive-new&sz=w2000'
+    );
+    expect(deletedFiles).toContain(STORAGE_PATH);
+  });
+
+  it('applies no permission for a public webmail teacher', async () => {
+    await callableHandler({
+      auth: { uid: 'teacher-1', token: { email: 'teacher@gmail.com' } },
+      data: {
+        accessToken: 'tok',
+        sessionId: SESSION_ID,
+        submissionId: SUBMISSION_ID,
+        activityId: 'wall-abc123456',
+      },
+    });
+    expect(submissionState?.drivePermission).toBe('private');
+    const calls = (global.fetch as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls;
+    expect(
+      calls.filter((c) => String(c[0]).includes('/permissions'))
+    ).toHaveLength(0);
   });
 });

@@ -381,6 +381,37 @@ describe('submitPost helpers', () => {
     });
   });
 
+  it('updatePost requeues an edited post for moderation when asked', async () => {
+    await updatePost(
+      session({ moderationEnabled: true }),
+      'u__0',
+      { ...EMPTY_DRAFT, body: 'edited' },
+      {},
+      { requeueForModeration: true }
+    );
+    expect(mockUpdateDoc.mock.calls[0][1]).toEqual({
+      editedAt: expect.any(Number) as number,
+      content: 'edited',
+      title: '',
+      status: 'pending',
+    });
+
+    mockUpdateDoc.mockClear();
+    await updatePost(session(), 'u__0', { ...EMPTY_DRAFT, body: 'x' }, {});
+    expect(mockUpdateDoc.mock.calls[0][1]).not.toHaveProperty('status');
+  });
+
+  it('updatePost leaves status alone when only the title changes on a moderated wall', async () => {
+    await updatePost(
+      session({ moderationEnabled: true }),
+      'u__0',
+      { ...EMPTY_DRAFT, body: 'same', title: 'New title' },
+      {},
+      { requeueForModeration: true, currentContent: 'same' }
+    );
+    expect(mockUpdateDoc.mock.calls[0][1]).not.toHaveProperty('status');
+  });
+
   it('deletePost targets the submission doc', async () => {
     await deletePost('t_a', 'u__0');
     expect(mockDeleteDoc).toHaveBeenCalledWith({

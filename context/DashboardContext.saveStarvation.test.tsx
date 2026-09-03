@@ -156,6 +156,7 @@ interface ContextSnapshot {
     updates: Partial<WidgetData>,
     opts?: { immediate?: boolean }
   ) => void;
+  loadDashboard: (id: string) => void;
 }
 
 const TestConsumer: React.FC<{
@@ -168,6 +169,7 @@ const TestConsumer: React.FC<{
       activeDashboard: ctx.activeDashboard,
       loading: ctx.loading,
       updateWidget: ctx.updateWidget,
+      loadDashboard: ctx.loadDashboard,
     };
   });
   return null;
@@ -197,9 +199,9 @@ function makeWidget(id: string): WidgetData {
   };
 }
 
-function makeDashboard(widgets: WidgetData[]): Dashboard {
+function makeDashboard(widgets: WidgetData[], id = 'dash-1'): Dashboard {
   return {
-    id: 'dash-1',
+    id,
     name: 'Test Board',
     background: 'bg-slate-900',
     widgets,
@@ -347,5 +349,96 @@ describe('DashboardContext auto-save starvation ceiling', () => {
       await vi.advanceTimersByTimeAsync(800);
     });
     expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the unsaved marker when a save rejects so beforeunload still flushes', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
+    saveDashboardMock.mockClear();
+    saveDashboardMock.mockRejectedValueOnce(new Error('offline'));
+
+    act(() => {
+      stateRef.current?.updateWidget('w1', {
+        config: { text: 'unsaved' } as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(900);
+    });
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    saveDashboardMock.mockClear();
+    await act(async () => {
+      window.dispatchEvent(new Event('beforeunload'));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(saveDashboardMock).toHaveBeenCalled();
+  });
+
+  it('keeps the normal debounce after a rejected save instead of firing per keystroke', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
+    saveDashboardMock.mockClear();
+    saveDashboardMock.mockRejectedValueOnce(new Error('offline'));
+
+    act(() => {
+      stateRef.current?.updateWidget('w1', {
+        config: { text: 'a' } as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(900);
+      await Promise.resolve();
+    });
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+
+    saveDashboardMock.mockClear();
+    act(() => {
+      stateRef.current?.updateWidget('w1', {
+        config: { text: 'ab' } as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushes the outgoing board when switching boards mid-debounce', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard([makeWidget('w1')], 'dash-1'),
+      makeDashboard([makeWidget('w2')], 'dash-2'),
+    ]);
+    saveDashboardMock.mockClear();
+
+    act(() => {
+      stateRef.current?.updateWidget('w1', {
+        config: { text: 'typed-then-switched' } as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+
+    act(() => {
+      stateRef.current?.loadDashboard('dash-2');
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const savedIds = saveDashboardMock.mock.calls.map(
+      (c) => (c[0] as Dashboard).id
+    );
+    expect(savedIds).toContain('dash-1');
   });
 });

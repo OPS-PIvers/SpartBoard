@@ -299,6 +299,50 @@ describe('fetchLinkPreview', () => {
     ).rejects.toMatchObject({ code: 'resource-exhausted' });
     vi.useRealTimers();
   });
+
+  it('does not count rejected calls toward the global window', async () => {
+    vi.useFakeTimers();
+    const start = 4_000_000_000_000;
+    vi.setSystemTime(start);
+    axiosGet.mockResolvedValue({
+      data: '<html><head><title>T</title></head></html>',
+      headers: { 'content-type': 'text/html' },
+    });
+    for (let i = 0; i < 300; i += 1) {
+      await call({
+        auth: { uid: `window-user-${i}` },
+        data: { url: 'https://example.com/p' },
+      });
+    }
+    // Rejected calls must not refresh the window.
+    for (let i = 0; i < 320; i += 1) {
+      vi.setSystemTime(start + 60_000);
+      await expect(
+        call({
+          auth: { uid: `window-overflow-${i}` },
+          data: { url: 'https://example.com/p' },
+        })
+      ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    }
+    vi.setSystemTime(start + 10 * 60 * 1000 + 1);
+    await expect(
+      call({
+        auth: { uid: 'window-after' },
+        data: { url: 'https://example.com/p' },
+      })
+    ).resolves.toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it('returns a generic message when the fetch fails', async () => {
+    axiosGet.mockRejectedValue(new Error('connect ECONNREFUSED 10.0.0.5:80'));
+    await expect(
+      call({ auth: AUTH, data: { url: 'https://example.com/p' } })
+    ).rejects.toMatchObject({
+      code: 'internal',
+      message: 'Failed to fetch URL.',
+    });
+  });
 });
 
 afterEach(() => {

@@ -45,6 +45,15 @@ function isCustomModeAssignments(config: Record<string, unknown>): boolean {
   return config.rosterMode === 'custom' && config.assignments !== undefined;
 }
 
+// Empty strings/arrays are widget defaults, not PII — treating them as content made every save abort when Drive was unavailable.
+function hasPiiContent(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return true;
+}
+
 /**
  * Returns a deep copy of `dashboard` with all PII fields removed from every
  * widget's config. Safe to write to Firestore.
@@ -81,13 +90,13 @@ export function extractDashboardPII(
     let hasPii = false;
 
     for (const field of PII_WIDGET_FIELDS) {
-      if (field in config && config[field] !== undefined) {
+      if (field in config && hasPiiContent(config[field])) {
         piiFields[field] = config[field];
         hasPii = true;
       }
     }
 
-    if (isCustomModeAssignments(config)) {
+    if (isCustomModeAssignments(config) && hasPiiContent(config.assignments)) {
       piiFields.assignments = config.assignments;
       hasPii = true;
     }
@@ -126,16 +135,17 @@ export function mergeDashboardPII(
 }
 
 /**
- * Returns true if any widget in `dashboard` has at least one PII field set.
- * Used to decide whether a Drive PII supplement save is needed.
+ * Returns true if any widget in `dashboard` holds actual PII content.
+ * Empty strings/arrays (widget defaults) do not count.
  */
 export function dashboardHasPII(dashboard: Dashboard): boolean {
   for (const widget of dashboard.widgets) {
     const config = widget.config as Record<string, unknown>;
     for (const field of PII_WIDGET_FIELDS) {
-      if (field in config && config[field] !== undefined) return true;
+      if (field in config && hasPiiContent(config[field])) return true;
     }
-    if (isCustomModeAssignments(config)) return true;
+    if (isCustomModeAssignments(config) && hasPiiContent(config.assignments))
+      return true;
   }
   return false;
 }

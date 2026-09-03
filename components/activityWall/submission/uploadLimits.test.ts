@@ -56,9 +56,12 @@ describe('validateUpload', () => {
   });
 
   it('enforces the size caps', () => {
+    expect(validateUpload('photo', fileOf('image/png', IMAGE_MAX_BYTES))).toBe(
+      'Images must be smaller than 15 MB.'
+    );
     expect(
-      validateUpload('photo', fileOf('image/png', IMAGE_MAX_BYTES + 1))
-    ).toBe('Images must be smaller than 15 MB.');
+      validateUpload('photo', fileOf('image/png', IMAGE_MAX_BYTES - 1))
+    ).toBeNull();
   });
 
   it('advertises the same allowlists through the file input accept attribute', () => {

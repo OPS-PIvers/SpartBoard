@@ -48,11 +48,7 @@ import {
 import { getPlcTeammateEmails } from '@/utils/plc';
 import { publishPlcContribution } from '@/utils/plcContributions';
 import { logError } from '@/utils/logError';
-import {
-  gradeAnswer,
-  getResponseDocKey,
-  type ResponseDocKey,
-} from '@/hooks/useQuizSession';
+import { getResponseDocKey, type ResponseDocKey } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import {
@@ -82,8 +78,10 @@ import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { FreeResponseGrader } from './FreeResponseGrader';
-import { collectMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import {
+  computeQuestionStats,
+  type QuestionStat,
+} from '@/utils/quizQuestionStats';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
 import { deleteField, doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -2004,88 +2002,31 @@ const ScoreDistribution: React.FC<{
   );
 };
 
+const EMPTY_QUESTION_STAT: QuestionStat = {
+  answered: 0,
+  autoTotal: 0,
+  correct: 0,
+  manualTotal: 0,
+  graded: 0,
+  scoredCount: 0,
+  ratioSum: 0,
+  averagePct: null,
+};
+
 const QuestionsScreen: React.FC<{
   questions: QuizData['questions'];
   responses: QuizResponse[];
 }> = ({ questions, responses }) => {
-  // ⚡ Bolt: Pre-calculate counts per question in a single pass.
-  // Counted per SLOT, not per question: an auto-graded primary tallies
-  // answered/correct while an audio addendum on the same question tallies
-  // its own grading progress, so a mixed question isn't stuck at 0% graded.
-  const questionStats = React.useMemo(() => {
-    const stats: Record<
-      string,
-      {
-        answered: number;
-        correct: number;
-        autoTotal: number;
-        graded: number;
-        manualTotal: number;
-      }
-    > = {};
-    const questionsById: Record<string, QuizQuestion> = {};
-
-    questions.forEach((q) => {
-      stats[q.id] = {
-        answered: 0,
-        correct: 0,
-        autoTotal: 0,
-        graded: 0,
-        manualTotal: 0,
-      };
-      questionsById[q.id] = q;
-    });
-
-    responses.forEach((r) => {
-      // Takes put several answer entries on one question; count the student
-      // once, using the same representative answer getEarnedPoints scores.
-      const representative = selectRepresentativeAnswers(r.answers);
-
-      representative.forEach((entry, questionId) => {
-        const qStats = stats[questionId];
-        const q = questionsById[questionId];
-        if (!qStats || !q) return;
-        // An `unresponded` marker is not an answer — counting it here scored
-        // every passed-over slot as answered-and-missed. Same skip the export,
-        // PLC contribution and Drive stats paths already apply.
-        if (entry.unresponded) return;
-        qStats.answered++;
-
-        const slots = q.recording ? collectMediaSlots(q, r) : [];
-        const mediaPrimary = slots.some(
-          (s) =>
-            s.slot === 'primary' && (s.takes.length > 0 || s.captureUnavailable)
-        );
-        const manualPrimary = isFreeResponseType(q.type) || mediaPrimary;
-
-        if (manualPrimary) {
-          qStats.manualTotal++;
-          if (readSlotGrade(r.grading, q.id)) qStats.graded++;
-        } else {
-          qStats.autoTotal++;
-          if (gradeAnswer(q, entry.answer).isCorrect) qStats.correct++;
-        }
-
-        if (slots.some((s) => s.slot === 'addendum')) {
-          qStats.manualTotal++;
-          if (readSlotGrade(r.grading, q.id, 'addendum')) qStats.graded++;
-        }
-      });
-    });
-
-    return stats;
-  }, [responses, questions]);
+  const { t } = useTranslation();
+  const questionStats = React.useMemo(
+    () => computeQuestionStats(questions, responses),
+    [responses, questions]
+  );
 
   return (
     <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
       {questions.map((q, i) => {
-        const stats = questionStats[q.id] || {
-          answered: 0,
-          correct: 0,
-          autoTotal: 0,
-          graded: 0,
-          manualTotal: 0,
-        };
+        const stats = questionStats.get(q.id) ?? EMPTY_QUESTION_STAT;
         // With no responses yet, fall back to the question's own shape.
         const manualByShape = isFreeResponseType(q.type) || !!q.recording;
         const showAuto =
@@ -2095,12 +2036,17 @@ const QuestionsScreen: React.FC<{
         const autoPct =
           stats.autoTotal > 0
             ? Math.round((stats.correct / stats.autoTotal) * 100)
-            : 0;
-        const gradedPct =
-          stats.manualTotal > 0
-            ? Math.round((stats.graded / stats.manualTotal) * 100)
-            : 0;
-        const pct = showAuto ? autoPct : gradedPct;
+            : null;
+        // Until a mixed question's addendum is graded, the auto part is all that is known.
+        const pct = stats.averagePct ?? autoPct;
+        const caption = !showManual
+          ? null
+          : pct === null
+            ? t('quizResults.stats.notGradedYet')
+            : t('quizResults.stats.gradedOf', {
+                n: stats.graded,
+                m: stats.manualTotal,
+              });
 
         return (
           <div
@@ -2129,12 +2075,20 @@ const QuestionsScreen: React.FC<{
                 />
               )}
               {showManual && <SessionBadge tone="warn" label="Manual" />}
-              {showAuto && (
+              {caption && (
                 <span
-                  className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(autoPct).text}`}
+                  className="font-sans text-brand-gray-dark shrink-0 ml-auto"
+                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                >
+                  {caption}
+                </span>
+              )}
+              {pct !== null && (
+                <span
+                  className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(pct).text}`}
                   style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                 >
-                  {autoPct}%
+                  {pct}%
                 </span>
               )}
             </div>
@@ -2225,12 +2179,19 @@ const QuestionsScreen: React.FC<{
                 </>
               )}
               <div
+                role="img"
+                aria-label={
+                  pct === null
+                    ? t('quizResults.stats.notGradedYet')
+                    : t('quizResults.stats.barLabel', { pct })
+                }
                 className="flex-1 bg-brand-gray-lightest rounded-full overflow-hidden min-w-0"
                 style={{ height: 'min(8px, 2cqmin)' }}
               >
                 <div
-                  className={`h-full rounded-full ${scoreColorClasses(pct).bar}`}
-                  style={{ width: `${pct}%` }}
+                  data-testid={`question-stat-bar-${q.id}`}
+                  className={`h-full rounded-full ${scoreColorClasses(pct ?? 0).bar}`}
+                  style={{ width: `${pct ?? 0}%` }}
                 />
               </div>
             </div>

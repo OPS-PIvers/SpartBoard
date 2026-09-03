@@ -29,8 +29,10 @@ export const STUCK_SUBMISSION_AGE_MS = 10 * 60 * 1000;
 /** Runaway guard, not an expected volume. */
 export const MAX_SUBMISSIONS_PER_RUN = 500;
 export const SUBMISSION_PAGE_SIZE = 100;
-/** One page of bucket listing per prefix per run, per the brief. */
+/** Bucket listing page size; pages are followed until the prefix is exhausted. */
 export const STORAGE_PAGE_SIZE = 500;
+/** Runaway guard on the listing loop, not an expected volume. */
+export const MAX_STORAGE_PAGES = 40;
 
 export interface StuckSubmission {
   sessionId: string;
@@ -262,6 +264,52 @@ async function sweepOrphanedObjects(
   }
 }
 
+export interface ListableBucket {
+  getFiles(query: {
+    prefix: string;
+    autoPaginate: boolean;
+    maxResults: number;
+    pageToken?: string;
+  }): Promise<
+    [
+      Array<{ name: string; metadata?: { timeCreated?: string } }>,
+      { pageToken?: string } | null | undefined,
+      ...unknown[],
+    ]
+  >;
+}
+
+/** Follows page tokens until the prefix is exhausted or the guard trips. */
+export async function listBucketObjects(
+  bucket: ListableBucket,
+  prefix: string
+): Promise<StorageObject[]> {
+  const objects: StorageObject[] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < MAX_STORAGE_PAGES; page++) {
+    const [files, nextQuery] = await bucket.getFiles({
+      prefix,
+      autoPaginate: false,
+      maxResults: STORAGE_PAGE_SIZE,
+      pageToken,
+    });
+    for (const file of files) {
+      const parsed = Date.parse(String(file.metadata?.timeCreated ?? ''));
+      objects.push({
+        name: file.name,
+        createdAt: Number.isFinite(parsed) ? parsed : 0,
+      });
+    }
+    pageToken = nextQuery?.pageToken;
+    if (!pageToken) return objects;
+  }
+  console.warn(
+    '[sweepActivityWallArchives] listing page guard hit for prefix',
+    prefix
+  );
+  return objects;
+}
+
 export async function runSweepActivityWallArchives(
   db: Firestore,
   deps: WallSweepDeps
@@ -313,20 +361,7 @@ export const sweepActivityWallArchives = onSchedule(
       archiveOne: async (input) => {
         await archiveActivityWallMediaCore(archiveDeps, input);
       },
-      listObjects: async (prefix) => {
-        const [files] = await bucket.getFiles({
-          prefix,
-          autoPaginate: false,
-          maxResults: STORAGE_PAGE_SIZE,
-        });
-        return files.map((file) => {
-          const parsed = Date.parse(String(file.metadata?.timeCreated ?? ''));
-          return {
-            name: file.name,
-            createdAt: Number.isFinite(parsed) ? parsed : 0,
-          };
-        });
-      },
+      listObjects: (prefix) => listBucketObjects(bucket, prefix),
       deleteObject: async (name) => {
         await bucket.file(name).delete({ ignoreNotFound: true });
       },

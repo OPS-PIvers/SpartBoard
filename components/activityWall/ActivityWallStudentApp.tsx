@@ -266,6 +266,7 @@ export const ActivityWallStudentApp: React.FC = () => {
         flags: engagementFlags,
         identificationMode: mode,
         participantLabel,
+        showNames: wall.showNames ?? false,
         engagement,
       })
     : undefined;
@@ -305,7 +306,11 @@ export const ActivityWallStudentApp: React.FC = () => {
     setSheetError(null);
     try {
       if (sheet.kind === 'edit') {
-        await updatePost(wall, sheet.post.id, draft, placement);
+        await updatePost(wall, sheet.post.id, draft, placement, {
+          requeueForModeration:
+            wall.moderationEnabled === true && sheet.post.status === 'approved',
+          currentContent: sheet.post.content,
+        });
         closeSheet();
         setNotice('Changes saved.');
       } else {

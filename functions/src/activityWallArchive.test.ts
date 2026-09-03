@@ -78,7 +78,9 @@ import {
   isOrphanedObject,
   isStuckSubmission,
   parseMediaObjectName,
+  listBucketObjects,
   runSweepActivityWallArchives,
+  MAX_STORAGE_PAGES,
   STUCK_SUBMISSION_AGE_MS,
 } from './sweepActivityWallArchives';
 
@@ -446,7 +448,7 @@ describe('archiveActivityWallMediaCore', () => {
     expect(state?.archiveStatus).toBe('lost');
   });
 
-  it('never settles a resume attempt at lost even past the attempt ceiling', async () => {
+  it('settles a resume attempt at lost once the attempt ceiling is reached', async () => {
     const { db, state } = makeStubDb(
       baseSeed({
         submission: {
@@ -461,8 +463,26 @@ describe('archiveActivityWallMediaCore', () => {
     });
     await expect(call(deps)).rejects.toThrow('drive 500');
     expect(state?.attemptCount).toBe(MAX_ARCHIVE_ATTEMPTS);
-    expect(state?.archiveStatus).toBe('failed');
+    expect(state?.archiveStatus).toBe('lost');
     expect(state?.driveFileId).toBe('drive-existing');
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('caps a resumable submission before resuming it again', async () => {
+    const { db, state } = makeStubDb(
+      baseSeed({
+        submission: {
+          archiveStatus: 'failed',
+          attemptCount: MAX_ARCHIVE_ATTEMPTS,
+          driveFileId: 'drive-existing',
+        },
+      })
+    );
+    const deps = makeDeps(db);
+    const result = await call(deps);
+    expect(result.archiveStatus).toBe('skipped');
+    expect(state?.archiveStatus).toBe('lost');
+    expect(deps.setDrivePermission).not.toHaveBeenCalled();
     expect(deps.uploadToDrive).not.toHaveBeenCalled();
   });
 
@@ -937,5 +957,44 @@ describe('sweepActivityWallArchives', () => {
     expect(summary.cleanupRetried).toBe(1);
     expect(summary.cleanupCleared).toBe(1);
     expect(submissionState.storageCleanupPending).toBeUndefined();
+  });
+});
+
+describe('listBucketObjects', () => {
+  const makeBucket = (pages: string[][]) => ({
+    getFiles: vi.fn((query: { pageToken?: string }) => {
+      const index = query.pageToken ? Number(query.pageToken) : 0;
+      const files = (pages[index] ?? []).map((name) => ({
+        name,
+        metadata: { timeCreated: '2024-01-01T00:00:00.000Z' },
+      }));
+      const next =
+        index + 1 < pages.length ? { pageToken: `${index + 1}` } : null;
+      return Promise.resolve([files, next] as [
+        Array<{ name: string; metadata?: { timeCreated?: string } }>,
+        { pageToken?: string } | null,
+      ]);
+    }),
+  });
+
+  it('follows page tokens until the prefix is exhausted', async () => {
+    const bucket = makeBucket([['a/1'], ['a/2'], ['a/3']]);
+    const objects = await listBucketObjects(bucket, 'a/');
+    expect(objects.map((o) => o.name)).toEqual(['a/1', 'a/2', 'a/3']);
+    expect(objects[0]?.createdAt).toBe(Date.parse('2024-01-01T00:00:00.000Z'));
+    expect(bucket.getFiles).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops at the runaway page guard', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const pages = Array.from({ length: MAX_STORAGE_PAGES + 5 }, (_, i) => [
+      `a/${i}`,
+    ]);
+    const bucket = makeBucket(pages);
+    const objects = await listBucketObjects(bucket, 'a/');
+    expect(objects).toHaveLength(MAX_STORAGE_PAGES);
+    expect(bucket.getFiles).toHaveBeenCalledTimes(MAX_STORAGE_PAGES);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

@@ -4234,6 +4234,11 @@ service cloud.firestore {
                ) &&
                (isStudentRoleUser() || awParentSession().get('allowGuests', false) == true);
       }
+      // Session-level twin of the submissions block's awAcceptingResponses():
+      // a closed wall stops taking new engagement, not just new posts.
+      function awSessionAcceptingResponses() {
+        return awParentSession().get('acceptingResponses', true) != false;
+      }
       // Who may see engagement (likes/comments): the owner, the public
       // gallery audience, or the student-page audience while the wall is
       // visible (a hidden wall must not leak comments on unseen posts).
@@ -4477,8 +4482,11 @@ service cloud.firestore {
                             (!('storageCleanupPending' in request.resource.data) || request.resource.data.storageCleanupPending is bool) &&
                             (!('drivePermission' in request.resource.data) || request.resource.data.drivePermission is string);
         // Student self-edit: only the author, only while the wall is open and
-        // the teacher enabled editing, only content-shaped fields, and never
-        // `status` (that would bypass the moderation queue).
+        // the teacher enabled editing, only content-shaped fields. `status` is
+        // writable in exactly one direction: when moderation is on and the edit
+        // touches `content`, the post must return to 'pending' — otherwise a
+        // student could smuggle unreviewed text into an already-approved card.
+        // With moderation off, status must stay untouched as before.
         allow update: if request.auth != null &&
                             awIsPadletSession() &&
                             resource.data.get('authorUid', '') == request.auth.uid &&
@@ -4487,9 +4495,13 @@ service cloud.firestore {
                             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                               'content', 'title', 'label', 'sectionId', 'cellKey',
                               'lat', 'lng', 'editedAt', 'linkPreview', 'storagePath',
-                              'archiveStatus', 'fileName', 'mimeType', 'sizeBytes'
+                              'archiveStatus', 'fileName', 'mimeType', 'sizeBytes',
+                              'status'
                             ]) &&
-                            request.resource.data.status == resource.data.status &&
+                            (awSessionModerationEnabled() &&
+                             request.resource.data.diff(resource.data).affectedKeys().hasAny(['content'])
+                              ? request.resource.data.status == 'pending'
+                              : request.resource.data.status == resource.data.status) &&
                             request.resource.data.content is string &&
                             request.resource.data.content.size() > 0 &&
                             request.resource.data.content.size() <= 5000 &&
@@ -4508,6 +4520,7 @@ service cloud.firestore {
         allow read: if request.auth != null && awViewerOk();
         allow create: if request.auth != null &&
           awViewerOk() &&
+          (awIsOwner() || awSessionAcceptingResponses()) &&
           awParentSession().get('allowLikes', false) == true &&
           request.resource.data.keys().hasOnly([
             'id', 'submissionId', 'authorUid', 'createdAt'
@@ -4526,6 +4539,7 @@ service cloud.firestore {
         allow read: if request.auth != null && awViewerOk();
         allow create: if request.auth != null &&
           awViewerOk() &&
+          (awIsOwner() || awSessionAcceptingResponses()) &&
           awParentSession().get('allowComments', false) == true &&
           (
             request.resource.data.get('parentCommentId', null) == null ||

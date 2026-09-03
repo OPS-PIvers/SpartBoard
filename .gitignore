@@ -93,3 +93,7 @@ scripts/output/
 
 # Local dev-mode static preview (see .claude/launch.json vite-preview-dev)
 dist-devpreview
+
+# Local-only artifacts
+.impeccable/
+Dashboards/

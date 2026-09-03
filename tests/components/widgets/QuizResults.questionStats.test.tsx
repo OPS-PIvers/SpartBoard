@@ -211,3 +211,100 @@ describe('QuizResults — per-slot question stats', () => {
     expect(screen.getByText(/^0 Missed$/)).toBeTruthy();
   });
 });
+
+// Free-response quiz: the bar and chip must show the average earned score,
+// not how much of the grading the teacher has finished.
+const frqQuiz: QuizData = {
+  id: 'quiz-3',
+  title: 'Essay quiz',
+  createdAt: 1,
+  updatedAt: 1,
+  questions: [
+    {
+      id: 'q1',
+      type: 'free-response',
+      text: 'Explain photosynthesis.',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      timeLimit: 0,
+      points: 10,
+    },
+  ],
+} as unknown as QuizData;
+
+const frqResponse = (
+  uid: string,
+  grade?: { pointsAwarded: number; excused?: boolean }
+): QuizResponse =>
+  ({
+    studentUid: uid,
+    _responseKey: uid,
+    pin: uid,
+    status: 'completed',
+    submittedAt: 200,
+    tabSwitchWarnings: 0,
+    answers: [
+      { questionId: 'q1', answer: 'Plants make sugar.', answeredAt: 1 },
+    ],
+    ...(grade
+      ? { grading: { q1: { ...grade, gradedBy: 't1', gradedAt: 1 } } }
+      : {}),
+  }) as unknown as QuizResponse;
+
+const openFrq = (quizData: QuizData, responses: QuizResponse[]) => {
+  render(
+    <QuizResults
+      quiz={quizData}
+      responses={responses}
+      config={{ view: 'results' } as unknown as QuizConfig}
+      onBack={vi.fn()}
+    />
+  );
+  fireEvent.click(screen.getByText('Question results'));
+};
+
+describe('QuizResults — free-response average score', () => {
+  it('shows the average of graded scores and how many are graded', () => {
+    openFrq(frqQuiz, [
+      frqResponse('a', { pointsAwarded: 8 }),
+      frqResponse('b', { pointsAwarded: 6 }),
+      frqResponse('c'),
+    ]);
+    expect(screen.getByText('70%')).toBeTruthy();
+    expect(screen.getByText('2 of 3 graded')).toBeTruthy();
+    expect(screen.getByTestId('question-stat-bar-q1').style.width).toBe('70%');
+    expect(screen.getByRole('img', { name: 'Average score 70%' })).toBeTruthy();
+  });
+
+  it('shows an empty bar and no chip before anything is graded', () => {
+    openFrq(frqQuiz, [frqResponse('a'), frqResponse('b')]);
+    expect(screen.queryByText(/%$/)).toBeNull();
+    expect(screen.getByText('Not graded yet')).toBeTruthy();
+    expect(screen.getByTestId('question-stat-bar-q1').style.width).toBe('0%');
+    expect(screen.getByRole('img', { name: 'Not graded yet' })).toBeTruthy();
+  });
+
+  it('leaves an excused student out of the average', () => {
+    const recordedQuiz = {
+      ...frqQuiz,
+      questions: [{ ...frqQuiz.questions[0], recording: RECORDING }],
+    } as QuizData;
+    openFrq(recordedQuiz, [
+      frqResponse('a', { pointsAwarded: 5 }),
+      frqResponse('b', { pointsAwarded: 0, excused: true }),
+    ]);
+    expect(screen.getByText('50%')).toBeTruthy();
+    expect(screen.getByTestId('question-stat-bar-q1').style.width).toBe('50%');
+  });
+
+  it('combines an auto-graded primary with its graded addendum', () => {
+    openQuestions([
+      response({
+        'q1::addendum': { pointsAwarded: 0, gradedBy: 't1', gradedAt: 1 },
+      }),
+    ]);
+    // MC worth 2 earned 2, addendum earned 0 of the same 2: still 100%.
+    expect(screen.getByText('100%')).toBeTruthy();
+    expect(screen.getByText('1 of 1 graded')).toBeTruthy();
+  });
+});

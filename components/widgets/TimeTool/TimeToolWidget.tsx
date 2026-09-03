@@ -164,12 +164,14 @@ const Keypad: React.FC<{
     containerRef.current?.focus();
   }, []);
 
-  // The keypad is built from buttons, so without this every key the teacher
-  // presses here reaches DashboardView's global handler instead: Escape
-  // minimized the whole timer, Delete opened its close-confirm. Handle the
-  // keys the keypad owns and stop them at the native level — stopPropagation
-  // alone only blocks React's synthetic tree, not window listeners.
+  // Claim the keys the keypad owns natively, or they reach DashboardView's global handler.
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Enter on a focused keypad button must activate that button, not confirm.
+    if (
+      e.key === 'Enter' &&
+      (e.target as HTMLElement | null)?.tagName === 'BUTTON'
+    )
+      return;
     const owned =
       e.key === 'Escape' ||
       e.key === 'Enter' ||
