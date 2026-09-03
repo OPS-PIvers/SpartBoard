@@ -27,6 +27,8 @@ const ORG_ADMIN_UID = 'org-admin-uid';
 const ORG_ADMIN_EMAIL = 'org-admin@example.com';
 const TEACHER_UID = 'teacher-uid';
 const TEACHER_EMAIL = 'teacher@example.com';
+const TEACHER_B_UID = 'teacher-b-uid';
+const TEACHER_B_EMAIL = 'teacher-b@example.com';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -43,6 +45,10 @@ const asOrgAdmin = () =>
 const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, { email: TEACHER_EMAIL })
+    .firestore();
+const asTeacherB = () =>
+  testEnv
+    .authenticatedContext(TEACHER_B_UID, { email: TEACHER_B_EMAIL })
     .firestore();
 
 const validItem = (
@@ -103,6 +109,9 @@ beforeEach(async () => {
       roleId: 'admin',
     });
     await setDoc(doc(db, `organizations/${ORG_A}/members/${TEACHER_EMAIL}`), {
+      roleId: 'teacher',
+    });
+    await setDoc(doc(db, `organizations/${ORG_B}/members/${TEACHER_B_EMAIL}`), {
       roleId: 'teacher',
     });
   });
@@ -340,6 +349,24 @@ describe('help_resources — update', () => {
   it('a teacher can increment openCount by exactly 1', async () => {
     await assertSucceeds(
       updateDoc(doc(asTeacher(), 'help_resources/org-a-1'), { openCount: 1 })
+    );
+  });
+
+  it('a teacher in another org cannot increment openCount on an org-scoped item', async () => {
+    await assertFails(
+      updateDoc(doc(asTeacherB(), 'help_resources/org-a-1'), { openCount: 1 })
+    );
+  });
+
+  it('any authed teacher can increment openCount on a global item', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'help_resources/global-1'),
+        validItem('global-1')
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asTeacherB(), 'help_resources/global-1'), { openCount: 1 })
     );
   });
 

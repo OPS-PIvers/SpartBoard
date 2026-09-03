@@ -3782,6 +3782,7 @@ service cloud.firestore {
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.openCount == resource.data.openCount)
         || (request.auth != null
+        && (resource.data.orgId == null || isAdmin() || isOrgMember(resource.data.orgId))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['openCount'])
         && request.resource.data.openCount == resource.data.openCount + 1);
       allow delete: if isAdmin() && helpScopeOk(resource.data);
