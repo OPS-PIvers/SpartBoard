@@ -46,6 +46,7 @@ import {
   DashboardSettings,
 } from '@/types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
+import { resolveWindowBackgroundHex } from '@/config/widgetAppearance';
 import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
@@ -2165,7 +2166,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       className={`absolute select-none widget group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
         isMaximized ? 'border-none !shadow-none' : ''
       } ${isGroupActive || isGroupBuildSelected ? 'ring-2 ring-brand-blue-light/60' : ''}`}
-      bgClass={widget.backgroundColor}
+      bgHex={resolveWindowBackgroundHex(widget.backgroundColor)}
       style={{
         left: isMaximized
           ? 0

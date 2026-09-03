@@ -25,6 +25,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     fontFamily = 'global',
     clockStyle = 'modern',
     glow = false,
+    dateColor,
   } = widget.config as ClockConfig;
 
   // Resync the display the instant showSeconds changes, so a toggle right
@@ -151,8 +152,12 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
           <div
             data-testid="clock-date"
-            className={`opacity-80 uppercase tracking-[0.2em] text-slate-300 ${getFontClass()}`}
-            style={{ fontSize: CLOCK_DATE_FONT_SIZE, fontWeight: 900 }}
+            className={`opacity-80 uppercase tracking-[0.2em] ${getFontClass()}`}
+            style={{
+              fontSize: CLOCK_DATE_FONT_SIZE,
+              fontWeight: 900,
+              color: dateColor ?? themeColor,
+            }}
           >
             {time.toLocaleDateString(i18n.language, {
               weekday: 'long',
