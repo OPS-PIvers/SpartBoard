@@ -71,6 +71,7 @@ export const useHelpResources = ({
   }
 
   useEffect(() => {
+    if (!isConfigured) return;
     const unsub = onSnapshot(
       doc(db, 'help_center', 'config'),
       (snap) => {
@@ -87,7 +88,7 @@ export const useHelpResources = ({
   }, []);
 
   useEffect(() => {
-    if (allOrgs) return;
+    if (allOrgs || !isConfigured) return;
     const q = query(
       collection(db, 'help_resources'),
       where('orgId', '==', null)
@@ -113,7 +114,7 @@ export const useHelpResources = ({
   }, [allOrgs]);
 
   useEffect(() => {
-    if (!allOrgs) return;
+    if (!allOrgs || !isConfigured) return;
     const unsub = onSnapshot(
       collection(db, 'help_resources'),
       (snap) => {
@@ -137,7 +138,7 @@ export const useHelpResources = ({
 
   useEffect(() => {
     // No org query to run; the render-time fallback below reports loaded.
-    if (!orgId || allOrgs) return;
+    if (!orgId || allOrgs || !isConfigured) return;
     const q = query(
       collection(db, 'help_resources'),
       where('orgId', '==', orgId)
@@ -166,18 +167,23 @@ export const useHelpResources = ({
   }, [orgId, allOrgs]);
 
   const effectiveOrgItems = orgId ? orgItems : [];
-  const effectiveOrgLoaded = orgId ? orgLoaded : true;
+  const effectiveOrgLoaded = orgId && isConfigured ? orgLoaded : true;
   const merged = allOrgs ? allItems : mergeById(globalItems, effectiveOrgItems);
   const visible = includeHidden
     ? merged
     : merged.filter((item) => item.visible !== false);
+  const effectiveConfigLoaded = isConfigured ? configLoaded : true;
+  const effectiveAllLoaded = isConfigured ? allLoaded : true;
+  const effectiveGlobalLoaded = isConfigured ? globalLoaded : true;
 
   return {
     items: sortHelpItems(visible, categories),
     categories,
     loading:
-      !configLoaded ||
-      (allOrgs ? !allLoaded : !globalLoaded || !effectiveOrgLoaded),
+      !effectiveConfigLoaded ||
+      (allOrgs
+        ? !effectiveAllLoaded
+        : !effectiveGlobalLoaded || !effectiveOrgLoaded),
     error,
   };
 };
@@ -312,6 +318,7 @@ export const useHelpItemsForWidget = (
 const countedHelpItemIds = new Set<string>();
 
 export const incrementHelpOpenCount = async (itemId: string): Promise<void> => {
+  if (!isConfigured) return;
   if (countedHelpItemIds.has(itemId)) return;
   countedHelpItemIds.add(itemId);
   try {

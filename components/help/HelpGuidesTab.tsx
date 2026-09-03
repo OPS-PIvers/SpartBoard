@@ -302,8 +302,8 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                     </span>
                     {item.orgId && (
                       <span className="px-2 py-0.5 rounded-full bg-brand-blue-primary/10 text-brand-blue-primary text-[11px] shrink-0">
-                        {organization?.shortName ||
-                          organization?.name ||
+                        {organization?.shortName ??
+                          organization?.name ??
                           t('helpCenter.guides.orgBadge')}
                       </span>
                     )}

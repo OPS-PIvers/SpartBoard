@@ -29,7 +29,7 @@ vi.mock('firebase/firestore', () => ({
   increment: firestoreMocks.increment,
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
   collection: (_db: unknown, name: string) => ({ name }),
-  onSnapshot: () => () => {},
+  onSnapshot: () => vi.fn(),
   query: (...args: unknown[]) => args,
   where: (...args: unknown[]) => args,
   orderBy: (...args: unknown[]) => args,
@@ -38,7 +38,11 @@ vi.mock('firebase/firestore', () => ({
   getDoc: vi.fn(),
 }));
 
-vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  isAuthBypass: false,
+  isConfigured: true,
+}));
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ orgId: 'org-1', user: { uid: 'u1' } }),
