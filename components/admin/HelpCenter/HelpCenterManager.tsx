@@ -82,6 +82,7 @@ export const HelpCenterManager: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<HelpResourceItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sortByOpens, setSortByOpens] = useState(false);
 
   // Seed the shared category list once, so the first super admin to open the tab creates the config doc.
   useEffect(() => {
@@ -118,6 +119,7 @@ export const HelpCenterManager: React.FC = () => {
     (category) =>
       category.id !== '' || items.some((item) => item.categoryId === '')
   );
+  const flatByOpens = [...items].sort((a, b) => b.openCount - a.openCount);
 
   const scopeLabel = (item: HelpResourceItem): string =>
     item.orgId === null ? 'Everyone' : (orgNames.get(item.orgId) ?? item.orgId);
@@ -175,10 +177,22 @@ export const HelpCenterManager: React.FC = () => {
     }
   };
 
-  const handleReorder = async (next: HelpResourceItem[]) => {
+  // Order values are shared with read-only items from other scopes, so the new
+  // numbers must come from the merged section sequence, not the own-items index.
+  const handleReorder = async (
+    next: HelpResourceItem[],
+    sectionItems: HelpResourceItem[]
+  ) => {
     try {
+      const slots = [...sectionItems].sort(
+        (a, b) => a.order - b.order || a.title.localeCompare(b.title)
+      );
+      let cursor = 0;
+      const merged = slots.map((slot) =>
+        canWriteItem(slot) ? next[cursor++] : slot
+      );
       const batch = writeBatch(db);
-      next.forEach((item, index) => {
+      merged.forEach((item, index) => {
         if (item.order === index || !canWriteItem(item)) return;
         batch.update(
           doc(db, HELP_RESOURCES_COLLECTION, item.id),
@@ -199,10 +213,11 @@ export const HelpCenterManager: React.FC = () => {
       return next;
     });
 
-  // handle === null renders an out-of-scope row: visible, but not editable by this admin.
+  // handle is null where rows are not draggable; canWrite gates the edit controls independently.
   const renderRow = (
     item: HelpResourceItem,
-    handle: SortableListDragHandleProps | null
+    handle: SortableListDragHandleProps | null,
+    canWrite: boolean
   ) => (
     <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-2">
       {handle ? (
@@ -240,7 +255,7 @@ export const HelpCenterManager: React.FC = () => {
         <Eye className="w-3.5 h-3.5" />
         {item.openCount}
       </span>
-      {handle ? (
+      {canWrite ? (
         <>
           <Toggle
             checked={item.visible}
@@ -287,18 +302,33 @@ export const HelpCenterManager: React.FC = () => {
             Guides teachers see in the Help modal.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={!canPublish || !hasCategories}
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-brand-blue-primary text-white text-sm disabled:opacity-50"
-        >
-          <Plus className="w-4 h-4" />
-          Add item
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={sortByOpens}
+            onClick={() => setSortByOpens((prev) => !prev)}
+            className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm ${
+              sortByOpens
+                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                : 'bg-white text-slate-600 border-slate-200'
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            Sort by opens
+          </button>
+          <button
+            type="button"
+            disabled={!canPublish || !hasCategories}
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-brand-blue-primary text-white text-sm disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            Add item
+          </button>
+        </div>
       </header>
 
       {canPublish && !hasCategories && (
@@ -341,6 +371,15 @@ export const HelpCenterManager: React.FC = () => {
           <Loader2 className="w-4 h-4 animate-spin" />
           Loading help items...
         </div>
+      ) : sortByOpens ? (
+        <div className="border border-slate-200 rounded-lg p-3 space-y-1">
+          {flatByOpens.length === 0 && (
+            <p className="text-sm text-slate-500">No items yet.</p>
+          )}
+          {flatByOpens.map((item) => (
+            <div key={item.id}>{renderRow(item, null, canWriteItem(item))}</div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-3">
           {sections.map((category) => {
@@ -351,6 +390,10 @@ export const HelpCenterManager: React.FC = () => {
             const ownItems = sectionItems.filter(canWriteItem);
             const readOnlyItems = sectionItems.filter(
               (item) => !canWriteItem(item)
+            );
+            const categoryOpens = sectionItems.reduce(
+              (sum, item) => sum + item.openCount,
+              0
             );
             return (
               <section
@@ -371,7 +414,11 @@ export const HelpCenterManager: React.FC = () => {
                     )}
                     {category.name}
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5" />
+                      {categoryOpens}
+                    </span>
                     {sectionItems.length} item
                     {sectionItems.length === 1 ? '' : 's'}
                   </span>
@@ -384,15 +431,19 @@ export const HelpCenterManager: React.FC = () => {
                       </p>
                     )}
                     {readOnlyItems.map((item) => (
-                      <div key={item.id}>{renderRow(item, null)}</div>
+                      <div key={item.id}>{renderRow(item, null, false)}</div>
                     ))}
                     {ownItems.length > 0 && (
                       <SortableList
                         items={ownItems}
                         getId={(item) => item.id}
-                        onReorder={(next) => void handleReorder(next)}
+                        onReorder={(next) =>
+                          void handleReorder(next, sectionItems)
+                        }
                         className="space-y-1"
-                        renderItem={(item, handle) => renderRow(item, handle)}
+                        renderItem={(item, handle) =>
+                          renderRow(item, handle, true)
+                        }
                       />
                     )}
                   </div>

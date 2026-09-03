@@ -1,5 +1,13 @@
 import { useContext, useEffect, useRef, useState } from 'react';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  increment,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -63,6 +71,7 @@ export const useHelpResources = ({
   }
 
   useEffect(() => {
+    if (!isConfigured) return;
     const unsub = onSnapshot(
       doc(db, 'help_center', 'config'),
       (snap) => {
@@ -79,7 +88,7 @@ export const useHelpResources = ({
   }, []);
 
   useEffect(() => {
-    if (allOrgs) return;
+    if (allOrgs || !isConfigured) return;
     const q = query(
       collection(db, 'help_resources'),
       where('orgId', '==', null)
@@ -105,7 +114,7 @@ export const useHelpResources = ({
   }, [allOrgs]);
 
   useEffect(() => {
-    if (!allOrgs) return;
+    if (!allOrgs || !isConfigured) return;
     const unsub = onSnapshot(
       collection(db, 'help_resources'),
       (snap) => {
@@ -129,7 +138,7 @@ export const useHelpResources = ({
 
   useEffect(() => {
     // No org query to run; the render-time fallback below reports loaded.
-    if (!orgId || allOrgs) return;
+    if (!orgId || allOrgs || !isConfigured) return;
     const q = query(
       collection(db, 'help_resources'),
       where('orgId', '==', orgId)
@@ -158,18 +167,23 @@ export const useHelpResources = ({
   }, [orgId, allOrgs]);
 
   const effectiveOrgItems = orgId ? orgItems : [];
-  const effectiveOrgLoaded = orgId ? orgLoaded : true;
+  const effectiveOrgLoaded = orgId && isConfigured ? orgLoaded : true;
   const merged = allOrgs ? allItems : mergeById(globalItems, effectiveOrgItems);
   const visible = includeHidden
     ? merged
     : merged.filter((item) => item.visible !== false);
+  const effectiveConfigLoaded = isConfigured ? configLoaded : true;
+  const effectiveAllLoaded = isConfigured ? allLoaded : true;
+  const effectiveGlobalLoaded = isConfigured ? globalLoaded : true;
 
   return {
     items: sortHelpItems(visible, categories),
     categories,
     loading:
-      !configLoaded ||
-      (allOrgs ? !allLoaded : !globalLoaded || !effectiveOrgLoaded),
+      !effectiveConfigLoaded ||
+      (allOrgs
+        ? !effectiveAllLoaded
+        : !effectiveGlobalLoaded || !effectiveOrgLoaded),
     error,
   };
 };
@@ -298,4 +312,23 @@ export const useHelpItemsForWidget = (
   }, [orgId]);
 
   return state.items.filter((item) => item.widgetTypes.includes(widgetType));
+};
+
+// Deduped per item per page load so reopening the same guide counts once.
+const countedHelpItemIds = new Set<string>();
+
+export const incrementHelpOpenCount = async (itemId: string): Promise<void> => {
+  if (!isConfigured) return;
+  if (countedHelpItemIds.has(itemId)) return;
+  countedHelpItemIds.add(itemId);
+  try {
+    await updateDoc(doc(db, 'help_resources', itemId), {
+      openCount: increment(1),
+    });
+  } catch (err) {
+    // Permission denials never succeed on retry; anything else may, so let it be counted again.
+    const code = (err as { code?: string } | null)?.code;
+    if (code !== 'permission-denied') countedHelpItemIds.delete(itemId);
+    console.warn('[useHelpResources] open count not recorded', err);
+  }
 };

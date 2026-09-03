@@ -3,13 +3,16 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Keyboard, LibraryBig, Search, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { HelpShortcutsTab } from './HelpShortcutsTab';
+import { HelpGuidesTab } from './HelpGuidesTab';
 import { setLastHelpTab, type HelpTab } from './helpCenterState';
+import type { WidgetType } from '@/types';
 
 interface HelpCenterModalProps {
   isOpen: boolean;
   tab: HelpTab;
   onTabChange: (tab: HelpTab) => void;
   onClose: () => void;
+  widgetType?: WidgetType;
 }
 
 const TABS: {
@@ -25,6 +28,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
   tab,
   onTabChange,
   onClose,
+  widgetType,
 }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -45,10 +49,12 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
     searchRef.current?.focus();
   }, [isOpen]);
 
-  const selectTab = (next: HelpTab) => {
-    setLastHelpTab(next);
-    onTabChange(next);
-  };
+  // Remember whichever tab is showing, including the one the opener picked.
+  const [recordedTab, setRecordedTab] = useState<HelpTab | null>(null);
+  if (isOpen && tab !== recordedTab) {
+    setRecordedTab(tab);
+    setLastHelpTab(tab);
+  }
 
   const onTabListKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     const keys = [
@@ -70,7 +76,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
       nextIndex = (current + last) % TABS.length;
     else nextIndex = (current + 1) % TABS.length;
     const nextId = TABS[nextIndex].id;
-    selectTab(nextId);
+    onTabChange(nextId);
     tabRefs.current[nextId]?.focus();
   };
 
@@ -133,7 +139,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
               ref={(el) => {
                 tabRefs.current[id] = el;
               }}
-              onClick={() => selectTab(id)}
+              onClick={() => onTabChange(id)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-left transition-colors ${
                 tab === id
                   ? 'bg-brand-blue-primary/10 text-brand-blue-primary'
@@ -153,7 +159,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           <select
             id="help-tab-select"
             value={tab}
-            onChange={(e) => selectTab(e.target.value as HelpTab)}
+            onChange={(e) => onTabChange(e.target.value as HelpTab)}
             className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800"
           >
             {TABS.map(({ id }) => (
@@ -174,9 +180,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           {tab === 'shortcuts' ? (
             <HelpShortcutsTab query={query} />
           ) : (
-            <p className="text-sm text-slate-500 py-16 text-center">
-              {t('helpCenter.guides.placeholder')}
-            </p>
+            <HelpGuidesTab query={query} widgetType={widgetType} />
           )}
           <p className="mt-8 text-center text-xs text-slate-400">
             <Trans i18nKey="helpCenter.footer" components={{ kbd: <kbd /> }} />

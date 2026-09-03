@@ -1185,7 +1185,8 @@
     "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?",
     "clearBoardTitle": "Effacer le Tableau",
     "minimizedToast": "Réduit — retrouvez-le dans le Dock",
-    "minimizedAllToast": "Tous les widgets réduits"
+    "minimizedAllToast": "Tous les widgets réduits",
+    "closedToast": "Widget fermé"
   },
   "login": {
     "signInToAccess": "Connectez-vous pour accéder à vos tableaux",
@@ -2228,7 +2229,23 @@
       "widget": "Widget"
     },
     "guides": {
-      "placeholder": "Les guides arrivent bientôt"
+      "allCategories": "Toutes",
+      "categories": "Catégories",
+      "empty": "Votre administrateur n'a pas encore ajouté de guides",
+      "noMatches": "Aucun guide ne correspond à votre recherche",
+      "back": "Retour",
+      "open": "Ouvrir",
+      "openExternal": "Ouvrir dans un nouvel onglet",
+      "orgBadge": "Votre établissement",
+      "clearWidgetFilter": "Effacer le filtre de widget",
+      "activityUnavailable": "Cette activité n'est plus disponible",
+      "kinds": {
+        "docs": "Documents",
+        "slides": "Diaporamas",
+        "videos": "Vidéos",
+        "activities": "Activités",
+        "other": "Autres"
+      }
     },
     "shortcuts": {
       "open-help": "Ouvrir l'aide",

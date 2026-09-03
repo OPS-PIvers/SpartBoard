@@ -93,10 +93,12 @@ describe('HELP_IFRAME_SANDBOX', () => {
 
 describe('helpIframeSandbox', () => {
   it('withholds allow-same-origin for arbitrary hosts', () => {
-    expect(helpIframeSandbox('other')).toBe(
-      'allow-scripts allow-forms allow-popups'
-    );
-    expect(helpIframeSandbox('other')).not.toContain('allow-same-origin');
+    for (const type of ['other', 'pdf'] as const) {
+      expect(helpIframeSandbox(type)).toBe(
+        'allow-scripts allow-forms allow-popups'
+      );
+      expect(helpIframeSandbox(type)).not.toContain('allow-same-origin');
+    }
   });
 
   it('keeps the full sandbox for known Google and video hosts', () => {
@@ -105,7 +107,6 @@ describe('helpIframeSandbox', () => {
       'doc',
       'slides',
       'sheet',
-      'pdf',
       'drive',
     ] as const) {
       expect(helpIframeSandbox(type)).toBe(HELP_IFRAME_SANDBOX);

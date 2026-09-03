@@ -1185,7 +1185,8 @@
     "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?",
     "clearBoardTitle": "Borrar Tablero",
     "minimizedToast": "Minimizado: lo encontrarás en el Dock",
-    "minimizedAllToast": "Todos los widgets minimizados"
+    "minimizedAllToast": "Todos los widgets minimizados",
+    "closedToast": "Widget cerrado"
   },
   "login": {
     "signInToAccess": "Inicia sesión para acceder a tus tableros",
@@ -2228,7 +2229,23 @@
       "widget": "Widget"
     },
     "guides": {
-      "placeholder": "Las guías llegarán pronto"
+      "allCategories": "Todas",
+      "categories": "Categorías",
+      "empty": "Tu administrador aún no ha añadido guías",
+      "noMatches": "Ninguna guía coincide con tu búsqueda",
+      "back": "Volver",
+      "open": "Abrir",
+      "openExternal": "Abrir en una pestaña nueva",
+      "orgBadge": "Tu centro",
+      "clearWidgetFilter": "Quitar el filtro de widget",
+      "activityUnavailable": "Esta actividad ya no está disponible",
+      "kinds": {
+        "docs": "Documentos",
+        "slides": "Presentaciones",
+        "videos": "Vídeos",
+        "activities": "Actividades",
+        "other": "Otros"
+      }
     },
     "shortcuts": {
       "open-help": "Abrir la ayuda",
