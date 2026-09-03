@@ -1974,6 +1974,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   db.settings ?? {}
                 );
               }
+              // The merge below returns `...db` for every DASHBOARD_FIELDS
+              // value, with no keep-local branch, so the baseline moves with it
+              // unconditionally. Leaving it behind would make the next save
+              // read a field it just accepted as a local edit.
+              lastSavedFieldsRef.current.dashboardFields = Object.fromEntries(
+                DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(db[f])])
+              ) as Record<MergedDashboardField, string>;
 
               // For widgets, construct the array of what we would have saved if we had
               // accepted the server's widget baseline for non-locally-modified widgets.

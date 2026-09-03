@@ -571,4 +571,46 @@ describe('DashboardContext save baseline PII scrub', () => {
     // make this widget read as locally changed on every save.
     expect(baselineConfig.names).toBeUndefined();
   });
+
+  it('re-baselines board fields the snapshot merge accepted from the server', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      { ...makeDashboard('dash-1', [makePiiWidget('w-pii')]), isPinned: false },
+    ]);
+
+    // Local widget drift sends the next snapshot down the conflict-merge
+    // branch, which takes every board-level field straight from the server.
+    act(() => {
+      stateRef.current?.updateWidget('w-pii', {
+        config: { seatCount: 24 } as unknown as WidgetData['config'],
+      });
+    });
+
+    // Another device pins the board with a targeted updateDoc.
+    await pushSnapshot([
+      {
+        ...makeDashboard('dash-1', [makePiiWidget('w-pii')]),
+        isPinned: true,
+        updatedAt: 2000,
+      },
+    ]);
+    expect(stateRef.current?.activeDashboard?.isPinned).toBe(true);
+
+    saveDashboardMock.mockClear();
+    act(() => {
+      stateRef.current?.updateWidget('w-pii', {
+        config: { seatCount: 25 } as unknown as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    const baseline = saveDashboardMock.mock.calls.at(-1)?.[1] as
+      | { dashboardFields: Record<string, string> }
+      | undefined;
+    // A baseline still reading "false" would make the accepted pin look like a
+    // local edit and clobber a newer server value on the next save.
+    expect(baseline?.dashboardFields.isPinned).toBe('true');
+  });
 });
