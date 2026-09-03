@@ -9,10 +9,16 @@ import {
   toHelpEmbedSrc,
   helpIframeSandbox,
 } from '@/utils/helpEmbed';
-import type { WidgetType } from '@/types';
+import type { WidgetType, InternalToolType } from '@/types';
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
 import type { HelpItemDraft } from './helpCenterAdmin';
 import { GuidedLearningPicker } from './GuidedLearningPicker';
+
+const INTERNAL_TOOL_TYPES: ReadonlySet<InternalToolType> = new Set([
+  'record',
+  'magic',
+  'remote',
+]);
 
 interface HelpItemFormProps {
   isOpen: boolean;
@@ -96,7 +102,12 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
     }
   };
 
-  const visibleTools = TOOLS.filter((tool) =>
+  const isWidgetTool = (
+    tool: (typeof TOOLS)[number]
+  ): tool is (typeof TOOLS)[number] & { type: WidgetType } =>
+    !INTERNAL_TOOL_TYPES.has(tool.type as InternalToolType);
+
+  const visibleTools = TOOLS.filter(isWidgetTool).filter((tool) =>
     tool.label.toLowerCase().includes(widgetSearch.toLowerCase().trim())
   );
 
