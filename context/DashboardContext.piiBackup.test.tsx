@@ -300,6 +300,74 @@ describe('DashboardContext plural saveDashboards PII backup', () => {
   });
 });
 
+describe('DashboardContext PII backup with no live Drive connection', () => {
+  const realDriveService = driveMock.driveService;
+
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    exportDashboardMock.mockClear();
+    listFilesMock.mockClear();
+    vi.useFakeTimers();
+    // Simulates a teacher whose Google access token expired mid-session —
+    // useGoogleDrive returns a null driveService until the token refreshes.
+    driveMock.driveService = null as unknown as typeof realDriveService;
+  });
+
+  afterEach(() => {
+    driveMock.driveService = realDriveService;
+    vi.useRealTimers();
+  });
+
+  it('never writes scrubbed PII to Firestore when there is no Drive connection to back it up to', async () => {
+    const stateRef = setup();
+    const dash1 = makeDashboard('dash-1', []);
+    const dash2 = makeDashboard('dash-2', [makePiiWidget('w-pii')]);
+    await settleSnapshot(stateRef, [dash1, dash2]);
+    saveDashboardsMock.mockClear();
+
+    await act(async () => {
+      await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
+    });
+
+    // No Drive backup was possible, so the PII-bearing board must never be
+    // handed to Firestore in scrubbed form — that would permanently lose the
+    // roster names (no Drive copy exists, and Firestore only holds the
+    // scrubbed version).
+    expect(uploadFileMock).not.toHaveBeenCalled();
+    expect(saveDashboardsMock).not.toHaveBeenCalled();
+
+    // The save must fail loudly (matching the existing Drive-upload-failure
+    // path) rather than silently succeeding with data loss.
+    const errorToasts =
+      stateRef.current?.toasts.filter((t) => t.type === 'error') ?? [];
+    expect(
+      errorToasts.some((t) =>
+        t.message.includes('Failed to save the new board order')
+      )
+    ).toBe(true);
+
+    // The abort routes through `authError`, so the teacher also gets the
+    // actionable "Reconnect" toast rather than only a generic sync failure.
+    const reconnectToast = errorToasts.find((t) =>
+      t.message.includes('Google Drive connection expired')
+    );
+    expect(reconnectToast?.action?.label).toBe('Reconnect');
+
+    // The in-memory dashboard still has its PII field, ready to be backed up
+    // and saved successfully once the Drive connection is restored.
+    const liveDash2 = stateRef.current?.dashboards.find(
+      (d) => d.id === 'dash-2'
+    );
+    expect(
+      (liveDash2?.widgets[0].config as Record<string, unknown>).names
+    ).toBe('Alice\nBob');
+  });
+});
+
 describe('DashboardContext reorderDashboards rollback', () => {
   beforeEach(() => {
     capturedSnapshotCb = null;

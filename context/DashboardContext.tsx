@@ -74,7 +74,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useCollections } from '@/hooks/useCollections';
 import { useSharedCollection } from '@/hooks/useSharedCollection';
-import { setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
+import { authError, setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
 import { setGlobalPermissionsErrorHandler } from '@/utils/globalPermissionsErrors';
 import {
   setAiModelConfigFallbackHandler,
@@ -1299,7 +1299,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
   const backupDashboardPIIToDrive = useCallback(
     async (dashboard: Dashboard): Promise<void> => {
-      if (!driveService || !dashboardHasPII(dashboard)) return;
+      if (!dashboardHasPII(dashboard)) return;
+      if (!driveService) {
+        // No live Drive connection — abort rather than scrub PII with nowhere to back it up.
+        // `authError` fires the latched "Reconnect" toast so the abort is actionable, not just loud.
+        throw authError(
+          '[PII] Aborted dashboard save because Google Drive is not connected — PII supplement cannot be backed up'
+        );
+      }
 
       const pii = extractDashboardPII(dashboard);
       const blob = new Blob([JSON.stringify(pii)], {
