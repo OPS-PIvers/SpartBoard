@@ -1482,8 +1482,9 @@ export const DashboardView: React.FC = () => {
         <div className="absolute inset-0 bg-black/10 pointer-events-none" />
       </div>
 
-      {/* ZOOMABLE WIDGET SURFACE: Only widgets get pan/zoom. */}
+      {/* ZOOMABLE WIDGET SURFACE: widgets and the annotation canvas get pan/zoom. */}
       <div
+        id="dashboard-zoom-surface"
         className="absolute inset-0 transition-transform duration-300 ease-out"
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
@@ -1586,14 +1587,10 @@ export const DashboardView: React.FC = () => {
           dashboard. */}
       <LazyChunkErrorBoundary>
         <React.Suspense
-          fallback={
-            !annotationActive && !isActiveBoardReadOnly ? (
-              <ShellPlaceholder />
-            ) : null
-          }
+          fallback={!isActiveBoardReadOnly ? <ShellPlaceholder /> : null}
         >
           <Sidebar />
-          {!annotationActive && !isActiveBoardReadOnly && <Dock />}
+          {!isActiveBoardReadOnly && <Dock />}
         </React.Suspense>
       </LazyChunkErrorBoundary>
       <AnnotationOverlay />

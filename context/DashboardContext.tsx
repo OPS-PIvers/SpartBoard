@@ -475,11 +475,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
-  // --- Annotation (ephemeral full-screen draw-over overlay; NOT a widget) ---
+  // --- Annotation (full-screen draw-over overlay; NOT a widget) ---
   // The `objects` array is stored on the active dashboard's
-  // `annotationOverlay` so it rides through the live-share mirror to all
-  // participants. Per-user UI state (color, width, palette) stays local.
+  // `annotationOverlay` so it persists with the board and rides through the
+  // live-share mirror. Per-user UI state (color, width, palette) stays local.
   const [annotationActive, setAnnotationActive] = useState(false);
+  // Ids present when the toolbar opened; undo never reaches past them.
+  const annotationSessionIdsRef = useRef<Set<string>>(new Set());
   const [annotationLocalState, setAnnotationLocalState] = useState<
     Omit<AnnotationState, 'objects'>
   >(() => ({
@@ -5541,6 +5543,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, []);
 
+  // Forward-declared setter for the Wave 5 redo stack — declared below but
+  // referenced from `openAnnotation` (fresh session) and `addAnnotationObject`
+  // (a fresh stroke drops the redo branch, standard undo/redo semantics).
+  // We use a ref dance to avoid the temporal-dead-zone problem of referencing
+  // a useState setter that's defined later in the function body.
+  const annotationRedoSetterRef = useRef<React.Dispatch<
+    React.SetStateAction<DrawableObject[]>
+  > | null>(null);
+
   const openAnnotation = useCallback(() => {
     // Seed from admin building defaults for width + color palette.
     // `color` is not configurable at the admin level — keep the user's
@@ -5558,18 +5569,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       activeTool: prev.activeTool,
       shapeFill: prev.shapeFill,
     }));
-    // Reset the dashboard's overlay so a fresh session starts blank for
-    // everyone (including remote participants on a synced board).
-    setActiveAnnotationObjects([]);
+    // Ink persists per board until trashed; opening only starts a fresh
+    // undo/redo session over whatever is already there.
+    const existing =
+      dashboardsRef.current.find((d) => d.id === activeIdRef.current)
+        ?.annotationOverlay?.objects ?? [];
+    annotationSessionIdsRef.current = new Set(existing.map((o) => o.id));
+    annotationRedoSetterRef.current?.([]);
     setAnnotationActive(true);
-  }, [getAdminBuildingConfig, setActiveAnnotationObjects]);
+  }, [getAdminBuildingConfig]);
 
+  // Exit hides the toolbar only; the ink stays on the board (inert) and
+  // stays mirrored to live-share participants.
   const closeAnnotation = useCallback(() => {
     setAnnotationActive(false);
-    // Clear shared strokes so collaborators / viewers see them disappear
-    // when the host (or any synced participant) ends the session.
-    setActiveAnnotationObjects([]);
-  }, [setActiveAnnotationObjects]);
+  }, []);
 
   const updateAnnotationState = useCallback(
     (updates: Partial<AnnotationState>) => {
@@ -5583,15 +5597,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [setActiveAnnotationObjects]
   );
-
-  // Forward-declared setter for the Wave 5 redo stack — declared below but
-  // referenced from `addAnnotationObject` so a fresh stroke invalidates the
-  // redo branch (standard undo/redo semantics: any new action drops redo).
-  // We use a ref dance to avoid the temporal-dead-zone problem of referencing
-  // a useState setter that's defined later in the function body.
-  const annotationRedoSetterRef = useRef<React.Dispatch<
-    React.SetStateAction<DrawableObject[]>
-  > | null>(null);
 
   const addAnnotationObject = useCallback(
     (obj: DrawableObject) => {
@@ -5653,19 +5658,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // collaborators on a synced board can't accidentally clobber each
     // other's drawings. Falls back to the very last object when the
     // user's uid isn't known (auth-bypass / pre-stamped legacy data).
+    // Undo is scoped to this toolbar session: ink that predates open is
+    // only removable via select + delete or the trash.
+    const sessionIds = annotationSessionIdsRef.current;
     const uid = user?.uid;
     let removeAt = -1;
-    if (uid) {
-      for (let i = current.length - 1; i >= 0; i--) {
-        if (current[i].authorUid === uid) {
-          removeAt = i;
-          break;
-        }
+    for (let i = current.length - 1; i >= 0; i--) {
+      if (sessionIds.has(current[i].id)) continue;
+      if (!uid || current[i].authorUid === uid) {
+        removeAt = i;
+        break;
       }
     }
-    if (removeAt < 0) {
-      removeAt = current.length - 1;
-    }
+    if (removeAt < 0) return;
     const removed = current[removeAt];
     const next = [
       ...current.slice(0, removeAt),

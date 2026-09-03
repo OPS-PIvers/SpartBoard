@@ -2,8 +2,8 @@
  * AnnotationOverlay — the app-level "draw over the whole dashboard" surface.
  *
  * Pagination is intentionally NOT supported here (Phase 2 PR 2.3 decision).
- * Annotations are ephemeral: they represent "things drawn over the current
- * dashboard view" rather than a persistent document. The DrawingWidget owns
+ * Annotations are a single ink layer that persists with its board until
+ * trashed; they are notes across widgets, not a document. The DrawingWidget owns
  * the multi-page document model (`DrawingConfig.pages[]`); the overlay
  * deliberately diverges and continues to store a flat `objects[]` on
  * `dashboard.annotationOverlay`. The shared `useDrawingCanvas` /
@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingCanvas';
 import {
@@ -105,12 +106,12 @@ const FALLBACK_ANNOTATION_STATE: {
 };
 
 /**
- * Full-screen annotation overlay — ephemeral, NOT a widget.
+ * Full-screen annotation overlay — NOT a widget.
  *
- * Renders into `#dashboard-root` above all widgets. No dimming layer: the
- * dashboard stays visually identical, the user just gains the ability to
- * draw over everything. The floating toolbar sits at the bottom, where the
- * Dock normally lives (the Dock hides itself while annotation is active).
+ * The canvas renders inside `#dashboard-zoom-surface` so ink shares the
+ * widgets' pan/zoom camera and stores board coordinates. The toolbar and
+ * text editor portal into `#dashboard-root` (fixed, top-center) so they stay
+ * outside the transform. No dimming layer; the Dock stays available.
  */
 export const AnnotationOverlay: React.FC = () => {
   const dashboard = useDashboard();
@@ -139,17 +140,22 @@ export const AnnotationOverlay: React.FC = () => {
   // pen interaction. The host's strokes flow in via the dashboard's
   // `annotationOverlay` field through the live-share mirror.
   const isReadOnly = !!isActiveBoardReadOnly;
+  // Interactive = local user has the toolbar open on a writable board.
+  const interactive = annotationActive && !isReadOnly;
   // Show overlay either when the local user opened it, OR when remote
   // strokes exist on the active dashboard (so viewers see incoming strokes
   // even without ever clicking the pencil).
   const hasRemoteStrokes = (annotationState.objects?.length ?? 0) > 0;
   const shouldRender = annotationActive || hasRemoteStrokes;
   const { canAccessFeature } = useAuth();
+  const { showConfirm } = useDialog();
   const { saveDrawingToDrive, isConnected: isDriveConnected } =
     useGoogleDrive();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  // Canvas lives in the zoom surface; falls back to the root when absent.
+  const [canvasTarget, setCanvasTarget] = useState<HTMLElement | null>(null);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1280,
     height: typeof window !== 'undefined' ? window.innerHeight : 720,
@@ -181,6 +187,9 @@ export const AnnotationOverlay: React.FC = () => {
       const target = document.getElementById('dashboard-root');
       if (target) {
         setPortalTarget(target);
+        setCanvasTarget(
+          document.getElementById('dashboard-zoom-surface') ?? target
+        );
         return true;
       }
       return false;
@@ -202,9 +211,8 @@ export const AnnotationOverlay: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [shouldRender]);
 
-  // Flush any open text edit before the overlay goes away. Today
-  // closeAnnotation still wipes objects, so this only matters once
-  // annotations persist per board; it keeps the commit ordering correct.
+  // Flush any open text edit before the toolbar goes away so Exit and
+  // Escape never drop unsaved content.
   const exitAnnotation = useCallback(() => {
     textEditorRef.current?.commit();
     closeAnnotation();
@@ -214,13 +222,22 @@ export const AnnotationOverlay: React.FC = () => {
   // keydown, so Escape inside the editor cancels the edit and never reaches
   // here; an unfocused-but-open editor is flushed by exitAnnotation.
   useEffect(() => {
-    if (!shouldRender) return undefined;
+    if (!interactive) return undefined;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !isEscapeFromWidgetInput(e)) exitAnnotation();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shouldRender, exitAnnotation]);
+  }, [interactive, exitAnnotation]);
+
+  // Trash wipes ink that may be days old and mirrored to viewers: confirm.
+  const handleClear = useCallback(async () => {
+    const ok = await showConfirm(
+      'Clear all annotations on this board? This cannot be undone.',
+      { confirmLabel: 'Clear' }
+    );
+    if (ok) clearAnnotation();
+  }, [showConfirm, clearAnnotation]);
 
   const canvasSize = useMemo(
     () => ({ width: viewport.width, height: viewport.height }),
@@ -612,41 +629,44 @@ export const AnnotationOverlay: React.FC = () => {
     }
   }, [activeDashboard, addToast, addWidget, updateWidget]);
 
-  if (!shouldRender || !portalTarget) return null;
+  if (!shouldRender || !portalTarget || !canvasTarget) return null;
 
   const { color, width, customColors, objects, activeTool } = annotationState;
   const isErasing = activeTool === 'eraser';
-  // Read-only canvas for viewers and for the passive "remote strokes are
-  // showing but I haven't opened the toolbar" state. No pen interaction,
-  // no toolbar — just the strokes painted on top of the dashboard.
-  const interactive = annotationActive && !isReadOnly;
 
-  return createPortal(
+  // Passive (toolbar closed or viewer): ink paints but never takes pointer.
+  const canvasPortal = createPortal(
+    <canvas
+      ref={canvasRef}
+      onPointerDown={interactive ? handlePointerDown : undefined}
+      onPointerMove={interactive ? handlePointerMove : undefined}
+      onPointerUp={interactive ? handlePointerUp : undefined}
+      onPointerLeave={interactive ? handlePointerUp : undefined}
+      onDoubleClick={interactive ? handleCanvasDoubleClick : undefined}
+      onDrop={interactive ? handleImageDrop : undefined}
+      onDragOver={interactive ? handleImageDragOver : undefined}
+      data-selected-id={selectedId ?? ''}
+      data-inking-surface="true"
+      className={`absolute inset-0 ${
+        interactive
+          ? activeTool === 'select'
+            ? 'pointer-events-auto cursor-default'
+            : 'pointer-events-auto cursor-crosshair'
+          : 'pointer-events-none'
+      }`}
+      style={{
+        touchAction: interactive ? 'none' : 'auto',
+        zIndex: Z_INDEX.overlay,
+      }}
+    />,
+    canvasTarget
+  );
+
+  const chromePortal = createPortal(
     <div
       className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: Z_INDEX.overlay }}
     >
-      <canvas
-        ref={canvasRef}
-        onPointerDown={interactive ? handlePointerDown : undefined}
-        onPointerMove={interactive ? handlePointerMove : undefined}
-        onPointerUp={interactive ? handlePointerUp : undefined}
-        onPointerLeave={interactive ? handlePointerUp : undefined}
-        onDoubleClick={interactive ? handleCanvasDoubleClick : undefined}
-        onDrop={interactive ? handleImageDrop : undefined}
-        onDragOver={interactive ? handleImageDragOver : undefined}
-        data-selected-id={selectedId ?? ''}
-        data-inking-surface="true"
-        className={`absolute inset-0 ${
-          interactive
-            ? activeTool === 'select'
-              ? 'pointer-events-auto cursor-default'
-              : 'pointer-events-auto cursor-crosshair'
-            : 'pointer-events-none'
-        }`}
-        style={{ touchAction: interactive ? 'none' : 'auto' }}
-      />
-
       {interactive && <input {...fileInputProps} />}
 
       {interactive && editingText && canvasRect && (
@@ -660,12 +680,12 @@ export const AnnotationOverlay: React.FC = () => {
         />
       )}
 
-      {/* Floating toolbar — sits where the Dock normally lives.
-          Hidden for viewers and for the passive remote-stroke render path. */}
+      {/* Floating toolbar — top-center so the Dock stays free below.
+          Hidden for viewers and for the passive render path. */}
       {interactive && (
         <div
           data-screenshot="exclude"
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex items-center gap-2 motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-300"
+          className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex items-center gap-2 motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-300"
         >
           <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
             <MousePointer2 className="w-4 h-4 text-indigo-600 motion-safe:animate-pulse" />
@@ -771,7 +791,7 @@ export const AnnotationOverlay: React.FC = () => {
             icon={<Redo2 className="w-4 h-4" />}
           />
           <Button
-            onClick={clearAnnotation}
+            onClick={handleClear}
             title="Clear all"
             variant="ghost-danger"
             size="icon"
@@ -850,10 +870,8 @@ export const AnnotationOverlay: React.FC = () => {
         </div>
       )}
 
-      {/* Passive read-only indicator — surfaces a small chip when the user
-          is seeing remote strokes (viewer or pre-toolbar synced) so it's
-          clear those marks aren't theirs. */}
-      {!interactive && hasRemoteStrokes && (
+      {/* Viewer indicator — the ink on screen is the host's, not theirs. */}
+      {isReadOnly && hasRemoteStrokes && (
         <div
           data-screenshot="exclude"
           className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-white/80 backdrop-blur-md rounded-full shadow-md border border-white/40 px-3 py-1 flex items-center gap-2"
@@ -866,5 +884,12 @@ export const AnnotationOverlay: React.FC = () => {
       )}
     </div>,
     portalTarget
+  );
+
+  return (
+    <>
+      {canvasPortal}
+      {chromePortal}
+    </>
   );
 };

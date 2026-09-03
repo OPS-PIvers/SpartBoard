@@ -16,6 +16,12 @@ import type { DrawableObject, TextObject } from '@/types';
 // the approach used by BoardActionsFab.test and DashboardView.test).
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
+const { mockShowConfirm } = vi.hoisted(() => ({
+  mockShowConfirm: vi.fn<() => Promise<boolean>>(),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: mockShowConfirm }),
+}));
 const { mockSaveDrawingToDrive, mockIsDriveConnected } = vi.hoisted(() => ({
   mockSaveDrawingToDrive: vi.fn(),
   mockIsDriveConnected: { current: false },
@@ -392,5 +398,83 @@ describe('AnnotationOverlay', () => {
       expect.any(Blob),
       'Annotation-2026-03-05T20-15-30.png'
     );
+  });
+});
+
+describe('AnnotationOverlay — persistence + layout', () => {
+  beforeEach(() => {
+    const root = document.createElement('div');
+    root.id = 'dashboard-root';
+    document.body.appendChild(root);
+    mockShowConfirm.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.body.innerHTML = '';
+  });
+
+  const stroke: DrawableObject = {
+    id: 'p1',
+    kind: 'rect',
+    z: 1,
+    x: 0,
+    y: 0,
+    w: 10,
+    h: 10,
+    stroke: '#000',
+    strokeWidth: 2,
+  };
+
+  it('mounts the canvas inside the zoom surface and the toolbar top-center', () => {
+    const surface = document.createElement('div');
+    surface.id = 'dashboard-zoom-surface';
+    const root = document.getElementById('dashboard-root');
+    if (!root) throw new Error('dashboard-root missing');
+    root.appendChild(surface);
+    setupContext();
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    expect(canvas?.parentElement).toBe(surface);
+    const toolbar = screen
+      .getByRole('button', { name: /^exit/i })
+      .closest('[data-screenshot="exclude"]') as HTMLElement;
+    expect(toolbar.className).toContain('top-6');
+    expect(toolbar.className).not.toContain('bottom-6');
+    expect(surface.contains(toolbar)).toBe(false);
+  });
+
+  it('trash asks for confirmation and only clears on yes', async () => {
+    const clearAnnotation = vi.fn();
+    setupContext({ annotationState: baseState({ objects: [stroke] }) });
+    (useDashboard as Mock).mockReturnValue({
+      ...(useDashboard as Mock)(),
+      clearAnnotation,
+    });
+    render(<AnnotationOverlay />);
+    const trash = screen.getByRole('button', { name: /clear all/i });
+
+    mockShowConfirm.mockResolvedValueOnce(false);
+    fireEvent.click(trash);
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+    expect(clearAnnotation).not.toHaveBeenCalled();
+
+    mockShowConfirm.mockResolvedValueOnce(true);
+    fireEvent.click(trash);
+    await waitFor(() => expect(clearAnnotation).toHaveBeenCalledTimes(1));
+  });
+
+  it('with the toolbar closed, persisted ink renders inert and Escape does nothing', () => {
+    const { closeAnnotation } = setupContext({
+      annotationActive: false,
+      annotationState: baseState({ objects: [stroke] }),
+    });
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    expect(canvas?.className).toContain('pointer-events-none');
+    expect(screen.queryByRole('button', { name: /^exit/i })).toBeNull();
+    expect(screen.queryByText(/host annotation/i)).toBeNull();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(closeAnnotation).not.toHaveBeenCalled();
   });
 });

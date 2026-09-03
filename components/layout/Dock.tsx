@@ -102,6 +102,7 @@ export const Dock: React.FC = () => {
     addToast,
     setPendingQuizShareId,
     setPendingAssignmentShareId,
+    annotationActive,
   } = useDashboard();
   const {
     visibleTools,
@@ -827,6 +828,9 @@ export const Dock: React.FC = () => {
         isDragCollapsing ? 'transition-none' : 'ease-out'
       }`}
       style={{
+        // Lift above the annotation canvas so the dock stays usable while
+        // the toolbar is open (mirrors the Sidebar's lift).
+        zIndex: annotationActive ? Z_INDEX.confirmOverlay : undefined,
         transform: `${baseTransform} ${dragTransform} scale(${scaleFactor})`,
         opacity: 1 - Math.min(dragOffset / 400, 0.4),
         touchAction: isVerticalDock ? 'pan-y' : 'pan-x',
