@@ -36,6 +36,14 @@ const RECORDING = {
   takeLimit: null,
 };
 
+// 1x1 PNG so the grader's attachment toggle has something to expand.
+const DEV_STIMULUS = {
+  id: 'stim-dev-1',
+  type: 'image' as const,
+  url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  label: 'Dev stimulus',
+};
+
 const TYPED_QUESTION = {
   id: 'q3',
   text: 'In two or three sentences, explain why the experiment failed.',
@@ -69,6 +77,7 @@ function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {
       timeLimit: 0,
       points: 3,
       recording: RECORDING,
+      stimulusIds: [DEV_STIMULUS.id],
     },
   ];
   return (state === 'typed'
@@ -195,6 +204,7 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
         id: 'quiz-dev',
         title: 'Spoken checks',
         questions: makeQuestions(state),
+        stimuli: [DEV_STIMULUS],
         createdAt: 0,
         updatedAt: 0,
       }) as QuizData,
