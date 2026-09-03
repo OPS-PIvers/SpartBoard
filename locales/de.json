@@ -1397,7 +1397,10 @@
         "lightJacket": "Leichte Jacke",
         "longSleeves": "Lange Ärmel",
         "shortSleeves": "Kurze Ärmel"
-      }
+      },
+      "secondaryColor": "Farbe des Zusatztexts",
+      "matchText": "Wie Text",
+      "clothingCard": "Kleidungskarte"
     },
     "clock": {
       "format24": "24-Stunden-Format",
@@ -1416,7 +1419,9 @@
         "default": "Standard",
         "lcd": "LCD-Panel",
         "minimal": "Minimalistisch"
-      }
+      },
+      "dateColor": "Datumsfarbe",
+      "matchTime": "Wie Uhrzeit"
     },
     "seatingChart": {
       "emptyStateAssignTitle": "Leeres Klassenzimmer",

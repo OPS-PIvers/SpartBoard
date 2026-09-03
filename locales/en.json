@@ -1326,7 +1326,9 @@
         "default": "Default",
         "lcd": "LCD Panel",
         "minimal": "Minimal"
-      }
+      },
+      "dateColor": "Date Color",
+      "matchTime": "Match time"
     },
     "timeTool": {
       "mode": "Mode",
@@ -1423,7 +1425,10 @@
         "lightJacket": "Light Jacket",
         "longSleeves": "Long Sleeves",
         "shortSleeves": "Short Sleeves"
-      }
+      },
+      "secondaryColor": "Secondary Text Color",
+      "matchText": "Match text",
+      "clothingCard": "Clothing Card"
     },
     "stickers": {
       "collectionTitle": "Sticker Collection",

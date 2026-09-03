@@ -1315,7 +1315,9 @@
         "default": "Predeterminado",
         "lcd": "Panel LCD",
         "minimal": "Minimalista"
-      }
+      },
+      "dateColor": "Color de la Fecha",
+      "matchTime": "Igual que la hora"
     },
     "timeTool": {
       "mode": "Modo",
@@ -1412,7 +1414,10 @@
         "lightJacket": "Chaqueta Ligera",
         "longSleeves": "Manga Larga",
         "shortSleeves": "Manga Corta"
-      }
+      },
+      "secondaryColor": "Color del Texto Secundario",
+      "matchText": "Igual que el texto",
+      "clothingCard": "Tarjeta de Ropa"
     },
     "stickers": {
       "collectionTitle": "Colección de Stickers",

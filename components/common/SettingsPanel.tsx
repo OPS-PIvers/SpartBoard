@@ -12,7 +12,10 @@ import { IconButton } from '@/components/common/IconButton';
 import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
 import { WidgetData, GlobalStyle } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
-import { UniversalStyleSettings } from '@/components/common/UniversalStyleSettings';
+import {
+  UniversalStyleSettings,
+  WidgetBackgroundSettings,
+} from '@/components/common/UniversalStyleSettings';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
 import { useHelpItemsForWidget } from '@/hooks/useHelpResources';
@@ -328,7 +331,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div className="px-5 py-4 flex flex-col gap-4">
               {/* Widget-specific appearance settings */}
               {shouldRenderSettings && appearanceSettings && (
-                <div>{appearanceSettings}</div>
+                <>
+                  <div>{appearanceSettings}</div>
+                  <WidgetBackgroundSettings
+                    widget={widget}
+                    updateWidget={updateWidget}
+                  />
+                </>
               )}
 
               {/* Universal Style Settings (only if no custom appearance settings) */}

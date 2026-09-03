@@ -1397,7 +1397,10 @@
         "lightJacket": "Veste légère",
         "longSleeves": "Manches longues",
         "shortSleeves": "Manches courtes"
-      }
+      },
+      "secondaryColor": "Couleur du texte secondaire",
+      "matchText": "Comme le texte",
+      "clothingCard": "Carte vêtements"
     },
     "clock": {
       "format24": "Format 24H",
@@ -1416,7 +1419,9 @@
         "default": "Par défaut",
         "lcd": "Panneau LCD",
         "minimal": "Minimaliste"
-      }
+      },
+      "dateColor": "Couleur de la date",
+      "matchTime": "Comme l'heure"
     },
     "seatingChart": {
       "emptyStateAssignTitle": "Salle de classe vide",

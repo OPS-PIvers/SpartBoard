@@ -1329,6 +1329,7 @@ export interface ClockConfig {
   fontFamily?: string;
   clockStyle?: string;
   glow?: boolean;
+  dateColor?: string;
 }
 
 export interface TrafficConfig {
@@ -2223,6 +2224,9 @@ export interface WeatherConfig {
   syncBackground?: boolean;
   fontFamily?: string;
   fontColor?: string;
+  secondaryColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
 }
 
 export interface WeatherTemperatureRange {

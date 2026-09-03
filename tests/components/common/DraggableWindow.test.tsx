@@ -216,9 +216,9 @@ describe('DraggableWindow (Tests folder)', () => {
     expect(dragSurface.className).toContain('font-comic');
     expect(dragSurface.className).toContain('text-2xl');
 
-    // The GlassCard root container should have the background class
+    // The frame tint is applied as an rgba() so the transparency slider still applies
     const widgetCard = content.closest('.widget') as HTMLElement;
-    expect(widgetCard.className).toContain('bg-emerald-50');
+    expect(widgetCard.style.backgroundColor).toMatch(/^rgba?\(236, 253, 245/);
   });
 
   describe('Pin feature', () => {
