@@ -88,11 +88,12 @@ const responseFor = (studentUid: string): QuizResponse => ({
   completedAttempts: 1,
 });
 
+// Enter in the points field commits the draft without waiting for the idle timer.
 const saveGrade = async () => {
   await act(() => {
-    fireEvent.click(
-      screen.getByRole('button', { name: /save grade|save & next/i })
-    );
+    fireEvent.keyDown(screen.getByLabelText(/points awarded/i), {
+      key: 'Enter',
+    });
     return Promise.resolve();
   });
 };
@@ -136,7 +137,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
     ).toBeInTheDocument();
 
     // Next student (uid-b) is unmatched — falls back to the base rubric.
-    fireEvent.click(screen.getByRole('button', { name: /next student/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^next$/i }));
     expect(screen.getByText('Base rubric')).toBeInTheDocument();
     expect(screen.queryByText(/Alternate rubric/)).toBeNull();
   });

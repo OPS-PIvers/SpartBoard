@@ -79,7 +79,7 @@ describe('FreeResponseGrader — annotations + snapshot', () => {
     const pts = screen.getByLabelText(/points awarded/i);
     fireEvent.change(pts, { target: { value: '7' } });
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: /save grade/i }));
+      fireEvent.keyDown(pts, { key: 'Enter' });
       return Promise.resolve();
     });
     expect(onSaveGrade).toHaveBeenCalledTimes(1);
@@ -127,7 +127,7 @@ describe('FreeResponseGrader — annotations + snapshot', () => {
     const pts = screen.getByLabelText(/points awarded/i);
     fireEvent.change(pts, { target: { value: '9' } });
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: /save grade/i }));
+      fireEvent.keyDown(pts, { key: 'Enter' });
       return Promise.resolve();
     });
     expect(onSaveGrade).toHaveBeenCalledTimes(1);

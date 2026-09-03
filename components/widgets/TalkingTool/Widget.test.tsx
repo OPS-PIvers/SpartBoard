@@ -87,6 +87,8 @@ const mockAuthContext = (
   dockPosition: 'bottom',
   quizMonitorColorsEnabled: true,
   quizMonitorScoreDisplay: 'percent',
+  quizGraderMode: 'question',
+  quizGraderAutoAdvance: true,
   updateAccountPreferences: async () => {
     /* mock */
   },

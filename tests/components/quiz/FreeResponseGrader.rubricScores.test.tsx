@@ -81,9 +81,13 @@ const responseFor = (
   grading,
 });
 
+// Enter in the points field commits the draft; a grade already written
+// by rubric completion is not written twice.
 const saveGrade = async () => {
   await act(() => {
-    fireEvent.click(screen.getByRole('button', { name: /save grade/i }));
+    fireEvent.keyDown(screen.getByLabelText(/points awarded/i), {
+      key: 'Enter',
+    });
     return Promise.resolve();
   });
 };

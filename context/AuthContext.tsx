@@ -341,6 +341,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [quizMonitorScoreDisplay, setQuizMonitorScoreDisplayState] = useState<
     'percent' | 'count' | 'hidden'
   >('percent');
+  const [quizGraderMode, setQuizGraderModeState] = useState<
+    'question' | 'student'
+  >('question');
+  const [quizGraderAutoAdvance, setQuizGraderAutoAdvanceState] = useState(true);
   const [lastActiveCollectionId, setLastActiveCollectionIdState] = useState<
     string | null | undefined
   >(undefined);
@@ -1688,6 +1692,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             setQuizMonitorScoreDisplayState('percent');
           }
+          if (
+            'quizGraderMode' in data &&
+            (data.quizGraderMode === 'question' ||
+              data.quizGraderMode === 'student')
+          ) {
+            setQuizGraderModeState(data.quizGraderMode);
+          } else {
+            setQuizGraderModeState('question');
+          }
+          if (
+            'quizGraderAutoAdvance' in data &&
+            typeof data.quizGraderAutoAdvance === 'boolean'
+          ) {
+            setQuizGraderAutoAdvanceState(data.quizGraderAutoAdvance);
+          } else {
+            setQuizGraderAutoAdvanceState(true);
+          }
 
           // Load Collections navigation memory
           if ('lastActiveCollectionId' in data) {
@@ -2042,6 +2063,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       dockPosition?: DockPosition;
       quizMonitorColorsEnabled?: boolean;
       quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
+      quizGraderMode?: 'question' | 'student';
+      quizGraderAutoAdvance?: boolean;
     }) => {
       if (updates.disableCloseConfirmation !== undefined) {
         setDisableCloseConfirmationState(updates.disableCloseConfirmation);
@@ -2058,6 +2081,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.quizMonitorScoreDisplay !== undefined) {
         setQuizMonitorScoreDisplayState(updates.quizMonitorScoreDisplay);
       }
+      if (updates.quizGraderMode !== undefined) {
+        setQuizGraderModeState(updates.quizGraderMode);
+      }
+      if (updates.quizGraderAutoAdvance !== undefined) {
+        setQuizGraderAutoAdvanceState(updates.quizGraderAutoAdvance);
+      }
 
       // Build a sanitized payload — Firestore rejects `undefined` field values
       const sanitizedUpdates: {
@@ -2066,6 +2095,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         dockPosition?: DockPosition;
         quizMonitorColorsEnabled?: boolean;
         quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
+        quizGraderMode?: 'question' | 'student';
+        quizGraderAutoAdvance?: boolean;
       } = {};
       if (typeof updates.disableCloseConfirmation === 'boolean') {
         sanitizedUpdates.disableCloseConfirmation =
@@ -2092,6 +2123,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         sanitizedUpdates.quizMonitorScoreDisplay =
           updates.quizMonitorScoreDisplay;
+      }
+      if (
+        updates.quizGraderMode === 'question' ||
+        updates.quizGraderMode === 'student'
+      ) {
+        sanitizedUpdates.quizGraderMode = updates.quizGraderMode;
+      }
+      if (typeof updates.quizGraderAutoAdvance === 'boolean') {
+        sanitizedUpdates.quizGraderAutoAdvance = updates.quizGraderAutoAdvance;
       }
 
       if (!user || isAuthBypass || Object.keys(sanitizedUpdates).length === 0) {
@@ -2840,6 +2880,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         dockPosition,
         quizMonitorColorsEnabled,
         quizMonitorScoreDisplay,
+        quizGraderMode,
+        quizGraderAutoAdvance,
         updateAccountPreferences,
         lastActiveCollectionId,
         lastBoardIdByCollection,

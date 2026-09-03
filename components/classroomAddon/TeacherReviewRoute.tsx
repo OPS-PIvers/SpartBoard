@@ -111,6 +111,9 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     refreshGoogleToken,
     orgId,
     canAccessQuizMediaResponse,
+    quizGraderMode,
+    quizGraderAutoAdvance,
+    updateAccountPreferences,
   } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { publishAssignmentScores } = useQuizAssignments(user?.uid);
@@ -633,6 +636,18 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
           teacherUid={user.uid}
           resolveTakeUrl={resolveTakeUrl}
           onSaveGrade={saveWrittenGrade}
+          graderMode={quizGraderMode}
+          autoAdvance={quizGraderAutoAdvance}
+          onGraderModeChange={(mode) =>
+            void updateAccountPreferences({ quizGraderMode: mode }).catch(
+              () => undefined
+            )
+          }
+          onAutoAdvanceChange={(enabled) =>
+            void updateAccountPreferences({
+              quizGraderAutoAdvance: enabled,
+            }).catch(() => undefined)
+          }
           onClose={() => setShowGrader(false)}
         />
       )}
