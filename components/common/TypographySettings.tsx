@@ -60,7 +60,9 @@ export const TypographySettings = <
   const typographyLabelId = useId();
   const textColorLabelId = useId();
   // The default/custom fontColor isn't always one of the presets (unlike 'global' for fontFamily) — fall back to tabbing preset 0 so the group stays keyboard-reachable.
-  const hasSelectedColorPreset = TEXT_COLOR_PRESETS.includes(fontColor);
+  const hasSelectedColorPreset = TEXT_COLOR_PRESETS.some(
+    (c) => c === fontColor
+  );
 
   return (
     <>
