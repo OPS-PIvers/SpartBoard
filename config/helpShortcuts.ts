@@ -1,7 +1,4 @@
-// Typed keyboard-shortcut and gesture data for the Help center's Shortcuts
-// tab. Sourced from a full grep audit of keydown/useGesture bindings — see
-// the P1-1 PR description for the audit table (chord/gesture, action,
-// file:line). Keep in sync with the actual bindings, not the reverse.
+// Typed keyboard-shortcut and gesture data for the Help center's Shortcuts tab — see the P1-1 PR description's audit table. Keep in sync with the actual bindings, not the reverse.
 
 export type HelpShortcutGroup = 'board' | 'widget';
 
@@ -88,9 +85,21 @@ export const HELP_SHORTCUTS: HelpShortcut[] = [
   },
   {
     id: 'clear-board',
-    keys: ['Shift/Alt', 'Delete'],
+    keys: ['Shift/Alt', 'Delete/Backspace'],
     group: 'board',
     labelKey: 'helpCenter.shortcuts.clear-board',
+  },
+  {
+    id: 'annotation-delete-selected',
+    keys: ['Delete/Backspace'],
+    group: 'widget',
+    labelKey: 'helpCenter.shortcuts.annotation-delete-selected',
+  },
+  {
+    id: 'annotation-nudge',
+    keys: ['Arrow keys'],
+    group: 'widget',
+    labelKey: 'helpCenter.shortcuts.annotation-nudge',
   },
 ];
 
@@ -100,12 +109,6 @@ export const HELP_GESTURES: HelpGesture[] = [
     group: 'board',
     labelKey: 'helpCenter.gestures.two-finger-swipe-lr',
     descriptionKey: 'helpCenter.gestures.two-finger-swipe-lrDescription',
-  },
-  {
-    id: 'two-finger-swipe-down',
-    group: 'board',
-    labelKey: 'helpCenter.gestures.two-finger-swipe-down',
-    descriptionKey: 'helpCenter.gestures.two-finger-swipe-downDescription',
   },
   {
     id: 'two-finger-swipe-up',
@@ -132,11 +135,11 @@ export const HELP_GESTURES: HelpGesture[] = [
     descriptionKey: 'helpCenter.gestures.one-finger-double-tapDescription',
   },
   {
-    id: 'widget-two-finger-swipe-down',
+    id: 'widget-two-finger-swipe-down-restore',
     group: 'widget',
-    labelKey: 'helpCenter.gestures.widget-two-finger-swipe-down',
+    labelKey: 'helpCenter.gestures.widget-two-finger-swipe-down-restore',
     descriptionKey:
-      'helpCenter.gestures.widget-two-finger-swipe-downDescription',
+      'helpCenter.gestures.widget-two-finger-swipe-down-restoreDescription',
   },
   {
     id: 'widget-two-finger-swipe-up',
