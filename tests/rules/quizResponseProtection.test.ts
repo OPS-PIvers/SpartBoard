@@ -689,6 +689,16 @@ describe('quiz response UPDATE — recordingNoticeAckedAt type check', () => {
       })
     );
   });
+
+  it('a zero or negative recordingNoticeAckedAt sentinel is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(studentResponse(), { recordingNoticeAckedAt: 0 })
+    );
+    await assertFails(
+      updateDoc(studentResponse(), { recordingNoticeAckedAt: -1 })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
