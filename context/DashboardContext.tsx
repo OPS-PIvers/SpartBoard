@@ -4650,6 +4650,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const recordHistory = useCallback((coalesceKey: string | null = null) => {
     const id = activeIdRef.current;
     if (!id) return;
+    // Every mutating action already returns before reaching here on a
+    // read-only board; the guard keeps that true for future callers.
+    if (isActiveBoardReadOnlyRef.current) return;
     const active = dashboardsRef.current.find((d) => d.id === id);
     if (!active) return;
     let stack = widgetHistoryRef.current.get(id);
