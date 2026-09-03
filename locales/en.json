@@ -2096,7 +2096,7 @@
       },
       "state": {
         "scored": "Graded",
-        "awaiting-grade": "Needs you",
+        "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
         "excused": "Excused"
       },
@@ -2111,8 +2111,8 @@
       "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
-      "prev": "Previous",
-      "next": "Next",
+      "prev": "Previous ungraded",
+      "next": "Next ungraded",
       "mode": {
         "label": "Grade by",
         "question": "Question",
@@ -2129,7 +2129,6 @@
       "questionStep": "Q{{index}} of {{total}}",
       "closeWithFailures": "Grades for {{names}} could not be saved. Close anyway and lose them?",
       "advancing": "Moving to the next response…",
-      "keyboardHint": "← / → move between students. Esc closes the grader.",
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
@@ -2170,7 +2169,7 @@
         "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
         "addComment": "Comment here",
-        "noComments": "Play the take and add a comment at the moment you want to talk about.",
+        "noComments": "No comments yet.",
         "commentLabel": "Comment at {{time}}",
         "commentPlaceholder": "What happens at this moment…",
         "seekTo": "Jump to {{time}}",
@@ -2221,9 +2220,8 @@
       "timedOutUnderMinimum": "Timed out under minimum",
       "noTextAnswer": "The student didn't answer this question.",
       "highlights": "Highlights & comments ({{count}})",
-      "highlightsEmpty": "Select text in the response to add a highlight or margin comment.",
+      "highlightsEmpty": "Select text to highlight it.",
       "highlightNoComment": "(no comment yet — click to add)",
-      "keyboardHintText": "← / → move between students. Esc closes the grader. Select text in the response to highlight; click a highlight to edit its comment.",
       "rubricOverrideNote": "Alternate rubric for this student",
       "pointsOverrideNote": "Points only for this student — rubric override.",
       "tabSwitches_one": "{{count}} tab switch",

@@ -504,7 +504,10 @@ const EditView: React.FC<EditProps> = ({
     const rect = range.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
     const containerRect = containerRef.current.getBoundingClientRect();
-    const x = rect.left - containerRect.left + rect.width / 2;
+    const x = clampPopoverX(
+      rect.left - containerRect.left + rect.width / 2,
+      containerRect.width
+    );
     const below = rect.bottom - containerRect.top + 8;
     const above = rect.top - containerRect.top - 8;
     const placement: 'below' | 'above' =
@@ -688,7 +691,10 @@ const EditView: React.FC<EditProps> = ({
         ? rects[0]
         : (mark as HTMLElement).getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
-    const x = markRect.left - containerRect.left + markRect.width / 2;
+    const x = clampPopoverX(
+      markRect.left - containerRect.left + markRect.width / 2,
+      containerRect.width
+    );
     const below = markRect.bottom - containerRect.top + 8;
     const above = markRect.top - containerRect.top - 8;
     // Prefer below; flip if the popover would render past the container.
@@ -768,6 +774,20 @@ const EditView: React.FC<EditProps> = ({
     </div>
   );
 };
+
+const POPOVER_WIDTH = 288;
+const POPOVER_EDGE_GAP = 8;
+
+/** Keeps a centered popover inside the (horizontally clipping) scroll column. */
+function clampPopoverX(x: number, containerWidth: number): number {
+  const half = POPOVER_WIDTH / 2;
+  if (containerWidth <= POPOVER_WIDTH + POPOVER_EDGE_GAP * 2)
+    return containerWidth / 2;
+  return Math.min(
+    Math.max(x, half + POPOVER_EDGE_GAP),
+    containerWidth - half - POPOVER_EDGE_GAP
+  );
+}
 
 /**
  * Editor popover for annotations. Two modes:

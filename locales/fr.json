@@ -2096,7 +2096,7 @@
       },
       "state": {
         "scored": "Graded",
-        "awaiting-grade": "Needs you",
+        "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
         "excused": "Excused"
       },
@@ -2111,8 +2111,8 @@
       "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
-      "prev": "Previous",
-      "next": "Next",
+      "prev": "Previous ungraded",
+      "next": "Next ungraded",
       "mode": {
         "label": "Grade by",
         "question": "Question",
@@ -2129,7 +2129,6 @@
       "questionStep": "Q{{index}} of {{total}}",
       "closeWithFailures": "Grades for {{names}} could not be saved. Close anyway and lose them?",
       "advancing": "Moving to the next response…",
-      "keyboardHint": "← / → move between students. Esc closes the grader.",
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
@@ -2170,7 +2169,7 @@
         "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
         "addComment": "Comment here",
-        "noComments": "Play the take and add a comment at the moment you want to talk about.",
+        "noComments": "Aucun commentaire pour l’instant.",
         "commentLabel": "Comment at {{time}}",
         "commentPlaceholder": "What happens at this moment…",
         "seekTo": "Jump to {{time}}",
@@ -2221,9 +2220,8 @@
       "timedOutUnderMinimum": "Temps écoulé sous le minimum",
       "noTextAnswer": "L'élève n'a pas répondu à cette question.",
       "highlights": "Surlignages et commentaires ({{count}})",
-      "highlightsEmpty": "Sélectionnez du texte dans la réponse pour ajouter un surlignage ou un commentaire en marge.",
+      "highlightsEmpty": "Sélectionnez du texte pour le surligner.",
       "highlightNoComment": "(pas encore de commentaire — cliquez pour ajouter)",
-      "keyboardHintText": "← / → changent d'élève. Échap ferme la notation. Sélectionnez du texte dans la réponse pour surligner ; cliquez sur un surlignage pour modifier son commentaire.",
       "rubricOverrideNote": "Grille alternative pour cet élève",
       "pointsOverrideNote": "Points seulement pour cet élève — grille remplacée.",
       "tabSwitches_one": "{{count}} changement d'onglet",

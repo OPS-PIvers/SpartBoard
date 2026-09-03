@@ -138,7 +138,8 @@ const tick = (ms: number) => {
     vi.advanceTimersByTime(ms);
   });
 };
-const nextButton = () => screen.getByRole('button', { name: /^Next$/i });
+const nextButton = () =>
+  screen.getByRole('button', { name: /^Next ungraded/i });
 const isArmed = () => nextButton().hasAttribute('data-advance-armed');
 const points = () => screen.getByLabelText(/Points awarded/i);
 

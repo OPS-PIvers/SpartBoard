@@ -137,7 +137,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
     ).toBeInTheDocument();
 
     // Next student (uid-b) is unmatched — falls back to the base rubric.
-    fireEvent.click(screen.getByRole('button', { name: /^next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^next ungraded/i }));
     expect(screen.getByText('Base rubric')).toBeInTheDocument();
     expect(screen.queryByText(/Alternate rubric/)).toBeNull();
   });

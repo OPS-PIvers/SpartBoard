@@ -29,6 +29,10 @@ interface EditorModalShellProps {
   footerExtras?: React.ReactNode;
   /** Editors that persist on their own drop the Save button; Cancel becomes Close. */
   hideSaveButton?: boolean;
+  /** Right-aligned footer slot; when set, Close moves to the footer's left edge. */
+  footerEnd?: React.ReactNode;
+  /** Drops the header X so the footer Close is the only way out. */
+  hideHeaderClose?: boolean;
   onSave: () => void | Promise<void>;
   onClose: () => void;
   confirmDiscardMessage?: string;
@@ -67,6 +71,8 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   saveLabel = 'Save',
   saveDisabled = false,
   footerExtras,
+  footerEnd,
+  hideHeaderClose = false,
   hideSaveButton = false,
   onSave,
   onClose,
@@ -172,16 +178,19 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
         {headerExtras && (
           <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
         )}
-        <button
-          onClick={() => void requestClose()}
-          className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"
-          aria-label="Close"
-        >
-          <X size={20} />
-        </button>
+        {!hideHeaderClose && (
+          <button
+            onClick={() => void requestClose()}
+            className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
     ),
     [
+      hideHeaderClose,
       onTitleChange,
       title,
       titlePlaceholder,
@@ -191,17 +200,23 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     ]
   );
 
-  const footer = useMemo(
-    () => (
+  const footer = useMemo(() => {
+    const closeButton = (
+      <button
+        onClick={() => void requestClose()}
+        className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+      >
+        {hideSaveButton ? 'Close' : 'Cancel'}
+      </button>
+    );
+    return (
       <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
-        <div className="flex items-center gap-2">{footerExtras}</div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => void requestClose()}
-            className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-          >
-            {hideSaveButton ? 'Close' : 'Cancel'}
-          </button>
+          {footerEnd && closeButton}
+          {footerExtras}
+        </div>
+        <div className="flex items-center gap-2">
+          {footerEnd ?? closeButton}
           {!hideSaveButton && (
             <button
               onClick={() => void handleSave()}
@@ -214,17 +229,17 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
           )}
         </div>
       </div>
-    ),
-    [
-      footerExtras,
-      hideSaveButton,
-      requestClose,
-      handleSave,
-      saveDisabled,
-      isSaving,
-      saveLabel,
-    ]
-  );
+    );
+  }, [
+    footerExtras,
+    footerEnd,
+    hideSaveButton,
+    requestClose,
+    handleSave,
+    saveDisabled,
+    isSaving,
+    saveLabel,
+  ]);
 
   return (
     <Modal

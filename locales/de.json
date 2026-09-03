@@ -2096,7 +2096,7 @@
       },
       "state": {
         "scored": "Graded",
-        "awaiting-grade": "Needs you",
+        "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
         "excused": "Excused"
       },
@@ -2111,8 +2111,8 @@
       "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
-      "prev": "Previous",
-      "next": "Next",
+      "prev": "Previous ungraded",
+      "next": "Next ungraded",
       "mode": {
         "label": "Grade by",
         "question": "Question",
@@ -2129,7 +2129,6 @@
       "questionStep": "Q{{index}} of {{total}}",
       "closeWithFailures": "Grades for {{names}} could not be saved. Close anyway and lose them?",
       "advancing": "Moving to the next response…",
-      "keyboardHint": "← / → move between students. Esc closes the grader.",
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
@@ -2170,7 +2169,7 @@
         "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
         "addComment": "Comment here",
-        "noComments": "Play the take and add a comment at the moment you want to talk about.",
+        "noComments": "Noch keine Kommentare.",
         "commentLabel": "Comment at {{time}}",
         "commentPlaceholder": "What happens at this moment…",
         "seekTo": "Jump to {{time}}",
@@ -2221,9 +2220,8 @@
       "timedOutUnderMinimum": "Zeit abgelaufen unter dem Minimum",
       "noTextAnswer": "Der Schüler hat diese Frage nicht beantwortet.",
       "highlights": "Markierungen & Kommentare ({{count}})",
-      "highlightsEmpty": "Text in der Antwort auswählen, um eine Markierung oder einen Randkommentar hinzuzufügen.",
+      "highlightsEmpty": "Text auswählen, um ihn zu markieren.",
       "highlightNoComment": "(noch kein Kommentar — zum Hinzufügen klicken)",
-      "keyboardHintText": "← / → wechseln zwischen Schülern. Esc schließt die Bewertung. Text in der Antwort auswählen, um zu markieren; auf eine Markierung klicken, um den Kommentar zu bearbeiten.",
       "rubricOverrideNote": "Alternatives Bewertungsraster für diesen Schüler",
       "pointsOverrideNote": "Nur Punkte für diesen Schüler — Raster außer Kraft gesetzt.",
       "tabSwitches_one": "{{count}} Tabwechsel",
