@@ -1853,6 +1853,8 @@ export interface ActivityWallConfig {
   activities?: ActivityWallActivity[];
   activeActivityId?: string | null;
   draftActivity?: ActivityWallActivity;
+  /** Photo size on the widget face. */
+  imageSize?: 'small' | 'medium' | 'large';
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;

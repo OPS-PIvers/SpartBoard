@@ -1,9 +1,16 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SubmissionCard } from './SubmissionCard';
 import { makeSubmission } from './fixtures';
+import { WallImageSizeContext, wallImageDimensions } from './imageSize';
 
 const { mockGetDownloadURL } = vi.hoisted(() => ({
   mockGetDownloadURL: vi.fn(() =>
@@ -138,27 +145,61 @@ describe('SubmissionCard', () => {
     );
   });
 
+  const photo = () =>
+    makeSubmission({
+      type: 'photo',
+      archiveStatus: 'archived',
+      driveFileId: 'abc',
+      driveUrl: 'https://drive.google.com/thumbnail?id=abc',
+    });
+
   it('caps photo dimensions in every layout mode, not just widget', () => {
-    for (const mode of ['gallery', 'teacher', 'widget'] as const) {
+    // jsdom drops CSS min(), so the widget's cqmin caps are asserted on the helper.
+    expect(wallImageDimensions('medium', true).maxHeight).toContain('cqmin');
+    for (const mode of ['gallery', 'teacher'] as const) {
       const { unmount } = render(
-        <SubmissionCard
-          submission={makeSubmission({
-            type: 'photo',
-            archiveStatus: 'archived',
-            driveFileId: 'abc',
-            driveUrl: 'https://drive.google.com/thumbnail?id=abc',
-          })}
-          mode={mode}
-          showNames={false}
-        />
+        <SubmissionCard submission={photo()} mode={mode} showNames={false} />
       );
-      const img = screen.getByRole('img');
-      expect(img).toHaveStyle({
-        maxHeight: 'min(220px, 40cqmin)',
-        maxWidth: 'min(420px, 60cqmin)',
+      expect(screen.getByRole('img')).toHaveStyle({
+        maxHeight: '320px',
+        maxWidth: '520px',
       });
       unmount();
     }
+  });
+
+  it('grows the photo cap with the image size from context', () => {
+    const { unmount } = render(
+      <WallImageSizeContext.Provider value="small">
+        <SubmissionCard submission={photo()} mode="gallery" showNames={false} />
+      </WallImageSizeContext.Provider>
+    );
+    expect(screen.getByRole('img')).toHaveStyle({ maxHeight: '160px' });
+    unmount();
+    render(
+      <WallImageSizeContext.Provider value="large">
+        <SubmissionCard submission={photo()} mode="gallery" showNames={false} />
+      </WallImageSizeContext.Provider>
+    );
+    expect(screen.getByRole('img')).toHaveStyle({ maxHeight: '520px' });
+  });
+
+  it('opens the photo in a lightbox on click and closes on Escape', () => {
+    render(
+      <SubmissionCard submission={photo()} mode="gallery" showNames={false} />
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /full size/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('img')).toHaveAttribute(
+      'src',
+      'https://drive.google.com/thumbnail?id=abc'
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /full size/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close image' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('explains a private Drive file instead of showing a broken image', () => {

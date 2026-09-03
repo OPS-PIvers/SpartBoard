@@ -77,8 +77,19 @@ vi.mock('./editor/WallEditorModal', () => ({
 
 // LayoutRouter lazily imports Leaflet for the map layout; a marker keeps this
 // suite focused on the widget's own wiring.
-vi.mock('@/components/activityWall/render', () => ({
+vi.mock('@/components/activityWall/render', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/components/activityWall/render')
+  >()),
   LayoutRouter: () => <div data-testid="layout-router" />,
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: vi.fn().mockResolvedValue(true),
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
 }));
 
 vi.mock('@/utils/googleOAuthRefresh', () => ({

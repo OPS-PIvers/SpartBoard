@@ -95,8 +95,9 @@ const uncappedSubmissionSuffix = (): string => {
 const youTubeVideoId = (url: string): string | null => {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1) || null;
-    if (parsed.hostname.endsWith('youtube.com'))
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    if (host === 'youtu.be') return parsed.pathname.slice(1) || null;
+    if (host === 'youtube.com' || host === 'm.youtube.com')
       return parsed.searchParams.get('v');
   } catch {
     return null;

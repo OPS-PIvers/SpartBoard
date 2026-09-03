@@ -11,6 +11,8 @@ import {
 import type { ActivityWallSubmission } from '@/types';
 import type { WallRenderActions, WallRenderMode } from './types';
 import { wallScale } from './scale';
+import { useWallImageSize, wallImageDimensions } from './imageSize';
+import { ImageLightbox } from '@/components/common/ImageLightbox';
 import { isArchived, isSafeHttpUrl, useMediaUrl } from './useMediaUrl';
 
 export interface SubmissionCardProps extends WallRenderActions {
@@ -67,6 +69,8 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   const scale = wallScale(mode);
   const { url: mediaUrl, failed: mediaFailed } = useMediaUrl(submission);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const imageSize = useWallImageSize();
   const isWidget = mode === 'widget';
   const tight = isWidget ? 'min(4px, 1.2cqmin)' : '4px';
   const edge = isWidget ? 'min(8px, 2cqmin)' : '8px';
@@ -92,22 +96,42 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           </p>
         );
       }
+      const alt = submission.title ?? 'Student photo';
       return (
-        <img
-          src={mediaUrl}
-          alt={submission.title ?? 'Student photo'}
-          className="mx-auto rounded-lg object-cover"
-          // Cap dimensions in every layout so full-width rows (table/timeline) don't blow the image up.
-          style={{
-            maxHeight: 'min(220px, 40cqmin)',
-            maxWidth: 'min(420px, 60cqmin)',
-            width: '100%',
-          }}
-          onError={() => {
-            setFailedImageUrl(mediaUrl);
-            onMediaError?.(submission);
-          }}
-        />
+        <>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxOpen(true);
+            }}
+            aria-label={`View ${alt} full size`}
+            className="mx-auto block cursor-zoom-in rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{ maxWidth: '100%' }}
+          >
+            <img
+              src={mediaUrl}
+              alt={alt}
+              className="rounded-lg object-cover"
+              // Cap dimensions in every layout so full-width rows (table/timeline) don't blow the image up.
+              style={{
+                ...wallImageDimensions(imageSize, isWidget),
+                width: '100%',
+              }}
+              onError={() => {
+                setFailedImageUrl(mediaUrl);
+                onMediaError?.(submission);
+              }}
+            />
+          </button>
+          {lightboxOpen && (
+            <ImageLightbox
+              src={mediaUrl}
+              alt={alt}
+              onClose={() => setLightboxOpen(false)}
+            />
+          )}
+        </>
       );
     }
 

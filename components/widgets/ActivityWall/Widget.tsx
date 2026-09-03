@@ -5,6 +5,7 @@ import {
   CloudOff,
   Copy,
   ExternalLink,
+  Image as ImageIcon,
   LayoutGrid,
   LibraryBig,
   MoreHorizontal,
@@ -23,11 +24,17 @@ import {
   useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { LayoutRouter } from '@/components/activityWall/render';
+import {
+  LayoutRouter,
+  WALL_IMAGE_SIZE_LABEL,
+  isWallImageSize,
+  nextWallImageSize,
+} from '@/components/activityWall/render';
 import { visibleSubmissions } from '@/components/activityWall/render/scale';
 import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
 import {
@@ -58,8 +65,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, addWidget, addToast } = useDashboardActions();
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const { user, canAccessFeature } = useAuth();
+  const { showConfirm } = useDialog();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const config = widget.config as ActivityWallConfig;
+  const imageSize = isWallImageSize(config.imageSize)
+    ? config.imageSize
+    : 'medium';
 
   const {
     activities: entries,
@@ -275,6 +286,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           },
         ]
       : []),
+    {
+      label: `Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}`,
+      icon: ImageIcon,
+      run: () =>
+        updateWidget(widget.id, {
+          config: { ...config, imageSize: nextWallImageSize(imageSize) },
+        }),
+      disabled: isActiveBoardReadOnly,
+    },
     {
       label: 'Open wall library',
       icon: LibraryBig,
@@ -522,6 +542,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         submissions={submissions}
         mode="widget"
         showNames={activeEntry.showNames ?? false}
+        imageSize={imageSize}
         onApprove={(id) => void approve(id)}
         onReject={(id) => void reject(id)}
         onDelete={(id) => void deletePost(id)}
@@ -573,7 +594,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         onDuplicate={duplicateWall}
         onDelete={removeWall}
         addToast={addToast}
-        confirm={(message) => window.confirm(message)}
+        confirm={(message) =>
+          showConfirm(message, {
+            title: 'Delete',
+            variant: 'danger',
+            confirmLabel: 'Delete',
+          })
+        }
       />
 
       <ModerationDrawer

@@ -49,7 +49,7 @@ const modal = (open: boolean) => (
     onDuplicate={vi.fn(() => Promise.resolve())}
     onDelete={vi.fn(() => Promise.resolve())}
     addToast={vi.fn()}
-    confirm={() => true}
+    confirm={() => Promise.resolve(true)}
   />
 );
 
@@ -67,7 +67,7 @@ const libraryModal = (entries: ActivityWallLibraryEntry[]) => (
     onDuplicate={vi.fn(() => Promise.resolve())}
     onDelete={vi.fn(() => Promise.resolve())}
     addToast={vi.fn()}
-    confirm={() => true}
+    confirm={() => Promise.resolve(true)}
   />
 );
 

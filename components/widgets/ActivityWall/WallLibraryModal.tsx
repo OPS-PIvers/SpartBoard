@@ -42,7 +42,7 @@ interface WallLibraryModalProps {
   onDuplicate: (entry: ActivityWallLibraryEntry) => Promise<void>;
   onDelete: (entryId: string) => Promise<void>;
   addToast: (message: string, tone: 'success' | 'error' | 'info') => void;
-  confirm: (message: string) => boolean;
+  confirm: (message: string) => Promise<boolean>;
 }
 
 const layoutSketch = (entry: ActivityWallLibraryEntry): React.ReactNode =>
@@ -140,7 +140,9 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
   const handleClearPosts = useCallback(
     async (entry: ActivityWallLibraryEntry) => {
       if (!uid) return;
-      if (!confirm(`Delete every post on "${entry.title || 'Untitled'}"?`)) {
+      if (
+        !(await confirm(`Delete every post on "${entry.title || 'Untitled'}"?`))
+      ) {
         return;
       }
       try {
@@ -159,9 +161,9 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
     async (entry: ActivityWallLibraryEntry) => {
       if (!uid) return;
       if (
-        !confirm(
+        !(await confirm(
           `Delete "${entry.title || 'Untitled'}" and all of its posts? This cannot be undone.`
-        )
+        ))
       ) {
         return;
       }

@@ -7,6 +7,7 @@ import { TimelineLayout } from './TimelineLayout';
 import { WordCloudLayout } from './WordCloudLayout';
 import { wallScale } from './scale';
 import type { WallRenderProps } from './types';
+import { WallImageSizeContext } from './imageSize';
 
 export type { WallRenderProps, WallRenderMode, WallMovePatch } from './types';
 
@@ -15,7 +16,7 @@ const MapLayout = lazy(() => import('./MapLayout'));
 
 /** Renders the wall's layout and paints the wall appearance behind it. */
 export const LayoutRouter: React.FC<WallRenderProps> = (props) => {
-  const { session, mode, appearance } = props;
+  const { session, mode, appearance, imageSize = 'medium' } = props;
   const scale = wallScale(mode);
   const resolved =
     appearance ?? session.appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE;
@@ -59,7 +60,9 @@ export const LayoutRouter: React.FC<WallRenderProps> = (props) => {
       }
       data-testid="aw-layout-router"
     >
-      {layout}
+      <WallImageSizeContext.Provider value={imageSize}>
+        {layout}
+      </WallImageSizeContext.Provider>
     </div>
   );
 };

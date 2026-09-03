@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { WallImageSize } from './imageSize';
 import type {
   ActivityWallAppearance,
   ActivityWallSession,
@@ -36,4 +37,6 @@ export interface WallRenderProps extends WallRenderActions {
   mode: WallRenderMode;
   appearance?: ActivityWallAppearance;
   showNames: boolean;
+  /** Photo cap on submission cards; defaults to medium. */
+  imageSize?: WallImageSize;
 }

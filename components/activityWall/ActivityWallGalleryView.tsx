@@ -15,6 +15,7 @@ import {
   CornerDownRight,
   Heart,
   Loader2,
+  Image as ImageIcon,
   MessageSquare,
   Send,
 } from 'lucide-react';
@@ -37,8 +38,13 @@ import {
 } from '@/utils/activityWallNormalize';
 import {
   LayoutRouter,
+  WALL_IMAGE_SIZE_LABEL,
+  isWallImageSize,
+  nextWallImageSize,
+  type WallImageSize,
   prepareSubmissions,
 } from '@/components/activityWall/render';
+
 import type {
   ActivityWallComment,
   ActivityWallIdentificationMode,
@@ -47,6 +53,8 @@ import type {
   ActivityWallSubmission,
   SharedActivityWall,
 } from '@/types';
+
+const IMAGE_SIZE_STORAGE_KEY = 'activity_wall_gallery_image_size';
 
 type LoadState =
   | { kind: 'loading' }
@@ -433,6 +441,22 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
     };
   }, []);
 
+  const [imageSize, setImageSizeState] = useState<WallImageSize>(() => {
+    try {
+      const stored = localStorage.getItem(IMAGE_SIZE_STORAGE_KEY);
+      return isWallImageSize(stored) ? stored : 'medium';
+    } catch {
+      return 'medium';
+    }
+  });
+  const setImageSize = useCallback((size: WallImageSize) => {
+    setImageSizeState(size);
+    try {
+      localStorage.setItem(IMAGE_SIZE_STORAGE_KEY, size);
+    } catch {
+      // Storage unavailable (private mode); the choice just won't persist.
+    }
+  }, []);
   const showNames = session.showNames ?? false;
   // Counts are visible to everyone; only signed-in viewers can post.
   const showEngagement = share.allowLikes || share.allowComments;
@@ -501,6 +525,16 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
               </p>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setImageSize(nextWallImageSize(imageSize))}
+            aria-label={`Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}. Click to change.`}
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 text-sm font-bold transition-colors hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            <ImageIcon aria-hidden="true" className="h-4 w-4" />
+            <span className="hidden sm:inline">Images:</span>{' '}
+            {WALL_IMAGE_SIZE_LABEL[imageSize]}
+          </button>
           <span className="shrink-0 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 text-sm font-bold">
             {submissions.length} post{submissions.length === 1 ? '' : 's'}
           </span>
@@ -528,6 +562,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
                 submissions={submissions}
                 mode="gallery"
                 showNames={showNames}
+                imageSize={imageSize}
                 onMediaError={onMediaError}
                 renderFooter={showEngagement ? renderFooter : undefined}
               />
