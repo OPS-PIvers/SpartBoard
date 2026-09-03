@@ -18,7 +18,7 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ zoom: 1 }),
 }));
 
-const mockUseHelpItemsForWidget = vi.fn<[], HelpResourceItem[]>(() => []);
+const mockUseHelpItemsForWidget = vi.fn<() => HelpResourceItem[]>(() => []);
 vi.mock('@/hooks/useHelpResources', () => ({
   useHelpItemsForWidget: () => mockUseHelpItemsForWidget(),
 }));

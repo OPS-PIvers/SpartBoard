@@ -19,6 +19,7 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
+  isConfigured: true,
   isAuthBypass: false,
 }));
 
@@ -337,6 +338,14 @@ describe('useHelpItemsForWidget', () => {
     });
     // Global + org listeners created once, shared by both subscribers.
     expect(mockOnSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders without an AuthProvider and still returns global items', async () => {
+    withGlobalWidgetItem(true);
+
+    const { result } = renderHook(() => useHelpItemsForWidget('clock'));
+
+    await waitFor(() => expect(result.current).toHaveLength(1));
   });
 
   it('filters out items that do not list the widget type', async () => {
