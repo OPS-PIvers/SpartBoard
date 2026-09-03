@@ -1080,7 +1080,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           }`}
         >
           <span
-            className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
+            className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
               autoAdvanceOn ? 'translate-x-3.5' : 'translate-x-0.5'
             }`}
           />
@@ -1545,46 +1545,48 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             </div>
           )}
 
-          <div className="mt-auto flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => advance(-1)}
-              aria-label={tg('prev')}
-              className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100"
-            >
-              <ChevronLeft aria-hidden className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => advance(1)}
-              aria-label={tg('next')}
-              data-advance-armed={advanceArmed || undefined}
-              className="relative inline-flex items-center gap-1 overflow-hidden rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
-            >
-              <span
-                aria-hidden
-                data-testid="advance-fill"
-                className={`absolute inset-0 origin-left bg-brand-blue-primary/20 transition-transform ease-linear duration-[900ms] motion-reduce:transition-none ${
-                  advanceArmed ? 'scale-x-100' : 'scale-x-0'
-                }`}
-              />
-              <span className="relative">{tg('next')}</span>
-              <ChevronRight aria-hidden className="relative h-4 w-4" />
-            </button>
-            {advanceArmed && (
-              <span role="status" className="sr-only">
-                {tg('advancing')}
-              </span>
-            )}
-            {showAllGraded && (
-              <span
-                role="status"
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700"
+          <div className="mt-auto flex flex-col gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => advance(-1)}
+                aria-label={tg('prev')}
+                className="shrink-0 rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100"
               >
-                <CheckCircle2 aria-hidden className="h-3 w-3" />
-                {tg('allGraded')}
-              </span>
-            )}
+                <ChevronLeft aria-hidden className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => advance(1)}
+                aria-label={tg('next')}
+                data-advance-armed={advanceArmed || undefined}
+                className="relative inline-flex shrink-0 items-center gap-1 overflow-hidden rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                <span
+                  aria-hidden
+                  data-testid="advance-fill"
+                  className={`absolute inset-0 origin-left bg-brand-blue-primary/20 transition-transform ease-linear [transition-duration:900ms] motion-reduce:transition-none ${
+                    advanceArmed ? 'scale-x-100' : 'scale-x-0'
+                  }`}
+                />
+                <span className="relative">{tg('next')}</span>
+                <ChevronRight aria-hidden className="relative h-4 w-4" />
+              </button>
+              {advanceArmed && (
+                <span role="status" className="sr-only">
+                  {tg('advancing')}
+                </span>
+              )}
+              {showAllGraded && (
+                <span
+                  role="status"
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700"
+                >
+                  <CheckCircle2 aria-hidden className="h-3 w-3" />
+                  {tg('allGraded')}
+                </span>
+              )}
+            </div>
             <p className="text-xs leading-relaxed text-slate-500">
               {tg(isMedia ? 'keyboardHint' : 'keyboardHintText')}
             </p>
