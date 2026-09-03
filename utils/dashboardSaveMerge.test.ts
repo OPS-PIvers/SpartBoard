@@ -128,6 +128,51 @@ describe('mergeDashboardForSave', () => {
     expect(merged.isPinned).toBe(true);
   });
 
+  it('takes remote board ink this device has not drawn over', () => {
+    // Board ink is persistent state, so an autosave that did not touch it must
+    // not revert strokes another device drew.
+    const ink = (n: number) =>
+      ({ objects: [{ id: `o${n}` }], updatedAt: n }) as never;
+    const base = board([], { annotationOverlay: ink(1) });
+    const local = board([], { annotationOverlay: ink(1) });
+    const server = board([], { annotationOverlay: ink(2) });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.annotationOverlay?.updatedAt).toBe(2);
+  });
+
+  it('keeps board ink drawn locally since the baseline', () => {
+    const ink = (n: number) =>
+      ({ objects: [{ id: `o${n}` }], updatedAt: n }) as never;
+    const base = board([], { annotationOverlay: ink(1) });
+    const local = board([], { annotationOverlay: ink(3) });
+    const server = board([], { annotationOverlay: ink(2) });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.annotationOverlay?.updatedAt).toBe(3);
+  });
+
+  it('accepts server settings and libraryOrder when the baseline captured them as undefined', () => {
+    // JSON.stringify(undefined) is undefined, not a string — an uncoalesced
+    // baseline made an untouched board look locally edited forever.
+    const local = board([]);
+    const server = board([], {
+      settings: { spotlight: true } as never,
+      libraryOrder: ['w1'],
+    });
+
+    const merged = mergeDashboardForSave(local, server, {
+      ...baselineOf(board([])),
+      libraryOrder: undefined as unknown as string,
+      settings: undefined as unknown as string,
+    });
+
+    expect(merged.settings).toEqual({ spotlight: true });
+    expect(merged.libraryOrder).toEqual(['w1']);
+  });
+
   it('treats an absent field and an explicit null as the same baseline value', () => {
     const base = board([]);
     const local = board([]);

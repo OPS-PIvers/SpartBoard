@@ -31,9 +31,8 @@ export interface SaveBaseline {
  *
  * Deliberately absent, and last-write-wins from the local copy: `viewportWidth`
  * and `viewportHeight` (device-local — each device records its own, and
- * adopting another's would mis-scale the proportional layout);
- * `annotationOverlay` (the live-share mirror owns that path); and the immutable
- * `id`/`createdAt` plus the write's own `updatedAt`.
+ * adopting another's would mis-scale the proportional layout); and the
+ * immutable `id`/`createdAt` plus the write's own `updatedAt`.
  */
 export const DASHBOARD_FIELDS = [
   'driveFileId',
@@ -48,6 +47,9 @@ export const DASHBOARD_FIELDS = [
   'linkedShareRole',
   'linkedShareHostName',
   'linkedShareEnded',
+  // Board ink is persistent state (PR #2820), so it needs the same
+  // baseline-and-merge treatment as background/name.
+  'annotationOverlay',
 ] as const;
 
 export type MergedDashboardField = (typeof DASHBOARD_FIELDS)[number];
@@ -118,11 +120,12 @@ export function mergeDashboardForSave(
         : server.background,
     name: local.name !== baseline.name ? local.name : server.name,
     libraryOrder:
-      JSON.stringify(local.libraryOrder ?? []) !== baseline.libraryOrder
+      JSON.stringify(local.libraryOrder ?? []) !==
+      (baseline.libraryOrder ?? '[]')
         ? local.libraryOrder
         : server.libraryOrder,
     settings:
-      JSON.stringify(local.settings ?? {}) !== baseline.settings
+      JSON.stringify(local.settings ?? {}) !== (baseline.settings ?? '{}')
         ? local.settings
         : server.settings,
   };
