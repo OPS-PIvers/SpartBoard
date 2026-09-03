@@ -448,6 +448,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ) => void)
     | null
   >(null);
+  // Same forward-declaration reason: handleShareDashboard sits above
+  // buildSaveBaseline, so naming it in that callback's dep array would read
+  // the binding before its `const` initializer runs.
+  const buildSaveBaselineRef = useRef<
+    ((dashboardId: string) => SaveBaseline | undefined) | null
+  >(null);
   // Keep a ref to account-level remote control so the Firestore snapshot
   // handler can read the latest value without triggering a re-subscription.
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
@@ -1528,7 +1534,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // saveDashboardFirestore directly would bypass that and could leak
       // restored-from-Drive PII to Firestore.
       try {
-        await saveDashboard(tagged);
+        await saveDashboard(tagged, buildSaveBaselineRef.current?.(tagged.id));
       } catch (e) {
         console.error('Failed to persist share linkage on dashboard:', e);
       }
@@ -2341,6 +2347,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     []
   );
+  buildSaveBaselineRef.current = buildSaveBaseline;
 
   useEffect(() => {
     // Capture ref value for stable cleanup (react-hooks/exhaustive-deps)
