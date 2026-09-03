@@ -1185,7 +1185,8 @@
     "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?",
     "clearBoardTitle": "Tafel löschen",
     "minimizedToast": "Minimiert — im Dock zu finden",
-    "minimizedAllToast": "Alle Widgets minimiert"
+    "minimizedAllToast": "Alle Widgets minimiert",
+    "closedToast": "Widget geschlossen"
   },
   "login": {
     "signInToAccess": "Melde dich an, um auf deine Tafeln zuzugreifen",

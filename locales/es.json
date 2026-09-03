@@ -1185,7 +1185,8 @@
     "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?",
     "clearBoardTitle": "Borrar Tablero",
     "minimizedToast": "Minimizado: lo encontrarás en el Dock",
-    "minimizedAllToast": "Todos los widgets minimizados"
+    "minimizedAllToast": "Todos los widgets minimizados",
+    "closedToast": "Widget cerrado"
   },
   "login": {
     "signInToAccess": "Inicia sesión para acceder a tus tableros",

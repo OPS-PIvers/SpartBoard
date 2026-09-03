@@ -93,7 +93,8 @@ describe('useTimeTool Connection (Nexus)', () => {
         config: expect.objectContaining({
           active: 'red',
         }),
-      })
+      }),
+      { skipHistory: true }
     );
   });
 
@@ -118,7 +119,8 @@ describe('useTimeTool Connection (Nexus)', () => {
         config: expect.objectContaining({
           active: 'yellow',
         }),
-      })
+      }),
+      { skipHistory: true }
     );
   });
 
@@ -136,9 +138,8 @@ describe('useTimeTool Connection (Nexus)', () => {
     });
 
     // Should call updateWidget to stop the timer, but NOT for the traffic light
-    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
-      'traffic-1',
-      expect.anything()
+    expect(mockUpdateWidget.mock.calls.some((c) => c[0] === 'traffic-1')).toBe(
+      false
     );
   });
 
@@ -165,10 +166,9 @@ describe('useTimeTool Connection (Nexus)', () => {
     });
 
     // Should run without error, but updateWidget should NOT be called for any traffic light
-    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
-      expect.stringMatching(/^traffic/),
-      expect.anything()
-    );
+    expect(
+      mockUpdateWidget.mock.calls.some((c) => /^traffic/.test(String(c[0])))
+    ).toBe(false);
   });
 
   // Regression test for the dashboard-churn perf bug.
@@ -292,7 +292,8 @@ describe('useTimeTool Connection (Nexus)', () => {
       expect.objectContaining({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         config: expect.objectContaining({ voiceLevel: 2 }),
-      })
+      }),
+      { skipHistory: true }
     );
   });
 });
