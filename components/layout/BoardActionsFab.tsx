@@ -20,7 +20,7 @@ import {
 } from '@/utils/zoomMapping';
 
 interface BoardActionsFabProps {
-  onOpenCheatSheet: () => void;
+  onOpenHelp: () => void;
 }
 
 const PRESETS: { value: number; labelKey: string; defaultLabel: string }[] = [
@@ -30,9 +30,7 @@ const PRESETS: { value: number; labelKey: string; defaultLabel: string }[] = [
   { value: 5, labelKey: 'boardZoom.preset500', defaultLabel: '500%' },
 ];
 
-export const BoardActionsFab: FC<BoardActionsFabProps> = ({
-  onOpenCheatSheet,
-}) => {
+export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
   const { t } = useTranslation();
   const { zoom, setZoom } = useDashboard();
 
@@ -212,9 +210,9 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
         </button>
         <button
           type="button"
-          onClick={onOpenCheatSheet}
-          aria-label={t('widgets.cheatSheet.title')}
-          title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
+          onClick={onOpenHelp}
+          aria-label={t('helpCenter.title')}
+          title={`${t('helpCenter.title')} (Ctrl+/)`}
           className={FAB_BASE}
         >
           <HelpCircle className="w-4 h-4" />

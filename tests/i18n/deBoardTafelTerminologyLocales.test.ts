@@ -33,8 +33,8 @@ function collectStrings(
 
 const AFFECTED_KEYS: Array<{ path: string; expectedDe: string }> = [
   {
-    path: 'widgets.cheatSheet.boardGestures',
-    expectedDe: 'Tafel-Hintergrund',
+    path: 'helpCenter.groups.board',
+    expectedDe: 'Tafel',
   },
   {
     path: 'widgets.stickers.clearAll',

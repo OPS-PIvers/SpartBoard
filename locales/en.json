@@ -1462,57 +1462,8 @@
           "hint": "Open the sidebar and click + New Board"
         },
         "openCheatsheet": {
-          "label": "Open the Cheat Sheet",
           "hint": "Press Ctrl/⌘+/ or click the ? button in the bottom-right"
         }
-      }
-    },
-    "cheatSheet": {
-      "title": "Shortcuts & Gestures",
-      "keyboard": "Keyboard",
-      "touchscreenGestures": "Touchscreen Gestures",
-      "boardGestures": "Board Background",
-      "widgetGestures": "Widget Window",
-      "footer": "Press <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> anytime to open this panel",
-      "shortcuts": {
-        "openCheatSheet": "Open this cheat sheet",
-        "switchBoards": "Switch boards",
-        "widgetSettings": "Open / close widget settings",
-        "annotate": "Toggle annotation draw mode",
-        "maximize": "Maximize / restore widget",
-        "resetSize": "Reset widget to default size",
-        "minimizeFocused": "Minimize focused widget",
-        "minimizeAll": "Minimize all widgets",
-        "closeFocused": "Close focused widget",
-        "clearBoard": "Clear entire board"
-      },
-      "gestures": {
-        "switchBoards": "Switch boards",
-        "minimizeAll": "Minimize all to dock",
-        "restoreAll": "Restore all widgets",
-        "panBoard": "Pan board while zoomed",
-        "toggleAnnotation": "Toggle annotation draw mode (hold ~0.6s)",
-        "screenshot": "Take screenshot",
-        "minimizeWidget": "Minimize widget",
-        "minimizeOrRestoreWidget": "Minimize widget (or restore if maximized)",
-        "openSidebar": "Open sidebar",
-        "fullscreen": "Toggle Fullscreen",
-        "spotlight": "Spotlight widget",
-        "resize": "Resize widget",
-        "maximizeWidget": "Maximize widget (swipe ↑ again to spotlight)"
-      },
-      "gestureNames": {
-        "oneFingerDoubleTap": "1-finger double tap",
-        "oneFingerLongPress": "1-finger long press",
-        "oneFingerDrag": "1-finger drag on background",
-        "oneFingerSwipeEdge": "1-finger swipe from left edge",
-        "twoFingerSwipeLR": "2-finger swipe ←/→",
-        "twoFingerSwipeDown": "2-finger swipe ↓",
-        "twoFingerSwipeUp": "2-finger swipe ↑",
-        "twoFingerLongPress": "2-finger long press",
-        "dragDownToDock": "Drag down to dock ↓",
-        "widgetTwoFingerSwipeDown": "2-finger swipe ↓",
-        "widgetTwoFingerSwipeUp": "2-finger swipe ↑"
       }
     },
     "dashboard": {
@@ -2249,6 +2200,65 @@
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
+    }
+  },
+  "helpCenter": {
+    "title": "Help",
+    "search": "Search help",
+    "close": "Close help",
+    "noResults": "No matches for your search",
+    "onboardingTask": "Open the Help center",
+    "footer": "Press <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> anytime to open Help",
+    "tabs": {
+      "shortcuts": "Shortcuts",
+      "guides": "Guides"
+    },
+    "sections": {
+      "keyboard": "Keyboard shortcuts",
+      "gestures": "Touchscreen gestures"
+    },
+    "groups": {
+      "board": "Board",
+      "widget": "Widget"
+    },
+    "guides": {
+      "placeholder": "Guides are coming soon"
+    },
+    "shortcuts": {
+      "open-help": "Open Help",
+      "switch-boards": "Switch boards",
+      "zoom-board": "Zoom the board in and out",
+      "pin-widget": "Pin / unpin widget",
+      "widget-settings": "Open / close widget settings",
+      "annotate": "Toggle annotation draw mode",
+      "maximize": "Maximize / restore widget",
+      "reset-size": "Reset widget to default size",
+      "minimize-focused": "Minimize focused widget",
+      "minimize-all": "Minimize all widgets",
+      "close-focused": "Close focused widget",
+      "clear-board": "Clear entire board",
+      "annotation-delete-selected": "Delete the selected annotation",
+      "annotation-nudge": "Nudge the selected annotation"
+    },
+    "gestures": {
+      "two-finger-swipe-lr": "2-finger swipe ←/→",
+      "two-finger-swipe-lrDescription": "Switch boards",
+      "two-finger-swipe-up": "2-finger swipe ↑ on the background",
+      "two-finger-swipe-upDescription": "Restore all widgets",
+      "one-finger-drag": "1-finger drag on the background",
+      "one-finger-dragDescription": "Pan the board while zoomed in",
+      "one-finger-swipe-edge": "1-finger swipe from the left edge",
+      "one-finger-swipe-edgeDescription": "Open the sidebar",
+      "one-finger-double-tap": "1-finger double tap",
+      "one-finger-double-tapDescription": "Toggle fullscreen",
+      "widget-two-finger-swipe-down-restore": "2-finger swipe ↓ on a widget",
+      "widget-two-finger-swipe-down-restoreDescription": "Restore a maximized widget to its normal size",
+      "widget-two-finger-swipe-up": "2-finger swipe ↑ on a widget",
+      "widget-two-finger-swipe-upDescription": "Maximize the widget, or spotlight it if already maximized",
+      "two-finger-long-press": "2-finger long press on a widget",
+      "two-finger-long-pressDescription": "Toggle annotation draw mode (hold ~0.6s)",
+      "one-finger-long-press": "1-finger long press on a widget",
+      "one-finger-long-pressDescription": "Take a screenshot (hold ~0.6s)"
     }
   }
 }
