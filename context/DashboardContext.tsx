@@ -100,6 +100,11 @@ import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
+import {
+  ANNOTATION_HARD_LIMIT_BYTES,
+  ANNOTATION_SOFT_LIMIT_BYTES,
+  estimateAnnotationBytes,
+} from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
 
 // Helper to migrate legacy visibleTools to dockItems
@@ -5609,7 +5614,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const current =
         dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
           ?.objects ?? [];
-      setActiveAnnotationObjects([...current, stamped]);
+      const next = [...current, stamped];
+      // Persistent ink shares the dashboard doc: guard its size.
+      const nextBytes = estimateAnnotationBytes(next);
+      if (nextBytes > ANNOTATION_HARD_LIMIT_BYTES) {
+        addToast(
+          'Annotation layer is full. Clear it (trash) to keep drawing.',
+          'error'
+        );
+        return;
+      }
+      if (
+        nextBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
+        estimateAnnotationBytes(current) <= ANNOTATION_SOFT_LIMIT_BYTES
+      ) {
+        addToast(
+          'Annotations on this board are getting large. Clear old ink soon.',
+          'warning'
+        );
+      }
+      setActiveAnnotationObjects(next);
       // Wave 5: invalidate the redo branch on every fresh add. Guarded so
       // `redoAnnotation` (which calls addAnnotationObject internally) doesn't
       // wipe the stack it's trying to drain — see `redoAnnotation` for the
@@ -5620,7 +5644,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
     },
-    [setActiveAnnotationObjects, user?.uid]
+    [addToast, setActiveAnnotationObjects, user?.uid]
   );
 
   // Ref-based flag flipped on inside `redoAnnotation` so the

@@ -121,7 +121,8 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 // Annotation persistence + session-scoped undo
 // ---------------------------------------------------------------------------
 
-import type { DrawableObject } from '@/types';
+import type { DrawableObject, TextObject } from '@/types';
+import { ANNOTATION_HARD_LIMIT_BYTES } from '@/utils/annotationSize';
 
 interface Snap {
   objects: DrawableObject[];
@@ -131,6 +132,7 @@ interface Snap {
   undoAnnotation: () => void;
   clearAnnotation: () => void;
   annotationActive: boolean;
+  toasts: { message: string; type?: string }[];
 }
 
 const Consumer: React.FC<{ stateRef: { current: Snap | null } }> = ({
@@ -146,6 +148,7 @@ const Consumer: React.FC<{ stateRef: { current: Snap | null } }> = ({
       undoAnnotation: ctx.undoAnnotation,
       clearAnnotation: ctx.clearAnnotation,
       annotationActive: ctx.annotationActive,
+      toasts: ctx.toasts,
     };
   });
   return null;
@@ -224,6 +227,30 @@ describe('DashboardContext annotation persistence', () => {
     // Pre-session ink is untouchable by undo.
     act(() => get().undoAnnotation());
     expect(get().objects.map((o) => o.id)).toEqual(['old']);
+  });
+
+  it('refuses ink that would push the overlay past the hard size limit', async () => {
+    const get = await mount([]);
+    act(() => get().openAnnotation());
+    const huge: TextObject = {
+      id: 'huge',
+      kind: 'text',
+      z: 1,
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 10,
+      content: 'x'.repeat(ANNOTATION_HARD_LIMIT_BYTES),
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    act(() => get().addAnnotationObject(huge));
+    expect(get().objects).toEqual([]);
+    expect(get().toasts.some((t) => t.type === 'error')).toBe(true);
+    // Normal ink still works.
+    act(() => get().addAnnotationObject(rect('ok')));
+    expect(get().objects.map((o) => o.id)).toEqual(['ok']);
   });
 
   it('trash clears everything, including pre-session ink', async () => {
