@@ -49,10 +49,12 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
     searchRef.current?.focus();
   }, [isOpen]);
 
-  const selectTab = (next: HelpTab) => {
-    setLastHelpTab(next);
-    onTabChange(next);
-  };
+  // Remember whichever tab is showing, including the one the opener picked.
+  const [recordedTab, setRecordedTab] = useState<HelpTab | null>(null);
+  if (isOpen && tab !== recordedTab) {
+    setRecordedTab(tab);
+    setLastHelpTab(tab);
+  }
 
   const onTabListKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     const keys = [
@@ -74,7 +76,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
       nextIndex = (current + last) % TABS.length;
     else nextIndex = (current + 1) % TABS.length;
     const nextId = TABS[nextIndex].id;
-    selectTab(nextId);
+    onTabChange(nextId);
     tabRefs.current[nextId]?.focus();
   };
 
@@ -137,7 +139,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
               ref={(el) => {
                 tabRefs.current[id] = el;
               }}
-              onClick={() => selectTab(id)}
+              onClick={() => onTabChange(id)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-left transition-colors ${
                 tab === id
                   ? 'bg-brand-blue-primary/10 text-brand-blue-primary'
@@ -157,7 +159,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           <select
             id="help-tab-select"
             value={tab}
-            onChange={(e) => selectTab(e.target.value as HelpTab)}
+            onChange={(e) => onTabChange(e.target.value as HelpTab)}
             className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800"
           >
             {TABS.map(({ id }) => (

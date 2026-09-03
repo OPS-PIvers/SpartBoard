@@ -278,7 +278,7 @@ describe('HelpCenterManager', () => {
     const paths = firestoreMocks.batchUpdate.mock.calls.map(
       (call) => (call[0] as { path: string }).path
     );
-    expect(paths).toEqual(['help_resources/o2', 'help_resources/o1']);
+    expect(paths).toEqual(['help_resources/o1']);
   });
 
   it('surfaces the hook error in the alert banner', () => {
@@ -373,6 +373,46 @@ describe('HelpCenterManager', () => {
       .getAllByText(/^(Global|Ours A|Ours B)$/)
       .map((el) => el.textContent);
     expect(titles).toEqual(['Ours A', 'Ours B', 'Global']);
+  });
+
+  it('keeps write controls on owned items while sorted by opens', () => {
+    asOrgAdmin();
+    helpState.items = [
+      makeItem({ id: 'g1', title: 'Global', orgId: null, openCount: 1 }),
+      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', openCount: 9 }),
+    ];
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by opens' }));
+    expect(
+      screen.getByRole('button', { name: 'Edit Ours A' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Delete Ours A' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Visible: Ours A')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Global' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete Global' })).toBeNull();
+    expect(screen.queryByLabelText('Visible: Global')).toBeNull();
+  });
+
+  it('assigns reorder positions from the merged section, not the own-item index', async () => {
+    asOrgAdmin();
+    helpState.items = [
+      makeItem({ id: 'g1', title: 'Global', orgId: null, order: 0 }),
+      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', order: 0 }),
+      makeItem({ id: 'o2', title: 'Ours B', orgId: 'orono', order: 1 }),
+    ];
+    render(<HelpCenterManager />);
+    const reverseButtons = screen.getAllByRole('button', { name: 'reverse' });
+    fireEvent.click(reverseButtons[reverseButtons.length - 1]);
+    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
+    const writes = firestoreMocks.batchUpdate.mock.calls.map((call) => ({
+      path: (call[0] as { path: string }).path,
+      order: (call[1] as { order: number }).order,
+    }));
+    // Merged sequence is [Global, Ours B, Ours A]; Ours B already sits at 1.
+    expect(writes).toEqual([{ path: 'help_resources/o1', order: 2 }]);
+    expect(writes.some((w) => w.order === 0)).toBe(false);
   });
 
   it('toggling sort by opens off restores the category sections', () => {

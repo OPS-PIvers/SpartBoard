@@ -326,6 +326,9 @@ export const incrementHelpOpenCount = async (itemId: string): Promise<void> => {
       openCount: increment(1),
     });
   } catch (err) {
+    // Permission denials never succeed on retry; anything else may, so let it be counted again.
+    const code = (err as { code?: string } | null)?.code;
+    if (code !== 'permission-denied') countedHelpItemIds.delete(itemId);
     console.warn('[useHelpResources] open count not recorded', err);
   }
 };

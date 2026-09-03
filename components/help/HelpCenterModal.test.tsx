@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpCenterModal } from './HelpCenterModal';
 import {
+  getLastHelpTab,
   HELP_OPEN_EVENT,
   requestOpenHelp,
+  setLastHelpTab,
   type HelpOpenRequest,
   type HelpTab,
 } from './helpCenterState';
@@ -100,6 +102,19 @@ describe('HelpCenterModal', () => {
     expect(guidesTab).toHaveAttribute('tabindex', '0');
     expect(document.activeElement).toBe(guidesTab);
     expect(screen.getByTestId('guides-tab')).toBeInTheDocument();
+  });
+
+  it('remembers the tab it was opened on', () => {
+    setLastHelpTab('shortcuts');
+    render(<Harness initialTab="guides" />);
+    expect(getLastHelpTab()).toBe('guides');
+  });
+
+  it('remembers a tab the user switches to', () => {
+    setLastHelpTab('shortcuts');
+    render(<Harness initialTab="shortcuts" />);
+    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
+    expect(getLastHelpTab()).toBe('guides');
   });
 
   it('closes on Escape', () => {
