@@ -39,8 +39,8 @@ import type { StudentAssignmentPointer, StudentOverride } from '@/types';
  *                 per shape so the Completed list bounds Firestore reads.
  *
  * Dual-query (classIds array + legacy classId field) is preserved for
- * quiz / video-activity / guided-learning. Mini-app and activity-wall stay
- * single-query as today.
+ * quiz / video-activity / guided-learning / activity-wall. Mini-app is the
+ * sole single-query kind.
  *
  * The page applies the Active/Completed partition rule using the per-row
  * lazy completion check (see AssignmentListItem). This hook does not
@@ -274,7 +274,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   'activity-wall': {
     collectionName: 'activity_wall_sessions',
     dualQuery: true,
-    classFilterShape: 'single',
+    classFilterShape: 'single', // inert: dualQuery already runs both shapes.
     activeFilter: null, // No status field on the session doc.
     endedFilter: null,
     endedLimit: 0,

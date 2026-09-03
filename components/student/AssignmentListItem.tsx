@@ -344,7 +344,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
     : undefined;
 
   return (
-    <div className="group flex flex-col gap-1">
+    <div className="flex flex-col gap-1">
       <a
         // Omit href entirely when locked so middle-click, cmd-click, ctrl-click,
         // and shift-click can't bypass the onClick guard (which only blocks
@@ -359,7 +359,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         role={isBlocked ? 'button' : undefined}
         aria-busy={isPending ? true : undefined}
         aria-disabled={isBlocked ? true : undefined}
-        className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
+        className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
           showWindowLock
             ? 'border-slate-200 bg-slate-50 opacity-60'
             : isPending
