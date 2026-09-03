@@ -1,17 +1,4 @@
-/**
- * RemoteActivityWallControl
- *
- * Phone remote for the Activity Wall widget. Lets a teacher:
- *   • Open / close the active wall (writes `acceptingResponses` to both the
- *     library entry and the mirrored session doc, exactly like the widget).
- *   • Moderate the live queue — approve pending posts or remove them.
- *   • Show a join QR for the student link.
- *
- * Walls are read from `useActivityWallLibrary` (the source of truth) rather
- * than the deprecated `config.activities`, and the student link comes from
- * the shared `utils/activityWallLinks` builder so the remote and the widget
- * can never drift apart.
- */
+// Phone remote for the Activity Wall: open/close, moderate the queue, show a join QR.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Lock, QrCode, Trash2, Unlock } from 'lucide-react';
@@ -24,13 +11,13 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  setDoc,
   updateDoc,
 } from 'firebase/firestore';
 import {
   activityWallSessionId,
   buildStudentWallLink,
 } from '@/utils/activityWallLinks';
+import { writeSessionMirror } from '@/components/widgets/ActivityWall/hooks/useActivityWallSession';
 
 interface RemoteActivityWallControlProps {
   widget: WidgetData;
@@ -150,29 +137,26 @@ export const RemoteActivityWallControl: React.FC<
   };
 
   const toggleOpen = () => {
-    if (!activeActivity || !sessionId) {
-      // No wall selected yet — pick the most recent one so the remote can act.
-      const first = activities[0];
-      if (!first) return;
+    if (!user) return;
+    // With no wall selected, the first tap both selects the newest wall and opens it.
+    const target = activeActivity ?? activities[0];
+    if (!target) return;
+    const next = activeActivity ? !isOpen : true;
+    if (!activeActivity) {
       updateWidget(widget.id, {
-        config: { ...config, activeActivityId: first.id },
+        config: { ...config, activeActivityId: target.id },
       });
-      return;
     }
-    const next = !isOpen;
     setActionError(null);
     void (async () => {
       try {
-        await saveActivity({
-          ...activeActivity,
+        const entry = {
+          ...target,
           acceptingResponses: next,
           updatedAt: Date.now(),
-        });
-        await setDoc(
-          doc(db, 'activity_wall_sessions', sessionId),
-          { acceptingResponses: next, updatedAt: Date.now() },
-          { merge: true }
-        );
+        };
+        await saveActivity(entry);
+        await writeSessionMirror(user.uid, entry);
       } catch (err) {
         console.error('[RemoteActivityWall] open/close failed:', err);
         setActionError(

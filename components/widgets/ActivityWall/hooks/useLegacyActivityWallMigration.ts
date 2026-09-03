@@ -1,14 +1,4 @@
-/**
- * One-shot migrations that get a teacher's walls into the library collection.
- *
- * 1. `config.activities` (pre-library widgets stored walls on the widget, so
- *    removing the widget destroyed them) → `/users/{uid}/activity_wall_activities`.
- * 2. Session-doc recovery for teachers whose only surviving trace of a wall is
- *    `activity_wall_sessions/{uid}_{activityId}`.
- *
- * Both run every migrated entry through `normalizeActivityWallLibraryEntry`
- * so legacy walls come back with the full Padlet-lite field set.
- */
+// One-shot migrations of `config.activities` and orphaned session docs into the library.
 
 import { useEffect, useRef } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';

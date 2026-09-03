@@ -1,18 +1,4 @@
-/**
- * Publishes an Activity Wall as a view-only gallery.
- *
- * On submit we:
- *   1. Flip `publiclyShared: true` onto `activity_wall_sessions/{sessionId}`
- *      so the read-side rules unlock for gallery viewers.
- *   2. Write `shared_activity_walls/{shareId}` with the gallery toggles.
- *   3. Mint a `/r/<code>` short link pointing at the gallery and stamp the
- *      code onto the session doc (`latestShareCode`) so `/my-assignments`
- *      can offer "View gallery" without re-deriving the link.
- *
- * The short link is the primary copy target; the long URL stays as a
- * fallback for environments where minting a code is denied (localhost, where
- * the `short_links` create rule's origin allowlist doesn't match).
- */
+// Publishes an Activity Wall as a view-only gallery behind an /r/<code> short link.
 
 import React, { useState } from 'react';
 import {
@@ -27,7 +13,7 @@ import {
 } from 'lucide-react';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { Modal } from '@/components/common/Modal';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { db } from '@/config/firebase';
 import { createShortLinkAtomic } from '@/hooks/useShortLinks';
 import { generateRandomCode } from '@/utils/shortLinkValidation';
@@ -40,6 +26,8 @@ interface ActivityWallShareModalProps {
   entry: ActivityWallLibraryEntry | null;
   sessionId: string | null;
   teacherUid: string | null;
+  /** Teacher's email, stamped on the minted short link for admin attribution. */
+  teacherEmail?: string | null;
   /** Called with the minted short-link code so the widget can offer "Open gallery". */
   onShareCreated?: (code: string) => void;
 }
@@ -132,9 +120,10 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
   entry,
   sessionId,
   teacherUid,
+  teacherEmail,
   onShareCreated,
 }) => {
-  const { addToast } = useDashboard();
+  const { addToast } = useDashboardActions();
   const [allowComments, setAllowComments] = useState(true);
   const [allowCommentResponses, setAllowCommentResponses] = useState(true);
   const [allowLikes, setAllowLikes] = useState(true);
@@ -193,8 +182,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
         createdAt: Date.now(),
       };
 
-      // Unlock viewer reads first — a share doc without this produces a link
-      // that permission-denies on every submission read.
+      // Unlock viewer reads first, or every gallery submission read denies.
       await updateDoc(doc(db, 'activity_wall_sessions', sessionId), {
         publiclyShared: true,
       });
@@ -208,7 +196,11 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
       const gallery = buildGalleryLink(origin, shareId);
       setLongUrl(gallery);
 
-      const code = await mintGalleryShortLink(gallery, teacherUid, '');
+      const code = await mintGalleryShortLink(
+        gallery,
+        teacherUid,
+        teacherEmail ?? ''
+      );
       if (code) {
         await setDoc(
           doc(db, 'activity_wall_sessions', sessionId),

@@ -1,12 +1,4 @@
-/**
- * Single source of truth for every Activity Wall URL the teacher hands out.
- *
- * The pre-redesign widget and the mobile remote each built their own
- * base64 `?data=` payload link, so a change to one silently broke the other.
- * Per docs/plans/ACTIVITY_WALL_REDESIGN.md "Routes" the payload link is gone:
- * an SSO-only wall routes through `/student/login?next=`, a guest wall goes
- * straight to `/activity-wall/{sessionId}`.
- */
+// Single source of truth for every Activity Wall URL the teacher hands out.
 
 /** Session id the widget mirrors to `activity_wall_sessions/{sessionId}`. */
 export const activityWallSessionId = (
@@ -18,10 +10,7 @@ export const activityWallSessionId = (
 export const activityWallStudentPath = (sessionId: string): string =>
   `/activity-wall/${sessionId}`;
 
-/**
- * The link a teacher copies or turns into a QR code. Guests allowed → direct
- * path; otherwise the student SSO page with the wall as its `next` target.
- */
+/** Link a teacher hands out: direct path for guest walls, else the SSO page. */
 export const buildStudentWallLink = (
   origin: string,
   sessionId: string,

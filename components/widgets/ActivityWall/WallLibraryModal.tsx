@@ -1,10 +1,4 @@
-/**
- * Wall library — browse, open, edit, duplicate, clear, and delete walls.
- *
- * Built on the shared library primitives (`LibraryShell` / `LibraryToolbar` /
- * `LibraryGrid` / `LibraryItemCard`) so it behaves like the Quiz, Video
- * Activity, and Mini App libraries instead of a hand-rolled list.
- */
+// Wall library — browse, open, edit, duplicate, clear, and delete walls.
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -100,8 +94,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
   });
   const [counts, setCounts] = useState<Record<string, number>>({});
 
-  // One aggregate count per wall, cached by entry id so reopening the modal
-  // or re-sorting never re-bills the count query.
+  // One aggregate count per wall, cached by entry id so re-sorting never re-bills it.
   const uncountedKey = entries
     .map((entry) => entry.id)
     .filter((id) => !(id in counts))
@@ -170,8 +163,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
         await onDelete(entry.id);
         await deleteDoc(doc(db, 'activity_wall_sessions', sessionId)).catch(
           () => {
-            // The session doc is delete-denied by rules; clearing its posts
-            // and removing the library entry is what actually retires a wall.
+            // Rules deny deleting the session doc; clearing posts + entry retires a wall.
           }
         );
         addToast('Wall deleted.', 'info');

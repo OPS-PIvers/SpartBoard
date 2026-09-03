@@ -1,11 +1,4 @@
-/**
- * Activity Wall front face — a live preview of the active wall.
- *
- * Layout rendering lives in `components/activityWall/render` (shared with the
- * student page and the gallery); wall creation/editing lives in the editor
- * modal; browsing lives in the library modal. This file wires them together
- * and owns nothing but presentation and toolbar state.
- */
+// Activity Wall front face — a live preview of the active wall plus its toolbar.
 
 import React, { useCallback, useMemo, useState } from 'react';
 import {
@@ -395,7 +388,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             type="button"
             onClick={() => void connectDrive()}
             disabled={connectingDrive}
-            className="shrink-0 rounded-lg bg-amber-400 font-bold text-amber-950 disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-amber-400 font-bold text-amber-950 transition-colors hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50"
             style={{
               padding: 'min(3px, 1cqmin) min(8px, 2cqmin)',
               fontSize: 'min(10px, 3.2cqmin)',
@@ -416,7 +409,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         <button
           type="button"
           onClick={() => setLibraryOpen(true)}
-          className="rounded-lg bg-brand-blue-primary font-bold text-white"
+          className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           style={{
             padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
             fontSize: 'min(12px, 3.8cqmin)',
@@ -515,6 +508,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         entry={activeEntry}
         sessionId={sessionId}
         teacherUid={user?.uid ?? null}
+        teacherEmail={user?.email ?? null}
         onShareCreated={(code) =>
           updateWidget(widget.id, { config: { latestShareCode: code } })
         }

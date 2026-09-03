@@ -1,14 +1,4 @@
-/**
- * Live session state + teacher actions for the active Activity Wall.
- *
- * Mirrors the library entry onto `activity_wall_sessions/{uid}_{activityId}`
- * (students never read the library doc), subscribes to the submissions
- * subcollection, and exposes the moderation/placement writes the widget,
- * moderation drawer, and library modal all share.
- *
- * Archiving is NOT triggered here any more: a server-side pipeline owns it
- * (docs/plans/ACTIVITY_WALL_REDESIGN.md P1-2). The widget only reports.
- */
+// Live session state + teacher actions for the active Activity Wall.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -37,6 +27,23 @@ import { activityWallSessionId } from '@/utils/activityWallLinks';
 
 /** Firestore caps a batch at 500 writes; stay under it with room to spare. */
 const CLEAR_CHUNK_SIZE = 400;
+
+/** Writes the full session mirror so rules see a complete Padlet-lite doc. */
+export const writeSessionMirror = async (
+  uid: string,
+  entry: ActivityWallLibraryEntry,
+  overrides: Partial<ActivityWallSession> = {}
+): Promise<void> => {
+  const sessionId = activityWallSessionId(uid, entry.id);
+  const payload: Record<string, unknown> = {
+    ...mirrorSessionFromEntry(entry, uid),
+    ...overrides,
+    updatedAt: Date.now(),
+  };
+  await setDoc(doc(db, 'activity_wall_sessions', sessionId), payload, {
+    merge: true,
+  });
+};
 
 export interface DriveSyncCounts {
   failed: number;
@@ -100,9 +107,7 @@ export const useActivityWallSession = (
     submissions: ActivityWallSubmission[];
   }>({ sessionId: null, submissions: [] });
 
-  // Mirror the wall config so students get layout/appearance/gates live.
-  // `updatedAt` is zeroed in the key: it changes on every render and would
-  // otherwise re-fire the write forever.
+  // `updatedAt` is zeroed in the key so the mirror write doesn't re-fire forever.
   const mirrorKey = session
     ? JSON.stringify({ ...session, updatedAt: 0 })
     : null;
@@ -121,8 +126,7 @@ export const useActivityWallSession = (
 
   const isPhotoWall = entry?.mode === 'photo';
   useEffect(() => {
-    // No reset needed when the wall changes: `submissions` below discards
-    // state whose `sessionId` no longer matches.
+    // No reset needed: `submissions` below discards state from a stale sessionId.
     if (!sessionId) return;
     const unsubscribe = onSnapshot(
       submissionsCollection(sessionId),
@@ -235,19 +239,16 @@ export const useActivityWallSession = (
 
   const setAcceptingResponses = useCallback(
     async (accepting: boolean) => {
-      if (!entry || !sessionId) return;
-      await saveActivity({
+      if (!entry || !uid) return;
+      const next = {
         ...entry,
         acceptingResponses: accepting,
         updatedAt: Date.now(),
-      });
-      await setDoc(
-        doc(db, 'activity_wall_sessions', sessionId),
-        { acceptingResponses: accepting, updatedAt: Date.now() },
-        { merge: true }
-      );
+      };
+      await saveActivity(next);
+      await writeSessionMirror(uid, next);
     },
-    [entry, saveActivity, sessionId]
+    [entry, saveActivity, uid]
   );
 
   return {

@@ -1,8 +1,4 @@
-/**
- * Teacher moderation queue for the active wall: pending posts to approve or
- * reject, plus the approved list with pin / edit / delete. Rendered in a
- * modal so it stays readable no matter how small the widget is on the board.
- */
+// Teacher moderation queue: approve/reject pending posts, pin/edit/delete approved ones.
 
 import React, { useState } from 'react';
 import { Check, Pin, PinOff, Trash2, X } from 'lucide-react';
@@ -54,7 +50,7 @@ const SubmissionRow: React.FC<RowProps> = ({ submission, actions, onEdit }) => {
             />
             <button
               type="button"
-              className="rounded-lg bg-brand-blue-primary px-2 py-1 text-xs font-bold text-white"
+              className="rounded-lg bg-brand-blue-primary px-2 py-1 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               onClick={() => {
                 onEdit(submission.id, draft.trim() || submission.content);
                 setEditing(false);
@@ -70,7 +66,7 @@ const SubmissionRow: React.FC<RowProps> = ({ submission, actions, onEdit }) => {
               setDraft(submission.content);
               setEditing(true);
             }}
-            className="block w-full break-words text-left text-sm text-slate-800"
+            className="block w-full break-words rounded-lg text-left text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             aria-label={`Edit post ${submission.id}`}
           >
             {submission.content}

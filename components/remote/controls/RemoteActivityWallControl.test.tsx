@@ -16,7 +16,9 @@ const {
   mockSetDoc,
   mockSaveActivity,
   mockLibraryEntries,
+  mockUpdateWidget,
 } = vi.hoisted(() => ({
+  mockUpdateWidget: vi.fn(),
   mockUpdateDoc: vi.fn(),
   mockDeleteDoc: vi.fn(),
   mockOnSnapshot: vi.fn(),
@@ -59,6 +61,9 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: mockUpdateDoc,
   deleteDoc: mockDeleteDoc,
   setDoc: mockSetDoc,
+  getDocs: vi.fn(),
+  writeBatch: vi.fn(),
+  deleteField: vi.fn(),
 }));
 
 const wallEntry = {
@@ -234,7 +239,7 @@ describe('RemoteActivityWallControl', () => {
     });
   });
 
-  it('closes the wall by writing both the library entry and the session doc', async () => {
+  it('closes the wall by writing the library entry and the full session mirror', async () => {
     renderControl();
 
     await userEvent.click(
@@ -252,7 +257,53 @@ describe('RemoteActivityWallControl', () => {
     await waitFor(() =>
       expect(mockSetDoc).toHaveBeenCalledWith(
         { __ref: 'teacher-1_activity-1' },
-        expect.objectContaining({ acceptingResponses: false }),
+        expect.objectContaining({
+          acceptingResponses: false,
+          layout: 'wall',
+          driveVisibility: 'domain',
+          teacherUid: 'teacher-1',
+          activityId: 'activity-1',
+          allowGuests: false,
+          allowedTypes: {
+            photo: false,
+            link: false,
+            file: false,
+            video: false,
+          },
+        }),
+        { merge: true }
+      )
+    );
+  });
+
+  it('selects and opens the newest wall on the first tap when none is active', async () => {
+    render(
+      <RemoteActivityWallControl
+        widget={{ ...baseWidget, config: {} } as unknown as typeof baseWidget}
+        updateWidget={mockUpdateWidget}
+      />
+    );
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /open wall/i })
+    );
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
+      config: { activeActivityId: 'activity-1' },
+    });
+    await waitFor(() =>
+      expect(mockSaveActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ acceptingResponses: true })
+      )
+    );
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        { __ref: 'teacher-1_activity-1' },
+        expect.objectContaining({
+          acceptingResponses: true,
+          layout: 'wall',
+          driveVisibility: 'domain',
+        }),
         { merge: true }
       )
     );
