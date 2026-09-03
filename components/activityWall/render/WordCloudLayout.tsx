@@ -25,7 +25,7 @@ export const WordCloudLayout: React.FC<WallRenderProps> = ({
           style={{
             fontSize:
               mode === 'widget'
-                ? `min(48px, ${(3 + weight * 12).toFixed(2)}cqmin)`
+                ? `clamp(11px, ${(3 + weight * 12).toFixed(2)}cqmin, 96px)`
                 : `${(3 + weight * 12).toFixed(2)}vmin`,
             padding: `0 ${mode === 'widget' ? 'min(8px, 2cqmin)' : '8px'}`,
             color: wordColor(word),

@@ -168,6 +168,28 @@ describe('wall layouts', () => {
     expect(screen.getByTitle('curious (2)')).toBeInTheDocument();
     expect(screen.getByTitle('brave (1)')).toBeInTheDocument();
     expect(screen.queryByText('the')).not.toBeInTheDocument();
+    expect(screen.getByTitle('curious (2)')).toHaveStyle({
+      fontSize: '15.00vmin',
+    });
+    expect(screen.getByTitle('brave (1)')).toHaveStyle({
+      fontSize: '9.00vmin',
+    });
+  });
+
+  it('WordCloudLayout clamps widget-mode font size instead of using bare vmin/cqmin', () => {
+    render(
+      <WordCloudLayout
+        session={makeSession({ layout: 'wordcloud' })}
+        mode="widget"
+        showNames={false}
+        submissions={[
+          makeSubmission({ id: 'a', type: 'word', content: 'curious' }),
+        ]}
+      />
+    );
+    expect(screen.getByTitle('curious (1)')).toHaveStyle({
+      fontSize: 'clamp(11px, 15.00cqmin, 96px)',
+    });
   });
 
   it('drag handlers emit the placement patch each layout owns', () => {
