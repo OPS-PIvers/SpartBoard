@@ -37,5 +37,11 @@ export const inferHelpEmbedType = (url: string): HelpEmbedType => {
   return 'other';
 };
 
+// 'other' is an arbitrary admin-entered host: never pair allow-same-origin with allow-scripts there.
+export const helpIframeSandbox = (embedType: HelpEmbedType | null): string =>
+  embedType === 'other'
+    ? 'allow-scripts allow-forms allow-popups'
+    : HELP_IFRAME_SANDBOX;
+
 // Delegates to the shared converter; callers compare the result to the input to decide whether to render an iframe or an open-in-new-tab card.
 export const toHelpEmbedSrc = (url: string): string => convertToEmbedUrl(url);

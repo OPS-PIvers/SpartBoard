@@ -11,6 +11,7 @@ import {
   Building2,
   BarChart,
   LayoutTemplate,
+  LifeBuoy,
   Link2,
   GraduationCap,
   Sparkles,
@@ -28,6 +29,7 @@ import { DashboardTemplatesManager } from './DashboardTemplatesManager';
 import { LinkShortenerManager } from './LinkShortenerManager';
 import { PresetSubEmailsManager } from './PresetSubEmailsManager';
 import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
+import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -76,6 +78,12 @@ const TAB_GROUPS = [
         label: 'Templates',
         icon: LayoutTemplate,
         component: DashboardTemplatesManager,
+      },
+      {
+        id: 'help-center',
+        label: 'Help Center',
+        icon: LifeBuoy,
+        component: HelpCenterManager,
       },
     ],
   },
