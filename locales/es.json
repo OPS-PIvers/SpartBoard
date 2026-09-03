@@ -1975,6 +1975,13 @@
       "editSaveFailed": "No se pudieron guardar los cambios. Inténtalo de nuevo."
     }
   },
+  "quizResults": {
+    "stats": {
+      "gradedOf": "{{n}} de {{m}} calificados",
+      "notGradedYet": "Sin calificar todavía",
+      "barLabel": "Puntuación media {{pct}} %"
+    }
+  },
   "quizMediaResponse": {
     "notice": {
       "title": "Before you record",

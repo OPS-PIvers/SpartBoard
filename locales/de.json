@@ -1975,6 +1975,13 @@
       "editSaveFailed": "Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen."
     }
   },
+  "quizResults": {
+    "stats": {
+      "gradedOf": "{{n}} von {{m}} bewertet",
+      "notGradedYet": "Noch nicht bewertet",
+      "barLabel": "Durchschnittliche Punktzahl {{pct}} %"
+    }
+  },
   "quizMediaResponse": {
     "notice": {
       "title": "Before you record",
