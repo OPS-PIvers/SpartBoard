@@ -1183,7 +1183,9 @@
       "groupWith": "Group with..."
     },
     "clearEntireBoard": "Are you sure you want to clear the entire board?",
-    "clearBoardTitle": "Clear Board"
+    "clearBoardTitle": "Clear Board",
+    "minimizedToast": "Minimized — find it in the Dock",
+    "minimizedAllToast": "All widgets minimized"
   },
   "login": {
     "signInToAccess": "Sign in to access your boards",

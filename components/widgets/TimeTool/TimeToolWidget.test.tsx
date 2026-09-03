@@ -196,6 +196,65 @@ describe('TimeToolWidget', () => {
     expect(getTimeButton('05:00')).toBeInTheDocument();
   });
 
+  // Regression: the keypad is built entirely from buttons, so physical keys
+  // fell through to DashboardView's global handler — Escape minimized the
+  // whole timer (opacity 0, reported as the widget vanishing) and Delete
+  // opened its close-confirm. The keypad now owns these keys and stops them
+  // at the native level so no window listener sees them.
+  describe('keypad keyboard handling', () => {
+    const openKeypad = () => {
+      const widget = createWidget({ elapsedTime: 300 });
+      renderWidget(widget);
+      fireEvent.click(getTimeButton('05:00'));
+      return screen.getByLabelText('Close keypad').closest('div')
+        ?.parentElement as HTMLElement;
+    };
+
+    it('Escape closes the keypad instead of reaching window listeners', () => {
+      openKeypad();
+      const windowSpy = vi.fn();
+      window.addEventListener('keydown', windowSpy);
+
+      fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+        bubbles: true,
+      });
+
+      window.removeEventListener('keydown', windowSpy);
+      expect(windowSpy).not.toHaveBeenCalled();
+      expect(screen.queryByLabelText('Close keypad')).not.toBeInTheDocument();
+      expect(getTimeButton('05:00')).toBeInTheDocument();
+    });
+
+    it('Delete edits the digits instead of reaching window listeners', () => {
+      openKeypad();
+      const windowSpy = vi.fn();
+      window.addEventListener('keydown', windowSpy);
+
+      fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Delete',
+        bubbles: true,
+      });
+
+      window.removeEventListener('keydown', windowSpy);
+      expect(windowSpy).not.toHaveBeenCalled();
+      // 005 -> backspace -> 000, keypad still open
+      expect(screen.getByText('000')).toBeInTheDocument();
+      expect(screen.getByLabelText('Close keypad')).toBeInTheDocument();
+    });
+
+    it('number keys type into the active field', () => {
+      openKeypad();
+
+      fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: '7',
+        bubbles: true,
+      });
+
+      expect(screen.getByText('057')).toBeInTheDocument();
+    });
+  });
+
   it('supports 3-digit minutes (e.g., 2 hours / 120 minutes)', () => {
     const widget = createWidget({ elapsedTime: 300 });
     renderWidget(widget);
