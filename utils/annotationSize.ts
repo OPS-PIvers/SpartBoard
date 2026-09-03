@@ -5,6 +5,6 @@ import type { DrawableObject } from '@/types';
 export const ANNOTATION_SOFT_LIMIT_BYTES = 300_000;
 export const ANNOTATION_HARD_LIMIT_BYTES = 600_000;
 
-/** Approximate serialized size of the overlay objects in bytes. */
+/** Serialized size of the overlay objects in UTF-8 bytes (what Firestore counts). */
 export const estimateAnnotationBytes = (objects: DrawableObject[]): number =>
-  JSON.stringify(objects).length;
+  new TextEncoder().encode(JSON.stringify(objects)).length;
