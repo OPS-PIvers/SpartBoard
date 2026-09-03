@@ -28,6 +28,7 @@ import { AppearancePicker } from './AppearancePicker';
 import { SubmissionTypesToggles } from './SubmissionTypesToggles';
 import { ModerationAndAccess } from './ModerationAndAccess';
 import { LimitsAndEditing } from './LimitsAndEditing';
+import { EngagementSettings } from './EngagementSettings';
 
 interface WallEditorModalProps {
   open: boolean;
@@ -463,8 +464,18 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               moderationEnabled={draft.moderationEnabled}
               allowGuests={draft.allowGuests ?? false}
               showNames={draft.showNames ?? false}
+              studentsCanSeePosts={draft.studentsCanSeePosts ?? true}
               classIds={draft.classIds ?? []}
               classes={classes}
+              onChange={(next) => patch(next)}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection label="Engagement">
+            <EngagementSettings
+              allowLikes={draft.allowLikes ?? false}
+              allowComments={draft.allowComments ?? false}
+              allowCommentResponses={draft.allowCommentResponses ?? false}
               onChange={(next) => patch(next)}
             />
           </CollapsibleSection>

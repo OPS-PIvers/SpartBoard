@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React, { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityWallShareModal } from './ShareModal';
@@ -108,6 +108,7 @@ const Harness: React.FC<{ activity: ActivityWallLibraryEntry }> = ({
         entry={activity}
         sessionId="session-1"
         teacherUid="teacher-1"
+        studentUrl="https://example.test/activity-wall/session-1"
       />
     </>
   );
@@ -116,6 +117,9 @@ const Harness: React.FC<{ activity: ActivityWallLibraryEntry }> = ({
 // The expiration checkbox is wrapped in a <label> that also contains the
 // heading/body text, so multiple controls share that accessible region.
 // Target it directly by its stable id to get an unambiguous, single node.
+const openGalleryTab = () =>
+  fireEvent.click(screen.getByRole('tab', { name: 'Public gallery' }));
+
 const expirationCheckbox = (): HTMLInputElement => {
   const el = document.getElementById('aw-share-enable-expiration');
   if (!(el instanceof HTMLInputElement)) {
@@ -131,11 +135,13 @@ describe('ActivityWallShareModal remount-reset', () => {
 
   it('defaults the expiration toggle to off', () => {
     render(<Harness activity={makeActivity()} />);
+    openGalleryTab();
     expect(expirationCheckbox()).not.toBeChecked();
   });
 
   it('resets a mutated field after close + reopen (key flips)', () => {
     render(<Harness activity={makeActivity()} />);
+    openGalleryTab();
 
     // Mutate: turn the expiration toggle on (default is off). Use fireEvent for
     // a single, deterministic click — the checkbox is nested inside its own
@@ -155,6 +161,7 @@ describe('ActivityWallShareModal remount-reset', () => {
     fireEvent.click(screen.getByRole('button', { name: 'open' }));
 
     // Field is back to its default (off) — proves remount-driven reset.
+    openGalleryTab();
     expect(expirationCheckbox()).not.toBeChecked();
   });
 
@@ -162,6 +169,7 @@ describe('ActivityWallShareModal remount-reset', () => {
     const { rerender } = render(
       <Harness activity={makeActivity({ id: 'activity-1' })} />
     );
+    openGalleryTab();
 
     fireEvent.click(expirationCheckbox());
     expect(expirationCheckbox()).toBeChecked();
@@ -170,6 +178,7 @@ describe('ActivityWallShareModal remount-reset', () => {
     // it (same edge the production call site keys on).
     rerender(<Harness activity={makeActivity({ id: 'activity-2' })} />);
 
+    openGalleryTab();
     expect(expirationCheckbox()).not.toBeChecked();
   });
 });
@@ -185,23 +194,29 @@ describe('ActivityWallShareModal gallery link creation', () => {
     });
   });
 
-  const renderModal = () =>
+  const renderModal = (
+    overrides: Partial<ActivityWallLibraryEntry> = {},
+    existingGalleryUrl?: string
+  ) =>
     render(
       <ActivityWallShareModal
         isOpen
         onClose={vi.fn()}
-        entry={makeActivity()}
+        entry={makeActivity(overrides)}
         sessionId="teacher-1_activity-1"
         teacherUid="teacher-1"
         teacherEmail="teacher@example.com"
+        studentUrl="https://example.test/activity-wall/teacher-1_activity-1"
+        existingGalleryUrl={existingGalleryUrl}
       />
     );
 
   const clickCreate = async () => {
+    openGalleryTab();
     fireEvent.click(
-      screen.getByRole('button', { name: /create gallery link/i })
+      screen.getByRole('button', { name: /create (public|new) gallery link/i })
     );
-    await screen.findByText(/gallery link ready/i);
+    await screen.findByLabelText('Share link URL');
   };
 
   const sessionRef = { path: 'activity_wall_sessions/teacher-1_activity-1' };
@@ -242,6 +257,37 @@ describe('ActivityWallShareModal gallery link creation', () => {
     );
   });
 
+  it('copies the wall-level engagement flags onto the share doc', async () => {
+    renderModal({
+      allowLikes: true,
+      allowComments: false,
+      allowCommentResponses: true,
+    });
+    await clickCreate();
+
+    const shareDocCall = setDocCalls().find((call) =>
+      call[0].path.startsWith('shared_activity_walls/')
+    );
+    expect(shareDocCall?.[1]).toMatchObject({
+      allowLikes: true,
+      allowComments: false,
+      allowCommentResponses: false,
+    });
+    expect(screen.queryByRole('checkbox', { name: /allow likes/i })).toBeNull();
+  });
+
+  it('shows the existing gallery link with Copy above the create form', () => {
+    renderModal({}, 'https://example.test/r/abc123');
+    openGalleryTab();
+
+    expect(
+      screen.getByLabelText<HTMLInputElement>('Current gallery link URL').value
+    ).toBe('https://example.test/r/abc123');
+    expect(
+      screen.getByRole('button', { name: /create new gallery link/i })
+    ).toBeInTheDocument();
+  });
+
   it('falls back to the long gallery URL without stamping a code when minting fails', async () => {
     mockCreateShortLink.mockResolvedValue({ ok: false });
     renderModal();
@@ -254,5 +300,66 @@ describe('ActivityWallShareModal gallery link creation', () => {
       screen.getByLabelText<HTMLInputElement>('Share link URL').value;
     expect(linkValue).toContain('/activity-wall/gallery/');
     expect(linkValue).not.toContain('/r/');
+  });
+});
+
+describe('ActivityWallShareModal student link tab', () => {
+  beforeEach(() => {
+    mockAddToast.mockClear();
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+  });
+
+  it('opens on the student link with copy and QR actions', async () => {
+    const onAddQr = vi.fn();
+    render(
+      <ActivityWallShareModal
+        isOpen
+        onClose={vi.fn()}
+        entry={makeActivity()}
+        sessionId="teacher-1_activity-1"
+        teacherUid="teacher-1"
+        studentUrl="https://example.test/activity-wall/teacher-1_activity-1"
+        onAddQr={onAddQr}
+      />
+    );
+
+    expect(screen.getByRole('tab', { name: 'Student link' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(
+      screen.getByLabelText<HTMLInputElement>('Student link URL').value
+    ).toBe('https://example.test/activity-wall/teacher-1_activity-1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Student link copied!',
+        'success'
+      )
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add join QR to board' })
+    );
+    expect(onAddQr).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the QR action when onAddQr is not provided', () => {
+    render(
+      <ActivityWallShareModal
+        isOpen
+        onClose={vi.fn()}
+        entry={makeActivity()}
+        sessionId="teacher-1_activity-1"
+        teacherUid="teacher-1"
+        studentUrl="https://example.test/activity-wall/teacher-1_activity-1"
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Add join QR to board' })
+    ).toBeNull();
   });
 });

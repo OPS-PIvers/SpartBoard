@@ -1,5 +1,8 @@
 # Activity Wall — Padlet-lite redesign
 
+> The single-link model (student link renders the live wall, gallery share demoted to a
+> read-only "Public gallery") is specified in `ACTIVITY_WALL_MERGED_STUDENT_PAGE.md`.
+
 Rebuilds the Activity Wall widget, student submission page, and shared gallery. Scope was
 settled in a design interview on 2026-09-02; this document is the contract and the input to
 `/pauls-skills:mass-plan-implementation`. Every item below is self-contained: an implementer

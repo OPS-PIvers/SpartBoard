@@ -7,12 +7,14 @@ interface ModerationAndAccessProps {
   moderationEnabled: boolean;
   allowGuests: boolean;
   showNames: boolean;
+  studentsCanSeePosts: boolean;
   classIds: string[];
   classes: ClassLinkClass[];
   onChange: (patch: {
     moderationEnabled?: boolean;
     allowGuests?: boolean;
     showNames?: boolean;
+    studentsCanSeePosts?: boolean;
     classIds?: string[];
   }) => void;
 }
@@ -22,6 +24,7 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
   moderationEnabled,
   allowGuests,
   showNames,
+  studentsCanSeePosts,
   classIds,
   classes,
   onChange,
@@ -44,6 +47,12 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
       hint="Display each student's name on their post."
       checked={showNames}
       onChange={(next) => onChange({ showNames: next })}
+    />
+    <ToggleRow
+      label="Students can see posts"
+      hint="Turn off to hide everyone's posts until you reveal the wall."
+      checked={studentsCanSeePosts}
+      onChange={(next) => onChange({ studentsCanSeePosts: next })}
     />
 
     {classes.length > 0 && (

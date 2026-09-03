@@ -143,9 +143,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     pinPost,
     editPost,
     setAcceptingResponses,
+    setStudentsCanSeePosts,
   } = useActivityWallSession(user?.uid, activeEntry, saveActivity);
 
   const isOpenWall = activeEntry?.acceptingResponses !== false;
+  const isVisibleWall = activeEntry?.studentsCanSeePosts !== false;
   const visibleCount = visibleSubmissions(submissions, 'widget').length;
 
   const studentUrl = useMemo(() => {
@@ -179,6 +181,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Could not change the wall state.', 'error');
     });
   }, [activeEntry, addToast, isOpenWall, setAcceptingResponses]);
+
+  const toggleVisibleHidden = useCallback(() => {
+    if (!activeEntry) return;
+    void setStudentsCanSeePosts(!isVisibleWall).catch((err) => {
+      console.error('[ActivityWall] Failed to toggle wall visibility:', err);
+      addToast('Could not change who can see posts.', 'error');
+    });
+  }, [activeEntry, addToast, isVisibleWall, setStudentsCanSeePosts]);
 
   const copyStudentLink = useCallback(async () => {
     if (!studentUrl) return;
@@ -287,17 +297,17 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         ]
       : []),
     {
-      label: 'Share gallery',
+      label: 'Share',
       icon: Share2,
       run: () => setShareOpen(true),
       disabled: false,
     },
-    ...(galleryUrl
+    ...(studentUrl
       ? [
           {
-            label: 'Open gallery',
+            label: 'Open student view',
             icon: ExternalLink,
-            run: () => window.open(galleryUrl, '_blank', 'noopener'),
+            run: () => window.open(studentUrl, '_blank', 'noopener'),
             disabled: false,
           },
         ]
@@ -365,6 +375,29 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           }}
         >
           {isOpenWall ? 'Open' : 'Closed'}
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleVisibleHidden}
+          disabled={isActiveBoardReadOnly}
+          aria-pressed={isVisibleWall}
+          aria-label={
+            isVisibleWall
+              ? 'Posts visible to students. Hide posts from students'
+              : 'Posts hidden from students. Show posts to students'
+          }
+          className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
+            isVisibleWall
+              ? 'bg-sky-500 text-white hover:bg-sky-600'
+              : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
+          }`}
+          style={{
+            padding: 'min(4px, 1.2cqmin) min(10px, 2.6cqmin)',
+            fontSize: 'min(10px, 3.2cqmin)',
+          }}
+        >
+          {isVisibleWall ? 'Visible' : 'Hidden'}
         </button>
 
         {activeEntry.moderationEnabled && (
@@ -641,6 +674,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         sessionId={sessionId}
         teacherUid={user?.uid ?? null}
         teacherEmail={user?.email ?? null}
+        studentUrl={studentUrl}
+        existingGalleryUrl={galleryUrl || undefined}
+        onAddQr={
+          canOfferAnonymousJoin && !isActiveBoardReadOnly
+            ? spawnQrWidget
+            : undefined
+        }
       />
     </>
   );

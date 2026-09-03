@@ -304,17 +304,45 @@ describe('ActivityWallWidget', () => {
     ).toBeInTheDocument();
   });
 
-  it('switching active walls changes the gallery target', async () => {
+  it('toggling Visible/Hidden writes studentsCanSeePosts to the entry and the session doc', async () => {
+    renderWidget();
+    mockSetDoc.mockClear();
+
+    const pill = await screen.findByRole('button', { name: /hide posts/i });
+    expect(pill).toHaveTextContent('Visible');
+    expect(pill).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(pill);
+
+    await waitFor(() =>
+      expect(mockSaveActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'wall-1', studentsCanSeePosts: false })
+      )
+    );
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1',
+        }),
+        expect.objectContaining({ studentsCanSeePosts: false }),
+        { merge: true }
+      )
+    );
+  });
+
+  it('renders the Hidden pill when the wall hides posts', async () => {
+    mockLibraryEntries.current = [makeEntry({ studentsCanSeePosts: false })];
+    renderWidget();
+
+    const pill = await screen.findByRole('button', { name: /show posts/i });
+    expect(pill).toHaveTextContent('Hidden');
+    expect(pill).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('opens the student view for the active wall in a new tab', async () => {
     mockLibraryEntries.current = [
       makeEntry({ id: 'wall-1' }),
       makeEntry({ id: 'wall-2', title: 'Exit Ticket' }),
     ];
-    sessionDocData['activity_wall_sessions/teacher-1_wall-1'] = {
-      latestShareCode: 'code-one',
-    };
-    sessionDocData['activity_wall_sessions/teacher-1_wall-2'] = {
-      latestShareCode: 'code-two',
-    };
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
     const { rerender } = render(
@@ -322,11 +350,12 @@ describe('ActivityWallWidget', () => {
         widget={{ ...baseWidget, config: { activeActivityId: 'wall-1' } }}
       />
     );
+    expect(screen.queryByRole('button', { name: 'Open gallery' })).toBeNull();
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Open gallery' })
+      await screen.findByRole('button', { name: 'Open student view' })
     );
     expect(openSpy).toHaveBeenLastCalledWith(
-      `${window.location.origin}/r/code-one`,
+      expect.stringContaining('teacher-1_wall-1'),
       '_blank',
       'noopener'
     );
@@ -337,15 +366,26 @@ describe('ActivityWallWidget', () => {
       />
     );
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Open gallery' })
+      await screen.findByRole('button', { name: 'Open student view' })
     );
     expect(openSpy).toHaveBeenLastCalledWith(
-      `${window.location.origin}/r/code-two`,
+      expect.stringContaining('teacher-1_wall-2'),
       '_blank',
       'noopener'
     );
 
     openSpy.mockRestore();
+  });
+
+  it('opens the share modal from the Share action', async () => {
+    renderWidget();
+    await userEvent.click(await screen.findByRole('button', { name: 'Share' }));
+    expect(
+      await screen.findByRole('tab', { name: 'Student link' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'Public gallery' })
+    ).toBeInTheDocument();
   });
 
   it('shows the empty state and opens the library when no wall is active', async () => {
