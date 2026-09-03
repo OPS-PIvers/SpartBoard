@@ -2204,6 +2204,7 @@
   },
   "helpCenter": {
     "title": "Ayuda",
+    "widgetHelp": "Guías para este widget",
     "search": "Buscar en la ayuda",
     "close": "Cerrar la ayuda",
     "noResults": "No hay resultados para tu búsqueda",

@@ -47,6 +47,7 @@ export const Z_INDEX = {
 
   // Floating/Pop-up layers
   popover: 11000, // Popovers, Menus attached to elements
+  popoverMenu: 11010, // Menus opened from a popover-level surface (e.g. Notes toolbar)
   toolMenu: 12000, // DraggableWindow specific tool menu
   tooltip: 13000, // Tooltips
   toast: 14000, // Toast notifications

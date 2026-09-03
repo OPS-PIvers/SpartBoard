@@ -1206,6 +1206,8 @@ export interface TextObject extends BaseDrawableObject {
   fontFamily: string;
   fontSize: number;
   color: string;
+  /** True once a resize handle fixed the width; lines wrap to `w`. */
+  wrap?: boolean;
 }
 
 export interface ImageObject extends BaseDrawableObject {

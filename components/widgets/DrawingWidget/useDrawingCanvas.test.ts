@@ -829,12 +829,12 @@ describe('useDrawingCanvas', () => {
         nextZ: 1,
       })
     );
-    // First line baseline = y + fontSize = 20 + 24 = 44.
-    expect(mockCtx.fillText).toHaveBeenNthCalledWith(1, 'hello', 10, 44);
+    // First line baseline = y + fontSize = 20 + 24 = 44; x = 10 + 4px pad.
+    expect(mockCtx.fillText).toHaveBeenNthCalledWith(1, 'hello', 14, 44);
     // Second line: previous + fontSize * 1.2 = 44 + 28.8 = 72.8.
     const secondCall = mockCtx.fillText.mock.calls[1];
     expect(secondCall[0]).toBe('world');
-    expect(secondCall[1]).toBe(10);
+    expect(secondCall[1]).toBe(14);
     expect(secondCall[2]).toBeCloseTo(72.8, 5);
   });
 

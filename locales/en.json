@@ -2204,6 +2204,7 @@
   },
   "helpCenter": {
     "title": "Help",
+    "widgetHelp": "Guides for this widget",
     "search": "Search help",
     "close": "Close help",
     "noResults": "No matches for your search",
