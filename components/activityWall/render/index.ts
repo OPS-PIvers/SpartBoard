@@ -27,7 +27,7 @@ export type {
   WallRenderMode,
   WallRenderProps,
 } from './types';
-export type { WallImageSize } from './imageSize';
+export type { WallCardStyle, WallImageSize } from './imageSize';
 export {
   WALL_IMAGE_SIZE_LABEL,
   isWallImageSize,

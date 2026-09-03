@@ -21,11 +21,14 @@ import type {
 } from '@/types';
 import {
   useDashboardActions,
+  useGlobalStyle,
   useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { getFontClass, hexToRgba } from '@/utils/styles';
+import { pickReadableForeground } from '@/utils/collectionColor';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -71,6 +74,19 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const imageSize = isWallImageSize(config.imageSize)
     ? config.imageSize
     : 'medium';
+  const globalStyle = useGlobalStyle();
+  const fontClass = getFontClass(
+    config.fontFamily ?? 'global',
+    globalStyle.fontFamily
+  );
+  const cardColor = config.cardColor ?? '#0f172a';
+  const cardStyle = useMemo(
+    () => ({
+      background: hexToRgba(cardColor, config.cardOpacity ?? 0.7),
+      color: config.fontColor ?? pickReadableForeground(cardColor),
+    }),
+    [cardColor, config.cardOpacity, config.fontColor]
+  );
 
   const {
     activities: entries,
@@ -537,18 +553,21 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     />
   ) : (
     session && (
-      <LayoutRouter
-        session={session}
-        submissions={submissions}
-        mode="widget"
-        showNames={activeEntry.showNames ?? false}
-        imageSize={imageSize}
-        onApprove={(id) => void approve(id)}
-        onReject={(id) => void reject(id)}
-        onDelete={(id) => void deletePost(id)}
-        onPin={(id, pinned) => void pinPost(id, pinned)}
-        onMove={(id, patch) => void movePost(id, patch)}
-      />
+      <div className={`h-full w-full ${fontClass}`}>
+        <LayoutRouter
+          session={session}
+          submissions={submissions}
+          mode="widget"
+          showNames={activeEntry.showNames ?? false}
+          imageSize={imageSize}
+          cardStyle={cardStyle}
+          onApprove={(id) => void approve(id)}
+          onReject={(id) => void reject(id)}
+          onDelete={(id) => void deletePost(id)}
+          onPin={(id, pinned) => void pinPost(id, pinned)}
+          onMove={(id, patch) => void movePost(id, patch)}
+        />
+      </div>
     )
   );
 

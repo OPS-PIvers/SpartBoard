@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { WallImageSize } from './imageSize';
+import type { WallCardStyle, WallImageSize } from './imageSize';
 import type {
   ActivityWallAppearance,
   ActivityWallSession,
@@ -39,4 +39,6 @@ export interface WallRenderProps extends WallRenderActions {
   showNames: boolean;
   /** Photo cap on submission cards; defaults to medium. */
   imageSize?: WallImageSize;
+  /** Teacher-chosen card surface and text color; widget face only. */
+  cardStyle?: WallCardStyle;
 }

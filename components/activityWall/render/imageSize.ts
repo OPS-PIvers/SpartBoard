@@ -44,3 +44,14 @@ export const WallImageSizeContext = createContext<WallImageSize>('medium');
 
 export const useWallImageSize = (): WallImageSize =>
   useContext(WallImageSizeContext);
+
+/** Inline overrides for the submission card surface; unset keeps the default glass card. */
+export interface WallCardStyle {
+  background?: string;
+  color?: string;
+}
+
+export const WallCardStyleContext = createContext<WallCardStyle>({});
+
+export const useWallCardStyle = (): WallCardStyle =>
+  useContext(WallCardStyleContext);

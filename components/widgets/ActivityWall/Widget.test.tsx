@@ -41,6 +41,7 @@ vi.mock('@/context/dashboardCanvasStore', () => ({
     updateWidget: mockUpdateWidget,
   }),
   useIsActiveBoardReadOnly: () => false,
+  useGlobalStyle: () => ({ fontFamily: 'sans' }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({

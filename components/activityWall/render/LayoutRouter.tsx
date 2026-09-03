@@ -7,16 +7,24 @@ import { TimelineLayout } from './TimelineLayout';
 import { WordCloudLayout } from './WordCloudLayout';
 import { wallScale } from './scale';
 import type { WallRenderProps } from './types';
-import { WallImageSizeContext } from './imageSize';
+import { WallCardStyleContext, WallImageSizeContext } from './imageSize';
 
 export type { WallRenderProps, WallRenderMode, WallMovePatch } from './types';
 
 // Leaflet stays out of the main bundle; MapLayout imports its own CSS.
 const MapLayout = lazy(() => import('./MapLayout'));
 
+const EMPTY_CARD_STYLE = {};
+
 /** Renders the wall's layout and paints the wall appearance behind it. */
 export const LayoutRouter: React.FC<WallRenderProps> = (props) => {
-  const { session, mode, appearance, imageSize = 'medium' } = props;
+  const {
+    session,
+    mode,
+    appearance,
+    imageSize = 'medium',
+    cardStyle = EMPTY_CARD_STYLE,
+  } = props;
   const scale = wallScale(mode);
   const resolved =
     appearance ?? session.appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE;
@@ -61,7 +69,9 @@ export const LayoutRouter: React.FC<WallRenderProps> = (props) => {
       data-testid="aw-layout-router"
     >
       <WallImageSizeContext.Provider value={imageSize}>
-        {layout}
+        <WallCardStyleContext.Provider value={cardStyle}>
+          {layout}
+        </WallCardStyleContext.Provider>
       </WallImageSizeContext.Provider>
     </div>
   );

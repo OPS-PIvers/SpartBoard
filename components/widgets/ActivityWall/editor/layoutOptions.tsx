@@ -33,7 +33,7 @@ const sketch = (children: React.ReactNode) => (
     viewBox="0 0 64 40"
     preserveAspectRatio="xMidYMid meet"
     aria-hidden="true"
-    className="h-full w-full text-brand-blue-primary"
+    className="h-full w-full"
   >
     {children}
   </svg>

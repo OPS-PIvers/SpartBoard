@@ -11,7 +11,11 @@ import {
 import type { ActivityWallSubmission } from '@/types';
 import type { WallRenderActions, WallRenderMode } from './types';
 import { wallScale } from './scale';
-import { useWallImageSize, wallImageDimensions } from './imageSize';
+import {
+  useWallCardStyle,
+  useWallImageSize,
+  wallImageDimensions,
+} from './imageSize';
 import { ImageLightbox } from '@/components/common/ImageLightbox';
 import { isArchived, isSafeHttpUrl, useMediaUrl } from './useMediaUrl';
 
@@ -45,7 +49,7 @@ const drivePreviewUrl = (driveFileId: string): string =>
   `https://drive.google.com/file/d/${driveFileId}/preview`;
 
 const PrivateFileNote: React.FC<{ fontSize: string }> = ({ fontSize }) => (
-  <p className="text-slate-300" style={{ fontSize }}>
+  <p className="opacity-80" style={{ fontSize }}>
     Only the teacher can view this file
   </p>
 );
@@ -71,6 +75,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const imageSize = useWallImageSize();
+  const cardStyle = useWallCardStyle();
   const isWidget = mode === 'widget';
   const tight = isWidget ? 'min(4px, 1.2cqmin)' : '4px';
   const edge = isWidget ? 'min(8px, 2cqmin)' : '8px';
@@ -91,7 +96,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
         mediaFailed || (Boolean(mediaUrl) && failedImageUrl === mediaUrl);
       if (!mediaUrl || failed) {
         return (
-          <p className="text-slate-300" style={{ fontSize: scale.meta }}>
+          <p className="opacity-80" style={{ fontSize: scale.meta }}>
             {failed ? 'Photo unavailable' : 'Loading photo…'}
           </p>
         );
@@ -139,7 +144,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
       if (isPrivate) return <PrivateFileNote fontSize={scale.meta} />;
       if (!isArchived(submission) || !submission.driveFileId) {
         return (
-          <p className="text-slate-300" style={{ fontSize: scale.meta }}>
+          <p className="opacity-80" style={{ fontSize: scale.meta }}>
             Processing…
           </p>
         );
@@ -162,7 +167,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           <FileText
             aria-hidden="true"
             style={{ width: scale.icon, height: scale.icon }}
-            className="shrink-0 text-slate-300"
+            className="shrink-0 opacity-80"
           />
           {mediaUrl ? (
             <a
@@ -175,7 +180,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               {label}
             </a>
           ) : (
-            <span className="text-slate-300" style={{ fontSize: scale.body }}>
+            <span className="opacity-80" style={{ fontSize: scale.body }}>
               {label}
             </span>
           )}
@@ -187,7 +192,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
       const url = submission.content;
       if (!isSafeHttpUrl(url)) {
         return (
-          <p className="text-slate-300" style={{ fontSize: scale.body }}>
+          <p className="opacity-80" style={{ fontSize: scale.body }}>
             {url}
           </p>
         );
@@ -210,7 +215,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="block rounded-lg border border-white/15 bg-white/5"
+          className="block min-w-0 max-w-full overflow-hidden rounded-lg border border-white/15 bg-white/5"
           style={{ padding: scale.pad }}
         >
           {preview?.image && (
@@ -222,7 +227,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
             />
           )}
           <span
-            className="flex items-center font-semibold"
+            className="flex min-w-0 items-center font-semibold"
             style={{ gap: scale.gap, fontSize: scale.body }}
           >
             <LinkIcon
@@ -230,18 +235,20 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               style={{ width: scale.icon, height: scale.icon }}
               className="shrink-0"
             />
-            {preview?.title ?? url}
+            <span className="min-w-0 break-all [overflow-wrap:anywhere]">
+              {preview?.title ?? url}
+            </span>
           </span>
           {preview?.description && (
             <span
-              className="block text-slate-300"
+              className="block opacity-80"
               style={{ marginTop: tight, fontSize: scale.meta }}
             >
               {preview.description}
             </span>
           )}
           <span
-            className="block text-slate-300"
+            className="block break-all opacity-80"
             style={{ marginTop: tight, fontSize: scale.meta }}
           >
             {preview?.domain ?? new URL(url).hostname}
@@ -263,7 +270,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   return (
     <article
       className={cardSurface}
-      style={{ padding: scale.pad }}
+      style={{ padding: scale.pad, ...cardStyle }}
       data-testid={`aw-card-${submission.id}`}
     >
       {isTeacher && isPending && (
@@ -292,7 +299,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
 
       {hasMeta && (
         <p
-          className="flex flex-wrap items-center text-slate-300"
+          className="flex flex-wrap items-center opacity-80"
           style={{ marginTop: tight, gap: tight, fontSize: scale.meta }}
         >
           {submission.pinned && (
@@ -326,7 +333,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               type="button"
               aria-label="Approve post"
               onClick={() => onApprove(submission.id)}
-              className="rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               <Check style={{ width: scale.icon, height: scale.icon }} />
             </button>
@@ -336,7 +343,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               type="button"
               aria-label="Reject post"
               onClick={() => onReject(submission.id)}
-              className="rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               <X style={{ width: scale.icon, height: scale.icon }} />
             </button>
@@ -346,7 +353,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               type="button"
               aria-label={submission.pinned ? 'Unpin post' : 'Pin post'}
               onClick={() => onPin(submission.id, !submission.pinned)}
-              className="rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               <Pin style={{ width: scale.icon, height: scale.icon }} />
             </button>
@@ -356,7 +363,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               type="button"
               aria-label="Edit post"
               onClick={() => onEdit(submission.id)}
-              className="rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               <Pencil style={{ width: scale.icon, height: scale.icon }} />
             </button>
@@ -366,7 +373,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
               type="button"
               aria-label="Delete post"
               onClick={() => onDelete(submission.id)}
-              className="rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               <Trash2 style={{ width: scale.icon, height: scale.icon }} />
             </button>
