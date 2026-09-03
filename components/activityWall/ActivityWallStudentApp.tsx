@@ -16,6 +16,7 @@ import {
   getSessionIdFromPath,
   useActivityWallStudentSession,
 } from './useActivityWallStudentSession';
+import { makeEngagementFooter, useWallEngagement } from './engagement';
 import { WallCard, WallShell } from './submission/WallShell';
 import { ComposerSheet } from './submission/ComposerSheet';
 import {
@@ -156,6 +157,20 @@ export const ActivityWallStudentApp: React.FC = () => {
   );
   const state = useActivityWallStudentSession(sessionId);
   const { showConfirm } = useDialog();
+  const readySession = state.kind === 'ready' ? state.session : null;
+  const engagementFlags = {
+    allowLikes: readySession?.allowLikes === true,
+    allowComments: readySession?.allowComments === true,
+    allowCommentResponses: readySession?.allowCommentResponses === true,
+  };
+  const engagement = useWallEngagement(
+    state.kind === 'ready' && state.wallVisible ? state.session.id : null,
+    state.kind === 'ready' ? state.uid : null,
+    {
+      likes: engagementFlags.allowLikes,
+      comments: engagementFlags.allowComments,
+    }
+  );
 
   const [identity, setIdentity] = useState<Identity | null>(() =>
     readIdentity(sessionId)
@@ -244,6 +259,16 @@ export const ActivityWallStudentApp: React.FC = () => {
   const canEdit = open && wall.allowStudentEdit === true;
   const canDelete = open && wall.allowStudentDelete === true;
   const ownPost = (id: string) => myPosts.find((post) => post.id === id);
+  const renderFooter = wallVisible
+    ? makeEngagementFooter({
+        viewerUid: uid,
+        canWrite: true,
+        flags: engagementFlags,
+        identificationMode: mode,
+        participantLabel,
+        engagement,
+      })
+    : undefined;
 
   const openCreate = (placement: WallPlacement = {}) => {
     setSheetError(null);
@@ -360,7 +385,7 @@ export const ActivityWallStudentApp: React.FC = () => {
             onAddAt={canAdd ? openCreate : undefined}
             onEdit={canEdit ? onEdit : undefined}
             onDelete={canDelete ? (id) => void onDelete(id) : undefined}
-            renderFooter={undefined}
+            renderFooter={renderFooter}
           />
         </div>
       </div>

@@ -20,6 +20,7 @@ export interface EngagementFooterProps {
   canWrite: boolean;
   flags: EngagementFlags;
   identificationMode: ActivityWallIdentificationMode;
+  participantLabel?: string;
   likeInfo: LikeInfo;
   comments: ActivityWallComment[];
   onToggleLike: (submissionId: string) => Promise<void>;
@@ -32,6 +33,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
   canWrite,
   flags,
   identificationMode,
+  participantLabel,
   likeInfo,
   comments,
   onToggleLike,
@@ -105,6 +107,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
                   key={comment.id}
                   flags={flags}
                   identificationMode={identificationMode}
+                  participantLabel={participantLabel}
                   submissionId={submission.id}
                   comment={comment}
                   replies={repliesByParent.get(comment.id) ?? []}
@@ -117,6 +120,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
           {writable && (
             <CommentComposer
               identificationMode={identificationMode}
+              participantLabel={participantLabel}
               submissionId={submission.id}
               parentCommentId={null}
               onPostComment={onPostComment}

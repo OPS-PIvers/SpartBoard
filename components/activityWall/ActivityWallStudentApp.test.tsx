@@ -79,6 +79,16 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: mockHttpsCallable,
 }));
 
+vi.mock('./engagement', () => ({
+  useWallEngagement: () => ({
+    likeIndex: new Map(),
+    commentsBySubmission: new Map(),
+    toggleLike: vi.fn(),
+    postComment: vi.fn(),
+  }),
+  makeEngagementFooter: () => undefined,
+}));
+
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: mockShowConfirm }),
 }));

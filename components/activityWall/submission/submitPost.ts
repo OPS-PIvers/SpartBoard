@@ -198,6 +198,8 @@ export interface CreatePostArgs {
   draft: PostDraft;
   placement: WallPlacement;
   onProgress?: (percent: number) => void;
+  /** Teacher posts skip the cap and land approved with authorRole 'teacher'. */
+  author?: 'teacher';
 }
 
 /** Uploads media if needed and writes a rules-compatible submission doc; throws `PostSubmitError` with a student-facing message. */
@@ -210,9 +212,11 @@ export const createPost = async ({
   draft,
   placement,
   onProgress,
+  author,
 }: CreatePostArgs): Promise<string> => {
   const type = effectiveType(session, draft.type);
-  const max = session.maxPostsPerStudent ?? 0;
+  const isTeacher = author === 'teacher';
+  const max = isTeacher ? 0 : (session.maxPostsPerStudent ?? 0);
   const capped = max > 0;
   const cappedSlot = capped ? nextCappedSlot(uid, myPosts, max) : null;
   if (capped && (cappedSlot === null || myPosts.length >= max))
@@ -283,8 +287,9 @@ export const createPost = async ({
     isGuest,
     participantLabel,
     submittedAt: Date.now(),
-    status: session.moderationEnabled ? 'pending' : 'approved',
+    status: session.moderationEnabled && !isTeacher ? 'pending' : 'approved',
   };
+  if (isTeacher) payload.authorRole = 'teacher';
   const title = draft.title.trim();
   if (type !== 'word' && title) payload.title = title;
   if (session.layout === 'columns' && placement.sectionId)

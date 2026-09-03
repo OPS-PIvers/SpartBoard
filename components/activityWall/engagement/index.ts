@@ -30,6 +30,8 @@ export interface MakeEngagementFooterOptions {
   canWrite: boolean;
   flags: EngagementFlags;
   identificationMode: ActivityWallIdentificationMode;
+  /** Known viewer label (student page); comment composers skip the name/PIN inputs. */
+  participantLabel?: string;
   engagement: WallEngagement;
 }
 
@@ -43,6 +45,7 @@ export const makeEngagementFooter = ({
   canWrite,
   flags,
   identificationMode,
+  participantLabel,
   engagement,
 }: MakeEngagementFooterOptions): RenderEngagementFooter | undefined => {
   if (!flags.allowLikes && !flags.allowComments) return undefined;
@@ -53,6 +56,7 @@ export const makeEngagementFooter = ({
       canWrite,
       flags,
       identificationMode,
+      participantLabel,
       likeInfo: engagement.likeIndex.get(submission.id) ?? EMPTY_LIKE_INFO,
       comments: engagement.commentsBySubmission.get(submission.id) ?? [],
       onToggleLike: engagement.toggleLike,

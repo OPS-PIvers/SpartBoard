@@ -17,8 +17,17 @@ import type { LucideIcon } from 'lucide-react';
 import type {
   ActivityWallConfig,
   ActivityWallLibraryEntry,
+  ActivityWallSubmission,
   WidgetData,
 } from '@/types';
+import type { WallPlacement } from '@/components/activityWall/render';
+import { ComposerSheet } from '@/components/activityWall/submission/ComposerSheet';
+import {
+  PostSubmitError,
+  createPost,
+  updatePost,
+  type PostDraft,
+} from '@/components/activityWall/submission/submitPost';
 import {
   useDashboardActions,
   useGlobalStyle,
@@ -51,6 +60,15 @@ import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
 import { useActivityWallSession } from './hooks/useActivityWallSession';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
+
+/** Name stamped on teacher posts; falls back to the email handle. */
+const teacherLabel = (displayName: string | null, email: string | null) => {
+  const name = displayName?.trim();
+  if (name) return name;
+  const handle = email?.split('@')[0]?.trim();
+  if (handle) return handle;
+  return 'Teacher';
+};
 
 const toolbarButtonClass =
   'inline-flex items-center justify-center rounded-lg border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40';
@@ -108,6 +126,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const [shareOpen, setShareOpen] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
   const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
+  const [composer, setComposer] = useState<
+    | { kind: 'create'; placement: WallPlacement }
+    | { kind: 'edit'; post: ActivityWallSubmission }
+    | null
+  >(null);
+  const [composerBusy, setComposerBusy] = useState(false);
+  const [composerProgress, setComposerProgress] = useState<number | null>(null);
+  const [composerError, setComposerError] = useState<string | null>(null);
   const toolbarMenuRef = useRef<HTMLDivElement>(null);
   useClickOutside(toolbarMenuRef, () => setToolbarMenuOpen(false));
 
@@ -189,6 +215,64 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Could not change who can see posts.', 'error');
     });
   }, [activeEntry, addToast, isVisibleWall, setStudentsCanSeePosts]);
+
+  const openTeacherComposer = useCallback((placement: WallPlacement = {}) => {
+    setComposerError(null);
+    setComposer({ kind: 'create', placement });
+  }, []);
+
+  const openTeacherEdit = useCallback(
+    (submissionId: string) => {
+      const post = submissions.find((entry) => entry.id === submissionId);
+      if (!post) return;
+      setComposerError(null);
+      setComposer({ kind: 'edit', post });
+    },
+    [submissions]
+  );
+
+  const closeComposer = useCallback(() => {
+    setComposer(null);
+    setComposerProgress(null);
+  }, []);
+
+  const submitTeacherPost = useCallback(
+    async (draft: PostDraft, placement: WallPlacement) => {
+      if (!composer || !session || !user || composerBusy) return;
+      setComposerBusy(true);
+      setComposerError(null);
+      try {
+        if (composer.kind === 'edit') {
+          await updatePost(session, composer.post.id, draft, placement);
+          addToast('Post updated.', 'success');
+        } else {
+          await createPost({
+            session,
+            uid: user.uid,
+            isGuest: false,
+            participantLabel: teacherLabel(user.displayName, user.email),
+            myPosts: [],
+            draft,
+            placement,
+            onProgress: setComposerProgress,
+            author: 'teacher',
+          });
+          addToast('Posted to the wall.', 'success');
+        }
+        closeComposer();
+      } catch (err) {
+        console.error('[ActivityWall] Teacher post failed:', err);
+        setComposerError(
+          err instanceof PostSubmitError
+            ? err.message
+            : 'Could not save the post. Please try again.'
+        );
+      } finally {
+        setComposerBusy(false);
+      }
+    },
+    [addToast, closeComposer, composer, composerBusy, session, user]
+  );
 
   const copyStudentLink = useCallback(async () => {
     if (!studentUrl) return;
@@ -599,6 +683,8 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           onDelete={(id) => void deletePost(id)}
           onPin={(id, pinned) => void pinPost(id, pinned)}
           onMove={(id, patch) => void movePost(id, patch)}
+          onEdit={openTeacherEdit}
+          onAddAt={isActiveBoardReadOnly ? undefined : openTeacherComposer}
         />
       </div>
     )
@@ -654,6 +740,24 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           })
         }
       />
+
+      {composer && session && (
+        <ComposerSheet
+          key={composer.kind === 'edit' ? composer.post.id : 'create'}
+          session={session}
+          placement={
+            composer.kind === 'create' ? composer.placement : undefined
+          }
+          editing={composer.kind === 'edit' ? composer.post : undefined}
+          onSubmit={(draft, placement) =>
+            void submitTeacherPost(draft, placement)
+          }
+          onClose={closeComposer}
+          busy={composerBusy}
+          progress={composerProgress}
+          error={composerError}
+        />
+      )}
 
       <ModerationDrawer
         open={moderationOpen}

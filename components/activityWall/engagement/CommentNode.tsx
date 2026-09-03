@@ -10,6 +10,7 @@ import type { EngagementFlags, PostCommentInput } from './useWallEngagement';
 export interface CommentNodeProps {
   flags: EngagementFlags;
   identificationMode: ActivityWallIdentificationMode;
+  participantLabel?: string;
   submissionId: string;
   comment: ActivityWallComment;
   replies: ActivityWallComment[];
@@ -20,6 +21,7 @@ export interface CommentNodeProps {
 export const CommentNode: React.FC<CommentNodeProps> = ({
   flags,
   identificationMode,
+  participantLabel,
   submissionId,
   comment,
   replies,
@@ -74,6 +76,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({
         <div className="mt-2">
           <CommentComposer
             identificationMode={identificationMode}
+            participantLabel={participantLabel}
             submissionId={submissionId}
             parentCommentId={comment.id}
             onPostComment={onPostComment}

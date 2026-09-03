@@ -6,6 +6,8 @@ import type { PostCommentInput } from './useWallEngagement';
 
 export interface CommentComposerProps {
   identificationMode: ActivityWallIdentificationMode;
+  /** Known viewer label (student page); skips the name/PIN inputs. */
+  participantLabel?: string;
   submissionId: string;
   parentCommentId: string | null;
   onPostComment: (input: PostCommentInput) => Promise<void>;
@@ -14,15 +16,19 @@ export interface CommentComposerProps {
 
 export const CommentComposer: React.FC<CommentComposerProps> = ({
   identificationMode,
+  participantLabel,
   submissionId,
   parentCommentId,
   onPostComment,
   onDone,
 }) => {
+  const known = typeof participantLabel === 'string';
   const requiresName =
-    identificationMode === 'name' || identificationMode === 'name-pin';
+    !known &&
+    (identificationMode === 'name' || identificationMode === 'name-pin');
   const requiresPin =
-    identificationMode === 'pin' || identificationMode === 'name-pin';
+    !known &&
+    (identificationMode === 'pin' || identificationMode === 'name-pin');
 
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
@@ -49,7 +55,9 @@ export const CommentComposer: React.FC<CommentComposerProps> = ({
         submissionId,
         parentCommentId,
         content,
-        participantLabel: buildParticipantLabel(identificationMode, name, pin),
+        participantLabel:
+          participantLabel ??
+          buildParticipantLabel(identificationMode, name, pin),
       });
       setContent('');
       setName('');

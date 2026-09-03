@@ -213,6 +213,30 @@ describe('submitPost helpers', () => {
       expect(written()).not.toHaveProperty('label');
     });
 
+    it('teacher: lands approved under moderation, skips the cap, stamps authorRole', async () => {
+      await createPost({
+        ...base,
+        session: session({ moderationEnabled: true, maxPostsPerStudent: 1 }),
+        myPosts: [
+          {
+            id: base.uid + '__0',
+            content: 'a',
+            submittedAt: 1,
+            status: 'approved',
+          },
+        ],
+        draft: { ...EMPTY_DRAFT, body: 'From the teacher' },
+        placement: {},
+        author: 'teacher',
+      });
+      expect(written()).toMatchObject({
+        status: 'approved',
+        authorRole: 'teacher',
+        content: 'From the teacher',
+      });
+      expect(String(written().id)).not.toMatch(/__[0-9]{1,3}$/);
+    });
+
     it('map: writes lat/lng and refuses without a pin', async () => {
       await expect(
         createPost({
