@@ -5,6 +5,8 @@ export { TableLayout } from './TableLayout';
 export { TimelineLayout } from './TimelineLayout';
 export { WordCloudLayout } from './WordCloudLayout';
 export { SubmissionCard } from './SubmissionCard';
+export { AddSpot } from './AddSpot';
+export { gapPlacement, showsAddSpots } from './addSpots';
 export type { SubmissionCardProps } from './SubmissionCard';
 export {
   wallScale,

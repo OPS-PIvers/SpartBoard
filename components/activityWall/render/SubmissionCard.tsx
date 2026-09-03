@@ -69,6 +69,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   onReject,
   onMediaError,
   renderFooter,
+  viewerUid,
 }) => {
   const scale = wallScale(mode);
   const { url: mediaUrl, failed: mediaFailed } = useMediaUrl(submission);
@@ -82,9 +83,14 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   const chipPad = isWidget ? 'min(8px, 2cqmin)' : '8px';
   const isTeacher = mode === 'teacher';
   const isPending = submission.status === 'pending';
+  const isStudent = mode === 'student';
+  const isOwn = Boolean(viewerUid) && submission.authorUid === viewerUid;
+  const showOwnActions = isStudent && isOwn && Boolean(onEdit ?? onDelete);
+  const isTeacherPost = submission.authorRole === 'teacher';
   const hasMeta =
     Boolean(submission.pinned) ||
     Boolean(footnote) ||
+    isTeacherPost ||
     Boolean(showNames && submission.participantLabel);
   const isPrivate = submission.drivePermission === 'private';
   const type = submission.type ?? 'text';
@@ -273,7 +279,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
       style={{ padding: scale.pad, ...cardStyle }}
       data-testid={`aw-card-${submission.id}`}
     >
-      {isTeacher && isPending && (
+      {isPending && (isTeacher || (isStudent && isOwn)) && (
         <span
           className="absolute rounded-full bg-amber-400 font-bold uppercase tracking-wide text-slate-900"
           style={{
@@ -283,7 +289,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
             fontSize: scale.meta,
           }}
         >
-          Pending
+          {isTeacher ? 'Pending' : 'Awaiting approval'}
         </span>
       )}
 
@@ -318,10 +324,46 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           {showNames && submission.participantLabel && (
             <span>{submission.participantLabel}</span>
           )}
+          {isTeacherPost && (
+            <span
+              className="rounded-full border border-white/30 font-semibold uppercase tracking-wide opacity-80"
+              style={{ padding: `0 ${chipPad}` }}
+            >
+              Teacher
+            </span>
+          )}
         </p>
       )}
 
-      {mode === 'gallery' && renderFooter?.(submission)}
+      {(mode === 'gallery' || mode === 'student') && renderFooter?.(submission)}
+
+      {showOwnActions && (
+        <div
+          className="flex flex-wrap items-center"
+          style={{ marginTop: scale.gap, gap: scale.gap }}
+        >
+          {onEdit && (
+            <button
+              type="button"
+              aria-label="Edit post"
+              onClick={() => onEdit(submission.id)}
+              className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            >
+              <Pencil style={{ width: scale.icon, height: scale.icon }} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              aria-label="Delete post"
+              onClick={() => onDelete(submission.id)}
+              className="rounded p-1 opacity-80 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            >
+              <Trash2 style={{ width: scale.icon, height: scale.icon }} />
+            </button>
+          )}
+        </div>
+      )}
 
       {isTeacher && (
         <div
