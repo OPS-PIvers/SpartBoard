@@ -129,6 +129,8 @@ interface Snap {
   openAnnotation: () => void;
   closeAnnotation: () => void;
   addAnnotationObject: (o: DrawableObject) => boolean;
+  updateAnnotationState: (u: { objects?: DrawableObject[] }) => void;
+  updateAnnotationObject: (o: DrawableObject) => void;
   undoAnnotation: () => void;
   redoAnnotation: () => void;
   canRedoAnnotation: boolean;
@@ -147,6 +149,8 @@ const Consumer: React.FC<{ stateRef: { current: Snap | null } }> = ({
       openAnnotation: ctx.openAnnotation,
       closeAnnotation: ctx.closeAnnotation,
       addAnnotationObject: ctx.addAnnotationObject,
+      updateAnnotationState: ctx.updateAnnotationState,
+      updateAnnotationObject: ctx.updateAnnotationObject,
       undoAnnotation: ctx.undoAnnotation,
       redoAnnotation: ctx.redoAnnotation,
       canRedoAnnotation: ctx.canRedoAnnotation,
@@ -267,6 +271,36 @@ describe('DashboardContext annotation persistence', () => {
       get().addAnnotationObject(rect('ok'));
     });
     expect(get().objects.map((o) => o.id)).toEqual(['ok']);
+  });
+
+  it('re-editing an existing object cannot push the overlay past the cap', async () => {
+    const small: TextObject = {
+      id: 'note',
+      kind: 'text',
+      z: 1,
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 10,
+      content: 'short',
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    const get = await mount([small]);
+    act(() => get().openAnnotation());
+    const bloated = {
+      ...small,
+      content: 'x'.repeat(ANNOTATION_HARD_LIMIT_BYTES),
+    };
+    act(() => get().updateAnnotationState({ objects: [bloated] }));
+    expect((get().objects[0] as TextObject).content).toBe('short');
+    act(() => get().updateAnnotationObject(bloated));
+    expect((get().objects[0] as TextObject).content).toBe('short');
+    expect(get().toasts.some((t) => t.type === 'error')).toBe(true);
+    // Shrinking or moving an object is never refused.
+    act(() => get().updateAnnotationObject({ ...small, x: 50 }));
+    expect((get().objects[0] as TextObject).x).toBe(50);
   });
 
   it('a redo refused by the size cap stays on the redo stack', async () => {

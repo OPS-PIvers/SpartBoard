@@ -5528,25 +5528,55 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // annotations on Synced boards are bidirectional by design (host and
   // collaborator both push). For viewers, the pencil button is hidden in
   // the UI, so they have no way to invoke these.
-  const setActiveAnnotationObjects = useCallback((next: DrawableObject[]) => {
-    const id = activeIdRef.current;
-    if (!id) return;
-    lastLocalUpdateAt.current = Date.now();
-    lastUpdateWasSettingsOnly.current = false;
-    setDashboards((prev) =>
-      prev.map((d) =>
-        d.id === id
-          ? {
-              ...d,
-              annotationOverlay: {
-                objects: next,
-                updatedAt: Date.now(),
-              },
-            }
-          : d
-      )
-    );
-  }, []);
+  // Every write lands here, so the size guard lives here too. Returns
+  // false when the write was refused (no active board or size cap).
+  const setActiveAnnotationObjects = useCallback(
+    (next: DrawableObject[]): boolean => {
+      const id = activeIdRef.current;
+      if (!id) return false;
+      const current =
+        dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
+          ?.objects ?? [];
+      // Persistent ink shares the dashboard doc: guard growth only.
+      const nextBytes = estimateAnnotationBytes(next);
+      const currentBytes = estimateAnnotationBytes(current);
+      if (nextBytes > currentBytes) {
+        if (nextBytes > ANNOTATION_HARD_LIMIT_BYTES) {
+          addToast(
+            'Annotation layer is full. Clear it (trash) to keep drawing.',
+            'error'
+          );
+          return false;
+        }
+        if (
+          nextBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
+          currentBytes <= ANNOTATION_SOFT_LIMIT_BYTES
+        ) {
+          addToast(
+            'Annotations on this board are getting large. Clear old ink soon.',
+            'warning'
+          );
+        }
+      }
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) =>
+          d.id === id
+            ? {
+                ...d,
+                annotationOverlay: {
+                  objects: next,
+                  updatedAt: Date.now(),
+                },
+              }
+            : d
+        )
+      );
+      return true;
+    },
+    [addToast]
+  );
 
   // Forward-declared setter for the Wave 5 redo stack — declared below but
   // referenced from `openAnnotation` (fresh session) and `addAnnotationObject`
@@ -5615,26 +5645,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const current =
         dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
           ?.objects ?? [];
-      const next = [...current, stamped];
-      // Persistent ink shares the dashboard doc: guard its size.
-      const nextBytes = estimateAnnotationBytes(next);
-      if (nextBytes > ANNOTATION_HARD_LIMIT_BYTES) {
-        addToast(
-          'Annotation layer is full. Clear it (trash) to keep drawing.',
-          'error'
-        );
-        return false;
-      }
-      if (
-        nextBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
-        estimateAnnotationBytes(current) <= ANNOTATION_SOFT_LIMIT_BYTES
-      ) {
-        addToast(
-          'Annotations on this board are getting large. Clear old ink soon.',
-          'warning'
-        );
-      }
-      setActiveAnnotationObjects(next);
+      if (!setActiveAnnotationObjects([...current, stamped])) return false;
       // Wave 5: invalidate the redo branch on every fresh add. Guarded so
       // `redoAnnotation` (which calls addAnnotationObject internally) doesn't
       // wipe the stack it's trying to drain — see `redoAnnotation` for the
@@ -5646,7 +5657,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return true;
     },
-    [addToast, setActiveAnnotationObjects, user?.uid]
+    [setActiveAnnotationObjects, user?.uid]
   );
 
   // Ref-based flag flipped on inside `redoAnnotation` so the
