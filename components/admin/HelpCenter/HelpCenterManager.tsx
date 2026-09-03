@@ -82,6 +82,7 @@ export const HelpCenterManager: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<HelpResourceItem | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sortByOpens, setSortByOpens] = useState(false);
 
   // Seed the shared category list once, so the first super admin to open the tab creates the config doc.
   useEffect(() => {
@@ -118,6 +119,7 @@ export const HelpCenterManager: React.FC = () => {
     (category) =>
       category.id !== '' || items.some((item) => item.categoryId === '')
   );
+  const flatByOpens = [...items].sort((a, b) => b.openCount - a.openCount);
 
   const scopeLabel = (item: HelpResourceItem): string =>
     item.orgId === null ? 'Everyone' : (orgNames.get(item.orgId) ?? item.orgId);
@@ -287,18 +289,33 @@ export const HelpCenterManager: React.FC = () => {
             Guides teachers see in the Help modal.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={!canPublish || !hasCategories}
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-brand-blue-primary text-white text-sm disabled:opacity-50"
-        >
-          <Plus className="w-4 h-4" />
-          Add item
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={sortByOpens}
+            onClick={() => setSortByOpens((prev) => !prev)}
+            className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm ${
+              sortByOpens
+                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                : 'bg-white text-slate-600 border-slate-200'
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            Sort by opens
+          </button>
+          <button
+            type="button"
+            disabled={!canPublish || !hasCategories}
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-brand-blue-primary text-white text-sm disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            Add item
+          </button>
+        </div>
       </header>
 
       {canPublish && !hasCategories && (
@@ -341,6 +358,15 @@ export const HelpCenterManager: React.FC = () => {
           <Loader2 className="w-4 h-4 animate-spin" />
           Loading help items...
         </div>
+      ) : sortByOpens ? (
+        <div className="border border-slate-200 rounded-lg p-3 space-y-1">
+          {flatByOpens.length === 0 && (
+            <p className="text-sm text-slate-500">No items yet.</p>
+          )}
+          {flatByOpens.map((item) => (
+            <div key={item.id}>{renderRow(item, null)}</div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-3">
           {sections.map((category) => {
@@ -351,6 +377,10 @@ export const HelpCenterManager: React.FC = () => {
             const ownItems = sectionItems.filter(canWriteItem);
             const readOnlyItems = sectionItems.filter(
               (item) => !canWriteItem(item)
+            );
+            const categoryOpens = sectionItems.reduce(
+              (sum, item) => sum + item.openCount,
+              0
             );
             return (
               <section
@@ -371,7 +401,11 @@ export const HelpCenterManager: React.FC = () => {
                     )}
                     {category.name}
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5" />
+                      {categoryOpens}
+                    </span>
                     {sectionItems.length} item
                     {sectionItems.length === 1 ? '' : 's'}
                   </span>

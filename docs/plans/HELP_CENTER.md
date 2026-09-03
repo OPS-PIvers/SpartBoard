@@ -346,7 +346,17 @@ Done when: type-check, lint pass; changelog entry reads as a user-facing note.
 
 ## Status (2026-09-03)
 
-Nothing shipped yet. Branch `claude/shortcuts-gestures-modal-20bcac` holds only this document.
+All items shipped:
+
+- P1-1 #2809
+- P1-2 #2815
+- P2-1 #2810
+- P2-2 #2807
+- P2-3 #2808
+- P2-4 #2814
+- P2-5 #2819
+- P3-1 #2818
+- P3-2 this PR
 
 ## Verification matrix (orchestrator, before each phase merge)
 

@@ -350,4 +350,38 @@ describe('HelpCenterManager', () => {
       order: 1,
     });
   });
+
+  it('shows a per-category open total in the section header', () => {
+    helpState.items = [
+      makeItem({ id: 'a', title: 'A', openCount: 3 }),
+      makeItem({ id: 'b', title: 'B', openCount: 4 }),
+    ];
+    render(<HelpCenterManager />);
+    expect(screen.getByText('7')).toBeInTheDocument();
+  });
+
+  it('sorts all visible items by open count when toggled', () => {
+    asOrgAdmin();
+    helpState.items = [
+      makeItem({ id: 'g1', title: 'Global', orgId: null, openCount: 1 }),
+      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', openCount: 9 }),
+      makeItem({ id: 'o2', title: 'Ours B', orgId: 'orono', openCount: 5 }),
+    ];
+    render(<HelpCenterManager />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by opens' }));
+    const titles = screen
+      .getAllByText(/^(Global|Ours A|Ours B)$/)
+      .map((el) => el.textContent);
+    expect(titles).toEqual(['Ours A', 'Ours B', 'Global']);
+  });
+
+  it('toggling sort by opens off restores the category sections', () => {
+    render(<HelpCenterManager />);
+    const toggle = screen.getByRole('button', { name: 'Sort by opens' });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText('Getting started')).toBeInTheDocument();
+  });
 });
