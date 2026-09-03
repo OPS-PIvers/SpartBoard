@@ -91,6 +91,12 @@ export interface AssignmentSummary {
   dueAt?: number;
   /** This student's accommodation override, from their own pointer doc (M17 C1). */
   override?: StudentOverride;
+  /** Activity Wall only — whether the wall is currently accepting new posts (P3-2). */
+  acceptingResponses?: boolean;
+  /** Activity Wall only — true when a view-only gallery share exists (P3-2). */
+  publiclyShared?: boolean;
+  /** Activity Wall only — short-link code for the gallery share, if any (P3-2). */
+  latestShareCode?: string;
 }
 
 export type LoadState = 'loading' | 'ready';
@@ -344,6 +350,18 @@ function buildAssignmentSummary(
     openAt: typeof record.openAt === 'number' ? record.openAt : undefined,
     closeAt: typeof record.closeAt === 'number' ? record.closeAt : undefined,
     dueAt: typeof record.dueAt === 'number' ? record.dueAt : undefined,
+    acceptingResponses:
+      typeof record.acceptingResponses === 'boolean'
+        ? record.acceptingResponses
+        : undefined,
+    publiclyShared:
+      typeof record.publiclyShared === 'boolean'
+        ? record.publiclyShared
+        : undefined,
+    latestShareCode:
+      typeof record.latestShareCode === 'string'
+        ? record.latestShareCode
+        : undefined,
   };
 }
 
