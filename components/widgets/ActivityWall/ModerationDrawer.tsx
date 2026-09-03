@@ -101,7 +101,9 @@ const SubmissionPreview: React.FC<{ submission: ActivityWallSubmission }> = ({
     return (
       <span className={`${chipClass} max-w-full`}>
         <Film aria-hidden="true" className="h-3 w-3 shrink-0" />
-        <span className="truncate">{submission.fileName ?? 'Video'}</span>
+        <span className="min-w-0 flex-1 truncate">
+          {submission.fileName ?? 'Video'}
+        </span>
       </span>
     );
   }
@@ -110,7 +112,7 @@ const SubmissionPreview: React.FC<{ submission: ActivityWallSubmission }> = ({
     return (
       <span className={`${chipClass} max-w-full`}>
         <FileText aria-hidden="true" className="h-3 w-3 shrink-0" />
-        <span className="truncate">
+        <span className="min-w-0 flex-1 truncate">
           {submission.fileName ?? 'Attached file'}
         </span>
       </span>

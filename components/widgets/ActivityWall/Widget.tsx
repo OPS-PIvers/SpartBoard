@@ -372,7 +372,8 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             {toolbarMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full z-20 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 py-1 shadow-xl backdrop-blur-md"
+                className="absolute right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 py-1 shadow-xl backdrop-blur-md"
+                style={{ minWidth: 'min(176px, 55cqw)' }}
               >
                 {secondaryActions.map((action) => (
                   <button
@@ -384,9 +385,20 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       setToolbarMenuOpen(false);
                       action.run();
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
+                    className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
+                    style={{
+                      gap: 'min(8px, 2cqmin)',
+                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                      fontSize: 'min(14px, 5.5cqmin)',
+                    }}
                   >
-                    <action.icon aria-hidden="true" className="h-4 w-4" />
+                    <action.icon
+                      aria-hidden="true"
+                      style={{
+                        width: 'min(16px, 5cqmin)',
+                        height: 'min(16px, 5cqmin)',
+                      }}
+                    />
                     {action.label}
                   </button>
                 ))}
