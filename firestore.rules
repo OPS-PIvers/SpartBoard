@@ -3415,6 +3415,14 @@ service cloud.firestore {
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaisedAt']) ||
             request.resource.data.handRaisedAt == request.time ||
             request.resource.data.handRaisedAt == null) &&
+           // `recordingNoticeAckedAt` (Tennessen notice ack, #2737) is a
+           // client epoch-ms stamp, not server-stamped — unlike its siblings
+           // above it has no value constraint to enforce, but it still needs
+           // a type check: the teacher monitor reads every response doc in
+           // the session, so an unconstrained field would let a student
+           // smuggle an arbitrary string/map in instead of a timestamp.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['recordingNoticeAckedAt']) ||
+            request.resource.data.recordingNoticeAckedAt is int) &&
            // `lastWriteAt` is the idle-auto-submit cutoff field. Must
            // be server-stamped (`serverTimestamp()` from the SDK, which
            // resolves to `request.time` at rule evaluation), NOT a
