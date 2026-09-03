@@ -756,7 +756,22 @@ describe('activity wall submissions — author self-read', () => {
     );
   });
 
-  it("a different student cannot get another student's post on a non-public wall", async () => {
+  it("a different student cannot get another student's pending post", async () => {
+    await seedSubmission(
+      'sub-theirs-pending',
+      newSubmission({
+        id: 'sub-theirs-pending',
+        authorUid: OTHER_STUDENT_UID,
+        status: 'pending',
+      })
+    );
+    await assertFails(
+      getDoc(doc(asStudent(), submissionPath('sub-theirs-pending')))
+    );
+  });
+
+  it("a different student cannot get another student's post while the wall is hidden", async () => {
+    await seedSession(padletSession({ studentsCanSeePosts: false }));
     await assertFails(getDoc(doc(asStudent(), submissionPath('sub-theirs'))));
   });
 
