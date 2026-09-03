@@ -5,6 +5,38 @@ import { FONTS } from '@/config/fonts';
 import { TEXT_COLOR_PRESETS } from '@/config/widgetAppearance';
 import { WidgetConfig } from '@/types';
 
+// Roving-tabindex arrow-key nav for a `role="radiogroup"` of `role="radio"` buttons — mirrors SegmentedControl.tsx's onKeyDown, generalized over the option list.
+function handleRadioGroupKeyDown<O>(
+  e: React.KeyboardEvent<HTMLDivElement>,
+  options: readonly O[],
+  onSelect: (option: O) => void
+): void {
+  if (
+    e.key !== 'ArrowRight' &&
+    e.key !== 'ArrowLeft' &&
+    e.key !== 'Home' &&
+    e.key !== 'End'
+  )
+    return;
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const nodes = Array.from(
+    e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+  );
+  if (nodes.length === 0) return;
+  e.preventDefault();
+  const idx = nodes.indexOf(document.activeElement as HTMLButtonElement);
+  const safeIdx = idx < 0 ? 0 : idx;
+  let nextIdx: number;
+  if (e.key === 'Home') nextIdx = 0;
+  else if (e.key === 'End') nextIdx = nodes.length - 1;
+  else if (e.key === 'ArrowRight') nextIdx = (safeIdx + 1) % nodes.length;
+  else nextIdx = (safeIdx - 1 + nodes.length) % nodes.length;
+  const nextOption = options[nextIdx];
+  if (!nextOption) return;
+  nodes[nextIdx].focus();
+  onSelect(nextOption);
+}
+
 interface TypographySettingsProps<T extends WidgetConfig> {
   config: T;
   updateConfig: (updates: Partial<T>) => void;
@@ -38,6 +70,13 @@ export const TypographySettings = <
           className="grid grid-cols-4 gap-2"
           role="radiogroup"
           aria-labelledby={typographyLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, FONTS, (f) =>
+              updateConfig({
+                fontFamily: f.id === 'global' ? undefined : f.id,
+              } as Partial<T>)
+            )
+          }
         >
           {FONTS.map((f) => (
             <button
@@ -45,6 +84,7 @@ export const TypographySettings = <
               type="button"
               role="radio"
               aria-checked={fontFamily === f.id}
+              tabIndex={fontFamily === f.id ? 0 : -1}
               onClick={() =>
                 updateConfig({
                   // 'global' is a sentinel meaning "inherit dashboard font".
@@ -89,6 +129,11 @@ export const TypographySettings = <
             className="flex flex-wrap gap-2 px-1 mb-2"
             role="radiogroup"
             aria-labelledby={textColorLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, TEXT_COLOR_PRESETS, (color) =>
+                updateConfig({ fontColor: color } as Partial<T>)
+              )
+            }
           >
             {TEXT_COLOR_PRESETS.map((color) => (
               <button
@@ -96,6 +141,7 @@ export const TypographySettings = <
                 type="button"
                 role="radio"
                 aria-checked={fontColor === color}
+                tabIndex={fontColor === color ? 0 : -1}
                 onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
                 className={`w-6 h-6 rounded-full border-2 transition hover:scale-110 ${
                   fontColor === color
