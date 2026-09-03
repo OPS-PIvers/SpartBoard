@@ -356,7 +356,7 @@ All items shipped:
 - P2-4 #2814
 - P2-5 #2819
 - P3-1 #2818
-- P3-2 this PR
+- P3-2 #2821
 
 ## Verification matrix (orchestrator, before each phase merge)
 
