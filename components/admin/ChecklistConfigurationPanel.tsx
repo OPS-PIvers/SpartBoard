@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   ChecklistGlobalConfig,
@@ -25,12 +29,16 @@ export const ChecklistConfigurationPanel: React.FC<
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
   const [newItemText, setNewItemText] = useState('');
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const currentBuildingConfig: BuildingChecklistDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
-    buildingId: selectedBuildingId,
+    buildingId: canonicalId,
     items: [],
   };
 
@@ -43,7 +51,7 @@ export const ChecklistConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },
