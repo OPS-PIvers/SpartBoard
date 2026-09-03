@@ -546,7 +546,10 @@ export const DashboardView: React.FC = () => {
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      touchStartInScrollable.current = hasScrollableAncestor(e.target);
+      // Fires once per finger; a later finger landing outside the widget must not erase the first one's scrollable origin.
+      touchStartInScrollable.current =
+        (e.touches.length > 1 && touchStartInScrollable.current) ||
+        hasScrollableAncestor(e.target);
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -1075,7 +1078,8 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const targetId = resolveTargetWidgetId(topWidget.id);
+          // Pin has no vanishing-widget hazard, so it keeps the topmost fallback.
+          const targetId = resolveTargetWidgetId(topWidget.id) ?? topWidget.id;
 
           if (targetId) {
             const event = new CustomEvent('widget-keyboard-action', {

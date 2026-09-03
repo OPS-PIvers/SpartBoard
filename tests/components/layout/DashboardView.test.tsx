@@ -1515,6 +1515,26 @@ describe('DashboardView Gestures & Navigation', () => {
       expect(dispatched).toHaveLength(0);
     });
 
+    it('Alt+P with focus outside any widget still pins the topmost widget', () => {
+      renderView();
+      portalButton.blur();
+      document.body.focus();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'p', altKey: true });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(TOP_WIDGET_ID);
+      expect(detail.key).toBe('Pin');
+    });
+
     it('REGRESSION: still dispatches Delete to the topmost widget instead of silently no-oping', () => {
       renderView();
 
