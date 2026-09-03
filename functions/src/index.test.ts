@@ -196,6 +196,7 @@ const mockFirestore = {
     if (name === 'activity_wall_sessions') {
       return {
         doc: () => ({
+          get: () => Promise.resolve({ exists: true, data: () => ({}) }),
           collection: () => ({
             doc: () => submissionDoc,
           }),
