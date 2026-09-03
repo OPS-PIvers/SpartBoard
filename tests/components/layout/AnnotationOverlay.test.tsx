@@ -274,6 +274,8 @@ describe('AnnotationOverlay', () => {
     expect(addAnnotationObject).not.toHaveBeenCalled();
   });
 
+  // Asserts ordering only: closeAnnotation still wipes objects until the
+  // per-board persistence change lands, so this is the hook it relies on.
   it('REGRESSION: Exit commits an open text edit instead of dropping it', async () => {
     const existing: TextObject = {
       id: 'txt-open',
