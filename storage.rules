@@ -220,9 +220,14 @@ service firebase.storage {
            awTypeEnabled('file') &&
            request.resource.size < 25 * 1024 * 1024)
         );
-      // The owning teacher/admin (and the Admin SDK archive job) clean up.
+      // The owning teacher/admin (and the Admin SDK archive job) clean up;
+      // the uploader can also delete their own object to roll back a failed
+      // submission write (same ownership test as the create/read clauses).
       allow delete: if request.auth != null &&
-        (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+        (isAdmin() ||
+         sessionId.matches(request.auth.uid + '_.*') ||
+         submissionId == request.auth.uid ||
+         submissionId.matches('^' + request.auth.uid + '__.*'));
     }
 
     // Quiz recorded media — transit buffer only. The path segment is the
