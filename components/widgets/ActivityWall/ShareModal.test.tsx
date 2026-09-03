@@ -233,6 +233,7 @@ describe('ActivityWallShareModal gallery link creation', () => {
 
     expect(mockUpdateDoc).toHaveBeenCalledWith(sessionRef, {
       publiclyShared: true,
+      latestShareId: shareId,
     });
     expect(mockSetDoc).toHaveBeenCalledWith(
       sessionRef,

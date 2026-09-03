@@ -30,7 +30,10 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { LayoutRouter } from '@/components/activityWall/render';
 import { visibleSubmissions } from '@/components/activityWall/render/scale';
 import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
-import { buildStudentWallLink } from '@/utils/activityWallLinks';
+import {
+  buildGalleryLink,
+  buildStudentWallLink,
+} from '@/utils/activityWallLinks';
 import { WallEditorModal } from './editor/WallEditorModal';
 import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { WallLibraryModal } from './WallLibraryModal';
@@ -104,6 +107,8 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     submissions,
     pendingCount,
     driveSync,
+    latestShareCode,
+    latestShareId,
     approve,
     reject,
     deletePost,
@@ -126,9 +131,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   }, [activeEntry, sessionId]);
 
   const galleryUrl = useMemo(() => {
-    const code = config.latestShareCode;
-    return code ? `${window.location.origin}/r/${code}` : '';
-  }, [config.latestShareCode]);
+    if (latestShareCode)
+      return `${window.location.origin}/r/${latestShareCode}`;
+    if (latestShareId)
+      return buildGalleryLink(window.location.origin, latestShareId);
+    return '';
+  }, [latestShareCode, latestShareId]);
 
   const setActiveEntry = useCallback(
     (entryId: string | null) => {
@@ -575,9 +583,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         sessionId={sessionId}
         teacherUid={user?.uid ?? null}
         teacherEmail={user?.email ?? null}
-        onShareCreated={(code) =>
-          updateWidget(widget.id, { config: { latestShareCode: code } })
-        }
       />
     </>
   );
