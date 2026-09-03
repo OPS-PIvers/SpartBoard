@@ -249,7 +249,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     lastActiveCollectionId,
     lastBoardIdByCollection,
-    remoteControlEnabled: accountRemoteControlEnabled,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -424,8 +423,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   >(null);
   // Keep a ref to account-level remote control so the Firestore snapshot
   // handler can read the latest value without triggering a re-subscription.
-  const accountRemoteControlEnabledRef = useRef(accountRemoteControlEnabled);
-  accountRemoteControlEnabledRef.current = accountRemoteControlEnabled;
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [groupBuildMode, setGroupBuildMode] = useState(false);
@@ -1811,9 +1808,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
               const INSTANCE_FIELDS = ['customTitle', 'isPinned'] as const;
 
-              const remoteControlEnabled =
-                accountRemoteControlEnabledRef.current;
-
               // Pre-calculate merge decisions for all incoming server widgets
               const widgetMergeDecisions = db.widgets.map((sw) => {
                 const lw = localById.get(sw.id);
@@ -1872,16 +1866,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   lw,
                   saved,
                   isDeletedLocally,
-                  // If remote control is OFF, do not accept incoming server changes
-                  keepLocalConfig:
-                    configChangedLocally || !remoteControlEnabled,
-                  keepLocalLayout:
-                    layoutChangedLocally || !remoteControlEnabled,
-                  keepLocalStyle: styleChangedLocally || !remoteControlEnabled,
-                  keepLocalInstance:
-                    instanceChangedLocally || !remoteControlEnabled,
-                  keepLocalAnnotation:
-                    annotationChangedLocally || !remoteControlEnabled,
+                  // Keep only what changed locally; untouched fields take the server value so edits from another device land.
+                  keepLocalConfig: configChangedLocally,
+                  keepLocalLayout: layoutChangedLocally,
+                  keepLocalStyle: styleChangedLocally,
+                  keepLocalInstance: instanceChangedLocally,
+                  keepLocalAnnotation: annotationChangedLocally,
                 };
               });
 

@@ -25,6 +25,9 @@ import { Dashboard, WidgetData } from '@/types';
 // Mocks
 // ---------------------------------------------------------------------------
 
+// Mutable so a test can flip the phone-remote toggle off.
+const authState = { remoteControlEnabled: true };
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: {
@@ -38,7 +41,7 @@ vi.mock('@/context/useAuth', () => ({
     savedWidgetConfigs: {},
     saveWidgetConfig: vi.fn(),
     refreshGoogleToken: vi.fn(),
-    remoteControlEnabled: true,
+    remoteControlEnabled: authState.remoteControlEnabled,
     profileLoaded: true,
   }),
 }));
@@ -240,6 +243,49 @@ describe('DashboardContext per-widget merge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedSnapshotCb = null;
+    authState.remoteControlEnabled = true;
+  });
+
+  it('accepts server edits to untouched widgets even when the phone-remote toggle is off', async () => {
+    authState.remoteControlEnabled = false;
+    const stateRef = setup();
+
+    const initialDashboard = makeDashboard([
+      makeWidget('wA', 'original-A'),
+      makeWidget('wB', 'original-B'),
+    ]);
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // Local drift on widget A (e.g. a running timer) forces the merge path.
+    await act(async () => {
+      stateRef.current?.updateWidget('wA', {
+        config: { text: 'local-A' } as WidgetData['config'],
+      });
+      await Promise.resolve();
+    });
+
+    // Another device with the full board open edits widget B.
+    await pushSnapshot([
+      {
+        ...makeDashboard([
+          makeWidget('wA', 'original-A'),
+          makeWidget('wB', 'other-device-B'),
+        ]),
+        updatedAt: 2000,
+      },
+    ]);
+
+    await waitFor(() => {
+      const widgets = stateRef.current?.activeDashboard?.widgets;
+      const wA = widgets?.find((w) => w.id === 'wA');
+      const wB = widgets?.find((w) => w.id === 'wB');
+      expect(wA?.config).toMatchObject({ text: 'local-A' });
+      expect(wB?.config).toMatchObject({ text: 'other-device-B' });
+    });
   });
 
   it('preserves local config on widget A while accepting server config on widget B', async () => {
