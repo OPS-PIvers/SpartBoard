@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type {
   ActivityWallAppearance,
   ActivityWallSession,
@@ -24,6 +25,8 @@ export interface WallRenderActions {
   onReject?: (submissionId: string) => void;
   /** Fired when a submission's media (photo/video/file) fails to load, in any mode. */
   onMediaError?: (submission: ActivityWallSubmission) => void;
+  /** Gallery-only footer rendered inside each card (likes / comments). */
+  renderFooter?: (submission: ActivityWallSubmission) => ReactNode;
 }
 
 /** Props shared by `LayoutRouter` and every layout component. */

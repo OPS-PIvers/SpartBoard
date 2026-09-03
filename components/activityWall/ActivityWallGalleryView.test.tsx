@@ -372,7 +372,7 @@ describe('ActivityWallGalleryView', () => {
     );
   });
 
-  it('hides the reactions/comments panel and composer for an anonymous viewer even when toggles are on', async () => {
+  it('shows comment counts but no composer inside the card for an anonymous viewer', async () => {
     mockAuth.currentUser = { uid: 'anon-viewer', isAnonymous: true };
     mockGetDoc.mockResolvedValue({
       exists: () => true,
@@ -381,19 +381,31 @@ describe('ActivityWallGalleryView', () => {
 
     render(<ActivityWallGalleryView />);
 
-    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
     act(() => {
       submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
     });
 
-    await waitFor(() => expect(screen.getByText('1 post')).toBeInTheDocument());
-    expect(screen.queryByText(/reactions & comments/i)).not.toBeInTheDocument();
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-card-a"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(within(card).getByText(/no comments yet/i)).toBeInTheDocument();
     expect(
-      screen.queryByPlaceholderText('Leave a comment…')
+      within(card).queryByPlaceholderText('Leave a comment…')
     ).not.toBeInTheDocument();
+    // The count stays visible; the button itself is inert for anonymous viewers.
+    expect(within(card).getByLabelText('Like')).toBeDisabled();
   });
 
-  it('shows the reactions/comments panel and composer for a signed-in (non-anonymous) viewer when toggles are on', async () => {
+  it('renders the like button and comment composer inside each card for a signed-in viewer', async () => {
     mockAuth.currentUser = { uid: 'sso-viewer', isAnonymous: false };
     mockGetDoc.mockResolvedValue({
       exists: () => true,
@@ -402,15 +414,66 @@ describe('ActivityWallGalleryView', () => {
 
     render(<ActivityWallGalleryView />);
 
-    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
     act(() => {
       submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
     });
 
-    await waitFor(() =>
-      expect(screen.getByText(/reactions & comments/i)).toBeInTheDocument()
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-card-a"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(
+      within(card).getByPlaceholderText('Leave a comment…')
+    ).toBeInTheDocument();
+    expect(within(card).getByLabelText('Like')).toBeInTheDocument();
+    // The old free-floating list below the wall is gone.
+    expect(screen.queryByText(/reactions & comments/i)).not.toBeInTheDocument();
+  });
+
+  it('renders a legacy no-type photo post as a photo when the session snapshot arrives late', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ mode: 'photo' }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    act(() => {
+      submissionsHandler?.({
+        docs: [
+          {
+            id: 'legacy',
+            data: () => ({
+              id: 'legacy',
+              content: 'https://example.com/photo.jpg',
+              submittedAt: 1000,
+              status: 'approved',
+            }),
+          },
+        ],
+      });
+    });
+
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ mode: 'photo', layout: 'wall' }),
+      });
+    });
+
+    const image = await waitFor(() =>
+      screen.getByAltText<HTMLImageElement>('Student photo')
     );
-    expect(screen.getByPlaceholderText('Leave a comment…')).toBeInTheDocument();
+    expect(image.src).toBe('https://example.com/photo.jpg');
   });
 
   it('shows the empty state when every submission is pending', async () => {

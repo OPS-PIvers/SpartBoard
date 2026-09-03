@@ -10,13 +10,7 @@
  * people's work only.
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CornerDownRight,
   Heart,
@@ -41,7 +35,10 @@ import {
   normalizeActivityWallSession,
   normalizeActivityWallSubmission,
 } from '@/utils/activityWallNormalize';
-import { LayoutRouter } from '@/components/activityWall/render';
+import {
+  LayoutRouter,
+  prepareSubmissions,
+} from '@/components/activityWall/render';
 import type {
   ActivityWallComment,
   ActivityWallIdentificationMode,
@@ -120,6 +117,12 @@ const useAnonymousFirebaseUser = (): User | null => {
   return user;
 };
 
+/** Raw snapshot doc kept unnormalized so normalization can rerun once the session lands. */
+interface RawSubmissionDoc {
+  id: string;
+  data: Partial<ActivityWallSubmission>;
+}
+
 const getShareIdFromPath = (): string | null => {
   const match = window.location.pathname.match(
     /^\/activity-wall\/gallery\/([^/?#]+)/
@@ -133,19 +136,12 @@ export const ActivityWallGalleryView: React.FC = () => {
   const [state, setState] = useState<LoadState>(
     shareId ? { kind: 'loading' } : { kind: 'not-found' }
   );
-  const [submissions, setSubmissions] = useState<ActivityWallSubmission[]>([]);
+  const [rawSubmissions, setRawSubmissions] = useState<RawSubmissionDoc[]>([]);
   const [submissionsReady, setSubmissionsReady] = useState(false);
   const [session, setSession] = useState<ActivityWallSession | null>(null);
   const [likes, setLikes] = useState<ActivityWallLike[]>([]);
   const [comments, setComments] = useState<ActivityWallComment[]>([]);
   const [driveSigninHint, setDriveSigninHint] = useState(false);
-
-  // Read by the submissions snapshot handler to decide legacy-photo-wall
-  // normalization without re-subscribing every time the session doc ticks.
-  const sessionRef = useRef(session);
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
 
   // Load the share doc once. We don't subscribe — the share toggles are
   // effectively immutable (teachers re-share rather than edit), and
@@ -208,15 +204,12 @@ export const ActivityWallGalleryView: React.FC = () => {
     const unsubscribe = onSnapshot(
       submissionsRef,
       (snap) => {
-        const isModePhoto = sessionRef.current?.mode === 'photo';
-        const next = snap.docs.map((d) =>
-          normalizeActivityWallSubmission(
-            d.id,
-            d.data() as Partial<ActivityWallSubmission>,
-            isModePhoto
-          )
+        setRawSubmissions(
+          snap.docs.map((d) => ({
+            id: d.id,
+            data: d.data() as Partial<ActivityWallSubmission>,
+          }))
         );
-        setSubmissions(next);
         setSubmissionsReady(true);
       },
       (err) => {
@@ -315,19 +308,27 @@ export const ActivityWallGalleryView: React.FC = () => {
     };
   }, [state, viewer]);
 
-  // Pre-filtered list handed to the layout — gallery viewers never see
-  // pending (unapproved) posts, defensively re-checked client-side even
-  // though the query above already restricts to `status == approved`.
+  // Derived (not stored) so a late session snapshot re-normalizes legacy
+  // no-type photo posts instead of leaving them stuck as text.
   const visibleSubmissions = useMemo(
-    () => submissions.filter((s) => s.status !== 'pending'),
-    [submissions]
+    () =>
+      prepareSubmissions(
+        rawSubmissions.map((d) =>
+          normalizeActivityWallSubmission(
+            d.id,
+            d.data,
+            session?.mode === 'photo'
+          )
+        ),
+        'gallery'
+      ),
+    [rawSubmissions, session?.mode]
   );
 
+  const driveVisibility = session?.driveVisibility;
   const handleMediaError = useCallback(() => {
-    if (sessionRef.current?.driveVisibility === 'domain') {
-      setDriveSigninHint(true);
-    }
-  }, []);
+    if (driveVisibility === 'domain') setDriveSigninHint(true);
+  }, [driveVisibility]);
 
   if (!shareId || state.kind === 'not-found') {
     return (
@@ -424,8 +425,9 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   }, []);
 
   const showNames = session.showNames ?? false;
-  const canEngage =
-    !viewer.isAnonymous && (share.allowLikes || share.allowComments);
+  // Counts are visible to everyone; only signed-in viewers can post.
+  const showEngagement = share.allowLikes || share.allowComments;
+  const canWrite = !viewer.isAnonymous;
 
   const likeIndex = useMemo(() => {
     const map = new Map<string, { count: number; viewerLiked: boolean }>();
@@ -450,6 +452,22 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
     });
     return map;
   }, [comments]);
+
+  const renderFooter = useCallback(
+    (submission: ActivityWallSubmission) => (
+      <EngagementFooter
+        share={share}
+        viewer={viewer}
+        submission={submission}
+        likeInfo={
+          likeIndex.get(submission.id) ?? { count: 0, viewerLiked: false }
+        }
+        comments={commentsBySubmission.get(submission.id) ?? []}
+        canWrite={canWrite}
+      />
+    ),
+    [share, viewer, likeIndex, commentsBySubmission, canWrite]
+  );
 
   return (
     // Outer wrapper owns the scroll: body has `overflow: hidden` globally
@@ -502,6 +520,7 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
                 mode="gallery"
                 showNames={showNames}
                 onMediaError={onMediaError}
+                renderFooter={showEngagement ? renderFooter : undefined}
               />
               {driveSigninHint && (
                 <div className="absolute inset-x-0 bottom-0 bg-amber-400/95 px-4 py-2 text-center text-xs font-bold text-slate-900">
@@ -509,32 +528,6 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
                 </div>
               )}
             </div>
-
-            {canEngage && (
-              <section className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
-                <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-300">
-                  Reactions &amp; comments
-                </h2>
-                <ul className="space-y-3">
-                  {submissions.map((submission) => (
-                    <EngagementRow
-                      key={submission.id}
-                      share={share}
-                      viewer={viewer}
-                      submission={submission}
-                      showNames={showNames}
-                      likeInfo={
-                        likeIndex.get(submission.id) ?? {
-                          count: 0,
-                          viewerLiked: false,
-                        }
-                      }
-                      comments={commentsBySubmission.get(submission.id) ?? []}
-                    />
-                  ))}
-                </ul>
-              </section>
-            )}
           </div>
         )}
       </main>
@@ -542,22 +535,23 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   );
 };
 
-interface EngagementRowProps {
+interface EngagementFooterProps {
   share: SharedActivityWall;
   viewer: User;
   submission: ActivityWallSubmission;
-  showNames: boolean;
   likeInfo: { count: number; viewerLiked: boolean };
   comments: ActivityWallComment[];
+  /** Anonymous viewers see counts and threads but get no like button or composer. */
+  canWrite: boolean;
 }
 
-const EngagementRow: React.FC<EngagementRowProps> = ({
+const EngagementFooter: React.FC<EngagementFooterProps> = ({
   share,
   viewer,
   submission,
-  showNames,
   likeInfo,
   comments,
+  canWrite,
 }) => {
   const topLevel = comments.filter((c) => c.parentCommentId === null);
   const repliesByParent = useMemo(() => {
@@ -604,18 +598,13 @@ const EngagementRow: React.FC<EngagementRowProps> = ({
   };
 
   return (
-    <li className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 flex-1 truncate text-xs font-bold text-slate-200">
-          {showNames && submission.participantLabel
-            ? submission.participantLabel
-            : 'Anonymous'}
-        </p>
+    <div className="mt-3 border-t border-white/10 pt-2">
+      <div className="flex items-center justify-end gap-3">
         {share.allowLikes && (
           <button
             type="button"
             onClick={() => void toggleLike()}
-            disabled={likeBusy}
+            disabled={likeBusy || !canWrite}
             className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors disabled:opacity-50 ${
               likeInfo.viewerLiked
                 ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
@@ -650,19 +639,22 @@ const EngagementRow: React.FC<EngagementRowProps> = ({
                   submissionId={submission.id}
                   comment={comment}
                   replies={repliesByParent.get(comment.id) ?? []}
+                  canWrite={canWrite}
                 />
               ))}
             </ul>
           )}
-          <CommentComposer
-            share={share}
-            viewer={viewer}
-            submissionId={submission.id}
-            parentCommentId={null}
-          />
+          {canWrite && (
+            <CommentComposer
+              share={share}
+              viewer={viewer}
+              submissionId={submission.id}
+              parentCommentId={null}
+            />
+          )}
         </div>
       )}
-    </li>
+    </div>
   );
 };
 
@@ -672,6 +664,7 @@ interface CommentNodeProps {
   submissionId: string;
   comment: ActivityWallComment;
   replies: ActivityWallComment[];
+  canWrite: boolean;
 }
 
 const CommentNode: React.FC<CommentNodeProps> = ({
@@ -680,6 +673,7 @@ const CommentNode: React.FC<CommentNodeProps> = ({
   submissionId,
   comment,
   replies,
+  canWrite,
 }) => {
   const [replyOpen, setReplyOpen] = useState(false);
   return (
@@ -695,7 +689,7 @@ const CommentNode: React.FC<CommentNodeProps> = ({
       <p className="mt-1 text-sm text-slate-200 whitespace-pre-wrap">
         {comment.content}
       </p>
-      {share.allowCommentResponses && (
+      {canWrite && share.allowCommentResponses && (
         <button
           type="button"
           onClick={() => setReplyOpen((p) => !p)}
@@ -724,7 +718,7 @@ const CommentNode: React.FC<CommentNodeProps> = ({
           ))}
         </ul>
       )}
-      {replyOpen && share.allowCommentResponses && (
+      {replyOpen && canWrite && share.allowCommentResponses && (
         <div className="mt-2">
           <CommentComposer
             share={share}
