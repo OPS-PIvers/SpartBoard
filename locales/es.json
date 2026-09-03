@@ -1183,7 +1183,9 @@
       "groupWith": "Agrupar con..."
     },
     "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?",
-    "clearBoardTitle": "Borrar Tablero"
+    "clearBoardTitle": "Borrar Tablero",
+    "minimizedToast": "Minimizado: lo encontrarás en el Dock",
+    "minimizedAllToast": "Todos los widgets minimizados"
   },
   "login": {
     "signInToAccess": "Inicia sesión para acceder a tus tableros",

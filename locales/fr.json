@@ -1183,7 +1183,9 @@
       "groupWith": "Grouper avec..."
     },
     "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?",
-    "clearBoardTitle": "Effacer le Tableau"
+    "clearBoardTitle": "Effacer le Tableau",
+    "minimizedToast": "Réduit — retrouvez-le dans le Dock",
+    "minimizedAllToast": "Tous les widgets réduits"
   },
   "login": {
     "signInToAccess": "Connectez-vous pour accéder à vos tableaux",

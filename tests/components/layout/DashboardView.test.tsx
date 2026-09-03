@@ -31,6 +31,19 @@ const renderView = () =>
     </DashboardContext.Provider>
   );
 
+// DashboardView's global Escape/Delete handlers only act on a widget that
+// actually holds focus (see resolveTargetWidgetId). Mount a stand-in .widget
+// root and focus it so a test can exercise the dispatch branch.
+const focusWidgetRoot = (widgetId: string): HTMLDivElement => {
+  const root = document.createElement('div');
+  root.className = 'widget';
+  root.tabIndex = 0;
+  root.dataset.widgetId = widgetId;
+  document.body.appendChild(root);
+  root.focus();
+  return root;
+};
+
 type DashboardGestureHandlers = {
   onDrag?: (state: {
     first: boolean;
@@ -911,6 +924,128 @@ describe('DashboardView Gestures & Navigation', () => {
     expect(mockLoadDashboard).not.toHaveBeenCalled();
   });
 
+  // Regression: a two-finger swipe down minimized the widget under the fingers
+  // (or every widget, over the background). On a touchscreen that is just an
+  // ordinary two-finger scroll, so teachers saw Notes and Timers vanish
+  // mid-lesson — a minimized widget renders at opacity 0. Gated off behind
+  // SWIPE_MINIMIZE_ENABLED until the interaction is visible and undoable.
+  describe('two-finger swipe-down no longer minimizes (SWIPE_MINIMIZE_ENABLED)', () => {
+    const mockUpdateWidget = vi.fn();
+    const mockMinimizeAllWidgets = vi.fn();
+
+    const swipeDown = (target: EventTarget | null) => {
+      const moveEvent = new PointerEvent('pointermove', { bubbles: true });
+      Object.defineProperty(moveEvent, 'target', { value: target });
+      gestureState.handlers.onDrag?.({
+        first: true,
+        last: false,
+        swipe: [0, 0],
+        direction: [0, 1],
+        delta: [0, 20],
+        movement: [0, 20],
+        touches: 2,
+        initial: [100, 100],
+        event: moveEvent,
+      });
+
+      const endEvent = new PointerEvent('pointerup', { bubbles: true });
+      Object.defineProperty(endEvent, 'target', { value: target });
+      gestureState.handlers.onDrag?.({
+        first: false,
+        last: true,
+        swipe: [0, 0],
+        direction: [0, 1],
+        delta: [0, 60],
+        movement: [0, 120],
+        touches: 0,
+        initial: [100, 100],
+        event: endEvent,
+      });
+    };
+
+    const mockCtx = (maximized: boolean) => ({
+      activeDashboard: {
+        ...mockDashboards[1],
+        widgets: [{ id: 'widget-1', type: 'clock', maximized }],
+      },
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: mockAddWidget,
+      loadDashboard: mockLoadDashboard,
+      removeToast: vi.fn(),
+      updateWidget: mockUpdateWidget,
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      minimizeAllWidgets: mockMinimizeAllWidgets,
+      restoreAllWidgets: vi.fn(),
+      deleteAllWidgets: vi.fn(),
+      setSelectedWidgetId: vi.fn(),
+      updateDashboardSettings: vi.fn(),
+      zoom: 1,
+      setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
+    });
+
+    beforeEach(() => {
+      mockUpdateWidget.mockClear();
+      mockMinimizeAllWidgets.mockClear();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockCtx(false)
+      );
+    });
+
+    it('does not minimize the widget the swipe lands on', () => {
+      renderView();
+      mockUpdateWidget.mockClear();
+
+      const widget = document.createElement('div');
+      widget.className = 'widget';
+      widget.dataset.widgetId = 'widget-1';
+      swipeDown(widget);
+
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+
+    it('does not minimize every widget when the swipe lands on the background', () => {
+      const { container } = renderView();
+      mockMinimizeAllWidgets.mockClear();
+
+      swipeDown(container.querySelector('#dashboard-root'));
+
+      expect(mockMinimizeAllWidgets).not.toHaveBeenCalled();
+    });
+
+    it('still restores a maximized widget on swipe down', () => {
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockCtx(true)
+      );
+      renderView();
+      mockUpdateWidget.mockClear();
+
+      const widget = document.createElement('div');
+      widget.className = 'widget';
+      widget.dataset.widgetId = 'widget-1';
+      swipeDown(widget);
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
+        maximized: false,
+      });
+    });
+  });
+
   // Regression: when focus is on a child element inside a widget (e.g., a
   // button rendered inside a widget's content area), the global Escape/Delete/
   // Alt+P keyboard handlers in DashboardView must still resolve the containing
@@ -1342,6 +1477,64 @@ describe('DashboardView Gestures & Navigation', () => {
       }
     });
 
+    // Regression: teachers reported the Timer and Note widgets "disappearing
+    // while being used". resolveTargetWidgetId fell back to the topmost widget
+    // whenever focus was nowhere near one — and bringToFront makes the topmost
+    // widget the one the teacher just clicked. So a stray Escape (e.g. the
+    // second of two presses, after the first blurred a Note's editor back to
+    // <body>) minimized it to opacity 0, and a stray Delete opened its
+    // close-confirm. Focus outside every widget must now be a no-op.
+    it('REGRESSION: Escape with focus outside any widget dispatches nothing', () => {
+      renderView();
+      portalButton.blur();
+      document.body.focus();
+      expect(document.activeElement).not.toBe(portalButton);
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+      expect(dispatched).toHaveLength(0);
+    });
+
+    it('REGRESSION: Delete with focus outside any widget dispatches nothing', () => {
+      renderView();
+      portalButton.blur();
+      document.body.focus();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'Delete' });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+      expect(dispatched).toHaveLength(0);
+    });
+
+    it('Alt+P with focus outside any widget still pins the topmost widget', () => {
+      renderView();
+      portalButton.blur();
+      document.body.focus();
+
+      const dispatched: CustomEvent[] = [];
+      const handler = (e: Event) => dispatched.push(e as CustomEvent);
+      window.addEventListener('widget-keyboard-action', handler);
+
+      fireEvent.keyDown(window, { key: 'p', altKey: true });
+
+      window.removeEventListener('widget-keyboard-action', handler);
+      expect(dispatched).toHaveLength(1);
+      const detail = (
+        dispatched[0] as CustomEvent<{ widgetId: string; key: string }>
+      ).detail;
+      expect(detail.widgetId).toBe(TOP_WIDGET_ID);
+      expect(detail.key).toBe('Pin');
+    });
+
     it('REGRESSION: still dispatches Delete to the topmost widget instead of silently no-oping', () => {
       renderView();
 
@@ -1635,11 +1828,13 @@ describe('DashboardView Gestures & Navigation', () => {
     it('still dispatches a widget-keyboard-action Escape when no Modal is open', () => {
       const handler = vi.fn();
       window.addEventListener('widget-keyboard-action', handler);
+      const root = focusWidgetRoot('widget-1');
       try {
         renderView();
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(handler).toHaveBeenCalled();
       } finally {
+        root.remove();
         window.removeEventListener('widget-keyboard-action', handler);
       }
     });
@@ -1720,11 +1915,13 @@ describe('DashboardView Gestures & Navigation', () => {
       );
       const handler = vi.fn();
       window.addEventListener('widget-keyboard-action', handler);
+      const root = focusWidgetRoot('widget-1');
       try {
         renderView();
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(handler).toHaveBeenCalled();
       } finally {
+        root.remove();
         window.removeEventListener('widget-keyboard-action', handler);
       }
     });
@@ -1735,11 +1932,13 @@ describe('DashboardView Gestures & Navigation', () => {
       );
       const handler = vi.fn();
       window.addEventListener('widget-keyboard-action', handler);
+      const root = focusWidgetRoot('widget-1');
       try {
         renderView();
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(handler).toHaveBeenCalled();
       } finally {
+        root.remove();
         window.removeEventListener('widget-keyboard-action', handler);
       }
     });
