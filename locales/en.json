@@ -2142,6 +2142,7 @@
         "play": "Play this take",
         "pause": "Pause this take",
         "scrubber": "Playback position",
+        "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
         "addComment": "Comment here",
         "noComments": "Play the take and add a comment at the moment you want to talk about.",

@@ -1,8 +1,18 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
+import { AudioAnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AudioAnnotatedResponseView';
+import { getAudioCtx } from '@/utils/timeToolAudio';
 import type { WrittenAnswerAnnotation } from '@/types';
+
+vi.mock('@/utils/timeToolAudio', () => ({
+  getAudioCtx: vi.fn(),
+  resumeAudio: vi.fn(),
+}));
+vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+
+const mockedGetAudioCtx = vi.mocked(getAudioCtx);
 
 /**
  * Controlled wrapper for the edit-mode tests. The component now requires
@@ -168,5 +178,75 @@ describe('AnnotatedResponseView — edit mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /pink highlight/i }));
     const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
     expect(last[0].highlightColor).toBe('pink');
+  });
+});
+
+describe('AudioAnnotatedResponseView — waveform decode', () => {
+  const fetchMock = vi.fn();
+
+  const renderAudio = () =>
+    render(
+      <AudioAnnotatedResponseView
+        src="blob:take"
+        durationMs={60_000}
+        loading={false}
+        error={null}
+        unplayableReason={null}
+        annotations={[]}
+        onChange={vi.fn()}
+        authorUid="teacher-1"
+        activeId={null}
+        onActiveIdChange={vi.fn()}
+      />
+    );
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('keeps the range input and hides skip when decode fails', async () => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue({
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    });
+    mockedGetAudioCtx.mockReturnValue({
+      decodeAudioData: vi.fn().mockRejectedValue(new Error('bad codec')),
+    } as unknown as AudioContext);
+
+    renderAudio();
+    await waitFor(() =>
+      expect(screen.queryByTestId('waveform-loading')).not.toBeInTheDocument()
+    );
+    const range = screen.getByRole('slider', { name: /playback position/i });
+    expect(range.tagName).toBe('INPUT');
+    expect(
+      screen.queryByRole('button', { name: /skip to next speech/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('swaps in the waveform and skip button once decoded with a gap', async () => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue({
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    });
+    const data = new Float32Array(1000);
+    for (let i = 0; i < 400; i++) data[i] = 0.8;
+    for (let i = 600; i < 1000; i++) data[i] = 0.8;
+    mockedGetAudioCtx.mockReturnValue({
+      decodeAudioData: vi.fn().mockResolvedValue({
+        numberOfChannels: 1,
+        getChannelData: () => data,
+      }),
+    } as unknown as AudioContext);
+
+    renderAudio();
+    const skip = await screen.findByRole('button', {
+      name: /skip to next speech/i,
+    });
+    const slider = screen.getByRole('slider', { name: /playback position/i });
+    expect(slider.tagName).toBe('DIV');
+    fireEvent.click(skip);
+    expect(slider).toHaveAttribute('aria-valuenow', '36');
   });
 });
