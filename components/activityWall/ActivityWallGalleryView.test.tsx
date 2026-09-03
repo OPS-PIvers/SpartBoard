@@ -30,7 +30,10 @@ const {
   mockCollection: vi.fn(),
   mockDoc: vi.fn(),
   mockAuth: {
-    currentUser: { uid: 'viewer-1' } as { uid: string } | null,
+    currentUser: { uid: 'viewer-1', isAnonymous: false } as {
+      uid: string;
+      isAnonymous: boolean;
+    } | null,
   },
 }));
 
@@ -110,7 +113,7 @@ describe('ActivityWallGalleryView', () => {
     vi.clearAllMocks();
     submissionsHandler = null;
     sessionHandler = null;
-    mockAuth.currentUser = { uid: 'viewer-1' };
+    mockAuth.currentUser = { uid: 'viewer-1', isAnonymous: false };
 
     window.history.pushState({}, '', '/activity-wall/gallery/share-1');
 
@@ -162,8 +165,19 @@ describe('ActivityWallGalleryView', () => {
     window.history.pushState({}, '', '/');
   });
 
-  it('renders approved submissions newest-first and drops pending ones', async () => {
+  it('renders approved submissions oldest-first (LayoutRouter wall order) and drops pending ones', async () => {
     render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    // Session normalizes a blank `mode: 'text'` doc to the wordcloud layout
+    // by default; force the plain "wall" layout so submission bodies render
+    // as full text rather than word-cloud chips.
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
 
     await waitFor(() => expect(submissionsHandler).not.toBeNull());
 
@@ -186,15 +200,15 @@ describe('ActivityWallGalleryView', () => {
     // Pending submission is filtered out entirely.
     expect(screen.queryByText('content-pending')).not.toBeInTheDocument();
 
-    // The remaining approved submissions render newest-first.
+    // LayoutRouter's default wall layout sorts pinned-first, then oldest-first.
     const main = screen.getByRole('main');
     const rendered = within(main)
       .getAllByText(/^content-/)
       .map((node) => node.textContent);
     expect(rendered).toEqual([
-      'content-newest',
-      'content-middle',
       'content-older',
+      'content-middle',
+      'content-newest',
     ]);
   });
 
@@ -255,7 +269,7 @@ describe('ActivityWallGalleryView', () => {
     await waitFor(() => expect(mockSignInAnonymously).toHaveBeenCalled());
   });
 
-  it('applies a color-kind session appearance to the rendered root', async () => {
+  it('applies a color-kind session appearance to the LayoutRouter surface', async () => {
     render(<ActivityWallGalleryView />);
 
     await waitFor(() => expect(sessionHandler).not.toBeNull());
@@ -269,16 +283,20 @@ describe('ActivityWallGalleryView', () => {
       });
     });
 
-    const root = await waitFor(() => {
-      const el = document.querySelector('div[data-chrome-free="true"]');
+    act(() => {
+      submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
+    });
+
+    const layoutRoot = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-layout-router"]');
       expect(el).not.toBeNull();
       return el as HTMLElement;
     });
-    expect(root.className).toContain('bg-emerald-600');
-    expect(root.style.backgroundImage).toBe('');
+    expect(layoutRoot.className).toContain('bg-emerald-600');
+    expect(layoutRoot.style.backgroundImage).toBe('');
   });
 
-  it('applies an image-kind session appearance to the rendered root', async () => {
+  it('applies an image-kind session appearance to the LayoutRouter surface', async () => {
     render(<ActivityWallGalleryView />);
 
     await waitFor(() => expect(sessionHandler).not.toBeNull());
@@ -292,14 +310,266 @@ describe('ActivityWallGalleryView', () => {
       });
     });
 
-    const root = await waitFor(() => {
-      const el = document.querySelector('div[data-chrome-free="true"]');
+    act(() => {
+      submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
+    });
+
+    const layoutRoot = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-layout-router"]');
       expect(el).not.toBeNull();
       return el as HTMLElement;
     });
-    expect(root.style.backgroundImage).toBe(
+    expect(layoutRoot.style.backgroundImage).toBe(
       'url("https://example.com/bg.jpg")'
     );
+  });
+
+  it('hides the author label when showNames is off (default)', async () => {
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+
+    act(() => {
+      submissionsHandler?.({
+        docs: [submissionDoc('a', 1000, { participantLabel: 'Ada Lovelace' })],
+      });
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('content-a')).toBeInTheDocument()
+    );
+    expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+  });
+
+  it('shows the author label when the session enables showNames', async () => {
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ showNames: true, layout: 'wall' }),
+      });
+    });
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    act(() => {
+      submissionsHandler?.({
+        docs: [submissionDoc('a', 1000, { participantLabel: 'Ada Lovelace' })],
+      });
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
+    );
+  });
+
+  it('shows comment counts but no composer inside the card for an anonymous viewer', async () => {
+    mockAuth.currentUser = { uid: 'anon-viewer', isAnonymous: true };
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ allowLikes: true, allowComments: true }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
+    act(() => {
+      submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
+    });
+
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-card-a"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(within(card).getByText(/no comments yet/i)).toBeInTheDocument();
+    expect(
+      within(card).queryByPlaceholderText('Leave a comment…')
+    ).not.toBeInTheDocument();
+    // The count stays visible; the button itself is inert for anonymous viewers.
+    expect(within(card).getByLabelText('Like')).toBeDisabled();
+  });
+
+  it('renders the like button and comment composer inside each card for a signed-in viewer', async () => {
+    mockAuth.currentUser = { uid: 'sso-viewer', isAnonymous: false };
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ allowLikes: true, allowComments: true }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ layout: 'wall' }),
+      });
+    });
+    act(() => {
+      submissionsHandler?.({ docs: [submissionDoc('a', 1000)] });
+    });
+
+    const card = await waitFor(() => {
+      const el = document.querySelector('[data-testid="aw-card-a"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(
+      within(card).getByPlaceholderText('Leave a comment…')
+    ).toBeInTheDocument();
+    expect(within(card).getByLabelText('Like')).toBeInTheDocument();
+    // The old free-floating list below the wall is gone.
+    expect(screen.queryByText(/reactions & comments/i)).not.toBeInTheDocument();
+  });
+
+  it('renders a legacy no-type photo post as a photo when the session snapshot arrives late', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ mode: 'photo' }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    act(() => {
+      submissionsHandler?.({
+        docs: [
+          {
+            id: 'legacy',
+            data: () => ({
+              id: 'legacy',
+              content: 'https://example.com/photo.jpg',
+              submittedAt: 1000,
+              status: 'approved',
+            }),
+          },
+        ],
+      });
+    });
+
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({ mode: 'photo', layout: 'wall' }),
+      });
+    });
+
+    const image = await waitFor(() =>
+      screen.getByAltText<HTMLImageElement>('Student photo')
+    );
+    expect(image.src).toBe('https://example.com/photo.jpg');
+  });
+
+  it('shows the Drive sign-in hint when an archived domain photo fails to load', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ mode: 'photo' }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({
+          mode: 'photo',
+          layout: 'wall',
+          driveVisibility: 'domain',
+        }),
+      });
+    });
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    act(() => {
+      submissionsHandler?.({
+        docs: [
+          submissionDoc('archived', 1000, {
+            type: 'photo',
+            content: 'https://example.com/photo.jpg',
+            archiveStatus: 'archived',
+            drivePermission: 'domain',
+          }),
+        ],
+      });
+    });
+
+    const image = await waitFor(() =>
+      screen.getByAltText<HTMLImageElement>('Student photo')
+    );
+    act(() => {
+      image.dispatchEvent(new Event('error'));
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/sign in to your school google account/i)
+      ).toBeInTheDocument()
+    );
+  });
+
+  it('does not show the Drive sign-in hint when a non-archived (in-transit) photo fails to load', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => buildShare({ mode: 'photo' }),
+    });
+
+    render(<ActivityWallGalleryView />);
+
+    await waitFor(() => expect(sessionHandler).not.toBeNull());
+    act(() => {
+      sessionHandler?.({
+        exists: () => true,
+        data: () => ({
+          mode: 'photo',
+          layout: 'wall',
+          driveVisibility: 'domain',
+        }),
+      });
+    });
+
+    await waitFor(() => expect(submissionsHandler).not.toBeNull());
+    act(() => {
+      submissionsHandler?.({
+        docs: [
+          submissionDoc('transit', 1000, {
+            type: 'photo',
+            content: 'https://example.com/photo.jpg',
+            archiveStatus: 'pending',
+            drivePermission: 'domain',
+          }),
+        ],
+      });
+    });
+
+    const image = await waitFor(() =>
+      screen.getByAltText<HTMLImageElement>('Student photo')
+    );
+    act(() => {
+      image.dispatchEvent(new Event('error'));
+    });
+
+    // Give the (absent) state update a tick to land before asserting it never does.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      screen.queryByText(/sign in to your school google account/i)
+    ).not.toBeInTheDocument();
   });
 
   it('shows the empty state when every submission is pending', async () => {
