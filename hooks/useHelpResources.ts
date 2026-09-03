@@ -13,6 +13,8 @@ import { logError } from '@/utils/logError';
 
 interface UseHelpResourcesOptions {
   includeHidden: boolean;
+  // Super admins read the whole collection instead of the global + own-org queries.
+  allOrgs?: boolean;
 }
 
 export interface UseHelpResourcesResult {
@@ -34,10 +36,13 @@ const mergeById = (
 
 export const useHelpResources = ({
   includeHidden,
+  allOrgs = false,
 }: UseHelpResourcesOptions): UseHelpResourcesResult => {
   const { orgId } = useAuth();
   const [categories, setCategories] = useState<HelpCategory[]>([]);
   const [globalItems, setGlobalItems] = useState<HelpResourceItem[]>([]);
+  const [allItems, setAllItems] = useState<HelpResourceItem[]>([]);
+  const [allLoaded, setAllLoaded] = useState(false);
   const [orgItems, setOrgItems] = useState<HelpResourceItem[]>([]);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [globalLoaded, setGlobalLoaded] = useState(false);
@@ -48,6 +53,12 @@ export const useHelpResources = ({
   if (trackedOrgId !== orgId) {
     setTrackedOrgId(orgId);
     setOrgLoaded(false);
+  }
+  const [trackedAllOrgs, setTrackedAllOrgs] = useState(allOrgs);
+  if (trackedAllOrgs !== allOrgs) {
+    setTrackedAllOrgs(allOrgs);
+    setAllLoaded(false);
+    setGlobalLoaded(false);
   }
 
   useEffect(() => {
@@ -67,6 +78,7 @@ export const useHelpResources = ({
   }, []);
 
   useEffect(() => {
+    if (allOrgs) return;
     const q = query(
       collection(db, 'help_resources'),
       where('orgId', '==', null)
@@ -89,11 +101,34 @@ export const useHelpResources = ({
       }
     );
     return unsub;
-  }, []);
+  }, [allOrgs]);
+
+  useEffect(() => {
+    if (!allOrgs) return;
+    const unsub = onSnapshot(
+      collection(db, 'help_resources'),
+      (snap) => {
+        const next: HelpResourceItem[] = [];
+        snap.docs.forEach((d) => {
+          const normalized = normalizeHelpResourceItem(d.id, d.data());
+          if (normalized) next.push(normalized);
+        });
+        setAllItems(next);
+        setAllLoaded(true);
+        setError(null);
+      },
+      (err) => {
+        logError('useHelpResources allOrgs', err);
+        setAllLoaded(true);
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    );
+    return unsub;
+  }, [allOrgs]);
 
   useEffect(() => {
     // No org query to run; the render-time fallback below reports loaded.
-    if (!orgId) return;
+    if (!orgId || allOrgs) return;
     const q = query(
       collection(db, 'help_resources'),
       where('orgId', '==', orgId)
@@ -119,11 +154,11 @@ export const useHelpResources = ({
       }
     );
     return unsub;
-  }, [orgId]);
+  }, [orgId, allOrgs]);
 
   const effectiveOrgItems = orgId ? orgItems : [];
   const effectiveOrgLoaded = orgId ? orgLoaded : true;
-  const merged = mergeById(globalItems, effectiveOrgItems);
+  const merged = allOrgs ? allItems : mergeById(globalItems, effectiveOrgItems);
   const visible = includeHidden
     ? merged
     : merged.filter((item) => item.visible !== false);
@@ -131,7 +166,9 @@ export const useHelpResources = ({
   return {
     items: sortHelpItems(visible, categories),
     categories,
-    loading: !configLoaded || !globalLoaded || !effectiveOrgLoaded,
+    loading:
+      !configLoaded ||
+      (allOrgs ? !allLoaded : !globalLoaded || !effectiveOrgLoaded),
     error,
   };
 };

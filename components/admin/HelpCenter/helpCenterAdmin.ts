@@ -19,11 +19,13 @@ export interface HelpItemDraft {
 export const buildHelpItemCreatePayload = (
   draft: HelpItemDraft,
   opts: {
+    id: string;
     orgId: string | null;
     user: Pick<User, 'uid' | 'email'>;
     order: number;
   }
 ): Record<string, unknown> => ({
+  id: opts.id,
   kind: draft.kind,
   title: draft.title.trim(),
   description: draft.description.trim(),

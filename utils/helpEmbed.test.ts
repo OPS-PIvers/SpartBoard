@@ -4,6 +4,7 @@ import {
   isAllowedHelpUrl,
   toHelpEmbedSrc,
   HELP_IFRAME_SANDBOX,
+  helpIframeSandbox,
 } from './helpEmbed';
 
 describe('inferHelpEmbedType', () => {
@@ -87,5 +88,31 @@ describe('HELP_IFRAME_SANDBOX', () => {
     expect(HELP_IFRAME_SANDBOX).toBe(
       'allow-scripts allow-forms allow-popups allow-same-origin'
     );
+  });
+});
+
+describe('helpIframeSandbox', () => {
+  it('withholds allow-same-origin for arbitrary hosts', () => {
+    expect(helpIframeSandbox('other')).toBe(
+      'allow-scripts allow-forms allow-popups'
+    );
+    expect(helpIframeSandbox('other')).not.toContain('allow-same-origin');
+  });
+
+  it('keeps the full sandbox for known Google and video hosts', () => {
+    for (const type of [
+      'youtube',
+      'doc',
+      'slides',
+      'sheet',
+      'pdf',
+      'drive',
+    ] as const) {
+      expect(helpIframeSandbox(type)).toBe(HELP_IFRAME_SANDBOX);
+    }
+  });
+
+  it('keeps the full sandbox when no type is known yet', () => {
+    expect(helpIframeSandbox(null)).toBe(HELP_IFRAME_SANDBOX);
   });
 });

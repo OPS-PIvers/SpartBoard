@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -28,7 +27,10 @@ import { useDialog } from '@/context/useDialog';
 import { useHelpResources } from '@/hooks/useHelpResources';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrganizations } from '@/hooks/useOrganizations';
-import { SortableList } from '@/components/common/SortableList';
+import {
+  SortableList,
+  type SortableListDragHandleProps,
+} from '@/components/common/SortableList';
 import { Toggle } from '@/components/common/Toggle';
 import { DEFAULT_HELP_CATEGORIES } from '@/types/helpCenter';
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
@@ -57,15 +59,21 @@ const UNCATEGORIZED: HelpCategory = {
 export const HelpCenterManager: React.FC = () => {
   const { user, userRoles, orgId } = useAuth();
   const { showConfirm } = useDialog();
-  const { items, categories, loading } = useHelpResources({
-    includeHidden: true,
-  });
   const isSuperAdmin = Boolean(
     user?.email &&
     userRoles?.superAdmins?.some(
       (e) => e.toLowerCase() === user.email?.toLowerCase()
     )
   );
+  const {
+    items,
+    categories,
+    loading,
+    error: hookError,
+  } = useHelpResources({
+    includeHidden: true,
+    allOrgs: isSuperAdmin,
+  });
   const { organizations } = useOrganizations();
   const { organization } = useOrganization(orgId);
   const seededRef = useRef(false);
@@ -102,6 +110,10 @@ export const HelpCenterManager: React.FC = () => {
 
   const canPublish = isSuperAdmin || Boolean(orgId);
   const orderedCategories = sortCategories(categories);
+  const hasCategories = orderedCategories.length > 0;
+  // Rules allow a global item only for super admins and an org item only for that org's admins.
+  const canWriteItem = (item: HelpResourceItem): boolean =>
+    isSuperAdmin || (item.orgId !== null && item.orgId === orgId);
   const sections = [...orderedCategories, UNCATEGORIZED].filter(
     (category) =>
       category.id !== '' || items.some((item) => item.categoryId === '')
@@ -127,9 +139,11 @@ export const HelpCenterManager: React.FC = () => {
         buildHelpItemUpdatePayload(draft)
       );
     } else {
-      await addDoc(
-        collection(db, HELP_RESOURCES_COLLECTION),
+      const ref = doc(collection(db, HELP_RESOURCES_COLLECTION));
+      await setDoc(
+        ref,
         buildHelpItemCreatePayload(draft, {
+          id: ref.id,
           orgId: isSuperAdmin ? null : orgId,
           user,
           order: nextOrderInCategory(items, draft.categoryId),
@@ -165,7 +179,7 @@ export const HelpCenterManager: React.FC = () => {
     try {
       const batch = writeBatch(db);
       next.forEach((item, index) => {
-        if (item.order === index) return;
+        if (item.order === index || !canWriteItem(item)) return;
         batch.update(
           doc(db, HELP_RESOURCES_COLLECTION, item.id),
           buildOrderPayload(index)
@@ -185,6 +199,82 @@ export const HelpCenterManager: React.FC = () => {
       return next;
     });
 
+  // handle === null renders an out-of-scope row: visible, but not editable by this admin.
+  const renderRow = (
+    item: HelpResourceItem,
+    handle: SortableListDragHandleProps | null
+  ) => (
+    <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-2">
+      {handle ? (
+        <button
+          type="button"
+          aria-label={`Reorder ${item.title}`}
+          className="text-slate-400 cursor-grab"
+          {...handle.attributes}
+          {...handle.listeners}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      ) : (
+        <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+      )}
+      {item.kind === 'embed' ? (
+        <Link2 className="w-4 h-4 text-slate-500" />
+      ) : (
+        <GraduationCap className="w-4 h-4 text-slate-500" />
+      )}
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm text-slate-900 truncate">
+          {item.title}
+        </span>
+        {item.description && (
+          <span className="block text-xs text-slate-500 truncate">
+            {item.description}
+          </span>
+        )}
+      </span>
+      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs shrink-0">
+        {scopeLabel(item)}
+      </span>
+      <span className="flex items-center gap-1 text-xs text-slate-500 shrink-0">
+        <Eye className="w-3.5 h-3.5" />
+        {item.openCount}
+      </span>
+      {handle ? (
+        <>
+          <Toggle
+            checked={item.visible}
+            onChange={() => void handleToggleVisible(item)}
+            label={`Visible: ${item.title}`}
+            size="sm"
+            showLabels={false}
+          />
+          <button
+            type="button"
+            aria-label={`Edit ${item.title}`}
+            onClick={() => {
+              setEditing(item);
+              setFormOpen(true);
+            }}
+            className="text-slate-400 hover:text-slate-900"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            aria-label={`Delete ${item.title}`}
+            onClick={() => void handleDelete(item)}
+            className="text-slate-400 hover:text-red-600"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </>
+      ) : (
+        <span className="text-xs text-slate-400 shrink-0">Read only</span>
+      )}
+    </div>
+  );
+
   return (
     <div className="p-6 space-y-4">
       <header className="flex items-start justify-between gap-4">
@@ -199,7 +289,7 @@ export const HelpCenterManager: React.FC = () => {
         </div>
         <button
           type="button"
-          disabled={!canPublish}
+          disabled={!canPublish || !hasCategories}
           onClick={() => {
             setEditing(null);
             setFormOpen(true);
@@ -210,6 +300,12 @@ export const HelpCenterManager: React.FC = () => {
           Add item
         </button>
       </header>
+
+      {canPublish && !hasCategories && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          No categories yet. A super admin needs to open this tab first.
+        </p>
+      )}
 
       {!canPublish && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -234,9 +330,9 @@ export const HelpCenterManager: React.FC = () => {
         </div>
       )}
 
-      {error && (
+      {(error ?? hookError) && (
         <p role="alert" className="text-sm text-red-600">
-          {error}
+          {error ?? hookError}
         </p>
       )}
 
@@ -252,6 +348,10 @@ export const HelpCenterManager: React.FC = () => {
               (item) => item.categoryId === category.id
             );
             const isCollapsed = collapsed.has(category.id);
+            const ownItems = sectionItems.filter(canWriteItem);
+            const readOnlyItems = sectionItems.filter(
+              (item) => !canWriteItem(item)
+            );
             return (
               <section
                 key={category.id || 'uncategorized'}
@@ -277,78 +377,22 @@ export const HelpCenterManager: React.FC = () => {
                   </span>
                 </button>
                 {!isCollapsed && (
-                  <div className="px-3 pb-3">
-                    {sectionItems.length === 0 ? (
+                  <div className="px-3 pb-3 space-y-1">
+                    {sectionItems.length === 0 && (
                       <p className="text-sm text-slate-500">
                         No items in this category yet.
                       </p>
-                    ) : (
+                    )}
+                    {readOnlyItems.map((item) => (
+                      <div key={item.id}>{renderRow(item, null)}</div>
+                    ))}
+                    {ownItems.length > 0 && (
                       <SortableList
-                        items={sectionItems}
+                        items={ownItems}
                         getId={(item) => item.id}
                         onReorder={(next) => void handleReorder(next)}
                         className="space-y-1"
-                        renderItem={(item, handle) => (
-                          <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-2">
-                            <button
-                              type="button"
-                              aria-label={`Reorder ${item.title}`}
-                              className="text-slate-400 cursor-grab"
-                              {...handle.attributes}
-                              {...handle.listeners}
-                            >
-                              <GripVertical className="w-4 h-4" />
-                            </button>
-                            {item.kind === 'embed' ? (
-                              <Link2 className="w-4 h-4 text-slate-500" />
-                            ) : (
-                              <GraduationCap className="w-4 h-4 text-slate-500" />
-                            )}
-                            <span className="flex-1 min-w-0">
-                              <span className="block text-sm text-slate-900 truncate">
-                                {item.title}
-                              </span>
-                              {item.description && (
-                                <span className="block text-xs text-slate-500 truncate">
-                                  {item.description}
-                                </span>
-                              )}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs shrink-0">
-                              {scopeLabel(item)}
-                            </span>
-                            <span className="flex items-center gap-1 text-xs text-slate-500 shrink-0">
-                              <Eye className="w-3.5 h-3.5" />
-                              {item.openCount}
-                            </span>
-                            <Toggle
-                              checked={item.visible}
-                              onChange={() => void handleToggleVisible(item)}
-                              label={`Visible: ${item.title}`}
-                              size="sm"
-                              showLabels={false}
-                            />
-                            <button
-                              type="button"
-                              aria-label={`Edit ${item.title}`}
-                              onClick={() => {
-                                setEditing(item);
-                                setFormOpen(true);
-                              }}
-                              className="text-slate-400 hover:text-slate-900"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={`Delete ${item.title}`}
-                              onClick={() => void handleDelete(item)}
-                              className="text-slate-400 hover:text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
+                        renderItem={(item, handle) => renderRow(item, handle)}
                       />
                     )}
                   </div>

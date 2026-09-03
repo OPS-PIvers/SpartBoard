@@ -77,6 +77,34 @@ describe('useHelpResources', () => {
     );
   });
 
+  it('subscribes to the whole collection with no orgId filter when allOrgs is set', async () => {
+    mockOnSnapshot.mockImplementation(
+      (ref: unknown, onNext: (s: unknown) => void) => {
+        if (ref === 'help_center/config-ref') {
+          queueMicrotask(() => onNext({ data: () => ({ categories: [] }) }));
+        } else {
+          queueMicrotask(() =>
+            onNext({ docs: [{ id: 'a1', data: () => rawOrgItem }] })
+          );
+        }
+        return () => undefined;
+      }
+    );
+
+    const { result } = renderHook(
+      () => useHelpResources({ includeHidden: true, allOrgs: true }),
+      { wrapper: makeAuthWrapper({ orgId: null }) }
+    );
+
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+    expect(mockWhere).not.toHaveBeenCalledWith('orgId', '==', null);
+    expect(mockOnSnapshot).toHaveBeenCalledWith(
+      'help_resources-ref',
+      expect.any(Function),
+      expect.any(Function)
+    );
+  });
+
   it('merges global and org query results by id', async () => {
     mockOnSnapshot.mockImplementation(
       (

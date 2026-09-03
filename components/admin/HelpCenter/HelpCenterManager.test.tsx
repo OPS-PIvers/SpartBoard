@@ -29,6 +29,11 @@ const authState = vi.hoisted(() => ({
 
 const helpState = vi.hoisted(() => ({
   items: [] as HelpResourceItem[],
+  categories: [
+    { id: 'getting-started', name: 'Getting started', order: 0 },
+  ] as { id: string; name: string; order: number }[],
+  error: null as string | null,
+  allOrgs: false,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -37,7 +42,10 @@ vi.mock('firebase/firestore', () => ({
   deleteDoc: firestoreMocks.deleteDoc,
   setDoc: firestoreMocks.setDoc,
   getDoc: firestoreMocks.getDoc,
-  doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
+  doc: (_db: unknown, ...path: string[]) =>
+    path.length > 0
+      ? { id: path[path.length - 1], path: path.join('/') }
+      : { id: 'new-id', path: 'help_resources/new-id' },
   collection: (_db: unknown, name: string) => ({ name }),
   writeBatch: () => ({
     update: firestoreMocks.batchUpdate,
@@ -56,12 +64,15 @@ vi.mock('@/context/useDialog', () => ({
 }));
 
 vi.mock('@/hooks/useHelpResources', () => ({
-  useHelpResources: () => ({
-    items: helpState.items,
-    categories: [{ id: 'getting-started', name: 'Getting started', order: 0 }],
-    loading: false,
-    error: null,
-  }),
+  useHelpResources: (opts: { allOrgs?: boolean }) => {
+    helpState.allOrgs = Boolean(opts.allOrgs);
+    return {
+      items: helpState.items,
+      categories: helpState.categories,
+      loading: false,
+      error: helpState.error,
+    };
+  },
 }));
 
 vi.mock('@/hooks/useOrganizations', () => ({
@@ -162,6 +173,11 @@ const asOrgAdmin = () => {
   };
 };
 
+const createCall = () =>
+  firestoreMocks.setDoc.mock.calls.find(
+    (call) => (call[1] as { kind?: string }).kind !== undefined
+  );
+
 const fillAndSave = () => {
   fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
   fireEvent.change(screen.getByLabelText('Link'), {
@@ -178,6 +194,10 @@ describe('HelpCenterManager', () => {
     vi.clearAllMocks();
     firestoreMocks.getDoc.mockResolvedValue({ exists: () => false });
     helpState.items = [];
+    helpState.categories = [
+      { id: 'getting-started', name: 'Getting started', order: 0 },
+    ];
+    helpState.error = null;
     asSuperAdmin();
   });
 
@@ -202,22 +222,80 @@ describe('HelpCenterManager', () => {
   it('stamps orgId null when a super admin creates an item', async () => {
     render(<HelpCenterManager />);
     fillAndSave();
-    await waitFor(() => expect(firestoreMocks.addDoc).toHaveBeenCalled());
-    const [, payload] = firestoreMocks.addDoc.mock.calls[0];
-    expect(payload).toMatchObject({
+    await waitFor(() => expect(createCall()).toBeDefined());
+    expect(createCall()?.[1]).toMatchObject({
       orgId: null,
       embedType: 'doc',
       openCount: 0,
     });
   });
 
+  it('creates with setDoc on a pre-generated ref whose id is in the payload', async () => {
+    render(<HelpCenterManager />);
+    fillAndSave();
+    await waitFor(() => expect(createCall()).toBeDefined());
+    const call = createCall();
+    expect(firestoreMocks.addDoc).not.toHaveBeenCalled();
+    expect((call?.[0] as { id: string }).id).toBe('new-id');
+    expect((call?.[1] as { id: string }).id).toBe('new-id');
+  });
+
   it("stamps the admin's orgId when an org admin creates an item", async () => {
     asOrgAdmin();
     render(<HelpCenterManager />);
     fillAndSave();
-    await waitFor(() => expect(firestoreMocks.addDoc).toHaveBeenCalled());
-    const [, payload] = firestoreMocks.addDoc.mock.calls[0];
-    expect(payload).toMatchObject({ orgId: 'orono' });
+    await waitFor(() => expect(createCall()).toBeDefined());
+    expect(createCall()?.[1]).toMatchObject({ orgId: 'orono' });
+  });
+
+  it('hides edit and delete on out-of-scope items for an org admin', () => {
+    asOrgAdmin();
+    helpState.items = [
+      makeItem({ id: 'g1', title: 'Global', orgId: null }),
+      makeItem({ id: 'o1', title: 'Ours', orgId: 'orono' }),
+    ];
+    render(<HelpCenterManager />);
+    expect(screen.queryByRole('button', { name: 'Edit Global' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete Global' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Edit Ours' })
+    ).toBeInTheDocument();
+  });
+
+  it('reorders only own-org docs for an org admin', async () => {
+    asOrgAdmin();
+    helpState.items = [
+      makeItem({ id: 'g1', title: 'Global', orgId: null, order: 0 }),
+      makeItem({ id: 'o1', title: 'Ours A', orgId: 'orono', order: 0 }),
+      makeItem({ id: 'o2', title: 'Ours B', orgId: 'orono', order: 1 }),
+    ];
+    render(<HelpCenterManager />);
+    const reverseButtons = screen.getAllByRole('button', { name: 'reverse' });
+    fireEvent.click(reverseButtons[reverseButtons.length - 1]);
+    await waitFor(() => expect(firestoreMocks.batchCommit).toHaveBeenCalled());
+    const paths = firestoreMocks.batchUpdate.mock.calls.map(
+      (call) => (call[0] as { path: string }).path
+    );
+    expect(paths).toEqual(['help_resources/o2', 'help_resources/o1']);
+  });
+
+  it('surfaces the hook error in the alert banner', () => {
+    helpState.error = 'Missing or insufficient permissions.';
+    render(<HelpCenterManager />);
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Missing or insufficient permissions.'
+    );
+  });
+
+  it('blocks adding when no categories are configured', () => {
+    helpState.categories = [];
+    render(<HelpCenterManager />);
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled();
+    expect(
+      screen.getByText(
+        'No categories yet. A super admin needs to open this tab first.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('shows the inferred embed type for a pasted URL', async () => {
@@ -240,6 +318,17 @@ describe('HelpCenterManager', () => {
     });
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     expect(firestoreMocks.addDoc).not.toHaveBeenCalled();
+  });
+
+  it('asks for every org when the viewer is a super admin', () => {
+    render(<HelpCenterManager />);
+    expect(helpState.allOrgs).toBe(true);
+  });
+
+  it('does not ask for every org when the viewer is an org admin', () => {
+    asOrgAdmin();
+    render(<HelpCenterManager />);
+    expect(helpState.allOrgs).toBe(false);
   });
 
   it('writes new order values on reorder', async () => {

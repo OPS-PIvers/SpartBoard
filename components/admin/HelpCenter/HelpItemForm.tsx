@@ -7,7 +7,7 @@ import {
   inferHelpEmbedType,
   isAllowedHelpUrl,
   toHelpEmbedSrc,
-  HELP_IFRAME_SANDBOX,
+  helpIframeSandbox,
 } from '@/utils/helpEmbed';
 import type { WidgetType } from '@/types';
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
@@ -199,7 +199,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
               <iframe
                 title="Help item preview"
                 src={previewSrc}
-                sandbox={HELP_IFRAME_SANDBOX}
+                sandbox={helpIframeSandbox(embedType)}
                 referrerPolicy="strict-origin-when-cross-origin"
                 className="w-full h-56 rounded-lg border border-slate-200 bg-slate-50"
               />
@@ -236,11 +236,17 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
             >
               Category
             </label>
+            {categories.length === 0 && (
+              <p className="text-sm text-amber-700 mb-1">
+                No categories yet. A super admin needs to open this tab first.
+              </p>
+            )}
             <select
               id="help-item-category"
               value={draft.categoryId}
               onChange={(e) => patch({ categoryId: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+              disabled={categories.length === 0}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
             >
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
