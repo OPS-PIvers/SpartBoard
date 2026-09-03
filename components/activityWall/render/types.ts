@@ -22,6 +22,8 @@ export interface WallRenderActions {
   onDelete?: (submissionId: string) => void;
   onApprove?: (submissionId: string) => void;
   onReject?: (submissionId: string) => void;
+  /** Fired when a submission's media (photo/video/file) fails to load, in any mode. */
+  onMediaError?: (submission: ActivityWallSubmission) => void;
 }
 
 /** Props shared by `LayoutRouter` and every layout component. */

@@ -137,6 +137,7 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
   onDelete,
   onApprove,
   onReject,
+  onMediaError,
 }) => {
   const scale = wallScale(mode);
   const { url: mediaUrl, failed: mediaFailed } = useMediaUrl(submission);
@@ -163,7 +164,10 @@ export const SubmissionCard: React.FC<SubmissionCardProps> = ({
           src={mediaUrl}
           alt={submission.title ?? 'Student photo'}
           className="w-full rounded-lg object-cover"
-          onError={() => setFailedImageUrl(mediaUrl)}
+          onError={() => {
+            setFailedImageUrl(mediaUrl);
+            onMediaError?.(submission);
+          }}
         />
       );
     }
