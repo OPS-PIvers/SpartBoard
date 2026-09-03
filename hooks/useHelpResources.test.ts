@@ -1,14 +1,27 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import React from 'react';
-import { useHelpResources, useHelpItemsForWidget } from './useHelpResources';
+import {
+  useHelpResources,
+  useHelpItemsForWidget,
+  incrementHelpOpenCount,
+} from './useHelpResources';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => 'help_resources-ref'),
   doc: vi.fn(() => 'help_center/config-ref'),
   onSnapshot: vi.fn(),
+  updateDoc: vi.fn(() => Promise.resolve(undefined)),
+  increment: vi.fn((n: number) => ({ increment: n })),
   query: vi.fn((ref: unknown, ...clauses: unknown[]) => ({ ref, clauses })),
   where: vi.fn((field: string, op: string, value: unknown) => [
     field,
@@ -434,5 +447,39 @@ describe('useHelpItemsForWidget', () => {
     // not even in the instant before the new snapshot resolves.
     expect(r2.current).toHaveLength(0);
     await waitFor(() => expect(r2.current).toHaveLength(0));
+  });
+});
+
+describe('incrementHelpOpenCount', () => {
+  let warnSpy: Mock;
+
+  beforeEach(() => {
+    (updateDoc as unknown as Mock).mockReset();
+    (updateDoc as unknown as Mock).mockResolvedValue(undefined);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    warnSpy.mockClear();
+  });
+
+  it('counts an item once per page load', async () => {
+    await incrementHelpOpenCount('counted-once');
+    await incrementHelpOpenCount('counted-once');
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries after a transient failure', async () => {
+    (updateDoc as unknown as Mock).mockRejectedValueOnce(new Error('offline'));
+    await incrementHelpOpenCount('transient');
+    await incrementHelpOpenCount('transient');
+    expect(updateDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it('never retries after a permission denial', async () => {
+    (updateDoc as unknown as Mock).mockRejectedValueOnce(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    await incrementHelpOpenCount('denied');
+    await incrementHelpOpenCount('denied');
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });
