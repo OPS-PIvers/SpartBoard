@@ -82,6 +82,8 @@ const mockAuth: AuthContextType = {
   dockPosition: 'bottom',
   quizMonitorColorsEnabled: true,
   quizMonitorScoreDisplay: 'percent',
+  quizGraderMode: 'question',
+  quizGraderAutoAdvance: true,
   updateAccountPreferences: async () => {
     // No-op in student view
   },

@@ -194,6 +194,10 @@ export interface AuthContextType {
   quizMonitorColorsEnabled: boolean;
   /** What the quiz live-monitor shows in the right-side score pill. */
   quizMonitorScoreDisplay: 'percent' | 'count' | 'hidden';
+  /** Free Response grader order: one question at a time, or one student at a time. */
+  quizGraderMode: 'question' | 'student';
+  /** Whether the Free Response grader moves on by itself once a grade is complete. */
+  quizGraderAutoAdvance: boolean;
   /**
    * The Collection the teacher was most recently in. Restored from the
    * userProfile doc on sign-in so the app can re-open the correct Collection
@@ -214,6 +218,8 @@ export interface AuthContextType {
     dockPosition?: DockPosition;
     quizMonitorColorsEnabled?: boolean;
     quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
+    quizGraderMode?: 'question' | 'student';
+    quizGraderAutoAdvance?: boolean;
   }) => Promise<void>;
   /**
    * The organization this user belongs to, derived from their membership doc.

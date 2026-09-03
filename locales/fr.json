@@ -2111,6 +2111,24 @@
       "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
+      "prev": "Previous",
+      "next": "Next",
+      "mode": {
+        "label": "Grade by",
+        "question": "Question",
+        "student": "Student"
+      },
+      "autoAdvance": "Auto-advance",
+      "status": {
+        "saving": "Saving…",
+        "saved": "Saved",
+        "failed": "Couldn't save",
+        "retry": "Retry"
+      },
+      "allGraded": "All graded",
+      "questionStep": "Q{{index}} of {{total}}",
+      "closeWithFailures": "Grades for {{names}} could not be saved. Close anyway and lose them?",
+      "advancing": "Moving to the next response…",
       "keyboardHint": "← / → move between students. Esc closes the grader.",
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
