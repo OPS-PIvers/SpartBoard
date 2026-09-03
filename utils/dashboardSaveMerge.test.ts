@@ -28,7 +28,6 @@ const board = (widgets: WidgetData[], extra: Partial<Dashboard> = {}) =>
   }) as Dashboard;
 
 const baselineOf = (d: Dashboard): SaveBaseline => ({
-  updatedAt: 100,
   widgets: JSON.parse(JSON.stringify(d.widgets)) as WidgetData[],
   background: d.background,
   name: d.name,

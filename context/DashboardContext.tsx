@@ -33,6 +33,11 @@ import {
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import type { SaveBaseline } from '@/utils/dashboardSaveMerge';
+import {
+  LAYOUT_FIELDS,
+  STYLE_FIELDS,
+  INSTANCE_FIELDS,
+} from '@/utils/widgetMergeFields';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
@@ -62,6 +67,7 @@ import {
 } from '@/utils/migrateProportionalLayout';
 import {
   scrubDashboardPII,
+  scrubWidgetsPII,
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
@@ -200,6 +206,10 @@ const stripDerivedPixels = (w: WidgetData) => {
 
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
+
+// The snapshot merge tracks `annotation` in its style group as well, on top of
+// the deep comparison below; the save-transaction merge handles it separately.
+const SNAPSHOT_STYLE_FIELDS = [...STYLE_FIELDS, 'annotation'] as const;
 
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
@@ -1375,12 +1385,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // NEVER reach Firestore — they are preserved in Drive only.
       const scrubbed = scrubDashboardPII(dashboard);
 
+      // The baseline is built from unscrubbed local widgets, so scrub it the
+      // same way. Otherwise a widget still on its initial config (no `version`
+      // yet) falls to the config deep-compare and reads as locally changed on
+      // every save purely because the baseline still carries its roster.
+      const scrubbedBaseline = baseline && {
+        ...baseline,
+        widgets: scrubWidgetsPII(baseline.widgets),
+      };
+
       return saveDashboardFirestore(
         {
           ...scrubbed,
           driveFileId,
         },
-        baseline
+        scrubbedBaseline
       );
     },
     [isAdmin, driveService, saveDashboardFirestore, backupDashboardPIIToDrive]
@@ -1785,33 +1804,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               // x/y/w/h are derived per-viewport and would produce false
               // positives when two devices on different screen sizes view
               // the same board.
-              const LAYOUT_FIELDS = [
-                'xProp',
-                'yProp',
-                'wProp',
-                'hProp',
-                'aspectRatio',
-                'z',
-                'minimized',
-                'flipped',
-                'maximized',
-                'groupId',
-              ] as const;
-
-              const STYLE_FIELDS = [
-                'backgroundColor',
-                'fontFamily',
-                'baseTextSize',
-                'transparency',
-                'buildingId',
-                'customTitle',
-                'isPinned',
-                'isLocked',
-                'annotation',
-              ] as const;
-
-              const INSTANCE_FIELDS = ['customTitle', 'isPinned'] as const;
-
               // Pre-calculate merge decisions for all incoming server widgets
               const widgetMergeDecisions = db.widgets.map((sw) => {
                 const lw = localById.get(sw.id);
@@ -1844,7 +1836,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const layoutChangedLocally = LAYOUT_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
-                const styleChangedLocally = STYLE_FIELDS.some(
+                const styleChangedLocally = SNAPSHOT_STYLE_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
                 const instanceChangedLocally = INSTANCE_FIELDS.some(
@@ -2050,10 +2042,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             lastSavedDashboardIdRef.current = serverActive.id;
           }
           newDashboards = migratedDashboards;
-        }
-
-        if (serverActive && !hasPendingWrites) {
-          lastAcceptedUpdatedAtRef.current = serverActive.updatedAt;
         }
 
         setDashboards(newDashboards);
@@ -2283,22 +2271,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     libraryOrder: string;
     settings: string;
   }>({ widgets: '', background: '', name: '', libraryOrder: '', settings: '' });
-  // updatedAt of the server copy the refs above were last synced to; lets the save transaction spot newer remote writes.
-  const lastAcceptedUpdatedAtRef = useRef<number | undefined>(undefined);
-
   const buildSaveBaseline = useCallback(
     (dashboardId: string): SaveBaseline | undefined => {
       if (lastSavedDashboardIdRef.current !== dashboardId) return undefined;
+      // No serialized widgets means nothing has been baselined for this board
+      // yet; a baseline claiming zero widgets would resurrect local deletions.
+      if (!lastSavedFieldsRef.current.widgets) return undefined;
       let widgets: WidgetData[] = [];
       try {
         widgets = JSON.parse(
-          lastSavedFieldsRef.current.widgets || '[]'
+          lastSavedFieldsRef.current.widgets
         ) as WidgetData[];
       } catch {
         return undefined;
       }
       return {
-        updatedAt: lastAcceptedUpdatedAtRef.current,
         widgets,
         background: lastSavedFieldsRef.current.background,
         name: lastSavedFieldsRef.current.name,
@@ -2445,10 +2432,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
       saveDashboard(active, buildSaveBaseline(active.id))
-        .then((updatedAt) => {
+        .then(() => {
           lastSavedDataRef.current = savedData;
           lastSavedFieldsRef.current = savedFields;
-          lastAcceptedUpdatedAtRef.current = updatedAt;
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -2628,7 +2614,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         if (active) {
           // Note: We can't reliably await this in beforeunload,
           // but we can try to trigger it.
-          void saveDashboard(active);
+          void saveDashboard(active, buildSaveBaseline(active.id));
         }
       }
     };
@@ -3231,7 +3217,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         prev.map((d) => (d.id === dashboardId ? detached : d))
       );
       try {
-        await saveDashboard(detached);
+        await saveDashboard(detached, buildSaveBaseline(detached.id));
       } catch (err) {
         console.error('Failed to persist detached share state:', err);
       }
@@ -3241,6 +3227,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       stopSharingBoard,
       leaveSharedBoard,
       saveDashboard,
+      buildSaveBaseline,
       addToast,
       deleteDashboardFirestore,
       updateActiveId,
@@ -3814,14 +3801,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const active = dashboards.find((d) => d.id === activeId);
     if (active) {
       try {
-        await saveDashboard(active);
+        await saveDashboard(active, buildSaveBaseline(active.id));
         addToast('All changes saved to cloud', 'success');
       } catch (err) {
         console.error('Save failed:', err);
         addToast('Save failed', 'error');
       }
     }
-  }, [user, dashboards, activeId, saveDashboard, addToast]);
+  }, [user, dashboards, activeId, saveDashboard, buildSaveBaseline, addToast]);
 
   const deleteDashboard = useCallback(
     async (id: string) => {
@@ -4034,7 +4021,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        await saveDashboard(updated);
+        await saveDashboard(updated, buildSaveBaseline(updated.id));
         addToast('Dashboard renamed');
       } catch (err) {
         console.error('Rename failed:', err);
@@ -4043,7 +4030,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         setDashboards((prev) => prev.map((d) => (d.id === id ? dashboard : d)));
       }
     },
-    [user, dashboards, activeId, saveDashboard, addToast]
+    [user, dashboards, activeId, saveDashboard, buildSaveBaseline, addToast]
   );
 
   const reorderDashboards = useCallback(

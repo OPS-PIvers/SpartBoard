@@ -1,8 +1,18 @@
 import type { Dashboard, WidgetData } from '@/types';
+import {
+  LAYOUT_FIELDS,
+  STYLE_FIELDS,
+  anyFieldChanged as anyChanged,
+  type MergeFieldKey,
+} from '@/utils/widgetMergeFields';
 
-/** What this device last accepted from the server, used to detect its own edits. */
+/**
+ * The last state this device knew the server to hold, used to tell its own
+ * edits apart from another device's. Widgets here must be PII-scrubbed the
+ * same way the saved document is, or every un-versioned widget carrying a
+ * roster would read as locally changed on every save.
+ */
 export interface SaveBaseline {
-  updatedAt: number | undefined;
   widgets: WidgetData[];
   background: string;
   name: string;
@@ -10,44 +20,12 @@ export interface SaveBaseline {
   settings: string;
 }
 
-const LAYOUT_FIELDS = [
-  'xProp',
-  'yProp',
-  'wProp',
-  'hProp',
-  'aspectRatio',
-  'z',
-  'minimized',
-  'flipped',
-  'maximized',
-  'groupId',
-] as const;
-
-const STYLE_FIELDS = [
-  'backgroundColor',
-  'fontFamily',
-  'baseTextSize',
-  'transparency',
-  'buildingId',
-  'customTitle',
-  'isPinned',
-  'isLocked',
-] as const;
-
-type FieldKey = (typeof LAYOUT_FIELDS)[number] | (typeof STYLE_FIELDS)[number];
-
-const anyChanged = (
-  a: WidgetData,
-  b: WidgetData,
-  fields: readonly FieldKey[]
-) => fields.some((f) => a[f] !== b[f]);
-
 const configChanged = (a: WidgetData, b: WidgetData) =>
   a.version !== undefined && b.version !== undefined
     ? a.version !== b.version
     : JSON.stringify(a.config) !== JSON.stringify(b.config);
 
-const pick = (w: WidgetData, fields: readonly FieldKey[]) => {
+const pick = (w: WidgetData, fields: readonly MergeFieldKey[]) => {
   const out: Record<string, unknown> = {};
   for (const f of fields) out[f] = w[f];
   return out as Partial<WidgetData>;

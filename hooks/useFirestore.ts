@@ -307,20 +307,26 @@ export const useFirestore = (userId: string | null) => {
       if (!dashboardsRef) throw new Error('User not authenticated');
       const docRef = doc(dashboardsRef, dashboard.id);
       const updatedAt = Date.now();
-      if (baseline?.updatedAt === undefined) {
+      if (!baseline) {
         await setDoc(docRef, { ...dashboard, updatedAt });
         return updatedAt;
       }
-      // Another device may have written since this one last synced; merge inside the transaction so that write survives.
+      // Another device may have written since this one last synced; merge
+      // inside the transaction so that write survives. The merge runs on every
+      // baselined save rather than only when `updatedAt` moved: this device's
+      // own merged write advances the server timestamp to a value it then
+      // treats as its own, so a timestamp gate would let the very next save
+      // blind-write over the edit that was just folded in. When the server
+      // still matches the baseline the merge is a no-op by construction —
+      // every field either changed locally (keep local) or matches the server.
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(docRef);
         const server = snap.exists()
           ? ({ ...snap.data(), id: snap.id } as Dashboard)
           : null;
-        const toWrite =
-          server && server.updatedAt !== baseline.updatedAt
-            ? mergeDashboardForSave(dashboard, server, baseline)
-            : dashboard;
+        const toWrite = server
+          ? mergeDashboardForSave(dashboard, server, baseline)
+          : dashboard;
         tx.set(docRef, { ...toWrite, updatedAt });
       });
       return updatedAt;

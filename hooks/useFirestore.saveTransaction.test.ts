@@ -35,7 +35,6 @@ const board = (widgets: WidgetData[], updatedAt?: number) =>
   }) as Dashboard;
 
 const baseline = (widgets: WidgetData[]) => ({
-  updatedAt: 100,
   widgets,
   background: 'bg',
   name: 'B',
@@ -99,5 +98,27 @@ describe('useFirestore – saveDashboard transaction', () => {
 
     const written = tx.set.mock.calls[0][1] as Dashboard;
     expect(textOf(written.widgets[0])).toBe('a-local');
+  });
+
+  it('still merges when the server timestamp matches this device last write', async () => {
+    // The save that folded in the other device's edit advanced updatedAt to a
+    // value this device now owns. A timestamp gate would blind-write here and
+    // undo that edit; the merge keeps it because the baseline still holds this
+    // device's own pre-save copy of the widget.
+    const tx = mockTransaction(
+      board([widget('a', 'a0'), widget('b', 'b-other-device')], 500)
+    );
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([widget('a', 'a-local-2'), widget('b', 'b0')], 500),
+      baseline([widget('a', 'a-local'), widget('b', 'b0')])
+    );
+
+    const written = tx.set.mock.calls[0][1] as Dashboard;
+    expect(written.widgets.map(textOf)).toEqual([
+      'a-local-2',
+      'b-other-device',
+    ]);
   });
 });

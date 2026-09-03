@@ -167,6 +167,7 @@ interface ContextSnapshot {
     type: WidgetType,
     transform: (config: WidgetConfig) => WidgetConfig | null
   ) => Promise<void>;
+  updateWidget: (id: string, updates: Partial<WidgetData>) => void;
   toasts: Toast[];
 }
 
@@ -181,6 +182,7 @@ const TestConsumer: React.FC<{
       loading: ctx.loading,
       reorderDashboards: ctx.reorderDashboards,
       updateWidgetConfigsAcrossBoards: ctx.updateWidgetConfigsAcrossBoards,
+      updateWidget: ctx.updateWidget,
       toasts: ctx.toasts,
     };
   });
@@ -524,5 +526,49 @@ describe('DashboardContext updateWidgetConfigsAcrossBoards rollback', () => {
 
     const errorToast = stateRef.current?.toasts.find((t) => t.type === 'error');
     expect(errorToast?.message).toContain('syncing it to other boards failed');
+  });
+});
+
+describe('DashboardContext save baseline PII scrub', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('strips PII from the baseline it hands the save transaction', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', [makePiiWidget('w-pii')]),
+    ]);
+    saveDashboardMock.mockClear();
+
+    act(() => {
+      stateRef.current?.updateWidget('w-pii', {
+        config: { seatCount: 24 } as unknown as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(saveDashboardMock).toHaveBeenCalled();
+    const baseline = saveDashboardMock.mock.calls.at(-1)?.[1] as
+      | { widgets: WidgetData[] }
+      | undefined;
+    expect(baseline).toBeDefined();
+    const baselineConfig = baseline?.widgets[0].config as Record<
+      string,
+      unknown
+    >;
+    // The saved document is scrubbed; a baseline still carrying `names` would
+    // make this widget read as locally changed on every save.
+    expect(baselineConfig.names).toBeUndefined();
   });
 });
