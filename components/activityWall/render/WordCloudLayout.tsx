@@ -10,7 +10,6 @@ export const WordCloudLayout: React.FC<WallRenderProps> = ({
 }) => {
   const scale = wallScale(mode);
   const words = buildWordCloud(visibleSubmissions(submissions, mode));
-  const unit = mode === 'widget' ? 'cqmin' : 'vmin';
 
   return (
     <div
@@ -24,7 +23,10 @@ export const WordCloudLayout: React.FC<WallRenderProps> = ({
           title={`${word} (${count})`}
           className="rounded-lg bg-white/90 font-black leading-none"
           style={{
-            fontSize: `${(3 + weight * 12).toFixed(2)}${unit}`,
+            fontSize:
+              mode === 'widget'
+                ? `clamp(11px, ${(3 + weight * 12).toFixed(2)}cqmin, 96px)`
+                : `${(3 + weight * 12).toFixed(2)}vmin`,
             padding: `0 ${mode === 'widget' ? 'min(8px, 2cqmin)' : '8px'}`,
             color: wordColor(word),
           }}
