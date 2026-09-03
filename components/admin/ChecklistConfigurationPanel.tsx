@@ -29,9 +29,7 @@ export const ChecklistConfigurationPanel: React.FC<
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
   const [newItemText, setNewItemText] = useState('');
-  // useAdminBuildings() can hand back a legacy long-form id (e.g.
-  // `orono-high-school`) when an org's building doc predates the short-id
-  // migration, so buildingDefaults reads/writes must key off the canonical id.
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
   const canonicalId = canonicalBuildingId(selectedBuildingId);
 
   const buildingDefaults = canonicalizeBuildingKeyedRecord(
