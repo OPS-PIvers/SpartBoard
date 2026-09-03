@@ -50,8 +50,8 @@ export const TimelineLayout: React.FC<WallRenderProps> = ({
   const scale = wallScale(mode);
   const sensors = useWallSensors();
   const items = sortForTimeline(visibleSubmissions(submissions, mode));
-  const isTeacher = mode === 'teacher';
-  const sortable = isTeacher && Boolean(onMove);
+  // Drag belongs to whoever was handed a move callback; only the read-only gallery is exempt.
+  const sortable = mode !== 'gallery' && Boolean(onMove);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const patch = timelineDropPatch(items, event);

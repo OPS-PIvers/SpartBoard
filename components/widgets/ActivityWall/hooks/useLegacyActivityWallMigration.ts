@@ -74,11 +74,17 @@ export const useLegacyActivityWallMigration = ({
 
   const recoveryRanRef = useRef(false);
   useEffect(() => {
-    if (recoveryRanRef.current) return;
     if (!uid || libraryLoading) return;
-    if (libraryCount > 0) return;
-    if ((config.activities ?? []).length > 0) return;
     const flagKey = `aw_library_recovery_v1_${uid}`;
+    // Any wall we have already seen proves the library exists; deleting the last one must not resurrect it.
+    if (libraryCount > 0 || (config.activities ?? []).length > 0) {
+      recoveryRanRef.current = true;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(flagKey, 'done');
+      }
+      return;
+    }
+    if (recoveryRanRef.current) return;
     if (
       typeof localStorage !== 'undefined' &&
       localStorage.getItem(flagKey) === 'done'

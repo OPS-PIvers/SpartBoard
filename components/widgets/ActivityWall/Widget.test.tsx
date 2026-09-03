@@ -201,7 +201,7 @@ describe('ActivityWallWidget', () => {
     );
   });
 
-  it('approves a pending post from the moderation drawer', async () => {
+  it('surfaces pending-only posts on the board and approves from the drawer', async () => {
     snapshotDocs = [
       {
         id: 'sub-1',
@@ -212,11 +212,14 @@ describe('ActivityWallWidget', () => {
     ];
     renderWidget();
 
+    expect(
+      await screen.findByText('1 post waiting for review')
+    ).toBeInTheDocument();
     await userEvent.click(
       await screen.findByRole('button', { name: /moderate posts/i })
     );
     await userEvent.click(
-      await screen.findByRole('button', { name: /approve post sub-1/i })
+      await screen.findByRole('button', { name: /approve .*pending idea/i })
     );
 
     await waitFor(() =>

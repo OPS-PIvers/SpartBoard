@@ -25,6 +25,7 @@ import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { LayoutRouter } from '@/components/activityWall/render';
+import { visibleSubmissions } from '@/components/activityWall/render/scale';
 import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
 import { buildStudentWallLink } from '@/utils/activityWallLinks';
 import { WallEditorModal } from './editor/WallEditorModal';
@@ -104,6 +105,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   } = useActivityWallSession(user?.uid, activeEntry, saveActivity);
 
   const isOpenWall = activeEntry?.acceptingResponses !== false;
+  const visibleCount = visibleSubmissions(submissions, 'widget').length;
 
   const studentUrl = useMemo(() => {
     if (!sessionId || !activeEntry) return '';
@@ -268,13 +270,16 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             style={{
               width: 'min(28px, 7.5cqmin)',
               height: 'min(28px, 7.5cqmin)',
+              marginRight: 'min(4px, 1.2cqmin)',
             }}
           >
             <ShieldCheck style={{ width: '60%', height: '60%' }} />
             {pendingCount > 0 && (
               <span
-                className="absolute -right-1 -top-1 rounded-full bg-rose-500 font-black text-white"
+                className="absolute rounded-full bg-rose-500 font-black text-white"
                 style={{
+                  right: 'max(-4px, -1.2cqmin)',
+                  top: 'max(-4px, -1.2cqmin)',
                   fontSize: 'min(9px, 2.8cqmin)',
                   padding: '0 min(4px, 1.2cqmin)',
                 }}
@@ -419,14 +424,35 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         </button>
       }
     />
-  ) : submissions.length === 0 ? (
+  ) : visibleCount === 0 ? (
     <ScaledEmptyState
       icon={LayoutGrid}
-      title="No posts yet"
+      title={
+        pendingCount > 0
+          ? `${pendingCount} post${pendingCount === 1 ? '' : 's'} waiting for review`
+          : 'No posts yet'
+      }
       subtitle={
-        isOpenWall
-          ? 'Share the student link to start collecting posts.'
-          : 'This wall is closed. Reopen it to collect posts.'
+        pendingCount > 0
+          ? 'Approve them to show them on the board.'
+          : isOpenWall
+            ? 'Share the student link to start collecting posts.'
+            : 'This wall is closed. Reopen it to collect posts.'
+      }
+      action={
+        pendingCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setModerationOpen(true)}
+            className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{
+              padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
+              fontSize: 'min(12px, 3.8cqmin)',
+            }}
+          >
+            Review posts
+          </button>
+        ) : undefined
       }
     />
   ) : (
@@ -498,7 +524,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         onReject={(id) => void reject(id)}
         onDelete={(id) => void deletePost(id)}
         onPin={(id, pinned) => void pinPost(id, pinned)}
-        onEdit={(id, content) => void editPost(id, { content })}
+        onEdit={(id, changes) => void editPost(id, changes)}
       />
 
       <ActivityWallShareModal

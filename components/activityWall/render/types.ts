@@ -15,7 +15,7 @@ export interface WallMovePatch {
   order?: number;
 }
 
-/** Teacher-only callbacks; ignored outside `teacher` mode. */
+/** Teacher callbacks; supplying one enables its affordance in `widget` and `teacher` mode, never in `gallery`. */
 export interface WallRenderActions {
   onMove?: (submissionId: string, patch: WallMovePatch) => void;
   onPin?: (submissionId: string, pinned: boolean) => void;

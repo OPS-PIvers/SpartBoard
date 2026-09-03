@@ -276,7 +276,8 @@ export function buildDefaultWall(
     identificationMode,
     createdAt: now,
     updatedAt: now,
-    layout: layoutFromLegacyMode(mode),
+    // New walls start on the free-form board; the legacy mode mapping only backfills existing entries.
+    layout: 'wall',
     allowedTypes: allowedTypesFromLegacyMode(mode),
     appearance: ACTIVITY_WALL_DEFAULT_APPEARANCE,
     allowGuests: allowGuestsFromLegacyIdentificationMode(identificationMode),

@@ -273,7 +273,17 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               </button>
             </div>
           </div>
-        ) : undefined
+        ) : (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        )
       }
     >
       {showLayoutWarning && (

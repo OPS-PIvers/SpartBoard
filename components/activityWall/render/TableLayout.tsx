@@ -22,7 +22,8 @@ export const TableLayout: React.FC<WallRenderProps> = ({
   const items = prepareSubmissions(submissions, mode);
   const rows = session.tableRows ?? [];
   const cols = session.tableCols ?? [];
-  const isTeacher = mode === 'teacher';
+  // Drag belongs to whoever was handed a move callback; only the read-only gallery is exempt.
+  const canMove = mode !== 'gallery' && Boolean(onMove);
   const isWidget = mode === 'widget';
   const labelTrack = isWidget
     ? 'minmax(min(90px, 20cqw), 0.6fr)'
@@ -43,7 +44,7 @@ export const TableLayout: React.FC<WallRenderProps> = ({
       <DraggableCard
         key={submission.id}
         id={submission.id}
-        disabled={!isTeacher || !onMove}
+        disabled={!canMove}
         handleSize={scale.icon}
       >
         <SubmissionCard
@@ -98,7 +99,7 @@ export const TableLayout: React.FC<WallRenderProps> = ({
                 <DropZone
                   key={key}
                   id={key}
-                  disabled={!isTeacher}
+                  disabled={!canMove}
                   className="flex flex-col rounded-xl border border-white/10 bg-white/5"
                   style={{ gap: scale.gap, padding: scale.pad }}
                 >
@@ -120,7 +121,7 @@ export const TableLayout: React.FC<WallRenderProps> = ({
             </h3>
             <DropZone
               id={UNSORTED_ID}
-              disabled={!isTeacher}
+              disabled={!canMove}
               className="flex flex-col rounded-xl border border-white/10 bg-white/5"
               style={{
                 gap: scale.gap,
@@ -136,7 +137,7 @@ export const TableLayout: React.FC<WallRenderProps> = ({
     </div>
   );
 
-  if (!isTeacher || !onMove) return grid;
+  if (!canMove) return grid;
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       {grid}

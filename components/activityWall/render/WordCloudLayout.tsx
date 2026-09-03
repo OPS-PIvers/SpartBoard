@@ -22,9 +22,10 @@ export const WordCloudLayout: React.FC<WallRenderProps> = ({
         <span
           key={word}
           title={`${word} (${count})`}
-          className="rounded-lg bg-white/90 px-2 font-black leading-none"
+          className="rounded-lg bg-white/90 font-black leading-none"
           style={{
             fontSize: `${(3 + weight * 12).toFixed(2)}${unit}`,
+            padding: `0 ${mode === 'widget' ? 'min(8px, 2cqmin)' : '8px'}`,
             color: wordColor(word),
           }}
         >

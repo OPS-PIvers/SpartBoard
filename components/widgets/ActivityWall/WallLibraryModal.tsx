@@ -67,7 +67,7 @@ const WallThumbnail: React.FC<{ entry: ActivityWallLibraryEntry }> = ({
         isImage ? { backgroundImage: `url(${appearance.value})` } : undefined
       }
     >
-      <div className="text-white/90">{layoutSketch(entry)}</div>
+      <div className="h-10 w-16 text-white/90">{layoutSketch(entry)}</div>
     </div>
   );
 };
@@ -93,6 +93,13 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
     dir: 'desc',
   });
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [countedWhileOpen, setCountedWhileOpen] = useState(open);
+
+  // Each open starts a fresh count pass so a reopened library never shows stale post totals.
+  if (countedWhileOpen !== open) {
+    setCountedWhileOpen(open);
+    if (open) setCounts({});
+  }
 
   // One aggregate count per wall, cached by entry id so re-sorting never re-bills it.
   const uncountedKey = entries

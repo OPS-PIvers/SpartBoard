@@ -19,7 +19,8 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
   const sensors = useWallSensors();
   const items = prepareSubmissions(submissions, mode);
   const sections = session.sections ?? [];
-  const isTeacher = mode === 'teacher';
+  // Drag belongs to whoever was handed a move callback; only the read-only gallery is exempt.
+  const canMove = mode !== 'gallery' && Boolean(onMove);
   const columnMinWidth = mode === 'widget' ? 'min(180px, 40cqw)' : '180px';
 
   const columns = [...sections, { id: UNSORTED_ID, label: 'Unsorted' }].filter(
@@ -58,7 +59,7 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
         <DropZone
           key={column.id}
           id={column.id}
-          disabled={!isTeacher}
+          disabled={!canMove}
           className="flex flex-1 flex-col rounded-xl border border-white/10 bg-white/5"
           style={{
             gap: scale.gap,
@@ -76,7 +77,7 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
             <DraggableCard
               key={submission.id}
               id={submission.id}
-              disabled={!isTeacher || !onMove}
+              disabled={!canMove}
               handleSize={scale.icon}
             >
               <SubmissionCard
@@ -92,7 +93,7 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
     </div>
   );
 
-  if (!isTeacher || !onMove) return board;
+  if (!canMove) return board;
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       {board}

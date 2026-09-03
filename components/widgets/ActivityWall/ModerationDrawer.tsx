@@ -1,9 +1,24 @@
 // Teacher moderation queue: approve/reject pending posts, pin/edit/delete approved ones.
 
 import React, { useState } from 'react';
-import { Check, Pin, PinOff, Trash2, X } from 'lucide-react';
+import {
+  Check,
+  FileText,
+  Film,
+  LinkIcon,
+  Pin,
+  PinOff,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { useMediaUrl } from '@/components/activityWall/render/useMediaUrl';
 import type { ActivityWallSubmission } from '@/types';
+
+interface SubmissionEdit {
+  content?: string;
+  title?: string;
+}
 
 interface ModerationDrawerProps {
   open: boolean;
@@ -13,7 +28,7 @@ interface ModerationDrawerProps {
   onReject: (submissionId: string) => void;
   onDelete: (submissionId: string) => void;
   onPin: (submissionId: string, pinned: boolean) => void;
-  onEdit: (submissionId: string, content: string) => void;
+  onEdit: (submissionId: string, changes: SubmissionEdit) => void;
 }
 
 const rowClass =
@@ -22,15 +37,131 @@ const rowClass =
 const iconButtonClass =
   'shrink-0 rounded-lg p-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 
+const inputClass =
+  'w-full rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+
+const chipClass =
+  'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600';
+
+/** Short, human-readable stand-in for a post used in button labels. */
+const excerpt = (submission: ActivityWallSubmission): string => {
+  const type = submission.type ?? 'text';
+  const source = submission.title?.trim()
+    ? submission.title
+    : type === 'file' || type === 'video'
+      ? (submission.fileName ?? '')
+      : type === 'link'
+        ? (submission.linkPreview?.title ?? submission.content)
+        : type === 'photo'
+          ? ''
+          : submission.content;
+  const trimmed = source.trim();
+  if (!trimmed) return type === 'photo' ? 'photo' : type;
+  return trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
+};
+
+const linkDomain = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+};
+
+/** Compact per-type preview so photo/link/file/video posts never show a raw URL or storage path. */
+const SubmissionPreview: React.FC<{ submission: ActivityWallSubmission }> = ({
+  submission,
+}) => {
+  const type = submission.type ?? 'text';
+  const { url, failed } = useMediaUrl(submission);
+  const isPrivate = submission.drivePermission === 'private';
+
+  if (type === 'photo') {
+    if (isPrivate || failed || !url) {
+      return (
+        <span className={chipClass}>
+          {isPrivate
+            ? 'Private photo'
+            : failed
+              ? 'Photo unavailable'
+              : 'Photo…'}
+        </span>
+      );
+    }
+    return (
+      <img
+        src={url}
+        alt={submission.title ?? 'Student photo'}
+        className="h-16 w-16 rounded-lg object-cover"
+      />
+    );
+  }
+
+  if (type === 'video') {
+    return (
+      <span className={chipClass}>
+        <Film aria-hidden="true" className="h-3 w-3" />
+        Video
+      </span>
+    );
+  }
+
+  if (type === 'file') {
+    return (
+      <span className={chipClass}>
+        <FileText aria-hidden="true" className="h-3 w-3" />
+        <span className="truncate">
+          {submission.fileName ?? 'Attached file'}
+        </span>
+      </span>
+    );
+  }
+
+  if (type === 'link') {
+    return (
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-sm font-semibold text-slate-800">
+          {submission.linkPreview?.title ?? submission.content}
+        </span>
+        <span className="flex items-center gap-1 truncate text-xs text-slate-600">
+          <LinkIcon aria-hidden="true" className="h-3 w-3 shrink-0" />
+          {submission.linkPreview?.domain ?? linkDomain(submission.content)}
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <p className="break-words text-sm text-slate-800">{submission.content}</p>
+  );
+};
+
 interface RowProps {
   submission: ActivityWallSubmission;
   actions: React.ReactNode;
-  onEdit: (submissionId: string, content: string) => void;
+  onEdit: (submissionId: string, changes: SubmissionEdit) => void;
 }
 
 const SubmissionRow: React.FC<RowProps> = ({ submission, actions, onEdit }) => {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(submission.content);
+  const [titleDraft, setTitleDraft] = useState(submission.title ?? '');
+  const [contentDraft, setContentDraft] = useState(submission.content);
+  const isText = (submission.type ?? 'text') === 'text';
+  const label = excerpt(submission);
+  const who = submission.participantLabel ?? 'Anonymous';
+
+  const startEditing = () => {
+    setTitleDraft(submission.title ?? '');
+    setContentDraft(submission.content);
+    setEditing(true);
+  };
+
+  const save = () => {
+    const changes: SubmissionEdit = { title: titleDraft.trim() };
+    if (isText) changes.content = contentDraft.trim() || submission.content;
+    onEdit(submission.id, changes);
+    setEditing(false);
+  };
 
   return (
     <li className={rowClass}>
@@ -41,20 +172,28 @@ const SubmissionRow: React.FC<RowProps> = ({ submission, actions, onEdit }) => {
           </p>
         )}
         {editing ? (
-          <div className="flex items-center gap-2">
+          <div className="space-y-1">
             <input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              aria-label={`Edit post ${submission.id}`}
-              className="w-full rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              placeholder="Title"
+              aria-label={`Title for ${who}'s post: ${label}`}
+              className={inputClass}
             />
+            {isText ? (
+              <input
+                value={contentDraft}
+                onChange={(event) => setContentDraft(event.target.value)}
+                aria-label={`Text of ${who}'s post: ${label}`}
+                className={inputClass}
+              />
+            ) : (
+              <SubmissionPreview submission={submission} />
+            )}
             <button
               type="button"
               className="rounded-lg bg-brand-blue-primary px-2 py-1 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-              onClick={() => {
-                onEdit(submission.id, draft.trim() || submission.content);
-                setEditing(false);
-              }}
+              onClick={save}
             >
               Save
             </button>
@@ -62,14 +201,16 @@ const SubmissionRow: React.FC<RowProps> = ({ submission, actions, onEdit }) => {
         ) : (
           <button
             type="button"
-            onClick={() => {
-              setDraft(submission.content);
-              setEditing(true);
-            }}
-            className="block w-full break-words rounded-lg text-left text-sm text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-            aria-label={`Edit post ${submission.id}`}
+            onClick={startEditing}
+            className="block w-full rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            aria-label={`Edit ${who}'s post: ${label}`}
           >
-            {submission.content}
+            {submission.title && (
+              <span className="block truncate text-sm font-bold text-slate-800">
+                {submission.title}
+              </span>
+            )}
+            <SubmissionPreview submission={submission} />
           </button>
         )}
       </div>
@@ -119,7 +260,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onApprove(submission.id)}
-                      aria-label={`Approve post ${submission.id}`}
+                      aria-label={`Approve ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} bg-emerald-50 text-emerald-700 hover:bg-emerald-100`}
                     >
                       <Check className="h-4 w-4" />
@@ -127,7 +268,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onReject(submission.id)}
-                      aria-label={`Reject post ${submission.id}`}
+                      aria-label={`Reject ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} bg-rose-50 text-rose-700 hover:bg-rose-100`}
                     >
                       <X className="h-4 w-4" />
@@ -158,7 +299,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onPin(submission.id, !submission.pinned)}
-                      aria-label={`${submission.pinned ? 'Unpin' : 'Pin'} post ${submission.id}`}
+                      aria-label={`${submission.pinned ? 'Unpin' : 'Pin'} ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} ${
                         submission.pinned
                           ? 'bg-amber-100 text-amber-700'
@@ -174,7 +315,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onDelete(submission.id)}
-                      aria-label={`Delete post ${submission.id}`}
+                      aria-label={`Delete ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} bg-rose-50 text-rose-700 hover:bg-rose-100`}
                     >
                       <Trash2 className="h-4 w-4" />

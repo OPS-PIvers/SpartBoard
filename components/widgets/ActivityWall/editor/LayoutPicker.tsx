@@ -35,7 +35,7 @@ export const LayoutPicker: React.FC<LayoutPickerProps> = ({
                 : 'border-slate-200 bg-white hover:bg-slate-50'
             }`}
           >
-            {option.sketch}
+            <span className="h-10 w-16">{option.sketch}</span>
             <span className="text-sm font-bold text-slate-800">
               {option.label}
             </span>

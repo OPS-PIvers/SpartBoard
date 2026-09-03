@@ -26,6 +26,8 @@ const newSection = (): ActivityWallSection => ({
 
 interface LabelledListProps {
   legend: string;
+  /** Singular noun used for the per-item labels under the plural legend. */
+  itemNoun: string;
   hint: string;
   addLabel: string;
   items: ActivityWallSection[];
@@ -34,6 +36,7 @@ interface LabelledListProps {
 
 const LabelledList: React.FC<LabelledListProps> = ({
   legend,
+  itemNoun,
   hint,
   addLabel,
   items,
@@ -61,13 +64,13 @@ const LabelledList: React.FC<LabelledListProps> = ({
         {items.map((item, index) => (
           <li key={item.id} className="flex items-center gap-2">
             <label className="sr-only" htmlFor={`${fieldPrefix}-${item.id}`}>
-              {`${legend} ${index + 1} label`}
+              {`${itemNoun} ${index + 1} label`}
             </label>
             <input
               id={`${fieldPrefix}-${item.id}`}
               className={inputClass}
               value={item.label}
-              placeholder={`${legend} ${index + 1}`}
+              placeholder={`${itemNoun} ${index + 1}`}
               onChange={(event) =>
                 onChange(
                   items.map((entry) =>
@@ -81,7 +84,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
             <button
               type="button"
               className={iconButtonClass}
-              aria-label={`Move ${legend.toLowerCase()} ${index + 1} up`}
+              aria-label={`Move ${itemNoun.toLowerCase()} ${index + 1} up`}
               disabled={index === 0}
               onClick={() => move(index, -1)}
             >
@@ -90,7 +93,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
             <button
               type="button"
               className={iconButtonClass}
-              aria-label={`Move ${legend.toLowerCase()} ${index + 1} down`}
+              aria-label={`Move ${itemNoun.toLowerCase()} ${index + 1} down`}
               disabled={index === items.length - 1}
               onClick={() => move(index, 1)}
             >
@@ -99,7 +102,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
             <button
               type="button"
               className={iconButtonClass}
-              aria-label={`Remove ${legend.toLowerCase()} ${index + 1}`}
+              aria-label={`Remove ${itemNoun.toLowerCase()} ${index + 1}`}
               onClick={() =>
                 onChange(items.filter((entry) => entry.id !== item.id))
               }
@@ -132,7 +135,8 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
   if (layout === 'columns') {
     return (
       <LabelledList
-        legend="Column"
+        legend="Columns"
+        itemNoun="Column"
         hint="Students choose one column when they post."
         addLabel="Add column"
         items={value.sections ?? []}
@@ -145,14 +149,16 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
     return (
       <div className="space-y-5">
         <LabelledList
-          legend="Row"
+          legend="Rows"
+          itemNoun="Row"
           hint="Rows run down the left edge of the table."
           addLabel="Add row"
           items={value.tableRows ?? []}
           onChange={(tableRows) => onChange({ tableRows })}
         />
         <LabelledList
-          legend="Column"
+          legend="Columns"
+          itemNoun="Column"
           hint="Columns run across the top of the table."
           addLabel="Add column"
           items={value.tableCols ?? []}
