@@ -23,6 +23,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { FONTS } from '@/config/fonts';
+import { TEXT_COLOR_PRESETS } from '@/config/widgetAppearance';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -163,5 +164,127 @@ describe('TypographySettings — decorative glyphs excluded from accessible name
     for (const option of fontOptions) {
       expect(option.querySelectorAll('[aria-hidden="true"]')).toHaveLength(1);
     }
+  });
+});
+
+/**
+ * Regression: both `role="radiogroup"` pickers (Typography font family, Text
+ * Color) render `role="radio"` options with no WAI-ARIA radiogroup keyboard
+ * contract — no roving tabIndex, no arrow-key navigation. Same bug class
+ * already fixed for `SegmentedControl.tsx` (#2564); this file was never
+ * audited for it despite being the higher-traffic sibling (used in nearly
+ * every widget's style tab per CLAUDE.md).
+ */
+describe('TypographySettings — radiogroup keyboard contract', () => {
+  type Cfg = { fontFamily?: string; fontColor?: string };
+
+  it('applies roving tabindex to the font family radiogroup: selected=0, others=-1', () => {
+    const config: Cfg = { fontFamily: 'font-mono' };
+    render(<TypographySettings config={config} updateConfig={vi.fn()} />);
+
+    expect(screen.getByRole('radio', { name: 'Digital' })).toHaveAttribute(
+      'tabindex',
+      '0'
+    );
+    expect(screen.getByRole('radio', { name: 'Inherit' })).toHaveAttribute(
+      'tabindex',
+      '-1'
+    );
+  });
+
+  it('moves focus AND updates config on ArrowRight/ArrowLeft/Home/End in the font family radiogroup', () => {
+    const updateConfig = vi.fn();
+    const config: Cfg = { fontFamily: undefined }; // selected = 'global' (Inherit, index 0)
+    render(<TypographySettings config={config} updateConfig={updateConfig} />);
+
+    const inherit = screen.getByRole('radio', { name: 'Inherit' });
+    const modern = screen.getByRole('radio', { name: FONTS[1].label });
+
+    inherit.focus();
+    fireEvent.keyDown(inherit, { key: 'ArrowRight' });
+    expect(modern).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({
+      fontFamily: FONTS[1].id,
+    });
+
+    fireEvent.keyDown(modern, { key: 'ArrowLeft' });
+    expect(inherit).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({ fontFamily: undefined });
+
+    const last = screen.getByRole('radio', {
+      name: FONTS[FONTS.length - 1].label,
+    });
+    fireEvent.keyDown(inherit, { key: 'End' });
+    expect(last).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({
+      fontFamily: FONTS[FONTS.length - 1].id,
+    });
+
+    fireEvent.keyDown(last, { key: 'Home' });
+    expect(inherit).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({ fontFamily: undefined });
+  });
+
+  it('applies roving tabindex to the text color radiogroup: selected=0, others=-1', () => {
+    const secondColor = TEXT_COLOR_PRESETS[1];
+    const config: Cfg = { fontColor: secondColor };
+    render(<TypographySettings config={config} updateConfig={vi.fn()} />);
+
+    expect(
+      screen.getByRole('radio', { name: `Select text color ${secondColor}` })
+    ).toHaveAttribute('tabindex', '0');
+    expect(
+      screen.getByRole('radio', {
+        name: `Select text color ${TEXT_COLOR_PRESETS[0]}`,
+      })
+    ).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('moves focus AND updates config on ArrowRight in the text color radiogroup', () => {
+    const updateConfig = vi.fn();
+    const config: Cfg = { fontColor: TEXT_COLOR_PRESETS[0] };
+    render(<TypographySettings config={config} updateConfig={updateConfig} />);
+
+    const first = screen.getByRole('radio', {
+      name: `Select text color ${TEXT_COLOR_PRESETS[0]}`,
+    });
+    const second = screen.getByRole('radio', {
+      name: `Select text color ${TEXT_COLOR_PRESETS[1]}`,
+    });
+
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(second).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({
+      fontColor: TEXT_COLOR_PRESETS[1],
+    });
+  });
+
+  it('keeps exactly one text color swatch tabbable when fontColor is unset (defaults to a non-preset value)', () => {
+    const config: Cfg = {};
+    render(<TypographySettings config={config} updateConfig={vi.fn()} />);
+
+    const swatches = TEXT_COLOR_PRESETS.map((color) =>
+      screen.getByRole('radio', { name: `Select text color ${color}` })
+    );
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[0]);
+  });
+
+  it('keeps exactly one text color swatch tabbable when fontColor is a custom (non-preset) value', () => {
+    const config: Cfg = { fontColor: '#123456' };
+    render(<TypographySettings config={config} updateConfig={vi.fn()} />);
+
+    const swatches = TEXT_COLOR_PRESETS.map((color) =>
+      screen.getByRole('radio', { name: `Select text color ${color}` })
+    );
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[0]);
   });
 });
