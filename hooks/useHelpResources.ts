@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  increment,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { WidgetType } from '@/types';
@@ -293,4 +301,19 @@ export const useHelpItemsForWidget = (
   }, [orgId]);
 
   return state.items.filter((item) => item.widgetTypes.includes(widgetType));
+};
+
+// Deduped per item per page load so reopening the same guide counts once.
+const countedHelpItemIds = new Set<string>();
+
+export const incrementHelpOpenCount = async (itemId: string): Promise<void> => {
+  if (countedHelpItemIds.has(itemId)) return;
+  countedHelpItemIds.add(itemId);
+  try {
+    await updateDoc(doc(db, 'help_resources', itemId), {
+      openCount: increment(1),
+    });
+  } catch (err) {
+    console.warn('[useHelpResources] open count not recorded', err);
+  }
 };

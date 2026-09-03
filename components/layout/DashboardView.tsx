@@ -1695,6 +1695,7 @@ export const DashboardView: React.FC = () => {
         <HelpCenterModal
           isOpen={helpState.open}
           tab={helpState.tab}
+          widgetType={helpState.widgetType}
           onTabChange={(tab) => setHelpState((prev) => ({ ...prev, tab }))}
           onClose={() => setHelpState((prev) => ({ ...prev, open: false }))}
         />

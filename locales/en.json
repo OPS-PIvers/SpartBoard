@@ -2222,7 +2222,23 @@
       "widget": "Widget"
     },
     "guides": {
-      "placeholder": "Guides are coming soon"
+      "allCategories": "All",
+      "categories": "Categories",
+      "empty": "Your admin hasn't added guides yet",
+      "noMatches": "No guides match your search",
+      "back": "Back",
+      "open": "Open",
+      "openExternal": "Open in a new tab",
+      "orgBadge": "Your school",
+      "clearWidgetFilter": "Clear widget filter",
+      "activityUnavailable": "This activity is no longer available",
+      "kinds": {
+        "docs": "Docs",
+        "slides": "Slides",
+        "videos": "Videos",
+        "activities": "Activities",
+        "other": "Other"
+      }
     },
     "shortcuts": {
       "open-help": "Open Help",

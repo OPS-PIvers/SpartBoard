@@ -2222,7 +2222,23 @@
       "widget": "Widget"
     },
     "guides": {
-      "placeholder": "Anleitungen folgen in Kürze"
+      "allCategories": "Alle",
+      "categories": "Kategorien",
+      "empty": "Deine Administration hat noch keine Anleitungen hinzugefügt",
+      "noMatches": "Keine Anleitungen passen zu deiner Suche",
+      "back": "Zurück",
+      "open": "Öffnen",
+      "openExternal": "In neuem Tab öffnen",
+      "orgBadge": "Deine Schule",
+      "clearWidgetFilter": "Widget-Filter entfernen",
+      "activityUnavailable": "Diese Aktivität ist nicht mehr verfügbar",
+      "kinds": {
+        "docs": "Dokumente",
+        "slides": "Präsentationen",
+        "videos": "Videos",
+        "activities": "Aktivitäten",
+        "other": "Sonstiges"
+      }
     },
     "shortcuts": {
       "open-help": "Hilfe öffnen",

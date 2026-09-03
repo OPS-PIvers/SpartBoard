@@ -3,13 +3,16 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Keyboard, LibraryBig, Search, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { HelpShortcutsTab } from './HelpShortcutsTab';
+import { HelpGuidesTab } from './HelpGuidesTab';
 import { setLastHelpTab, type HelpTab } from './helpCenterState';
+import type { WidgetType } from '@/types';
 
 interface HelpCenterModalProps {
   isOpen: boolean;
   tab: HelpTab;
   onTabChange: (tab: HelpTab) => void;
   onClose: () => void;
+  widgetType?: WidgetType;
 }
 
 const TABS: {
@@ -25,6 +28,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
   tab,
   onTabChange,
   onClose,
+  widgetType,
 }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -174,9 +178,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           {tab === 'shortcuts' ? (
             <HelpShortcutsTab query={query} />
           ) : (
-            <p className="text-sm text-slate-500 py-16 text-center">
-              {t('helpCenter.guides.placeholder')}
-            </p>
+            <HelpGuidesTab query={query} widgetType={widgetType} />
           )}
           <p className="mt-8 text-center text-xs text-slate-400">
             <Trans i18nKey="helpCenter.footer" components={{ kbd: <kbd /> }} />

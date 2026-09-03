@@ -9,11 +9,19 @@ import {
   type HelpOpenRequest,
   type HelpTab,
 } from './helpCenterState';
+import type { WidgetType } from '@/types';
 
-const Harness: React.FC<{ initialTab: HelpTab; onClose?: () => void }> = ({
-  initialTab,
-  onClose,
-}) => {
+vi.mock('./HelpGuidesTab', () => ({
+  HelpGuidesTab: ({ widgetType }: { widgetType?: string }) => (
+    <div data-testid="guides-tab">{`Guides tab ${widgetType ?? 'none'}`}</div>
+  ),
+}));
+
+const Harness: React.FC<{
+  initialTab: HelpTab;
+  onClose?: () => void;
+  widgetType?: WidgetType;
+}> = ({ initialTab, onClose, widgetType }) => {
   const [tab, setTab] = React.useState<HelpTab>(initialTab);
   const [open, setOpen] = React.useState(true);
   if (!open) return null;
@@ -21,6 +29,7 @@ const Harness: React.FC<{ initialTab: HelpTab; onClose?: () => void }> = ({
     <HelpCenterModal
       isOpen={open}
       tab={tab}
+      widgetType={widgetType}
       onTabChange={setTab}
       onClose={() => {
         setOpen(false);
@@ -41,9 +50,11 @@ describe('HelpCenterModal', () => {
     expect(screen.getAllByText('Switch boards').length).toBeGreaterThan(0);
   });
 
-  it('opens on the Guides tab with the placeholder', () => {
-    render(<Harness initialTab="guides" />);
-    expect(screen.getByText('Guides are coming soon')).toBeInTheDocument();
+  it('opens on the Guides tab and passes the widget type through', () => {
+    render(<Harness initialTab="guides" widgetType="clock" />);
+    expect(screen.getByTestId('guides-tab')).toHaveTextContent(
+      'Guides tab clock'
+    );
     expect(screen.queryAllByText('Switch boards')).toHaveLength(0);
   });
 
@@ -88,7 +99,7 @@ describe('HelpCenterModal', () => {
     expect(guidesTab).toHaveAttribute('aria-selected', 'true');
     expect(guidesTab).toHaveAttribute('tabindex', '0');
     expect(document.activeElement).toBe(guidesTab);
-    expect(screen.getByText('Guides are coming soon')).toBeInTheDocument();
+    expect(screen.getByTestId('guides-tab')).toBeInTheDocument();
   });
 
   it('closes on Escape', () => {
