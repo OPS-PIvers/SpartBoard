@@ -1,13 +1,12 @@
 /**
- * FreeResponseGrader — one question-major grading queue for every Free
- * Response answer, typed or spoken.
+ * FreeResponseGrader — one grading queue for every Free Response answer,
+ * typed or spoken, walked either question-by-question or student-by-student.
  *
- * Replaces the student-major WrittenResponseGrader and the spoken-only
- * MediaResponseGrader: the student queue sits on the left, the response in
- * the middle, and score / rubric / comments on the right, whichever format
- * the student answered in. Grades key per slot through `gradingKey`; an
- * unsuffixed key is the typed answer or the primary recording slot, so
- * nothing already in `grading` changes meaning.
+ * Grades save themselves: a complete grade is written the moment it is
+ * complete, a partial one is banked when the teacher moves on, and a quick
+ * fill on the Next button shows the grader is about to advance. Grades key
+ * per slot through `gradingKey`; an unsuffixed key is the typed answer or the
+ * primary recording slot, so nothing already in `grading` changes meaning.
  */
 
 import React, {
@@ -19,11 +18,14 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  AlertCircle,
   Ban,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Loader2,
   Mic,
   Pencil,
   Pin,
@@ -61,12 +63,37 @@ import {
 import type { TakeUrlResolver } from '@/utils/quizMediaPlayback';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
-import { hasSubmittedContent } from '@/hooks/useQuizSession';
+import {
+  hasSubmittedContent,
+  isWrittenAnswerAwaitingGrade,
+} from '@/hooks/useQuizSession';
+import {
+  buildGradeFromDraft,
+  clampPoints,
+  isGradeComplete,
+  parsePoints,
+  type Adjudication,
+  type GradeDraft,
+  type GradeDraftContext,
+} from '@/utils/gradeDraft';
+import {
+  buildTraversal,
+  collectStudents,
+  findPosition,
+  nextUngraded,
+  type GraderMode,
+  type TraversalQuestion,
+  type TraversalTarget,
+} from '@/utils/gradeTraversal';
+import { useGradeWriteQueue } from '@/hooks/useGradeWriteQueue';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
 
-type Adjudication = 'none' | 'excuse' | 'blank' | 'substitute';
+export const ADVANCE_DELAY_MS = 900;
+export const POINTS_IDLE_MS = 1500;
+export const REEDIT_DEBOUNCE_MS = 800;
+const ALL_GRADED_PILL_MS = 2000;
 
 /** One gradeable thing for one student on the active question. */
 type GradeTarget =
@@ -83,6 +110,16 @@ interface QueueRow {
   responseKey: string | undefined;
   targets: GradeTarget[];
 }
+
+/** Which control last touched the draft; decides when the write happens. */
+type EditSource =
+  | 'none'
+  | 'rubric'
+  | 'points'
+  | 'comment'
+  | 'annotations'
+  | 'pin'
+  | 'adjudication';
 
 export interface FreeResponseGraderProps {
   quiz: QuizData;
@@ -103,13 +140,29 @@ export interface FreeResponseGraderProps {
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   /** `studentUid` -> namespaced `StudentTargetRef` key, from `useAssignmentPseudonyms`. */
   targetRefKeyByStudentUid?: Map<string, string>;
+  /** Grading order to open in; the header toggle changes it and reports back. */
+  graderMode?: GraderMode;
+  onGraderModeChange?: (mode: GraderMode) => void;
+  /** Whether a finished grade moves the grader on by itself. */
+  autoAdvance?: boolean;
+  onAutoAdvanceChange?: (enabled: boolean) => void;
   onClose: () => void;
 }
 
-const clampPoints = (points: number, maxPoints: number): number =>
-  Math.max(0, Math.min(points, maxPoints));
-
 const responseKeyOf = (r: QuizResponse) => r._responseKey ?? r.studentUid;
+
+const targetSlot = (target: GradeTarget): ArtifactSlot =>
+  target.kind === 'media' ? target.slot.slot : 'primary';
+
+const targetGrade = (target: GradeTarget): WrittenAnswerGrade | undefined =>
+  target.kind === 'media' ? target.slot.grade : target.grade;
+
+/** Graded means a grade exists and no rubric criterion is still open. */
+const targetIsGraded = (question: QuizQuestion, target: GradeTarget) => {
+  const grade = targetGrade(target);
+  if (!grade) return false;
+  return !isWrittenAnswerAwaitingGrade(question, '', grade);
+};
 
 /** One vocabulary for a target's state — the header badge and the rail agree. */
 const targetVocabulary = (
@@ -186,6 +239,15 @@ const adjudicationOf = (grade: WrittenAnswerGrade | undefined): Adjudication =>
         ? 'substitute'
         : 'blank';
 
+const draftFromGrade = (grade: WrittenAnswerGrade | undefined): GradeDraft => ({
+  pointsInput: grade ? String(grade.pointsAwarded) : '',
+  comment: grade?.overallComment ?? '',
+  annotations: grade?.annotations ?? [],
+  rubricScores: grade?.rubricScores ?? [],
+  pinnedTakeIndex: grade?.gradedTakeIndex ?? null,
+  adjudication: adjudicationOf(grade),
+});
+
 /** Every student with something to grade on this question. */
 function buildQueue(
   question: QuizQuestion | undefined,
@@ -240,6 +302,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onClearGrade,
   overridesBySourcedId,
   targetRefKeyByStudentUid,
+  graderMode = 'question',
+  onGraderModeChange,
+  autoAdvance = true,
+  onAutoAdvanceChange,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -258,39 +324,88 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     [quiz.questions, mediaEnabled]
   );
 
+  const [mode, setMode] = useState<GraderMode>(graderMode);
+  const [autoAdvanceOn, setAutoAdvanceOn] = useState(autoAdvance);
   const [questionIdx, setQuestionIdx] = useState(0);
   const [studentIdx, setStudentIdx] = useState(0);
   const [slotName, setSlotName] = useState<ArtifactSlot>('primary');
-  const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [advanceArmed, setAdvanceArmed] = useState(false);
+  const [allGradedUntil, setAllGradedUntil] = useState(0);
 
   if (questionIdx >= questions.length && questions.length > 0) {
     setQuestionIdx(0);
   }
   const question = questions[questionIdx];
 
-  const queue = useMemo(
-    () => buildQueue(question, responses),
-    [question, responses]
-  );
-  if (studentIdx >= queue.length && queue.length > 0) setStudentIdx(0);
-  // An unanswered question must not trap the teacher in the modal-level empty state.
-  const hasAnyQueue = useMemo(
-    () => questions.some((q) => buildQueue(q, responses).length > 0),
+  const queuesByQuestion = useMemo(
+    () => questions.map((q) => buildQueue(q, responses)),
     [questions, responses]
   );
+  const queue = queuesByQuestion[questionIdx] ?? [];
+  // An unanswered question must not trap the teacher in the modal-level empty state.
+  const hasAnyQueue = queuesByQuestion.some((rows) => rows.length > 0);
 
-  const row = queue[studentIdx];
-  const response = row?.response;
-  const responseKey = row?.responseKey;
+  const traversalQuestions = useMemo<TraversalQuestion[]>(
+    () =>
+      queuesByQuestion.map((rows, qi) => ({
+        questionId: questions[qi].id,
+        rows: rows.map((row) => ({
+          studentKey: row.responseKey ?? '',
+          slots: row.targets.map((x) => ({
+            slot: targetSlot(x),
+            isGraded: targetIsGraded(questions[qi], x),
+          })),
+        })),
+      })),
+    [queuesByQuestion, questions]
+  );
+  const traversal = useMemo(
+    () => buildTraversal(mode, traversalQuestions),
+    [mode, traversalQuestions]
+  );
+  // Every student with anything to grade, in first-seen order.
+  const allStudents = useMemo(() => {
+    const byKey = new Map<string, QueueRow>();
+    for (const rows of queuesByQuestion) {
+      for (const row of rows) {
+        const key = row.responseKey ?? '';
+        if (!byKey.has(key)) byKey.set(key, row);
+      }
+    }
+    return collectStudents(traversalQuestions)
+      .map((key) => byKey.get(key))
+      .filter((row): row is QueueRow => !!row)
+      .map((row) => ({ response: row.response, responseKey: row.responseKey }));
+  }, [queuesByQuestion, traversalQuestions]);
+
+  // The left rail lists this question's students, or every student.
+  const students: {
+    response: QuizResponse;
+    responseKey: string | undefined;
+  }[] = mode === 'question' ? queue : allStudents;
+  if (studentIdx >= students.length && students.length > 0) setStudentIdx(0);
+  const student = students[studentIdx];
+  const row: QueueRow | undefined =
+    mode === 'question'
+      ? queue[studentIdx]
+      : queue.find((r) => r.responseKey === student?.responseKey);
+  const response = row?.response ?? student?.response;
+  const responseKey = row?.responseKey ?? student?.responseKey;
   const targets = row?.targets ?? [];
   const target: GradeTarget | undefined =
     targets.find((x) => x.kind === 'media' && x.slot.slot === slotName) ??
     targets[0];
   const slot = target?.kind === 'media' ? target.slot : undefined;
   const textEntry = target?.kind === 'text' ? target.entry : undefined;
-  const savedGrade =
-    target?.kind === 'media' ? target.slot.grade : target?.grade;
+  const savedGrade = target ? targetGrade(target) : undefined;
+  const position = findPosition(
+    traversal,
+    questionIdx,
+    responseKey,
+    target ? targetSlot(target) : slotName
+  );
 
   const nameFor = useCallback(
     (r: QuizResponse) => {
@@ -344,18 +459,54 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const lastAutoFilledPointsRef = useRef('');
   const pointsInputRef = useRef('');
   pointsInputRef.current = pointsInput;
+  const editSourceRef = useRef<EditSource>('none');
+  // Auto-advance arms once per visit, and never for a grade that arrived complete.
+  const wasCompleteOnEnterRef = useRef(false);
+  const completeSeenRef = useRef(false);
+  const lastWrittenRef = useRef(new Map<string, string>());
+
+  const isUnavailable = !!slot?.captureUnavailable;
+  const takes = slot?.takes ?? [];
+  const activeTake = useMemo(() => {
+    if (!slot) return undefined;
+    if (pinnedTakeIndex != null) {
+      const hit = slot.takes.find((x) => x.takeIndex === pinnedTakeIndex);
+      if (hit) return hit;
+    }
+    return selectGradedTake(slot);
+  }, [slot, pinnedTakeIndex]);
+
+  const draftCtx: GradeDraftContext | null = target
+    ? {
+        kind: target.kind,
+        captureUnavailable: isUnavailable,
+        maxPoints,
+        rubricCriteriaCount,
+        teacherUid,
+        answerText: textEntry?.answer ?? '',
+        existingSnapshot: savedGrade?.gradingSnapshot,
+        gradedTakeIndex: activeTake?.takeIndex,
+      }
+    : null;
 
   const targetKey = `${responseKey ?? ''}::${target?.key ?? ''}`;
   if (targetKey !== hydrationKey) {
     setHydrationKey(targetKey);
-    setPointsInput(savedGrade ? String(savedGrade.pointsAwarded) : '');
-    setComment(savedGrade?.overallComment ?? '');
-    setDraftAnnotations(savedGrade?.annotations ?? []);
-    setDraftRubricScores(savedGrade?.rubricScores ?? []);
+    const hydrated = draftFromGrade(savedGrade);
+    setPointsInput(hydrated.pointsInput);
+    setComment(hydrated.comment);
+    setDraftAnnotations(hydrated.annotations);
+    setDraftRubricScores(hydrated.rubricScores);
     setActiveAnnotationId(null);
-    setPinnedTakeIndex(savedGrade?.gradedTakeIndex ?? null);
-    setAdjudication(adjudicationOf(savedGrade));
+    setPinnedTakeIndex(hydrated.pinnedTakeIndex);
+    setAdjudication(hydrated.adjudication);
     setSaveError(null);
+    setAdvanceArmed(false);
+    editSourceRef.current = 'none';
+    completeSeenRef.current = false;
+    wasCompleteOnEnterRef.current = draftCtx
+      ? isGradeComplete(hydrated, draftCtx)
+      : false;
     lastAutoFilledPointsRef.current =
       rubricCriteriaCount > 0 &&
       savedGrade?.rubricScores?.length === rubricCriteriaCount
@@ -370,6 +521,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
   const handleRubricScoresChange = useCallback(
     (scores: WrittenAnswerRubricScore[], derivedPoints: number) => {
+      editSourceRef.current = 'rubric';
       setDraftRubricScores(scores);
       if (rubricCriteriaCount === 0 || scores.length !== rubricCriteriaCount)
         return;
@@ -383,17 +535,13 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     },
     [rubricCriteriaCount, maxPoints]
   );
-
-  const isUnavailable = !!slot?.captureUnavailable;
-  const takes = slot?.takes ?? [];
-  const activeTake = useMemo(() => {
-    if (!slot) return undefined;
-    if (pinnedTakeIndex != null) {
-      const hit = slot.takes.find((x) => x.takeIndex === pinnedTakeIndex);
-      if (hit) return hit;
-    }
-    return selectGradedTake(slot);
-  }, [slot, pinnedTakeIndex]);
+  const handleAnnotationsChange = useCallback(
+    (next: WrittenAnswerAnnotation[]) => {
+      editSourceRef.current = 'annotations';
+      setDraftAnnotations(next);
+    },
+    []
+  );
 
   // Playback: resolve the archived take's bytes from the teacher's own Drive.
   const [takeUrl, setTakeUrl] = useState<string | null>(null);
@@ -440,6 +588,14 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     };
   }, [driveFileId, reloadNonce, tg]);
 
+  const draft: GradeDraft = {
+    pointsInput,
+    comment,
+    annotations: draftAnnotations,
+    rubricScores: draftRubricScores,
+    pinnedTakeIndex,
+    adjudication,
+  };
   const savedPointsStr = savedGrade ? String(savedGrade.pointsAwarded) : '';
   const savedComment = savedGrade?.overallComment ?? '';
   const isDirty = isUnavailable
@@ -451,53 +607,250 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       (pinnedTakeIndex ?? null) !== (savedGrade?.gradedTakeIndex ?? null) ||
       !annotationListsEqual(draftAnnotations, savedGrade?.annotations) ||
       !rubricScoreListsEqual(draftRubricScores, savedGrade?.rubricScores);
-
+  const complete = draftCtx ? isGradeComplete(draft, draftCtx) : false;
+  const pointsOutOfRange =
+    pointsInput.trim() !== '' && parsePoints(pointsInput, maxPoints) === null;
   const substituteNoteMissing =
     isUnavailable && adjudication === 'substitute' && !comment.trim();
-  const saveDisabled =
-    saving ||
-    !target ||
-    (isUnavailable && adjudication === 'none') ||
-    substituteNoteMissing;
 
-  // Navigation re-hydrates the form, so unsaved edits need the same guard as close.
-  const go = useCallback(
-    (fn: () => void) => {
-      if (saving) return;
-      if (isDirty && !window.confirm(tg('discardMessage'))) return;
-      fn();
+  // Latest-value mirrors so flushes triggered by navigation see the current draft.
+  const writeInfoRef = useRef({
+    draft,
+    ctx: draftCtx,
+    targetKey,
+    responseKey,
+    key: target?.key,
+    studentLabel,
+    isDirty,
+  });
+  writeInfoRef.current = {
+    draft,
+    ctx: draftCtx,
+    targetKey,
+    responseKey,
+    key: target?.key,
+    studentLabel,
+    isDirty,
+  };
+
+  const writeQueue = useGradeWriteQueue(onSaveGrade);
+  const { enqueue, flushAll, failed: failedWrites } = writeQueue;
+
+  const commitDraft = useCallback(
+    (silent: boolean): boolean => {
+      const info = writeInfoRef.current;
+      if (!info.ctx || !info.key) return false;
+      if (!info.responseKey) {
+        if (!silent) setSaveError(tg('errors.noIdentifier'));
+        return false;
+      }
+      const built = buildGradeFromDraft(info.draft, info.ctx);
+      if (!built.ok) {
+        if (!silent) setSaveError(tg(`errors.${built.error}`));
+        return false;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { gradedAt, ...stable } = built.grade;
+      const signature = JSON.stringify(stable);
+      if (lastWrittenRef.current.get(info.targetKey) === signature)
+        return false;
+      lastWrittenRef.current.set(info.targetKey, signature);
+      setSaveError(null);
+      enqueue(info.responseKey, info.key, built.grade, info.studentLabel);
+      return true;
     },
-    [saving, isDirty, tg]
+    [enqueue, tg]
   );
-  const goPrevStudent = useCallback(
-    () => go(() => setStudentIdx((i) => Math.max(0, i - 1))),
-    [go]
+
+  const pendingWriteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingWrite = useCallback(() => {
+    if (pendingWriteRef.current) {
+      clearTimeout(pendingWriteRef.current);
+      pendingWriteRef.current = null;
+    }
+  }, []);
+
+  const arm = useCallback(() => {
+    if (!autoAdvanceOn) return;
+    setAdvanceArmed(true);
+  }, [autoAdvanceOn]);
+
+  // Complete grades save themselves; the source of the edit sets the pace.
+  useEffect(() => {
+    cancelPendingWrite();
+    if (!draftCtx || !isDirty || !complete) return;
+    const source = editSourceRef.current;
+    if (source === 'none') return;
+    const firstCompletion = !completeSeenRef.current;
+    completeSeenRef.current = true;
+    const mayArm = !wasCompleteOnEnterRef.current;
+    const rubricActive = rubricCriteriaCount > 0 && !isUnavailable;
+
+    if (source === 'rubric' && firstCompletion) {
+      commitDraft(false);
+      if (mayArm) arm();
+      return;
+    }
+    if (
+      source === 'adjudication' &&
+      (adjudication === 'excuse' || adjudication === 'blank')
+    ) {
+      commitDraft(false);
+      if (mayArm) arm();
+      return;
+    }
+    if (source === 'points' && !rubricActive) {
+      pendingWriteRef.current = setTimeout(() => {
+        pendingWriteRef.current = null;
+        commitDraft(false);
+        if (mayArm) arm();
+      }, POINTS_IDLE_MS);
+      return;
+    }
+    pendingWriteRef.current = setTimeout(() => {
+      pendingWriteRef.current = null;
+      commitDraft(false);
+    }, REEDIT_DEBOUNCE_MS);
+    return cancelPendingWrite;
+    // The draft fields are the trigger; everything else is read through refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    pointsInput,
+    comment,
+    draftAnnotations,
+    draftRubricScores,
+    pinnedTakeIndex,
+    adjudication,
+  ]);
+
+  // Banks whatever is on the form before the target changes.
+  const leaveTarget = useCallback(() => {
+    cancelPendingWrite();
+    setAdvanceArmed(false);
+    if (writeInfoRef.current.isDirty) commitDraft(true);
+  }, [cancelPendingWrite, commitDraft]);
+
+  const jumpTo = useCallback(
+    (next: TraversalTarget) => {
+      leaveTarget();
+      setQuestionIdx(next.questionIdx);
+      const list =
+        mode === 'question' ? queuesByQuestion[next.questionIdx] : allStudents;
+      const idx = list.findIndex((s) => s.responseKey === next.studentKey);
+      setStudentIdx(Math.max(0, idx));
+      setSlotName(next.slot);
+    },
+    [leaveTarget, mode, queuesByQuestion, allStudents]
   );
-  const goNextStudent = useCallback(
-    () =>
-      go(() =>
-        setStudentIdx((i) => Math.min(Math.max(0, queue.length - 1), i + 1))
-      ),
-    [go, queue.length]
+
+  // Moves to the next (or previous) target still owed a grade, wrapping.
+  const advance = useCallback(
+    (dir: 1 | -1) => {
+      const next = nextUngraded(traversal, position, dir);
+      if (next === null) {
+        leaveTarget();
+        setAllGradedUntil(Date.now() + ALL_GRADED_PILL_MS);
+        return;
+      }
+      jumpTo(traversal[next]);
+    },
+    [traversal, position, leaveTarget, jumpTo]
   );
-  const goPrevQuestion = useCallback(
-    () =>
-      go(() => {
-        setQuestionIdx((i) => Math.max(0, i - 1));
-        setStudentIdx(0);
-      }),
-    [go]
+
+  useEffect(() => {
+    if (!advanceArmed) return;
+    const timer = setTimeout(() => advance(1), ADVANCE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [advanceArmed, advance]);
+
+  useEffect(() => {
+    if (allGradedUntil === 0) return;
+    const timer = setTimeout(
+      () => setAllGradedUntil(0),
+      Math.max(0, allGradedUntil - Date.now())
+    );
+    return () => clearTimeout(timer);
+  }, [allGradedUntil]);
+
+  // Any further touch on the right rail means the teacher is not done here.
+  const railRef = useRef<HTMLElement | null>(null);
+  const advanceArmedRef = useRef(false);
+  advanceArmedRef.current = advanceArmed;
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const onTouch = () => {
+      if (advanceArmedRef.current) setAdvanceArmed(false);
+    };
+    rail.addEventListener('pointerdown', onTouch, true);
+    rail.addEventListener('keydown', onTouch, true);
+    return () => {
+      rail.removeEventListener('pointerdown', onTouch, true);
+      rail.removeEventListener('keydown', onTouch, true);
+    };
+  });
+
+  const goPrevStudent = useCallback(() => {
+    leaveTarget();
+    setStudentIdx((i) => Math.max(0, i - 1));
+  }, [leaveTarget]);
+  const goNextStudent = useCallback(() => {
+    leaveTarget();
+    setStudentIdx((i) => Math.min(Math.max(0, students.length - 1), i + 1));
+  }, [leaveTarget, students.length]);
+  const goPrevQuestion = useCallback(() => {
+    leaveTarget();
+    setQuestionIdx((i) => Math.max(0, i - 1));
+    if (mode === 'question') setStudentIdx(0);
+  }, [leaveTarget, mode]);
+  const goNextQuestion = useCallback(() => {
+    leaveTarget();
+    setQuestionIdx((i) => Math.min(Math.max(0, questions.length - 1), i + 1));
+    if (mode === 'question') setStudentIdx(0);
+  }, [leaveTarget, mode, questions.length]);
+  const selectStudent = useCallback(
+    (idx: number) => {
+      leaveTarget();
+      setStudentIdx(idx);
+    },
+    [leaveTarget]
   );
-  const goNextQuestion = useCallback(
-    () =>
-      go(() => {
-        setQuestionIdx((i) =>
-          Math.min(Math.max(0, questions.length - 1), i + 1)
-        );
-        setStudentIdx(0);
-      }),
-    [go, questions.length]
+  const selectSlot = useCallback(
+    (next: ArtifactSlot) => {
+      leaveTarget();
+      setSlotName(next);
+    },
+    [leaveTarget]
   );
+
+  const changeMode = useCallback(
+    (next: GraderMode) => {
+      if (next === mode) return;
+      leaveTarget();
+      // Keep the same student in view across the switch.
+      const key = writeInfoRef.current.responseKey;
+      const list =
+        next === 'question' ? queuesByQuestion[questionIdx] : allStudents;
+      const idx = list.findIndex((s) => s.responseKey === key);
+      setStudentIdx(Math.max(0, idx));
+      setMode(next);
+      onGraderModeChange?.(next);
+    },
+    [
+      mode,
+      leaveTarget,
+      queuesByQuestion,
+      questionIdx,
+      allStudents,
+      onGraderModeChange,
+    ]
+  );
+  const toggleAutoAdvance = useCallback(() => {
+    const next = !autoAdvanceOn;
+    setAutoAdvanceOn(next);
+    if (!next) setAdvanceArmed(false);
+    onAutoAdvanceChange?.(next);
+  }, [autoAdvanceOn, onAutoAdvanceChange]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -510,163 +863,62 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         return;
       if (e.key === 'ArrowLeft' || e.key === 'k') {
         e.preventDefault();
-        goPrevStudent();
+        advance(-1);
       } else if (e.key === 'ArrowRight' || e.key === 'j') {
         e.preventDefault();
-        goNextStudent();
+        advance(1);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [goPrevStudent, goNextStudent]);
+  }, [advance]);
 
-  const handleSave = useCallback(async () => {
-    if (!response || !question || !target) return;
-    if (!responseKey) {
-      setSaveError(tg('errors.noIdentifier'));
-      return;
-    }
-    let grade: WrittenAnswerGrade;
-    if (target.kind === 'media' && isUnavailable) {
-      if (adjudication === 'none') {
-        setSaveError(tg('errors.chooseOutcome'));
+  const handlePointsKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      cancelPendingWrite();
+      if (!complete) {
+        commitDraft(false);
         return;
       }
-      if (adjudication === 'substitute' && !comment.trim()) {
-        setSaveError(tg('errors.noteRequired'));
-        return;
-      }
-      const parsed =
-        adjudication === 'substitute' ? Number(pointsInput.trim() || '0') : 0;
-      if (!Number.isFinite(parsed)) {
-        setSaveError(tg('errors.numericScore'));
-        return;
-      }
-      grade = {
-        pointsAwarded: clampPoints(parsed, maxPoints),
-        ...(adjudication === 'excuse' ? { excused: true } : {}),
-        ...(adjudication === 'substitute'
-          ? { overallComment: comment.trim() }
-          : {}),
-        gradedBy: teacherUid,
-        gradedAt: Date.now(),
-      };
-    } else {
-      const trimmed = pointsInput.trim();
-      // A partial rubric banks its running sum, no typed total needed.
-      const isPartialRubric =
-        rubricCriteriaCount > 0 &&
-        draftRubricScores.length > 0 &&
-        draftRubricScores.length < rubricCriteriaCount;
-      let parsed: number;
-      if (trimmed === '') {
-        if (!isPartialRubric) {
-          setSaveError(tg('errors.numericScore'));
-          return;
-        }
-        parsed = clampPoints(
-          sumRubricScorePoints(draftRubricScores),
-          maxPoints
-        );
-      } else {
-        parsed = Number(trimmed);
-        if (!Number.isFinite(parsed)) {
-          setSaveError(tg('errors.numericScore'));
-          return;
-        }
-        if (parsed < 0 || parsed > maxPoints) {
-          setSaveError(tg('errors.range', { max: maxPoints }));
-          return;
-        }
-      }
-      const rubricScores =
-        draftRubricScores.length > 0 ? draftRubricScores : undefined;
-      if (target.kind === 'media') {
-        const cleaned = draftAnnotations.filter((a) =>
-          (a.comment ?? '').trim()
-        );
-        grade = {
-          pointsAwarded: parsed,
-          overallComment: comment.trim() || undefined,
-          annotations: cleaned.length > 0 ? cleaned : undefined,
-          // Timeline comments are milliseconds, not character offsets.
-          ...(cleaned.length > 0 ? { annotationUnit: 'ms' as const } : {}),
-          rubricScores,
-          gradedTakeIndex: activeTake?.takeIndex,
-          gradedBy: teacherUid,
-          gradedAt: Date.now(),
-        };
-      } else {
-        // The snapshot freezes on the first annotated save so offsets stay anchored.
-        const hasAnnotations = draftAnnotations.length > 0;
-        const existingSnapshot = savedGrade?.gradingSnapshot;
-        const answerText = target.entry.answer ?? '';
-        if (hasAnnotations && !existingSnapshot && !answerText.trim()) {
-          setSaveError(tg('errors.emptyAnnotations'));
-          return;
-        }
-        grade = {
-          pointsAwarded: parsed,
-          overallComment: comment.trim() || undefined,
-          annotations: hasAnnotations ? draftAnnotations : undefined,
-          gradingSnapshot: hasAnnotations
-            ? (existingSnapshot ?? sanitizeQuizResponse(answerText))
-            : existingSnapshot,
-          rubricScores,
-          gradedBy: teacherUid,
-          gradedAt: Date.now(),
-        };
-      }
-    }
-    setSaving(true);
-    setSaveError(null);
-    try {
-      await onSaveGrade(responseKey, target.key, grade);
-      if (studentIdx < queue.length - 1) setStudentIdx(studentIdx + 1);
-    } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : tg('errors.saveFailed')
-      );
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    response,
-    question,
-    target,
-    responseKey,
-    isUnavailable,
-    adjudication,
-    comment,
-    pointsInput,
-    maxPoints,
-    rubricCriteriaCount,
-    draftRubricScores,
-    draftAnnotations,
-    activeTake,
-    savedGrade,
-    teacherUid,
-    onSaveGrade,
-    studentIdx,
-    queue.length,
-    tg,
-  ]);
+      completeSeenRef.current = true;
+      commitDraft(false);
+      arm();
+    },
+    [cancelPendingWrite, complete, commitDraft, arm]
+  );
 
   const handleUndoExcuse = useCallback(async () => {
     if (!onClearGrade || !target || !responseKey) return;
-    setSaving(true);
+    setClearing(true);
     setSaveError(null);
+    setAdvanceArmed(false);
     try {
       await onClearGrade(responseKey, target.key);
+      lastWrittenRef.current.delete(targetKey);
       setHydrationKey('');
     } catch (err) {
       setSaveError(
         err instanceof Error ? err.message : tg('errors.undoFailed')
       );
     } finally {
-      setSaving(false);
+      setClearing(false);
     }
-  }, [onClearGrade, target, responseKey, tg]);
+  }, [onClearGrade, target, responseKey, targetKey, tg]);
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const handleClose = useCallback(() => {
+    leaveTarget();
+    void flushAll().then((failures) => {
+      if (failures.length > 0) {
+        const names = failures.map((f) => f.studentName).join(', ');
+        if (!window.confirm(tg('closeWithFailures', { names }))) return;
+      }
+      onCloseRef.current();
+    });
+  }, [leaveTarget, flushAll, tg]);
 
   if (questions.length === 0 || !hasAnyQueue || !question) {
     const noQuestions = questions.length === 0;
@@ -717,17 +969,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
   const showPoints = !isUnavailable || adjudication === 'substitute';
   const mediaTargets = targets.filter((x) => x.kind === 'media');
+  const showAllGraded = allGradedUntil > 0;
 
   const subtitle = (
     <span className="flex flex-wrap items-center gap-2">
       <span>
         {tg('questionOf', { index: questionIdx + 1, total: questions.length })}
       </span>
-      {target && (
+      {student && (
         <>
           <span className="text-slate-300">·</span>
           <span>
-            {tg('studentOf', { index: studentIdx + 1, total: queue.length })}
+            {tg('studentOf', {
+              index: studentIdx + 1,
+              total: students.length,
+            })}
           </span>
           <span className="font-semibold text-slate-700">{studentLabel}</span>
           <span
@@ -752,24 +1008,107 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     </span>
   );
 
+  const status = writeQueue.status;
+  const statusChip =
+    status === 'saving' ? (
+      <span
+        role="status"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500"
+      >
+        <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin" />
+        {tg('status.saving')}
+      </span>
+    ) : status === 'saved' ? (
+      <span
+        role="status"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"
+      >
+        <Check aria-hidden className="h-3.5 w-3.5" />
+        {tg('status.saved')}
+      </span>
+    ) : status === 'error' ? (
+      <span role="status">
+        <button
+          type="button"
+          onClick={writeQueue.retryAll}
+          title={failedWrites.map((f) => f.studentName).join(', ')}
+          className="inline-flex items-center gap-1 rounded-lg bg-brand-red-lighter/50 px-2 py-1 text-xs font-bold text-brand-red-dark transition-colors hover:bg-brand-red-lighter"
+        >
+          <AlertCircle aria-hidden className="h-3.5 w-3.5" />
+          {tg('status.failed')}
+          <span aria-hidden className="text-brand-red-primary/60">
+            ·
+          </span>
+          {tg('status.retry')}
+        </button>
+      </span>
+    ) : null;
+
   const headerExtras = (
     <>
+      {statusChip}
+      <div
+        role="group"
+        aria-label={tg('mode.label')}
+        className="flex items-center rounded-lg bg-slate-100 p-0.5 text-xs font-bold"
+      >
+        {(['question', 'student'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => changeMode(m)}
+            aria-pressed={mode === m}
+            className={`rounded-md px-2.5 py-1 transition-colors ${
+              mode === m
+                ? 'bg-white text-brand-blue-dark shadow-sm'
+                : 'text-slate-600 hover:bg-white/60'
+            }`}
+          >
+            {tg(`mode.${m}`)}
+          </button>
+        ))}
+      </div>
       <button
         type="button"
-        onClick={goPrevQuestion}
-        disabled={questionIdx === 0 || saving}
-        aria-label={tg('prevQuestion')}
-        title={tg('prevQuestion')}
+        role="switch"
+        aria-checked={autoAdvanceOn}
+        onClick={toggleAutoAdvance}
+        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
+      >
+        <span
+          aria-hidden
+          className={`relative inline-block h-4 w-7 rounded-full transition-colors ${
+            autoAdvanceOn ? 'bg-brand-blue-primary' : 'bg-slate-300'
+          }`}
+        >
+          <span
+            className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
+              autoAdvanceOn ? 'translate-x-3.5' : 'translate-x-0.5'
+            }`}
+          />
+        </span>
+        {tg('autoAdvance')}
+      </button>
+      <button
+        type="button"
+        onClick={mode === 'question' ? goPrevQuestion : goPrevStudent}
+        disabled={mode === 'question' ? questionIdx === 0 : studentIdx === 0}
+        aria-label={tg(mode === 'question' ? 'prevQuestion' : 'prevStudent')}
+        title={tg(mode === 'question' ? 'prevQuestion' : 'prevStudent')}
         className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
       >
         <ChevronLeft aria-hidden className="h-5 w-5" />
       </button>
       <button
         type="button"
-        onClick={goNextQuestion}
-        disabled={questionIdx >= questions.length - 1 || saving}
-        aria-label={tg('nextQuestion')}
-        title={tg('nextQuestion')}
+        onClick={mode === 'question' ? goNextQuestion : goNextStudent}
+        disabled={
+          mode === 'question'
+            ? questionIdx >= questions.length - 1
+            : studentIdx >= students.length - 1
+        }
+        aria-label={tg(mode === 'question' ? 'nextQuestion' : 'nextStudent')}
+        title={tg(mode === 'question' ? 'nextQuestion' : 'nextStudent')}
         className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
       >
         <ChevronRight aria-hidden className="h-5 w-5" />
@@ -783,21 +1122,15 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       title={tg('title')}
       subtitle={subtitle}
       headerExtras={headerExtras}
-      isDirty={isDirty}
-      isSaving={saving}
-      saveDisabled={saveDisabled}
-      saveLabel={
-        studentIdx >= queue.length - 1 ? tg('save') : tg('saveAndNext')
-      }
-      onSave={handleSave}
-      onClose={onClose}
-      confirmDiscardTitle={tg('discardTitle')}
-      confirmDiscardMessage={tg('discardMessage')}
+      isDirty={false}
+      hideSaveButton
+      onSave={() => undefined}
+      onClose={handleClose}
       bodyClassName="!p-0 !overflow-hidden"
       saveErrorMessage={false}
     >
       <div className="grid h-full min-h-0 grid-cols-[minmax(180px,1fr)_2.4fr_1.2fr]">
-        {/* Left rail — the student queue for THIS question. */}
+        {/* Left rail — the student queue. */}
         <nav
           aria-label={tg('queueLabel')}
           className="overflow-y-auto border-r border-slate-200 bg-slate-50"
@@ -806,17 +1139,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             {tg('queueLabel')}
           </p>
           <ul>
-            {queue.map((entry, idx) => {
+            {students.map((entry, idx) => {
+              const entryRow =
+                mode === 'question'
+                  ? queue[idx]
+                  : queue.find((r) => r.responseKey === entry.responseKey);
               const entryTarget =
-                entry.targets.find(
+                entryRow?.targets.find(
                   (x) => x.kind === 'media' && x.slot.slot === slotName
-                ) ?? entry.targets[0];
+                ) ?? entryRow?.targets[0];
               const vocabulary = targetVocabulary(entryTarget);
               return (
                 <li key={entry.responseKey ?? idx}>
                   <button
                     type="button"
-                    onClick={() => go(() => setStudentIdx(idx))}
+                    onClick={() => selectStudent(idx)}
                     aria-current={idx === studentIdx ? 'true' : undefined}
                     className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
                       idx === studentIdx
@@ -842,7 +1179,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         {/* Center — the response itself. */}
         <section className="overflow-y-auto bg-slate-50">
           <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur">
-            <p className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               {tg('questionLabel')}
               <span className="text-slate-300">·</span>
               {question.recording ? (
@@ -853,7 +1190,39 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               <span>
                 {tg(question.recording ? 'format.spoken' : 'format.typed')}
               </span>
-            </p>
+              {mode === 'student' && (
+                <span
+                  role="group"
+                  aria-label={tg('questionLabel')}
+                  className="ml-auto inline-flex items-center gap-0.5 normal-case tracking-normal"
+                >
+                  <button
+                    type="button"
+                    onClick={goPrevQuestion}
+                    disabled={questionIdx === 0}
+                    aria-label={tg('prevQuestion')}
+                    className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <ChevronLeft aria-hidden className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-[4.5rem] text-center text-xs font-bold text-slate-700">
+                    {tg('questionStep', {
+                      index: questionIdx + 1,
+                      total: questions.length,
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={goNextQuestion}
+                    disabled={questionIdx >= questions.length - 1}
+                    aria-label={tg('nextQuestion')}
+                    className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <ChevronRight aria-hidden className="h-4 w-4" />
+                  </button>
+                </span>
+              )}
+            </div>
             <p className="text-sm font-semibold leading-snug text-slate-900">
               {question.text}
             </p>
@@ -880,7 +1249,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     <button
                       key={x.slot.slot}
                       type="button"
-                      onClick={() => go(() => setSlotName(x.slot.slot))}
+                      onClick={() => selectSlot(x.slot.slot)}
                       aria-pressed={x.slot.slot === slot.slot}
                       className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
                         x.slot.slot === slot.slot
@@ -919,7 +1288,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     snapshot={snapshotForList}
                     annotations={draftAnnotations}
                     authorUid={teacherUid}
-                    onChange={setDraftAnnotations}
+                    onChange={handleAnnotationsChange}
                     activeId={activeAnnotationId}
                     onActiveIdChange={setActiveAnnotationId}
                   />
@@ -945,7 +1314,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       <button
                         key={choice}
                         type="button"
-                        onClick={() => setAdjudication(choice)}
+                        onClick={() => {
+                          editSourceRef.current = 'adjudication';
+                          setAdjudication(choice);
+                        }}
                         aria-pressed={adjudication === choice}
                         className={`rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                           adjudication === choice
@@ -986,18 +1358,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   driveFileId ? () => setReloadNonce((n) => n + 1) : undefined
                 }
                 annotations={draftAnnotations}
-                onChange={setDraftAnnotations}
+                onChange={handleAnnotationsChange}
                 authorUid={teacherUid}
                 activeId={activeAnnotationId}
                 onActiveIdChange={setActiveAnnotationId}
-                disabled={saving}
+                disabled={false}
               />
             )}
           </div>
         </section>
 
         {/* Right rail — rubric, score, comment, takes or highlights. */}
-        <aside className="flex flex-col gap-5 overflow-y-auto border-l border-slate-200 bg-white p-5">
+        <aside
+          ref={railRef}
+          className="flex flex-col gap-5 overflow-y-auto border-l border-slate-200 bg-white p-5"
+        >
           {target &&
             showPoints &&
             effectiveRubric &&
@@ -1038,14 +1413,24 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   min={0}
                   max={maxPoints}
                   value={pointsInput}
-                  onChange={(e) => setPointsInput(e.target.value)}
-                  className="w-28 rounded-lg border-2 border-emerald-500/30 bg-white px-3 py-2 text-lg font-bold text-emerald-800 focus:border-emerald-500 focus:outline-none"
+                  onChange={(e) => {
+                    editSourceRef.current = 'points';
+                    setPointsInput(e.target.value);
+                  }}
+                  onKeyDown={handlePointsKeyDown}
+                  aria-invalid={pointsOutOfRange || undefined}
+                  className="w-28 rounded-lg border-2 border-emerald-500/30 bg-white px-3 py-2 text-lg font-bold text-emerald-800 focus:border-emerald-500 focus:outline-none aria-[invalid]:border-brand-red-primary/60"
                   placeholder="0"
                 />
                 <span className="font-mono text-base text-slate-500">
                   / {maxPoints}
                 </span>
               </div>
+              {pointsOutOfRange && (
+                <p className="mt-1.5 text-xs font-bold text-brand-red-dark">
+                  {tg('errors.range', { max: maxPoints })}
+                </p>
+              )}
             </div>
           )}
 
@@ -1062,7 +1447,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               <textarea
                 id="grade-comment"
                 value={comment}
-                onChange={(e) => setComment(e.target.value)}
+                onChange={(e) => {
+                  editSourceRef.current = 'comment';
+                  setComment(e.target.value);
+                }}
                 rows={5}
                 aria-required={adjudication === 'substitute'}
                 placeholder={tg('commentPlaceholder')}
@@ -1103,7 +1491,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     <li key={take.artifact.id}>
                       <button
                         type="button"
-                        onClick={() => setPinnedTakeIndex(take.takeIndex)}
+                        onClick={() => {
+                          editSourceRef.current = 'pin';
+                          setPinnedTakeIndex(take.takeIndex);
+                        }}
                         aria-pressed={isActive}
                         className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
                           isActive
@@ -1149,7 +1540,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 <button
                   type="button"
                   onClick={handleUndoExcuse}
-                  disabled={saving}
+                  disabled={clearing}
                   className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Undo2 aria-hidden className="h-3.5 w-3.5" />
@@ -1159,25 +1550,48 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             </div>
           )}
 
-          <div className="mt-auto flex items-center gap-1">
-            <button
-              type="button"
-              onClick={goPrevStudent}
-              disabled={studentIdx === 0 || saving}
-              aria-label={tg('prevStudent')}
-              className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <ChevronLeft aria-hidden className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={goNextStudent}
-              disabled={studentIdx >= queue.length - 1 || saving}
-              aria-label={tg('nextStudent')}
-              className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <ChevronRight aria-hidden className="h-4 w-4" />
-            </button>
+          <div className="mt-auto flex flex-col gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => advance(-1)}
+                aria-label={tg('prev')}
+                className="shrink-0 rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100"
+              >
+                <ChevronLeft aria-hidden className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => advance(1)}
+                aria-label={tg('next')}
+                data-advance-armed={advanceArmed || undefined}
+                className="relative inline-flex shrink-0 items-center gap-1 overflow-hidden rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                <span
+                  aria-hidden
+                  data-testid="advance-fill"
+                  className={`absolute inset-0 origin-left bg-brand-blue-primary/20 transition-transform ease-linear [transition-duration:900ms] motion-reduce:transition-none ${
+                    advanceArmed ? 'scale-x-100' : 'scale-x-0'
+                  }`}
+                />
+                <span className="relative">{tg('next')}</span>
+                <ChevronRight aria-hidden className="relative h-4 w-4" />
+              </button>
+              {advanceArmed && (
+                <span role="status" className="sr-only">
+                  {tg('advancing')}
+                </span>
+              )}
+              {showAllGraded && (
+                <span
+                  role="status"
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700"
+                >
+                  <CheckCircle2 aria-hidden className="h-3 w-3" />
+                  {tg('allGraded')}
+                </span>
+              )}
+            </div>
             <p className="text-xs leading-relaxed text-slate-500">
               {tg(isMedia ? 'keyboardHint' : 'keyboardHintText')}
             </p>

@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import {
+  render,
+  cleanup,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
@@ -13,7 +19,7 @@ vi.mock('@/context/useDialog', () => ({
 }));
 
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
-import type { QuizData, QuizResponse } from '@/types';
+import type { QuizData, QuizResponse, WrittenAnswerGrade } from '@/types';
 
 afterEach(cleanup);
 
@@ -84,14 +90,17 @@ describe('FreeResponseGrader — Escape with widget portal', () => {
 });
 
 describe('FreeResponseGrader — Escape with unsaved edits', () => {
-  it('routes Escape through the shell dirty-check instead of closing outright', () => {
+  it('banks the edit and closes, with no discard prompt', async () => {
     showConfirm.mockClear();
     const onClose = vi.fn();
+    const onSaveGrade = vi
+      .fn<(rk: string, k: string, g: WrittenAnswerGrade) => Promise<void>>()
+      .mockResolvedValue(undefined);
     render(
       <FreeResponseGrader
         quiz={quiz}
         responses={[response]}
-        onSaveGrade={vi.fn().mockResolvedValue(undefined)}
+        onSaveGrade={onSaveGrade}
         teacherUid="teacher-1"
         onClose={onClose}
       />
@@ -102,7 +111,9 @@ describe('FreeResponseGrader — Escape with unsaved edits', () => {
     });
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(showConfirm).not.toHaveBeenCalled();
+    expect(onSaveGrade).toHaveBeenCalledTimes(1);
+    expect(onSaveGrade.mock.calls[0][2].pointsAwarded).toBe(5);
   });
 });

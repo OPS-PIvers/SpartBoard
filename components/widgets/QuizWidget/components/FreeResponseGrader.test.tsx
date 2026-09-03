@@ -1,6 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import '@/i18n';
 
 // EditorModalShell reaches for the dashboard toast bus and the dialog service;
@@ -275,10 +281,10 @@ describe('FreeResponseGrader take pinning', () => {
         .getAttribute('aria-pressed')
     ).toBe('true');
 
-    fireEvent.change(screen.getByLabelText(/Points awarded/i), {
-      target: { value: '3' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
+    const pts = screen.getByLabelText(/Points awarded/i);
+    fireEvent.change(pts, { target: { value: '3' } });
+    // Enter commits the score without waiting for the idle timer.
+    fireEvent.keyDown(pts, { key: 'Enter' });
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [, key, grade] = onSave.mock.calls[0] as [
@@ -302,10 +308,9 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
     ).toBeTruthy();
   });
 
-  it('writes excused: true for Excuse', async () => {
+  it('writes excused: true for Excuse, with no Save click', async () => {
     const onSave = renderGrader([unavailable('grace')]);
     fireEvent.click(screen.getByRole('button', { name: /^Excuse/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const grade = onSave.mock.calls[0][2];
     expect(grade.excused).toBe(true);
@@ -316,7 +321,6 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
   it('writes a bare zero-point grade for Blank', async () => {
     const onSave = renderGrader([unavailable('grace')]);
     fireEvent.click(screen.getByRole('button', { name: /^Blank/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const grade = onSave.mock.calls[0][2];
     expect(grade.excused).toBeUndefined();
@@ -324,22 +328,22 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
     expect(grade.pointsAwarded).toBe(0);
   });
 
-  it('blocks Save until an offline substitute carries its mandatory note', async () => {
+  it('holds an offline substitute until it carries its mandatory note', async () => {
     const onSave = renderGrader([unavailable('grace')]);
     fireEvent.click(
       screen.getByRole('button', { name: /^Offline substitute/ })
     );
-    const save = screen.getByRole('button', { name: /Save grade/i });
-    expect(save.hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('alert').textContent).toMatch(/needs a note/i);
+    // Moving on with no note banks nothing.
+    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    expect(onSave).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText(/Note \(required\)/i), {
       target: { value: 'Answered aloud at my desk.' },
     });
-    fireEvent.change(screen.getByLabelText(/Points awarded/i), {
-      target: { value: '2' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
+    const pts = screen.getByLabelText(/Points awarded/i);
+    fireEvent.change(pts, { target: { value: '2' } });
+    fireEvent.keyDown(pts, { key: 'Enter' });
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const grade = onSave.mock.calls[0][2];
@@ -348,13 +352,11 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
     expect(grade.gradedTakeIndex).toBeUndefined();
   });
 
-  it('cannot be saved before the teacher picks an outcome', () => {
-    renderGrader([unavailable('grace')]);
-    expect(
-      screen
-        .getByRole('button', { name: /Save grade/i })
-        .hasAttribute('disabled')
-    ).toBe(true);
+  it('writes nothing before the teacher picks an outcome', async () => {
+    const onSave = renderGrader([unavailable('grace')]);
+    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    await act(() => Promise.resolve());
+    expect(onSave).not.toHaveBeenCalled();
   });
 });
 
@@ -392,10 +394,9 @@ describe('FreeResponseGrader time-anchored comments', () => {
     fireEvent.change(screen.getByLabelText('Comment at 0:00'), {
       target: { value: 'Nice framing here.' },
     });
-    fireEvent.change(screen.getByLabelText(/Points awarded/i), {
-      target: { value: '4' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Save grade/i }));
+    const pts = screen.getByLabelText(/Points awarded/i);
+    fireEvent.change(pts, { target: { value: '4' } });
+    fireEvent.keyDown(pts, { key: 'Enter' });
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const grade = onSave.mock.calls[0][2];
@@ -468,11 +469,11 @@ describe('FreeResponseGrader take numbering', () => {
   });
 });
 
-describe('FreeResponseGrader close guard', () => {
-  it('routes Escape through the shell dirty-check instead of closing outright', async () => {
+describe('FreeResponseGrader close', () => {
+  it('banks the pending edit on Escape and closes without a discard prompt', async () => {
     showConfirm.mockClear();
     const onClose = vi.fn();
-    renderGrader([recorded('ada', 1)], undefined, onClose);
+    const onSave = renderGrader([recorded('ada', 1)], undefined, onClose);
     await screen.findByLabelText(/Points awarded/i);
     fireEvent.change(screen.getByLabelText(/Points awarded/i), {
       target: { value: '3' },
@@ -480,7 +481,31 @@ describe('FreeResponseGrader close guard', () => {
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
-    expect(showConfirm).toHaveBeenCalledTimes(1);
-    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(showConfirm).not.toHaveBeenCalled();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][2].pointsAwarded).toBe(3);
+  });
+
+  it('asks before closing when a grade could not be saved', async () => {
+    const onClose = vi.fn();
+    const failing = vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
+      Promise.reject(new Error('offline'))
+    );
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    try {
+      renderGrader([recorded('ada', 1)], failing, onClose);
+      await screen.findByLabelText(/Points awarded/i);
+      fireEvent.change(screen.getByLabelText(/Points awarded/i), {
+        target: { value: '3' },
+      });
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+
+      await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(1));
+      expect(confirmSpy.mock.calls[0][0]).toMatch(/Ada Lovelace/);
+      expect(onClose).not.toHaveBeenCalled();
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 });

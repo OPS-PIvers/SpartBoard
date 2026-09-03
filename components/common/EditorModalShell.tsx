@@ -27,6 +27,8 @@ interface EditorModalShellProps {
   saveLabel?: string;
   saveDisabled?: boolean;
   footerExtras?: React.ReactNode;
+  /** Editors that persist on their own drop the Save button; Cancel becomes Close. */
+  hideSaveButton?: boolean;
   onSave: () => void | Promise<void>;
   onClose: () => void;
   confirmDiscardMessage?: string;
@@ -65,6 +67,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   saveLabel = 'Save',
   saveDisabled = false,
   footerExtras,
+  hideSaveButton = false,
   onSave,
   onClose,
   confirmDiscardMessage = 'You have unsaved changes. Discard them?',
@@ -197,20 +200,30 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
             onClick={() => void requestClose()}
             className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
           >
-            Cancel
+            {hideSaveButton ? 'Close' : 'Cancel'}
           </button>
-          <button
-            onClick={() => void handleSave()}
-            disabled={saveDisabled || isSaving}
-            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {saveLabel}
-          </button>
+          {!hideSaveButton && (
+            <button
+              onClick={() => void handleSave()}
+              disabled={saveDisabled || isSaving}
+              className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saveLabel}
+            </button>
+          )}
         </div>
       </div>
     ),
-    [footerExtras, requestClose, handleSave, saveDisabled, isSaving, saveLabel]
+    [
+      footerExtras,
+      hideSaveButton,
+      requestClose,
+      handleSave,
+      saveDisabled,
+      isSaving,
+      saveLabel,
+    ]
   );
 
   return (

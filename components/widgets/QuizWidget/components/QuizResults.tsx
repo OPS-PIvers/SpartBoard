@@ -282,6 +282,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     googleAccessToken,
     refreshGoogleToken,
     canAccessQuizMediaResponse,
+    quizGraderMode,
+    quizGraderAutoAdvance,
+    updateAccountPreferences,
   } = useAuth();
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
@@ -1860,6 +1863,18 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           onClearGrade={clearWrittenGrade}
           overridesBySourcedId={overridesBySourcedId}
           targetRefKeyByStudentUid={targetRefKeyByStudentUid}
+          graderMode={quizGraderMode}
+          autoAdvance={quizGraderAutoAdvance}
+          onGraderModeChange={(mode) =>
+            void updateAccountPreferences({ quizGraderMode: mode }).catch(
+              () => undefined
+            )
+          }
+          onAutoAdvanceChange={(enabled) =>
+            void updateAccountPreferences({
+              quizGraderAutoAdvance: enabled,
+            }).catch(() => undefined)
+          }
           onClose={() => setShowGrader(false)}
         />
       )}
