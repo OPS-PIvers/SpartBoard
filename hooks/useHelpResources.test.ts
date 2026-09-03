@@ -204,6 +204,50 @@ describe('useHelpResources', () => {
     expect(result.current.items.map((i) => i.id)).toEqual(['g1']);
     expect(result.current.error).toBeTruthy();
   });
+
+  it('clears a prior error once the org query recovers', async () => {
+    let orgOnNext: ((snap: { docs: unknown[] }) => void) | undefined;
+    let orgOnError: ((err: Error) => void) | undefined;
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: { clauses?: unknown[] } | string,
+        onNext: (snap: { data?: () => unknown; docs?: unknown[] }) => void,
+        onError?: (err: Error) => void
+      ) => {
+        if (ref === 'help_center/config-ref') {
+          queueMicrotask(() => onNext({ data: () => undefined }));
+          return () => undefined;
+        }
+        const clauses = (ref as { clauses: unknown[] }).clauses;
+        const [, , value] = clauses[0] as [string, string, unknown];
+        if (value === null) {
+          queueMicrotask(() =>
+            onNext({ docs: [{ id: 'g1', data: () => rawGlobalItem }] })
+          );
+        } else {
+          orgOnNext = onNext as (snap: { docs: unknown[] }) => void;
+          orgOnError = onError;
+          queueMicrotask(() => onError?.(new Error('permission-denied')));
+        }
+        return () => undefined;
+      }
+    );
+
+    const { result } = renderHook(
+      () => useHelpResources({ includeHidden: false }),
+      { wrapper: makeAuthWrapper({ orgId: 'orono' }) }
+    );
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(orgOnError).toBeDefined();
+
+    act(() => {
+      orgOnNext?.({ docs: [{ id: 'o1', data: () => rawOrgItem }] });
+    });
+
+    await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current.items.map((i) => i.id).sort()).toEqual(['g1', 'o1']);
+  });
 });
 
 describe('useHelpItemsForWidget', () => {
@@ -306,5 +350,52 @@ describe('useHelpItemsForWidget', () => {
 
     expect(unsubGlobal).toHaveBeenCalledTimes(1);
     expect(unsubOrg).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not return stale items to a fresh subscriber after teardown and doc deletion', async () => {
+    let itemDeleted = false;
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: { clauses: unknown[] },
+        onNext: (snap: { docs: unknown[] }) => void
+      ) => {
+        const [, , value] = ref.clauses[0] as [string, string, unknown];
+        if (value === null) {
+          queueMicrotask(() =>
+            onNext({
+              docs: itemDeleted
+                ? []
+                : [{ id: 'w1', data: () => rawGlobalItem }],
+            })
+          );
+        } else {
+          queueMicrotask(() => onNext({ docs: [] }));
+        }
+        return () => undefined;
+      }
+    );
+
+    const wrapper = makeAuthWrapper({ orgId: 'orono' });
+    const { result: r1, unmount } = renderHook(
+      () => useHelpItemsForWidget('clock'),
+      { wrapper }
+    );
+    await waitFor(() => expect(r1.current).toHaveLength(1));
+
+    act(() => {
+      unmount();
+    });
+
+    // Simulate the item being deleted while there are no subscribers.
+    itemDeleted = true;
+
+    const { result: r2 } = renderHook(() => useHelpItemsForWidget('clock'), {
+      wrapper,
+    });
+
+    // The fresh subscriber must never observe the stale pre-teardown item,
+    // not even in the instant before the new snapshot resolves.
+    expect(r2.current).toHaveLength(0);
+    await waitFor(() => expect(r2.current).toHaveLength(0));
   });
 });

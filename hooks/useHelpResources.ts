@@ -43,8 +43,7 @@ export const useHelpResources = ({
   const [globalLoaded, setGlobalLoaded] = useState(false);
   const [orgLoaded, setOrgLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Reset orgLoaded synchronously when orgId changes, during render rather
-  // than in an effect (see "adjusting state while rendering" in CLAUDE.md).
+  // Reset orgLoaded synchronously when orgId changes, during render rather than in an effect (CLAUDE.md "adjusting state while rendering").
   const [trackedOrgId, setTrackedOrgId] = useState(orgId);
   if (trackedOrgId !== orgId) {
     setTrackedOrgId(orgId);
@@ -57,6 +56,7 @@ export const useHelpResources = ({
       (snap) => {
         setCategories(normalizeHelpCenterConfig(snap.data()).categories);
         setConfigLoaded(true);
+        setError(null);
       },
       (err) => {
         logError('useHelpResources config', err);
@@ -81,6 +81,7 @@ export const useHelpResources = ({
         });
         setGlobalItems(next);
         setGlobalLoaded(true);
+        setError(null);
       },
       (err) => {
         logError('useHelpResources global', err);
@@ -107,6 +108,7 @@ export const useHelpResources = ({
         });
         setOrgItems(next);
         setOrgLoaded(true);
+        setError(null);
       },
       (err) => {
         // Teacher hook must tolerate permission-denied on the org query.
@@ -134,9 +136,7 @@ export const useHelpResources = ({
   };
 };
 
-// Module-level shared listener: created lazily on the first subscriber,
-// torn down when the last unsubscribes, so many SettingsPanel mounts
-// share one Firestore subscription per page.
+// Module-level shared listener: created lazily on the first subscriber, torn down when the last unsubscribes, so many SettingsPanel mounts share one Firestore subscription per page.
 interface SharedHelpState {
   items: HelpResourceItem[];
   loading: boolean;
@@ -243,6 +243,7 @@ export const useHelpItemsForWidget = (
         sharedGlobalLoaded = false;
         sharedOrgLoaded = true;
         sharedOrgId = undefined;
+        sharedState = { items: [], loading: true };
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

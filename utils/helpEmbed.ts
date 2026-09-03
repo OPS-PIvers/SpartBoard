@@ -37,6 +37,5 @@ export const inferHelpEmbedType = (url: string): HelpEmbedType => {
   return 'other';
 };
 
-// Delegates to the shared converter; callers compare the result to the
-// input to decide whether to render an iframe or an open-in-new-tab card.
+// Delegates to the shared converter; callers compare the result to the input to decide whether to render an iframe or an open-in-new-tab card.
 export const toHelpEmbedSrc = (url: string): string => convertToEmbedUrl(url);

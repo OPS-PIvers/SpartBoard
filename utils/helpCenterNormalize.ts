@@ -6,8 +6,7 @@ import {
 } from '@/types/helpCenter';
 import type { WidgetType } from '@/types';
 
-// Returns null when required fields (kind, title) are missing so callers
-// can skip malformed docs rather than render broken items.
+// Returns null when required fields (kind, title) are missing so callers can skip malformed docs rather than render broken items.
 export const normalizeHelpResourceItem = (
   id: string,
   data: Record<string, unknown>
