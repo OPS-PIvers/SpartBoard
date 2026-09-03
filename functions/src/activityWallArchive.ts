@@ -401,6 +401,31 @@ export async function claimSubmissionForArchive(
       // Terminal: never resume a submission the sweep already gave up on.
       return { kind: 'skipped', archiveStatus: 'lost' };
     }
+    if (status !== 'syncing' && status !== 'firebase' && status !== 'failed') {
+      return { kind: 'skipped', archiveStatus: status };
+    }
+    if (status === 'syncing') {
+      const startedAt =
+        typeof data.archiveStartedAt === 'number' ? data.archiveStartedAt : 0;
+      if (now - startedAt < ARCHIVE_CLAIM_STALE_MS) {
+        return { kind: 'skipped', archiveStatus: 'syncing' };
+      }
+    }
+    const attemptCount =
+      typeof data.attemptCount === 'number' ? data.attemptCount : 0;
+    // Capped before the resume branch: a permanently failing permission step
+    // would otherwise be resumed by the sweeper forever.
+    if (attemptCount >= MAX_ARCHIVE_ATTEMPTS) {
+      tx.set(
+        submissionRef,
+        {
+          archiveStatus: 'lost',
+          archiveStartedAt: admin.firestore.FieldValue.delete(),
+        },
+        { merge: true }
+      );
+      return { kind: 'skipped', archiveStatus: 'lost' };
+    }
     if (driveFileId) {
       // The Drive copy already exists from a prior attempt; only the
       // permission or the terminal Firestore write failed. Resume from
@@ -415,20 +440,6 @@ export async function claimSubmissionForArchive(
         { merge: true }
       );
       return { kind: 'resume', driveFileId };
-    }
-    if (status === 'syncing') {
-      const startedAt =
-        typeof data.archiveStartedAt === 'number' ? data.archiveStartedAt : 0;
-      if (now - startedAt < ARCHIVE_CLAIM_STALE_MS) {
-        return { kind: 'skipped', archiveStatus: 'syncing' };
-      }
-    } else if (status !== 'firebase' && status !== 'failed') {
-      return { kind: 'skipped', archiveStatus: status };
-    }
-    const attemptCount =
-      typeof data.attemptCount === 'number' ? data.attemptCount : 0;
-    if (status === 'failed' && attemptCount >= MAX_ARCHIVE_ATTEMPTS) {
-      return { kind: 'skipped', archiveStatus: 'lost' };
     }
     tx.set(
       submissionRef,
@@ -721,13 +732,14 @@ export async function archiveActivityWallMediaCore(
         typeof data.attemptCount === 'number' ? data.attemptCount : 0;
       // A teacher who never connected Drive must not exhaust the attempts.
       const attemptCount = needsConsent ? previous : previous + 1;
-      // A resumed submission already has a Drive file; only post-upload
-      // steps can be failing, so the orphaned file is recoverable — never
-      // settle at 'lost', stay 'failed' and re-sweepable.
-      const archiveStatus =
-        needsConsent || driveFileId
-          ? 'failed'
-          : resolveFailedArchiveStatus(attemptCount, unrecoverable);
+      // A resumed submission's orphaned Drive file is recoverable, so an
+      // unrecoverable error stays 'failed' — but the attempt cap still ends it.
+      const archiveStatus = needsConsent
+        ? 'failed'
+        : resolveFailedArchiveStatus(
+            attemptCount,
+            unrecoverable && !driveFileId
+          );
       tx.set(
         submissionRef,
         {

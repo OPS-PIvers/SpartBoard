@@ -32,6 +32,8 @@ export interface MakeEngagementFooterOptions {
   identificationMode: ActivityWallIdentificationMode;
   /** Known viewer label (student page); comment composers skip the name/PIN inputs. */
   participantLabel?: string;
+  /** Wall's name visibility; false masks commenter labels. */
+  showNames: boolean;
   engagement: WallEngagement;
 }
 
@@ -46,6 +48,7 @@ export const makeEngagementFooter = ({
   flags,
   identificationMode,
   participantLabel,
+  showNames,
   engagement,
 }: MakeEngagementFooterOptions): RenderEngagementFooter | undefined => {
   if (!flags.allowLikes && !flags.allowComments) return undefined;
@@ -57,6 +60,7 @@ export const makeEngagementFooter = ({
       flags,
       identificationMode,
       participantLabel,
+      showNames,
       likeInfo: engagement.likeIndex.get(submission.id) ?? EMPTY_LIKE_INFO,
       comments: engagement.commentsBySubmission.get(submission.id) ?? [],
       onToggleLike: engagement.toggleLike,

@@ -29,6 +29,7 @@ const renderFooter = (overrides: Partial<EngagementFooterProps> = {}) => {
       allowCommentResponses: true,
     },
     identificationMode: 'anonymous',
+    showNames: true,
     likeInfo: { count: 0, viewerLiked: false },
     comments: [],
     onToggleLike: vi.fn().mockResolvedValue(undefined),
@@ -156,5 +157,14 @@ describe('EngagementFooter', () => {
       await screen.findByText(/could not post your comment/i)
     ).toBeInTheDocument();
     consoleSpy.mockRestore();
+  });
+
+  it('masks commenter labels when showNames is false', () => {
+    renderFooter({
+      showNames: false,
+      comments: [comment(), comment({ id: 'c2', parentCommentId: 'c1' })],
+    });
+    expect(screen.queryByText('Ada')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Anonymous')).toHaveLength(2);
   });
 });

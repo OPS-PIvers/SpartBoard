@@ -85,11 +85,7 @@ const EMPTY_STUDENTS: LiveStudent[] = [];
 // Gesture constants
 const SWIPE_MIN_DISTANCE_PX = 60; // minimum travel to count as a deliberate swipe
 
-// Two-finger swipe-down minimize is OFF: on a touchscreen it fires on an
-// ordinary two-finger scroll, and a minimized widget renders at opacity 0, so
-// teachers read it as the widget vanishing mid-lesson. The gesture code below
-// is kept behind this flag (now guarded against scrollable origins) so it can
-// be re-enabled once the interaction has a visible, undoable affordance.
+// Off: it fired on ordinary two-finger scrolls and minimized widgets render at opacity 0, reading as the widget vanishing.
 const SWIPE_MINIMIZE_ENABLED = false;
 const SIDEBAR_EDGE_SWIPE_WIDTH_PX = 40; // left-edge zone that triggers sidebar open
 
@@ -552,6 +548,11 @@ export const DashboardView: React.FC = () => {
         hasScrollableAncestor(e.target);
     };
 
+    const onTouchEnd = (e: TouchEvent) => {
+      // Clear on the last finger up so the next gesture starts fresh.
+      if (e.touches.length === 0) touchStartInScrollable.current = false;
+    };
+
     const onTouchMove = (e: TouchEvent) => {
       if (!e.cancelable) return;
       if (document.body.classList.contains('is-dragging-widget')) {
@@ -569,9 +570,13 @@ export const DashboardView: React.FC = () => {
 
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
     return () => {
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
     };
   }, []);
 
