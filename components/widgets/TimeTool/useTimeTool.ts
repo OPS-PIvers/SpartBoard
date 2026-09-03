@@ -37,15 +37,19 @@ export const useTimeTool = (widget: WidgetData) => {
   // subtle write-skew where stale local config could overwrite a newer
   // remote-synced config on the same render tick.
   const handleStop = useCallback(
-    (finalTime?: number) => {
+    (finalTime?: number, opts?: { skipHistory?: boolean }) => {
       const timeToSave = finalTime ?? runningDisplayTimeRef.current;
-      updateWidget(widget.id, {
-        config: {
-          isRunning: false,
-          elapsedTime: timeToSave,
-          startTime: null,
-        } as WidgetConfig,
-      });
+      updateWidget(
+        widget.id,
+        {
+          config: {
+            isRunning: false,
+            elapsedTime: timeToSave,
+            startTime: null,
+          } as WidgetConfig,
+        },
+        opts
+      );
       cancelRaf();
     },
     [updateWidget, widget.id, cancelRaf]
@@ -167,7 +171,8 @@ export const useTimeTool = (widget: WidgetData) => {
         setRunningDisplayTime(nextTime);
 
         if (nextTime === 0) {
-          handleStop(0);
+          // Expiry is system-driven; keep it out of the undo stack.
+          handleStop(0, { skipHistory: true });
           // Signal expiry to the trigger effect. Date.now() is unique
           // per cycle so a second run can fire its own triggers even if
           // the first signal is still being processed.
@@ -217,11 +222,15 @@ export const useTimeTool = (widget: WidgetData) => {
         (w) => w.type === 'expectations'
       );
       if (expWidget) {
-        updateWidget(expWidget.id, {
-          config: {
-            voiceLevel: config.timerEndVoiceLevel,
-          } as WidgetConfig,
-        });
+        updateWidget(
+          expWidget.id,
+          {
+            config: {
+              voiceLevel: config.timerEndVoiceLevel,
+            } as WidgetConfig,
+          },
+          { skipHistory: true }
+        );
       }
     }
 
@@ -231,11 +240,15 @@ export const useTimeTool = (widget: WidgetData) => {
         (w) => w.type === 'traffic'
       );
       if (trafficWidget) {
-        updateWidget(trafficWidget.id, {
-          config: {
-            active: config.timerEndTrafficColor,
-          } as WidgetConfig,
-        });
+        updateWidget(
+          trafficWidget.id,
+          {
+            config: {
+              active: config.timerEndTrafficColor,
+            } as WidgetConfig,
+          },
+          { skipHistory: true }
+        );
       }
     }
 
@@ -249,11 +262,15 @@ export const useTimeTool = (widget: WidgetData) => {
         (w) => w.type === 'random'
       );
       if (randomWidget) {
-        updateWidget(randomWidget.id, {
-          config: {
-            externalTrigger: Date.now(),
-          } as WidgetConfig,
-        });
+        updateWidget(
+          randomWidget.id,
+          {
+            config: {
+              externalTrigger: Date.now(),
+            } as WidgetConfig,
+          },
+          { skipHistory: true }
+        );
       }
     }
 
@@ -267,11 +284,15 @@ export const useTimeTool = (widget: WidgetData) => {
         (w) => w.type === 'nextUp'
       );
       if (nextUpWidget) {
-        updateWidget(nextUpWidget.id, {
-          config: {
-            externalTrigger: Date.now(),
-          } as WidgetConfig,
-        });
+        updateWidget(
+          nextUpWidget.id,
+          {
+            config: {
+              externalTrigger: Date.now(),
+            } as WidgetConfig,
+          },
+          { skipHistory: true }
+        );
       }
     }
 
@@ -285,11 +306,15 @@ export const useTimeTool = (widget: WidgetData) => {
         (w) => w.type === 'stations'
       );
       if (stationsWidget) {
-        updateWidget(stationsWidget.id, {
-          config: {
-            rotationTrigger: Date.now(),
-          } as WidgetConfig,
-        });
+        updateWidget(
+          stationsWidget.id,
+          {
+            config: {
+              rotationTrigger: Date.now(),
+            } as WidgetConfig,
+          },
+          { skipHistory: true }
+        );
       }
     }
   }, [
