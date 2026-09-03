@@ -259,4 +259,32 @@ describe('TypographySettings — radiogroup keyboard contract', () => {
       fontColor: TEXT_COLOR_PRESETS[1],
     });
   });
+
+  it('keeps exactly one text color swatch tabbable when fontColor is unset (defaults to a non-preset value)', () => {
+    const config: Cfg = {};
+    render(<TypographySettings config={config} updateConfig={vi.fn()} />);
+
+    const swatches = TEXT_COLOR_PRESETS.map((color) =>
+      screen.getByRole('radio', { name: `Select text color ${color}` })
+    );
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[0]);
+  });
+
+  it('keeps exactly one text color swatch tabbable when fontColor is a custom (non-preset) value', () => {
+    const config: Cfg = { fontColor: '#123456' };
+    render(<TypographySettings config={config} updateConfig={vi.fn()} />);
+
+    const swatches = TEXT_COLOR_PRESETS.map((color) =>
+      screen.getByRole('radio', { name: `Select text color ${color}` })
+    );
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[0]);
+  });
 });

@@ -59,6 +59,8 @@ export const TypographySettings = <
   const { fontFamily = 'global', fontColor = '#334155' } = config;
   const typographyLabelId = useId();
   const textColorLabelId = useId();
+  // The default/custom fontColor isn't always one of the presets (unlike 'global' for fontFamily) — fall back to tabbing preset 0 so the group stays keyboard-reachable.
+  const hasSelectedColorPreset = TEXT_COLOR_PRESETS.includes(fontColor);
 
   return (
     <>
@@ -141,7 +143,12 @@ export const TypographySettings = <
                 type="button"
                 role="radio"
                 aria-checked={fontColor === color}
-                tabIndex={fontColor === color ? 0 : -1}
+                tabIndex={
+                  fontColor === color ||
+                  (!hasSelectedColorPreset && color === TEXT_COLOR_PRESETS[0])
+                    ? 0
+                    : -1
+                }
                 onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
                 className={`w-6 h-6 rounded-full border-2 transition hover:scale-110 ${
                   fontColor === color
