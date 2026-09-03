@@ -1299,7 +1299,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
   const backupDashboardPIIToDrive = useCallback(
     async (dashboard: Dashboard): Promise<void> => {
-      if (!driveService || !dashboardHasPII(dashboard)) return;
+      if (!dashboardHasPII(dashboard)) return;
+      if (!driveService) {
+        // No live Drive connection (token expired/missing) — must abort
+        // rather than let the caller scrub PII with nowhere to back it up.
+        throw new Error(
+          '[PII] Aborted dashboard save because Google Drive is not connected — PII supplement cannot be backed up'
+        );
+      }
 
       const pii = extractDashboardPII(dashboard);
       const blob = new Blob([JSON.stringify(pii)], {
