@@ -13,6 +13,9 @@ const {
   mockDoc,
   mockUser,
   mockCanAccessFeature,
+  mockSetDoc,
+  mockSaveActivity,
+  mockLibraryEntries,
 } = vi.hoisted(() => ({
   mockUpdateDoc: vi.fn(),
   mockDeleteDoc: vi.fn(),
@@ -21,6 +24,9 @@ const {
   mockDoc: vi.fn(),
   mockUser: { uid: 'teacher-1' },
   mockCanAccessFeature: vi.fn(() => true),
+  mockSetDoc: vi.fn(),
+  mockSaveActivity: vi.fn(),
+  mockLibraryEntries: { current: [] as unknown[] },
 }));
 
 let snapshotDocs: Record<string, unknown>[] = [];
@@ -36,13 +42,44 @@ vi.mock('@/config/firebase', () => ({
   db: {},
 }));
 
+vi.mock('@/hooks/useActivityWallLibrary', () => ({
+  useActivityWallLibrary: () => ({
+    activities: mockLibraryEntries.current,
+    loading: false,
+    error: null,
+    saveActivity: mockSaveActivity,
+    deleteActivity: vi.fn(),
+  }),
+}));
+
 vi.mock('firebase/firestore', () => ({
   collection: mockCollection,
   doc: mockDoc,
   onSnapshot: mockOnSnapshot,
   updateDoc: mockUpdateDoc,
   deleteDoc: mockDeleteDoc,
+  setDoc: mockSetDoc,
 }));
+
+const wallEntry = {
+  id: 'activity-1',
+  title: 'Warm Up',
+  prompt: 'Share one idea',
+  mode: 'text',
+  moderationEnabled: true,
+  identificationMode: 'anonymous',
+  createdAt: 1,
+  updatedAt: 2,
+  layout: 'wall',
+  allowedTypes: { photo: false, link: false, file: false, video: false },
+  appearance: { kind: 'gradient', value: 'bg-slate-900' },
+  allowGuests: false,
+  showNames: false,
+  maxPostsPerStudent: 0,
+  allowStudentEdit: false,
+  allowStudentDelete: false,
+  acceptingResponses: true,
+};
 
 const baseWidget: WidgetData = {
   id: 'widget-1',
@@ -55,18 +92,6 @@ const baseWidget: WidgetData = {
   flipped: false,
   config: {
     activeActivityId: 'activity-1',
-    activities: [
-      {
-        id: 'activity-1',
-        title: 'Warm Up',
-        prompt: 'Share one idea',
-        mode: 'text',
-        moderationEnabled: true,
-        identificationMode: 'anonymous',
-        submissions: [],
-        startedAt: Date.now(),
-      },
-    ],
   },
 } as WidgetData;
 
@@ -74,6 +99,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   snapshotDocs = [];
   mockCanAccessFeature.mockReturnValue(true);
+  mockLibraryEntries.current = [wallEntry];
+  mockSaveActivity.mockResolvedValue(undefined);
+  mockSetDoc.mockResolvedValue(undefined);
   mockCollection.mockReturnValue('submissions-ref');
   // Each doc() call returns a distinct ref keyed by the submission id segment
   // so assertions can verify the right submission was targeted.
@@ -206,6 +234,30 @@ describe('RemoteActivityWallControl', () => {
     });
   });
 
+  it('closes the wall by writing both the library entry and the session doc', async () => {
+    renderControl();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /close wall/i })
+    );
+
+    await waitFor(() =>
+      expect(mockSaveActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'activity-1',
+          acceptingResponses: false,
+        })
+      )
+    );
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        { __ref: 'teacher-1_activity-1' },
+        expect.objectContaining({ acceptingResponses: false }),
+        { merge: true }
+      )
+    );
+  });
+
   it('hides the QR affordance when anonymous-join is not permitted', async () => {
     mockCanAccessFeature.mockReturnValue(false);
     snapshotDocs = [];
@@ -250,15 +302,16 @@ describe('RemoteActivityWallControl', () => {
     const qrImg = await screen.findByAltText(/join qr/i);
     const src = qrImg.getAttribute('src') ?? '';
     expect(src).toContain('https://api.qrserver.com/v1/create-qr-code/');
+    expect(src).not.toContain('%3Fdata%3D');
     const decoded = decodeURIComponent(src.split('data=')[1] ?? '');
-    expect(decoded).toContain('/activity-wall/activity-1');
-    expect(decoded).toContain('data=');
+    // SSO-only wall: the link routes through the student login page and
+    // carries no base64 payload.
+    expect(decoded).toContain('/student/login?next=');
+    expect(decoded).toContain('%2Factivity-wall%2Fteacher-1_activity-1');
 
     // The join URL is also rendered as selectable/copyable text.
     const joinUrlText = screen.getByTestId('activity-wall-join-url');
-    expect(joinUrlText.textContent ?? '').toContain(
-      '/activity-wall/activity-1'
-    );
+    expect(joinUrlText.textContent ?? '').toContain('/student/login?next=');
   });
 
   it('hides the QR panel (not just the button) when anonymous-join is gated off', async () => {

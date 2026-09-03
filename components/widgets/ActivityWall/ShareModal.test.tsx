@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import React, { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityWallShareModal } from './ShareModal';
-import type { ActivityWallActivity } from '@/types';
+import type { ActivityWallLibraryEntry } from '@/types';
 
 // The share modal's form state is reset by remounting (a `key` on the call
 // site), NOT by a props->state useEffect. These tests pin that behavior:
@@ -48,16 +48,25 @@ vi.mock('@/components/common/Modal', () => ({
 }));
 
 const makeActivity = (
-  overrides: Partial<ActivityWallActivity> = {}
-): ActivityWallActivity => ({
+  overrides: Partial<ActivityWallLibraryEntry> = {}
+): ActivityWallLibraryEntry => ({
   id: 'activity-1',
   title: 'Test Activity',
   prompt: 'Share your work',
   mode: 'text',
   moderationEnabled: false,
   identificationMode: 'anonymous',
-  submissions: [],
-  startedAt: 1,
+  createdAt: 1,
+  updatedAt: 1,
+  layout: 'wall',
+  allowedTypes: { photo: false, link: false, file: false, video: false },
+  appearance: { kind: 'gradient', value: 'bg-slate-900' },
+  allowGuests: false,
+  showNames: false,
+  maxPostsPerStudent: 0,
+  allowStudentEdit: false,
+  allowStudentDelete: false,
+  acceptingResponses: true,
   ...overrides,
 });
 
@@ -66,7 +75,7 @@ const makeActivity = (
  * always mounted, shown/hidden via `isOpen`, and force-remounted by a `key`
  * that changes on the open-edge / activity change.
  */
-const Harness: React.FC<{ activity: ActivityWallActivity }> = ({
+const Harness: React.FC<{ activity: ActivityWallLibraryEntry }> = ({
   activity,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -82,7 +91,7 @@ const Harness: React.FC<{ activity: ActivityWallActivity }> = ({
         key={isOpen ? (activity.id ?? 'closed') : 'closed'}
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        activity={activity}
+        entry={activity}
         sessionId="session-1"
         teacherUid="teacher-1"
       />

@@ -1865,6 +1865,8 @@ export interface ActivityWallConfig {
    * picks "No class" so the map stays small.
    */
   lastClassIdByActivityId?: Record<string, string>;
+  /** Short-link code of the most recent gallery share, for "Open gallery". */
+  latestShareCode?: string;
 }
 
 /**
@@ -1895,6 +1897,8 @@ export interface ActivityWallSession {
    * the work without joining the live session.
    */
   publiclyShared?: boolean;
+  /** Short-link code for the latest gallery share; read by `/my-assignments`. */
+  latestShareCode?: string;
   /** Padlet-lite redesign (P1-1) — mirrors the library entry; all optional. */
   layout?: ActivityWallLayout;
   sections?: ActivityWallSection[];

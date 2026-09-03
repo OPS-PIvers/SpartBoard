@@ -2,79 +2,42 @@
  * RemoteActivityWallControl
  *
  * Phone remote for the Activity Wall widget. Lets a teacher:
- *   • Start / pause the wall (toggles `config.activeActivityId`).
- *   • Moderate the live submission queue — approve pending submissions
- *     (`updateDoc(ref, { status: 'approved' })`) or remove them
- *     (`deleteDoc(ref)`).
- *   • Toggle a join-QR affordance (gated by the `anonymous-join` feature).
+ *   • Open / close the active wall (writes `acceptingResponses` to both the
+ *     library entry and the mirrored session doc, exactly like the widget).
+ *   • Moderate the live queue — approve pending posts or remove them.
+ *   • Show a join QR for the student link.
  *
- * The moderation writes target the SAME Firestore subcollection the desktop
- * Activity Wall widget reads/writes — `activity_wall_sessions/{uid}_{activityId}
- * /submissions` — so approve/remove reflect on the projected board live. They
- * write DIRECTLY to Firestore (not through `updateWidget`); only start/pause
- * goes through `updateWidget`.
+ * Walls are read from `useActivityWallLibrary` (the source of truth) rather
+ * than the deprecated `config.activities`, and the student link comes from
+ * the shared `utils/activityWallLinks` builder so the remote and the widget
+ * can never drift apart.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Play, QrCode, Square, Trash2 } from 'lucide-react';
-import { WidgetData, ActivityWallConfig, ActivityWallActivity } from '@/types';
+import { Check, Lock, QrCode, Trash2, Unlock } from 'lucide-react';
+import { WidgetData, ActivityWallConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { db } from '@/config/firebase';
 import {
   collection,
   deleteDoc,
   doc,
   onSnapshot,
+  setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import {
+  activityWallSessionId,
+  buildStudentWallLink,
+} from '@/utils/activityWallLinks';
 
 interface RemoteActivityWallControlProps {
   widget: WidgetData;
   updateWidget: (id: string, updates: Partial<WidgetData>) => void;
 }
 
-/**
- * Reconstruct the EXACT participant join URL the desktop Activity Wall widget
- * hands out. The widget builds it in `components/widgets/ActivityWall/Widget.tsx`
- * via `buildPublicActivityLink` → `encodeActivityData`: a base64url JSON `?data=`
- * payload appended to `/activity-wall/<activityId>`. The remote's
- * `config.activities` carries the same `ActivityWallActivity` fields, and the
- * teacher's `user.uid` is the `teacherUid`, so the remote can build a byte-for-byte
- * identical URL without inventing a shape. The student app
- * (`ActivityWallStudentApp.tsx`) decodes this `?data=` payload directly — no
- * Firestore session-doc read or ClassLink class gate required — so a scan lands
- * the participant in the right session immediately.
- */
-const encodeActivityData = (
-  activity: ActivityWallActivity,
-  teacherUid: string
-): string => {
-  const payload = JSON.stringify({
-    id: activity.id,
-    title: activity.title,
-    prompt: activity.prompt,
-    mode: activity.mode,
-    moderationEnabled: activity.moderationEnabled,
-    identificationMode: activity.identificationMode,
-    teacherUid,
-  });
-  const bytes = new TextEncoder().encode(payload);
-  let binary = '';
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
-  }
-  return encodeURIComponent(btoa(binary));
-};
-
-const buildPublicActivityLink = (
-  activity: ActivityWallActivity,
-  teacherUid: string
-): string => {
-  const encoded = encodeActivityData(activity, teacherUid);
-  return `${window.location.origin}/activity-wall/${activity.id}?data=${encoded}`;
-};
-
-/** Live submission shape mirrored from the desktop widget's onSnapshot map. */
+/** Live submission shape mirrored from the widget's onSnapshot map. */
 interface RemoteSubmission {
   id: string;
   content: string;
@@ -89,29 +52,32 @@ export const RemoteActivityWallControl: React.FC<
   const { user, canAccessFeature } = useAuth();
   const config = (widget.config ?? {}) as ActivityWallConfig;
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  const { activities, saveActivity } = useActivityWallLibrary(user?.uid);
 
-  // Activities the widget knows about. The remote reads the same
-  // `config.activities` the widget seeds; the active one is whichever id
-  // `config.activeActivityId` points at (set = running, null = paused).
-  const activities = useMemo<ActivityWallActivity[]>(
-    () => config.activities ?? [],
-    [config.activities]
+  const activeActivity = useMemo(
+    () =>
+      activities.find((entry) => entry.id === config.activeActivityId) ?? null,
+    [activities, config.activeActivityId]
   );
-  const activeActivityId = config.activeActivityId ?? null;
-  const activeActivity =
-    activities.find((a) => a.id === activeActivityId) ?? null;
-  const isRunning = !!activeActivity;
+  const isOpen = activeActivity?.acceptingResponses !== false;
 
   const [submissions, setSubmissions] = useState<RemoteSubmission[]>([]);
   const [showQr, setShowQr] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Participant join URL for the active activity, identical to the desktop
-  // widget's. Empty until an activity is active and the teacher is known.
+  const sessionId =
+    activeActivity && user
+      ? activityWallSessionId(user.uid, activeActivity.id)
+      : null;
+
   const participantUrl = useMemo(() => {
-    if (!activeActivity || !user) return '';
-    return buildPublicActivityLink(activeActivity, user.uid);
-  }, [activeActivity, user]);
+    if (!sessionId || !activeActivity) return '';
+    return buildStudentWallLink(
+      window.location.origin,
+      sessionId,
+      activeActivity.allowGuests ?? false
+    );
+  }, [activeActivity, sessionId]);
 
   const qrUrl = useMemo(() => {
     if (!participantUrl) return '';
@@ -120,62 +86,47 @@ export const RemoteActivityWallControl: React.FC<
     )}`;
   }, [participantUrl]);
 
-  // Subscribe to the active session's submissions subcollection. Path and
-  // session-id format match the desktop widget exactly so writes line up.
   useEffect(() => {
-    if (!activeActivity || !user) {
-      return;
-    }
-    const sessionId = `${user.uid}_${activeActivity.id}`;
-    const submissionsRef = collection(
-      db,
-      'activity_wall_sessions',
-      sessionId,
-      'submissions'
+    if (!sessionId) return;
+    const unsubscribe = onSnapshot(
+      collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
+      (snap) => {
+        setSubmissions(
+          snap.docs.map((docSnap) => {
+            const data = docSnap.data();
+            return {
+              id: docSnap.id ?? (data.id as string),
+              content: data.content as string,
+              submittedAt: data.submittedAt as number,
+              status: data.status as 'approved' | 'pending' | undefined,
+              participantLabel: data.participantLabel as string | undefined,
+            };
+          })
+        );
+      }
     );
-    const unsubscribe = onSnapshot(submissionsRef, (snap) => {
-      setSubmissions(
-        snap.docs.map((docSnap) => {
-          const data = docSnap.data();
-          return {
-            // The widget reads `data.id`, which equals the doc id. Prefer
-            // `docSnap.id` for addressing writes (it's the path segment),
-            // falling back to the field for parity.
-            id: docSnap.id ?? (data.id as string),
-            content: data.content as string,
-            submittedAt: data.submittedAt as number,
-            status: data.status as 'approved' | 'pending' | undefined,
-            participantLabel: data.participantLabel as string | undefined,
-          };
-        })
-      );
-    });
     return () => {
       unsubscribe();
-      // Clear on teardown (dep change / pause / unmount) so a previous
-      // session's submissions don't linger once it's no longer active.
       setSubmissions([]);
     };
-  }, [activeActivity, user]);
+  }, [sessionId]);
 
   const pending = useMemo(
     () => submissions.filter((s) => s.status === 'pending'),
     [submissions]
   );
 
-  const submissionRef = (submissionId: string) => {
-    const sessionId = `${user?.uid}_${activeActivity?.id}`;
-    return doc(
+  const submissionRef = (submissionId: string) =>
+    doc(
       db,
       'activity_wall_sessions',
-      sessionId,
+      sessionId ?? '',
       'submissions',
       submissionId
     );
-  };
 
   const approve = (submissionId: string) => {
-    if (!activeActivity || !user) return;
+    if (!sessionId) return;
     setActionError(null);
     void updateDoc(submissionRef(submissionId), { status: 'approved' }).catch(
       (err) => {
@@ -188,7 +139,7 @@ export const RemoteActivityWallControl: React.FC<
   };
 
   const remove = (submissionId: string) => {
-    if (!activeActivity || !user) return;
+    if (!sessionId) return;
     setActionError(null);
     void deleteDoc(submissionRef(submissionId)).catch((err) => {
       console.error('[RemoteActivityWall] remove failed:', err);
@@ -198,15 +149,40 @@ export const RemoteActivityWallControl: React.FC<
     });
   };
 
-  const toggleRunning = () => {
-    const nextConfig: Partial<ActivityWallConfig> = {
-      ...config,
-      activeActivityId: isRunning ? null : (activities[0]?.id ?? null),
-    };
-    updateWidget(widget.id, { config: nextConfig as ActivityWallConfig });
+  const toggleOpen = () => {
+    if (!activeActivity || !sessionId) {
+      // No wall selected yet — pick the most recent one so the remote can act.
+      const first = activities[0];
+      if (!first) return;
+      updateWidget(widget.id, {
+        config: { ...config, activeActivityId: first.id },
+      });
+      return;
+    }
+    const next = !isOpen;
+    setActionError(null);
+    void (async () => {
+      try {
+        await saveActivity({
+          ...activeActivity,
+          acceptingResponses: next,
+          updatedAt: Date.now(),
+        });
+        await setDoc(
+          doc(db, 'activity_wall_sessions', sessionId),
+          { acceptingResponses: next, updatedAt: Date.now() },
+          { merge: true }
+        );
+      } catch (err) {
+        console.error('[RemoteActivityWall] open/close failed:', err);
+        setActionError(
+          "Couldn't change the wall state. Check your connection and try again."
+        );
+      }
+    })();
   };
 
-  const canStart = activities.length > 0;
+  const canToggle = activities.length > 0;
 
   return (
     <div className="flex flex-col gap-5 p-6 h-full">
@@ -214,31 +190,29 @@ export const RemoteActivityWallControl: React.FC<
         Activity Wall
       </div>
 
-      {/* Start / Pause */}
       <button
-        onClick={toggleRunning}
-        disabled={!isRunning && !canStart}
+        onClick={toggleOpen}
+        disabled={!canToggle}
         style={{ touchAction: 'manipulation' }}
         className={`touch-manipulation flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 disabled:opacity-40 ${
-          isRunning
+          isOpen && activeActivity
             ? 'bg-red-500 hover:bg-red-600 text-white'
             : 'bg-green-500 hover:bg-green-600 text-white'
         }`}
-        aria-label={isRunning ? 'Pause wall' : 'Start wall'}
-        aria-pressed={isRunning}
+        aria-label={isOpen && activeActivity ? 'Close wall' : 'Open wall'}
+        aria-pressed={!!activeActivity && isOpen}
       >
-        {isRunning ? (
+        {isOpen && activeActivity ? (
           <>
-            <Square className="w-6 h-6" /> Pause Wall
+            <Lock className="w-6 h-6" /> Close Wall
           </>
         ) : (
           <>
-            <Play className="w-6 h-6" /> Start Wall
+            <Unlock className="w-6 h-6" /> Open Wall
           </>
         )}
       </button>
 
-      {/* Join QR toggle — gated by anonymous-join */}
       {canOfferAnonymousJoin && (
         <button
           onClick={() => setShowQr((v) => !v)}
@@ -256,8 +230,6 @@ export const RemoteActivityWallControl: React.FC<
         </button>
       )}
 
-      {/* Join QR panel — shows a scannable code + the join URL so students can
-          land in the active session. Only meaningful with an active activity. */}
       {canOfferAnonymousJoin && showQr && (
         <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
           {participantUrl ? (
@@ -281,13 +253,12 @@ export const RemoteActivityWallControl: React.FC<
             </>
           ) : (
             <p className="text-white/40 text-sm text-center">
-              Start the wall to generate a join link.
+              Pick a wall on the board to generate a join link.
             </p>
           )}
         </div>
       )}
 
-      {/* Moderation action error banner */}
       {actionError && (
         <div
           role="alert"
@@ -305,7 +276,6 @@ export const RemoteActivityWallControl: React.FC<
         </div>
       )}
 
-      {/* Moderation queue */}
       <div className="flex items-center justify-between">
         <span className="text-white/50 text-xs uppercase tracking-wide font-bold">
           Pending
@@ -321,9 +291,9 @@ export const RemoteActivityWallControl: React.FC<
       <div className="flex flex-col gap-3 overflow-auto">
         {pending.length === 0 ? (
           <p className="text-white/30 text-sm text-center py-6">
-            {isRunning
+            {activeActivity
               ? 'No submissions waiting for approval.'
-              : 'Start the wall to collect submissions.'}
+              : 'Pick a wall on the board to collect submissions.'}
           </p>
         ) : (
           pending.map((submission) => (

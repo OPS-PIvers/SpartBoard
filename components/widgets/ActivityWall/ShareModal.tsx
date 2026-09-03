@@ -1,21 +1,17 @@
 /**
- * Teacher-facing modal that publishes an Activity Wall session as a
- * view-only gallery. The teacher picks which gallery interactions to
- * enable (comments, replies, likes) and an optional expiration date.
+ * Publishes an Activity Wall as a view-only gallery.
  *
  * On submit we:
  *   1. Flip `publiclyShared: true` onto `activity_wall_sessions/{sessionId}`
- *      so the read-side Firestore + Storage rules unlock for anonymous
- *      gallery viewers.
- *   2. Write a `shared_activity_walls/{shareId}` doc carrying the gallery
- *      toggles + snapshot of title/prompt/identificationMode.
- *   3. Surface the resulting URL with a copy-to-clipboard button — matches
- *      the ShareLinkCreatorModal UX so the experience feels consistent.
+ *      so the read-side rules unlock for gallery viewers.
+ *   2. Write `shared_activity_walls/{shareId}` with the gallery toggles.
+ *   3. Mint a `/r/<code>` short link pointing at the gallery and stamp the
+ *      code onto the session doc (`latestShareCode`) so `/my-assignments`
+ *      can offer "View gallery" without re-deriving the link.
  *
- * View-only philosophy: the gallery never lets viewers submit new
- * activity entries; new posts only happen through the original student
- * URL. Comments + likes are layered on top via subcollections under the
- * share doc so deleting the share also cleans them up.
+ * The short link is the primary copy target; the long URL stays as a
+ * fallback for environments where minting a code is denied (localhost, where
+ * the `short_links` create rule's origin allowlist doesn't match).
  */
 
 import React, { useState } from 'react';
@@ -33,18 +29,19 @@ import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
 import { db } from '@/config/firebase';
-import type {
-  ActivityWallActivity,
-  ActivityWallIdentificationMode,
-  SharedActivityWall,
-} from '@/types';
+import { createShortLinkAtomic } from '@/hooks/useShortLinks';
+import { generateRandomCode } from '@/utils/shortLinkValidation';
+import { buildGalleryLink, buildShortLinkUrl } from '@/utils/activityWallLinks';
+import type { ActivityWallLibraryEntry, SharedActivityWall } from '@/types';
 
 interface ActivityWallShareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  activity: ActivityWallActivity | null;
+  entry: ActivityWallLibraryEntry | null;
   sessionId: string | null;
   teacherUid: string | null;
+  /** Called with the minted short-link code so the widget can offer "Open gallery". */
+  onShareCreated?: (code: string) => void;
 }
 
 interface ToggleRowProps {
@@ -65,64 +62,77 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
   checked,
   disabled = false,
   onChange,
-}) => {
-  return (
-    <label
-      htmlFor={id}
-      className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
-        disabled
-          ? 'opacity-50 cursor-not-allowed border-slate-200 bg-slate-50/60'
-          : checked
-            ? 'border-brand-blue-primary bg-brand-blue-lighter/20 cursor-pointer'
-            : 'border-slate-200 bg-white hover:border-brand-blue-primary cursor-pointer'
+}) => (
+  <label
+    htmlFor={id}
+    className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
+      disabled
+        ? 'opacity-50 cursor-not-allowed border-slate-200 bg-slate-50/60'
+        : checked
+          ? 'border-brand-blue-primary bg-brand-blue-lighter/20 cursor-pointer'
+          : 'border-slate-200 bg-white hover:border-brand-blue-primary cursor-pointer'
+    }`}
+  >
+    <div
+      className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
+        checked
+          ? 'bg-brand-blue-primary text-white'
+          : 'bg-slate-100 text-slate-500'
       }`}
     >
-      <div
-        className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
-          checked
-            ? 'bg-brand-blue-primary text-white'
-            : 'bg-slate-100 text-slate-500'
-        }`}
-      >
-        <Icon className="w-4 h-4" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
-        <p className="mt-0.5 text-xs text-slate-600 leading-relaxed">{body}</p>
-      </div>
-      <input
-        id={id}
-        type="checkbox"
-        className="mt-1 h-4 w-4 accent-brand-blue-primary cursor-pointer disabled:cursor-not-allowed"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-    </label>
-  );
-};
+      <Icon className="w-4 h-4" />
+    </div>
+    <div className="flex-1 min-w-0">
+      <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
+      <p className="mt-0.5 text-xs text-slate-600 leading-relaxed">{body}</p>
+    </div>
+    <input
+      id={id}
+      type="checkbox"
+      className="mt-1 h-4 w-4 accent-brand-blue-primary cursor-pointer disabled:cursor-not-allowed"
+      checked={checked}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+  </label>
+);
 
-const identificationModeBlurb = (
-  mode: ActivityWallIdentificationMode
-): string => {
-  switch (mode) {
-    case 'anonymous':
-      return 'Viewers can comment anonymously — same as how students submitted.';
-    case 'name':
-      return 'Viewers will be asked for their name before posting a comment.';
-    case 'pin':
-      return 'Viewers will be asked for a PIN before posting a comment.';
-    case 'name-pin':
-      return 'Viewers will be asked for their name and PIN before posting a comment.';
+/** Mints a `/r/<code>` short link; returns null when rules or the network deny it. */
+const mintGalleryShortLink = async (
+  destination: string,
+  uid: string,
+  email: string
+): Promise<string | null> => {
+  const now = Date.now();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const code = generateRandomCode();
+    try {
+      const result = await createShortLinkAtomic(code, {
+        code,
+        destination,
+        createdBy: uid,
+        createdByEmail: email,
+        createdAt: now,
+        updatedAt: now,
+        clicks: 0,
+        lastClickedAt: null,
+      });
+      if (result.ok) return code;
+    } catch (err) {
+      console.warn('[ActivityWallShareModal] Short link mint failed:', err);
+      return null;
+    }
   }
+  return null;
 };
 
 export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
   isOpen,
   onClose,
-  activity,
+  entry,
   sessionId,
   teacherUid,
+  onShareCreated,
 }) => {
   const { addToast } = useDashboard();
   const [allowComments, setAllowComments] = useState(true);
@@ -132,6 +142,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
   const [expiresAtInput, setExpiresAtInput] = useState('');
   const [creating, setCreating] = useState(false);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
+  const [longUrl, setLongUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,10 +150,8 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
 
   const handleCreate = async () => {
     if (creating) return;
-    if (!activity || !sessionId || !teacherUid) {
-      setError(
-        'Start the activity first — there are no submissions to share yet.'
-      );
+    if (!entry || !sessionId || !teacherUid) {
+      setError('Pick a wall first — there is nothing to share yet.');
       return;
     }
 
@@ -173,10 +182,10 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
         id: shareId,
         sessionId,
         originalAuthor: teacherUid,
-        title: activity.title,
-        prompt: activity.prompt,
-        mode: activity.mode,
-        identificationMode: activity.identificationMode,
+        title: entry.title,
+        prompt: entry.prompt,
+        mode: entry.mode,
+        identificationMode: entry.identificationMode,
         allowComments,
         allowCommentResponses: allowComments && allowCommentResponses,
         allowLikes,
@@ -184,9 +193,8 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
         createdAt: Date.now(),
       };
 
-      // Unlock viewer reads first — if this fails we don't write the share
-      // doc, which would otherwise produce a working link that returns
-      // permission-denied on every photo/submission read.
+      // Unlock viewer reads first — a share doc without this produces a link
+      // that permission-denies on every submission read.
       await updateDoc(doc(db, 'activity_wall_sessions', sessionId), {
         publiclyShared: true,
       });
@@ -196,13 +204,27 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
         sharedDoc as unknown as Record<string, unknown>
       );
 
-      const url = `${window.location.origin}/activity-wall/gallery/${shareId}`;
-      setCreatedUrl(url);
+      const origin = window.location.origin;
+      const gallery = buildGalleryLink(origin, shareId);
+      setLongUrl(gallery);
+
+      const code = await mintGalleryShortLink(gallery, teacherUid, '');
+      if (code) {
+        await setDoc(
+          doc(db, 'activity_wall_sessions', sessionId),
+          { latestShareCode: code },
+          { merge: true }
+        );
+        onShareCreated?.(code);
+      }
+
+      const primary = code ? buildShortLinkUrl(origin, code) : gallery;
+      setCreatedUrl(primary);
       try {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(primary);
         setCopied(true);
       } catch {
-        // Clipboard may be blocked — user can still copy manually below.
+        // Clipboard may be blocked — the link is selectable below.
       }
     } catch (err) {
       console.error('[ActivityWallShareModal] Failed to create share:', err);
@@ -227,9 +249,6 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
     }
   };
 
-  // <input type="datetime-local"> wants a value in the form 'YYYY-MM-DDTHH:mm';
-  // surface today as the floor so teachers don't accidentally pick a
-  // past timestamp.
   const minExpirationInput = (() => {
     const now = new Date();
     const tzOffsetMs = now.getTimezoneOffset() * 60_000;
@@ -256,7 +275,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
                   : 'Share submissions gallery'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
-                {activity?.title ?? 'Activity Wall'}
+                {entry?.title ?? 'Activity Wall'}
               </p>
             </div>
           </div>
@@ -274,8 +293,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
       {createdUrl ? (
         <div className="px-5 pb-5 pt-4 space-y-4">
           <p className="text-xs text-slate-600">
-            Anyone with this link can view the submissions gallery — no sign-in
-            required.
+            Anyone with this link can view the gallery — no sign-in required.
           </p>
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
             <input
@@ -308,6 +326,11 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
               )}
             </button>
           </div>
+          {longUrl && longUrl !== createdUrl && (
+            <p className="text-[11px] text-slate-500 break-all">
+              Full link: <span className="select-all">{longUrl}</span>
+            </p>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -319,15 +342,15 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
       ) : (
         <div className="px-5 pb-5 pt-4 space-y-3">
           <p className="text-xs text-slate-600">
-            Anyone with the link can view this activity&apos;s submissions
-            gallery. Pick what gallery viewers can do.
+            Anyone with the link can view this wall&apos;s gallery. Pick what
+            gallery viewers can do.
           </p>
 
           <ToggleRow
             id="aw-share-allow-likes"
             Icon={Heart}
             title="Allow likes"
-            body="Viewers can give each submission a heart."
+            body="Viewers can give each post a heart."
             checked={allowLikes}
             onChange={setAllowLikes}
           />
@@ -336,11 +359,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
             id="aw-share-allow-comments"
             Icon={MessageSquare}
             title="Allow comments"
-            body={
-              activity
-                ? identificationModeBlurb(activity.identificationMode)
-                : 'Viewers can leave a comment on each submission.'
-            }
+            body="Signed-in viewers can leave a comment on each post."
             checked={allowComments}
             onChange={(next) => {
               setAllowComments(next);
@@ -412,7 +431,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
           <button
             type="button"
             onClick={() => void handleCreate()}
-            disabled={creating || !activity || !sessionId || !teacherUid}
+            disabled={creating || !entry || !sessionId || !teacherUid}
             className="w-full rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {creating ? 'Creating link…' : 'Create gallery link'}
