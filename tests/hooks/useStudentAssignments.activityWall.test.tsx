@@ -126,4 +126,29 @@ describe('useStudentAssignments — Activity Wall continuity fields', () => {
     expect(wall?.publiclyShared).toBeUndefined();
     expect(wall?.latestShareCode).toBeUndefined();
   });
+
+  it('surfaces a wall targeting multiple ClassLink classes for a student only in the second class (dualQuery)', async () => {
+    deliverDocsByCollection({
+      activity_wall_sessions: [
+        {
+          id: 'wall-multi-class',
+          data: { title: 'Multi-class Wall', classIds: ['c1', 'c2'] },
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c2'] })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+    });
+
+    const wall = result.current.assignments.find(
+      (a) => a.sessionId === 'wall-multi-class'
+    );
+    expect(wall).toBeDefined();
+    expect(wall?.classIds).toEqual(['c2']);
+  });
 });

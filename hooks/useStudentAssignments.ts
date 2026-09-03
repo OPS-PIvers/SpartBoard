@@ -273,7 +273,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   },
   'activity-wall': {
     collectionName: 'activity_wall_sessions',
-    dualQuery: false,
+    dualQuery: true,
     classFilterShape: 'single',
     activeFilter: null, // No status field on the session doc.
     endedFilter: null,
