@@ -197,6 +197,13 @@ const stripDerivedPixels = (w: WidgetData) => {
   return rest;
 };
 
+/**
+ * Ceiling on how long an edit may sit unsaved while edits keep arriving. Caps
+ * sustained typing/dragging at one write per this interval instead of letting
+ * the debounce restart forever.
+ */
+const MAX_UNSAVED_EDIT_AGE_MS = 3000;
+
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
   JSON.stringify({
@@ -2247,6 +2254,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Auto-save to Firestore with debouncing
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // When the oldest still-unsaved edit landed, or null when everything is
+  // saved. The debounce below restarts on every edit, so a widget that writes
+  // on each keystroke (Note) or each pointermove (a dragged catalyst) held the
+  // timer off indefinitely and nothing reached Firestore until the teacher
+  // stopped. This is the maxWait ceiling that bounds the exposure.
+  const oldestUnsavedEditAtRef = useRef<number | null>(null);
   // Track auxiliary timeouts spawned by save handlers so they can be
   // cleaned up when the effect re-runs or the component unmounts.
   const auxTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -2287,6 +2300,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // This handles the case where a debounced timer was cancelled and state
       // reverted to match the last-saved data, so pendingSaveCountRef doesn't
       // get stuck positive.
+      oldestUnsavedEditAtRef.current = null;
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2311,6 +2325,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastSavedFieldsRef.current = initSavedFields;
       lastWidgetCountRef.current = active.widgets.length;
       lastSavedDashboardIdRef.current = active.id;
+      // The refs now describe a different board, so any pending window from
+      // the previous one is meaningless here.
+      oldestUnsavedEditAtRef.current = null;
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2323,13 +2340,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Settings-only changes (spotlight, maximize) are small and urgent —
     // use a fast 100 ms debounce so the desktop board reflects remote-
     // controlled presentation changes with minimal perceived delay.
-    const debounceMs = pendingImmediateWrite.current
+    const baseDebounceMs = pendingImmediateWrite.current
       ? 0 // remote control write — flush now
       : isStructuralChange
         ? 200 // add/remove widget
         : lastUpdateWasSettingsOnly.current
           ? 100 // settings toggle (spotlight, maximize, etc.)
           : 800; // widget config / position
+    // Cap the total time an edit can sit unsaved. Each re-run above cancels the
+    // previous timer, so without this ceiling a stream of edits closer together
+    // than the debounce postpones the write forever.
+    oldestUnsavedEditAtRef.current ??= Date.now();
+    const debounceMs = Math.max(
+      0,
+      Math.min(
+        baseDebounceMs,
+        MAX_UNSAVED_EDIT_AGE_MS - (Date.now() - oldestUnsavedEditAtRef.current)
+      )
+    );
     // The immediate-write flag has now been consumed for this scheduling pass.
     // Reset it immediately so that a normal write whose state update lands
     // before the 0 ms timer fires (re-running this effect) does not inherit the
@@ -2339,6 +2367,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const showSavingTimer = setTimeout(() => setIsSaving(true), 0);
     auxTimers.add(showSavingTimer);
     saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      // This write covers every edit up to now; a later one opens a new window.
+      oldestUnsavedEditAtRef.current = null;
       lastUpdateWasSettingsOnly.current = false; // reset after consuming debounce
       // pendingImmediateWrite is reset on consume (above, right after debounceMs)
       const savedData = currentData;
@@ -2520,7 +2551,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Flush pending saves on page refresh/close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (saveTimerRef.current && user && !loading && activeId) {
+      // oldestUnsavedEditAtRef tracks "content differs from what was saved";
+      // saveTimerRef only tracks "a timer happens to be scheduled right now",
+      // which the effect's cleanup clears on every re-render.
+      if (
+        oldestUnsavedEditAtRef.current !== null &&
+        user &&
+        !loading &&
+        activeId
+      ) {
         const active = dashboards.find((d) => d.id === activeId);
         if (active) {
           // Note: We can't reliably await this in beforeunload,
