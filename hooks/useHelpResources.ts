@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, isConfigured } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import type { WidgetType } from '@/types';
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
 import {
@@ -255,11 +256,14 @@ const startSharedOrgListener = (orgId: string | null) => {
 export const useHelpItemsForWidget = (
   widgetType: WidgetType
 ): HelpResourceItem[] => {
-  const { orgId } = useAuth();
+  // Read the context directly so the settings panel still renders outside an AuthProvider (tests, standalone surfaces).
+  const orgId = useContext(AuthContext)?.orgId ?? null;
   const [state, setState] = useState<SharedHelpState>(sharedState);
   const subscriberRef = useRef<((state: SharedHelpState) => void) | null>(null);
 
   useEffect(() => {
+    // No Firebase project configured (tests, static surfaces): skip the listeners entirely.
+    if (!isConfigured) return;
     const listener = (next: SharedHelpState) => setState(next);
     subscriberRef.current = listener;
     if (sharedSubscribers.size === 0) {
@@ -287,6 +291,7 @@ export const useHelpItemsForWidget = (
   }, []);
 
   useEffect(() => {
+    if (!isConfigured) return;
     if (sharedSubscribers.size > 0 && sharedOrgId !== orgId) {
       startSharedOrgListener(orgId);
     }
