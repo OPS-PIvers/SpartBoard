@@ -32,6 +32,7 @@ import {
 } from '@/types';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import type { SaveBaseline } from '@/utils/dashboardSaveMerge';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
@@ -1352,7 +1353,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<number> => {
+    async (dashboard: Dashboard, baseline?: SaveBaseline): Promise<number> => {
       // Always save to Firestore for real-time sync
       let driveFileId = dashboard.driveFileId;
 
@@ -1374,10 +1375,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // NEVER reach Firestore — they are preserved in Drive only.
       const scrubbed = scrubDashboardPII(dashboard);
 
-      return saveDashboardFirestore({
-        ...scrubbed,
-        driveFileId,
-      });
+      return saveDashboardFirestore(
+        {
+          ...scrubbed,
+          driveFileId,
+        },
+        baseline
+      );
     },
     [isAdmin, driveService, saveDashboardFirestore, backupDashboardPIIToDrive]
   );
@@ -2048,6 +2052,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           newDashboards = migratedDashboards;
         }
 
+        if (serverActive && !hasPendingWrites) {
+          lastAcceptedUpdatedAtRef.current = serverActive.updatedAt;
+        }
+
         setDashboards(newDashboards);
 
         // Update libraryOrder state from active dashboard if it changed on server
@@ -2275,6 +2283,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     libraryOrder: string;
     settings: string;
   }>({ widgets: '', background: '', name: '', libraryOrder: '', settings: '' });
+  // updatedAt of the server copy the refs above were last synced to; lets the save transaction spot newer remote writes.
+  const lastAcceptedUpdatedAtRef = useRef<number | undefined>(undefined);
+
+  const buildSaveBaseline = useCallback(
+    (dashboardId: string): SaveBaseline | undefined => {
+      if (lastSavedDashboardIdRef.current !== dashboardId) return undefined;
+      let widgets: WidgetData[] = [];
+      try {
+        widgets = JSON.parse(
+          lastSavedFieldsRef.current.widgets || '[]'
+        ) as WidgetData[];
+      } catch {
+        return undefined;
+      }
+      return {
+        updatedAt: lastAcceptedUpdatedAtRef.current,
+        widgets,
+        background: lastSavedFieldsRef.current.background,
+        name: lastSavedFieldsRef.current.name,
+        libraryOrder: lastSavedFieldsRef.current.libraryOrder,
+        settings: lastSavedFieldsRef.current.settings,
+      };
+    },
+    []
+  );
 
   useEffect(() => {
     // Capture ref value for stable cleanup (react-hooks/exhaustive-deps)
@@ -2326,7 +2359,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         // Flush the outgoing board — re-baselining below would otherwise drop its unsaved edits.
         pendingSaveCountRef.current++;
-        saveDashboard(outgoing)
+        saveDashboard(outgoing, buildSaveBaseline(outgoing.id))
           .catch((err) => {
             console.error('Auto-save failed:', err);
             setToasts((prev) => [
@@ -2411,10 +2444,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
-      saveDashboard(active)
-        .then(() => {
+      saveDashboard(active, buildSaveBaseline(active.id))
+        .then((updatedAt) => {
           lastSavedDataRef.current = savedData;
           lastSavedFieldsRef.current = savedFields;
+          lastAcceptedUpdatedAtRef.current = updatedAt;
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -2457,7 +2491,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       for (const t of auxTimers) clearTimeout(t);
       auxTimers.clear();
     };
-  }, [dashboards, activeId, user, loading, saveDashboard]);
+  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
 
   // --- GOOGLE DRIVE SYNC EFFECT ---
   // Decoupled from Firestore auto-save to ensure performance.
@@ -2601,7 +2635,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [dashboards, activeId, user, loading, saveDashboard]);
+  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
 
   const toggleToolVisibility = useCallback(
     (type: WidgetType | InternalToolType) => {

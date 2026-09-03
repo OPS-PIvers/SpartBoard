@@ -11,10 +11,15 @@ import {
   onSnapshot,
   query,
   orderBy,
+  runTransaction,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import {
+  mergeDashboardForSave,
+  type SaveBaseline,
+} from '@/utils/dashboardSaveMerge';
 import {
   Dashboard,
   SharedBoardIntendedMode,
@@ -293,7 +298,7 @@ export const useFirestore = (userId: string | null) => {
   }, [dashboardsRef]);
 
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<number> => {
+    async (dashboard: Dashboard, baseline?: SaveBaseline): Promise<number> => {
       if (isAuthBypass) {
         mockStore.saveDashboard(dashboard);
         return Date.now();
@@ -302,9 +307,21 @@ export const useFirestore = (userId: string | null) => {
       if (!dashboardsRef) throw new Error('User not authenticated');
       const docRef = doc(dashboardsRef, dashboard.id);
       const updatedAt = Date.now();
-      await setDoc(docRef, {
-        ...dashboard,
-        updatedAt,
+      if (baseline?.updatedAt === undefined) {
+        await setDoc(docRef, { ...dashboard, updatedAt });
+        return updatedAt;
+      }
+      // Another device may have written since this one last synced; merge inside the transaction so that write survives.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(docRef);
+        const server = snap.exists()
+          ? ({ ...snap.data(), id: snap.id } as Dashboard)
+          : null;
+        const toWrite =
+          server && server.updatedAt !== baseline.updatedAt
+            ? mergeDashboardForSave(dashboard, server, baseline)
+            : dashboard;
+        tx.set(docRef, { ...toWrite, updatedAt });
       });
       return updatedAt;
     },
