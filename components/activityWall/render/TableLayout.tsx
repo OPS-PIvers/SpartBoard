@@ -1,6 +1,8 @@
 import React from 'react';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { SubmissionCard } from './SubmissionCard';
+import { AddSpot } from './AddSpot';
+import { showsAddSpots } from './addSpots';
 import { DraggableCard, DropZone } from './dnd';
 import { tableDropPatch, UNSORTED_ID, useWallSensors } from './wallDrag';
 import { prepareSubmissions, wallScale } from './scale';
@@ -15,9 +17,11 @@ export const TableLayout: React.FC<WallRenderProps> = ({
   mode,
   showNames,
   onMove,
+  onAddAt,
   ...actions
 }) => {
   const scale = wallScale(mode);
+  const addSpots = showsAddSpots(mode, onAddAt);
   const sensors = useWallSensors();
   const items = prepareSubmissions(submissions, mode);
   const rows = session.tableRows ?? [];
@@ -100,11 +104,19 @@ export const TableLayout: React.FC<WallRenderProps> = ({
                   key={key}
                   id={key}
                   disabled={!canMove}
-                  className="flex flex-col rounded-xl border border-white/10 bg-white/5"
+                  className="group flex flex-col rounded-xl border border-white/10 bg-white/5"
                   style={{ gap: scale.gap, padding: scale.pad }}
                 >
                   {renderCards(
                     items.filter((submission) => submission.cellKey === key)
+                  )}
+                  {addSpots && (
+                    <AddSpot
+                      mode={mode}
+                      placement={{ cellKey: key }}
+                      onAddAt={onAddAt}
+                      className="self-center"
+                    />
                   )}
                 </DropZone>
               );

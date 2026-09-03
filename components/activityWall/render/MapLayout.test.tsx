@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { makeSession, makeSubmission } from './fixtures';
@@ -48,7 +48,18 @@ vi.mock('react-leaflet', () => ({
     </div>
   ),
   Popup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  // Exposes the click handler as a button so the test can fire a map click.
+  useMapEvents: (handlers: {
+    click: (event: { latlng: { lat: number; lng: number } }) => void;
+  }) => {
+    mapClick = handlers.click;
+    return null;
+  },
 }));
+
+type MapClick = (event: { latlng: { lat: number; lng: number } }) => void;
+let mapClick: MapClick | null = null;
+const currentMapClick = () => mapClick;
 
 const { MapLayout } = await import('./MapLayout');
 
@@ -91,5 +102,38 @@ describe('MapLayout', () => {
     expect(markers).toHaveLength(1);
     expect(markers[0]).toHaveAttribute('data-position', '45.1,-93.2');
     expect(screen.getByText('my town')).toBeInTheDocument();
+  });
+
+  it('emits lat/lng on a map click and offers a corner spot, in student mode only', () => {
+    const onAddAt = vi.fn();
+    mapClick = null;
+    const { rerender } = render(
+      <MapLayout
+        session={makeSession({ layout: 'map' })}
+        mode="student"
+        showNames={false}
+        submissions={[]}
+        onAddAt={onAddAt}
+      />
+    );
+    expect(currentMapClick()).not.toBeNull();
+    currentMapClick()?.({ latlng: { lat: 44.9, lng: -93.3 } });
+    expect(onAddAt).toHaveBeenCalledWith({ lat: 44.9, lng: -93.3 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a post here' }));
+    expect(onAddAt).toHaveBeenLastCalledWith({});
+
+    mapClick = null;
+    rerender(
+      <MapLayout
+        session={makeSession({ layout: 'map' })}
+        mode="gallery"
+        showNames={false}
+        submissions={[]}
+        onAddAt={onAddAt}
+      />
+    );
+    expect(currentMapClick()).toBeNull();
+    expect(screen.queryByTestId('aw-add-spot')).not.toBeInTheDocument();
   });
 });

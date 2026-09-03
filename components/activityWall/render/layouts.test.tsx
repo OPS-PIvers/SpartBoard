@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { WallLayout } from './WallLayout';
@@ -16,6 +16,8 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { WordCloudLayout } from './WordCloudLayout';
 import { LayoutRouter } from './LayoutRouter';
 import { makeSession, makeSubmission } from './fixtures';
+import { gapPlacement } from './addSpots';
+import type { WallPlacement } from './types';
 
 vi.mock('@/config/firebase', () => ({ storage: {} }));
 vi.mock('firebase/storage', () => ({
@@ -285,6 +287,225 @@ describe('wall layouts', () => {
     expect(
       screen.queryByRole('button', { name: 'Drag to move' })
     ).not.toBeInTheDocument();
+  });
+
+  describe('AddSpot', () => {
+    const placements = () =>
+      screen
+        .getAllByTestId('aw-add-spot')
+        .map(
+          (spot) =>
+            JSON.parse(
+              spot.getAttribute('data-placement') ?? '{}'
+            ) as WallPlacement
+        );
+
+    it('renders in student and widget mode only when onAddAt is supplied', () => {
+      const session = makeSession({
+        layout: 'columns',
+        sections: [{ id: 'c1', label: 'Claims' }],
+      });
+      const { rerender } = render(
+        <ColumnsLayout
+          session={session}
+          mode="student"
+          showNames={false}
+          submissions={[]}
+          onAddAt={vi.fn()}
+        />
+      );
+      expect(screen.getAllByTestId('aw-add-spot')).toHaveLength(1);
+
+      rerender(
+        <ColumnsLayout
+          session={session}
+          mode="widget"
+          showNames={false}
+          submissions={[]}
+          onAddAt={vi.fn()}
+        />
+      );
+      expect(screen.getAllByTestId('aw-add-spot')).toHaveLength(1);
+
+      for (const mode of ['gallery', 'teacher'] as const) {
+        rerender(
+          <ColumnsLayout
+            session={session}
+            mode={mode}
+            showNames={false}
+            submissions={[]}
+            onAddAt={vi.fn()}
+          />
+        );
+        expect(screen.queryByTestId('aw-add-spot')).not.toBeInTheDocument();
+      }
+
+      rerender(
+        <ColumnsLayout
+          session={session}
+          mode="student"
+          showNames={false}
+          submissions={[]}
+        />
+      );
+      expect(screen.queryByTestId('aw-add-spot')).not.toBeInTheDocument();
+    });
+
+    it('is hidden until hover/focus and dimmed on touch, via the host group', () => {
+      render(
+        <WallLayout
+          session={makeSession()}
+          mode="student"
+          showNames={false}
+          submissions={[]}
+          onAddAt={vi.fn()}
+        />
+      );
+      const spot = screen.getByRole('button', { name: 'Add a post here' });
+      expect(spot.className).toContain('opacity-0');
+      expect(spot.className).toContain('group-hover:opacity-100');
+      expect(spot.className).toContain('group-focus-within:opacity-100');
+      expect(spot.className).toContain('[@media(hover:none)]:opacity-40');
+      expect(spot.closest('.group')).not.toBeNull();
+    });
+
+    it('Columns: one spot per real column carrying its sectionId, none for Unsorted', () => {
+      const onAddAt = vi.fn();
+      render(
+        <ColumnsLayout
+          session={makeSession({
+            layout: 'columns',
+            sections: [
+              { id: 'c1', label: 'Claims' },
+              { id: 'c2', label: 'Evidence' },
+            ],
+          })}
+          mode="student"
+          showNames={false}
+          submissions={[makeSubmission({ id: 'stray' })]}
+          onAddAt={onAddAt}
+        />
+      );
+      expect(screen.getByTestId('aw-dropzone-__unsorted')).toBeInTheDocument();
+      expect(placements()).toEqual([{ sectionId: 'c1' }, { sectionId: 'c2' }]);
+      fireEvent.click(screen.getAllByTestId('aw-add-spot')[1]);
+      expect(onAddAt).toHaveBeenCalledWith({ sectionId: 'c2' });
+    });
+
+    it('Table: one spot per cell carrying its cellKey', () => {
+      const onAddAt = vi.fn();
+      render(
+        <TableLayout
+          session={makeSession({
+            layout: 'table',
+            tableRows: [
+              { id: 'r1', label: 'Before' },
+              { id: 'r2', label: 'After' },
+            ],
+            tableCols: [
+              { id: 'k1', label: 'Know' },
+              { id: 'k2', label: 'Wonder' },
+            ],
+          })}
+          mode="widget"
+          showNames={false}
+          submissions={[makeSubmission({ id: 'stale', cellKey: 'gone|k9' })]}
+          onAddAt={onAddAt}
+        />
+      );
+      expect(placements()).toEqual([
+        { cellKey: 'r1|k1' },
+        { cellKey: 'r1|k2' },
+        { cellKey: 'r2|k1' },
+        { cellKey: 'r2|k2' },
+      ]);
+      expect(
+        screen
+          .getByTestId(`aw-dropzone-${UNSORTED_ID}`)
+          .querySelector('[data-testid="aw-add-spot"]')
+      ).toBeNull();
+      fireEvent.click(screen.getAllByTestId('aw-add-spot')[2]);
+      expect(onAddAt).toHaveBeenCalledWith({ cellKey: 'r2|k1' });
+    });
+
+    it('Timeline: a spot per gap with midpoint, leading and trailing orders', () => {
+      render(
+        <TimelineLayout
+          session={makeSession({ layout: 'timeline' })}
+          mode="student"
+          showNames={false}
+          submissions={[
+            makeSubmission({ id: 'a', order: 10 }),
+            makeSubmission({ id: 'b', submittedAt: 30 }),
+            makeSubmission({ id: 'c', order: 50 }),
+          ]}
+          onAddAt={vi.fn()}
+          onMove={vi.fn()}
+        />
+      );
+      expect(placements()).toEqual([
+        { order: -990 },
+        { order: 20 },
+        { order: 40 },
+        { order: 1050 },
+      ]);
+      // Gap spots never join the sortable rows.
+      expect(
+        screen.getAllByRole('button', { name: 'Drag to move' })
+      ).toHaveLength(3);
+      const list = screen.getByTestId('aw-layout-timeline');
+      expect(list.children).toHaveLength(7);
+    });
+
+    it('Timeline: an empty list offers a single spot stamped with now', () => {
+      vi.useFakeTimers({ now: 123456 });
+      expect(gapPlacement([], 0)).toEqual({ order: 123456 });
+      vi.useRealTimers();
+      render(
+        <TimelineLayout
+          session={makeSession({ layout: 'timeline' })}
+          mode="student"
+          showNames={false}
+          submissions={[]}
+          onAddAt={vi.fn()}
+        />
+      );
+      expect(screen.getAllByTestId('aw-add-spot')).toHaveLength(1);
+    });
+
+    it('Wall and WordCloud: a single fixed spot with an empty placement', () => {
+      const onAddAt = vi.fn();
+      const { unmount } = render(
+        <WallLayout
+          session={makeSession()}
+          mode="student"
+          showNames={false}
+          submissions={[makeSubmission()]}
+          onAddAt={onAddAt}
+        />
+      );
+      const wallSpot = screen.getByTestId('aw-add-spot');
+      expect(wallSpot.className).toContain('absolute');
+      // Outside the grid so it never takes a card cell.
+      expect(screen.getByTestId('aw-layout-wall')).not.toContainElement(
+        wallSpot
+      );
+      fireEvent.click(wallSpot);
+      expect(onAddAt).toHaveBeenCalledWith({});
+      unmount();
+
+      render(
+        <WordCloudLayout
+          session={makeSession({ layout: 'wordcloud' })}
+          mode="widget"
+          showNames={false}
+          submissions={[makeSubmission({ type: 'word', content: 'brave' })]}
+          onAddAt={onAddAt}
+        />
+      );
+      expect(placements()).toEqual([{}]);
+      expect(screen.getByTestId('aw-add-spot').className).toContain('absolute');
+    });
   });
 
   it('LayoutRouter picks the layout named on the session and paints appearance', () => {

@@ -7,6 +7,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SubmissionCard } from './SubmissionCard';
+import { AddSpot } from './AddSpot';
+import { gapPlacement, showsAddSpots } from './addSpots';
 import { DragHandle } from './dnd';
 import { timelineDropPatch, useWallSensors } from './wallDrag';
 import { sortForTimeline, visibleSubmissions, wallScale } from './scale';
@@ -49,9 +51,11 @@ export const TimelineLayout: React.FC<WallRenderProps> = ({
   mode,
   showNames,
   onMove,
+  onAddAt,
   ...actions
 }) => {
   const scale = wallScale(mode);
+  const addSpots = showsAddSpots(mode, onAddAt);
   const sensors = useWallSensors();
   const items = sortForTimeline(visibleSubmissions(submissions, mode));
   // Drag belongs to whoever was handed a move callback; only the read-only gallery is exempt.
@@ -63,20 +67,43 @@ export const TimelineLayout: React.FC<WallRenderProps> = ({
     onMove(String(event.active.id), patch);
   };
 
+  // Gap spots live in their own <li> so the sortable rows stay a clean id list.
+  const gap = (index: number) =>
+    addSpots ? (
+      <li className="group flex justify-center border-l-2 border-transparent pl-3">
+        <AddSpot
+          mode={mode}
+          placement={gapPlacement(items, index)}
+          onAddAt={onAddAt}
+        />
+      </li>
+    ) : null;
+
   const list = (
     <ol
       className="flex h-full w-full flex-col overflow-auto"
       style={{ gap: scale.gap, padding: scale.pad }}
       data-testid="aw-layout-timeline"
     >
-      {items.map((submission) => (
-        <li key={submission.id} className="border-l-2 border-white/20 pl-3">
-          {sortable ? (
-            <SortableRow
-              id={submission.id}
-              disabled={false}
-              handleSize={scale.icon}
-            >
+      {gap(0)}
+      {items.map((submission, index) => (
+        <React.Fragment key={submission.id}>
+          <li className="border-l-2 border-white/20 pl-3">
+            {sortable ? (
+              <SortableRow
+                id={submission.id}
+                disabled={false}
+                handleSize={scale.icon}
+              >
+                <SubmissionCard
+                  submission={submission}
+                  mode={mode}
+                  showNames={showNames}
+                  footnote={submission.label}
+                  {...actions}
+                />
+              </SortableRow>
+            ) : (
               <SubmissionCard
                 submission={submission}
                 mode={mode}
@@ -84,17 +111,10 @@ export const TimelineLayout: React.FC<WallRenderProps> = ({
                 footnote={submission.label}
                 {...actions}
               />
-            </SortableRow>
-          ) : (
-            <SubmissionCard
-              submission={submission}
-              mode={mode}
-              showNames={showNames}
-              footnote={submission.label}
-              {...actions}
-            />
-          )}
-        </li>
+            )}
+          </li>
+          {gap(index + 1)}
+        </React.Fragment>
       ))}
     </ol>
   );
