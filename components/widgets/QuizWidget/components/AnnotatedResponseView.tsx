@@ -286,7 +286,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({
       <div className="flex flex-col gap-3">
         <article
           ref={articleRef}
-          className={`rounded-xl border p-4 text-sm leading-relaxed max-w-none min-w-0 break-words [&_mark]:transition-colors ${articleCls}`}
+          className={`rich-text-content rounded-xl border p-4 text-sm leading-relaxed max-w-none min-w-0 break-words [&_mark]:transition-colors ${articleCls}`}
           onMouseOver={(e) => {
             const t = (e.target as HTMLElement).closest('mark');
             if (t) setHoveredId(t.getAttribute('data-annotation-id'));
@@ -329,7 +329,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({
     >
       <article
         ref={articleRef}
-        className={`rounded-xl border p-4 text-sm leading-relaxed max-w-none [&_mark]:transition-colors ${articleCls}`}
+        className={`rich-text-content rounded-xl border p-4 text-sm leading-relaxed max-w-none [&_mark]:transition-colors ${articleCls}`}
         onMouseOver={(e) => {
           const t = (e.target as HTMLElement).closest('mark');
           if (t) setHoveredId(t.getAttribute('data-annotation-id'));
@@ -728,7 +728,7 @@ const EditView: React.FC<EditProps> = ({
     <div ref={containerRef} className="relative">
       <article
         ref={articleRef}
-        className="rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
+        className="rich-text-content rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
         onMouseUp={handleMouseUp}
         onClick={handleArticleClick}
       >
