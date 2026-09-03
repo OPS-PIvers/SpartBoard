@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   setDoc,
   deleteDoc,
@@ -359,4 +360,13 @@ export const useGuidedLearning = (
     saveBuildingSet,
     deleteBuildingSet,
   };
+};
+
+// Single shared-set read for surfaces that reference one set by id (Help center guides).
+export const loadBuildingSet = async (
+  setId: string
+): Promise<GuidedLearningSet | null> => {
+  const snap = await getDoc(doc(db, BUILDING_GL_COLLECTION, setId));
+  if (!snap.exists()) return null;
+  return normalizeGuidedLearningSet(snap.data() as GuidedLearningSet);
 };

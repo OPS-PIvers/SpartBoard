@@ -2228,7 +2228,23 @@
       "widget": "Widget"
     },
     "guides": {
-      "placeholder": "Les guides arrivent bientôt"
+      "allCategories": "Toutes",
+      "categories": "Catégories",
+      "empty": "Votre administrateur n'a pas encore ajouté de guides",
+      "noMatches": "Aucun guide ne correspond à votre recherche",
+      "back": "Retour",
+      "open": "Ouvrir",
+      "openExternal": "Ouvrir dans un nouvel onglet",
+      "orgBadge": "Votre établissement",
+      "clearWidgetFilter": "Effacer le filtre de widget",
+      "activityUnavailable": "Cette activité n'est plus disponible",
+      "kinds": {
+        "docs": "Documents",
+        "slides": "Diaporamas",
+        "videos": "Vidéos",
+        "activities": "Activités",
+        "other": "Autres"
+      }
     },
     "shortcuts": {
       "open-help": "Ouvrir l'aide",
