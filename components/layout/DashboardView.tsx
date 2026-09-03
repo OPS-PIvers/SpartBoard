@@ -84,6 +84,9 @@ const EMPTY_STUDENTS: LiveStudent[] = [];
 
 // Gesture constants
 const SWIPE_MIN_DISTANCE_PX = 60; // minimum travel to count as a deliberate swipe
+
+// Off: it fired on ordinary two-finger scrolls and minimized widgets render at opacity 0, reading as the widget vanishing.
+const SWIPE_MINIMIZE_ENABLED = false;
 const SIDEBAR_EDGE_SWIPE_WIDTH_PX = 40; // left-edge zone that triggers sidebar open
 
 // True when focus is inside a text-entry field (input/textarea/select or any
@@ -221,11 +224,14 @@ const ShellPlaceholder: React.FC = () => {
 };
 
 // [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree — but only SettingsPanel carries data-widget-id, so any other portal falls back to topWidgetId.
-function resolveTargetWidgetId(topWidgetId: string): string {
+// Null when focus is outside every widget — the topmost fallback there let a
+// stray Escape/Delete hit whatever bringToFront had most recently raised.
+function resolveTargetWidgetId(topWidgetId: string): string | null {
   const widgetAncestor = document.activeElement?.closest<HTMLElement>(
     '.widget, [data-widget-portal]'
   );
-  return widgetAncestor?.getAttribute('data-widget-id') ?? topWidgetId;
+  if (!widgetAncestor) return null;
+  return widgetAncestor.getAttribute('data-widget-id') ?? topWidgetId;
 }
 
 export const DashboardView: React.FC = () => {
@@ -507,10 +513,10 @@ export const DashboardView: React.FC = () => {
   //  - On touchstart: walk the DOM once (getComputedStyle is expensive) to
   //    determine whether the touch originated inside a scrollable element.
   //    Cache the result so touchmove is O(1).
-  //  - On touchmove: multi-touch (2-finger gestures) always calls
-  //    preventDefault() so our custom zoom/swipe handlers win regardless of
-  //    where the fingers landed.  Single-touch only prevents the bounce if
-  //    the gesture did NOT start inside a scrollable widget.
+  //  - On touchmove: prevent the bounce (and let our custom swipe handlers
+  //    win) only when the gesture did NOT start inside a scrollable widget.
+  //    Applies to single- and multi-touch alike, so two-finger scrolling
+  //    inside a widget's own content stays a scroll.
   //  - Guard every preventDefault() with e.cancelable (required by spec when
   //    the listener is already in a non-cancelable scroll sequence).
   React.useEffect(() => {
@@ -536,7 +542,15 @@ export const DashboardView: React.FC = () => {
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      touchStartInScrollable.current = hasScrollableAncestor(e.target);
+      // Fires once per finger; a later finger landing outside the widget must not erase the first one's scrollable origin.
+      touchStartInScrollable.current =
+        (e.touches.length > 1 && touchStartInScrollable.current) ||
+        hasScrollableAncestor(e.target);
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      // Clear on the last finger up so the next gesture starts fresh.
+      if (e.touches.length === 0) touchStartInScrollable.current = false;
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -545,24 +559,24 @@ export const DashboardView: React.FC = () => {
         e.preventDefault();
         return;
       }
-      // Multi-touch gestures (2-finger swipe, etc.) must always be
-      // intercepted so our custom handlers aren't bypassed by the browser.
-      if (e.touches.length > 1) {
-        e.preventDefault();
-        return;
-      }
-      // Single touch: allow the browser to handle it (so widget lists can
-      // scroll) only if the gesture started inside a scrollable ancestor.
-      if (!touchStartInScrollable.current) {
-        e.preventDefault();
-      }
+      // A gesture that started inside a scrollable widget belongs to that
+      // widget — let the browser scroll it. This now covers multi-touch too:
+      // preventDefault()ing every 2-finger move killed native two-finger
+      // scrolling inside a Note or Checklist and handed the gesture to the
+      // board handlers below, which minimized the widget instead.
+      if (touchStartInScrollable.current) return;
+      e.preventDefault();
     };
 
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
     return () => {
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
     };
   }, []);
 
@@ -685,23 +699,23 @@ export const DashboardView: React.FC = () => {
                 addToast(dashboards[nextIdx].name, 'info');
               }
             }
-          } else if (isVertical) {
+          } else if (isVertical && !touchStartInScrollable.current) {
             if (my > 0) {
               // 2-Finger Swipe DOWN:
               //   - On maximized widget → restore to normal size
-              //   - On normal widget → minimize it
-              //   - On background → minimize all widgets
+              //   - On normal widget → minimize it (SWIPE_MINIMIZE_ENABLED)
+              //   - On background → minimize all widgets (same flag)
               if (widgetEl) {
                 const id = widgetEl.dataset.widgetId;
                 if (id) {
                   const w = activeDashboard?.widgets.find((w) => w.id === id);
                   if (w?.maximized) {
                     updateWidget(id, { maximized: false });
-                  } else {
+                  } else if (SWIPE_MINIMIZE_ENABLED) {
                     updateWidget(id, { minimized: true, flipped: false });
                   }
                 }
-              } else {
+              } else if (SWIPE_MINIMIZE_ENABLED) {
                 minimizeAllWidgets();
               }
             } else {
@@ -950,7 +964,22 @@ export const DashboardView: React.FC = () => {
         // Shift + Escape: Minimize all widgets
         if (e.shiftKey) {
           e.preventDefault();
+          // Capture what was actually visible so Undo restores exactly that,
+          // rather than also un-minimizing widgets the teacher had put away.
+          const wasVisible = (activeDashboard?.widgets ?? [])
+            .filter((w) => !w.minimized)
+            .map((w) => w.id);
           minimizeAllWidgets();
+          if (wasVisible.length > 0) {
+            addToast(t('widgetWindow.minimizedAllToast'), 'info', {
+              label: t('widgetWindow.undo'),
+              onClick: () => {
+                for (const id of wasVisible) {
+                  updateWidget(id, { minimized: false });
+                }
+              },
+            });
+          }
           return;
         }
 
@@ -1054,7 +1083,8 @@ export const DashboardView: React.FC = () => {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
 
-          const targetId = resolveTargetWidgetId(topWidget.id);
+          // Pin has no vanishing-widget hazard, so it keeps the topmost fallback.
+          const targetId = resolveTargetWidgetId(topWidget.id) ?? topWidget.id;
 
           if (targetId) {
             const event = new CustomEvent('widget-keyboard-action', {
@@ -1094,6 +1124,8 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     showConfirm,
     t,
+    addToast,
+    updateWidget,
     groupBuildMode,
     setGroupBuildMode,
     setSelectedWidgetIds,

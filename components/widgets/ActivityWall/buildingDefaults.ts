@@ -1,6 +1,7 @@
 import type {
   ActivityWallGlobalConfig,
   ActivityWallIdentificationMode,
+  ActivityWallLayout,
   ActivityWallMode,
   FeaturePermission,
 } from '@/types';
@@ -17,9 +18,22 @@ export interface ActivityWallActivityDefaults {
   mode?: ActivityWallMode;
   moderationEnabled?: boolean;
   identificationMode?: ActivityWallIdentificationMode;
+  /** Padlet-lite redesign (P2-2); the legacy fields above stay mapped. */
+  layout?: ActivityWallLayout;
+  allowGuests?: boolean;
+  showNames?: boolean;
+  maxPostsPerStudent?: number;
 }
 
 const VALID_MODES: readonly ActivityWallMode[] = ['text', 'photo'];
+const VALID_LAYOUTS: readonly ActivityWallLayout[] = [
+  'wall',
+  'columns',
+  'table',
+  'timeline',
+  'map',
+  'wordcloud',
+];
 const VALID_IDENTIFICATION_MODES: readonly ActivityWallIdentificationMode[] = [
   'anonymous',
   'name',
@@ -67,6 +81,23 @@ export const resolveActivityWallBuildingDefaults = (
   }
   if (typeof raw.defaultModerationEnabled === 'boolean') {
     out.moderationEnabled = raw.defaultModerationEnabled;
+  }
+  if (raw.defaultLayout && VALID_LAYOUTS.includes(raw.defaultLayout)) {
+    out.layout = raw.defaultLayout;
+  }
+  if (typeof raw.defaultAllowGuests === 'boolean') {
+    out.allowGuests = raw.defaultAllowGuests;
+  }
+  if (typeof raw.defaultShowNames === 'boolean') {
+    out.showNames = raw.defaultShowNames;
+  }
+  if (
+    typeof raw.defaultMaxPostsPerStudent === 'number' &&
+    Number.isInteger(raw.defaultMaxPostsPerStudent) &&
+    raw.defaultMaxPostsPerStudent >= 0 &&
+    raw.defaultMaxPostsPerStudent <= 999
+  ) {
+    out.maxPostsPerStudent = raw.defaultMaxPostsPerStudent;
   }
   return out;
 };

@@ -1969,7 +1969,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           } else if (isAnnotating) {
             setIsAnnotating(false);
           } else if (!isLocked) {
+            // A minimized widget renders at opacity 0, so an Escape the
+            // teacher didn't mean as "put this away" looks like the widget
+            // vanished. Say where it went and offer one click back.
             updateWidget(widget.id, { minimized: true, flipped: false });
+            addToast(t('widgetWindow.minimizedToast'), 'info', {
+              label: t('widgetWindow.undo'),
+              onClick: () => updateWidget(widget.id, { minimized: false }),
+            });
           }
         }
       } else if (key === 'Pin') {
@@ -2009,6 +2016,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     removeWidget,
     updateWidget,
     handleCloseTools,
+    addToast,
+    t,
   ]);
 
   const twoFingerLongPressTimer = useRef<NodeJS.Timeout | null>(null);

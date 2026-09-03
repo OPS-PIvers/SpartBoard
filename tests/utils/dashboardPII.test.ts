@@ -203,4 +203,66 @@ describe('dashboardPII utilities', () => {
       expect(merged.widgets[1].config).toEqual(mockDashboard.widgets[1].config);
     });
   });
+
+  describe('empty PII defaults are not PII content', () => {
+    const emptyDefaults = {
+      id: 'empty-dash',
+      name: 'Empty Dashboard',
+      isShared: false,
+      widgets: [
+        {
+          id: 'random-empty',
+          type: 'random',
+          position: { x: 0, y: 0 },
+          config: { firstNames: '', lastNames: '', remainingStudents: [] },
+        },
+        {
+          id: 'checklist-empty',
+          type: 'checklist',
+          position: { x: 0, y: 0 },
+          config: { firstNames: '', lastNames: '', completedNames: [] },
+        },
+      ],
+    } as unknown as Dashboard;
+
+    it('dashboardHasPII is false for shipped empty-string/array defaults', () => {
+      expect(dashboardHasPII(emptyDefaults)).toBe(false);
+    });
+
+    it('extractDashboardPII omits widgets whose PII fields are empty', () => {
+      expect(extractDashboardPII(emptyDefaults)).toEqual({});
+    });
+
+    it('dashboardHasPII is true once a name is typed', () => {
+      const withNames = {
+        ...emptyDefaults,
+        widgets: [
+          {
+            ...emptyDefaults.widgets[0],
+            config: { firstNames: 'Alice', lastNames: '' },
+          },
+          emptyDefaults.widgets[1],
+        ],
+      } as unknown as Dashboard;
+      expect(dashboardHasPII(withNames)).toBe(true);
+      expect(extractDashboardPII(withNames)).toEqual({
+        'random-empty': { firstNames: 'Alice' },
+      });
+    });
+
+    it('empty custom-mode assignments are not PII', () => {
+      const emptyAssignments = {
+        ...emptyDefaults,
+        widgets: [
+          {
+            id: 'stations-1',
+            type: 'stations',
+            position: { x: 0, y: 0 },
+            config: { rosterMode: 'custom', assignments: {}, customRoster: [] },
+          },
+        ],
+      } as unknown as Dashboard;
+      expect(dashboardHasPII(emptyAssignments)).toBe(false);
+    });
+  });
 });

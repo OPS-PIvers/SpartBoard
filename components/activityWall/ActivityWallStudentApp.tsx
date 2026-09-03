@@ -1,530 +1,424 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, ImagePlus, Loader2, Send, X } from 'lucide-react';
-import { ActivityWallIdentificationMode, ActivityWallMode } from '@/types';
-import { db, auth, storage } from '@/config/firebase';
-import { signInAnonymously } from 'firebase/auth';
-import { doc, collection, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes } from 'firebase/storage';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { EyeOff, Loader2, Plus } from 'lucide-react';
+import { useDialog } from '@/context/useDialog';
+import type {
+  ActivityWallIdentificationMode,
+  ActivityWallSubmission,
+} from '@/types';
+import {
+  LayoutRouter,
+  isWallImageSize,
+  type WallImageSize,
+  type WallPlacement,
+} from '@/components/activityWall/render';
+import {
+  buildParticipantLabel,
+  getSessionIdFromPath,
+  useActivityWallStudentSession,
+} from './useActivityWallStudentSession';
+import { makeEngagementFooter, useWallEngagement } from './engagement';
+import { WallCard, WallShell } from './submission/WallShell';
+import { ComposerSheet } from './submission/ComposerSheet';
+import {
+  PostSubmitError,
+  capExhausted,
+  createPost,
+  deletePost,
+  updatePost,
+  type PostDraft,
+} from './submission/submitPost';
 
-type ActivityPayload = {
-  id: string;
-  title: string;
-  prompt: string;
-  mode: ActivityWallMode;
-  moderationEnabled: boolean;
-  identificationMode: ActivityWallIdentificationMode;
-  teacherUid: string;
+const IMAGE_SIZE_STORAGE_KEY = 'activity_wall_student_image_size';
+const identityStorageKey = (sessionId: string) =>
+  `activity_wall_identity:${sessionId}`;
+
+interface Identity {
+  name: string;
+  pin: string;
+}
+
+const readIdentity = (sessionId: string | null): Identity | null => {
+  if (!sessionId) return null;
+  try {
+    const raw = localStorage.getItem(identityStorageKey(sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Identity>;
+    return {
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      pin: typeof parsed.pin === 'string' ? parsed.pin : '',
+    };
+  } catch {
+    return null;
+  }
 };
 
-/**
- * The `/activity-wall/:pathId` app supports two launch styles:
- *
- *   - **Legacy `?data=<base64>` payload** (teacher's code/PIN flow). The
- *     path segment is the `activityId` and the payload JSON carries the
- *     full activity config.
- *   - **Class-targeted link** from `/my-assignments` (Phase 3D). No
- *     `?data=` param; the path segment is the session doc id
- *     (`${teacherUid}_${activityId}`) and we read the activity config
- *     directly from `activity_wall_sessions/{sessionId}` via a one-shot
- *     `getDoc`. We deliberately do NOT use `onSnapshot` here — session
- *     config is write-once and re-rendering on every teacher tweak
- *     would multiply per-student Firestore reads across a class of 30.
- */
-type PayloadState =
-  | { kind: 'loading' }
-  | { kind: 'ready'; payload: ActivityPayload }
-  | { kind: 'error' };
-
-const isActivityPayload = (value: unknown): value is ActivityPayload => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
+const writeIdentity = (sessionId: string, identity: Identity) => {
+  try {
+    localStorage.setItem(
+      identityStorageKey(sessionId),
+      JSON.stringify(identity)
+    );
+  } catch {
+    // Storage unavailable (private mode); the student is asked again next visit.
   }
+};
 
-  const payload = value as {
-    id?: unknown;
-    title?: unknown;
-    prompt?: unknown;
-    mode?: unknown;
-    moderationEnabled?: unknown;
-    identificationMode?: unknown;
-    teacherUid?: unknown;
-  };
+const readImageSize = (): WallImageSize => {
+  try {
+    const stored = localStorage.getItem(IMAGE_SIZE_STORAGE_KEY);
+    return isWallImageSize(stored) ? stored : 'medium';
+  } catch {
+    return 'medium';
+  }
+};
+
+type SheetState =
+  | { kind: 'create'; placement: WallPlacement }
+  | { kind: 'edit'; post: ActivityWallSubmission };
+
+const inputClass =
+  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+
+/** Arrival screen for name / PIN walls; remembered per session in localStorage. */
+const IdentityScreen: React.FC<{
+  mode: ActivityWallIdentificationMode;
+  onDone: (identity: Identity) => void;
+}> = ({ mode, onDone }) => {
+  const [name, setName] = useState('');
+  const [pin, setPin] = useState('');
+  const askName = mode === 'name' || mode === 'name-pin';
+  const askPin = mode === 'pin' || mode === 'name-pin';
+  const valid =
+    (!askName || name.trim().length > 0) && (!askPin || pin.trim().length > 0);
 
   return (
-    typeof payload.id === 'string' &&
-    typeof payload.title === 'string' &&
-    typeof payload.prompt === 'string' &&
-    typeof payload.teacherUid === 'string' &&
-    typeof payload.moderationEnabled === 'boolean' &&
-    (payload.mode === 'text' || payload.mode === 'photo') &&
-    (payload.identificationMode === 'anonymous' ||
-      payload.identificationMode === 'name' ||
-      payload.identificationMode === 'pin' ||
-      payload.identificationMode === 'name-pin')
+    <WallCard>
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (valid) onDone({ name: name.trim(), pin: pin.trim() });
+        }}
+      >
+        <p className="text-lg font-black text-slate-900">Before you post</p>
+        {askName && (
+          <div>
+            <label
+              className="mb-1 block text-sm font-semibold text-slate-700"
+              htmlFor="aw-identity-name"
+            >
+              Your name
+            </label>
+            <input
+              id="aw-identity-name"
+              className={inputClass}
+              value={name}
+              maxLength={60}
+              autoComplete="off"
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+        )}
+        {askPin && (
+          <div>
+            <label
+              className="mb-1 block text-sm font-semibold text-slate-700"
+              htmlFor="aw-identity-pin"
+            >
+              Your PIN
+            </label>
+            <input
+              id="aw-identity-pin"
+              className={inputClass}
+              value={pin}
+              maxLength={20}
+              inputMode="numeric"
+              autoComplete="off"
+              onChange={(event) => setPin(event.target.value)}
+            />
+          </div>
+        )}
+        <button
+          type="submit"
+          disabled={!valid}
+          className="w-full rounded-xl bg-brand-blue-primary py-2 font-bold text-white transition hover:bg-brand-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 disabled:opacity-60"
+        >
+          Continue
+        </button>
+      </form>
+    </WallCard>
   );
-};
-
-const decodeBase64Utf8 = (value: string): string | null => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  try {
-    const binary = atob(decodeURIComponent(trimmed));
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return new TextDecoder().decode(bytes);
-  } catch {
-    return null;
-  }
-};
-
-const parsePayloadFromUrl = (): ActivityPayload | null => {
-  const params = new URLSearchParams(window.location.search);
-  const encoded = params.get('data');
-  if (!encoded) return null;
-
-  const decodedJson = decodeBase64Utf8(encoded);
-  if (!decodedJson) return null;
-
-  try {
-    const parsed = JSON.parse(decodedJson) as unknown;
-    if (!isActivityPayload(parsed)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Normalise a raw Firestore `activity_wall_sessions/{sessionId}` doc
- * into the same `ActivityPayload` shape the base64 URL carries. Returns
- * null when required fields are missing or malformed — the student app
- * treats that as an error state (no deep-link resolution possible).
- *
- * Session docs written before Phase 3D may be missing `moderationEnabled`
- * and `identificationMode` (those fields were added alongside this
- * fallback). We default `moderationEnabled` to false and
- * `identificationMode` to 'anonymous' so legacy sessions still render —
- * both are the safest possible defaults (no submissions auto-hidden,
- * no PII collected).
- */
-const normaliseSessionDoc = (
-  sessionId: string,
-  raw: Record<string, unknown>
-): ActivityPayload | null => {
-  const {
-    activityId,
-    teacherUid,
-    title,
-    prompt,
-    mode,
-    moderationEnabled,
-    identificationMode,
-  } = raw;
-
-  if (typeof activityId !== 'string' || activityId.length === 0) return null;
-  if (typeof teacherUid !== 'string' || teacherUid.length === 0) return null;
-  if (typeof title !== 'string') return null;
-  if (typeof prompt !== 'string') return null;
-  if (mode !== 'text' && mode !== 'photo') return null;
-
-  // The submit handler expects a specific sessionId: `${teacherUid}_${id}`.
-  // Refuse to proceed if the doc id doesn't match that convention, so
-  // submission paths never write to an unexpected collection.
-  if (sessionId !== `${teacherUid}_${activityId}`) return null;
-
-  const resolvedModeration =
-    typeof moderationEnabled === 'boolean' ? moderationEnabled : false;
-  const resolvedIdentification: ActivityWallIdentificationMode =
-    identificationMode === 'name' ||
-    identificationMode === 'pin' ||
-    identificationMode === 'name-pin' ||
-    identificationMode === 'anonymous'
-      ? identificationMode
-      : 'anonymous';
-
-  return {
-    id: activityId,
-    teacherUid,
-    title,
-    prompt,
-    mode,
-    moderationEnabled: resolvedModeration,
-    identificationMode: resolvedIdentification,
-  };
-};
-
-const getSafePreviewUrl = (value: string | null): string | null => {
-  if (!value) return null;
-  return value.startsWith('blob:') ? value : null;
-};
-
-const buildParticipantLabel = (
-  identificationMode: ActivityWallIdentificationMode,
-  name: string,
-  pin: string
-): string => {
-  if (identificationMode === 'name') return name || 'Student';
-  if (identificationMode === 'pin') return `PIN: ${pin}`;
-  if (identificationMode === 'name-pin') return `${name} (${pin})`;
-  return 'Anonymous';
 };
 
 export const ActivityWallStudentApp: React.FC = () => {
-  // The URL payload — when present — is authoritative. We parse it
-  // synchronously in the same render as mount so URL-based launches
-  // render immediately without a loading flash.
-  const urlPayload = useMemo(() => parsePayloadFromUrl(), []);
-  const pathSegment = useMemo(
-    () =>
-      window.location.pathname.replace(/^\/activity-wall\/?/, '').split('/')[0],
+  const sessionId = useMemo(
+    () => getSessionIdFromPath(window.location.pathname),
     []
   );
-
-  const [payloadState, setPayloadState] = useState<PayloadState>(() => {
-    if (urlPayload && pathSegment && urlPayload.id === pathSegment) {
-      return { kind: 'ready', payload: urlPayload };
+  const state = useActivityWallStudentSession(sessionId);
+  const { showConfirm } = useDialog();
+  const readySession = state.kind === 'ready' ? state.session : null;
+  const engagementFlags = {
+    allowLikes: readySession?.allowLikes === true,
+    allowComments: readySession?.allowComments === true,
+    allowCommentResponses: readySession?.allowCommentResponses === true,
+  };
+  const engagement = useWallEngagement(
+    state.kind === 'ready' && state.wallVisible ? state.session.id : null,
+    state.kind === 'ready' ? state.uid : null,
+    {
+      likes: engagementFlags.allowLikes,
+      comments: engagementFlags.allowComments,
     }
-    // No usable URL payload (either missing or mismatched against the
-    // path) — fall back to a Firestore read, but only when we have a
-    // non-empty path segment we can use as a sessionId.
-    if (!pathSegment) return { kind: 'error' };
-    if (urlPayload) {
-      // Param was present but mismatched — that's a genuinely bad link,
-      // not a class-targeted deep-link. Surface the error immediately
-      // rather than wasting a Firestore read.
-      return { kind: 'error' };
-    }
-    return { kind: 'loading' };
-  });
-  const [name, setName] = useState('');
-  const [pin, setPin] = useState('');
-  const [response, setResponse] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  );
 
-  // Firestore session-config fallback (Phase 3D). Runs only when the URL
-  // didn't carry a `?data=` payload — i.e. a class-targeted launch from
-  // `/my-assignments`. Uses a one-shot `getDoc` rather than `onSnapshot`:
-  // session config is write-once (teachers don't mutate title/prompt
-  // mid-activity) and subscribing would multiply per-student reads for
-  // zero benefit. Firestore rules (`passesStudentClassGate`) enforce
-  // that ClassLink-authenticated students can only read the doc when
-  // their `classIds` claim contains the session's `classId`.
-  //
-  // Syncs with the Firestore external system, which is exactly what
-  // `useEffect` is for.
+  const [identity, setIdentity] = useState<Identity | null>(() =>
+    readIdentity(sessionId)
+  );
+  const [imageSize, setImageSizeState] = useState<WallImageSize>(readImageSize);
+  const [sheet, setSheet] = useState<SheetState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const setImageSize = useCallback((size: WallImageSize) => {
+    setImageSizeState(size);
+    try {
+      localStorage.setItem(IMAGE_SIZE_STORAGE_KEY, size);
+    } catch {
+      // Storage unavailable (private mode); the choice just won't persist.
+    }
+  }, []);
+
+  // Notices fade on a timer (external), so the banner never sticks around.
   useEffect(() => {
-    if (payloadState.kind !== 'loading') return;
-    if (!pathSegment) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const snap = await getDoc(
-          doc(db, 'activity_wall_sessions', pathSegment)
-        );
-        if (cancelled) return;
-        if (!snap.exists()) {
-          setPayloadState({ kind: 'error' });
-          return;
-        }
-        const normalised = normaliseSessionDoc(
-          pathSegment,
-          snap.data() as Record<string, unknown>
-        );
-        if (!normalised) {
-          setPayloadState({ kind: 'error' });
-          return;
-        }
-        setPayloadState({ kind: 'ready', payload: normalised });
-      } catch (error) {
-        // Firestore permission-denied and network failures both land
-        // here. We don't expose the specific reason to the student —
-        // just show the same clean "not available" state so the UI
-        // never leaks access-control hints.
-        console.error(
-          '[ActivityWallStudentApp] Session-config fallback failed:',
-          error
-        );
-        if (cancelled) return;
-        setPayloadState({ kind: 'error' });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [payloadState.kind, pathSegment]);
+    if (!notice) return;
+    const handle = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(handle);
+  }, [notice]);
 
-  // Keep previewUrl in sync with selectedFile and revoke the blob URL on cleanup
-  // to avoid leaking browser memory (synchronization with an external resource).
-  // Must be called before any early return to satisfy the Rules of Hooks.
-  React.useEffect(() => {
-    if (!selectedFile) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(selectedFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedFile]);
+  const closeSheet = useCallback(() => {
+    setSheet(null);
+    setSheetError(null);
+    setProgress(null);
+  }, []);
 
-  const safePreviewUrl = getSafePreviewUrl(previewUrl);
-
-  if (payloadState.kind === 'loading') {
+  if (state.kind === 'loading' || state.kind === 'redirecting') {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 text-center text-slate-600">
-        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 text-center text-slate-700">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
         Loading activity…
       </div>
     );
   }
 
-  if (payloadState.kind === 'error') {
+  if (state.kind === 'not-found') {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 text-center">
-        This activity isn&apos;t available right now. Ask your teacher for a new
-        link.
-      </div>
+      <WallShell>
+        <WallCard>
+          <p className="text-center font-medium text-slate-700">
+            This wall isn&apos;t available right now. Ask your teacher for a new
+            link.
+          </p>
+        </WallCard>
+      </WallShell>
     );
   }
 
-  const payload = payloadState.payload;
+  const { uid, isGuest, isStudent, myPosts, posts, wallVisible } = state;
+  const wall = state.session;
+  const mode = wall.identificationMode;
+  const asksIdentity = mode !== 'anonymous' && !isStudent;
 
-  const requiresName =
-    payload.identificationMode === 'name' ||
-    payload.identificationMode === 'name-pin';
-  const requiresPin =
-    payload.identificationMode === 'pin' ||
-    payload.identificationMode === 'name-pin';
+  if (asksIdentity && !identity) {
+    return (
+      <WallShell
+        appearance={wall.appearance}
+        title={wall.title}
+        prompt={wall.prompt}
+      >
+        <IdentityScreen
+          mode={mode}
+          onDone={(next) => {
+            if (sessionId) writeIdentity(sessionId, next);
+            setIdentity(next);
+          }}
+        />
+      </WallShell>
+    );
+  }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFile(e.target.files?.[0] ?? null);
+  const participantLabel =
+    asksIdentity && identity
+      ? buildParticipantLabel(mode, identity.name, identity.pin)
+      : state.participantLabel;
+  const open = wall.acceptingResponses !== false;
+  const isWordCloud = wall.layout === 'wordcloud';
+  const canAdd = open && !capExhausted(wall, uid, myPosts);
+  const canEdit = open && wall.allowStudentEdit === true;
+  const canDelete = open && wall.allowStudentDelete === true;
+  const ownPost = (id: string) => myPosts.find((post) => post.id === id);
+  const renderFooter = wallVisible
+    ? makeEngagementFooter({
+        viewerUid: uid,
+        canWrite: true,
+        flags: engagementFlags,
+        identificationMode: mode,
+        participantLabel,
+        showNames: wall.showNames ?? false,
+        engagement,
+      })
+    : undefined;
+
+  const openCreate = (placement: WallPlacement = {}) => {
+    setSheetError(null);
+    setSheet({ kind: 'create', placement });
   };
 
-  const clearPhoto = () => {
-    setSelectedFile(null);
+  const onEdit = (id: string) => {
+    const post = ownPost(id);
+    if (!post) return;
+    setSheetError(null);
+    setSheet({ kind: 'edit', post });
   };
 
-  const onSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (requiresName && !name.trim()) return;
-    if (requiresPin && !pin.trim()) return;
-    if (payload.mode === 'text' && !response.trim()) return;
-    if (payload.mode === 'photo' && !selectedFile) return;
-
-    if (payload.mode === 'photo' && selectedFile) {
-      if (selectedFile.size >= 10 * 1024 * 1024) {
-        setSubmitError(
-          'Photo must be smaller than 10 MB. Please choose a smaller image.'
-        );
-        return;
-      }
-      if (!selectedFile.type.startsWith('image/')) {
-        setSubmitError('Please select a valid image file.');
-        return;
-      }
-    }
-
-    setSubmitting(true);
-    setSubmitError(null);
-
+  const onDelete = async (id: string) => {
+    if (!ownPost(id)) return;
+    const confirmed = await showConfirm('Delete your post?', {
+      title: 'Delete post',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (!confirmed) return;
     try {
-      if (!auth.currentUser) {
-        await signInAnonymously(auth);
-      }
+      await deletePost(wall.id, id);
+      if (sheet?.kind === 'edit' && sheet.post.id === id) closeSheet();
+    } catch (deleteError) {
+      console.error('[ActivityWallStudentApp] Delete failed:', deleteError);
+      setNotice('Could not delete that post. Please try again.');
+    }
+  };
 
-      const sessionId = `${payload.teacherUid}_${payload.id}`;
-      const submissionId = crypto.randomUUID();
-      const submissionDoc = doc(
-        collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
-        submissionId
-      );
-
-      let content: string;
-      let storagePath: string | undefined;
-
-      if (payload.mode === 'photo' && selectedFile) {
-        storagePath = `activity_wall_photos/${sessionId}/${submissionId}`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, selectedFile);
-        content = storagePath;
+  const onSubmit = async (draft: PostDraft, placement: WallPlacement) => {
+    if (!sheet || busy) return;
+    setBusy(true);
+    setSheetError(null);
+    try {
+      if (sheet.kind === 'edit') {
+        await updatePost(wall, sheet.post.id, draft, placement, {
+          requeueForModeration:
+            wall.moderationEnabled === true && sheet.post.status === 'approved',
+          currentContent: sheet.post.content,
+        });
+        closeSheet();
+        setNotice('Changes saved.');
       } else {
-        content = response.trim();
+        await createPost({
+          session: wall,
+          uid,
+          isGuest,
+          participantLabel,
+          myPosts,
+          draft,
+          placement,
+          onProgress: setProgress,
+        });
+        closeSheet();
+        setNotice(
+          wall.moderationEnabled
+            ? 'Sent to your teacher for review.'
+            : 'Posted!'
+        );
       }
-
-      await setDoc(submissionDoc, {
-        id: submissionId,
-        activityId: payload.id,
-        content,
-        submittedAt: Date.now(),
-        status: payload.moderationEnabled ? 'pending' : 'approved',
-        participantLabel: buildParticipantLabel(
-          payload.identificationMode,
-          name.trim(),
-          pin.trim()
-        ),
-        ...(storagePath
-          ? {
-              storagePath,
-              archiveStatus: 'firebase',
-            }
-          : {}),
-      });
-
-      setSubmitted(true);
-    } catch (error) {
-      console.error('[ActivityWallStudentApp] Submission failed:', error);
-      setSubmitError(
-        'Could not submit your response. Please check your connection and try again.'
-      );
+    } catch (submitError) {
+      if (submitError instanceof PostSubmitError) {
+        setSheetError(submitError.message);
+      } else {
+        console.error(
+          '[ActivityWallStudentApp] Submission failed:',
+          submitError
+        );
+        setSheetError(
+          sheet.kind === 'edit'
+            ? 'Could not save your changes. Please try again.'
+            : 'Could not post. Please check your connection and try again.'
+        );
+      }
     } finally {
-      setSubmitting(false);
+      setBusy(false);
+      setProgress(null);
     }
   };
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-100">
-      <div className="min-h-full flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="bg-brand-blue-primary text-white px-5 py-4">
-            <p className="text-xs uppercase tracking-widest font-bold opacity-90">
-              Activity
-            </p>
-            <h1 className="text-xl font-black">{payload.title}</h1>
+    <WallShell
+      appearance={wall.appearance}
+      title={wall.title}
+      prompt={wall.prompt}
+      open={open}
+      imageSize={imageSize}
+      onImageSizeChange={setImageSize}
+    >
+      <div className="flex h-full flex-col">
+        {!wallVisible && (
+          <div
+            role="status"
+            className="flex shrink-0 items-center justify-center gap-2 bg-slate-900/70 px-4 py-2 text-center text-sm font-medium text-slate-100"
+          >
+            <EyeOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Your teacher will reveal the wall when everyone has posted.
           </div>
-
-          <div className="p-5 space-y-4">
-            <p className="text-slate-700 font-medium">{payload.prompt}</p>
-
-            {!submitted ? (
-              <form className="space-y-3" onSubmit={onSubmit}>
-                {requiresName && (
-                  <input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Your name"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                  />
-                )}
-                {requiresPin && (
-                  <input
-                    value={pin}
-                    onChange={(event) => setPin(event.target.value)}
-                    placeholder="PIN"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                  />
-                )}
-
-                {payload.mode === 'text' ? (
-                  <div className="space-y-1">
-                    <textarea
-                      value={response}
-                      onChange={(event) => setResponse(event.target.value)}
-                      rows={4}
-                      placeholder="Type your response"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                      maxLength={5000}
-                    />
-                    <p className="text-right text-xs text-slate-400">
-                      {response.length}/5000
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="block cursor-pointer">
-                      <div
-                        className={`flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl transition-colors ${
-                          selectedFile
-                            ? 'border-emerald-400 bg-emerald-50'
-                            : 'border-slate-300 hover:border-brand-blue-primary'
-                        }`}
-                      >
-                        {safePreviewUrl ? (
-                          <img
-                            src={safePreviewUrl}
-                            alt="Preview"
-                            className="max-h-48 w-full object-contain rounded-lg"
-                          />
-                        ) : (
-                          <>
-                            <div className="flex gap-3 text-slate-400">
-                              <Camera className="w-8 h-8" />
-                              <ImagePlus className="w-8 h-8" />
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm font-semibold text-brand-blue-primary">
-                                Take or select a photo
-                              </p>
-                              <p className="text-xs text-slate-400 mt-1">
-                                Tap to use your camera or photo library
-                              </p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        aria-label="Choose a photo to upload"
-                        className="sr-only"
-                        onChange={handleFileChange}
-                      />
-                    </label>
-                    {selectedFile && (
-                      <button
-                        type="button"
-                        onClick={clearPhoto}
-                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                        Remove photo
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {submitError && (
-                  <p className="text-sm text-red-600 font-medium">
-                    {submitError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={
-                    submitting ||
-                    (payload.mode === 'photo' && !selectedFile) ||
-                    (payload.mode === 'text' && !response.trim())
-                  }
-                  className="w-full bg-emerald-600 text-white rounded-xl py-2 font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : payload.mode === 'text' ? (
-                    <Send className="w-4 h-4" />
-                  ) : (
-                    <Camera className="w-4 h-4" />
-                  )}
-                  {submitting
-                    ? payload.mode === 'photo'
-                      ? 'Uploading…'
-                      : 'Submitting…'
-                    : 'Submit response'}
-                </button>
-              </form>
-            ) : (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700 text-sm font-medium text-center">
-                Your response has been submitted!
-              </div>
-            )}
+        )}
+        {notice && (
+          <div
+            role="status"
+            className="shrink-0 bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white"
+          >
+            {notice}
           </div>
+        )}
+        <div className="relative min-h-0 flex-1">
+          <LayoutRouter
+            session={wall}
+            submissions={posts}
+            mode="student"
+            appearance={wall.appearance}
+            showNames={wall.showNames ?? false}
+            imageSize={imageSize}
+            viewerUid={uid}
+            onAddAt={canAdd ? openCreate : undefined}
+            onEdit={canEdit ? onEdit : undefined}
+            onDelete={canDelete ? (id) => void onDelete(id) : undefined}
+            renderFooter={renderFooter}
+          />
         </div>
       </div>
-    </div>
+
+      {canAdd && (
+        <button
+          type="button"
+          onClick={() => openCreate()}
+          className="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-base font-bold text-white shadow-lg transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        >
+          <Plus className="h-5 w-5" aria-hidden="true" />
+          {isWordCloud ? 'Add word' : 'Add post'}
+        </button>
+      )}
+
+      {sheet && (
+        <ComposerSheet
+          key={sheet.kind === 'edit' ? sheet.post.id : 'create'}
+          session={wall}
+          placement={sheet.kind === 'create' ? sheet.placement : undefined}
+          editing={sheet.kind === 'edit' ? sheet.post : undefined}
+          onSubmit={(draft, placement) => void onSubmit(draft, placement)}
+          onClose={closeSheet}
+          busy={busy}
+          progress={progress}
+          error={sheetError}
+        />
+      )}
+    </WallShell>
   );
 };

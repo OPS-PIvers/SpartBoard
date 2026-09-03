@@ -1183,7 +1183,9 @@
       "groupWith": "Gruppieren mit..."
     },
     "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?",
-    "clearBoardTitle": "Tafel löschen"
+    "clearBoardTitle": "Tafel löschen",
+    "minimizedToast": "Minimiert — im Dock zu finden",
+    "minimizedAllToast": "Alle Widgets minimiert"
   },
   "login": {
     "signInToAccess": "Melde dich an, um auf deine Tafeln zuzugreifen",
@@ -1973,6 +1975,13 @@
       "editSaveFailed": "Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen."
     }
   },
+  "quizResults": {
+    "stats": {
+      "gradedOf": "{{n}} von {{m}} bewertet",
+      "notGradedYet": "Noch nicht bewertet",
+      "barLabel": "Durchschnittliche Punktzahl {{pct}} %"
+    }
+  },
   "quizMediaResponse": {
     "notice": {
       "title": "Before you record",
@@ -2140,6 +2149,7 @@
         "play": "Play this take",
         "pause": "Pause this take",
         "scrubber": "Playback position",
+        "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
         "addComment": "Comment here",
         "noComments": "Play the take and add a comment at the moment you want to talk about.",

@@ -627,6 +627,81 @@ describe('quiz response UPDATE — stimulus telemetry size cap', () => {
 });
 
 // ---------------------------------------------------------------------------
+// UPDATE: recordingNoticeAckedAt is type-checked
+// ---------------------------------------------------------------------------
+
+describe('quiz response UPDATE — recordingNoticeAckedAt type check', () => {
+  // #2737 whitelisted `recordingNoticeAckedAt` (the Tennessen notice
+  // acknowledgement stamp) into the student update surface with no type
+  // constraint — unlike every sibling client-stamped field in this same
+  // rule (handRaisedAt, lastWriteAt, stimulusPlays/stimulusErrors), which
+  // all validate shape or value. The teacher monitor reads every response
+  // doc in the session, so an unconstrained field lets a student inflate
+  // their own doc with an arbitrary string/map instead of a timestamp.
+  async function seedResponse() {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`),
+        {
+          studentUid: ANON_UID,
+          pin: '01',
+          classPeriod: 'period_1',
+          classId: CLASS_ID,
+          classIds: [CLASS_ID],
+          joinedAt: 1000,
+          score: null,
+          answers: [],
+          status: 'in-progress',
+          completedAttempts: 0,
+          preSyncVersion: 0,
+          tabSwitchWarnings: 0,
+          lastWriteAt: Timestamp.fromMillis(1000),
+        }
+      );
+    });
+  }
+
+  const studentResponse = () =>
+    doc(asAnonStudent(), `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`);
+
+  it('a realistic Date.now() recordingNoticeAckedAt write SUCCEEDS', async () => {
+    await seedResponse();
+    await assertSucceeds(
+      updateDoc(studentResponse(), { recordingNoticeAckedAt: Date.now() })
+    );
+  });
+
+  it('a non-numeric recordingNoticeAckedAt is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(studentResponse(), {
+        recordingNoticeAckedAt: 'not-a-timestamp',
+      })
+    );
+  });
+
+  it('an oversized junk map recordingNoticeAckedAt is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(studentResponse(), {
+        recordingNoticeAckedAt: { junk: 'x'.repeat(500000) },
+      })
+    );
+  });
+
+  it('a zero or negative recordingNoticeAckedAt sentinel is REJECTED', async () => {
+    await seedResponse();
+    await assertFails(
+      updateDoc(studentResponse(), { recordingNoticeAckedAt: 0 })
+    );
+    await assertFails(
+      updateDoc(studentResponse(), { recordingNoticeAckedAt: -1 })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // UPDATE: unlocked self-elevation rejection (companion to CREATE guard)
 // ---------------------------------------------------------------------------
 

@@ -327,100 +327,131 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 
   const isBlocked = lockedOut || showWindowLock;
 
+  // Activity Wall has no completion/grading concept — its status chip is
+  // instead the wall's open/closed state, driven by the session doc's
+  // `acceptingResponses` (defaults to open for legacy docs without the
+  // field). A closed wall still opens normally; only new posts are blocked
+  // server-side, so it stays in the Active list rather than Completed.
+  const isWallClosed =
+    assignment.kind === 'activity-wall' &&
+    assignment.acceptingResponses === false;
+  const showGalleryLink =
+    assignment.kind === 'activity-wall' &&
+    assignment.publiclyShared === true &&
+    !!assignment.latestShareCode;
+  const galleryHref = showGalleryLink
+    ? `${window.location.origin}/r/${assignment.latestShareCode}`
+    : undefined;
+
   return (
-    <a
-      // Omit href entirely when locked so middle-click, cmd-click, ctrl-click,
-      // and shift-click can't bypass the onClick guard (which only blocks
-      // primary-button left clicks). An hrefless <a> is non-navigable in all
-      // click modes, making aria-disabled semantically truthful. We then
-      // restore keyboard focusability via tabIndex={0} so the row stays
-      // reachable by Tab — see handleKeyDown for Enter/Space handling.
-      href={isBlocked ? undefined : assignment.openHref}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={isBlocked ? 0 : undefined}
-      role={isBlocked ? 'button' : undefined}
-      aria-busy={isPending ? true : undefined}
-      aria-disabled={isBlocked ? true : undefined}
-      className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
-        showWindowLock
-          ? 'border-slate-200 bg-slate-50 opacity-60'
-          : isPending
-            ? 'border-dashed border-slate-200 bg-slate-50'
-            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
-      }`}
-    >
-      <span
-        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-          isCompleted
-            ? 'border-emerald-500 bg-emerald-500 text-white'
+    <div className="flex flex-col gap-1">
+      <a
+        // Omit href entirely when locked so middle-click, cmd-click, ctrl-click,
+        // and shift-click can't bypass the onClick guard (which only blocks
+        // primary-button left clicks). An hrefless <a> is non-navigable in all
+        // click modes, making aria-disabled semantically truthful. We then
+        // restore keyboard focusability via tabIndex={0} so the row stays
+        // reachable by Tab — see handleKeyDown for Enter/Space handling.
+        href={isBlocked ? undefined : assignment.openHref}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={isBlocked ? 0 : undefined}
+        role={isBlocked ? 'button' : undefined}
+        aria-busy={isPending ? true : undefined}
+        aria-disabled={isBlocked ? true : undefined}
+        className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
+          showWindowLock
+            ? 'border-slate-200 bg-slate-50 opacity-60'
             : isPending
-              ? 'border-slate-300 text-slate-400'
-              : 'border-slate-300 text-transparent'
+              ? 'border-dashed border-slate-200 bg-slate-50'
+              : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
         }`}
-        aria-hidden="true"
       >
-        {isCompleted && <CheckCircle2 className="h-4 w-4" strokeWidth={2.5} />}
-        {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <p
-          className={`truncate text-sm font-semibold sm:text-base ${
-            isPending || showWindowLock ? 'text-slate-500' : 'text-slate-800'
+        <span
+          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+            isCompleted
+              ? 'border-emerald-500 bg-emerald-500 text-white'
+              : isPending
+                ? 'border-slate-300 text-slate-400'
+                : 'border-slate-300 text-transparent'
           }`}
-        >
-          {assignment.title}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-slate-500">
-          {!hideClassName && classEntry?.name && (
-            <span className="font-medium text-slate-600">
-              {classEntry.name}
-            </span>
-          )}
-          {!hideClassName && classEntry?.name && (
-            <span className="px-1.5 text-slate-300">·</span>
-          )}
-          <span>{config.label}</span>
-        </p>
-      </div>
-
-      {showWindowLock && (
-        <span
-          aria-label={windowLockMessage}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600"
-        >
-          <Lock className="h-3 w-3" />
-          {windowState === 'upcoming' && assignment.openAt
-            ? formatOpensLabel(assignment.openAt)
-            : 'Closed'}
-        </span>
-      )}
-
-      {lockedOut && !showWindowLock && (
-        <span
-          aria-label="Results locked by your teacher"
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-600"
-        >
-          <Lock className="h-3 w-3" />
-          Locked
-        </span>
-      )}
-
-      {/* Suppress the right-side status chip when locked so the "Locked" pill
-          is the single, dominant signal on a locked row — otherwise the chip
-          (e.g. "View results") contradicts the badge. */}
-      {!isBlocked && (
-        <span
-          className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
-            { isPending, isCompleted, isGraded }
-          )}`}
           aria-hidden="true"
         >
-          {getChipLabel({ isPending, isCompleted, isGraded })}
+          {isCompleted && (
+            <CheckCircle2 className="h-4 w-4" strokeWidth={2.5} />
+          )}
+          {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </span>
+
+        <div className="min-w-0 flex-1">
+          <p
+            className={`truncate text-sm font-semibold sm:text-base ${
+              isPending || showWindowLock ? 'text-slate-500' : 'text-slate-800'
+            }`}
+          >
+            {assignment.title}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-slate-500">
+            {!hideClassName && classEntry?.name && (
+              <span className="font-medium text-slate-600">
+                {classEntry.name}
+              </span>
+            )}
+            {!hideClassName && classEntry?.name && (
+              <span className="px-1.5 text-slate-300">·</span>
+            )}
+            <span>{config.label}</span>
+          </p>
+        </div>
+
+        {showWindowLock && (
+          <span
+            aria-label={windowLockMessage}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600"
+          >
+            <Lock className="h-3 w-3" />
+            {windowState === 'upcoming' && assignment.openAt
+              ? formatOpensLabel(assignment.openAt)
+              : 'Closed'}
+          </span>
+        )}
+
+        {lockedOut && !showWindowLock && (
+          <span
+            aria-label="Results locked by your teacher"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-600"
+          >
+            <Lock className="h-3 w-3" />
+            Locked
+          </span>
+        )}
+
+        {/* Suppress the right-side status chip when locked so the "Locked" pill
+          is the single, dominant signal on a locked row — otherwise the chip
+          (e.g. "View results") contradicts the badge. */}
+        {!isBlocked && (
+          <span
+            className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
+              { isPending, isCompleted, isGraded, isWallClosed }
+            )}`}
+            aria-hidden="true"
+          >
+            {getChipLabel({ isPending, isCompleted, isGraded, isWallClosed })}
+          </span>
+        )}
+      </a>
+      {showGalleryLink && galleryHref && (
+        <a
+          href={galleryHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="ml-11 self-start text-xs font-medium text-brand-blue-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
+        >
+          View gallery
+        </a>
       )}
-    </a>
+    </div>
   );
 };
 
@@ -431,17 +462,22 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
  *  - Completed row, grades published → "View results"
  *  - Optimistically-surfaced row whose completion check hasn't resolved →
  *    "Checking…"
+ *  - Activity Wall, not accepting new posts → "Closed" (still opens; see
+ *    isWallClosed above)
  */
 function getChipLabel({
   isPending,
   isCompleted,
   isGraded,
+  isWallClosed,
 }: {
   isPending: boolean;
   isCompleted: boolean;
   isGraded: boolean;
+  isWallClosed: boolean;
 }): string {
   if (isPending) return 'Checking…';
+  if (isWallClosed) return 'Closed';
   if (!isCompleted) return 'Open';
   return isGraded ? 'View results' : 'Not graded';
 }
@@ -453,12 +489,16 @@ function getChipClass({
   isPending,
   isCompleted,
   isGraded,
+  isWallClosed,
 }: {
   isPending: boolean;
   isCompleted: boolean;
   isGraded: boolean;
+  isWallClosed: boolean;
 }): string {
   if (isPending) return 'bg-slate-100 text-slate-400';
+  if (isWallClosed)
+    return 'bg-slate-100 text-slate-500 group-hover:bg-slate-200';
   // Active rows AND completed-with-published-results both invite a click
   // ("Open" / "View results"), so they share the primary brand-blue style.
   // Completed-not-yet-graded is a muted status indicator, not a CTA.

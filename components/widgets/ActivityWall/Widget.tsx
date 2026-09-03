@@ -1,2229 +1,790 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+// Activity Wall front face — a live preview of the active wall plus its toolbar.
+
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  CloudOff,
   Copy,
-  Expand,
+  ExternalLink,
+  Image as ImageIcon,
+  LayoutGrid,
   LibraryBig,
-  MessageSquare,
-  Pencil,
-  Plus,
+  MoreHorizontal,
   QrCode,
   Share2,
-  Trash2,
-  Users,
+  ShieldCheck,
 } from 'lucide-react';
-import {
-  WidgetData,
-  ActivityWallArchiveStatus,
+import type { LucideIcon } from 'lucide-react';
+import type {
   ActivityWallConfig,
-  ActivityWallActivity,
   ActivityWallLibraryEntry,
   ActivityWallSubmission,
-  ClassLinkClass,
+  WidgetData,
 } from '@/types';
+import type { WallPlacement } from '@/components/activityWall/render';
+import { ComposerSheet } from '@/components/activityWall/submission/ComposerSheet';
+import {
+  PostSubmitError,
+  createPost,
+  updatePost,
+  type PostDraft,
+} from '@/components/activityWall/submission/submitPost';
 import {
   useDashboardActions,
+  useGlobalStyle,
   useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
-import { classLinkService } from '@/utils/classlinkService';
-import {
-  resolveActivityWallBuildingDefaults,
-  type ActivityWallActivityDefaults,
-} from './buildingDefaults';
+import { useDialog } from '@/context/useDialog';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { getFontClass, hexToRgba } from '@/utils/styles';
+import { pickReadableForeground } from '@/utils/collectionColor';
+import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { db, functions, storage } from '@/config/firebase';
 import {
-  collection,
-  deleteField,
-  deleteDoc,
-  doc,
-  getDocs,
-  onSnapshot,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+  LayoutRouter,
+  WALL_IMAGE_SIZE_LABEL,
+  isWallImageSize,
+  nextWallImageSize,
+} from '@/components/activityWall/render';
+import { visibleSubmissions } from '@/components/activityWall/render/scale';
+import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
 import {
-  deleteObject,
-  getDownloadURL,
-  ref as storageRef,
-} from 'firebase/storage';
-import { useGoogleDrive } from '@/hooks/useGoogleDrive';
-import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
-import { Modal } from '@/components/common/Modal';
-import { ActivityWallShareModal } from '@/components/widgets/ActivityWall/ShareModal';
+  buildGalleryLink,
+  buildStudentWallLink,
+} from '@/utils/activityWallLinks';
+import { WallEditorModal } from './editor/WallEditorModal';
+import { LAYOUT_OPTIONS } from './editor/layoutOptions';
+import { WallLibraryModal } from './WallLibraryModal';
+import { ModerationDrawer } from './ModerationDrawer';
+import { ActivityWallShareModal } from './ShareModal';
+import { useActivityWallSession } from './hooks/useActivityWallSession';
+import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 
-const encodeActivityData = (
-  activity: ActivityWallActivity,
-  teacherUid: string
-): string => {
-  const payload = JSON.stringify({
-    id: activity.id,
-    title: activity.title,
-    prompt: activity.prompt,
-    mode: activity.mode,
-    moderationEnabled: activity.moderationEnabled,
-    identificationMode: activity.identificationMode,
-    teacherUid,
-  });
-  const bytes = new TextEncoder().encode(payload);
-  let binary = '';
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
-  }
-  return encodeURIComponent(btoa(binary));
+/** Name stamped on teacher posts; falls back to the email handle. */
+const teacherLabel = (displayName: string | null, email: string | null) => {
+  const name = displayName?.trim();
+  if (name) return name;
+  const handle = email?.split('@')[0]?.trim();
+  if (handle) return handle;
+  return 'Teacher';
 };
 
-const buildPublicActivityLink = (
-  activity: ActivityWallActivity,
-  teacherUid: string
-): string => {
-  const encoded = encodeActivityData(activity, teacherUid);
-  return `${window.location.origin}/activity-wall/${activity.id}?data=${encoded}`;
-};
+const toolbarButtonClass =
+  'inline-flex items-center justify-center rounded-lg border border-white/25 bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40';
 
-const isSafeHttpUrl = (url: string): boolean => {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
+/** Below this widget width the secondary toolbar actions collapse into one menu. */
+const TOOLBAR_COMPACT_WIDTH = 460;
 
-const getArchiveStatus = (
-  submission: Pick<
-    ActivityWallSubmission,
-    'archiveStatus' | 'storagePath' | 'driveFileId'
-  >
-): ActivityWallArchiveStatus | null => {
-  if (submission.archiveStatus) return submission.archiveStatus;
-  if (submission.storagePath) return 'firebase';
-  if (submission.driveFileId) return 'archived';
-  return null;
-};
-
-const DRIVE_IMAGE_PROBE_TIMEOUT_MS = 5000;
-const STALE_ARCHIVE_SYNC_TIMEOUT_MS = 30000;
-const VIDEO_EXTENSION_REGEX = /\.(mp4|webm|ogg|mov)$/i;
-const VIDEO_URL_REGEX = /\.(mp4|webm|ogg|mov)(?:[?#]|$)/i;
-const isLikelyVideoUrl = (url: string): boolean => {
-  try {
-    const parsed = new URL(url);
-    return VIDEO_EXTENSION_REGEX.test(parsed.pathname);
-  } catch {
-    return VIDEO_URL_REGEX.test(url);
-  }
-};
-
-const probeImageAvailability = async (url: string): Promise<boolean> => {
-  return await new Promise<boolean>((resolve) => {
-    const img = new Image();
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      img.onload = null;
-      img.onerror = null;
-    };
-    const settle = (result: boolean) => {
-      cleanup();
-      resolve(result);
-    };
-    const timeoutId = window.setTimeout(
-      () => settle(false),
-      DRIVE_IMAGE_PROBE_TIMEOUT_MS
-    );
-    img.onload = () => settle(true);
-    img.onerror = () => settle(false);
-    img.src = url;
-  });
-};
-
-const buildArchiveError = (error: unknown): string => {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.slice(0, 180);
-};
-
-const wordColor = (word: string): string => {
-  let hash = 0;
-  for (let i = 0; i < word.length; i++) {
-    hash = word.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return `hsl(${Math.abs(hash) % 360}, 65%, 38%)`;
-};
-
-const STOP_WORDS = new Set([
-  'a',
-  'an',
-  'the',
-  'is',
-  'it',
-  'in',
-  'on',
-  'at',
-  'to',
-  'for',
-  'of',
-  'and',
-  'or',
-  'but',
-  'not',
-  'with',
-  'be',
-  'was',
-  'are',
-  'were',
-  'by',
-  'from',
-  'as',
-  'i',
-  'my',
-  'we',
-  'our',
-  'you',
-  'your',
-  'he',
-  'she',
-  'they',
-  'their',
-  'its',
-  'this',
-  'that',
-  'do',
-  'did',
-  'so',
-  'if',
-  'up',
-  'out',
-  'no',
-  'can',
-  'has',
-  'have',
-  'had',
-  'will',
-  'just',
-  'me',
-  'am',
-  'been',
-]);
-
-interface WordWeight {
-  word: string;
-  count: number;
-  weight: number;
-}
-
-interface LiveSubmission {
-  id: string;
-  content: string;
-  submittedAt: number;
-  status?: 'approved' | 'pending';
-  participantLabel?: string;
-  storagePath?: string;
-  archiveStatus?: ActivityWallArchiveStatus;
-  archiveStartedAt?: number;
-  driveFileId?: string;
-  archiveError?: string;
-  archivedAt?: number;
-}
-
-const buildWordCloud = (
-  submissions: ActivityWallSubmission[]
-): WordWeight[] => {
-  const counts: Record<string, number> = {};
-  for (const sub of submissions) {
-    const words = sub.content.toLowerCase().match(/\b[a-z']{2,}\b/g) ?? [];
-    for (const word of words) {
-      if (!STOP_WORDS.has(word)) {
-        counts[word] = (counts[word] ?? 0) + 1;
-      }
-    }
-  }
-  const entries = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 60);
-  const maxCount = entries[0]?.[1] ?? 1;
-  return entries.map(([word, count]) => ({
-    word,
-    count,
-    weight: count / maxCount,
-  }));
-};
-
-const buildBlankActivity = (
-  defaults: ActivityWallActivityDefaults = {}
-): ActivityWallActivity => ({
-  id: crypto.randomUUID(),
-  title: '',
-  prompt: '',
-  mode: defaults.mode ?? 'text',
-  moderationEnabled: defaults.moderationEnabled ?? false,
-  identificationMode: defaults.identificationMode ?? 'anonymous',
-  submissions: [],
-  startedAt: null,
-});
-
-/**
- * Human-readable label for a ClassLink class. Mirrors the format used by
- * `ClassLinkImportDialog` and `QuizManager` so teachers see the same
- * class names across every assignment-targeting flow.
- */
-const formatClassLinkClassLabel = (cls: ClassLinkClass): string => {
-  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
-  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
-  return `${subjectPrefix}${cls.title}${codeSuffix}`;
-};
+const layoutSketch = (entry: ActivityWallLibraryEntry): React.ReactNode =>
+  LAYOUT_OPTIONS.find((option) => option.layout === entry.layout)?.sketch ??
+  null;
 
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addWidget, addToast } = useDashboardActions();
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
-  const {
-    user,
-    googleAccessToken,
-    refreshGoogleToken,
-    featurePermissions,
-    selectedBuildings,
-    canAccessFeature,
-  } = useAuth();
-  // Phase 3b (docs/wide-distro-plan.md): admin-gated capability for offering
-  // the no-sign-in (anonymous) participant join link. Default-public, so this
-  // is true for every teacher until an admin restricts `anonymous-join`. The
-  // participant route itself stays anonymous — this only hides the teacher's
-  // link/QR affordances, not the join experience.
+  const { user, canAccessFeature } = useAuth();
+  const { showConfirm } = useDialog();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
-  const { isConnected: isDriveConnected } = useGoogleDrive();
   const config = widget.config as ActivityWallConfig;
+  const imageSize = isWallImageSize(config.imageSize)
+    ? config.imageSize
+    : 'medium';
+  const globalStyle = useGlobalStyle();
+  const fontClass = getFontClass(
+    config.fontFamily ?? 'global',
+    globalStyle.fontFamily
+  );
+  const cardColor = config.cardColor ?? '#0f172a';
+  const cardStyle = useMemo(
+    () => ({
+      background: hexToRgba(cardColor, config.cardOpacity ?? 0.7),
+      color: config.fontColor ?? pickReadableForeground(cardColor),
+    }),
+    [cardColor, config.cardOpacity, config.fontColor]
+  );
+
   const {
-    activities: libraryActivities,
+    activities: entries,
     loading: libraryLoading,
-    saveActivity: saveLibraryActivity,
-    deleteActivity: deleteLibraryActivity,
+    saveActivity,
+    deleteActivity,
   } = useActivityWallLibrary(user?.uid);
-  // Activities surfaced to the widget = library entries (the new source of
-  // truth) MERGED with any leftover `config.activities` from legacy widgets
-  // created before the library existed. The legacy entries are migrated to
-  // the library on mount (see effect below) and `config.activities` is
-  // cleared to `[]`; during the in-flight migration we keep showing them
-  // so the user doesn't briefly see an empty library.
-  const activities = useMemo<ActivityWallActivity[]>(() => {
-    const libraryAsActivity: ActivityWallActivity[] = libraryActivities.map(
-      (entry) => ({
-        id: entry.id,
-        title: entry.title,
-        prompt: entry.prompt,
-        mode: entry.mode,
-        moderationEnabled: entry.moderationEnabled,
-        identificationMode: entry.identificationMode,
-        classId: entry.classId,
-        // Library entries don't store per-session runtime state.
-        submissions: [],
-        startedAt: null,
-      })
-    );
-    const legacy = config.activities ?? [];
-    if (legacy.length === 0) return libraryAsActivity;
-    const libraryIds = new Set(libraryAsActivity.map((a) => a.id));
-    const legacyOnly = legacy.filter((a) => !libraryIds.has(a.id));
-    return [...libraryAsActivity, ...legacyOnly];
-  }, [libraryActivities, config.activities]);
-  const activeActivity =
-    activities.find((activity) => activity.id === config.activeActivityId) ??
-    null;
 
-  const [editorDraft, setEditorDraft] = useState<ActivityWallActivity | null>(
-    null
+  const activeEntry = useMemo(
+    () => entries.find((entry) => entry.id === config.activeActivityId) ?? null,
+    [entries, config.activeActivityId]
   );
-  const [showLiveView, setShowLiveView] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  // ─── ClassLink target-class fetch (Phase 3D) ────────────────────────────
-  // Teacher's ClassLink classes (if provisioned). Fetched once per widget
-  // mount via the existing `classLinkService` (5-min cache — cheap). If the
-  // teacher isn't on a ClassLink-provisioned org, the list stays empty and
-  // the target-class selector is hidden entirely. Errors are swallowed:
-  // ClassLink being unreachable must not block `?data=`-based launches.
-  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
-    []
-  );
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        // Silent: no-ClassLink orgs and transient failures both fall back
-        // to `?data=`-only launches, so the selector stays hidden.
-        if (import.meta.env.DEV) {
-          console.warn('[ActivityWall] ClassLink fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState<
-    string | null
+  const [editorEntry, setEditorEntry] = useState<
+    ActivityWallLibraryEntry | null | undefined
+  >(undefined);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [moderationOpen, setModerationOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [connectingDrive, setConnectingDrive] = useState(false);
+  const [toolbarMenuOpen, setToolbarMenuOpen] = useState(false);
+  const [composer, setComposer] = useState<
+    | { kind: 'create'; placement: WallPlacement }
+    | { kind: 'edit'; post: ActivityWallSubmission }
+    | null
   >(null);
-  const [fullscreenSubmission, setFullscreenSubmission] =
-    useState<ActivityWallSubmission | null>(null);
-  const [firebasePhotoUrls, setFirebasePhotoUrls] = useState<
-    Record<string, string>
-  >({});
-  const [photoAspectRatios, setPhotoAspectRatios] = useState<
-    Record<string, number>
-  >({});
-  const [submissionsGridNode, setSubmissionsGridNode] =
-    useState<HTMLDivElement | null>(null);
-  const [submissionsGridSize, setSubmissionsGridSize] = useState({
-    width: 0,
-    height: 0,
-  });
+  const [composerBusy, setComposerBusy] = useState(false);
+  const [composerProgress, setComposerProgress] = useState<number | null>(null);
+  const [composerError, setComposerError] = useState<string | null>(null);
+  const toolbarMenuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(toolbarMenuRef, () => setToolbarMenuOpen(false));
 
-  const [firestoreState, setFirestoreState] = useState<{
-    sessionId: string | null;
-    submissions: LiveSubmission[];
-  }>({
-    sessionId: null,
-    submissions: [],
-  });
-  const syncingSubmissionIdsRef = useRef<Set<string>>(new Set());
-  const isArchivingRef = useRef(false);
-  const isRetryingFailedArchivesRef = useRef(false);
-  const activeSessionId =
-    activeActivity && user ? `${user.uid}_${activeActivity.id}` : null;
-
-  const handlePhotoLoad = useCallback(
-    (submissionId: string, width: number, height: number) => {
-      if (width <= 0 || height <= 0) return;
-      const ratio = width / height;
-      setPhotoAspectRatios((prev) => {
-        if (prev[submissionId] === ratio) return prev;
-        return { ...prev, [submissionId]: ratio };
-      });
-    },
-    []
+  const clearLegacyActivities = useCallback(
+    (widgetId: string) =>
+      updateWidget(widgetId, { config: { activities: [] } }),
+    [updateWidget]
   );
 
-  useEffect(() => {
-    const node = submissionsGridNode;
-    if (!node) return;
-    const observedNode = node.parentElement;
-    if (!observedNode) return;
-
-    const updateSize = (width: number, height: number) => {
-      setSubmissionsGridSize((previous) => {
-        if (previous.width === width && previous.height === height) {
-          return previous;
-        }
-        return { width, height };
-      });
-    };
-
-    const initialRect = observedNode.getBoundingClientRect();
-    updateSize(initialRect.width, initialRect.height);
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      updateSize(entry.contentRect.width, entry.contentRect.height);
-    });
-    observer.observe(observedNode);
-    return () => observer.disconnect();
-  }, [submissionsGridNode]);
-
-  useEffect(() => {
-    if (!activeActivity || !user || !activeSessionId) return;
-
-    // Phase 3D: Mirror the full activity config onto the session doc so
-    // students who land via `/my-assignments` (no `?data=` payload) can
-    // hydrate the same UX as the base64-URL path — including moderation
-    // and participant-identification behavior. `classId`, when present,
-    // additionally gates ClassLink-authenticated student reads via
-    // Firestore rules (`passesStudentClassGate`); omitting it preserves
-    // the classic code/PIN-only flow.
-    void setDoc(
-      doc(db, 'activity_wall_sessions', activeSessionId),
-      {
-        id: activeSessionId,
-        activityId: activeActivity.id,
-        teacherUid: user.uid,
-        title: activeActivity.title,
-        prompt: activeActivity.prompt,
-        mode: activeActivity.mode,
-        moderationEnabled: activeActivity.moderationEnabled,
-        identificationMode: activeActivity.identificationMode,
-        updatedAt: Date.now(),
-        ...(activeActivity.classId ? { classId: activeActivity.classId } : {}),
-      },
-      { merge: true }
-    );
-  }, [activeActivity, activeSessionId, user]);
-
-  useEffect(() => {
-    if (!activeActivity || !user) return;
-
-    const sessionId = `${user.uid}_${activeActivity.id}`;
-    const submissionsRef = collection(
-      db,
-      'activity_wall_sessions',
-      sessionId,
-      'submissions'
-    );
-
-    const unsubscribe = onSnapshot(submissionsRef, (snap) => {
-      setFirestoreState({
-        sessionId,
-        submissions: snap.docs.map((docSnap) => {
-          const data = docSnap.data();
-          return {
-            id: data.id as string,
-            content: data.content as string,
-            submittedAt: data.submittedAt as number,
-            status: data.status as 'approved' | 'pending' | undefined,
-            participantLabel: data.participantLabel as string | undefined,
-            storagePath: data.storagePath as string | undefined,
-            archiveStatus: data.archiveStatus as
-              | ActivityWallArchiveStatus
-              | undefined,
-            archiveStartedAt: data.archiveStartedAt as number | undefined,
-            driveFileId: data.driveFileId as string | undefined,
-            archiveError: data.archiveError as string | undefined,
-            archivedAt: data.archivedAt as number | undefined,
-          };
-        }),
-      });
-    });
-
-    return unsubscribe;
-  }, [activeActivity?.id, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const firestoreRaw = useMemo(
-    () =>
-      firestoreState.sessionId === activeSessionId
-        ? firestoreState.submissions
-        : [],
-    [activeSessionId, firestoreState]
-  );
-
-  useEffect(() => {
-    if (!activeSessionId) {
-      setFirebasePhotoUrls({});
-      setPhotoAspectRatios({});
-      return;
-    }
-
-    const activeStoragePaths = new Set(
-      firestoreRaw.flatMap((submission) =>
-        submission.storagePath ? [submission.storagePath] : []
-      )
-    );
-
-    setFirebasePhotoUrls((previous) => {
-      const nextEntries = Object.entries(previous).filter(([storagePath]) =>
-        activeStoragePaths.has(storagePath)
-      );
-      if (nextEntries.length === Object.keys(previous).length) {
-        return previous;
-      }
-      return Object.fromEntries(nextEntries);
-    });
-
-    const pendingStoragePaths = firestoreRaw
-      .flatMap((submission) => {
-        if (!submission.storagePath) return [];
-        if (isSafeHttpUrl(submission.content)) return [];
-        if (firebasePhotoUrls[submission.storagePath]) return [];
-        return [submission.storagePath];
-      })
-      .filter(
-        (storagePath, index, values) => values.indexOf(storagePath) === index
-      );
-
-    if (pendingStoragePaths.length === 0) return;
-
-    let cancelled = false;
-
-    void Promise.all(
-      pendingStoragePaths.map(async (storagePath) => {
-        try {
-          const url = await getDownloadURL(storageRef(storage, storagePath));
-          return [storagePath, url] as const;
-        } catch (error) {
-          console.error(
-            '[ActivityWall] Failed to resolve Firebase photo preview URL:',
-            error
-          );
-          return null;
-        }
-      })
-    ).then((results) => {
-      if (cancelled) return;
-
-      setFirebasePhotoUrls((previous) => {
-        const resolvedEntries = results.filter((entry) => entry !== null);
-        if (resolvedEntries.length === 0) return previous;
-        return {
-          ...previous,
-          ...Object.fromEntries(resolvedEntries),
-        };
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSessionId, firebasePhotoUrls, firestoreRaw]);
-
-  const participantUrl = useMemo(() => {
-    if (!activeActivity || !user) return '';
-    return buildPublicActivityLink(activeActivity, user.uid);
-  }, [activeActivity, user]);
-
-  const updateConfig = useCallback(
-    (updates: Partial<ActivityWallConfig>) => {
-      const nextConfig = {
-        ...(widget.config as ActivityWallConfig),
-        ...updates,
-      };
-      updateWidget(widget.id, { config: nextConfig });
-    },
-    [updateWidget, widget.config, widget.id]
-  );
-
-  // ─── One-shot migration of legacy `config.activities` → library ──────
-  // Pre-library widgets stored activities inline on `config.activities`,
-  // which meant removing the widget destroyed them. Migrate any leftover
-  // entries to `/users/{uid}/activity_wall_activities/{id}` so the same
-  // id continues to address the same `activity_wall_sessions/{uid}_{id}`,
-  // then clear `config.activities` to `[]`. Idempotent — re-runs on
-  // remount harmlessly overwrite identical docs.
-  const migrationRanRef = useRef(false);
-  useEffect(() => {
-    if (migrationRanRef.current) return;
-    if (!user) return;
-    const legacy = (widget.config as ActivityWallConfig).activities ?? [];
-    if (legacy.length === 0) return;
-    migrationRanRef.current = true;
-    void (async () => {
-      const now = Date.now();
-      try {
-        await Promise.all(
-          legacy.map((activity) => {
-            const entry: ActivityWallLibraryEntry = {
-              id: activity.id,
-              title: activity.title,
-              prompt: activity.prompt,
-              mode: activity.mode,
-              moderationEnabled: activity.moderationEnabled,
-              identificationMode: activity.identificationMode,
-              createdAt: activity.startedAt ?? now,
-              updatedAt: now,
-            };
-            if (activity.classId) entry.classId = activity.classId;
-            return saveLibraryActivity(entry);
-          })
-        );
-        // Clear the legacy field. Pass only the diff — `updateWidget`
-        // merges partial config updates against the LATEST state
-        // (`DashboardContext.updateWidget` does `{ ...w.config,
-        // ...updates.config }`), so a concurrent change to e.g.
-        // `activeActivityId` between mount and now won't be clobbered
-        // by a stale spread of the React-props `widget.config`.
-        updateWidget(widget.id, { config: { activities: [] } });
-      } catch (err) {
-        // Migration failures are non-fatal: legacy activities stay in
-        // config so the user keeps seeing them, and the next mount
-        // retries. Surface to console for debugging.
-        console.error(
-          '[ActivityWall] Failed to migrate legacy activities to library:',
-          err
-        );
-        migrationRanRef.current = false;
-      }
-    })();
-  }, [user, widget.id, widget.config, saveLibraryActivity, updateWidget]);
-
-  // ─── One-shot recovery: session docs → library ───────────────────────
-  // Before the library existed, activities lived on `config.activities`.
-  // If the teacher signed in on a different device or removed the widget
-  // back then, the only surviving trace of those activities is the
-  // session doc the widget writes on launch
-  // (`activity_wall_sessions/{teacherUid}_{activityId}`), which mirrors
-  // the full activity config and is also where student submissions hang.
-  // When the library is empty (no legacy `config.activities` to migrate
-  // either) we query those session docs and reconstruct library entries.
-  // A per-user localStorage flag stops us from re-querying on every
-  // empty-library mount once recovery has run.
-  const recoveryRanRef = useRef(false);
-  useEffect(() => {
-    if (recoveryRanRef.current) return;
-    if (!user || libraryLoading) return;
-    if (libraryActivities.length > 0) return;
-    const legacy = (widget.config as ActivityWallConfig).activities ?? [];
-    if (legacy.length > 0) return;
-    const flagKey = `aw_library_recovery_v1_${user.uid}`;
-    if (
-      typeof localStorage !== 'undefined' &&
-      localStorage.getItem(flagKey) === 'done'
-    ) {
-      recoveryRanRef.current = true;
-      return;
-    }
-    recoveryRanRef.current = true;
-    void (async () => {
-      try {
-        const sessionsQuery = query(
-          collection(db, 'activity_wall_sessions'),
-          where('teacherUid', '==', user.uid)
-        );
-        const snap = await getDocs(sessionsQuery);
-        const recovered: ActivityWallLibraryEntry[] = [];
-        snap.docs.forEach((d) => {
-          const data = d.data() as Partial<{
-            activityId: string;
-            title: string;
-            prompt: string;
-            mode: ActivityWallActivity['mode'];
-            moderationEnabled: boolean;
-            identificationMode: ActivityWallActivity['identificationMode'];
-            classId: string;
-            updatedAt: number;
-          }>;
-          if (
-            typeof data.activityId !== 'string' ||
-            typeof data.title !== 'string' ||
-            typeof data.prompt !== 'string'
-          ) {
-            return;
-          }
-          const updatedAt =
-            typeof data.updatedAt === 'number' ? data.updatedAt : Date.now();
-          const entry: ActivityWallLibraryEntry = {
-            id: data.activityId,
-            title: data.title,
-            prompt: data.prompt,
-            mode: data.mode === 'photo' ? 'photo' : 'text',
-            moderationEnabled: !!data.moderationEnabled,
-            identificationMode: data.identificationMode ?? 'anonymous',
-            createdAt: updatedAt,
-            updatedAt,
-          };
-          if (typeof data.classId === 'string' && data.classId.length > 0) {
-            entry.classId = data.classId;
-          }
-          recovered.push(entry);
-        });
-        await Promise.all(recovered.map((entry) => saveLibraryActivity(entry)));
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(flagKey, 'done');
-        }
-        if (recovered.length > 0) {
-          addToast(
-            `Restored ${recovered.length} activit${
-              recovered.length === 1 ? 'y' : 'ies'
-            } from past sessions.`,
-            'success'
-          );
-        }
-      } catch (err) {
-        console.error(
-          '[ActivityWall] Session-based library recovery failed:',
-          err
-        );
-        // Allow a retry on next mount — don't poison the localStorage flag.
-        recoveryRanRef.current = false;
-      }
-    })();
-  }, [
-    user,
+  useLegacyActivityWallMigration({
+    uid: user?.uid,
+    config,
+    widgetId: widget.id,
     libraryLoading,
-    libraryActivities.length,
-    widget.config,
-    saveLibraryActivity,
+    libraryCount: entries.length,
+    saveActivity,
+    clearLegacyActivities,
     addToast,
-  ]);
+  });
 
-  // Per-building admin defaults (mode / identification / moderation) applied
-  // when a teacher authors a *new* activity, so a building can pre-configure
-  // how Activity Wall posts behave without each teacher re-setting them.
-  const activityDefaults = useMemo(
-    () =>
-      resolveActivityWallBuildingDefaults(
-        featurePermissions,
-        selectedBuildings
-      ),
-    [featurePermissions, selectedBuildings]
+  const {
+    sessionId,
+    session,
+    submissions,
+    pendingCount,
+    driveSync,
+    latestShareCode,
+    latestShareId,
+    approve,
+    reject,
+    deletePost,
+    movePost,
+    pinPost,
+    editPost,
+    setAcceptingResponses,
+    setStudentsCanSeePosts,
+  } = useActivityWallSession(user?.uid, activeEntry, saveActivity);
+
+  const isOpenWall = activeEntry?.acceptingResponses !== false;
+  const isVisibleWall = activeEntry?.studentsCanSeePosts !== false;
+  const visibleCount = visibleSubmissions(submissions, 'widget').length;
+
+  const studentUrl = useMemo(() => {
+    if (!sessionId || !activeEntry) return '';
+    return buildStudentWallLink(
+      window.location.origin,
+      sessionId,
+      activeEntry.allowGuests ?? false
+    );
+  }, [activeEntry, sessionId]);
+
+  const galleryUrl = useMemo(() => {
+    if (latestShareCode)
+      return `${window.location.origin}/r/${latestShareCode}`;
+    if (latestShareId)
+      return buildGalleryLink(window.location.origin, latestShareId);
+    return '';
+  }, [latestShareCode, latestShareId]);
+
+  const setActiveEntry = useCallback(
+    (entryId: string | null) => {
+      updateWidget(widget.id, { config: { activeActivityId: entryId } });
+    },
+    [updateWidget, widget.id]
   );
 
-  // Open the editor seeded with the teacher's last-used classId for this
-  // activity (Phase 3D). Keeps the same UX as QuizManager where re-assigning
-  // the same item pre-fills the previous target class without surprising
-  // the teacher on a fresh "New" activity.
-  const openEditor = (activity: ActivityWallActivity) => {
-    const lastUsed = config.lastClassIdByActivityId?.[activity.id];
-    if (!activity.classId && lastUsed) {
-      setEditorDraft({ ...activity, classId: lastUsed });
-    } else {
-      setEditorDraft(activity);
-    }
-  };
+  const toggleOpenClosed = useCallback(() => {
+    if (!activeEntry) return;
+    void setAcceptingResponses(!isOpenWall).catch((err) => {
+      console.error('[ActivityWall] Failed to toggle wall state:', err);
+      addToast('Could not change the wall state.', 'error');
+    });
+  }, [activeEntry, addToast, isOpenWall, setAcceptingResponses]);
 
-  const saveEditorDraft = () => {
-    if (!editorDraft) return;
-    const title = editorDraft.title.trim();
-    const prompt = editorDraft.prompt.trim();
-    if (!title || !prompt) return;
+  const toggleVisibleHidden = useCallback(() => {
+    if (!activeEntry) return;
+    void setStudentsCanSeePosts(!isVisibleWall).catch((err) => {
+      console.error('[ActivityWall] Failed to toggle wall visibility:', err);
+      addToast('Could not change who can see posts.', 'error');
+    });
+  }, [activeEntry, addToast, isVisibleWall, setStudentsCanSeePosts]);
 
-    // Phase 3D guard: if the teacher somehow held onto a classId that is
-    // no longer in the fetched ClassLink list (e.g. rosters changed
-    // between editor open and save), fall through to no-class rather
-    // than writing a stale id onto the activity or session doc.
-    const draftClassId = editorDraft.classId ?? '';
-    const selectedClassId =
-      draftClassId && classLinkClasses.some((c) => c.sourcedId === draftClassId)
-        ? draftClassId
-        : '';
+  const openTeacherComposer = useCallback((placement: WallPlacement = {}) => {
+    setComposerError(null);
+    setComposer({ kind: 'create', placement });
+  }, []);
 
-    const exists = activities.some((a) => a.id === editorDraft.id);
-    const now = Date.now();
-    const existingEntry = libraryActivities.find(
-      (e) => e.id === editorDraft.id
-    );
-    const entry: ActivityWallLibraryEntry = {
-      id: editorDraft.id,
-      title,
-      prompt,
-      mode: editorDraft.mode,
-      moderationEnabled: editorDraft.moderationEnabled,
-      identificationMode: editorDraft.identificationMode,
-      createdAt: existingEntry?.createdAt ?? now,
-      updatedAt: now,
-    };
-    if (selectedClassId) entry.classId = selectedClassId;
+  const openTeacherEdit = useCallback(
+    (submissionId: string) => {
+      const post = submissions.find((entry) => entry.id === submissionId);
+      if (!post) return;
+      setComposerError(null);
+      setComposer({ kind: 'edit', post });
+    },
+    [submissions]
+  );
 
-    // Persist the teacher's last-used classId per activity so re-opening
-    // the same activity's editor pre-selects the same class. Clearing
-    // (picking "No class") removes the entry rather than writing an
-    // empty string to keep the config map small.
-    const prevMap = config.lastClassIdByActivityId ?? {};
-    const nextMap: Record<string, string> = { ...prevMap };
-    if (selectedClassId) {
-      nextMap[entry.id] = selectedClassId;
-    } else {
-      delete nextMap[entry.id];
-    }
+  const closeComposer = useCallback(() => {
+    setComposer(null);
+    setComposerProgress(null);
+  }, []);
 
-    void (async () => {
+  const submitTeacherPost = useCallback(
+    async (draft: PostDraft, placement: WallPlacement) => {
+      if (!composer || !session || !user || composerBusy) return;
+      setComposerBusy(true);
+      setComposerError(null);
       try {
-        await saveLibraryActivity(entry);
-        updateConfig({
-          activeActivityId: entry.id,
-          lastClassIdByActivityId: nextMap,
-        });
-        setEditorDraft(null);
-        setShowLiveView(true);
-        addToast(exists ? 'Activity updated.' : 'Activity created.', 'success');
-      } catch (err) {
-        console.error('[ActivityWall] Failed to save activity:', err);
-        addToast('Failed to save activity.', 'error');
-      }
-    })();
-  };
-
-  const deleteActivity = (activityId: string) => {
-    const nextActivities = activities.filter((a) => a.id !== activityId);
-    // Always reconcile widget-local state (active id selector, legacy
-    // config.activities) so the deletion is reflected immediately even
-    // before the library's onSnapshot tick lands.
-    const legacy = config.activities ?? [];
-    const legacyHasId = legacy.some((a) => a.id === activityId);
-    const configUpdates: Partial<ActivityWallConfig> = {
-      activeActivityId:
-        config.activeActivityId === activityId
-          ? (nextActivities[0]?.id ?? null)
-          : config.activeActivityId,
-    };
-    if (legacyHasId) {
-      configUpdates.activities = legacy.filter((a) => a.id !== activityId);
-    }
-    updateConfig(configUpdates);
-    if (editorDraft?.id === activityId) setEditorDraft(null);
-    setShowLiveView(false);
-    void (async () => {
-      try {
-        await deleteLibraryActivity(activityId);
-        addToast('Activity removed.', 'info');
-      } catch (err) {
-        console.error('[ActivityWall] Failed to delete activity:', err);
-        addToast('Failed to remove activity.', 'error');
-      }
-    })();
-  };
-
-  const archivePhotoSubmission = useCallback(
-    async (submission: LiveSubmission) => {
-      if (!activeActivity || !activeSessionId || !user) return;
-
-      syncingSubmissionIdsRef.current.add(submission.id);
-      isArchivingRef.current = true;
-
-      try {
-        const accessToken = googleAccessToken ?? (await refreshGoogleToken());
-        if (!accessToken) {
-          throw new Error(
-            'Google Drive is not connected. Reconnect Drive and retry the photo sync.'
-          );
+        if (composer.kind === 'edit') {
+          await updatePost(session, composer.post.id, draft, placement);
+          addToast('Post updated.', 'success');
+        } else {
+          await createPost({
+            session,
+            uid: user.uid,
+            isGuest: false,
+            participantLabel: teacherLabel(user.displayName, user.email),
+            myPosts: [],
+            draft,
+            placement,
+            onProgress: setComposerProgress,
+            author: 'teacher',
+          });
+          addToast('Posted to the wall.', 'success');
         }
-
-        const archivePhoto = httpsCallable<
-          {
-            accessToken: string;
-            sessionId: string;
-            submissionId: string;
-            activityId: string;
-            status: 'approved' | 'pending';
-          },
-          {
-            archiveStatus: ActivityWallArchiveStatus;
-            driveFileId: string;
-            driveUrl: string;
-          }
-        >(functions, 'archiveActivityWallPhoto');
-
-        const result = await archivePhoto({
-          accessToken,
-          sessionId: activeSessionId,
-          submissionId: submission.id,
-          activityId: activeActivity.id,
-          status: submission.status ?? 'approved',
-        });
-
-        const driveImageReady = await probeImageAvailability(
-          result.data.driveUrl
+        closeComposer();
+      } catch (err) {
+        console.error('[ActivityWall] Teacher post failed:', err);
+        setComposerError(
+          err instanceof PostSubmitError
+            ? err.message
+            : 'Could not save the post. Please try again.'
         );
-        if (!driveImageReady) {
-          console.warn(
-            '[ActivityWall] Drive image did not become readable before timeout; completing archive anyway.'
-          );
-        }
-      } catch (error) {
-        console.error('[ActivityWall] Photo archive failed:', error);
-
-        const submissionRef = doc(
-          db,
-          'activity_wall_sessions',
-          activeSessionId,
-          'submissions',
-          submission.id
-        );
-        void updateDoc(submissionRef, {
-          status: submission.status ?? 'approved',
-          archiveStatus: 'failed',
-          archiveStartedAt: deleteField(),
-          archiveError: buildArchiveError(error),
-        }).catch((updateError) => {
-          console.error(
-            '[ActivityWall] Failed to persist archive error state:',
-            updateError
-          );
-        });
       } finally {
-        syncingSubmissionIdsRef.current.delete(submission.id);
-        isArchivingRef.current = false;
+        setComposerBusy(false);
       }
     },
-    [
-      activeActivity,
-      activeSessionId,
-      googleAccessToken,
-      refreshGoogleToken,
-      user,
-    ]
+    [addToast, closeComposer, composer, composerBusy, session, user]
   );
 
-  useEffect(() => {
-    if (
-      !activeActivity ||
-      activeActivity.mode !== 'photo' ||
-      !activeSessionId ||
-      !isDriveConnected ||
-      isArchivingRef.current
-    ) {
-      return;
-    }
-
-    const nextSubmission = firestoreRaw.find((submission) => {
-      const status = getArchiveStatus(submission);
-      return (
-        submission.storagePath &&
-        status === 'firebase' &&
-        !syncingSubmissionIdsRef.current.has(submission.id)
-      );
-    });
-
-    if (nextSubmission) {
-      void archivePhotoSubmission(nextSubmission);
-    }
-  }, [
-    activeActivity,
-    activeSessionId,
-    archivePhotoSubmission,
-    firestoreRaw,
-    isDriveConnected,
-  ]);
-
-  useEffect(() => {
-    if (
-      !activeActivity ||
-      activeActivity.mode !== 'photo' ||
-      !activeSessionId ||
-      !isDriveConnected ||
-      isArchivingRef.current
-    ) {
-      return;
-    }
-
-    const staleSubmission = firestoreRaw.find((submission) => {
-      if (submission.archiveStatus !== 'syncing') return false;
-      if (syncingSubmissionIdsRef.current.has(submission.id)) return false;
-
-      const startedAt = submission.archiveStartedAt ?? submission.submittedAt;
-      return Date.now() - startedAt > STALE_ARCHIVE_SYNC_TIMEOUT_MS;
-    });
-
-    if (!staleSubmission) return;
-
-    const submissionRef = doc(
-      db,
-      'activity_wall_sessions',
-      activeSessionId,
-      'submissions',
-      staleSubmission.id
-    );
-
-    void updateDoc(submissionRef, {
-      status: staleSubmission.status ?? 'approved',
-      archiveStatus: 'failed',
-      archiveStartedAt: deleteField(),
-      archiveError:
-        'Drive sync timed out before completion. Retry after checking Drive connection and Firebase Storage CORS.',
-    }).catch((error) => {
-      console.error(
-        '[ActivityWall] Failed to mark stale photo sync as failed:',
-        error
-      );
-    });
-  }, [activeActivity, activeSessionId, firestoreRaw, isDriveConnected]);
-
-  const retryFailedArchives = useCallback(async () => {
-    if (!isDriveConnected) {
-      addToast(
-        'Reconnect Google Drive before retrying failed photo syncs.',
-        'error'
-      );
-      return;
-    }
-    if (isArchivingRef.current || isRetryingFailedArchivesRef.current) {
-      addToast('Photo sync retry already in progress.', 'info');
-      return;
-    }
-
-    const failedSubmissions = firestoreRaw.filter(
-      (submission) =>
-        submission.storagePath &&
-        getArchiveStatus(submission) === 'failed' &&
-        !syncingSubmissionIdsRef.current.has(submission.id)
-    );
-
-    if (failedSubmissions.length === 0) {
-      addToast('No failed photo syncs were found to retry.', 'info');
-      return;
-    }
-
-    addToast(
-      `Retrying ${failedSubmissions.length} failed photo sync${failedSubmissions.length === 1 ? '' : 's'}...`,
-      'info'
-    );
-
-    isRetryingFailedArchivesRef.current = true;
+  const copyStudentLink = useCallback(async () => {
+    if (!studentUrl) return;
     try {
-      for (const submission of failedSubmissions) {
-        await archivePhotoSubmission(submission);
-      }
-    } finally {
-      isRetryingFailedArchivesRef.current = false;
-    }
-  }, [addToast, archivePhotoSubmission, firestoreRaw, isDriveConnected]);
-
-  const allSubmissions = useMemo(() => {
-    const demoSubs = activeActivity?.submissions ?? [];
-    const combined = [...demoSubs];
-    const existingIds = new Set(demoSubs.map((s) => s.id));
-    for (const fs of firestoreRaw) {
-      if (!existingIds.has(fs.id)) {
-        combined.push({
-          ...fs,
-          status: fs.status ?? 'approved',
-        });
-      }
-    }
-    return combined;
-  }, [activeActivity?.submissions, firestoreRaw]);
-
-  useEffect(() => {
-    const activeSubmissionIds = new Set(
-      allSubmissions.map((submission) => submission.id)
-    );
-    setPhotoAspectRatios((previous) => {
-      const nextEntries = Object.entries(previous).filter(([submissionId]) =>
-        activeSubmissionIds.has(submissionId)
-      );
-      if (nextEntries.length === Object.keys(previous).length) {
-        return previous;
-      }
-      return Object.fromEntries(nextEntries);
-    });
-  }, [allSubmissions]);
-
-  const moderationCounts = useMemo(() => {
-    // ⚡ Bolt Optimization: Use a single pass loop instead of array.reduce with object spreading
-    // to avoid excessive garbage collection overhead from intermediate object allocations.
-    let approved = 0;
-    let pending = 0;
-    for (const s of allSubmissions) {
-      if (s.status === 'approved') approved++;
-      else if (s.status === 'pending') pending++;
-    }
-    return { approved, pending };
-  }, [allSubmissions]);
-
-  const photoSyncCounts = useMemo(() => {
-    let archived = 0;
-    let syncing = 0;
-    let queued = 0;
-    let failed = 0;
-
-    for (const submission of firestoreRaw) {
-      const status = getArchiveStatus(submission);
-      if (!status) continue;
-
-      if (status === 'archived') archived += 1;
-      else if (status === 'syncing') syncing += 1;
-      else if (status === 'failed') failed += 1;
-      else queued += 1;
-    }
-
-    return {
-      archived,
-      syncing,
-      queued,
-      failed,
-      total: archived + syncing + queued + failed,
-    };
-  }, [firestoreRaw]);
-
-  const syncBanner = useMemo(() => {
-    if (!activeActivity || activeActivity.mode !== 'photo') return null;
-
-    if (!isDriveConnected) {
-      if (photoSyncCounts.queued + photoSyncCounts.failed > 0) {
-        return {
-          className: 'bg-amber-50 border-amber-200 text-amber-800',
-          text: `${photoSyncCounts.queued + photoSyncCounts.failed} photo${photoSyncCounts.queued + photoSyncCounts.failed === 1 ? '' : 's'} waiting in Firebase until Drive reconnects.`,
-        };
-      }
-      return {
-        className: 'bg-slate-100 border-slate-200 text-slate-700',
-        text: 'Drive disconnected. New photos will stay in Firebase until you reconnect.',
-      };
-    }
-
-    if (photoSyncCounts.syncing > 0) {
-      return {
-        className: 'bg-sky-50 border-sky-200 text-sky-800',
-        text: `Drive connected. Syncing ${photoSyncCounts.syncing} photo${photoSyncCounts.syncing === 1 ? '' : 's'} in the background.`,
-      };
-    }
-
-    if (photoSyncCounts.failed > 0) {
-      return {
-        className: 'bg-amber-50 border-amber-200 text-amber-800',
-        text: `${photoSyncCounts.failed} photo${photoSyncCounts.failed === 1 ? '' : 's'} need another Drive sync attempt.`,
-      };
-    }
-
-    if (photoSyncCounts.archived > 0) {
-      return {
-        className: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-        text: 'Drive connected. All visible photos are archived to Drive.',
-      };
-    }
-
-    return {
-      className: 'bg-slate-100 border-slate-200 text-slate-700',
-      text: 'Drive connected. New photos will archive automatically after they appear.',
-    };
-  }, [activeActivity, isDriveConnected, photoSyncCounts]);
-
-  const spawnQrWidget = () => {
-    if (!participantUrl) return;
-    addWidget('qr', {
-      w: 200,
-      h: 250,
-      config: {
-        url: participantUrl,
-        showUrl: false,
-      },
-    });
-    addToast(
-      'QR sticker added to board. Drag it wherever you want.',
-      'success'
-    );
-  };
-
-  const copyLink = async () => {
-    if (!participantUrl) return;
-    try {
-      await navigator.clipboard.writeText(participantUrl);
-      addToast('Participant link copied!', 'success');
+      await navigator.clipboard.writeText(studentUrl);
+      addToast('Student link copied!', 'success');
     } catch {
       addToast('Could not copy link. Please copy manually.', 'error');
     }
-  };
+  }, [addToast, studentUrl]);
 
-  const deleteSubmission = useCallback(
-    async (submission: ActivityWallSubmission) => {
-      if (!activeActivity) return;
+  const spawnQrWidget = useCallback(() => {
+    if (!studentUrl) return;
+    addWidget('qr', {
+      w: 200,
+      h: 250,
+      config: { url: studentUrl, showUrl: false },
+    });
+    addToast('QR sticker added to board.', 'success');
+  }, [addToast, addWidget, studentUrl]);
 
+  const duplicateWall = useCallback(
+    async (entry: ActivityWallLibraryEntry) => {
+      const now = Date.now();
       try {
-        let removedFromFirestore = false;
-        if (
-          activeSessionId &&
-          firestoreRaw.some((fs) => fs.id === submission.id)
-        ) {
-          await deleteDoc(
-            doc(
-              db,
-              'activity_wall_sessions',
-              activeSessionId,
-              'submissions',
-              submission.id
-            )
-          );
-          removedFromFirestore = true;
-        }
-        if (submission.storagePath) {
-          await deleteObject(storageRef(storage, submission.storagePath)).catch(
-            (error) => {
-              console.warn(
-                '[ActivityWall] Storage cleanup failed for submission:',
-                error
-              );
-            }
-          );
-        }
-
-        // Submissions live in `activity_wall_sessions/{sessionId}/submissions`
-        // (Firestore) — `activity.submissions` on the config doc is legacy
-        // and isn't the source of truth. The Firestore delete above is the
-        // only state mutation needed; the `onSnapshot` listener will
-        // refresh `firestoreState.submissions` automatically.
-
-        setSelectedSubmissionId((prev) =>
-          prev === submission.id ? null : prev
-        );
-        setFullscreenSubmission((prev) =>
-          prev?.id === submission.id ? null : prev
-        );
-        addToast(
-          removedFromFirestore
-            ? 'Submission removed.'
-            : 'Local submission removed.',
-          'success'
-        );
-      } catch (error) {
-        console.error('[ActivityWall] Failed to delete submission:', error);
-        addToast('Failed to remove submission.', 'error');
+        await saveActivity({
+          ...entry,
+          id: crypto.randomUUID(),
+          title: `${entry.title || 'Untitled wall'} (copy)`,
+          createdAt: now,
+          updatedAt: now,
+        });
+        addToast('Wall duplicated.', 'success');
+      } catch (err) {
+        console.error('[ActivityWall] Failed to duplicate wall:', err);
+        addToast('Could not duplicate the wall.', 'error');
       }
     },
-    [activeActivity, activeSessionId, addToast, firestoreRaw]
+    [addToast, saveActivity]
   );
 
-  if (editorDraft) {
-    return (
-      <WidgetLayout
-        padding="p-0"
-        content={
-          <div className="h-full w-full flex flex-col overflow-hidden">
-            <div
-              className="flex items-center justify-between border-b border-slate-200"
-              style={{ padding: 'min(10px, 2.8cqmin)' }}
-            >
-              <h2
-                className="font-black uppercase tracking-wide text-slate-800"
-                style={{ fontSize: 'min(12px, 3.8cqmin)' }}
-              >
-                {activities.some((a) => a.id === editorDraft.id)
-                  ? 'Edit activity'
-                  : 'Create activity'}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setEditorDraft(null)}
-                className="rounded-lg border border-slate-300 text-slate-700 font-semibold"
-                style={{
-                  padding: 'min(6px, 1.8cqmin) min(8px, 2.4cqmin)',
-                  fontSize: 'min(10px, 3.2cqmin)',
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-
-            <div
-              className="flex-1 min-h-0 overflow-auto"
-              style={{ padding: 'min(10px, 2.8cqmin)' }}
-            >
-              <div
-                className="flex flex-col"
-                style={{ gap: 'min(12px, 3cqmin)' }}
-              >
-                <label className="block">
-                  <span
-                    className="block font-black uppercase tracking-wider text-slate-600"
-                    style={{
-                      fontSize: 'min(10px, 3.2cqmin)',
-                      marginBottom: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    Activity title
-                  </span>
-                  <input
-                    value={editorDraft.title}
-                    onChange={(event) =>
-                      setEditorDraft({
-                        ...editorDraft,
-                        title: event.target.value,
-                      })
-                    }
-                    className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                    style={{
-                      fontSize: 'min(12px, 3.8cqmin)',
-                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                    }}
-                    placeholder="Warm-up word cloud"
-                  />
-                </label>
-
-                <label className="block">
-                  <span
-                    className="block font-black uppercase tracking-wider text-slate-600"
-                    style={{
-                      fontSize: 'min(10px, 3.2cqmin)',
-                      marginBottom: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    Prompt / directions
-                  </span>
-                  <textarea
-                    value={editorDraft.prompt}
-                    onChange={(event) =>
-                      setEditorDraft({
-                        ...editorDraft,
-                        prompt: event.target.value,
-                      })
-                    }
-                    rows={3}
-                    className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                    style={{
-                      fontSize: 'min(12px, 3.8cqmin)',
-                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                    }}
-                    placeholder="How are you feeling about today's lesson?"
-                  />
-                </label>
-
-                <div>
-                  <p
-                    className="block font-black uppercase tracking-wider text-slate-600"
-                    style={{
-                      fontSize: 'min(10px, 3.2cqmin)',
-                      marginBottom: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    Activity type
-                  </p>
-                  <div
-                    className="grid grid-cols-2"
-                    style={{ gap: 'min(8px, 2cqmin)' }}
-                  >
-                    {(['text', 'photo'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setEditorDraft({ ...editorDraft, mode })}
-                        className={`rounded-xl border font-semibold ${
-                          editorDraft.mode === mode
-                            ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
-                            : 'bg-white border-slate-200 text-slate-700'
-                        }`}
-                        style={{
-                          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                          fontSize: 'min(11px, 3.5cqmin)',
-                        }}
-                      >
-                        {mode === 'text'
-                          ? 'Text (Word Cloud)'
-                          : 'Photo (Padlet)'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <label
-                  className="flex items-center justify-between rounded-xl border border-slate-200"
-                  style={{
-                    gap: 'min(12px, 3cqmin)',
-                    padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                  }}
-                >
-                  <span
-                    className="font-semibold text-slate-700"
-                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
-                  >
-                    Require moderation
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={editorDraft.moderationEnabled}
-                    onChange={(event) =>
-                      setEditorDraft({
-                        ...editorDraft,
-                        moderationEnabled: event.target.checked,
-                      })
-                    }
-                    className="accent-brand-blue-primary"
-                    style={{
-                      width: 'min(16px, 4cqmin)',
-                      height: 'min(16px, 4cqmin)',
-                    }}
-                  />
-                </label>
-
-                <label className="block">
-                  <span
-                    className="block font-black uppercase tracking-wider text-slate-600"
-                    style={{
-                      fontSize: 'min(10px, 3.2cqmin)',
-                      marginBottom: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    Participant identification
-                  </span>
-                  <select
-                    value={editorDraft.identificationMode}
-                    onChange={(event) =>
-                      setEditorDraft({
-                        ...editorDraft,
-                        identificationMode: event.target
-                          .value as ActivityWallActivity['identificationMode'],
-                      })
-                    }
-                    className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                    style={{
-                      fontSize: 'min(12px, 3.8cqmin)',
-                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                    }}
-                  >
-                    <option value="anonymous">Anonymous</option>
-                    <option value="name">Name</option>
-                    <option value="pin">PIN</option>
-                    <option value="name-pin">Name &amp; PIN</option>
-                  </select>
-                </label>
-
-                {classLinkClasses.length > 0 && (
-                  <label className="block">
-                    <span
-                      className="flex items-center font-black uppercase tracking-wider text-slate-600"
-                      style={{
-                        fontSize: 'min(10px, 3.2cqmin)',
-                        gap: 'min(6px, 1.5cqmin)',
-                        marginBottom: 'min(4px, 1cqmin)',
-                      }}
-                    >
-                      <Users
-                        className="text-brand-blue-primary"
-                        style={{
-                          width: 'min(12px, 3.4cqmin)',
-                          height: 'min(12px, 3.4cqmin)',
-                        }}
-                      />
-                      Target class (optional)
-                    </span>
-                    <select
-                      value={editorDraft.classId ?? ''}
-                      onChange={(event) =>
-                        setEditorDraft({
-                          ...editorDraft,
-                          classId: event.target.value || undefined,
-                        })
-                      }
-                      className="w-full border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
-                      style={{
-                        fontSize: 'min(12px, 3.8cqmin)',
-                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                      }}
-                    >
-                      <option value="">No class (use link only)</option>
-                      {classLinkClasses.map((cls) => (
-                        <option key={cls.sourcedId} value={cls.sourcedId}>
-                          {formatClassLinkClassLabel(cls)}
-                        </option>
-                      ))}
-                    </select>
-                    <p
-                      className="text-slate-500"
-                      style={{
-                        fontSize: 'min(9px, 2.9cqmin)',
-                        marginTop: 'min(4px, 1cqmin)',
-                      }}
-                    >
-                      Students in this class will see this activity in their
-                      assignments list. Leave blank to use a shareable link.
-                    </p>
-                  </label>
-                )}
-              </div>
-            </div>
-
-            <div
-              className="border-t border-slate-200"
-              style={{ padding: 'min(10px, 2.8cqmin)' }}
-            >
-              <button
-                type="button"
-                onClick={saveEditorDraft}
-                className="w-full rounded-xl bg-emerald-600 text-white font-black uppercase tracking-wider"
-                style={{
-                  padding: 'min(8px, 2.2cqmin)',
-                  fontSize: 'min(11px, 3.5cqmin)',
-                }}
-              >
-                Save activity
-              </button>
-            </div>
-          </div>
-        }
-      />
-    );
-  }
-
-  if (!showLiveView || !activeActivity) {
-    return (
-      <WidgetLayout
-        padding="p-0"
-        content={
-          <div className="h-full w-full flex flex-col overflow-hidden">
-            <div
-              className="flex items-center justify-between border-b border-slate-200"
-              style={{ padding: 'min(10px, 2.8cqmin)' }}
-            >
-              <div>
-                <h2
-                  className="font-black uppercase tracking-wide text-slate-800"
-                  style={{ fontSize: 'min(12px, 3.8cqmin)' }}
-                >
-                  Activity Library
-                </h2>
-                <p
-                  className="text-slate-500 font-semibold uppercase tracking-wider"
-                  style={{ fontSize: 'min(9px, 2.8cqmin)' }}
-                >
-                  {activities.length} activit
-                  {activities.length === 1 ? 'y' : 'ies'}
-                </p>
-              </div>
-              {/* Create-activity affordance hidden in substitute / view-only
-                  mode — subs can run activities the teacher prepared but
-                  cannot author new ones. */}
-              {!isActiveBoardReadOnly && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    openEditor(buildBlankActivity(activityDefaults));
-                    setShowLiveView(false);
-                  }}
-                  className="rounded-xl bg-brand-blue-primary text-white font-black uppercase flex items-center"
-                  style={{
-                    padding: 'min(7px, 2cqmin) min(10px, 2.8cqmin)',
-                    gap: 'min(4px, 1.4cqmin)',
-                    fontSize: 'min(10px, 3.2cqmin)',
-                  }}
-                  title="Create activity"
-                >
-                  <Plus
-                    style={{
-                      width: 'min(12px, 3.7cqmin)',
-                      height: 'min(12px, 3.7cqmin)',
-                    }}
-                  />
-                  New
-                </button>
-              )}
-            </div>
-
-            <div
-              className="flex-1 min-h-0 overflow-auto"
-              style={{ padding: 'min(10px, 2.8cqmin)' }}
-            >
-              {activities.length === 0 ? (
-                // This region is shorter than the full widget (the header
-                // above it eats vertical space), so it needs its own
-                // container-query boundary — otherwise ScaledEmptyState's
-                // cqmin sizing would resolve against the taller outer widget
-                // box and render larger than this actual space allows.
-                <div
-                  className="h-full w-full rounded-xl border border-slate-200 bg-slate-50"
-                  style={{ containerType: 'size' }}
-                >
-                  <ScaledEmptyState
-                    icon={LibraryBig}
-                    title="No Activities Yet"
-                    subtitle="Create your first activity to launch a wall."
-                    iconClassName="text-brand-blue-primary"
-                    titleClassName="text-slate-800"
-                    subtitleClassName="text-slate-500"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="flex flex-col"
-                  style={{ gap: 'min(8px, 2cqmin)' }}
-                >
-                  {activities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50"
-                      style={{ padding: 'min(8px, 2.2cqmin)' }}
-                    >
-                      <p className="font-bold text-slate-900 truncate">
-                        {activity.title}
-                      </p>
-                      <p
-                        className="text-slate-600 line-clamp-1"
-                        style={{ fontSize: 'min(10px, 3.2cqmin)' }}
-                      >
-                        {activity.prompt}
-                      </p>
-                      {/* Per-activity actions. "View" is interactive — a sub
-                          running the wall during class IS the intended use. Edit
-                          and Delete alter the teacher's activity library; both
-                          hide in substitute / view-only mode, and the grid
-                          collapses to a single column. */}
-                      <div
-                        className={`grid mt-2 ${
-                          isActiveBoardReadOnly ? 'grid-cols-1' : 'grid-cols-3'
-                        }`}
-                        style={{ gap: 'min(6px, 1.7cqmin)' }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            updateConfig({ activeActivityId: activity.id });
-                            setShowLiveView(true);
-                          }}
-                          className="rounded-lg bg-emerald-600 text-white font-bold"
-                          style={{
-                            padding: 'min(6px, 1.6cqmin)',
-                            fontSize: 'min(10px, 3.1cqmin)',
-                          }}
-                        >
-                          View
-                        </button>
-                        {!isActiveBoardReadOnly && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => openEditor(activity)}
-                              className="rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center"
-                              style={{ gap: 'min(4px, 1.1cqmin)' }}
-                            >
-                              <Pencil
-                                style={{
-                                  width: 'min(11px, 3.2cqmin)',
-                                  height: 'min(11px, 3.2cqmin)',
-                                }}
-                              />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteActivity(activity.id)}
-                              className="rounded-lg bg-rose-600 text-white font-bold flex items-center justify-center"
-                              style={{ gap: 'min(4px, 1.1cqmin)' }}
-                            >
-                              <Trash2
-                                style={{
-                                  width: 'min(11px, 3.2cqmin)',
-                                  height: 'min(11px, 3.2cqmin)',
-                                }}
-                              />
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        }
-      />
-    );
-  }
-
-  const visibleSubmissions = allSubmissions.filter(
-    (s) => s.status === 'approved'
+  const removeWall = useCallback(
+    async (entryId: string) => {
+      await deleteActivity(entryId);
+      if (config.activeActivityId === entryId) setActiveEntry(null);
+    },
+    [config.activeActivityId, deleteActivity, setActiveEntry]
   );
-  const photoGridLayout = (() => {
-    const count = visibleSubmissions.length;
-    const width = submissionsGridSize.width;
-    const height = submissionsGridSize.height;
-    if (count === 0 || width <= 0 || height <= 0) {
-      return { columns: 2 };
+
+  const connectDrive = useCallback(async () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+      | string
+      | undefined;
+    if (!clientId) {
+      addToast('Google Drive sign-in is not configured.', 'error');
+      return;
     }
-
-    const minTileWidth = 140;
-    const maxTileWidth = 360;
-    const preferredTileWidth = 220;
-    const maxColumns = Math.min(count, 8);
-
-    let bestColumns = 1;
-    let bestScore = Number.NEGATIVE_INFINITY;
-
-    for (let columns = 1; columns <= maxColumns; columns += 1) {
-      const rows = Math.ceil(count / columns);
-      const tileWidth = width / columns;
-      const tileHeight = height / rows;
-      if (tileWidth < minTileWidth) continue;
-
-      const widthPenalty =
-        tileWidth > maxTileWidth ? (tileWidth - maxTileWidth) * 0.8 : 0;
-      const sizeDistance =
-        Math.abs(tileWidth - preferredTileWidth) +
-        Math.abs(tileHeight - preferredTileWidth * 0.72);
-      const fillScore = tileHeight * rows;
-      const score = fillScore - sizeDistance - widthPenalty;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestColumns = columns;
+    setConnectingDrive(true);
+    try {
+      const outcome = await requestAndExchangeAuthCode(
+        clientId,
+        user?.email ?? undefined
+      );
+      if (outcome.kind === 'success') {
+        addToast(
+          'Google Drive connected. Photos will sync shortly.',
+          'success'
+        );
+      } else if (outcome.kind !== 'cancelled') {
+        addToast('Could not connect Google Drive.', 'error');
       }
+    } finally {
+      setConnectingDrive(false);
     }
+  }, [addToast, user?.email]);
 
-    const fallbackColumns = Math.max(
-      1,
-      Math.min(maxColumns, Math.round(width / preferredTileWidth))
+  const driveIssues = driveSync.failed + driveSync.lost;
+
+  const compactToolbar = widget.w < TOOLBAR_COMPACT_WIDTH;
+
+  const iconButtonSize = {
+    width: 'min(28px, 7.5cqmin)',
+    height: 'min(28px, 7.5cqmin)',
+  };
+
+  const secondaryActions: {
+    label: string;
+    icon: LucideIcon;
+    run: () => void;
+    disabled: boolean;
+  }[] = [
+    ...(canOfferAnonymousJoin
+      ? [
+          {
+            label: 'Copy student link',
+            icon: Copy,
+            run: () => void copyStudentLink(),
+            disabled: false,
+          },
+          {
+            label: 'Add join QR to board',
+            icon: QrCode,
+            run: spawnQrWidget,
+            disabled: isActiveBoardReadOnly,
+          },
+        ]
+      : []),
+    {
+      label: 'Share',
+      icon: Share2,
+      run: () => setShareOpen(true),
+      disabled: false,
+    },
+    ...(studentUrl
+      ? [
+          {
+            label: 'Open student view',
+            icon: ExternalLink,
+            run: () => window.open(studentUrl, '_blank', 'noopener'),
+            disabled: false,
+          },
+        ]
+      : []),
+    {
+      label: `Image size: ${WALL_IMAGE_SIZE_LABEL[imageSize]}`,
+      icon: ImageIcon,
+      run: () =>
+        updateWidget(widget.id, {
+          config: { ...config, imageSize: nextWallImageSize(imageSize) },
+        }),
+      disabled: isActiveBoardReadOnly,
+    },
+    {
+      label: 'Open wall library',
+      icon: LibraryBig,
+      run: () => setLibraryOpen(true),
+      disabled: false,
+    },
+  ];
+
+  const header = activeEntry && (
+    <div
+      className="flex items-center justify-between border-b border-white/15 bg-slate-900/70 backdrop-blur-sm"
+      style={{
+        padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+        gap: 'min(8px, 2cqmin)',
+      }}
+    >
+      <div
+        className="flex min-w-0 items-center"
+        style={{ gap: 'min(8px, 2cqmin)' }}
+      >
+        <span
+          className="shrink-0 text-slate-200"
+          style={{ width: 'min(28px, 8cqmin)', height: 'min(20px, 6cqmin)' }}
+        >
+          {layoutSketch(activeEntry)}
+        </span>
+        <h2
+          className="truncate font-black uppercase tracking-wide text-slate-100"
+          style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+        >
+          {activeEntry.title || 'Untitled wall'}
+        </h2>
+      </div>
+
+      <div
+        className="flex shrink-0 items-center"
+        style={{ gap: 'min(6px, 1.6cqmin)' }}
+      >
+        <button
+          type="button"
+          onClick={toggleOpenClosed}
+          disabled={isActiveBoardReadOnly}
+          aria-pressed={isOpenWall}
+          className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
+            isOpenWall
+              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+              : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
+          }`}
+          style={{
+            padding: 'min(4px, 1.2cqmin) min(10px, 2.6cqmin)',
+            fontSize: 'min(10px, 3.2cqmin)',
+          }}
+        >
+          {isOpenWall ? 'Open' : 'Closed'}
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleVisibleHidden}
+          disabled={isActiveBoardReadOnly}
+          aria-pressed={isVisibleWall}
+          aria-label={
+            isVisibleWall
+              ? 'Posts visible to students. Hide posts from students'
+              : 'Posts hidden from students. Show posts to students'
+          }
+          className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
+            isVisibleWall
+              ? 'bg-sky-500 text-white hover:bg-sky-600'
+              : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
+          }`}
+          style={{
+            padding: 'min(4px, 1.2cqmin) min(10px, 2.6cqmin)',
+            fontSize: 'min(10px, 3.2cqmin)',
+          }}
+        >
+          {isVisibleWall ? 'Visible' : 'Hidden'}
+        </button>
+
+        {activeEntry.moderationEnabled && (
+          <button
+            type="button"
+            onClick={() => setModerationOpen(true)}
+            aria-label={`Moderate posts, ${pendingCount} pending`}
+            className={`${toolbarButtonClass} relative`}
+            style={{ ...iconButtonSize, marginRight: 'min(4px, 1.2cqmin)' }}
+          >
+            <ShieldCheck style={{ width: '60%', height: '60%' }} />
+            {pendingCount > 0 && (
+              <span
+                className="absolute rounded-full bg-rose-500 font-black text-white"
+                style={{
+                  right: 'max(-4px, -1.2cqmin)',
+                  top: 'max(-4px, -1.2cqmin)',
+                  fontSize: 'min(9px, 2.8cqmin)',
+                  padding: '0 min(4px, 1.2cqmin)',
+                }}
+              >
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {compactToolbar ? (
+          <div className="relative" ref={toolbarMenuRef}>
+            <button
+              type="button"
+              onClick={() => setToolbarMenuOpen((open) => !open)}
+              aria-label="More wall actions"
+              aria-expanded={toolbarMenuOpen}
+              aria-haspopup="menu"
+              className={toolbarButtonClass}
+              style={iconButtonSize}
+            >
+              <MoreHorizontal style={{ width: '55%', height: '55%' }} />
+            </button>
+            {toolbarMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 py-1 shadow-xl backdrop-blur-md"
+                style={{ minWidth: 'min(176px, 55cqw)' }}
+              >
+                {secondaryActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    role="menuitem"
+                    disabled={action.disabled}
+                    onClick={() => {
+                      setToolbarMenuOpen(false);
+                      action.run();
+                    }}
+                    className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
+                    style={{
+                      gap: 'min(8px, 2cqmin)',
+                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                      fontSize: 'min(14px, 5.5cqmin)',
+                    }}
+                  >
+                    <action.icon
+                      aria-hidden="true"
+                      style={{
+                        width: 'min(16px, 5cqmin)',
+                        height: 'min(16px, 5cqmin)',
+                      }}
+                    />
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          secondaryActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={action.run}
+              disabled={action.disabled}
+              aria-label={action.label}
+              className={toolbarButtonClass}
+              style={iconButtonSize}
+            >
+              <action.icon style={{ width: '55%', height: '55%' }} />
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const driveBanner = activeEntry &&
+    (driveIssues > 0 || driveSync.needsConsent > 0) && (
+      <div
+        className="flex items-center justify-between border-b border-amber-400/40 bg-amber-500/15 text-amber-100"
+        style={{
+          padding: 'min(6px, 1.6cqmin) min(10px, 2.5cqmin)',
+          gap: 'min(8px, 2cqmin)',
+          fontSize: 'min(11px, 3.4cqmin)',
+        }}
+      >
+        <span
+          className="flex min-w-0 items-center"
+          style={{ gap: 'min(6px, 1.6cqmin)' }}
+        >
+          <CloudOff
+            aria-hidden="true"
+            style={{ width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' }}
+          />
+          <span className="truncate">
+            {driveSync.needsConsent > 0
+              ? `${driveSync.needsConsent} upload${driveSync.needsConsent === 1 ? '' : 's'} waiting on Google Drive access.`
+              : `${driveIssues} upload${driveIssues === 1 ? '' : 's'} did not reach Drive.`}
+          </span>
+        </span>
+        {driveSync.needsConsent > 0 && (
+          <button
+            type="button"
+            onClick={() => void connectDrive()}
+            disabled={connectingDrive}
+            className="shrink-0 rounded-lg bg-amber-400 font-bold text-amber-950 transition-colors hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50"
+            style={{
+              padding: 'min(3px, 1cqmin) min(8px, 2cqmin)',
+              fontSize: 'min(10px, 3.2cqmin)',
+            }}
+          >
+            Connect Google Drive
+          </button>
+        )}
+      </div>
     );
-    const columns =
-      bestScore === Number.NEGATIVE_INFINITY ? fallbackColumns : bestColumns;
 
-    return { columns };
-  })();
-
-  const wordCloudData =
-    activeActivity.mode === 'text' ? buildWordCloud(visibleSubmissions) : [];
-  const fullscreenMediaUrl = fullscreenSubmission
-    ? isSafeHttpUrl(fullscreenSubmission.content)
-      ? fullscreenSubmission.content
-      : fullscreenSubmission.storagePath
-        ? (firebasePhotoUrls[fullscreenSubmission.storagePath] ?? null)
-        : (firebasePhotoUrls[fullscreenSubmission.content] ?? null)
-    : null;
+  const body = !activeEntry ? (
+    <ScaledEmptyState
+      icon={LayoutGrid}
+      title="Choose a wall"
+      subtitle="Open the library to pick or create an Activity Wall."
+      action={
+        <button
+          type="button"
+          onClick={() => setLibraryOpen(true)}
+          className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          style={{
+            padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
+            fontSize: 'min(12px, 3.8cqmin)',
+          }}
+        >
+          Open library
+        </button>
+      }
+    />
+  ) : visibleCount === 0 ? (
+    <ScaledEmptyState
+      icon={LayoutGrid}
+      title={
+        pendingCount > 0
+          ? `${pendingCount} post${pendingCount === 1 ? '' : 's'} waiting for review`
+          : 'No posts yet'
+      }
+      subtitle={
+        pendingCount > 0
+          ? 'Approve them to show them on the board.'
+          : isOpenWall
+            ? 'Share the student link to start collecting posts.'
+            : 'This wall is closed. Reopen it to collect posts.'
+      }
+      action={
+        pendingCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setModerationOpen(true)}
+            className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{
+              padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
+              fontSize: 'min(12px, 3.8cqmin)',
+            }}
+          >
+            Review posts
+          </button>
+        ) : undefined
+      }
+    />
+  ) : (
+    session && (
+      <div className={`h-full w-full ${fontClass}`}>
+        <LayoutRouter
+          session={session}
+          submissions={submissions}
+          mode="widget"
+          showNames={activeEntry.showNames ?? false}
+          imageSize={imageSize}
+          cardStyle={cardStyle}
+          onApprove={(id) => void approve(id)}
+          onReject={(id) => void reject(id)}
+          onDelete={(id) => void deletePost(id)}
+          onPin={(id, pinned) => void pinPost(id, pinned)}
+          onMove={(id, patch) => void movePost(id, patch)}
+          onEdit={openTeacherEdit}
+          onAddAt={isActiveBoardReadOnly ? undefined : openTeacherComposer}
+        />
+      </div>
+    )
+  );
 
   return (
     <>
       <WidgetLayout
         padding="p-0"
         content={
-          <div
-            className="h-full w-full flex flex-col"
-            style={{ gap: 'min(8px, 2cqmin)', padding: 'min(10px, 2.4cqmin)' }}
-          >
-            <div
-              className="flex items-start justify-between"
-              style={{ gap: 'min(8px, 2cqmin)' }}
-            >
-              <div className="min-w-0">
-                <p
-                  className="font-black text-slate-900 truncate"
-                  style={{ fontSize: 'min(16px, 6cqmin)' }}
-                >
-                  {activeActivity.title}
-                </p>
-                <p
-                  className="text-slate-600 line-clamp-2"
-                  style={{ fontSize: 'min(12px, 4.4cqmin)' }}
-                >
-                  {activeActivity.prompt}
-                </p>
-              </div>
-              <div
-                className="shrink-0 flex items-center"
-                style={{ gap: 'min(6px, 1.8cqmin)' }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowLiveView(false)}
-                  className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
-                  style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-                  title="Back to activity library"
-                >
-                  Library
-                </button>
-                {moderationCounts.pending > 0 && (
-                  <div
-                    className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold"
-                    style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-                  >
-                    {moderationCounts.pending} pending
-                  </div>
-                )}
-                <div
-                  className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
-                  style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-                >
-                  {activeActivity.mode === 'text' ? 'Text' : 'Photo'}
-                </div>
-              </div>
-            </div>
-
-            {syncBanner && (
-              <div
-                className={`rounded-xl border px-3 py-2 font-semibold ${syncBanner.className}`}
-                style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span>{syncBanner.text}</span>
-                  {isDriveConnected && photoSyncCounts.failed > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => void retryFailedArchives()}
-                      className="shrink-0 rounded-full bg-white/80 px-2 py-1 font-black text-amber-800"
-                      style={{ fontSize: 'min(9px, 3cqmin)' }}
-                    >
-                      Retry failed syncs
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div
-              className={`grid ${
-                canOfferAnonymousJoin ? 'grid-cols-3' : 'grid-cols-1'
-              }`}
-              style={{ gap: 'min(6px, 1.8cqmin)' }}
-            >
-              {/* No-sign-in (anonymous) join affordances — gated behind the
-                  admin-configurable `anonymous-join` feature (Phase 3b). When
-                  denied, only the view-only "Share gallery" option below
-                  remains; the rostered sign-in join link is separate planned
-                  work (TODO: wire a rostered link for Activity Wall). */}
-              {canOfferAnonymousJoin && (
-                <>
-                  <button
-                    type="button"
-                    onClick={copyLink}
-                    className="rounded-xl bg-brand-blue-primary text-white font-bold flex items-center justify-center"
-                    style={{
-                      gap: 'min(6px, 1.8cqmin)',
-                      padding: 'min(8px, 2cqmin)',
-                      fontSize: 'min(11px, 3.8cqmin)',
-                    }}
-                  >
-                    <Copy
-                      style={{
-                        width: 'min(14px, 4cqmin)',
-                        height: 'min(14px, 4cqmin)',
-                      }}
-                    />
-                    Copy link
-                  </button>
-                  <button
-                    type="button"
-                    onClick={spawnQrWidget}
-                    className="rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center"
-                    style={{
-                      gap: 'min(6px, 1.8cqmin)',
-                      padding: 'min(8px, 2cqmin)',
-                      fontSize: 'min(11px, 3.8cqmin)',
-                    }}
-                  >
-                    <QrCode
-                      style={{
-                        width: 'min(14px, 4cqmin)',
-                        height: 'min(14px, 4cqmin)',
-                      }}
-                    />
-                    Pop-out QR
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => setIsShareModalOpen(true)}
-                disabled={!activeActivity || !activeSessionId || !user}
-                className="rounded-xl bg-violet-600 text-white font-bold flex items-center justify-center disabled:opacity-50"
-                style={{
-                  gap: 'min(6px, 1.8cqmin)',
-                  padding: 'min(8px, 2cqmin)',
-                  fontSize: 'min(11px, 3.8cqmin)',
-                }}
-                title="Share a view-only gallery of submissions"
-              >
-                <Share2
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-                Share gallery
-              </button>
-            </div>
-
-            <div
-              className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-slate-50"
-              style={{ padding: 'min(8px, 2cqmin)' }}
-            >
-              {visibleSubmissions.length === 0 ? (
-                // This region is shorter than the full widget (the header
-                // above it eats vertical space), so it needs its own
-                // container-query boundary — otherwise ScaledEmptyState's
-                // cqmin sizing would resolve against the taller outer widget
-                // box and render larger than this actual space allows.
-                <div
-                  className="h-full w-full"
-                  style={{ containerType: 'size' }}
-                >
-                  <ScaledEmptyState
-                    icon={MessageSquare}
-                    title="No Responses Yet"
-                    subtitle="They'll appear here after participants submit."
-                    iconClassName="text-slate-400"
-                    titleClassName="text-slate-600"
-                    subtitleClassName="text-slate-500"
-                    iconSize="min(24px, 7cqmin)"
-                  />
-                </div>
-              ) : activeActivity.mode === 'text' ? (
-                <div
-                  className="flex flex-col"
-                  style={{ gap: 'min(8px, 2cqmin)' }}
-                >
-                  <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-1">
-                    {wordCloudData.map(({ word, weight }) => (
-                      <span
-                        key={word}
-                        className="font-bold leading-tight"
-                        style={{
-                          fontSize: `min(${Math.round(11 + weight * 22)}px, ${(3.5 + weight * 8).toFixed(1)}cqmin)`,
-                          color: wordColor(word),
-                          opacity: 0.45 + weight * 0.55,
-                        }}
-                      >
-                        {word}
-                      </span>
-                    ))}
-                  </div>
-                  <div
-                    className="flex flex-col"
-                    style={{ gap: 'min(4px, 1cqmin)' }}
-                  >
-                    {visibleSubmissions.map((submission) => (
-                      <button
-                        key={submission.id}
-                        type="button"
-                        onClick={() =>
-                          setSelectedSubmissionId((prev) =>
-                            prev === submission.id ? null : submission.id
-                          )
-                        }
-                        className="w-full rounded-lg border border-slate-200 bg-white text-left"
-                        style={{ padding: 'min(4px, 1cqmin) min(8px, 2cqmin)' }}
-                      >
-                        <div
-                          className="flex items-center justify-between"
-                          style={{ gap: 'min(8px, 2cqmin)' }}
-                        >
-                          <p
-                            className="truncate text-slate-700"
-                            style={{ fontSize: 'min(10px, 3.2cqmin)' }}
-                          >
-                            {submission.content}
-                          </p>
-                          {selectedSubmissionId === submission.id && (
-                            <span
-                              className="inline-flex items-center gap-1"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                className="rounded-full bg-slate-100 p-1 text-slate-700"
-                                title="Open fullscreen preview"
-                                aria-label="Open fullscreen preview"
-                                onClick={() =>
-                                  setFullscreenSubmission(submission)
-                                }
-                              >
-                                <Expand
-                                  style={{
-                                    width: 'min(10px, 3cqmin)',
-                                    height: 'min(10px, 3cqmin)',
-                                  }}
-                                />
-                              </button>
-                              {!isActiveBoardReadOnly && (
-                                <button
-                                  type="button"
-                                  className="rounded-full bg-rose-50 p-1 text-rose-700"
-                                  title="Delete submission"
-                                  aria-label="Delete submission"
-                                  onClick={() =>
-                                    void deleteSubmission(submission)
-                                  }
-                                >
-                                  <Trash2
-                                    style={{
-                                      width: 'min(10px, 3cqmin)',
-                                      height: 'min(10px, 3cqmin)',
-                                    }}
-                                  />
-                                </button>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div
-                  ref={setSubmissionsGridNode}
-                  className="grid"
-                  style={{
-                    gap: 'min(6px, 1.8cqmin)',
-                    gridTemplateColumns: `repeat(${photoGridLayout.columns}, minmax(0, 1fr))`,
-                    gridAutoRows: 'minmax(clamp(120px, 45cqmin, 320px), 1fr)',
-                    gridAutoFlow: 'dense',
-                    alignContent: 'stretch',
-                    minHeight: '100%',
-                  }}
-                >
-                  {visibleSubmissions.map((submission) => {
-                    const archiveStatus = getArchiveStatus(submission);
-                    const photoAspectRatio = photoAspectRatios[submission.id];
-                    const isLandscape = (photoAspectRatio ?? 1) > 1.15;
-                    const canSpanWide = photoGridLayout.columns >= 4;
-                    const displayUrl = isSafeHttpUrl(submission.content)
-                      ? submission.content
-                      : submission.storagePath
-                        ? firebasePhotoUrls[submission.storagePath]
-                        : undefined;
-
-                    return (
-                      <div
-                        key={submission.id}
-                        className="rounded-lg bg-white border border-slate-200 overflow-hidden"
-                        style={{
-                          gridColumn: `span ${isLandscape && canSpanWide ? 2 : 1}`,
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() =>
-                          setSelectedSubmissionId((prev) =>
-                            prev === submission.id ? null : submission.id
-                          )
-                        }
-                        onKeyDown={(event) => {
-                          if (event.currentTarget !== event.target) return;
-                          if (event.key !== 'Enter' && event.key !== ' ')
-                            return;
-                          event.preventDefault();
-                          setSelectedSubmissionId((prev) =>
-                            prev === submission.id ? null : submission.id
-                          );
-                        }}
-                      >
-                        {displayUrl ? (
-                          <div className="block">
-                            <div className="relative">
-                              <img
-                                src={displayUrl}
-                                alt={submission.participantLabel ?? 'Photo'}
-                                className="block w-full h-auto"
-                                onLoad={(event) =>
-                                  handlePhotoLoad(
-                                    submission.id,
-                                    event.currentTarget.naturalWidth,
-                                    event.currentTarget.naturalHeight
-                                  )
-                                }
-                              />
-                              {selectedSubmissionId === submission.id && (
-                                <div
-                                  className="absolute left-2 top-2 flex items-center gap-1"
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <button
-                                    type="button"
-                                    className="rounded-full bg-white/95 p-1 text-slate-700 shadow"
-                                    title="Open fullscreen preview"
-                                    aria-label="Open fullscreen preview"
-                                    onClick={() =>
-                                      setFullscreenSubmission(submission)
-                                    }
-                                  >
-                                    <Expand
-                                      style={{
-                                        width: 'min(10px, 3cqmin)',
-                                        height: 'min(10px, 3cqmin)',
-                                      }}
-                                    />
-                                  </button>
-                                  {!isActiveBoardReadOnly && (
-                                    <button
-                                      type="button"
-                                      className="rounded-full bg-white/95 p-1 text-rose-700 shadow"
-                                      title="Delete submission"
-                                      aria-label="Delete submission"
-                                      onClick={() =>
-                                        void deleteSubmission(submission)
-                                      }
-                                    >
-                                      <Trash2
-                                        style={{
-                                          width: 'min(10px, 3cqmin)',
-                                          height: 'min(10px, 3cqmin)',
-                                        }}
-                                      />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                              {archiveStatus === 'failed' && (
-                                <span
-                                  title="Drive sync failed"
-                                  aria-label="Drive sync failed"
-                                  className="absolute right-2 top-2 flex items-center justify-center rounded-full bg-rose-600 font-black text-white"
-                                  style={{
-                                    width: 'min(14px, 4.2cqmin)',
-                                    height: 'min(14px, 4.2cqmin)',
-                                    fontSize: 'min(10px, 3cqmin)',
-                                    lineHeight: 1,
-                                  }}
-                                >
-                                  ×
-                                </span>
-                              )}
-                            </div>
-                            <div
-                              className="text-slate-600"
-                              style={{
-                                padding: 'min(4px, 1cqmin) min(6px, 1.5cqmin)',
-                              }}
-                            >
-                              {submission.participantLabel && (
-                                <p
-                                  className="truncate"
-                                  style={{ fontSize: 'min(9px, 3cqmin)' }}
-                                >
-                                  {submission.participantLabel}
-                                </p>
-                              )}
-                              {archiveStatus === 'failed' &&
-                                submission.archiveError && (
-                                  <p
-                                    className="text-amber-700 line-clamp-2"
-                                    style={{ fontSize: 'min(8px, 2.7cqmin)' }}
-                                  >
-                                    {submission.archiveError}
-                                  </p>
-                                )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            className="flex items-center justify-center text-red-400"
-                            style={{
-                              aspectRatio: '4/3',
-                              fontSize: 'min(9px, 3cqmin)',
-                            }}
-                          >
-                            Photo still syncing
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+          <div className="flex h-full w-full flex-col overflow-hidden">
+            {header}
+            {driveBanner}
+            <div className="min-h-0 flex-1">{body}</div>
           </div>
         }
       />
-      <Modal
-        isOpen={!!fullscreenSubmission}
-        onClose={() => setFullscreenSubmission(null)}
-        variant="bare"
-        maxWidth="max-w-5xl"
-        ariaLabel="Submission preview"
-      >
-        {fullscreenSubmission && (
-          <div className="rounded-2xl bg-slate-950/95 p-4 text-white">
-            {fullscreenMediaUrl && isLikelyVideoUrl(fullscreenMediaUrl) ? (
-              <video
-                src={fullscreenMediaUrl}
-                controls
-                className="max-h-[75vh] w-full rounded-xl"
-              />
-            ) : fullscreenMediaUrl ? (
-              <img
-                src={fullscreenMediaUrl}
-                alt={fullscreenSubmission.participantLabel ?? 'Submission'}
-                className="max-h-[75vh] w-full object-contain rounded-xl"
-              />
-            ) : (
-              <div className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-xl bg-white/10 p-4 text-base">
-                {fullscreenSubmission.content}
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+
+      {editorEntry !== undefined && (
+        <WallEditorModal
+          open
+          entry={editorEntry}
+          onClose={() => setEditorEntry(undefined)}
+          onSaved={(entry) => {
+            setEditorEntry(undefined);
+            setActiveEntry(entry.id);
+            setLibraryOpen(false);
+          }}
+        />
+      )}
+
+      <WallLibraryModal
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        uid={user?.uid}
+        entries={entries}
+        activeEntryId={config.activeActivityId ?? null}
+        readOnly={isActiveBoardReadOnly}
+        onOpenOnBoard={(entryId) => {
+          setActiveEntry(entryId);
+          setLibraryOpen(false);
+        }}
+        onCreate={() => setEditorEntry(null)}
+        onEdit={(entry) => setEditorEntry(entry)}
+        onDuplicate={duplicateWall}
+        onDelete={removeWall}
+        addToast={addToast}
+        confirm={(message) =>
+          showConfirm(message, {
+            title: 'Delete',
+            variant: 'danger',
+            confirmLabel: 'Delete',
+          })
+        }
+      />
+
+      {composer && session && (
+        <ComposerSheet
+          key={composer.kind === 'edit' ? composer.post.id : 'create'}
+          session={session}
+          placement={
+            composer.kind === 'create' ? composer.placement : undefined
+          }
+          editing={composer.kind === 'edit' ? composer.post : undefined}
+          onSubmit={(draft, placement) =>
+            void submitTeacherPost(draft, placement)
+          }
+          onClose={closeComposer}
+          busy={composerBusy}
+          progress={composerProgress}
+          error={composerError}
+        />
+      )}
+
+      <ModerationDrawer
+        open={moderationOpen}
+        onClose={() => setModerationOpen(false)}
+        submissions={submissions}
+        onApprove={(id) => void approve(id)}
+        onReject={(id) => void reject(id)}
+        onDelete={(id) => void deletePost(id)}
+        onPin={(id, pinned) => void pinPost(id, pinned)}
+        onEdit={(id, changes) => void editPost(id, changes)}
+      />
+
       <ActivityWallShareModal
-        key={isShareModalOpen ? (activeActivity?.id ?? 'closed') : 'closed'}
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        activity={activeActivity}
-        sessionId={activeSessionId}
+        key={`${activeEntry?.id ?? 'none'}:${shareOpen}`}
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        entry={activeEntry}
+        sessionId={sessionId}
         teacherUid={user?.uid ?? null}
+        teacherEmail={user?.email ?? null}
+        studentUrl={studentUrl}
+        existingGalleryUrl={galleryUrl || undefined}
+        onAddQr={
+          canOfferAnonymousJoin && !isActiveBoardReadOnly
+            ? spawnQrWidget
+            : undefined
+        }
       />
     </>
   );

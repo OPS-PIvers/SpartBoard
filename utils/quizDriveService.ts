@@ -20,7 +20,7 @@ import { gradeAnswer } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import { computeQuestionStats } from '@/utils/quizQuestionStats';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 
@@ -710,58 +710,33 @@ export class QuizDriveService {
       '# Correct',
       '# Answered',
       '% Correct',
+      'Avg %',
     ]);
-    const statsMap = new Map<string, { answered: number; correct: number }>();
-    for (const q of dedupedQuestions) {
-      statsMap.set(q.id, { answered: 0, correct: 0 });
-    }
-
-    const questionMap = new Map<string, QuizQuestion>(
-      dedupedQuestions.map((q) => [q.id, q])
+    // Same fold the results screen uses; a question with a manually graded
+    // part reports its average earned percent instead of an all-or-nothing count.
+    const statsMap = computeQuestionStats(
+      dedupedQuestions,
+      responses,
+      (q, answer, r) => gradeFn(q, answer, r)
     );
 
-    for (const r of responses) {
-      const answeredSet = new Set<string>();
-      const correctSet = new Set<string>();
-
-      // Dedup mirrors buildResultsSheetData: same take/answeredAt tiebreak.
-      const dedupedAnswers = selectRepresentativeAnswers(r.answers ?? []);
-
-      for (const a of dedupedAnswers.values()) {
-        const q = questionMap.get(a.questionId);
-        if (!q) continue;
-        if (a.unresponded) continue; // don't count a passed-over slot as answered
-
-        answeredSet.add(a.questionId);
-        if (gradeFn(q, a.answer, r).isCorrect) {
-          correctSet.add(a.questionId);
-        }
-      }
-
-      for (const qId of answeredSet) {
-        const stats = statsMap.get(qId);
-        if (stats) stats.answered++;
-      }
-      for (const qId of correctSet) {
-        const stats = statsMap.get(qId);
-        if (stats) stats.correct++;
-      }
-    }
-
     for (const q of dedupedQuestions) {
-      const stats = statsMap.get(q.id) ?? { answered: 0, correct: 0 };
-      const pct =
-        stats.answered > 0
+      const stats = statsMap.get(q.id);
+      const isAuto = !stats || stats.manualTotal === 0;
+      const correctPct =
+        stats && stats.answered > 0
           ? Math.round((stats.correct / stats.answered) * 100)
           : 0;
+      const avgPct = stats?.averagePct ?? (isAuto ? correctPct : null);
       statsRows.push([
         q.text.substring(0, 60),
         q.type,
         String(q.points ?? 1),
         q.correctAnswer.substring(0, 40),
-        String(stats.correct),
-        String(stats.answered),
-        `${pct}%`,
+        isAuto ? String(stats?.correct ?? 0) : '',
+        String(stats?.answered ?? 0),
+        isAuto ? `${correctPct}%` : '',
+        avgPct === null ? '' : `${avgPct}%`,
       ]);
     }
 

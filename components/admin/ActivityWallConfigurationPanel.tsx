@@ -7,6 +7,7 @@ import {
   ActivityWallBuildingConfig,
   ActivityWallMode,
   ActivityWallIdentificationMode,
+  ActivityWallLayout,
 } from '@/types';
 
 interface ActivityWallConfigurationPanelProps {
@@ -55,6 +56,15 @@ export const ActivityWallConfigurationPanel: React.FC<
 
   const MODE_OPTIONS: ActivityWallMode[] = ['text', 'photo'];
 
+  const LAYOUT_OPTIONS: { value: ActivityWallLayout; label: string }[] = [
+    { value: 'wall', label: 'Wall' },
+    { value: 'columns', label: 'Columns' },
+    { value: 'table', label: 'Table' },
+    { value: 'timeline', label: 'Timeline' },
+    { value: 'map', label: 'Map' },
+    { value: 'wordcloud', label: 'Word Cloud' },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -69,29 +79,113 @@ export const ActivityWallConfigurationPanel: React.FC<
 
       <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
         <div className="space-y-1">
-          <h3 className="text-sm font-bold text-slate-700">
-            Default Activity Type
-          </h3>
+          <label
+            className="block text-sm font-bold text-slate-700"
+            htmlFor="aw-default-layout"
+          >
+            Default Layout
+          </label>
           <p className="text-xxs text-slate-500 mb-2">
-            The mode new activities start with.
+            The layout new walls start on.
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            {MODE_OPTIONS.map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => handleUpdateBuilding({ defaultMode: mode })}
-                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
-                  currentBuildingConfig.defaultMode === mode
-                    ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                {mode === 'text' ? 'Text (Word Cloud)' : 'Photo (Padlet)'}
-              </button>
+          <select
+            id="aw-default-layout"
+            value={currentBuildingConfig.defaultLayout ?? 'wall'}
+            onChange={(event) =>
+              handleUpdateBuilding({
+                defaultLayout: event.target.value as ActivityWallLayout,
+              })
+            }
+            className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+          >
+            {LAYOUT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
+
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+          <span className="text-sm font-semibold text-slate-700">
+            Allow Guests by Default
+          </span>
+          <input
+            type="checkbox"
+            checked={currentBuildingConfig.defaultAllowGuests ?? false}
+            onChange={(event) =>
+              handleUpdateBuilding({ defaultAllowGuests: event.target.checked })
+            }
+            className="h-4 w-4 accent-brand-blue-primary"
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+          <span className="text-sm font-semibold text-slate-700">
+            Show Student Names by Default
+          </span>
+          <input
+            type="checkbox"
+            checked={currentBuildingConfig.defaultShowNames ?? false}
+            onChange={(event) =>
+              handleUpdateBuilding({ defaultShowNames: event.target.checked })
+            }
+            className="h-4 w-4 accent-brand-blue-primary"
+          />
+        </label>
+
+        <div className="space-y-1">
+          <label
+            className="block text-sm font-bold text-slate-700"
+            htmlFor="aw-default-max-posts"
+          >
+            Default Max Posts Per Student
+          </label>
+          <p className="text-xxs text-slate-500 mb-2">0 means unlimited.</p>
+          <input
+            id="aw-default-max-posts"
+            type="number"
+            min={0}
+            max={999}
+            value={currentBuildingConfig.defaultMaxPostsPerStudent ?? 0}
+            onChange={(event) => {
+              const parsed = Number.parseInt(event.target.value, 10);
+              handleUpdateBuilding({
+                defaultMaxPostsPerStudent: Number.isFinite(parsed)
+                  ? Math.min(999, Math.max(0, parsed))
+                  : 0,
+              });
+            }}
+            className="w-32 px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+          />
+        </div>
+
+        {!currentBuildingConfig.defaultLayout && (
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-slate-700">
+              Legacy default (old widget)
+            </h3>
+            <p className="text-xxs text-slate-500 mb-2">
+              Only applies to walls that predate Default Layout above.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {MODE_OPTIONS.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleUpdateBuilding({ defaultMode: mode })}
+                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                    currentBuildingConfig.defaultMode === mode
+                      ? 'bg-brand-blue-primary border-brand-blue-primary text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {mode === 'text' ? 'Text (Word Cloud)' : 'Photo (Padlet)'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
@@ -112,13 +206,17 @@ export const ActivityWallConfigurationPanel: React.FC<
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-bold text-slate-700">
+          <label
+            className="block text-sm font-bold text-slate-700"
+            htmlFor="aw-default-identification-mode"
+          >
             Default Participant Identification
           </label>
           <p className="text-xxs text-slate-500 mb-2">
             How students are identified when submitting.
           </p>
           <select
+            id="aw-default-identification-mode"
             value={
               currentBuildingConfig.defaultIdentificationMode ?? 'anonymous'
             }

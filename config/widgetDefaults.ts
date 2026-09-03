@@ -146,8 +146,9 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       activities: [],
       activeActivityId: null,
-      cardColor: '#ffffff',
-      cardOpacity: 1,
+      cardColor: '#0f172a',
+      cardOpacity: 0.7,
+      fontColor: '#ffffff',
     },
   },
   webcam: {

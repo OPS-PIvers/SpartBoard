@@ -18,8 +18,8 @@ import { useStudentAssignments } from '@/hooks/useStudentAssignments';
  *   video-activity  active 1×2 shapes + ended 1×2 shapes          = 4
  *   guided-learning active 1×2 shapes (no ended channel)          = 2
  *   mini-app        active 1×1 shape  + ended 1×1 shape           = 2
- *   activity-wall   active 1×1 shape  (no ended channel)          = 1
- *                                                           total = 15
+ *   activity-wall   active 1×2 shapes (no ended channel)          = 2
+ *                                                           total = 16
  */
 
 /**
@@ -132,8 +132,8 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
     });
 
     // Quiz's active channel fans waiting+active into 2 server-side-filtered
-    // listeners per shape, so the plan totals 15 (see the table above).
-    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(15);
+    // listeners per shape, so the plan totals 16 (see the table above).
+    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(16);
   });
 
   it('cleans up every listener on unmount', async () => {
@@ -155,7 +155,7 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
     });
 
     const opened = vi.mocked(firestore.onSnapshot).mock.calls.length;
-    expect(opened).toBe(15);
+    expect(opened).toBe(16);
     unmount();
     // Exactly one cleanup per opened listener — no leaks, no double-frees.
     expect(unsubscribe).toHaveBeenCalledTimes(opened);

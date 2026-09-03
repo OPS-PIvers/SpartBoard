@@ -17,7 +17,59 @@
  * Pure function; safe to call repeatedly.
  */
 
-import type { ActivityWallLibraryEntry } from '@/types';
+import type {
+  ActivityWallAppearance,
+  ActivityWallIdentificationMode,
+  ActivityWallLayout,
+  ActivityWallLibraryEntry,
+  ActivityWallMode,
+  ActivityWallSession,
+  ActivityWallSubmission,
+} from '@/types';
+import { ACTIVITY_WALL_DEFAULT_APPEARANCE } from '@/types';
+import type { ActivityWallActivityDefaults } from '@/components/widgets/ActivityWall/buildingDefaults';
+
+/** `allowedTypes` shape shared by the library entry and the session mirror. */
+type ActivityWallAllowedTypes = {
+  photo: boolean;
+  link: boolean;
+  file: boolean;
+  video: boolean;
+};
+
+const DEFAULT_ALLOWED_TYPES: ActivityWallAllowedTypes = {
+  photo: false,
+  link: false,
+  file: false,
+  video: false,
+};
+
+/** Legacy `mode` → new `layout` default (data model: text→wordcloud, photo→wall). */
+const layoutFromLegacyMode = (mode: ActivityWallMode): ActivityWallLayout =>
+  mode === 'photo' ? 'wall' : 'wordcloud';
+
+/**
+ * Legacy `identificationMode` → `allowGuests`. The pre-redesign student page
+ * always signed in anonymously regardless of `identificationMode` — none of
+ * the four legacy modes represented real authentication — so every legacy
+ * activity maps to `allowGuests: true`.
+ */
+const allowGuestsFromLegacyIdentificationMode = (
+  _mode: ActivityWallIdentificationMode
+): boolean => true;
+
+/** Legacy `identificationMode` → `showNames` ('name' | 'name-pin' show names). */
+const showNamesFromLegacyIdentificationMode = (
+  mode: ActivityWallIdentificationMode
+): boolean => mode === 'name' || mode === 'name-pin';
+
+/** Legacy `mode` → `allowedTypes` default (a legacy photo wall accepted photos). */
+const allowedTypesFromLegacyMode = (
+  mode: ActivityWallMode
+): ActivityWallAllowedTypes => ({
+  ...DEFAULT_ALLOWED_TYPES,
+  photo: mode === 'photo',
+});
 
 /**
  * Normalize a raw Firestore `activity_wall_activities/{activityId}` document
@@ -54,19 +106,50 @@ export function normalizeActivityWallLibraryEntry(
     classId,
     createdAt,
     updatedAt,
+    layout,
+    allowedTypes,
+    appearance,
+    allowGuests,
+    showNames,
+    maxPostsPerStudent,
+    allowStudentEdit,
+    allowStudentDelete,
+    acceptingResponses,
     ...restData
   } = data;
+
+  const resolvedMode: ActivityWallMode = mode ?? 'text';
+  const resolvedIdentificationMode: ActivityWallIdentificationMode =
+    identificationMode ?? 'anonymous';
 
   const entry: ActivityWallLibraryEntry = {
     ...restData,
     id: storedId ?? docId,
     title: typeof title === 'string' ? title : '',
     prompt: typeof prompt === 'string' ? prompt : '',
-    mode: mode ?? 'text',
+    mode: resolvedMode,
     moderationEnabled: !!moderationEnabled,
-    identificationMode: identificationMode ?? 'anonymous',
+    identificationMode: resolvedIdentificationMode,
     createdAt: typeof createdAt === 'number' ? createdAt : 0,
     updatedAt: typeof updatedAt === 'number' ? updatedAt : 0,
+    // Padlet-lite redesign (P1-1): derive every new field from the legacy
+    // mode/identificationMode when the document predates the field, per the
+    // mapping in docs/plans/ACTIVITY_WALL_REDESIGN.md's Data model section.
+    layout: layout ?? layoutFromLegacyMode(resolvedMode),
+    allowedTypes: allowedTypes ?? allowedTypesFromLegacyMode(resolvedMode),
+    appearance: appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE,
+    allowGuests:
+      allowGuests ??
+      allowGuestsFromLegacyIdentificationMode(resolvedIdentificationMode),
+    showNames:
+      showNames ??
+      showNamesFromLegacyIdentificationMode(resolvedIdentificationMode),
+    maxPostsPerStudent:
+      typeof maxPostsPerStudent === 'number' ? maxPostsPerStudent : 0,
+    allowStudentEdit: !!allowStudentEdit,
+    allowStudentDelete: !!allowStudentDelete,
+    acceptingResponses:
+      typeof acceptingResponses === 'boolean' ? acceptingResponses : true,
   };
 
   // Only include `classId` when it is a non-empty string. An empty string must
@@ -78,4 +161,191 @@ export function normalizeActivityWallLibraryEntry(
   }
 
   return entry;
+}
+
+/**
+ * Normalize a raw Firestore Activity Wall submission document. Legacy
+ * submissions have no `type`: a `content` starting with `http` on a photo
+ * wall normalizes to `photo`, otherwise `text` (data model, "Legacy
+ * submissions" note). `isModePhoto` is the parent wall's legacy `mode`.
+ */
+export function normalizeActivityWallSubmission(
+  docId: string,
+  data: Partial<ActivityWallSubmission>,
+  isModePhoto = false
+): ActivityWallSubmission {
+  const { id: storedId, content, submittedAt, status, type, ...rest } = data;
+  const resolvedContent = typeof content === 'string' ? content : '';
+  const resolvedType =
+    type ??
+    (isModePhoto && resolvedContent.startsWith('http') ? 'photo' : 'text');
+
+  return {
+    ...rest,
+    id: storedId ?? docId,
+    content: resolvedContent,
+    submittedAt: typeof submittedAt === 'number' ? submittedAt : 0,
+    status: status === 'pending' ? 'pending' : 'approved',
+    type: resolvedType,
+  };
+}
+
+/**
+ * Normalize a raw Firestore `activity_wall_sessions/{sessionId}` document,
+ * defaulting every Padlet-lite field so students on a legacy session still
+ * get a usable configuration.
+ */
+export function normalizeActivityWallSession(
+  docId: string,
+  data: Partial<ActivityWallSession>
+): ActivityWallSession {
+  const {
+    id: storedId,
+    activityId,
+    teacherUid,
+    title,
+    prompt,
+    mode,
+    moderationEnabled,
+    identificationMode,
+    updatedAt,
+    layout,
+    allowedTypes,
+    appearance,
+    allowGuests,
+    showNames,
+    maxPostsPerStudent,
+    allowStudentEdit,
+    allowStudentDelete,
+    acceptingResponses,
+    driveVisibility,
+    ...rest
+  } = data;
+
+  const resolvedMode: ActivityWallMode = mode ?? 'text';
+  const resolvedIdentificationMode: ActivityWallIdentificationMode =
+    identificationMode ?? 'anonymous';
+  const resolvedAllowGuests =
+    allowGuests ??
+    allowGuestsFromLegacyIdentificationMode(resolvedIdentificationMode);
+
+  return {
+    ...rest,
+    id: storedId ?? docId,
+    activityId: activityId ?? '',
+    teacherUid: teacherUid ?? '',
+    title: typeof title === 'string' ? title : '',
+    prompt: typeof prompt === 'string' ? prompt : '',
+    mode: resolvedMode,
+    moderationEnabled: !!moderationEnabled,
+    identificationMode: resolvedIdentificationMode,
+    updatedAt: typeof updatedAt === 'number' ? updatedAt : 0,
+    layout: layout ?? layoutFromLegacyMode(resolvedMode),
+    allowedTypes: allowedTypes ?? allowedTypesFromLegacyMode(resolvedMode),
+    appearance: appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE,
+    allowGuests: resolvedAllowGuests,
+    showNames:
+      showNames ??
+      showNamesFromLegacyIdentificationMode(resolvedIdentificationMode),
+    maxPostsPerStudent:
+      typeof maxPostsPerStudent === 'number' ? maxPostsPerStudent : 0,
+    allowStudentEdit: !!allowStudentEdit,
+    allowStudentDelete: !!allowStudentDelete,
+    acceptingResponses:
+      typeof acceptingResponses === 'boolean' ? acceptingResponses : true,
+    driveVisibility:
+      driveVisibility ?? (resolvedAllowGuests ? 'anyone' : 'domain'),
+  };
+}
+
+/** Returns a blank `ActivityWallLibraryEntry`, seeded with building defaults. */
+export function buildDefaultWall(
+  defaults: ActivityWallActivityDefaults = {}
+): ActivityWallLibraryEntry {
+  const mode: ActivityWallMode = defaults.mode ?? 'text';
+  const identificationMode: ActivityWallIdentificationMode =
+    defaults.identificationMode ?? 'anonymous';
+  const now = Date.now();
+
+  return {
+    id: crypto.randomUUID(),
+    title: '',
+    prompt: '',
+    mode,
+    moderationEnabled: defaults.moderationEnabled ?? false,
+    identificationMode,
+    createdAt: now,
+    updatedAt: now,
+    // New walls start on the free-form board; the legacy mode mapping only backfills existing entries.
+    layout: 'wall',
+    allowedTypes: allowedTypesFromLegacyMode(mode),
+    appearance: ACTIVITY_WALL_DEFAULT_APPEARANCE,
+    allowGuests: allowGuestsFromLegacyIdentificationMode(identificationMode),
+    showNames: showNamesFromLegacyIdentificationMode(identificationMode),
+    maxPostsPerStudent: 0,
+    allowStudentEdit: false,
+    allowStudentDelete: false,
+    acceptingResponses: true,
+    studentsCanSeePosts: true,
+    allowLikes: false,
+    allowComments: false,
+    allowCommentResponses: false,
+  };
+}
+
+/**
+ * Pure projection of a library entry into the session doc the widget mirrors
+ * to `activity_wall_sessions/{uid}_{activityId}` on every active-wall change.
+ * `driveVisibility` is computed here (not read by the archive function from
+ * the library doc) so the archive pipeline never needs owner-collection access.
+ */
+export function mirrorSessionFromEntry(
+  entry: ActivityWallLibraryEntry,
+  uid: string
+): ActivityWallSession {
+  const allowGuests =
+    entry.allowGuests ??
+    allowGuestsFromLegacyIdentificationMode(entry.identificationMode);
+  const layout: ActivityWallLayout =
+    entry.layout ?? layoutFromLegacyMode(entry.mode);
+  const appearance: ActivityWallAppearance =
+    entry.appearance ?? ACTIVITY_WALL_DEFAULT_APPEARANCE;
+
+  const session: ActivityWallSession = {
+    id: `${uid}_${entry.id}`,
+    activityId: entry.id,
+    teacherUid: uid,
+    title: entry.title,
+    prompt: entry.prompt,
+    mode: entry.mode,
+    moderationEnabled: entry.moderationEnabled,
+    identificationMode: entry.identificationMode,
+    updatedAt: Date.now(),
+    layout,
+    allowedTypes: entry.allowedTypes ?? allowedTypesFromLegacyMode(entry.mode),
+    appearance,
+    allowGuests,
+    showNames:
+      entry.showNames ??
+      showNamesFromLegacyIdentificationMode(entry.identificationMode),
+    maxPostsPerStudent: entry.maxPostsPerStudent ?? 0,
+    allowStudentEdit: entry.allowStudentEdit ?? false,
+    allowStudentDelete: entry.allowStudentDelete ?? false,
+    acceptingResponses: entry.acceptingResponses ?? true,
+    driveVisibility: allowGuests ? 'anyone' : 'domain',
+    studentsCanSeePosts: entry.studentsCanSeePosts ?? true,
+    allowLikes: entry.allowLikes ?? false,
+    allowComments: entry.allowComments ?? false,
+    allowCommentResponses: entry.allowCommentResponses ?? false,
+  };
+
+  if (entry.classId) session.classId = entry.classId;
+  if (entry.classIds) session.classIds = entry.classIds;
+  if (entry.rosterIds) session.rosterIds = entry.rosterIds;
+  if (entry.sections) session.sections = entry.sections;
+  if (entry.tableRows) session.tableRows = entry.tableRows;
+  if (entry.tableCols) session.tableCols = entry.tableCols;
+  if (entry.mapCenter) session.mapCenter = entry.mapCenter;
+
+  return session;
 }

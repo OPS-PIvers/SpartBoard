@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WidgetData, TimeToolConfig } from '@/types';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
@@ -127,6 +127,7 @@ const Keypad: React.FC<{
   initialSeconds: number;
 }> = ({ onConfirm, onCancel, initialSeconds }) => {
   const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [activeField, setActiveField] = useState<'min' | 'sec'>('min');
   const [editValues, setEditValues] = useState({
     min: Math.floor(initialSeconds / 60)
@@ -157,6 +158,43 @@ const Keypad: React.FC<{
     });
   };
 
+  // Take focus on open so the keys below reach this handler even before the
+  // teacher taps a digit button.
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
+  // Claim the keys the keypad owns natively, or they reach DashboardView's global handler.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Enter on a focused keypad button must activate that button, not confirm.
+    if (
+      e.key === 'Enter' &&
+      (e.target as HTMLElement | null)?.tagName === 'BUTTON'
+    )
+      return;
+    const owned =
+      e.key === 'Escape' ||
+      e.key === 'Enter' ||
+      e.key === 'Backspace' ||
+      e.key === 'Delete' ||
+      /^[0-9]$/.test(e.key);
+    if (!owned || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation();
+
+    if (e.key === 'Escape') {
+      onCancel();
+    } else if (e.key === 'Enter') {
+      onConfirm(parseInt(editValues.min) * 60 + parseInt(editValues.sec));
+    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      handleBackspace();
+    } else {
+      handleInput(e.key);
+    }
+  };
+
   const handlePreset = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -176,7 +214,12 @@ const Keypad: React.FC<{
     'bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600';
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
+      className="flex flex-col items-center justify-center w-full h-full animate-in fade-in zoom-in-95 duration-200 overflow-hidden focus:outline-none"
+    >
       <div
         className="flex flex-col items-center w-full h-full"
         style={{

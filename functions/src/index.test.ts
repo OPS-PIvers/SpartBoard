@@ -135,6 +135,22 @@ const submissionDoc = {
   set: submissionRefSet,
 };
 
+// Transaction mocks for the legacy callable's `claimSubmissionForArchive`
+// call. `tx.get` mirrors submissionRefGet's doc so the claim sees the same
+// 'firebase' status (storagePath present, no archiveStatus) and claims it.
+const transactionGet = vi.fn(() =>
+  Promise.resolve({
+    exists: true,
+    data: () => ({ storagePath: 'activity-wall/test.jpg' }),
+  })
+);
+const transactionSet = vi.fn();
+const mockTransaction = { get: transactionGet, set: transactionSet };
+const runTransactionMock = vi.fn(
+  (callback: (tx: typeof mockTransaction) => unknown) =>
+    Promise.resolve(callback(mockTransaction))
+);
+
 const mockFirestore = {
   doc: vi.fn((path: string) => ({
     path,
@@ -180,6 +196,7 @@ const mockFirestore = {
     if (name === 'activity_wall_sessions') {
       return {
         doc: () => ({
+          get: () => Promise.resolve({ exists: true, data: () => ({}) }),
           collection: () => ({
             doc: () => submissionDoc,
           }),
@@ -281,7 +298,7 @@ const mockFirestore = {
       })),
     };
   }),
-  runTransaction: vi.fn(),
+  runTransaction: runTransactionMock,
 };
 
 // Mock firebase-admin
@@ -3010,6 +3027,10 @@ describe('index barrel — deployed export set', () => {
     'checkUrlCompatibility',
     // Activity Wall archive
     'archiveActivityWallPhoto',
+    'sweepActivityWallArchives',
+    'archiveActivityWallSubmissionOnUpdate',
+    'archiveActivityWallSubmissionOnCreate',
+    'fetchLinkPreview',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
     'getQuizArtifactPlaybackUrl',

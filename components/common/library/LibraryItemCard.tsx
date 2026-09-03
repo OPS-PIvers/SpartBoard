@@ -95,6 +95,8 @@ interface OverflowMenuProps {
 
 const MENU_WIDTH = 176;
 const MENU_GAP = 4;
+const MENU_ITEM_HEIGHT = 32;
+const MENU_CHROME_HEIGHT = 10;
 
 const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
   const [open, setOpen] = useState(false);
@@ -130,8 +132,17 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
       8,
       Math.min(rect.right - MENU_WIDTH, viewportW - MENU_WIDTH - 8)
     );
-    setMenuPos({ top: rect.bottom + MENU_GAP, left });
-  }, [open]);
+    // Flip above the trigger when the menu would run off the bottom of the viewport.
+    const viewportH =
+      typeof window !== 'undefined' ? window.innerHeight : Infinity;
+    const menuH = actions.length * MENU_ITEM_HEIGHT + MENU_CHROME_HEIGHT;
+    const below = rect.bottom + MENU_GAP;
+    const top =
+      below + menuH > viewportH - 8 && rect.top - MENU_GAP - menuH >= 8
+        ? rect.top - MENU_GAP - menuH
+        : below;
+    setMenuPos({ top, left });
+  }, [actions.length, open]);
 
   useLayoutEffect(() => {
     if (!open) return;

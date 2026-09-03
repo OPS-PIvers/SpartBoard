@@ -233,7 +233,7 @@ describe('Global Escape Interaction', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('dispatches widget-escape-press for the top-most widget', () => {
+  it('dispatches widget-escape-press for the top-most widget when focus is in an unattributed widget portal', () => {
     const widgets: WidgetData[] = [
       {
         id: 'w1',
@@ -286,6 +286,16 @@ describe('Global Escape Interaction', () => {
       </DashboardContext.Provider>
     );
 
+    // A widget portal that carries no data-widget-id (e.g. the Note's
+    // formatting toolbar) still resolves to the top-most widget — that
+    // fallback is deliberate. Only focus OUTSIDE every widget is a no-op.
+    const portal = document.createElement('div');
+    portal.setAttribute('data-widget-portal', '');
+    const portalButton = document.createElement('button');
+    portal.appendChild(portalButton);
+    document.body.appendChild(portal);
+    portalButton.focus();
+
     act(() => {
       fireEvent.keyDown(window, { key: 'Escape' });
     });
@@ -297,6 +307,8 @@ describe('Global Escape Interaction', () => {
         detail: { widgetId: 'w2', key: 'Escape', shiftKey: false },
       })
     );
+
+    portal.remove();
   });
 
   it('minimizes a focused widget on Escape press', () => {
@@ -338,7 +350,11 @@ describe('Global Escape Interaction', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('w1', { minimized: true });
   });
 
-  it('does not dispatch event if an input was just blurred', () => {
+  // Regression: teachers reported Notes vanishing mid-lesson. The first
+  // Escape blurs the editor to <body>; the second used to fall through to the
+  // top-most widget — which bringToFront makes the very Note they were typing
+  // in — and minimize it to opacity 0. Neither press may target a widget now.
+  it('does not dispatch a widget action on either Escape after an input was blurred', () => {
     const widgets: WidgetData[] = [
       {
         id: 'w1',
@@ -382,15 +398,12 @@ describe('Global Escape Interaction', () => {
       expect.objectContaining({ type: 'widget-escape-press' })
     );
 
-    // Second press should dispatch
+    // Second press: focus is on <body>, so no widget is targeted either.
     act(() => {
       fireEvent.keyDown(window, { key: 'Escape' });
     });
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'widget-keyboard-action',
-        detail: { widgetId: 'w1', key: 'Escape', shiftKey: false },
-      })
+    expect(dispatchSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'widget-keyboard-action' })
     );
   });
 
@@ -441,7 +454,7 @@ describe('Global Escape Interaction', () => {
     expect(deleteEvent.defaultPrevented).toBe(false);
   });
 
-  it('does call preventDefault and dispatch widget-keyboard-action when Delete is pressed outside a text input', () => {
+  it('does not target a widget when Delete is pressed with focus outside every widget', () => {
     const widgets: WidgetData[] = [
       {
         id: 'w1',
@@ -483,15 +496,15 @@ describe('Global Escape Interaction', () => {
       window.dispatchEvent(deleteEvent);
     });
 
-    // The handler should prevent default (browser may otherwise navigate back).
+    // The handler still prevents default (browser may otherwise navigate back).
     expect(deleteEvent.defaultPrevented).toBe(true);
 
-    // And it should dispatch a widget-keyboard-action for the top widget.
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'widget-keyboard-action',
-        detail: expect.objectContaining({ key: 'Delete', widgetId: 'w1' }),
-      })
+    // But with focus on <body> it must NOT target the top-most widget — that
+    // fallback silently opened the close-confirm on whatever the teacher had
+    // most recently clicked, and deleted it outright for accounts that turned
+    // close confirmation off.
+    expect(dispatchSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'widget-keyboard-action' })
     );
   });
 

@@ -36,9 +36,17 @@ export {
 
 // ── External-content proxy + iframe embeddability check ────────────────────
 export { fetchExternalProxy, checkUrlCompatibility } from './embedProxy';
+export { fetchLinkPreview } from './linkPreview';
 
-// ── Activity Wall photo → Google Drive archive ─────────────────────────────
+// ── Activity Wall photo → Google Drive archive (legacy client callable) ────
 export { archiveActivityWallPhoto } from './driveArchive';
+
+// ── Activity Wall media → teacher Drive archive (server-driven) + sweep ────
+export {
+  archiveActivityWallSubmissionOnCreate,
+  archiveActivityWallSubmissionOnUpdate,
+} from './activityWallArchive';
+export { sweepActivityWallArchives } from './sweepActivityWallArchives';
 
 // ── Quiz media response → transcode → teacher Drive archive + straggler sweep ─
 export { archiveQuizMediaArtifact } from './quizMediaArchive';

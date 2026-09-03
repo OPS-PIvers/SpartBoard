@@ -74,7 +74,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useCollections } from '@/hooks/useCollections';
 import { useSharedCollection } from '@/hooks/useSharedCollection';
-import { setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
+import { authError, setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
 import { setGlobalPermissionsErrorHandler } from '@/utils/globalPermissionsErrors';
 import {
   setAiModelConfigFallbackHandler,
@@ -196,6 +196,9 @@ const stripDerivedPixels = (w: WidgetData) => {
   const { x: _x, y: _y, w: _w, h: _h, ...rest } = w;
   return rest;
 };
+
+// Ceiling on how long an edit may sit unsaved while edits keep arriving.
+const MAX_UNSAVED_EDIT_AGE_MS = 3000;
 
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
@@ -1299,7 +1302,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
   const backupDashboardPIIToDrive = useCallback(
     async (dashboard: Dashboard): Promise<void> => {
-      if (!driveService || !dashboardHasPII(dashboard)) return;
+      if (!dashboardHasPII(dashboard)) {
+        // Names were cleared — overwrite any existing supplement so old ones aren't merged back.
+        const staleFileId = piiDriveFileIdRef.current.get(dashboard.id);
+        if (driveService && staleFileId) {
+          try {
+            await driveService.updateFileContent(
+              staleFileId,
+              new Blob(['{}'], { type: 'application/json' })
+            );
+            // Once cleared, forget the file so later saves don't re-upload {} on every debounce.
+            piiDriveFileIdRef.current.delete(dashboard.id);
+          } catch (e) {
+            console.warn('[PII] Could not clear stale PII supplement:', e);
+          }
+        }
+        return;
+      }
+      if (!driveService) {
+        // No live Drive connection — abort rather than scrub PII with nowhere to back it up.
+        // `authError` fires the latched "Reconnect" toast so the abort is actionable, not just loud.
+        throw authError(
+          '[PII] Aborted dashboard save because Google Drive is not connected — PII supplement cannot be backed up'
+        );
+      }
 
       const pii = extractDashboardPII(dashboard);
       const blob = new Blob([JSON.stringify(pii)], {
@@ -2240,6 +2266,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Auto-save to Firestore with debouncing
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // When the oldest still-unsaved edit landed, or null when everything is saved.
+  const oldestUnsavedEditAtRef = useRef<number | null>(null);
   // Track auxiliary timeouts spawned by save handlers so they can be
   // cleaned up when the effect re-runs or the component unmounts.
   const auxTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -2280,6 +2308,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // This handles the case where a debounced timer was cancelled and state
       // reverted to match the last-saved data, so pendingSaveCountRef doesn't
       // get stuck positive.
+      oldestUnsavedEditAtRef.current = null;
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2297,6 +2326,36 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const isDashboardSwitch =
       lastSavedDashboardIdRef.current !== null &&
       lastSavedDashboardIdRef.current !== active.id;
+    if (isDashboardSwitch) {
+      const outgoing = dashboards.find(
+        (d) => d.id === lastSavedDashboardIdRef.current
+      );
+      if (
+        outgoing &&
+        serializeDashboard(outgoing) !== lastSavedDataRef.current
+      ) {
+        // Flush the outgoing board — re-baselining below would otherwise drop its unsaved edits.
+        pendingSaveCountRef.current++;
+        saveDashboard(outgoing)
+          .catch((err) => {
+            console.error('Auto-save failed:', err);
+            setToasts((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                message: 'Failed to sync changes',
+                type: 'error' as const,
+              },
+            ]);
+          })
+          .finally(() => {
+            pendingSaveCountRef.current = Math.max(
+              0,
+              pendingSaveCountRef.current - 1
+            );
+          });
+      }
+    }
     if (lastSavedDataRef.current === '' || isDashboardSwitch) {
       const { serializedData: initSavedData, fields: initSavedFields } =
         getDashboardSaveState(active);
@@ -2304,6 +2363,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastSavedFieldsRef.current = initSavedFields;
       lastWidgetCountRef.current = active.widgets.length;
       lastSavedDashboardIdRef.current = active.id;
+      // The refs now describe a different board, so any pending window from
+      // the previous one is meaningless here.
+      oldestUnsavedEditAtRef.current = null;
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2316,13 +2378,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Settings-only changes (spotlight, maximize) are small and urgent —
     // use a fast 100 ms debounce so the desktop board reflects remote-
     // controlled presentation changes with minimal perceived delay.
-    const debounceMs = pendingImmediateWrite.current
+    const baseDebounceMs = pendingImmediateWrite.current
       ? 0 // remote control write — flush now
       : isStructuralChange
         ? 200 // add/remove widget
         : lastUpdateWasSettingsOnly.current
           ? 100 // settings toggle (spotlight, maximize, etc.)
           : 800; // widget config / position
+    // Cap the total time an edit can sit unsaved. Each re-run above cancels the
+    // previous timer, so without this ceiling a stream of edits closer together
+    // than the debounce postpones the write forever.
+    oldestUnsavedEditAtRef.current ??= Date.now();
+    const debounceMs = Math.max(
+      0,
+      Math.min(
+        baseDebounceMs,
+        MAX_UNSAVED_EDIT_AGE_MS - (Date.now() - oldestUnsavedEditAtRef.current)
+      )
+    );
     // The immediate-write flag has now been consumed for this scheduling pass.
     // Reset it immediately so that a normal write whose state update lands
     // before the 0 ms timer fires (re-running this effect) does not inherit the
@@ -2332,6 +2405,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const showSavingTimer = setTimeout(() => setIsSaving(true), 0);
     auxTimers.add(showSavingTimer);
     saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      // This write covers every edit up to now; a later one opens a new window.
+      oldestUnsavedEditAtRef.current = null;
       lastUpdateWasSettingsOnly.current = false; // reset after consuming debounce
       // pendingImmediateWrite is reset on consume (above, right after debounceMs)
       const savedData = currentData;
@@ -2369,6 +2445,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             pendingSaveCountRef.current - 1
           );
           console.error('Auto-save failed:', err);
+          // Save failed, so the edit is still unsaved — keep the beforeunload flush armed without collapsing the debounce to 0ms.
+          oldestUnsavedEditAtRef.current ??= Date.now();
           if (pendingSaveCountRef.current === 0) {
             setIsSaving(false);
           }
@@ -2513,7 +2591,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Flush pending saves on page refresh/close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (saveTimerRef.current && user && !loading && activeId) {
+      // oldestUnsavedEditAtRef tracks "content differs from what was saved";
+      // saveTimerRef only tracks "a timer happens to be scheduled right now",
+      // which the effect's cleanup clears on every re-render.
+      if (
+        oldestUnsavedEditAtRef.current !== null &&
+        user &&
+        !loading &&
+        activeId
+      ) {
         const active = dashboards.find((d) => d.id === activeId);
         if (active) {
           // Note: We can't reliably await this in beforeunload,

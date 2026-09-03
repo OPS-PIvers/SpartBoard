@@ -1183,7 +1183,9 @@
       "groupWith": "Group with..."
     },
     "clearEntireBoard": "Are you sure you want to clear the entire board?",
-    "clearBoardTitle": "Clear Board"
+    "clearBoardTitle": "Clear Board",
+    "minimizedToast": "Minimized — find it in the Dock",
+    "minimizedAllToast": "All widgets minimized"
   },
   "login": {
     "signInToAccess": "Sign in to access your boards",
@@ -1973,6 +1975,13 @@
       "editSaveFailed": "Could not save changes. Try again."
     }
   },
+  "quizResults": {
+    "stats": {
+      "gradedOf": "{{n}} of {{m}} graded",
+      "notGradedYet": "Not graded yet",
+      "barLabel": "Average score {{pct}}%"
+    }
+  },
   "quizMediaResponse": {
     "notice": {
       "title": "Before you record",
@@ -2140,6 +2149,7 @@
         "play": "Play this take",
         "pause": "Pause this take",
         "scrubber": "Playback position",
+        "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
         "addComment": "Comment here",
         "noComments": "Play the take and add a comment at the moment you want to talk about.",

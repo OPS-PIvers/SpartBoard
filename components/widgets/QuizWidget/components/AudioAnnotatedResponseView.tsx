@@ -17,6 +17,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  SkipForward,
   Trash2,
 } from 'lucide-react';
 import type { WrittenAnswerAnnotation } from '@/types';
@@ -24,6 +25,11 @@ import {
   formatTimecode,
   type TakeUnplayableReason,
 } from '@/utils/mediaGrading';
+import { useAudioPeaks } from '@/hooks/useAudioPeaks';
+import { nextSpeechStart } from '@/utils/audioSilence';
+import { WaveformScrubber } from '@/components/quiz/recording/WaveformScrubber';
+
+const SKIP_LEAD_MS = 150;
 
 export interface AudioAnnotatedResponseViewProps {
   /** Object URL for the take; null while resolving or when unplayable. */
@@ -66,16 +72,36 @@ export const AudioAnnotatedResponseView: React.FC<
   const [playing, setPlaying] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const totalMs = Math.max(durationMs, 1);
+  const { peaks, silent, status: peaksStatus } = useAudioPeaks(src);
+  const hasGap = silent?.some(Boolean) ?? false;
 
   const sorted = useMemo(
     () => [...annotations].sort((a, b) => a.from - b.from),
     [annotations]
   );
 
+  const markers = useMemo(
+    () =>
+      sorted.map((a) => ({ id: a.id, ms: a.from, active: a.id === activeId })),
+    [sorted, activeId]
+  );
+
   const seekTo = (ms: number) => {
     const el = audioRef.current;
     setElapsedMs(ms);
     if (el) el.currentTime = ms / 1000;
+  };
+
+  const skipToSpeech = () => {
+    if (!silent || silent.length === 0) return;
+    const idx = Math.min(
+      silent.length - 1,
+      Math.floor((elapsedMs / totalMs) * silent.length)
+    );
+    const next = nextSpeechStart(silent, idx);
+    if (next === null) return;
+    const windowStartMs = (next / silent.length) * totalMs;
+    seekTo(Math.max(0, Math.round(windowStartMs - SKIP_LEAD_MS)));
   };
 
   const toggle = () => {
@@ -170,37 +196,79 @@ export const AudioAnnotatedResponseView: React.FC<
           )}
         </button>
 
-        <div className="relative flex-1">
-          <input
-            type="range"
-            min={0}
-            max={totalMs}
-            step={100}
-            value={Math.min(elapsedMs, totalMs)}
-            onChange={(e) => seekTo(Number(e.target.value))}
-            aria-label={t('quizMediaResponse.grading.player.scrubber')}
-            aria-valuetext={t('quizMediaResponse.grading.player.valueText', {
-              elapsed: formatTimecode(elapsedMs),
-              total: formatTimecode(totalMs),
-            })}
-            className="w-full accent-brand-blue-primary"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-2"
+        {peaksStatus === 'ready' && hasGap && (
+          <button
+            type="button"
+            onClick={skipToSpeech}
+            aria-label={t('quizMediaResponse.grading.player.skipToSpeech')}
+            title={t('quizMediaResponse.grading.player.skipToSpeech')}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
           >
-            {sorted.map((a) => (
-              <span
-                key={a.id}
-                className={`absolute top-0 h-2 w-1 rounded-full ${
-                  a.id === activeId ? 'bg-violet-600' : 'bg-amber-500'
-                }`}
-                style={{
-                  left: `${Math.min(100, (a.from / totalMs) * 100)}%`,
-                }}
+            <SkipForward aria-hidden className="h-4 w-4" />
+          </button>
+        )}
+
+        <div className="relative flex-1">
+          {peaksStatus === 'ready' && peaks && silent ? (
+            <WaveformScrubber
+              peaks={peaks}
+              silent={silent}
+              durationMs={totalMs}
+              currentMs={Math.min(elapsedMs, totalMs)}
+              markers={markers}
+              onSeek={seekTo}
+              ariaLabel={t('quizMediaResponse.grading.player.scrubber')}
+              ariaValueText={t('quizMediaResponse.grading.player.valueText', {
+                elapsed: formatTimecode(elapsedMs),
+                total: formatTimecode(totalMs),
+              })}
+            />
+          ) : (
+            <>
+              {peaksStatus === 'loading' && (
+                <div
+                  aria-hidden
+                  data-testid="waveform-loading"
+                  className="mb-1 h-0.5 w-full overflow-hidden rounded-full bg-slate-200"
+                >
+                  <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-brand-blue-primary to-transparent motion-reduce:animate-none motion-reduce:translate-x-0" />
+                </div>
+              )}
+              <input
+                type="range"
+                min={0}
+                max={totalMs}
+                step={100}
+                value={Math.min(elapsedMs, totalMs)}
+                onChange={(e) => seekTo(Number(e.target.value))}
+                aria-label={t('quizMediaResponse.grading.player.scrubber')}
+                aria-valuetext={t(
+                  'quizMediaResponse.grading.player.valueText',
+                  {
+                    elapsed: formatTimecode(elapsedMs),
+                    total: formatTimecode(totalMs),
+                  }
+                )}
+                className="w-full accent-brand-blue-primary"
               />
-            ))}
-          </div>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 h-2"
+              >
+                {sorted.map((a) => (
+                  <span
+                    key={a.id}
+                    className={`absolute top-0 h-2 w-1 rounded-full ${
+                      a.id === activeId ? 'bg-violet-600' : 'bg-amber-500'
+                    }`}
+                    style={{
+                      left: `${Math.min(100, (a.from / totalMs) * 100)}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
           <div className="sr-only" aria-live="polite">
             {t('quizMediaResponse.grading.player.valueText', {
               elapsed: formatTimecode(elapsedMs),
