@@ -1,4 +1,4 @@
-// Unit tests for the legacy `archiveActivityWallPhoto` callable's resume path.
+// Unit tests for the legacy `archiveActivityWallPhoto` callable.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -79,6 +79,9 @@ vi.mock('firebase-admin', () => ({
           deletedFiles.push(name);
           return Promise.resolve();
         },
+        getMetadata: () =>
+          Promise.resolve([{ size: '1024', contentType: 'image/jpeg' }]),
+        download: () => Promise.resolve([Buffer.from('photo')]),
       }),
     }),
   })),
@@ -198,5 +201,69 @@ describe('archiveActivityWallPhoto resume path', () => {
 
     expect(submissionState?.archiveStatus).toBe('failed');
     expect(submissionState?.driveFileId).toBe('drive-existing');
+  });
+});
+
+describe('archiveActivityWallPhoto fresh upload path', () => {
+  beforeEach(() => {
+    submissionState = { storagePath: STORAGE_PATH, archiveStatus: 'firebase' };
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ id: 'drive-new', files: [] }),
+      } as Response)
+    ) as unknown as typeof fetch;
+  });
+
+  it('shares a fresh upload per the session driveVisibility', async () => {
+    const result = await callableHandler({
+      auth: AUTH,
+      data: {
+        accessToken: 'tok',
+        sessionId: SESSION_ID,
+        submissionId: SUBMISSION_ID,
+        activityId: 'wall-abc123456',
+      },
+    });
+    expect(result).toMatchObject({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-new',
+      driveUrl: 'https://drive.google.com/thumbnail?id=drive-new&sz=w2000',
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/drive-new/permissions'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'domain',
+          domain: 'school.org',
+          role: 'reader',
+          allowFileDiscovery: false,
+        }),
+      })
+    );
+    expect(submissionState?.drivePermission).toBe('domain');
+    expect(submissionState?.content).toBe(
+      'https://drive.google.com/thumbnail?id=drive-new&sz=w2000'
+    );
+    expect(deletedFiles).toContain(STORAGE_PATH);
+  });
+
+  it('applies no permission for a public webmail teacher', async () => {
+    await callableHandler({
+      auth: { uid: 'teacher-1', token: { email: 'teacher@gmail.com' } },
+      data: {
+        accessToken: 'tok',
+        sessionId: SESSION_ID,
+        submissionId: SUBMISSION_ID,
+        activityId: 'wall-abc123456',
+      },
+    });
+    expect(submissionState?.drivePermission).toBe('private');
+    const calls = (global.fetch as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls;
+    expect(
+      calls.filter((c) => String(c[0]).includes('/permissions'))
+    ).toHaveLength(0);
   });
 });

@@ -1,8 +1,8 @@
 /**
  * Google Drive upload helpers + the `archiveActivityWallPhoto` callable
  * (F12 split out of the old monolithic `index.ts`). Archives an Activity Wall
- * photo submission from Firebase Storage to the teacher's Google Drive, makes
- * it publicly viewable, rewrites the submission doc to point at the Drive URL,
+ * photo submission from Firebase Storage to the teacher's Google Drive, shares
+ * it per the session's `driveVisibility`, rewrites the submission doc to point at the Drive URL,
  * and deletes the Storage object.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -164,12 +164,6 @@ const applyDrivePermission = async (
   }
 };
 
-const makeDriveFilePublic = async (
-  accessToken: string,
-  fileId: string
-): Promise<void> =>
-  applyDrivePermission(accessToken, fileId, { role: 'reader', type: 'anyone' });
-
 // Every field this function writes to a submission doc must stay listed in firestore.rules' submissions update hasOnly() whitelist, or a later client update fails closed.
 export const archiveActivityWallPhoto = onCall(
   {
@@ -213,6 +207,20 @@ export const archiveActivityWallPhoto = onCall(
       .collection('submissions')
       .doc(submissionId);
 
+    // Read once per invocation; both the resume and fresh paths need it.
+    const sessionSnap = await admin
+      .firestore()
+      .collection('activity_wall_sessions')
+      .doc(sessionId)
+      .get();
+    const driveVisibility: unknown = (
+      (sessionSnap.data() ?? {}) as Record<string, unknown>
+    ).driveVisibility;
+    const teacherEmail =
+      typeof request.auth.token?.email === 'string'
+        ? request.auth.token.email
+        : null;
+
     // Transactional claim: the server-side pipeline and this legacy callable
     // must never upload the same object twice.
     const claim = await claimSubmissionForArchive(
@@ -225,19 +233,7 @@ export const archiveActivityWallPhoto = onCall(
       // permission or the terminal write failed. Finish it instead of
       // stranding the doc at 'syncing'.
       try {
-        const sessionSnap = await admin
-          .firestore()
-          .collection('activity_wall_sessions')
-          .doc(sessionId)
-          .get();
-        const teacherEmail =
-          typeof request.auth.token?.email === 'string'
-            ? request.auth.token.email
-            : null;
-        const resolved = resolveDrivePermission(
-          (sessionSnap.data() ?? {}).driveVisibility,
-          teacherEmail
-        );
+        const resolved = resolveDrivePermission(driveVisibility, teacherEmail);
         if (resolved.permission) {
           await applyDrivePermission(
             accessToken,
@@ -307,6 +303,8 @@ export const archiveActivityWallPhoto = onCall(
 
       const submission = submissionSnap.data() as {
         storagePath?: unknown;
+        type?: unknown;
+        mimeType?: unknown;
       };
       const storagePath =
         typeof submission.storagePath === 'string'
@@ -356,13 +354,23 @@ export const archiveActivityWallPhoto = onCall(
         `${submissionId}.${extension}`,
         `Activity Wall/${activityId}`
       );
-      await makeDriveFilePublic(accessToken, driveFile.id);
+      const resolved = resolveDrivePermission(driveVisibility, teacherEmail);
+      if (resolved.permission) {
+        await applyDrivePermission(
+          accessToken,
+          driveFile.id,
+          resolved.permission
+        );
+      }
 
-      const driveUrl = `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+      const archivableType =
+        resolveArchivableType(submission.type, mimeType) ?? 'photo';
+      const driveUrl = buildDriveUrl(archivableType, driveFile.id);
 
       await submissionRef.set(
         {
           content: driveUrl,
+          drivePermission: resolved.value,
           status,
           archiveStatus: 'archived',
           archiveStartedAt: admin.firestore.FieldValue.delete(),

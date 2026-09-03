@@ -378,6 +378,39 @@ describe('DashboardContext auto-save starvation ceiling', () => {
     expect(saveDashboardMock).toHaveBeenCalled();
   });
 
+  it('keeps the normal debounce after a rejected save instead of firing per keystroke', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
+    saveDashboardMock.mockClear();
+    saveDashboardMock.mockRejectedValueOnce(new Error('offline'));
+
+    act(() => {
+      stateRef.current?.updateWidget('w1', {
+        config: { text: 'a' } as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(900);
+      await Promise.resolve();
+    });
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+
+    saveDashboardMock.mockClear();
+    act(() => {
+      stateRef.current?.updateWidget('w1', {
+        config: { text: 'ab' } as WidgetData['config'],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+  });
+
   it('flushes the outgoing board when switching boards mid-debounce', async () => {
     const stateRef = setup();
     await settleSnapshot(stateRef, [

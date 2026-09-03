@@ -1311,6 +1311,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               staleFileId,
               new Blob(['{}'], { type: 'application/json' })
             );
+            // Once cleared, forget the file so later saves don't re-upload {} on every debounce.
+            piiDriveFileIdRef.current.delete(dashboard.id);
           } catch (e) {
             console.warn('[PII] Could not clear stale PII supplement:', e);
           }
@@ -2405,7 +2407,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null;
       // This write covers every edit up to now; a later one opens a new window.
-      const unsavedSince = oldestUnsavedEditAtRef.current;
       oldestUnsavedEditAtRef.current = null;
       lastUpdateWasSettingsOnly.current = false; // reset after consuming debounce
       // pendingImmediateWrite is reset on consume (above, right after debounceMs)
@@ -2444,8 +2445,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             pendingSaveCountRef.current - 1
           );
           console.error('Auto-save failed:', err);
-          // Save failed, so the edit is still unsaved — keep the beforeunload flush armed.
-          oldestUnsavedEditAtRef.current ??= unsavedSince;
+          // Save failed, so the edit is still unsaved — keep the beforeunload flush armed without collapsing the debounce to 0ms.
+          oldestUnsavedEditAtRef.current ??= Date.now();
           if (pendingSaveCountRef.current === 0) {
             setIsSaving(false);
           }
