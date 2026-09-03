@@ -1085,7 +1085,7 @@ export const DashboardView: React.FC = () => {
         return;
       }
 
-      // Ctrl + /: Open Cheat Sheet
+      // Ctrl + /: Open Help Center
       // Guard: don't intercept Ctrl+/ while the user is typing in a form
       // field — Ctrl+/ is a common "comment/uncomment" shortcut in many
       // text editors and widgets that embed rich-text inputs.

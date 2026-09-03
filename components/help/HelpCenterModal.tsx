@@ -29,6 +29,9 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const tabRefs = useRef<Partial<Record<HelpTab, HTMLButtonElement | null>>>(
+    {}
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,6 +48,30 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
   const selectTab = (next: HelpTab) => {
     setLastHelpTab(next);
     onTabChange(next);
+  };
+
+  const onTabListKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    const keys = [
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Home',
+      'End',
+    ];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const current = TABS.findIndex((x) => x.id === tab);
+    const last = TABS.length - 1;
+    let nextIndex: number;
+    if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = last;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')
+      nextIndex = (current + last) % TABS.length;
+    else nextIndex = (current + 1) % TABS.length;
+    const nextId = TABS[nextIndex].id;
+    selectTab(nextId);
+    tabRefs.current[nextId]?.focus();
   };
 
   const header = (
@@ -91,6 +118,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
         <nav
           role="tablist"
           aria-label={t('helpCenter.title')}
+          onKeyDown={onTabListKeyDown}
           className="hidden md:flex md:w-[220px] shrink-0 flex-col gap-1 border-r border-slate-200 p-3"
         >
           {TABS.map(({ id, icon: Icon }) => (
@@ -98,7 +126,13 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
               key={id}
               type="button"
               role="tab"
+              id={`help-tab-${id}`}
+              aria-controls="help-tabpanel"
               aria-selected={tab === id}
+              tabIndex={tab === id ? 0 : -1}
+              ref={(el) => {
+                tabRefs.current[id] = el;
+              }}
               onClick={() => selectTab(id)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-left transition-colors ${
                 tab === id
@@ -130,7 +164,13 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           </select>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5">
+        <div
+          id="help-tabpanel"
+          role="tabpanel"
+          aria-labelledby={`help-tab-${tab}`}
+          tabIndex={0}
+          className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5"
+        >
           {tab === 'shortcuts' ? (
             <HelpShortcutsTab query={query} />
           ) : (

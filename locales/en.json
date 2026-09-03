@@ -1462,7 +1462,6 @@
           "hint": "Open the sidebar and click + New Board"
         },
         "openCheatsheet": {
-          "label": "Open the Help center",
           "hint": "Press Ctrl/⌘+/ or click the ? button in the bottom-right"
         }
       }

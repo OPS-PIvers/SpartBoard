@@ -1451,7 +1451,6 @@
           "hint": "Abre la barra lateral y haz clic en + Nuevo Tablero"
         },
         "openCheatsheet": {
-          "label": "Abrir el centro de ayuda",
           "hint": "Pulsa Ctrl/⌘+/ o haz clic en el botón ? de la esquina inferior derecha"
         }
       }

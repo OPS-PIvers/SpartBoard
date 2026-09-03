@@ -1316,7 +1316,6 @@
           "hint": "Öffnen Sie die Seitenleiste und klicken Sie auf + Neue Tafel"
         },
         "openCheatsheet": {
-          "label": "Das Hilfe-Center öffnen",
           "hint": "Drücken Sie Strg/⌘+/ oder klicken Sie auf das ?-Symbol unten rechts"
         }
       }

@@ -1316,7 +1316,6 @@
           "hint": "Ouvrez la barre latérale et cliquez sur + Nouveau tableau"
         },
         "openCheatsheet": {
-          "label": "Ouvrir le centre d'aide",
           "hint": "Appuyez sur Ctrl/⌘+/ ou cliquez sur le bouton ? en bas à droite"
         }
       }

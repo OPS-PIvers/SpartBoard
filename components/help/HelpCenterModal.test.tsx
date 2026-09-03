@@ -76,6 +76,21 @@ describe('HelpCenterModal', () => {
     expect(localStorage.getItem('spart_cheatsheet_opened')).toBe('true');
   });
 
+  it('moves tab selection and focus with ArrowRight', () => {
+    render(<Harness initialTab="shortcuts" />);
+    const [shortcutsTab, guidesTab] = screen.getAllByRole('tab');
+    expect(shortcutsTab).toHaveAttribute('aria-selected', 'true');
+    expect(guidesTab).toHaveAttribute('tabindex', '-1');
+
+    shortcutsTab.focus();
+    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
+
+    expect(guidesTab).toHaveAttribute('aria-selected', 'true');
+    expect(guidesTab).toHaveAttribute('tabindex', '0');
+    expect(document.activeElement).toBe(guidesTab);
+    expect(screen.getByText('Guides are coming soon')).toBeInTheDocument();
+  });
+
   it('closes on Escape', () => {
     const onClose = vi.fn();
     render(<Harness initialTab="shortcuts" onClose={onClose} />);

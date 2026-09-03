@@ -2155,4 +2155,28 @@ describe('DashboardView Gestures & Navigation', () => {
       window.removeEventListener('spart:cheatsheet-opened', spy);
     });
   });
+
+  describe('Help Center wiring', () => {
+    const selectedTab = () =>
+      screen
+        .getAllByRole('tab')
+        .find((el) => el.getAttribute('aria-selected') === 'true')?.id;
+
+    it('opens Help on the Shortcuts tab for Ctrl+/', async () => {
+      renderView();
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+      await waitFor(() => expect(selectedTab()).toBe('help-tab-shortcuts'));
+    });
+
+    it('opens Help on the requested tab for the spart:open-help event', async () => {
+      renderView();
+      fireEvent(
+        window,
+        new CustomEvent('spart:open-help', {
+          detail: { tab: 'guides', widgetType: 'clock' },
+        })
+      );
+      await waitFor(() => expect(selectedTab()).toBe('help-tab-guides'));
+    });
+  });
 });
