@@ -79,13 +79,17 @@ export const ActivityWallConfigurationPanel: React.FC<
 
       <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
         <div className="space-y-1">
-          <label className="block text-sm font-bold text-slate-700">
+          <label
+            className="block text-sm font-bold text-slate-700"
+            htmlFor="aw-default-layout"
+          >
             Default Layout
           </label>
           <p className="text-xxs text-slate-500 mb-2">
             The layout new walls start on.
           </p>
           <select
+            id="aw-default-layout"
             value={currentBuildingConfig.defaultLayout ?? 'wall'}
             onChange={(event) =>
               handleUpdateBuilding({
@@ -202,13 +206,17 @@ export const ActivityWallConfigurationPanel: React.FC<
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-bold text-slate-700">
+          <label
+            className="block text-sm font-bold text-slate-700"
+            htmlFor="aw-default-identification-mode"
+          >
             Default Participant Identification
           </label>
           <p className="text-xxs text-slate-500 mb-2">
             How students are identified when submitting.
           </p>
           <select
+            id="aw-default-identification-mode"
             value={
               currentBuildingConfig.defaultIdentificationMode ?? 'anonymous'
             }
