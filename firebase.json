@@ -67,6 +67,15 @@
         ]
       },
       {
+        "source": "/spotify-callback",
+        "headers": [
+          {
+            "key": "Cross-Origin-Opener-Policy",
+            "value": "unsafe-none"
+          }
+        ]
+      },
+      {
         "source": "/activity/**",
         "headers": [
           {
