@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
 import type { HelpResourceItem } from '@/types/helpCenter';
@@ -84,7 +84,8 @@ const EmbedViewer: React.FC<{ item: HelpResourceItem }> = ({ item }) => {
   const { t } = useTranslation();
   const url = item.url ?? '';
   const src = toHelpEmbedSrc(url);
-  const unconverted = item.embedType === 'other' && src === url;
+  // Anything the converter left alone is a raw admin-entered URL: link out instead of framing it.
+  const unconverted = src === url;
 
   if (!url || unconverted) {
     return (
@@ -124,9 +125,14 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
   onBack,
 }) => {
   const { t } = useTranslation();
+  const backRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     void incrementHelpOpenCount(item.id);
+  }, [item.id]);
+
+  useEffect(() => {
+    backRef.current?.focus();
   }, [item.id]);
 
   return (
@@ -134,6 +140,7 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
       <div className="flex items-center gap-3">
         <button
           type="button"
+          ref={backRef}
           onClick={onBack}
           className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
         >

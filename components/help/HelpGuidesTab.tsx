@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Fuse from 'fuse.js';
 import {
@@ -71,6 +71,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   const [categoryId, setCategoryId] = useState('all');
   const [kinds, setKinds] = useState<HelpKindFilter[]>([]);
   const [openItem, setOpenItem] = useState<HelpResourceItem | null>(null);
+  const returnFocusId = useRef<string | null>(null);
   const [widgetFilter, setWidgetFilter] = useState<WidgetType | undefined>(
     widgetType
   );
@@ -130,11 +131,41 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     [fuse, trimmedQuery, scopedItems]
   );
 
+  // A category that loses all its items (snapshot change, kind chips, widget filter) falls back to All.
+  const effectiveCategoryId =
+    categoryId !== 'all' &&
+    !visibleCategories.some((category) => category.id === categoryId)
+      ? 'all'
+      : categoryId;
+
   const filtered = searched.filter((item) => {
-    if (categoryId !== 'all' && item.categoryId !== categoryId) return false;
+    if (
+      effectiveCategoryId !== 'all' &&
+      item.categoryId !== effectiveCategoryId
+    )
+      return false;
     if (kinds.length > 0 && !kinds.includes(kindOf(item))) return false;
     return true;
   });
+
+  const openCard = (item: HelpResourceItem) => {
+    returnFocusId.current = item.id;
+    setOpenItem(item);
+  };
+
+  const closeItem = () => setOpenItem(null);
+
+  // DOM focus restore: return focus to the card that opened the viewer.
+  useEffect(() => {
+    if (openItem || !returnFocusId.current) return;
+    const id = returnFocusId.current;
+    returnFocusId.current = null;
+    document
+      .querySelector<HTMLButtonElement>(
+        `[data-help-item-id="${CSS.escape(id)}"]`
+      )
+      ?.focus();
+  }, [openItem]);
 
   const toggleKind = (kind: HelpKindFilter) =>
     setKinds((prev) =>
@@ -142,9 +173,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     );
 
   if (openItem) {
-    return (
-      <HelpResourceViewer item={openItem} onBack={() => setOpenItem(null)} />
-    );
+    return <HelpResourceViewer item={openItem} onBack={closeItem} />;
   }
 
   const categoryOptions = [
@@ -162,10 +191,10 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
           <button
             key={category.id}
             type="button"
-            aria-pressed={categoryId === category.id}
+            aria-pressed={effectiveCategoryId === category.id}
             onClick={() => setCategoryId(category.id)}
             className={`px-3 py-2 rounded-lg text-sm font-semibold text-left transition-colors ${
-              categoryId === category.id
+              effectiveCategoryId === category.id
                 ? 'bg-brand-blue-primary/10 text-brand-blue-primary'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
@@ -181,7 +210,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
         </label>
         <select
           id="help-guides-category"
-          value={categoryId}
+          value={effectiveCategoryId}
           onChange={(e) => setCategoryId(e.target.value)}
           className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800"
         >
@@ -244,7 +273,8 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
                 <li key={item.id}>
                   <button
                     type="button"
-                    onClick={() => setOpenItem(item)}
+                    onClick={() => openCard(item)}
+                    data-help-item-id={item.id}
                     className="w-full flex items-start gap-3 text-left rounded-lg border border-slate-200 bg-white px-3 py-3 hover:border-brand-blue-light hover:bg-slate-50 transition-colors"
                   >
                     <Icon className="w-4 h-4 mt-0.5 shrink-0 text-slate-500" />

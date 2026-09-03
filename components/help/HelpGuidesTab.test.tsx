@@ -93,7 +93,7 @@ const makeItem = (
   visible: true,
   orgId: null,
   widgetTypes: [],
-  url: 'https://www.youtube.com/watch?v=abc',
+  url: 'https://www.youtube.com/watch?v=abc123defgh',
   embedType: 'youtube',
   setId: null,
   openCount: 0,
@@ -226,6 +226,64 @@ describe('HelpGuidesTab', () => {
         screen.getByText('This activity is no longer available')
       ).toBeInTheDocument()
     );
+  });
+
+  it('links out instead of framing an arbitrary-host pdf', async () => {
+    helpState.items = [
+      makeItem({
+        id: 'p1',
+        title: 'Raw pdf',
+        url: 'https://example.com/guide.pdf',
+        embedType: 'pdf',
+      }),
+    ];
+    const user = userEvent.setup();
+    render(<HelpGuidesTab query="" />);
+    await user.click(screen.getByText('Raw pdf'));
+
+    expect(document.querySelector('iframe')).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'Open in a new tab' })
+    ).toHaveAttribute('href', 'https://example.com/guide.pdf');
+  });
+
+  it('falls back to All when the selected category loses its items', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<HelpGuidesTab query="" />);
+    await user.click(screen.getByRole('button', { name: 'Boards & widgets' }));
+    expect(screen.getByText('Board basics')).toBeInTheDocument();
+
+    // The widget deep link scopes items to 'clock'-free content, dropping that category.
+    helpState.items = [makeItem({ id: 'v1', title: 'Welcome video' })];
+    rerender(<HelpGuidesTab query="" widgetType="clock" />);
+    rerender(<HelpGuidesTab query="" />);
+
+    expect(
+      screen.queryByRole('button', { name: 'Boards & widgets' })
+    ).toBeNull();
+    expect(screen.getByText('Welcome video')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('moves focus to Back on open and back to the card on return', async () => {
+    const user = userEvent.setup();
+    render(<HelpGuidesTab query="" />);
+    const card = screen.getByText('Welcome video').closest('button');
+    await user.click(screen.getByText('Welcome video'));
+
+    const back = screen.getByRole('button', { name: 'Back' });
+    await waitFor(() => expect(document.activeElement).toBe(back));
+
+    await user.click(back);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByText('Welcome video').closest('button')
+      )
+    );
+    expect(card).not.toBeNull();
   });
 
   it('shows the empty state when there are no items', () => {

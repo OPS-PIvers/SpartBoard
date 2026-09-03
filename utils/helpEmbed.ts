@@ -37,9 +37,9 @@ export const inferHelpEmbedType = (url: string): HelpEmbedType => {
   return 'other';
 };
 
-// 'other' is an arbitrary admin-entered host: never pair allow-same-origin with allow-scripts there.
+// 'other' and 'pdf' can be any admin-entered host: never pair allow-same-origin with allow-scripts there.
 export const helpIframeSandbox = (embedType: HelpEmbedType | null): string =>
-  embedType === 'other'
+  embedType === 'other' || embedType === 'pdf'
     ? 'allow-scripts allow-forms allow-popups'
     : HELP_IFRAME_SANDBOX;
 
