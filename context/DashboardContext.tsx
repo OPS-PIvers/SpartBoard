@@ -5776,6 +5776,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // annotations on Synced boards are bidirectional by design (host and
   // collaborator both push). For viewers, the pencil button is hidden in
   // the UI, so they have no way to invoke these.
+  // Widget bytes only change when widgets do; cache by array identity so a
+  // pen stroke never re-serializes a widget-heavy board.
+  const widgetBytesCacheRef = useRef<{
+    widgets: WidgetData[] | undefined;
+    bytes: number;
+  } | null>(null);
+  const getWidgetBytes = (widgets: WidgetData[] | undefined): number => {
+    const cached = widgetBytesCacheRef.current;
+    if (cached && cached.widgets === widgets) return cached.bytes;
+    const bytes = estimateWidgetBytes(widgets);
+    widgetBytesCacheRef.current = { widgets, bytes };
+    return bytes;
+  };
+
   // Every write lands here, so the size guard lives here too. Returns
   // false when the write was refused (no active board or size cap).
   const setActiveAnnotationObjects = useCallback(
@@ -5788,7 +5802,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Ink and widgets share one 1 MiB document: measure both together.
       const nextBytes = estimateAnnotationBytes(next);
       const currentBytes = estimateAnnotationBytes(current);
-      const widgetBytes = estimateWidgetBytes(board?.widgets);
+      const widgetBytes = getWidgetBytes(board?.widgets);
       if (nextBytes > currentBytes) {
         const capped = getAnnotationCapReason(nextBytes, widgetBytes);
         if (capped) {
