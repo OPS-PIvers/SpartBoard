@@ -440,4 +440,54 @@ describe('DashboardContext per-widget merge', () => {
       expect(wB?.config).toMatchObject({ text: 'server-B' });
     });
   });
+
+  it('accepts a remote style change on an annotated widget whose style is untouched', async () => {
+    const stateRef = setup();
+
+    const annotation = {
+      mode: 'window' as const,
+      paths: [{ points: [{ x: 0, y: 0 }], color: '#000', width: 2 }],
+    };
+    const annotated = {
+      ...makeWidget('wA', 'original-A'),
+      annotation,
+    } as WidgetData;
+    const initialDashboard = makeDashboard([annotated, makeWidget('wB', 'b')]);
+
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // Local drift on an unrelated widget forces the per-widget merge path.
+    // Widget A's own style is never touched locally.
+    await act(async () => {
+      stateRef.current?.updateWidget('wB', {
+        config: { text: 'local-B' } as WidgetData['config'],
+      });
+      await Promise.resolve();
+    });
+
+    // Another device restyles the annotated widget.
+    await pushSnapshot([
+      {
+        ...makeDashboard([
+          { ...annotated, backgroundColor: 'bg-blue-50' } as WidgetData,
+          makeWidget('wB', 'b'),
+        ]),
+        updatedAt: 2000,
+      },
+    ]);
+
+    await waitFor(() => {
+      const wA = stateRef.current?.activeDashboard?.widgets.find(
+        (w) => w.id === 'wA'
+      );
+      // `saved` is re-parsed from JSON, so a reference compare on `annotation`
+      // would pin this widget as style-changed forever and drop the remote edit.
+      expect(wA?.backgroundColor).toBe('bg-blue-50');
+      expect(wA?.annotation).toEqual(annotation);
+    });
+  });
 });

@@ -219,10 +219,6 @@ const stripDerivedPixels = (w: WidgetData) => {
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
 
-// The snapshot merge tracks `annotation` in its style group as well, on top of
-// the deep comparison below; the save-transaction merge handles it separately.
-const SNAPSHOT_STYLE_FIELDS = [...STYLE_FIELDS, 'annotation'] as const;
-
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
   JSON.stringify({
@@ -1858,7 +1854,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const layoutChangedLocally = LAYOUT_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
-                const styleChangedLocally = SNAPSHOT_STYLE_FIELDS.some(
+                // `annotation` is deliberately absent here: it is an object,
+                // and `saved` is re-parsed from JSON, so a reference compare
+                // would report every annotated widget as style-changed forever.
+                // `annotationChangedLocally` below deep-compares it instead.
+                const styleChangedLocally = STYLE_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
                 const instanceChangedLocally = INSTANCE_FIELDS.some(
