@@ -39,6 +39,8 @@ import {
   PageEditorImperativeApi,
   PageBackgroundChange,
 } from './PageEditor';
+import { NotebookZoomControls } from './NotebookZoomControls';
+import { useNotebookZoom } from '../useNotebookZoom';
 import {
   DEFAULT_PEN_COLOR,
   PEN_COLORS,
@@ -166,6 +168,8 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   // in this parent) can trigger selection-scoped actions without the
   // selection itself having to flow up here.
   const editorApiRef = useRef<PageEditorImperativeApi | null>(null);
+  // Fit resets whenever the page or the notebook changes.
+  const zoom = useNotebookZoom(`${activeNotebookId}:${currentPage}`);
 
   // Reset state when the page changes (adjust-state-while-rendering, so the
   // loading effect below stays free of synchronous setState).
@@ -436,6 +440,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             <>
               <PageEditor
                 key={`${activeNotebookId}:${currentPage}`}
+                zoom={zoom}
                 svg={svgToEdit}
                 tool={tool}
                 penColor={penColor}
@@ -639,6 +644,8 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 />
               )}
             </div>
+
+            <NotebookZoomControls zoom={zoom} />
 
             <button
               disabled={currentPage === totalPages - 1}

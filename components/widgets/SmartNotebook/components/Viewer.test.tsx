@@ -86,3 +86,47 @@ describe('Viewer hidden pages', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('Viewer zoom controls', () => {
+  const zoomLabel = () =>
+    screen.getByLabelText('Reset zoom to fit').textContent;
+
+  it('exposes labelled zoom buttons and the current percentage', () => {
+    render(<Harness />);
+    expect(screen.getByLabelText('Zoom in')).toBeInTheDocument();
+    expect(zoomLabel()).toBe('100%');
+  });
+
+  it('steps in, steps out and resets to fit', () => {
+    render(<Harness />);
+    expect(screen.getByLabelText('Zoom out')).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect(zoomLabel()).toBe('125%');
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect(zoomLabel()).toBe('156%');
+
+    fireEvent.click(screen.getByLabelText('Reset zoom to fit'));
+    expect(zoomLabel()).toBe('100%');
+    expect(screen.getByLabelText('Zoom out')).toBeDisabled();
+  });
+
+  it('zooms on Ctrl + wheel over the page but not on a plain wheel', () => {
+    render(<Harness />);
+    const page = screen.getByAltText('Page 1').parentElement as HTMLElement;
+
+    fireEvent.wheel(page, { deltaY: -100 });
+    expect(zoomLabel()).toBe('100%');
+
+    fireEvent.wheel(page, { deltaY: -100, ctrlKey: true });
+    expect(zoomLabel()).not.toBe('100%');
+  });
+
+  it('returns to fit when the page changes', () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect(zoomLabel()).toBe('125%');
+    fireEvent.click(nextButton());
+    expect(zoomLabel()).toBe('100%');
+  });
+});

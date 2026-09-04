@@ -17,6 +17,7 @@ svgProto.getBBox = () => new DOMRect(0, 0, 0, 0);
 svgProto.getScreenCTM = () => null;
 svgProto.getCTM = () => null;
 if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix !== 'function') {
+  // Real 2D affine semantics so zoom-scaled drags can be asserted on.
   class StubMatrix {
     a = 1;
     b = 0;
@@ -24,21 +25,66 @@ if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix !== 'function') {
     d = 1;
     e = 0;
     f = 0;
-    translateSelf() {
+    translateSelf(tx = 0, ty = 0) {
+      this.e += this.a * tx + this.c * ty;
+      this.f += this.b * tx + this.d * ty;
       return this;
     }
-    scaleSelf() {
+    scaleSelf(sx = 1, sy = sx) {
+      this.a *= sx;
+      this.b *= sx;
+      this.c *= sy;
+      this.d *= sy;
       return this;
     }
-    multiply() {
-      return this;
+    multiply(o: StubMatrix) {
+      const m = new StubMatrix();
+      m.a = this.a * o.a + this.c * o.b;
+      m.b = this.b * o.a + this.d * o.b;
+      m.c = this.a * o.c + this.c * o.d;
+      m.d = this.b * o.c + this.d * o.d;
+      m.e = this.a * o.e + this.c * o.f + this.e;
+      m.f = this.b * o.e + this.d * o.f + this.f;
+      return m;
     }
     inverse() {
+      const det = this.a * this.d - this.b * this.c;
+      const m = new StubMatrix();
+      if (!det) return m;
+      m.a = this.d / det;
+      m.b = -this.b / det;
+      m.c = -this.c / det;
+      m.d = this.a / det;
+      m.e = (this.c * this.f - this.d * this.e) / det;
+      m.f = (this.b * this.e - this.a * this.f) / det;
+      return m;
+    }
+    rotateSelf() {
       return this;
     }
   }
   (globalThis as { DOMMatrix?: unknown }).DOMMatrix = StubMatrix;
 }
+
+/** getScreenCTM for a page zoomed to scale 2 with no pan. */
+const scaledCtm = (scale: number) => ({
+  a: scale,
+  b: 0,
+  c: 0,
+  d: scale,
+  e: 0,
+  f: 0,
+  inverse: () => ({
+    a: 1 / scale,
+    b: 0,
+    c: 0,
+    d: 1 / scale,
+    e: 0,
+    f: 0,
+    // Selection rendering composes root^-1 * object; identity is enough here.
+    multiply: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+  }),
+});
 
 const TEST_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
@@ -315,5 +361,100 @@ describe('PageEditor — onChange ref is current immediately after flushSync re-
     // New code (render-body ref sync): ref updated during flushSync → fnB called → PASS
     expect(fnB).toHaveBeenCalled();
     expect(fnA).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Zoom is a CSS transform on an ancestor of the SVG, so every pointer -> SVG
+ * conversion goes through getScreenCTM and needs no scale-aware maths of its
+ * own. These tests pin that: with a 2x CTM the editor must halve client
+ * deltas when it writes SVG user units.
+ */
+describe('PageEditor at zoom scale 2', () => {
+  const originalCtm = svgProto.getScreenCTM;
+
+  afterEach(() => {
+    svgProto.getScreenCTM = originalCtm;
+  });
+
+  const editorSurface = (container: HTMLElement): HTMLElement =>
+    container.querySelector('[data-no-drag="true"] div') as HTMLElement;
+
+  it('draws ink at halved (user-space) coordinates', async () => {
+    svgProto.getScreenCTM = () =>
+      scaledCtm(2) as unknown as ReturnType<typeof originalCtm>;
+
+    const { container } = render(<PageEditor tool="pen" svg={TEST_SVG} />);
+    await tick();
+    const surface = editorSurface(container);
+
+    act(() => {
+      fireEvent.pointerDown(surface, {
+        clientX: 200,
+        clientY: 300,
+        pointerId: 1,
+        buttons: 1,
+        isPrimary: true,
+      });
+      fireEvent.pointerMove(surface, {
+        clientX: 400,
+        clientY: 500,
+        pointerId: 1,
+        buttons: 1,
+        isPrimary: true,
+      });
+      fireEvent.pointerUp(surface, {
+        clientX: 400,
+        clientY: 500,
+        pointerId: 1,
+        buttons: 0,
+        isPrimary: true,
+      });
+    });
+
+    const path = container.querySelector('path[stroke]');
+    expect(path?.getAttribute('d')).toBe('M 100 150 L 200 250');
+  });
+
+  it('moves a selected object by the halved drag delta', async () => {
+    svgProto.getScreenCTM = () =>
+      scaledCtm(2) as unknown as ReturnType<typeof originalCtm>;
+
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+
+    const rect = container.querySelector('[data-edit-id]');
+    if (!rect) throw new Error('PageEditor did not assign edit ids');
+
+    fire(rect, 'pointerdown', {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+      buttons: 1,
+      isPrimary: true,
+    });
+    fire(rect, 'pointermove', {
+      clientX: 260,
+      clientY: 220,
+      pointerId: 1,
+      buttons: 1,
+      isPrimary: true,
+    });
+
+    // Client delta (60, 20) at scale 2 is a (30, 10) move in user units.
+    expect(rect.getAttribute('transform')).toContain('30');
+    expect(rect.getAttribute('transform')).toContain('10');
+
+    fire(rect, 'pointerup', {
+      clientX: 260,
+      clientY: 220,
+      pointerId: 1,
+      buttons: 0,
+      isPrimary: true,
+    });
+    expect(onChange).toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { NotebookObjectLink, PlacedNotebookAsset } from '@/types';
 import { clampPosFrac, clampWidthFrac } from '@/utils/notebookPlacedAssets';
+import { NotebookZoom, useNotebookZoomGestures } from '../useNotebookZoom';
 
 /** dataTransfer type for an asset dragged from the Assets panel onto a page. */
 export const NOTEBOOK_ASSET_MIME = 'application/notebook-asset';
@@ -31,6 +32,8 @@ interface PageCanvasProps {
   /** Fires when a hotspot is clicked. No-op in edit mode (links are
    *  authored, not navigated). */
   onFollowLink?: (targetPage: number) => void;
+  /** Zoom/pan model shared with the viewer's zoom controls. */
+  zoom: NotebookZoom;
 }
 
 interface DragSession {
@@ -58,6 +61,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
   onRemovePlacedAsset,
   objectLinks,
   onFollowLink,
+  zoom,
 }) => {
   // The positioned container has NO padding so absolute children share the same
   // origin as getBoundingClientRect (the border box).
@@ -72,6 +76,13 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
     wFrac: number;
   } | null>(null);
   const dragRef = useRef<DragSession | null>(null);
+  const panRef = useRef<{ x: number; y: number } | null>(null);
+  const [panning, setPanning] = useState(false);
+  const reducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  useNotebookZoomGestures(zoom);
 
   // Compute the visible image rect (object-contain letterboxes inside the box).
   const measure = useCallback(() => {
@@ -81,22 +92,28 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
       setContent(null);
       return;
     }
-    const cRect = container.getBoundingClientRect();
-    const bRect = img.getBoundingClientRect();
+    // Layout (offset) geometry, not client rects: it is immune to the zoom
+    // transform, so `content` stays in the units absolute children use.
+    const boxW = img.offsetWidth;
+    const boxH = img.offsetHeight;
+    if (!boxW || !boxH) {
+      setContent(null);
+      return;
+    }
     const imgAR = img.naturalWidth / img.naturalHeight;
-    const boxAR = bRect.width / bRect.height;
+    const boxAR = boxW / boxH;
     let cw: number;
     let ch: number;
     if (imgAR > boxAR) {
-      cw = bRect.width;
-      ch = bRect.width / imgAR;
+      cw = boxW;
+      ch = boxW / imgAR;
     } else {
-      ch = bRect.height;
-      cw = bRect.height * imgAR;
+      ch = boxH;
+      cw = boxH * imgAR;
     }
     setContent({
-      left: bRect.left - cRect.left + (bRect.width - cw) / 2,
-      top: bRect.top - cRect.top + (bRect.height - ch) / 2,
+      left: img.offsetLeft + (boxW - cw) / 2,
+      top: img.offsetTop + (boxH - ch) / 2,
       width: cw,
       height: ch,
     });
@@ -117,9 +134,10 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
     const container = containerRef.current;
     if (!content || !container) return null;
     const cRect = container.getBoundingClientRect();
+    const s = zoom.scale;
     return {
-      x: (clientX - cRect.left - content.left) / content.width,
-      y: (clientY - cRect.top - content.top) / content.height,
+      x: ((clientX - cRect.left) / s - content.left) / content.width,
+      y: ((clientY - cRect.top) / s - content.top) / content.height,
     };
   };
 
@@ -165,10 +183,17 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    const pan = panRef.current;
+    if (pan) {
+      zoom.panBy(e.clientX - pan.x, e.clientY - pan.y);
+      panRef.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
     const d = dragRef.current;
     if (!d || !content) return;
-    const dxFrac = (e.clientX - d.startX) / content.width;
-    const dyFrac = (e.clientY - d.startY) / content.height;
+    const s = zoom.scale;
+    const dxFrac = (e.clientX - d.startX) / (content.width * s);
+    const dyFrac = (e.clientY - d.startY) / (content.height * s);
     if (d.mode === 'move') {
       setDraft({
         id: d.id,
@@ -187,7 +212,19 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
     }
   };
 
+  // Drag-to-pan on the page itself (never on an asset or hotspot).
+  const beginPan = (e: React.PointerEvent) => {
+    if (!zoom.isZoomed) return;
+    const target = e.target as HTMLElement;
+    if (target !== containerRef.current && target !== imgRef.current) return;
+    panRef.current = { x: e.clientX, y: e.clientY };
+    setPanning(true);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
   const onPointerUp = () => {
+    panRef.current = null;
+    setPanning(false);
     const d = dragRef.current;
     dragRef.current = null;
     if (d && draft) {
@@ -204,10 +241,26 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
   return (
     <div className="flex-1 flex" style={{ padding: 'min(16px, 3.5cqmin)' }}>
       <div
-        ref={containerRef}
-        className="relative flex-1 flex items-center justify-center"
+        ref={(el) => {
+          containerRef.current = el;
+          zoom.setContainer(el);
+        }}
+        tabIndex={0}
+        className="relative flex-1 flex items-center justify-center outline-none"
+        style={{
+          transform: zoom.transform,
+          transformOrigin: '0 0',
+          willChange: zoom.isZoomed ? 'transform' : undefined,
+          touchAction: zoom.isZoomed ? 'none' : undefined,
+          cursor: zoom.isZoomed ? 'grab' : undefined,
+          transition:
+            reducedMotion || panning ? undefined : 'transform 120ms ease-out',
+        }}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onPointerDown={beginPan}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
       >
         <img
           ref={imgRef}

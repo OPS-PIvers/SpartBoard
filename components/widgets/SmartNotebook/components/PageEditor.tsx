@@ -14,6 +14,11 @@ import {
   EditableObjectInfo,
 } from '@/utils/notebookSvgEdit';
 import { PEN_COLORS, PEN_WIDTHS, Tool, isShapeTool } from './pageEditorTypes';
+import {
+  NotebookZoom,
+  useNotebookZoom,
+  useNotebookZoomGestures,
+} from '../useNotebookZoom';
 
 /** Normalized hotspot box, in fractions of the page's intrinsic size. */
 export interface NormalizedBox {
@@ -116,6 +121,8 @@ interface PageEditorProps {
    * the editor isn't mounted yet, e.g. while the page is still fetching.
    */
   imperativeApiRef?: React.MutableRefObject<PageEditorImperativeApi | null>;
+  /** Zoom/pan model owned by the host so its toolbar can drive the controls. */
+  zoom?: NotebookZoom;
 }
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
@@ -299,8 +306,21 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   onFollowLink,
   onClonedLinks,
   imperativeApiRef,
+  zoom: zoomProp,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Hosts pass a zoom in; the dev harness and unit tests mount bare, so fall
+  // back to a local model rather than making every call site wire one.
+  const localZoom = useNotebookZoom('page-editor');
+  const zoom = zoomProp ?? localZoom;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const svgHostRef = useRef<HTMLDivElement>(null);
+  const zoomPanRef = useRef<{ x: number; y: number } | null>(null);
+  const spaceDownRef = useRef(false);
+  const [panning, setPanning] = useState(false);
+  const [spaceDown, setSpaceDown] = useState(false);
+  const reducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   // Group holding one highlight rect per selected object.
@@ -669,7 +689,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // the DOM directly without needing the host to push a new svg prop
   // through (the autosave round-trip skip would block that path).
   const rebuildEditorDom = useCallback((svgString: string) => {
-    const container = containerRef.current;
+    const container = svgHostRef.current;
     if (!container) return;
     container.innerHTML = prepareEditableSvg(svgString);
     const el = container.querySelector('svg');
@@ -1574,6 +1594,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
   // ---- pointer handlers ---------------------------------------------------
   const handlePointerDown = (e: React.PointerEvent) => {
+    // Space-drag / middle-drag pans before any tool sees the pointer.
+    if (zoom.isZoomed && (e.button === 1 || spaceDownRef.current)) {
+      e.preventDefault();
+      zoomPanRef.current = { x: e.clientX, y: e.clientY };
+      setPanning(true);
+      containerRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
     const svgEl = svgRef.current;
     if (!svgEl || editing) return;
     const t = toolRef.current;
@@ -1937,6 +1965,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    const zoomPan = zoomPanRef.current;
+    if (zoomPan) {
+      zoom.panBy(e.clientX - zoomPan.x, e.clientY - zoomPan.y);
+      zoomPanRef.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
     // Freehand drawing.
     const stroke = strokeRef.current;
     if (stroke) {
@@ -2098,6 +2132,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (zoomPanRef.current) {
+      zoomPanRef.current = null;
+      setPanning(false);
+      try {
+        containerRef.current?.releasePointerCapture(e.pointerId);
+      } catch {
+        // Capture may already be gone; nothing to release.
+      }
+      return;
+    }
     // releasePointerCapture throws NotFoundError when no active capture
     // exists for this pointerId — and optional chaining short-circuits on
     // null but does NOT swallow exceptions. Without this guard the throw
@@ -2184,6 +2228,30 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (drag.moved) emitChange();
   };
 
+  useNotebookZoomGestures(zoom);
+
+  // Space is the pan modifier while zoomed (kept out of text editing).
+  useEffect(() => {
+    const setSpace = (down: boolean) => {
+      spaceDownRef.current = down;
+      setSpaceDown(down);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) return;
+      if (e.code === 'Space') setSpace(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') setSpace(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
   const cursor =
     tool === 'pen' || tool === 'highlighter' || isShapeTool(tool)
       ? 'crosshair'
@@ -2204,15 +2272,31 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       className={`relative h-full w-full ${className ?? ''}`}
     >
       <div
-        ref={containerRef}
-        className="h-full w-full touch-none select-none"
-        style={{ cursor }}
+        ref={(el) => {
+          containerRef.current = el;
+          zoom.setContainer(el);
+        }}
+        tabIndex={0}
+        className="h-full w-full touch-none select-none overflow-hidden outline-none"
+        style={{ cursor: panning || spaceDown ? 'grabbing' : cursor }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
         role="presentation"
-      />
+      >
+        <div
+          ref={svgHostRef}
+          className="h-full w-full"
+          style={{
+            transform: zoom.transform,
+            transformOrigin: '0 0',
+            willChange: zoom.isZoomed ? 'transform' : undefined,
+            transition:
+              reducedMotion || panning ? undefined : 'transform 120ms ease-out',
+          }}
+        />
+      </div>
 
       {editing && (
         <textarea
