@@ -43,9 +43,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
-      # Type-aware ESLint on the root app holds a ~4.5GB TS program; 5120MB leaves headroom.
+      # Type-aware ESLint holds a ~4.5GB TS program per worker; 2 workers fit the 16GB runner.
       - if: matrix.check == 'app'
-        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --concurrency=2
       - if: matrix.check == 'functions'
         run: pnpm run lint:functions
       - if: matrix.check == 'format'
