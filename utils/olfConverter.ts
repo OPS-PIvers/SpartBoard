@@ -1,12 +1,14 @@
 import JSZip from 'jszip';
 import { NotebookObjectLink } from '@/types';
 import { ensureSvgNamespaces } from './smartNotebook';
+import { canvasOptimizeImage, ImageOptimizer } from './notebookConverter';
 
 /**
  * ViewSonic myViewBoard `.olf` -> SpartBoard `.spartnb` converter.
  *
  * An `.olf` is a zip holding a single `content.json` describing pages, their
- * elements (textareas, polygons, shapes) and backgrounds. There is no public
+ * elements (textareas, shapes, pen strokes, images) and backgrounds, plus the
+ * image files those elements reference. There is no public
  * spec, so every read is tolerant: anything unrecognised is counted in
  * `skipped` and never throws. Output is the same bundle shape the SMART
  * converter emits (`pages/{i}.svg` + `manifest.json`), so the parser, upload,
@@ -21,6 +23,12 @@ export interface OlfConvertOptions {
   measureText?: MeasureText;
   /** Progress callback, fired after each page is written. */
   onProgress?: (done: number, total: number) => void;
+  /** Cap the longest edge of embedded images, px. 0 disables resizing. */
+  maxEdge?: number;
+  /** WebP quality 0..1 for lossy re-encode. */
+  quality?: number;
+  /** Override the image optimizer (tests pass a canvas-free stub). */
+  optimizeImage?: ImageOptimizer;
 }
 
 export interface OlfConvertResult {
@@ -424,6 +432,10 @@ interface PageContext {
   meta: Map<string, ElementMeta>;
   measure: MeasureText;
   pageBackgroundHex: string | null;
+  /** `source` path → optimized data URI, resolved before rendering. */
+  imageUris: Map<string, string>;
+  /** Arrow marker id → `<marker>` markup, one per stroke colour per page. */
+  markers: Map<string, string>;
 }
 
 const bump = (bag: Record<string, number>, key: string): void => {
@@ -755,6 +767,111 @@ const shapeAttrs = (
   );
 };
 
+/** Reads the x scale out of a 3x3 `stylus-tip-transform`; 1 when absent. */
+const stylusScale = (value: string): number => {
+  const first = parseFloat(value.split(',')[0]);
+  return Number.isFinite(first) && first > 0 ? first : 1;
+};
+
+/** Rounds to 2dp and drops consecutive duplicates (the writer repeats points). */
+const compactPoints = (raw: string): string => {
+  const out: string[] = [];
+  let previous = '';
+  for (const pair of raw.trim().split(/\s+/)) {
+    const [x, y] = pair.split(',').map((p) => parseFloat(p));
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const point = `${round(x)},${round(y)}`;
+    if (point === previous) continue;
+    out.push(point);
+    previous = point;
+  }
+  return out.join(' ');
+};
+
+const renderStroke = (
+  body: Json,
+  ctx: PageContext,
+  id: string,
+  box: { x: number; y: number; width: number; height: number }
+): string | null => {
+  const points = compactPoints(str(body, 'points'));
+  if (!points) {
+    bump(ctx.skipped, 'stroke');
+    return null;
+  }
+  const stroke = splitArgb(str(body, 'stroke')) ?? {
+    hex: '#000000',
+    opacity: 1,
+  };
+  const highlighter = body['is-highlighter'] === true;
+  const width =
+    num(body, 'pen-width', 1) * stylusScale(str(body, 'stylus-tip-transform'));
+  const opacity =
+    num(body, 'opacity', 1) * stroke.opacity * (highlighter ? 0.4 : 1);
+  return `<polyline${attrs({
+    points,
+    fill: 'none',
+    stroke: stroke.hex,
+    'stroke-width': round(width),
+    'stroke-linecap': highlighter ? 'butt' : 'round',
+    'stroke-linejoin': highlighter ? 'miter' : 'round',
+    'stroke-opacity': opacity < 1 ? round(opacity) : undefined,
+    'data-olf-id': id,
+    transform: elementTransform(body, ctx.meta.get(id), box),
+  })}${metaAttrs(ctx.meta.get(id))}/>`;
+};
+
+/** Registers (once per colour) an arrowhead marker and returns its id. */
+const arrowMarker = (ctx: PageContext, hex: string): string => {
+  const id = `olf-arrow-${hex.replace('#', '')}`;
+  if (!ctx.markers.has(id)) {
+    ctx.markers.set(
+      id,
+      `<marker${attrs({
+        id,
+        viewBox: '0 0 10 10',
+        refX: 9,
+        refY: 5,
+        markerWidth: 5,
+        markerHeight: 5,
+        markerUnits: 'strokeWidth',
+        orient: 'auto-start-reverse',
+      })}><path d="M0,0 L10,5 L0,10 z"${attrs({ fill: hex })}/></marker>`
+    );
+  }
+  return id;
+};
+
+/** `marker-start` / `marker-end` attributes for `lineshape-*: "arrow"` ends. */
+const lineShapeAttrs = (body: Json, ctx: PageContext): string => {
+  const hex = splitArgb(str(body, 'stroke'))?.hex ?? '#000000';
+  const marker = (key: string): string | undefined =>
+    str(body, key) === 'arrow' ? `url(#${arrowMarker(ctx, hex)})` : undefined;
+  return attrs({
+    'marker-start': marker('lineshape-start'),
+    'marker-end': marker('lineshape-end'),
+    'stroke-linecap': str(body, 'stroke-linecap') || undefined,
+  });
+};
+
+const DEG = Math.PI / 180;
+
+/** Pie wedge path for an ellipse with a partial `angle-start`..`angle-end` sweep. */
+const pieWedge = (
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  start: number,
+  end: number
+): string => {
+  const at = (deg: number): string =>
+    `${round(cx + rx * Math.cos(deg * DEG))} ${round(cy + ry * Math.sin(deg * DEG))}`;
+  const large = Math.abs(end - start) > 180 ? 1 : 0;
+  const sweep = end > start ? 1 : 0;
+  return `M ${round(cx)} ${round(cy)} L ${at(start)} A ${round(rx)} ${round(ry)} 0 ${large} ${sweep} ${at(end)} Z`;
+};
+
 const renderElement = (entry: unknown, ctx: PageContext): string | null => {
   const wrapped = unwrap(entry);
   if (!wrapped) {
@@ -780,8 +897,12 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         bump(ctx.skipped, kind);
         return null;
       }
-      return `<${kind}${attrs({ points })}${shapeAttrs(body, ctx, id, box)}/>`;
+      return `<${kind}${attrs({ points })}${shapeAttrs(body, ctx, id, box)}${
+        kind === 'polyline' ? lineShapeAttrs(body, ctx) : ''
+      }/>`;
     }
+    case 'stroke':
+      return renderStroke(body, ctx, id, box);
     case 'rect':
     case 'rectangle':
       return `<rect${attrs({
@@ -792,20 +913,34 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         rx: body['rx'] !== undefined ? num(body, 'rx', 0) : undefined,
       })}${shapeAttrs(body, ctx, id, box)}/>`;
     case 'ellipse':
-    case 'circle':
+    case 'circle': {
+      // cx/cy/rx/ry are authoritative; width/height are the transformed bounds.
+      const cx =
+        body['cx'] !== undefined ? num(body, 'cx', 0) : box.x + box.width / 2;
+      const cy =
+        body['cy'] !== undefined ? num(body, 'cy', 0) : box.y + box.height / 2;
+      const rx = body['rx'] !== undefined ? num(body, 'rx', 0) : box.width / 2;
+      const ry = body['ry'] !== undefined ? num(body, 'ry', 0) : box.height / 2;
+      const start = num(body, 'angle-start', 0);
+      const end = num(body, 'angle-end', 360);
+      const isPie = body['is-pie'] === true && Math.abs(end - start) < 359;
+      if (isPie) {
+        return `<path${attrs({ d: pieWedge(cx, cy, rx, ry, start, end) })}${shapeAttrs(body, ctx, id, box)}/>`;
+      }
       return `<ellipse${attrs({
-        cx: round(box.x + box.width / 2),
-        cy: round(box.y + box.height / 2),
-        rx: round(box.width / 2),
-        ry: round(box.height / 2),
+        cx: round(cx),
+        cy: round(cy),
+        rx: round(rx),
+        ry: round(ry),
       })}${shapeAttrs(body, ctx, id, box)}/>`;
+    }
     case 'line':
       return `<line${attrs({
         x1: round(num(body, 'x1', box.x)),
         y1: round(num(body, 'y1', box.y)),
         x2: round(num(body, 'x2', box.x + box.width)),
         y2: round(num(body, 'y2', box.y + box.height)),
-      })}${shapeAttrs(body, ctx, id, box)}/>`;
+      })}${shapeAttrs(body, ctx, id, box)}${lineShapeAttrs(body, ctx)}/>`;
     case 'path':
     case 'ink':
     case 'pen': {
@@ -818,9 +953,12 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
     }
     case 'image':
     case 'picture': {
-      const href = str(body, 'href') || str(body, 'src') || str(body, 'data');
+      const source = str(body, 'source');
+      const href = source
+        ? (ctx.imageUris.get(source) ?? '')
+        : str(body, 'href') || str(body, 'src') || str(body, 'data');
       if (!/^data:/i.test(href)) {
-        bump(ctx.skipped, kind);
+        bump(ctx.skipped, source ? 'image-missing' : kind);
         return null;
       }
       const meta = ctx.meta.get(id);
@@ -894,6 +1032,33 @@ const renderBackground = (
   return { markup: '', hex: null };
 };
 
+const MIME_BY_EXT: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  bmp: 'image/bmp',
+  svg: 'image/svg+xml',
+};
+
+/** Finds a zip entry by exact path, then case-insensitively, then by basename. */
+const findZipEntry = (zip: JSZip, source: string): JSZip.JSZipObject | null => {
+  const direct = zip.file(source);
+  if (direct) return direct;
+  const wanted = source.toLowerCase().replace(/^\.?\//, '');
+  const base = wanted.split('/').pop() ?? wanted;
+  let byBase: JSZip.JSZipObject | null = null;
+  for (const name of Object.keys(zip.files)) {
+    const entry = zip.files[name];
+    if (entry.dir) continue;
+    const lower = name.toLowerCase();
+    if (lower === wanted) return entry;
+    if (!byBase && (lower.split('/').pop() ?? lower) === base) byBase = entry;
+  }
+  return byBase;
+};
+
 const stripExtension = (name: string): string =>
   name.replace(/\.[^./\\]+$/, '');
 
@@ -957,6 +1122,37 @@ export const convertOlfToBundle = async (
     );
   }
 
+  // Resolve every referenced image once, up front, so a source reused across
+  // pages is read and optimized a single time.
+  const optimizeImage = options.optimizeImage ?? canvasOptimizeImage;
+  const maxEdge = options.maxEdge ?? 1600;
+  const quality = options.quality ?? 0.82;
+  const imageUris = new Map<string, string>();
+  const sources = new Map<string, string>();
+  for (const page of pages) {
+    for (const entry of asArray(page['elements'])) {
+      const wrapped = unwrap(entry);
+      if (
+        !wrapped ||
+        (wrapped.kind !== 'image' && wrapped.kind !== 'picture')
+      ) {
+        continue;
+      }
+      const source = str(wrapped.body, 'source');
+      if (source && !sources.has(source)) {
+        sources.set(source, str(wrapped.body, 'mime-type'));
+      }
+    }
+  }
+  for (const [source, declaredMime] of sources) {
+    const entry = findZipEntry(zip, source);
+    if (!entry) continue;
+    const ext = /\.([a-z0-9]+)$/i.exec(source)?.[1]?.toLowerCase() ?? '';
+    const mime = declaredMime || MIME_BY_EXT[ext] || 'image/png';
+    const bytes = await entry.async('uint8array');
+    imageUris.set(source, await optimizeImage(bytes, mime, maxEdge, quality));
+  }
+
   const out = new JSZip();
   const manifestPages: { file: string; width: number; height: number }[] = [];
   const hiddenPages: number[] = [];
@@ -974,6 +1170,8 @@ export const convertOlfToBundle = async (
       meta,
       measure,
       pageBackgroundHex: null,
+      imageUris,
+      markers: new Map(),
     };
 
     const backgroundMarkup = asArray(page['backgrounds'])
@@ -1006,6 +1204,9 @@ export const convertOlfToBundle = async (
         height,
         viewBox: `0 0 ${width} ${height}`,
       })}>` +
+        (ctx.markers.size > 0
+          ? `<defs>${[...ctx.markers.values()].join('')}</defs>`
+          : '') +
         `<g class="background">${backgroundMarkup}</g>` +
         `<g class="foreground"${pageTransform ? attrs({ transform: pageTransform }) : ''}>${foreground}</g>` +
         `</svg>`

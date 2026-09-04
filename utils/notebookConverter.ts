@@ -67,7 +67,7 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
  * re-encode as WebP. Keeps the original bytes if WebP isn't smaller or the
  * browser can't encode it. Falls back to inlining the original on any failure.
  */
-const canvasOptimizeImage: ImageOptimizer = async (
+export const canvasOptimizeImage: ImageOptimizer = async (
   bytes,
   mime,
   maxEdge,
