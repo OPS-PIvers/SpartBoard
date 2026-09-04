@@ -106,6 +106,12 @@ const isTypingFieldActive = (): boolean => {
   );
 };
 
+// True when focus sits inside the Help Center, whose search box autofocuses on open.
+const isHelpCenterFocused = (): boolean =>
+  !!(document.activeElement as HTMLElement | null)?.closest?.(
+    '[data-help-modal]'
+  );
+
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
   // The wrapper is a positioning container only — live-region semantics live on
@@ -1108,8 +1114,10 @@ export const DashboardView: React.FC = () => {
       // Guard: don't intercept Ctrl+/ while the user is typing in a form
       // field — Ctrl+/ is a common "comment/uncomment" shortcut in many
       // text editors and widgets that embed rich-text inputs.
+      // Exception: the Help search box holds focus while Help is open, so the
+      // shortcut must still close it from there.
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-        if (isTypingFieldActive()) return;
+        if (isTypingFieldActive() && !isHelpCenterFocused()) return;
         e.preventDefault();
         setHelpState((prev) => ({
           open: !prev.open,

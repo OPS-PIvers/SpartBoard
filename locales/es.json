@@ -1656,7 +1656,8 @@
     "emptyResults": "No hay widgets que coincidan."
   },
   "style": {
-    "readOnlyNotice": "Este tablero es de solo lectura. Los cambios de estilo no se guardan."
+    "readOnlyNotice": "Este tablero es de solo lectura. Los cambios de estilo no se guardan.",
+    "frameColorSolidHint": "El color de fondo del marco permanece opaco. Selecciona Predeterminado para usar este control."
   },
   "whatsNew": {
     "title": "Novedades",
