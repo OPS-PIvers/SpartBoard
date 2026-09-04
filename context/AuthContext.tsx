@@ -198,6 +198,7 @@ const GOOGLE_TOKEN_TTL_MS = 3600 * 1000; // 1 hour (Google's default access toke
 const GOOGLE_TOKEN_CHECK_INTERVAL_MS = 60 * 1000; // How often to poll for expiry
 const GOOGLE_TOKEN_REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // Refresh this far before expiry
 const GOOGLE_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // Don't use tokens within 5 min of expiry
+const GOOGLE_TOKEN_DISCONNECTED_RETRY_MS = 5 * 60 * 1000; // Silent retry cadence once the token is gone
 
 // Inactivity-based session timeout: force re-login after 7 days of no app usage
 // so stale Google OAuth tokens (Drive, Calendar, Sheets) get fully refreshed.
@@ -403,6 +404,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const migratedConfigsForUidRef = useRef<string | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
   const isRefreshingRef = useRef(false);
+  // Earliest time checkToken may retry a silent refresh while disconnected
+  const nextDisconnectedRetryAtRef = useRef(0);
   // Prevents duplicate root-doc syncs within the same session
   const rootDocSyncedRef = useRef(false);
   // Prevents duplicate member-doc `lastActive` stamps within the same session
@@ -1042,39 +1045,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user, refreshGoogleToken]);
 
-  // Check for Google token expiry every minute; proactively refresh before expiry
-  // so the Drive connection stays alive without user interaction.
+  // Keep the Drive token alive without user interaction: refresh proactively
+  // before expiry, refresh (not just clear) once it has expired, and keep
+  // retrying on a backoff while disconnected. Re-checks on wake/focus/online
+  // because a sleeping laptop fires no interval ticks and used to come back
+  // to a cleared token with nothing left to re-arm it.
   useEffect(() => {
-    if (isAuthBypass) return;
+    if (!hasLiveUser) return;
 
     const checkToken = async () => {
-      const expiry = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
-      if (!expiry) return;
+      if (isRefreshingRef.current) return;
 
-      const expiryTime = parseInt(expiry, 10);
       const now = Date.now();
+      const expiryRaw = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      const expiryTime = expiryRaw ? parseInt(expiryRaw, 10) : NaN;
+      const hasStoredToken =
+        !!localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY) &&
+        Number.isFinite(expiryTime);
 
-      if (now > expiryTime) {
-        // Already expired — clear state
-        setGoogleAccessToken(null);
-        localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
-        localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
-      } else if (now > expiryTime - GOOGLE_TOKEN_REFRESH_THRESHOLD_MS) {
-        // Expiring soon — refresh proactively while the service is still valid.
-        // Guard against concurrent calls if a previous refresh is still in flight.
-        if (!isRefreshingRef.current) {
-          isRefreshingRef.current = true;
-          await refreshGoogleToken();
-          isRefreshingRef.current = false;
+      if (
+        hasStoredToken &&
+        now <= expiryTime - GOOGLE_TOKEN_REFRESH_THRESHOLD_MS
+      )
+        return;
+      if (!hasStoredToken && now < nextDisconnectedRetryAtRef.current) return;
+
+      isRefreshingRef.current = true;
+      try {
+        const token = await refreshGoogleToken(true);
+        if (token) {
+          nextDisconnectedRetryAtRef.current = 0;
+          return;
         }
+        nextDisconnectedRetryAtRef.current =
+          Date.now() + GOOGLE_TOKEN_DISCONNECTED_RETRY_MS;
+        if (hasStoredToken && Date.now() > expiryTime) {
+          // Expired and unrefreshable — drop it so Drive calls stop using it.
+          setGoogleAccessToken(null);
+          localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+          localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+        }
+      } finally {
+        isRefreshingRef.current = false;
       }
     };
 
     const interval = setInterval(() => {
       void checkToken();
     }, GOOGLE_TOKEN_CHECK_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [refreshGoogleToken]);
+    const onResume = () => {
+      if (!document.hidden) void checkToken();
+    };
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+    window.addEventListener('online', onResume);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+      window.removeEventListener('online', onResume);
+    };
+  }, [hasLiveUser, refreshGoogleToken]);
 
   /**
    * Clear the Google Drive token without touching Firebase auth.

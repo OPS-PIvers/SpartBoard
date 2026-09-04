@@ -14,9 +14,10 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { SURFACE_COLOR_PRESETS } from '@/config/widgetAppearance';
 
 type Cfg = { cardColor?: string; cardOpacity?: number };
 
@@ -81,5 +82,103 @@ describe('SurfaceColorSettings — aria-label composition', () => {
     expect(
       screen.getByRole('radiogroup', { name: 'Color color' })
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * Regression: the surface-color `role="radiogroup"` rendered `role="radio"`
+ * swatches with no WAI-ARIA radiogroup keyboard contract — no roving
+ * tabIndex, no arrow-key navigation. Same bug class already fixed for
+ * `SegmentedControl.tsx` (#2564) and `TypographySettings.tsx` (#2793); this
+ * file — the highest-traffic sibling (21 call sites) — was never audited.
+ */
+describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
+  type Cfg = { cardColor?: string; cardOpacity?: number };
+
+  const swatchFor = (color: string) =>
+    screen.getByRole('radio', { name: `Select surface color ${color}` });
+
+  it('applies roving tabindex: selected preset=0, others=-1', () => {
+    const selected = SURFACE_COLOR_PRESETS[2];
+    render(
+      <SurfaceColorSettings
+        config={{ cardColor: selected } as Cfg}
+        updateConfig={vi.fn()}
+      />
+    );
+
+    expect(swatchFor(selected)).toHaveAttribute('tabindex', '0');
+    expect(swatchFor(SURFACE_COLOR_PRESETS[0])).toHaveAttribute(
+      'tabindex',
+      '-1'
+    );
+  });
+
+  it('moves focus AND updates config on ArrowRight/ArrowLeft/Home/End', () => {
+    const updateConfig = vi.fn();
+    render(
+      <SurfaceColorSettings
+        config={{ cardColor: SURFACE_COLOR_PRESETS[0] } as Cfg}
+        updateConfig={updateConfig}
+      />
+    );
+
+    const first = swatchFor(SURFACE_COLOR_PRESETS[0]);
+    const second = swatchFor(SURFACE_COLOR_PRESETS[1]);
+    const last = swatchFor(
+      SURFACE_COLOR_PRESETS[SURFACE_COLOR_PRESETS.length - 1]
+    );
+
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(second).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({
+      cardColor: SURFACE_COLOR_PRESETS[1],
+    });
+
+    fireEvent.keyDown(second, { key: 'ArrowLeft' });
+    expect(first).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({
+      cardColor: SURFACE_COLOR_PRESETS[0],
+    });
+
+    fireEvent.keyDown(first, { key: 'End' });
+    expect(last).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({
+      cardColor: SURFACE_COLOR_PRESETS[SURFACE_COLOR_PRESETS.length - 1],
+    });
+
+    fireEvent.keyDown(last, { key: 'Home' });
+    expect(first).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({
+      cardColor: SURFACE_COLOR_PRESETS[0],
+    });
+  });
+
+  it('keeps exactly one swatch tabbable when cardColor defaults (unset)', () => {
+    render(<SurfaceColorSettings config={{} as Cfg} updateConfig={vi.fn()} />);
+
+    const swatches = SURFACE_COLOR_PRESETS.map((c) => swatchFor(c));
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[0]);
+  });
+
+  it('keeps exactly one swatch tabbable when cardColor is a custom (non-preset) value', () => {
+    render(
+      <SurfaceColorSettings
+        config={{ cardColor: '#123456' } as Cfg}
+        updateConfig={vi.fn()}
+      />
+    );
+
+    const swatches = SURFACE_COLOR_PRESETS.map((c) => swatchFor(c));
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[0]);
   });
 });

@@ -9,6 +9,9 @@ const DISMISS_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 // reprieve they expect instead of having the banner pop back on the
 // next render that happens to remount this component.
 const DISMISS_STORAGE_KEY = 'spart_drive_banner_dismissed_until';
+// Silent refreshes (startup GIS poll, expiry re-mint, backend refresh) need
+// this long to land; showing sooner flashes "Disconnected" mid-refresh.
+const DISCONNECTED_GRACE_MS = 30 * 1000;
 
 const readStoredDismissUntil = (): number => {
   try {
@@ -38,6 +41,18 @@ export const DriveDisconnectBanner: React.FC = () => {
 
   const isConnected = !!googleAccessToken;
   const isDismissed = dismissedUntil > Date.now();
+  const [pastGrace, setPastGrace] = useState(false);
+
+  // Only surface after Drive has been disconnected continuously for the grace
+  // window, so an in-flight silent refresh never shows the banner.
+  useEffect(() => {
+    if (isConnected) {
+      setPastGrace(false);
+      return;
+    }
+    const id = setTimeout(() => setPastGrace(true), DISCONNECTED_GRACE_MS);
+    return () => clearTimeout(id);
+  }, [isConnected]);
 
   // When Drive reconnects, clear the dismiss state so a future disconnection
   // shows the banner again.
@@ -73,7 +88,7 @@ export const DriveDisconnectBanner: React.FC = () => {
   };
 
   // Only show for authenticated users when Drive is not connected
-  if (!user || isConnected || isDismissed) return null;
+  if (!user || isConnected || isDismissed || !pastGrace) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
