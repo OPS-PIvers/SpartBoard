@@ -149,7 +149,7 @@ export const Library: React.FC<LibraryProps> = ({
               type="file"
               ref={fileInputRef}
               onChange={handleImport}
-              accept=".notebook,.spartnb"
+              accept=".notebook,.spartnb,.olf"
               className="hidden"
             />
           </div>

@@ -1209,6 +1209,8 @@
     "backgroundUploaded": "Benutzerdefinierter Hintergrund in die Cloud hochgeladen",
     "settingsSaved": "Einstellungen erfolgreich gespeichert",
     "switchBoardToUndo": "Wechsle zurück zu dieser Tafel, um das rückgängig zu machen",
+    "notebookImporting": "Lektion wird importiert…",
+    "notebookImportFailed": "Lektion konnte nicht importiert werden",
     "classLink": {
       "fetchFailed": "Abruf von ClassLink fehlgeschlagen. Prüfe die Konsole.",
       "imported": "{{name}} importiert",

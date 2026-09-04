@@ -20,6 +20,13 @@ import {
   type PlcWriteFailureDetail,
 } from '@/utils/plcWriteNotifications';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+import {
+  importNotebookFile,
+  formatImportSummary,
+  isNotebookImportFile,
+} from '@/utils/notebookImport';
+import { uploadParsedNotebook } from '@/utils/notebookUpload';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
@@ -404,7 +411,7 @@ export const DashboardView: React.FC = () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
-  const { uploadAndRegisterPdf } = useStorage();
+  const { uploadAndRegisterPdf, uploadFile, deleteFile } = useStorage();
 
   const [helpState, setHelpState] = React.useState<{
     open: boolean;
@@ -1218,10 +1225,18 @@ export const DashboardView: React.FC = () => {
       e.dataTransfer.dropEffect = 'copy';
       return;
     }
-    // Allow PDF files dragged from the filesystem
+    // Allow PDF and notebook files dragged from the filesystem. Notebook
+    // extensions have no registered MIME type, so drag-over (which cannot see
+    // filenames) matches them by their empty type and handleDrop confirms.
     if (e.dataTransfer.types.includes('Files')) {
       const items = Array.from(e.dataTransfer.items);
-      if (items.some((item) => item.type === 'application/pdf')) {
+      if (
+        items.some(
+          (item) =>
+            item.kind === 'file' &&
+            (item.type === 'application/pdf' || item.type === '')
+        )
+      ) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
       }
@@ -1277,6 +1292,44 @@ export const DashboardView: React.FC = () => {
           } catch (err) {
             console.error('PDF drop upload failed', err);
             addToast(t('common.error'), 'error');
+          }
+        })();
+        return;
+      }
+
+      // .olf / .notebook / .spartnb — matched by extension; Windows gives
+      // these files no MIME type.
+      const notebookFile = files.find((f) => isNotebookImportFile(f.name));
+      if (notebookFile && user) {
+        e.preventDefault();
+        const defaults = WIDGET_DEFAULTS.smartNotebook;
+        const w = defaults.w ?? 600;
+        const h = defaults.h ?? 500;
+        const boardPoint = dropPoint(e.clientX, e.clientY);
+        const dropX = Math.max(0, boardPoint.x - w / 2);
+        const dropY = Math.max(0, boardPoint.y - h / 2);
+        addToast(t('toasts.notebookImporting'), 'info');
+        void (async () => {
+          try {
+            const { parsed, summary } = await importNotebookFile(notebookFile);
+            const notebook = await uploadParsedNotebook(user.uid, parsed, {
+              uploadFile,
+              deleteFile,
+            });
+            addWidget('smartNotebook', {
+              x: dropX,
+              y: dropY,
+              w,
+              h,
+              config: {
+                ...defaults.config,
+                activeNotebookId: notebook.id,
+              },
+            });
+            addToast(formatImportSummary(summary), 'success');
+          } catch (err) {
+            console.error('Notebook drop import failed', err);
+            addToast(t('toasts.notebookImportFailed'), 'error');
           }
         })();
         return;

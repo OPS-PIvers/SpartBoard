@@ -632,25 +632,32 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
       )
       .join('');
 
+    // One id per paragraph — ids must be unique within a page.
+    const paragraphId = id ? `${id}-p${index}` : '';
+    const ownAttrs = `${metaAttrs(meta)}${transform ? attrs({ transform }) : ''}`;
+    const text = `<text${attrs({
+      'xml:space': 'preserve',
+      x: round(x),
+      y: round(baseline),
+      'font-family': fontStack(first.family),
+      'font-size': first.size,
+      'font-weight': first.weight !== 'normal' ? first.weight : undefined,
+      'font-style': first.style !== 'normal' ? first.style : undefined,
+      'text-decoration':
+        first.decoration !== 'normal' ? first.decoration : undefined,
+      fill: first.fill?.hex ?? '#000000',
+      'fill-opacity':
+        first.fill && first.fill.opacity < 1
+          ? round(first.fill.opacity)
+          : undefined,
+      ...(highlights ? {} : { 'data-olf-id': paragraphId }),
+    })}${highlights ? '' : ownAttrs}>${tspans}</text>`;
+
+    // Highlight rects and their text must be one editable object for the editor.
     pieces.push(
-      highlights +
-        `<text${attrs({
-          'xml:space': 'preserve',
-          x: round(x),
-          y: round(baseline),
-          'font-family': fontStack(first.family),
-          'font-size': first.size,
-          'font-weight': first.weight !== 'normal' ? first.weight : undefined,
-          'font-style': first.style !== 'normal' ? first.style : undefined,
-          'text-decoration':
-            first.decoration !== 'normal' ? first.decoration : undefined,
-          fill: first.fill?.hex ?? '#000000',
-          'fill-opacity':
-            first.fill && first.fill.opacity < 1
-              ? round(first.fill.opacity)
-              : undefined,
-          'data-olf-id': id,
-        })}${metaAttrs(meta)}${transform ? attrs({ transform }) : ''}>${tspans}</text>`
+      highlights
+        ? `<g${attrs({ 'data-olf-id': paragraphId })}${ownAttrs}>${highlights}${text}</g>`
+        : text
     );
     offset += lineHeight;
   });

@@ -486,3 +486,55 @@ describe('convertOlfToBundle against the real sample', () => {
     }
   );
 });
+
+describe('paragraph object identity', () => {
+  const textarea = (paragraphs: unknown[]) => ({
+    textarea: {
+      id: 'ta-1',
+      x: 10,
+      y: 20,
+      width: 400,
+      height: 200,
+      matrix: '1,0,0,0,1,0,0,0,1',
+      'custom-data': '',
+      'text-blocks-container': paragraphs,
+    },
+  });
+
+  const svgFor = async (paragraphs: unknown[]): Promise<string> => {
+    const file = await olfFile(doc([page([textarea(paragraphs)])]));
+    const result = await convertOlfToBundle(file, {
+      measureText: monoMeasure,
+    });
+    return pageSvg((await readBundle(result.blob)).zip);
+  };
+
+  it('gives every paragraph of one textarea a unique id', async () => {
+    const svg = await svgFor([
+      paragraph([run('One')], 'p0'),
+      paragraph([run('Two')], 'p1'),
+    ]);
+    expect(svg).toContain('data-olf-id="ta-1-p0"');
+    expect(svg).toContain('data-olf-id="ta-1-p1"');
+    expect(svg.match(/data-olf-id="ta-1-p\d+"/g)).toHaveLength(2);
+  });
+
+  it('wraps highlight rects and their text in one group', async () => {
+    const svg = await svgFor([
+      paragraph(
+        [run('Lit', { background: '#FFFFFF00', 'background-opacity': 1 })],
+        'p0'
+      ),
+    ]);
+    expect(svg).toContain('<g data-olf-id="ta-1-p0"><rect');
+    expect(svg).toMatch(/<g data-olf-id="ta-1-p0">.*<\/text><\/g>/);
+    // The id lives on the group, not on the text inside it.
+    expect(svg.match(/data-olf-id="ta-1-p0"/g)).toHaveLength(1);
+  });
+
+  it('emits a bare text element when there are no highlights', async () => {
+    const svg = await svgFor([paragraph([run('Plain')], 'p0')]);
+    expect(svg).not.toContain('<g data-olf-id=');
+    expect(svg).toContain('data-olf-id="ta-1-p0"');
+  });
+});

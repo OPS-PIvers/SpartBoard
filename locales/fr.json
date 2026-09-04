@@ -1209,6 +1209,8 @@
     "backgroundUploaded": "Arrière-plan personnalisé téléchargé dans le cloud",
     "settingsSaved": "Paramètres enregistrés avec succès",
     "switchBoardToUndo": "Revenez à ce tableau pour annuler cette action",
+    "notebookImporting": "Importation de la leçon…",
+    "notebookImportFailed": "Échec de l'importation de la leçon",
     "classLink": {
       "fetchFailed": "Échec de la récupération depuis ClassLink. Consultez la console.",
       "imported": "{{name}} importée",
