@@ -13,6 +13,11 @@ export const isAllowedHelpUrl = (url: string): boolean => {
   }
 };
 
+// Exact host or a true subdomain. `includes` would accept youtube.com.evil.com,
+// which helpIframeSandbox below then trusts with allow-same-origin.
+const isHost = (host: string, domain: string): boolean =>
+  host === domain || host.endsWith(`.${domain}`);
+
 // Infers the display kind for an embed URL; unrecognized URLs are 'other'.
 export const inferHelpEmbedType = (url: string): HelpEmbedType => {
   const trimmed = url.trim();
@@ -25,8 +30,7 @@ export const inferHelpEmbedType = (url: string): HelpEmbedType => {
   } catch {
     return 'other';
   }
-  if (host.includes('youtube.com') || host.includes('youtu.be'))
-    return 'youtube';
+  if (isHost(host, 'youtube.com') || isHost(host, 'youtu.be')) return 'youtube';
   if (host === 'docs.google.com') {
     if (path.startsWith('/document')) return 'doc';
     if (path.startsWith('/presentation')) return 'slides';
