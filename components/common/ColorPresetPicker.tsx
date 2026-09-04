@@ -43,7 +43,7 @@ interface ColorPresetPickerProps {
   onClear?: () => void;
   clearLabel?: string;
   icon?: LucideIcon | React.ElementType;
-  /** Skip the SettingsLabel heading when the caller renders its own. */
+  /** Skip the SettingsLabel heading; pass `labelId` to point the group at the caller's own heading. */
   hideLabel?: boolean;
   labelId?: string;
 }
@@ -110,15 +110,16 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
       <div
         className="flex flex-wrap items-center gap-2"
         role="radiogroup"
-        aria-labelledby={hideLabel ? undefined : labelId}
-        aria-label={hideLabel ? label : undefined}
+        aria-labelledby={hideLabel ? labelIdProp : labelId}
+        aria-label={hideLabel && !labelIdProp ? label : undefined}
         onKeyDown={(e) => handleRadioGroupKeyDown(e, options, select)}
       >
         {options.map((o, idx) => {
           const checked = isChecked(o);
           const tabbable = checked || (!hasChecked && idx === 0);
           const isClear = o.hex === undefined;
-          const isLight = !isClear && isNearWhite(toInputHex(o.hex, o.hex));
+          const isLight =
+            o.hex !== undefined && isNearWhite(toInputHex(o.hex, o.hex));
           return (
             <button
               key={o.name}

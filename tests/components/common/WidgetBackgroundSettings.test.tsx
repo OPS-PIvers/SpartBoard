@@ -29,6 +29,15 @@ describe('WidgetBackgroundSettings', () => {
     );
   });
 
+  it('labels the radiogroup with the panel heading', () => {
+    render(
+      <WidgetBackgroundSettings widget={makeWidget()} updateWidget={vi.fn()} />
+    );
+    const group = screen.getByRole('radiogroup', { name: 'Background Color' });
+    expect(group).toHaveAttribute('aria-labelledby');
+    expect(group).not.toHaveAttribute('aria-label');
+  });
+
   it('stores a hex, not a Tailwind class, when a preset is picked', () => {
     const updateWidget = vi.fn();
     render(
