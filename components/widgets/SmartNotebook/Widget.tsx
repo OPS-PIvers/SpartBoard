@@ -28,8 +28,8 @@ import {
   getDoc,
   query,
   orderBy,
-  arrayRemove,
   arrayUnion,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
@@ -590,23 +590,24 @@ export const SmartNotebookWidget: React.FC<{
     return readFreshNotebook(activeNotebook);
   };
 
-  // Add or replace an object→page link. The same {objectId, sourcePage}
-  // pair always maps to ONE hotspot, so any prior entry is removed before
-  // the new one is unioned in. arrayRemove + arrayUnion keep concurrent
-  // writers from clobbering each other the way a read-modify-write would.
+  // Transaction reads the server doc directly — the local snapshot can lag and cause duplicate hotspots on concurrent saves.
   const handleSaveObjectLink = async (
     link: NotebookObjectLink
   ): Promise<void> => {
     if (!user || !activeNotebook) return;
-    const existing = (activeNotebook.objectLinks ?? []).find(
-      (l) => l.objectId === link.objectId && l.sourcePage === link.sourcePage
-    );
     const ref = doc(db, 'users', user.uid, 'notebooks', activeNotebook.id);
     try {
-      if (existing) {
-        await updateDoc(ref, { objectLinks: arrayRemove(existing) });
-      }
-      await updateDoc(ref, { objectLinks: arrayUnion(link) });
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const current =
+          (snap.data()?.objectLinks as NotebookObjectLink[] | undefined) ?? [];
+        const next = current.filter(
+          (l) =>
+            !(l.objectId === link.objectId && l.sourcePage === link.sourcePage)
+        );
+        next.push(link);
+        tx.update(ref, { objectLinks: next });
+      });
     } catch (err) {
       console.error('Failed to save object link', err);
       addToast('Could not save link', 'error');
@@ -632,17 +633,18 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Transaction reads the server doc directly — filtering by id (not arrayRemove-by-value) is immune to the same local-snapshot staleness handleSaveObjectLink was fixed for.
   const handleRemoveObjectLink = async (linkId: string): Promise<void> => {
     if (!user || !activeNotebook) return;
-    const target = (activeNotebook.objectLinks ?? []).find(
-      (l) => l.id === linkId
-    );
-    if (!target) return;
+    const ref = doc(db, 'users', user.uid, 'notebooks', activeNotebook.id);
     try {
-      await updateDoc(
-        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
-        { objectLinks: arrayRemove(target) }
-      );
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const current =
+          (snap.data()?.objectLinks as NotebookObjectLink[] | undefined) ?? [];
+        const next = current.filter((l) => l.id !== linkId);
+        tx.update(ref, { objectLinks: next });
+      });
     } catch (err) {
       console.error('Failed to remove object link', err);
       addToast('Could not remove link', 'error');
