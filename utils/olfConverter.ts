@@ -302,6 +302,18 @@ const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
  * middle two entries swap.
  */
 export const matrixToSvg = (value: string): string | null => {
+  const m = parseOlfMatrix(value);
+  if (!m) return null;
+  return `matrix(${m[0]} ${m[1]} ${m[2]} ${m[3]} ${m[4]} ${m[5]})`;
+};
+
+/** SVG matrix `[a, b, c, d, e, f]`. */
+type Mat = [number, number, number, number, number, number];
+
+const IDENTITY_MAT: Mat = [1, 0, 0, 1, 0, 0];
+
+/** Parses a 3x3 `.olf` matrix into an SVG matrix; null when absent/identity. */
+const parseOlfMatrix = (value: string): Mat | null => {
   const parts = value
     .split(',')
     .map((p) => parseFloat(p.trim()))
@@ -309,8 +321,22 @@ export const matrixToSvg = (value: string): string | null => {
   if (parts.length !== 9) return null;
   if (parts.every((p, idx) => Math.abs(p - IDENTITY[idx]) < 1e-9)) return null;
   const [a, b, c, d, e, f] = parts;
-  return `matrix(${a} ${d} ${b} ${e} ${c} ${f})`;
+  return [a, d, b, e, c, f];
 };
+
+const mulMat = (a: Mat, b: Mat): Mat => [
+  a[0] * b[0] + a[2] * b[1],
+  a[1] * b[0] + a[3] * b[1],
+  a[0] * b[2] + a[2] * b[3],
+  a[1] * b[2] + a[3] * b[3],
+  a[0] * b[4] + a[2] * b[5] + a[4],
+  a[1] * b[4] + a[3] * b[5] + a[5],
+];
+
+const applyMat = (m: Mat, x: number, y: number): [number, number] => [
+  m[0] * x + m[2] * y + m[4],
+  m[1] * x + m[3] * y + m[5],
+];
 
 const parseViewbox = (
   value: string
@@ -341,6 +367,9 @@ const attrs = (map: Record<string, string | number | undefined>): string =>
     .join('');
 
 const round = (n: number): number => Math.round(n * 100) / 100;
+
+/** Breathing room added on any side the content overflows the declared page. */
+const PAGE_PADDING = 24;
 
 // ---------------------------------------------------------------------------
 // Text layout
@@ -436,7 +465,65 @@ interface PageContext {
   imageUris: Map<string, string>;
   /** Arrow marker id → `<marker>` markup, one per stroke colour per page. */
   markers: Map<string, string>;
+  /** Union of every emitted element's bounds, in page coordinates. */
+  bounds: Bounds | null;
 }
+
+interface Bounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** Grows the page bounds by the transformed points, plus a stroke margin. */
+const extendBounds = (
+  ctx: PageContext,
+  mat: Mat,
+  points: [number, number][],
+  margin = 0
+): void => {
+  for (const [px, py] of points) {
+    if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+    const [x, y] = applyMat(mat, px, py);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const next = {
+      minX: x - margin,
+      minY: y - margin,
+      maxX: x + margin,
+      maxY: y + margin,
+    };
+    ctx.bounds = ctx.bounds
+      ? {
+          minX: Math.min(ctx.bounds.minX, next.minX),
+          minY: Math.min(ctx.bounds.minY, next.minY),
+          maxX: Math.max(ctx.bounds.maxX, next.maxX),
+          maxY: Math.max(ctx.bounds.maxY, next.maxY),
+        }
+      : next;
+  }
+};
+
+const cornersOf = (box: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): [number, number][] => [
+  [box.x, box.y],
+  [box.x + box.width, box.y],
+  [box.x, box.y + box.height],
+  [box.x + box.width, box.y + box.height],
+];
+
+const parsePointList = (raw: string): [number, number][] => {
+  const out: [number, number][] = [];
+  for (const pair of raw.trim().split(/\s+/)) {
+    const [x, y] = pair.split(',').map((p) => parseFloat(p));
+    if (Number.isFinite(x) && Number.isFinite(y)) out.push([x, y]);
+  }
+  return out;
+};
 
 const bump = (bag: Record<string, number>, key: string): void => {
   bag[key] = (bag[key] ?? 0) + 1;
@@ -464,6 +551,32 @@ const flipTransform = (
     return `translate(${round(2 * cx)} ${round(2 * cy)}) scale(-1 -1)`;
   }
   return null;
+};
+
+const flipMatrix = (
+  meta: ElementMeta | undefined,
+  box: { x: number; y: number; width: number; height: number }
+): Mat | null => {
+  const flip = meta?.flip;
+  if (!flip || flip === 'none') return null;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  if (flip === 'horizontal') return [-1, 0, 0, 1, 2 * cx, 0];
+  if (flip === 'vertical') return [1, 0, 0, -1, 0, 2 * cy];
+  if (flip === 'both') return [-1, 0, 0, -1, 2 * cx, 2 * cy];
+  return null;
+};
+
+/** Numeric twin of `elementTransform`, used to place bounds. */
+const elementMatrix = (
+  body: Json,
+  meta: ElementMeta | undefined,
+  box: { x: number; y: number; width: number; height: number }
+): Mat => {
+  const flip = flipMatrix(meta, box);
+  const matrix = parseOlfMatrix(str(body, 'matrix'));
+  if (flip && matrix) return mulMat(flip, matrix);
+  return flip ?? matrix ?? IDENTITY_MAT;
 };
 
 /** Combines an element's own matrix with any flip mirror. */
@@ -622,6 +735,7 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
 
   const meta = ctx.meta.get(id);
   const transform = elementTransform(body, meta, { x, y, width, height });
+  const mat = elementMatrix(body, meta, { x, y, width, height });
   const pieces: string[] = [];
 
   let offset = 0;
@@ -655,6 +769,14 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
     // Each column is its own editable object so cells drag independently.
     columns.forEach((cells, columnIndex) => {
       const first = cells[0].style;
+      cells.forEach((cell) => {
+        extendBounds(ctx, mat, [
+          [cell.x, baseline - cell.style.size],
+          [cell.x + cell.width, baseline - cell.style.size],
+          [cell.x, baseline + cell.style.size * 0.3],
+          [cell.x + cell.width, baseline + cell.style.size * 0.3],
+        ]);
+      });
 
       const highlights = cells
         .filter(
@@ -808,6 +930,12 @@ const renderStroke = (
     num(body, 'pen-width', 1) * stylusScale(str(body, 'stylus-tip-transform'));
   const opacity =
     num(body, 'opacity', 1) * stroke.opacity * (highlighter ? 0.4 : 1);
+  extendBounds(
+    ctx,
+    elementMatrix(body, ctx.meta.get(id), box),
+    parsePointList(points),
+    width / 2
+  );
   return `<polyline${attrs({
     points,
     fill: 'none',
@@ -887,6 +1015,9 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
     height: num(body, 'height', 0),
   };
 
+  const mat = elementMatrix(body, ctx.meta.get(id), box);
+  const halfStroke = num(body, 'stroke-width', 1) / 2;
+
   switch (kind) {
     case 'textarea':
       return renderTextarea(body, ctx, id);
@@ -897,6 +1028,7 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         bump(ctx.skipped, kind);
         return null;
       }
+      extendBounds(ctx, mat, parsePointList(points), halfStroke);
       return `<${kind}${attrs({ points })}${shapeAttrs(body, ctx, id, box)}${
         kind === 'polyline' ? lineShapeAttrs(body, ctx) : ''
       }/>`;
@@ -905,6 +1037,7 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
       return renderStroke(body, ctx, id, box);
     case 'rect':
     case 'rectangle':
+      extendBounds(ctx, mat, cornersOf(box), halfStroke);
       return `<rect${attrs({
         x: round(box.x),
         y: round(box.y),
@@ -924,6 +1057,12 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
       const start = num(body, 'angle-start', 0);
       const end = num(body, 'angle-end', 360);
       const isPie = body['is-pie'] === true && Math.abs(end - start) < 359;
+      extendBounds(
+        ctx,
+        mat,
+        cornersOf({ x: cx - rx, y: cy - ry, width: 2 * rx, height: 2 * ry }),
+        halfStroke
+      );
       if (isPie) {
         return `<path${attrs({ d: pieWedge(cx, cy, rx, ry, start, end) })}${shapeAttrs(body, ctx, id, box)}/>`;
       }
@@ -934,13 +1073,27 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         ry: round(ry),
       })}${shapeAttrs(body, ctx, id, box)}/>`;
     }
-    case 'line':
+    case 'line': {
+      const x1 = num(body, 'x1', box.x);
+      const y1 = num(body, 'y1', box.y);
+      const x2 = num(body, 'x2', box.x + box.width);
+      const y2 = num(body, 'y2', box.y + box.height);
+      extendBounds(
+        ctx,
+        mat,
+        [
+          [x1, y1],
+          [x2, y2],
+        ],
+        halfStroke
+      );
       return `<line${attrs({
-        x1: round(num(body, 'x1', box.x)),
-        y1: round(num(body, 'y1', box.y)),
-        x2: round(num(body, 'x2', box.x + box.width)),
-        y2: round(num(body, 'y2', box.y + box.height)),
+        x1: round(x1),
+        y1: round(y1),
+        x2: round(x2),
+        y2: round(y2),
       })}${shapeAttrs(body, ctx, id, box)}${lineShapeAttrs(body, ctx)}/>`;
+    }
     case 'path':
     case 'ink':
     case 'pen': {
@@ -962,6 +1115,7 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         return null;
       }
       const meta = ctx.meta.get(id);
+      extendBounds(ctx, mat, cornersOf(box));
       return `<image${attrs({
         href,
         x: round(box.x),
@@ -980,7 +1134,7 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
 
 const renderBackground = (
   entry: unknown,
-  size: { width: number; height: number },
+  size: { x: number; y: number; width: number; height: number },
   ctx: PageContext
 ): { markup: string; hex: string | null } => {
   const wrapped = unwrap(entry);
@@ -1000,8 +1154,8 @@ const renderBackground = (
     return {
       hex: fill.hex,
       markup: `<rect${attrs({
-        x: 0,
-        y: 0,
+        x: size.x,
+        y: size.y,
         width: size.width,
         height: size.height,
         fill: fill.hex,
@@ -1016,8 +1170,8 @@ const renderBackground = (
         hex: null,
         markup: `<image${attrs({
           href,
-          x: 0,
-          y: 0,
+          x: size.x,
+          y: size.y,
           width: size.width,
           height: size.height,
           preserveAspectRatio: 'xMidYMid slice',
@@ -1155,6 +1309,7 @@ export const convertOlfToBundle = async (
 
   const out = new JSZip();
   const manifestPages: { file: string; width: number; height: number }[] = [];
+  const pageOrigins: { x: number; y: number }[] = [];
   const hiddenPages: number[] = [];
   const elementBoxes = new Map<string, { page: number } & Json>();
 
@@ -1172,15 +1327,21 @@ export const convertOlfToBundle = async (
       pageBackgroundHex: null,
       imageUris,
       markers: new Map(),
+      bounds: null,
     };
 
-    const backgroundMarkup = asArray(page['backgrounds'])
-      .map((b) => {
-        const rendered = renderBackground(b, { width, height }, ctx);
-        if (rendered.hex) ctx.pageBackgroundHex = rendered.hex;
-        return rendered.markup;
-      })
-      .join('');
+    // Peeked up front so text can drop highlights matching the page colour.
+    for (const entry of asArray(page['backgrounds'])) {
+      const wrapped = unwrap(entry);
+      if (
+        wrapped?.kind !== 'background' ||
+        str(wrapped.body, 'type') !== 'color'
+      ) {
+        continue;
+      }
+      const hex = splitArgb(str(wrapped.body, 'fill'))?.hex;
+      if (hex) ctx.pageBackgroundHex = hex;
+    }
 
     const elements = asArray(page['elements']);
     elements.forEach((entry) => {
@@ -1197,24 +1358,45 @@ export const convertOlfToBundle = async (
       .filter((markup): markup is string => markup !== null)
       .join('');
 
-    const pageTransform = matrixToSvg(str(page, 'matrix'));
+    // The page `matrix` is myViewBoard's saved camera, not a content transform.
+    const b = ctx.bounds;
+    const x0 = b && b.minX < 0 ? Math.round(b.minX) - PAGE_PADDING : 0;
+    const y0 = b && b.minY < 0 ? Math.round(b.minY) - PAGE_PADDING : 0;
+    const x1 = b && b.maxX > width ? Math.round(b.maxX) + PAGE_PADDING : width;
+    const y1 =
+      b && b.maxY > height ? Math.round(b.maxY) + PAGE_PADDING : height;
+    const pageWidth = x1 - x0;
+    const pageHeight = y1 - y0;
+
+    const backgroundMarkup = asArray(page['backgrounds'])
+      .map(
+        (bg) =>
+          renderBackground(
+            bg,
+            { x: x0, y: y0, width: pageWidth, height: pageHeight },
+            ctx
+          ).markup
+      )
+      .join('');
+
     const svg = ensureSvgNamespaces(
       `<svg${attrs({
-        width,
-        height,
-        viewBox: `0 0 ${width} ${height}`,
+        width: pageWidth,
+        height: pageHeight,
+        viewBox: `${x0} ${y0} ${pageWidth} ${pageHeight}`,
       })}>` +
         (ctx.markers.size > 0
           ? `<defs>${[...ctx.markers.values()].join('')}</defs>`
           : '') +
         `<g class="background">${backgroundMarkup}</g>` +
-        `<g class="foreground"${pageTransform ? attrs({ transform: pageTransform }) : ''}>${foreground}</g>` +
+        `<g class="foreground">${foreground}</g>` +
         `</svg>`
     );
 
     const outName = `pages/${index}.svg`;
     out.file(outName, svg);
-    manifestPages.push({ file: outName, width, height });
+    pageOrigins.push({ x: x0, y: y0 });
+    manifestPages.push({ file: outName, width: pageWidth, height: pageHeight });
     options.onProgress?.(index + 1, pages.length);
   });
 
@@ -1237,6 +1419,8 @@ export const convertOlfToBundle = async (
     const sourcePage = source?.page;
     const dims =
       sourcePage !== undefined ? manifestPages[sourcePage] : undefined;
+    const origin =
+      sourcePage !== undefined ? pageOrigins[sourcePage] : { x: 0, y: 0 };
     if (
       !source ||
       sourcePage === undefined ||
@@ -1258,8 +1442,8 @@ export const convertOlfToBundle = async (
       objectId: `link-${ref}`,
       sourcePage,
       targetPage,
-      xFrac: num(source, 'x', 0) / dims.width,
-      yFrac: num(source, 'y', 0) / dims.height,
+      xFrac: (num(source, 'x', 0) - origin.x) / dims.width,
+      yFrac: (num(source, 'y', 0) - origin.y) / dims.height,
       wFrac: w / dims.width,
       hFrac: h / dims.height,
     });

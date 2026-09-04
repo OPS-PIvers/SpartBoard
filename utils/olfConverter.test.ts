@@ -516,7 +516,7 @@ describe('convertOlfToBundle', () => {
     expect(svg).toContain('translate(10 0) scale(-1 1)');
   });
 
-  it('applies non-identity element and page matrices as SVG transforms', async () => {
+  it('ignores the page camera matrix but keeps element matrices', async () => {
     const content = doc([
       page(
         [
@@ -529,7 +529,7 @@ describe('convertOlfToBundle', () => {
             },
           },
         ],
-        { matrix: '2,0,0,0,2,0,0,0,1' }
+        { matrix: '1.7,0,-580,0,1.7,-215,0,0,1' }
       ),
     ]);
     const result = await convertOlfToBundle(await olfFile(content), {
@@ -537,10 +537,127 @@ describe('convertOlfToBundle', () => {
     });
     const { zip } = await readBundle(result.blob);
     const svg = await pageSvg(zip);
-    expect(svg).toContain(
-      '<g class="foreground" transform="matrix(2 0 0 2 0 0)">'
-    );
+    expect(svg).toContain('<g class="foreground">');
+    expect(svg).not.toContain('class="foreground" transform');
+    expect(svg).toContain('<polygon points="0,0 10,0"');
     expect(svg).toContain('transform="matrix(1 0 0 1 5 7)"');
+  });
+
+  it('grows the page viewBox to cover content outside the declared page', async () => {
+    const content = doc([
+      page([
+        {
+          image: {
+            id: 'img-1',
+            x: 1800,
+            y: -100,
+            width: 300,
+            height: 200,
+            href: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip, manifest } = await readBundle(result.blob);
+    expect(manifest.pages).toEqual([
+      { file: 'pages/0.svg', width: 2124, height: 1204 },
+    ]);
+    const svg = await pageSvg(zip);
+    expect(svg).toContain('viewBox="0 -124 2124 1204"');
+    expect(svg).toContain('width="2124"');
+    expect(svg).toContain('height="1204"');
+    expect(svg).toContain(
+      '<rect x="0" y="-124" width="2124" height="1204" fill="#ffffff"/>'
+    );
+  });
+
+  it('grows the viewBox using an element matrix translation', async () => {
+    const content = doc([
+      page([
+        {
+          image: {
+            id: 'img-1',
+            x: 100,
+            y: 100,
+            width: 100,
+            height: 100,
+            matrix: '1,0,1900,0,1,0,0,0,1',
+            href: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip, manifest } = await readBundle(result.blob);
+    expect(manifest.pages).toEqual([
+      { file: 'pages/0.svg', width: 2124, height: 1080 },
+    ]);
+    expect(await pageSvg(zip)).toContain('viewBox="0 0 2124 1080"');
+  });
+
+  it('leaves the viewBox alone when content fits the page', async () => {
+    const content = doc([
+      page([
+        {
+          image: {
+            id: 'img-1',
+            x: 100,
+            y: 100,
+            width: 300,
+            height: 200,
+            href: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip, manifest } = await readBundle(result.blob);
+    expect(manifest.pages).toEqual([
+      { file: 'pages/0.svg', width: 1920, height: 1080 },
+    ]);
+    expect(await pageSvg(zip)).toContain('viewBox="0 0 1920 1080"');
+  });
+
+  it('emits nothing for empty textareas and leaves the viewBox alone', async () => {
+    const content = doc([
+      page([
+        {
+          textarea: {
+            id: 'ta-empty-1',
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            'custom-data': '',
+            'text-blocks-container': [paragraph([run('')], 'p1')],
+          },
+        },
+        {
+          textarea: {
+            id: 'ta-empty-2',
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            'custom-data': '',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip } = await readBundle(result.blob);
+    const svg = await pageSvg(zip);
+    expect(svg).toContain('<g class="foreground"></g>');
+    expect(svg).toContain('viewBox="0 0 1920 1080"');
   });
 
   it('produces a bundle that parseNotebookFile can read back', async () => {
@@ -914,6 +1031,7 @@ describe('convertOlfToBundle real .olf samples', () => {
   ): Promise<{
     result: Awaited<ReturnType<typeof convertOlfToBundle>>;
     svg: string;
+    svgs: string[];
   }> => {
     const bytes = fs.readFileSync(`${SCRATCH}${name}`);
     const file = new File([new Uint8Array(bytes)], name);
@@ -925,7 +1043,7 @@ describe('convertOlfToBundle real .olf samples', () => {
     const { zip } = await readBundle(result.blob);
     const svgs: string[] = [];
     for (let i = 0; i < result.pageCount; i++) svgs.push(await pageSvg(zip, i));
-    return { result, svg: svgs.join('') };
+    return { result, svg: svgs.join(''), svgs };
   };
 
   const countOf = (svg: string, re: RegExp): number =>
@@ -934,23 +1052,47 @@ describe('convertOlfToBundle real .olf samples', () => {
   it.skipIf(!fs.existsSync(`${SCRATCH}seating.olf`))(
     'converts seating.olf with nothing skipped',
     async () => {
-      const { result, svg } = await convertSample('seating.olf');
+      const { result, svg, svgs } = await convertSample('seating.olf');
       expect(result.pageCount).toBe(4);
       expect(result.skipped).toEqual({});
       expect(countOf(svg, /<image /g)).toBe(14);
       expect(countOf(svg, /<polyline /g)).toBe(13);
+      // The camera matrix is ignored, so no page carries a foreground transform.
+      expect(countOf(svg, /class="foreground" transform/g)).toBe(0);
+      const box = (page: number): number[] =>
+        (
+          /viewBox="(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)"/
+            .exec(svgs[page])
+            ?.slice(1) ?? []
+        ).map(Number);
+      // Page 1 is text-only and stays anchored at the page origin.
+      expect(box(1).slice(0, 2)).toEqual([0, 0]);
+      expect(box(1)[3]).toBe(1080);
+      // Pages 0 and 3 hold images placed above and right of the declared page.
+      expect(box(0)[2]).toBeGreaterThan(1920);
+      expect(box(0)[1]).toBeLessThan(0);
+      expect(box(3)[1]).toBeLessThan(0);
     }
   );
 
   it.skipIf(!fs.existsSync(`${SCRATCH}kreise.olf`))(
     'converts kreise.olf with nothing skipped',
     async () => {
-      const { result, svg } = await convertSample('kreise.olf');
+      const { result, svg, svgs } = await convertSample('kreise.olf');
       expect(result.pageCount).toBe(1);
+      expect(svgs[0]).toContain('viewBox="0 0 1067 600"');
       expect(result.skipped).toEqual({});
       expect(countOf(svg, /<ellipse /g)).toBe(2);
       expect(countOf(svg, /<image /g)).toBe(4);
       expect(countOf(svg, /marker-end=/g)).toBe(1);
+    }
+  );
+
+  it.skipIf(!fs.existsSync(`${SCRATCH}sample.olf`))(
+    'keeps sample.olf at the declared page size',
+    async () => {
+      const { svgs } = await convertSample('sample.olf');
+      expect(svgs[0]).toContain('viewBox="0 0 1920 1080"');
     }
   );
 });
