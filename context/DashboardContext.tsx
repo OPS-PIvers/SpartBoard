@@ -3044,10 +3044,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         mode === 'hidden'
           ? saveDashboard(active, buildSaveBaseline(active.id))
           : saveDashboard(active, undefined, { skipDrive: true });
-      void write.catch((err) => {
-        console.error('Flush save failed:', err);
-        oldestUnsavedEditAtRef.current ??= Date.now();
-      });
+      // Advance the save baseline on success, mirroring the debounced save's own success handler below.
+      const { serializedData: savedData, fields: savedFields } =
+        getDashboardSaveState(active);
+      const baselineGenerationAtSave = baselineGenerationRef.current;
+      void write.then(
+        () => {
+          // Skip if a concurrent snapshot merge already advanced the baseline past this save.
+          if (baselineGenerationRef.current === baselineGenerationAtSave) {
+            lastSavedDataRef.current = savedData;
+            lastSavedFieldsRef.current = savedFields;
+          }
+        },
+        (err) => {
+          console.error('Flush save failed:', err);
+          oldestUnsavedEditAtRef.current ??= Date.now();
+        }
+      );
     };
     const onTeardown = () => flushPendingSave('teardown');
     const onVisibilityChange = () => {
