@@ -56,10 +56,7 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
   }, [comments]);
 
   const [likeBusy, setLikeBusy] = useState(false);
-  // Engagement can only ever be stored against an approved post (see
-  // firestore.rules' awEngagementSubmissionOk) — a still-pending post
-  // (visible only via the author's own "my posts" listener) would silently
-  // reject the write, so disable the controls rather than show a dead one.
+  // A pending post's engagement writes are rejected server-side (firestore.rules' awEngagementSubmissionOk) — disable rather than show a dead control.
   const writable =
     canWrite && viewerUid !== null && submission.status === 'approved';
 
