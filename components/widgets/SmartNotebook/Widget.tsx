@@ -28,7 +28,6 @@ import {
   getDoc,
   query,
   orderBy,
-  arrayRemove,
   arrayUnion,
   runTransaction,
 } from 'firebase/firestore';
@@ -634,17 +633,18 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Transaction reads the server doc directly — filtering by id (not arrayRemove-by-value) is immune to the same local-snapshot staleness handleSaveObjectLink was fixed for.
   const handleRemoveObjectLink = async (linkId: string): Promise<void> => {
     if (!user || !activeNotebook) return;
-    const target = (activeNotebook.objectLinks ?? []).find(
-      (l) => l.id === linkId
-    );
-    if (!target) return;
+    const ref = doc(db, 'users', user.uid, 'notebooks', activeNotebook.id);
     try {
-      await updateDoc(
-        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
-        { objectLinks: arrayRemove(target) }
-      );
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const current =
+          (snap.data()?.objectLinks as NotebookObjectLink[] | undefined) ?? [];
+        const next = current.filter((l) => l.id !== linkId);
+        tx.update(ref, { objectLinks: next });
+      });
     } catch (err) {
       console.error('Failed to remove object link', err);
       addToast('Could not remove link', 'error');

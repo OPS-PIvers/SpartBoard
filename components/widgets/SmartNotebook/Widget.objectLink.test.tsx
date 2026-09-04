@@ -23,6 +23,7 @@ vi.mock('@/config/firebase', () => ({
 vi.mock('./components/PageEditorOverlay', () => ({
   PageEditorOverlay: (props: {
     onSaveObjectLink?: (link: NotebookObjectLink) => void;
+    onRemoveObjectLink?: (linkId: string) => void;
   }) => (
     <div>
       <button
@@ -56,6 +57,9 @@ vi.mock('./components/PageEditorOverlay', () => ({
         }
       >
         link-to-page-2
+      </button>
+      <button onClick={() => props.onRemoveObjectLink?.('link-1')}>
+        remove-link-1
       </button>
     </div>
   ),
@@ -202,5 +206,36 @@ describe('SmartNotebookWidget object link concurrency', () => {
     );
     expect(linksForPair).toHaveLength(1);
     expect(linksForPair[0].targetPage).toBe(2);
+  });
+
+  it('removes a link by id even when its fields changed server-side after this session’s snapshot', async () => {
+    render(<SmartNotebookWidget widget={mockWidget} />);
+
+    // A concurrent writer (another tab/session) already changed link-1's
+    // fields server-side; this component's local snapshot still holds the
+    // original fields from the initial onSnapshot fired in beforeEach.
+    serverObjectLinks = [
+      { ...serverObjectLinks[0], targetPage: 5 },
+      {
+        id: 'link-2',
+        objectId: 'obj-2',
+        sourcePage: 1,
+        targetPage: 0,
+        xFrac: 0,
+        yFrac: 0,
+        wFrac: 0.1,
+        hFrac: 0.1,
+      },
+    ];
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('remove-link-1'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(serverObjectLinks.find((l) => l.id === 'link-1')).toBeUndefined();
+    expect(serverObjectLinks).toHaveLength(1);
+    expect(serverObjectLinks[0].id).toBe('link-2');
   });
 });
