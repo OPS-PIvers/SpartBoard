@@ -19,7 +19,13 @@ import { ZOOM_MIN } from '@/utils/zoomMapping';
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 const { mockShowConfirm } = vi.hoisted(() => ({
-  mockShowConfirm: vi.fn<() => Promise<boolean>>(),
+  mockShowConfirm:
+    vi.fn<
+      (
+        message: string,
+        options?: { title?: string; variant?: string; confirmLabel?: string }
+      ) => Promise<boolean>
+    >(),
 }));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: mockShowConfirm }),
