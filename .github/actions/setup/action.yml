@@ -6,6 +6,10 @@ inputs:
     description: 'The Node.js version to use.'
     required: false
     default: '24'
+  cache:
+    description: "setup-node cache mode: 'pnpm' or '' to disable."
+    required: false
+    default: 'pnpm'
 
 runs:
   using: 'composite'
@@ -32,7 +36,7 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
-        cache: 'pnpm'
+        cache: ${{ inputs.cache }}
         cache-dependency-path: |
           pnpm-lock.yaml
           functions/pnpm-lock.yaml

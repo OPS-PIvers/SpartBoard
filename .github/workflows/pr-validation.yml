@@ -86,9 +86,9 @@ jobs:
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup
 
-      # Type-aware ESLint on the root app holds a ~4.5GB TS program; 5120MB leaves headroom.
+      # Type-aware ESLint holds a ~4.5GB TS program per worker; 2 workers fit the 16GB runner.
       - if: matrix.check == 'lint-app'
-        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --concurrency=2
       - if: matrix.check == 'lint-functions'
         run: pnpm run lint:functions
       - if: matrix.check == 'format'
@@ -157,8 +157,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      # The pnpm cache never restores inside the Playwright container and the
+      # post-step re-uploads it every run (35-70s); a cold install is ~16s.
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup
+        with:
+          cache: ''
 
       - name: Run E2E tests
         run: pnpm run test:e2e
