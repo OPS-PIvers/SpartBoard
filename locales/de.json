@@ -1209,6 +1209,9 @@
     "backgroundUploaded": "Benutzerdefinierter Hintergrund in die Cloud hochgeladen",
     "settingsSaved": "Einstellungen erfolgreich gespeichert",
     "switchBoardToUndo": "Wechsle zurück zu dieser Tafel, um das rückgängig zu machen",
+    "notebookImporting": "Lektion wird importiert…",
+    "notebookImportFailed": "Lektion konnte nicht importiert werden",
+    "notebookTooLarge": "Lektionsdatei ist zu groß (max. {{limit}} MB)",
     "classLink": {
       "fetchFailed": "Abruf von ClassLink fehlgeschlagen. Prüfe die Konsole.",
       "imported": "{{name}} importiert",
@@ -2251,6 +2254,8 @@
       "orgBadge": "Deine Schule",
       "clearWidgetFilter": "Widget-Filter entfernen",
       "activityUnavailable": "Diese Aktivität ist nicht mehr verfügbar",
+      "fullscreen": "Vollbild",
+      "exitFullscreen": "Vollbild beenden",
       "kinds": {
         "docs": "Dokumente",
         "slides": "Präsentationen",

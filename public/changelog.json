@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.04",
+      "date": "2026-09-04",
+      "title": "myViewBoard lessons import too",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "SMART Notebook",
+          "items": [
+            {
+              "text": "Import myViewBoard (.olf) lessons: import from the SmartNotebook library, drop the file onto your board, or convert at /convert. Hidden pages stay hidden."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Import — the SmartNotebook widget's Import button now accepts .olf alongside .notebook and .spartnb, and the toast says how many pages came across, how many are hidden, and whether anything was skipped."
+        },
+        {
+          "type": "feature",
+          "text": "Drop to import — drag a .olf, .notebook or .spartnb onto your board and it lands in a new SmartNotebook widget where you dropped it."
+        },
+        {
+          "type": "improvement",
+          "text": "Converter — /convert converts myViewBoard files as well as SMART Notebook ones, and shows what the conversion produced before you download."
+        }
+      ]
+    },
+    {
       "version": "2026.09.03",
       "date": "2026-09-03",
       "title": "A Help center, right from the dock",

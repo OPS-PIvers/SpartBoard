@@ -1,10 +1,13 @@
 import React, { RefObject, useEffect, useMemo, useRef } from 'react';
+import { EyeOff } from 'lucide-react';
 import { NotebookSection } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface PageJumpMenuProps {
   pageUrls: string[];
   sections?: NotebookSection[];
+  /** Pages hidden from presenting; still listed here, dimmed and flagged. */
+  hiddenPages?: number[];
   currentPage: number;
   onSelect: (page: number) => void;
   onClose: () => void;
@@ -26,11 +29,13 @@ interface PageGroup {
 export const PageJumpMenu: React.FC<PageJumpMenuProps> = ({
   pageUrls,
   sections,
+  hiddenPages,
   currentPage,
   onSelect,
   onClose,
   triggerRef,
 }) => {
+  const hidden = useMemo(() => new Set(hiddenPages ?? []), [hiddenPages]);
   const menuRef = useRef<HTMLDivElement>(null);
   useClickOutside(menuRef, onClose, [triggerRef]);
 
@@ -95,6 +100,7 @@ export const PageJumpMenu: React.FC<PageJumpMenuProps> = ({
           >
             {group.pages.map((page) => {
               const isCurrent = page === currentPage;
+              const isHidden = hidden.has(page);
               return (
                 <button
                   key={page}
@@ -107,9 +113,13 @@ export const PageJumpMenu: React.FC<PageJumpMenuProps> = ({
                     isCurrent
                       ? 'ring-2 ring-indigo-600 shadow-md'
                       : 'ring-1 ring-slate-200'
-                  }`}
+                  } ${isHidden ? 'opacity-50' : ''}`}
                   style={{ aspectRatio: '4 / 3' }}
-                  aria-label={`Go to page ${page + 1}`}
+                  aria-label={
+                    isHidden
+                      ? `Go to page ${page + 1} (hidden)`
+                      : `Go to page ${page + 1}`
+                  }
                   aria-current={isCurrent ? 'page' : undefined}
                 >
                   <img
@@ -119,6 +129,18 @@ export const PageJumpMenu: React.FC<PageJumpMenuProps> = ({
                     draggable={false}
                     className="w-full h-full object-cover bg-slate-50 pointer-events-none"
                   />
+                  {isHidden && (
+                    <EyeOff
+                      aria-hidden
+                      className="absolute text-slate-600"
+                      style={{
+                        top: 'min(4px, 1cqmin)',
+                        right: 'min(4px, 1cqmin)',
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />
+                  )}
                   <div
                     className={`absolute bottom-0 left-0 right-0 text-center font-bold ${
                       isCurrent

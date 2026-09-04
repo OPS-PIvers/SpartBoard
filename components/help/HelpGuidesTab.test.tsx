@@ -319,4 +319,46 @@ describe('HelpGuidesTab', () => {
       screen.getByText("Your admin hasn't added guides yet")
     ).toBeInTheDocument();
   });
+
+  it('requests fullscreen on the resource content and mirrors fullscreenchange', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(document, 'fullscreenEnabled', {
+      configurable: true,
+      value: true,
+    });
+    const fs: { el: Element | null } = { el: null };
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fs.el,
+    });
+    const requestFullscreen = vi.fn((el: Element) => {
+      fs.el = el;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      return Promise.resolve();
+    });
+    const exitFullscreen = vi.fn(() => {
+      fs.el = null;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      return Promise.resolve();
+    });
+    Element.prototype.requestFullscreen = function () {
+      return requestFullscreen(this);
+    };
+    document.exitFullscreen = exitFullscreen;
+
+    render(<HelpGuidesTab query="" />);
+    await user.click(screen.getByText('Welcome video'));
+    await user.click(screen.getByRole('button', { name: 'Full screen' }));
+
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    const frame = document.querySelector('iframe');
+    expect(frame && fs.el?.contains(frame)).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Exit full screen' }));
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Exit full screen' })
+      ).toBeNull()
+    );
+  });
 });

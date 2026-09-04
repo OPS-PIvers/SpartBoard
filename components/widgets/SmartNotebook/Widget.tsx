@@ -22,7 +22,6 @@ import {
   collection,
   onSnapshot,
   doc,
-  setDoc,
   updateDoc,
   deleteDoc,
   getDoc,
@@ -32,10 +31,12 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { NotebookTooLargeError } from '@/utils/notebookParser';
 import {
-  parseNotebookFile,
-  NotebookTooLargeError,
-} from '@/utils/notebookParser';
+  importNotebookFile,
+  formatImportSummary,
+} from '@/utils/notebookImport';
+import { uploadParsedNotebook } from '@/utils/notebookUpload';
 import {
   insertBlankPage,
   deletePage,
@@ -43,6 +44,9 @@ import {
   canMovePage,
   clampPageIndex,
   blankPageSvg,
+  toggleHiddenPage,
+  normalizeHiddenPages,
+  visiblePageIndices,
   PageListState,
 } from '@/utils/notebookPages';
 
@@ -117,6 +121,7 @@ export const SmartNotebookWidget: React.FC<{
           createdAt: (data.createdAt as number) ?? 0,
           sections: data.sections as NotebookSection[] | undefined,
           objectLinks: data.objectLinks as NotebookObjectLink[] | undefined,
+          hiddenPages: data.hiddenPages as number[] | undefined,
         } as NotebookItem;
       });
       setNotebooks(items);
@@ -156,8 +161,10 @@ export const SmartNotebookWidget: React.FC<{
   if (activeNotebookId !== prevNotebookId) {
     setPrevNotebookId(activeNotebookId);
     setPrevPageCount(pageCount);
-    if (currentPage !== 0) {
-      setCurrentPage(0);
+    const firstVisible =
+      visiblePageIndices(pageCount, activeNotebook?.hiddenPages)[0] ?? 0;
+    if (currentPage !== firstVisible) {
+      setCurrentPage(firstVisible);
     }
     // Switching notebooks must drop in-memory edits for the previous one and
     // land in edit mode again — anything else either leaks edits across
@@ -172,9 +179,20 @@ export const SmartNotebookWidget: React.FC<{
     if (presentMode) setPresentMode(false);
   } else if (pageCount !== prevPageCount) {
     setPrevPageCount(pageCount);
-    const clamped = clampPageIndex(currentPage, pageCount);
-    if (clamped !== currentPage) {
-      setCurrentPage(clamped);
+    if (prevPageCount === 0 && currentPage === 0) {
+      // Notebook data just finished loading (async Firestore snapshot) for a
+      // notebook that was already active on mount — land on its first
+      // visible page instead of assuming page 0 (which may be hidden).
+      const firstVisible =
+        visiblePageIndices(pageCount, activeNotebook?.hiddenPages)[0] ?? 0;
+      if (currentPage !== firstVisible) {
+        setCurrentPage(firstVisible);
+      }
+    } else {
+      const clamped = clampPageIndex(currentPage, pageCount);
+      if (clamped !== currentPage) {
+        setCurrentPage(clamped);
+      }
     }
   }
 
@@ -196,71 +214,17 @@ export const SmartNotebookWidget: React.FC<{
     }
 
     setIsImporting(true);
-    // Track uploaded storage paths so we can clean up if a later step (e.g. the
-    // Firestore write) fails, instead of leaking orphaned blobs (quota cost).
-    let uploadedStoragePaths: string[] = [];
     try {
-      const { title, pages, assets, sections, objectLinks } =
-        await parseNotebookFile(file);
-      const notebookId = crypto.randomUUID();
-
-      // Helper to upload a set of blobs to a specific path structure
-      const uploadBatch = async (
-        items: { blob: Blob; extension: string }[],
-        basePath: string,
-        namePrefix: string
-      ) => {
-        return Promise.all(
-          items.map(async (item, index) => {
-            const fileName = `${namePrefix}${index}.${item.extension}`;
-            const fileObj = new File([item.blob], fileName, {
-              type: item.blob.type,
-            });
-            const path = `${basePath}/${fileName}`;
-            const url = await uploadFile(path, fileObj);
-            return { url, path };
-          })
-        );
-      };
-
-      // Upload pages and assets in parallel batches
-      const notebookPath = `users/${user.uid}/notebooks/${notebookId}`;
-      const [uploadedPages, uploadedAssets] = await Promise.all([
-        uploadBatch(pages, notebookPath, 'page'),
-        assets ? uploadBatch(assets, `${notebookPath}/assets`, 'asset') : [],
-      ]);
-
-      const uploadedUrls = uploadedPages.map((p) => p.url);
-      const uploadedPaths = uploadedPages.map((p) => p.path);
-      const uploadedAssetUrls = uploadedAssets.map((a) => a.url);
-      uploadedStoragePaths = [
-        ...uploadedPaths,
-        ...uploadedAssets.map((a) => a.path),
-      ];
-
-      const notebook: NotebookItem = {
-        id: notebookId,
-        title,
-        pageUrls: uploadedUrls,
-        pagePaths: uploadedPaths,
-        assetUrls: uploadedAssetUrls,
-        createdAt: Date.now(),
-        // Only include optional fields when populated — Firestore rejects
-        // `undefined`, and empty arrays would create distracting "no
-        // sections / no links" diffs in console.
-        ...(sections && sections.length > 0 ? { sections } : {}),
-        ...(objectLinks && objectLinks.length > 0 ? { objectLinks } : {}),
-      };
-
-      await setDoc(
-        doc(db, 'users', user.uid, 'notebooks', notebookId),
-        notebook
-      );
-      addToast('Notebook imported successfully', 'success');
+      const { parsed, summary } = await importNotebookFile(file);
+      const notebook = await uploadParsedNotebook(user.uid, parsed, {
+        uploadFile,
+        deleteFile,
+      });
+      addToast(formatImportSummary(summary), 'success');
 
       // Auto-select
       updateWidget(widget.id, {
-        config: { ...config, activeNotebookId: notebookId },
+        config: { ...config, activeNotebookId: notebook.id },
       });
     } catch (err) {
       console.error(err);
@@ -280,14 +244,6 @@ export const SmartNotebookWidget: React.FC<{
           window.open('/convert', '_blank', 'noopener,noreferrer');
         }
       } else {
-        // Clean up any blobs uploaded before the failure (e.g. setDoc threw).
-        if (uploadedStoragePaths.length > 0) {
-          await Promise.all(
-            uploadedStoragePaths.map((p) =>
-              deleteFile(p).catch((e) => console.error(e))
-            )
-          );
-        }
         addToast('Failed to import notebook', 'error');
       }
     } finally {
@@ -361,7 +317,13 @@ export const SmartNotebookWidget: React.FC<{
 
   const handleSelect = (id: string) => {
     updateWidget(widget.id, { config: { ...config, activeNotebookId: id } });
-    setCurrentPage(0);
+    const selected = notebooks.find((n) => n.id === id);
+    setCurrentPage(
+      visiblePageIndices(
+        selected?.pageUrls.length ?? 0,
+        selected?.hiddenPages
+      )[0] ?? 0
+    );
   };
 
   const setDisplayMode = (mode: 'cards' | 'list') => {
@@ -568,6 +530,8 @@ export const SmartNotebookWidget: React.FC<{
       objectLinks:
         (data.objectLinks as NotebookObjectLink[] | undefined) ??
         notebook.objectLinks,
+      hiddenPages:
+        (data.hiddenPages as number[] | undefined) ?? notebook.hiddenPages,
     };
   };
 
@@ -699,8 +663,39 @@ export const SmartNotebookWidget: React.FC<{
         ...(next.objectLinks !== undefined
           ? { objectLinks: next.objectLinks }
           : {}),
+        ...(next.hiddenPages !== undefined
+          ? {
+              hiddenPages: normalizeHiddenPages(
+                next.hiddenPages,
+                next.pageUrls.length
+              ),
+            }
+          : {}),
       }
     );
+  };
+
+  // Hide/unhide the current page (answer keys). Writes the whole list rather
+  // than arrayUnion so the normalized, in-range list is what lands.
+  const handleToggleHiddenPage = async () => {
+    if (!user || !activeNotebook) return;
+    const next = normalizeHiddenPages(
+      toggleHiddenPage(activeNotebook.hiddenPages, currentPage),
+      activeNotebook.pageUrls.length
+    );
+    try {
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+        { hiddenPages: next }
+      );
+      addToast(
+        next.includes(currentPage) ? 'Page hidden' : 'Page shown',
+        'success'
+      );
+    } catch (err) {
+      console.error('Failed to toggle page visibility', err);
+      addToast('Could not update page visibility', 'error');
+    }
   };
 
   // Insert a blank page after the current one and navigate to it.
@@ -926,6 +921,8 @@ export const SmartNotebookWidget: React.FC<{
         onMovePage={(dir) => void handleMovePage(dir)}
         canMoveEarlier={canMovePage(activeNotebook, currentPage, -1)}
         canMoveLater={canMovePage(activeNotebook, currentPage, 1)}
+        hiddenPages={activeNotebook.hiddenPages}
+        onToggleHiddenPage={() => void handleToggleHiddenPage()}
         pageOpBusy={isPageOp}
         onPresent={togglePresentMode}
         onClose={handleClose}
@@ -962,6 +959,7 @@ export const SmartNotebookWidget: React.FC<{
         onMovePage={(dir) => void handleMovePage(dir)}
         canMoveEarlier={canMovePage(activeNotebook, currentPage, -1)}
         canMoveLater={canMovePage(activeNotebook, currentPage, 1)}
+        onToggleHiddenPage={() => void handleToggleHiddenPage()}
         pageOpBusy={isPageOp}
       />
     );

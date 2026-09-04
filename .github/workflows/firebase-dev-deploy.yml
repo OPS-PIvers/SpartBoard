@@ -7,26 +7,49 @@ on:
   workflow_dispatch:
 
 # Cancel a superseded preview deploy when a newer commit is pushed to the same
-# branch, so rapid successive pushes don't each run a full 4-job deploy to
+# branch, so rapid successive pushes don't each run the full suite to
 # completion. (workflow_dispatch is kept so a preview can also be re-run manually
 # from the Actions tab.)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Deploys authenticate with the service-account secret, so GITHUB_TOKEN only needs to read the repo.
+permissions:
+  contents: read
+
+env:
+  VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+  VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+  VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+  VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+  VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+  VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+  VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
+  VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+  VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
+  VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
+
 jobs:
+  # The app ESLint pass (type-aware, ~3.5 min), the functions ESLint pass and
+  # Prettier each get their own runner instead of running back to back.
   lint:
     runs-on: ubuntu-24.04
+    name: lint (${{ matrix.check }})
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [app, functions, format]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
-      # `pnpm run lint` runs two SEPARATE type-aware ESLint passes in their own
-      # processes (root app + functions/), so peak heap is bounded by the larger
-      # single TS program (the app, ~4.5GB measured) instead of both programs in
-      # one process (which previously needed a 6144MB cap). 5120MB leaves
-      # headroom; rule coverage is unchanged (eslint.config.js + functions config).
-      - run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint
-      - run: pnpm run format:check
+      # Type-aware ESLint on the root app holds a ~4.5GB TS program; 5120MB leaves headroom.
+      - if: matrix.check == 'app'
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
+      - if: matrix.check == 'functions'
+        run: pnpm run lint:functions
+      - if: matrix.check == 'format'
+        run: pnpm run format:check
 
   type-check:
     runs-on: ubuntu-24.04
@@ -35,23 +58,42 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm run type-check:all
 
+  # The root suite is ~840 jsdom files; sharding across runners cuts wall time
+  # roughly by the shard count. Each shard uploads its JSON report so the
+  # test-counts job can merge them and apply the silent-omission guard.
   test:
+    runs-on: ubuntu-24.04
+    name: test (shard ${{ matrix.shard }}/3)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      - run: pnpm run test:shard --shard=${{ matrix.shard }}/3 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-report-shard-${{ matrix.shard }}
+          path: .vitest-reports/root-shard-${{ matrix.shard }}.json
+          retention-days: 1
+
+  # Functions suite (~5s) plus the merged-shard count guard from scripts/checkTestCounts.mjs.
+  test-counts:
+    needs: test
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
-      - run: pnpm run test:all
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-          VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
-          VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-report-shard-*
+          path: .vitest-reports/shards
+          merge-multiple: true
+      - run: pnpm run test:merge-reports .vitest-reports/root.json .vitest-reports/shards/root-shard-*.json
+      - run: pnpm -C functions test
+      - run: pnpm run test:counts
 
   # test:all doesn't include test:rules; without this a firestore.rules regression could reach a preview deploy unverified.
   rules:
@@ -65,31 +107,42 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Cache Firestore emulator jar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
       - name: Run Firestore rules tests
         run: pnpm run test:rules
 
+  # Builds in parallel with the checks; deploy downloads the artifact instead of rebuilding.
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      - name: Build project
+        run: pnpm run build:all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            dist
+            functions/lib
+          retention-days: 1
+          if-no-files-found: error
+
   deploy:
-    needs: [lint, type-check, test, rules]
+    needs: [lint, type-check, test, test-counts, rules, build]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
 
-      - name: Create .env file for Vite and Firebase
-        run: |
-          echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
-          echo "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}" >> .env
-          echo "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}" >> .env
-          echo "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}" >> .env
-          echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
-          echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env
-          echo "VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY }}" >> .env
-          echo "VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}" >> .env
-          echo "VITE_PEXELS_API_KEY=${{ secrets.VITE_PEXELS_API_KEY }}" >> .env
-          echo "VITE_SPOTIFY_CLIENT_ID=${{ secrets.VITE_SPOTIFY_CLIENT_ID }}" >> .env
-
-      - name: Build project
-        run: pnpm run build:all
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
 
       - name: Extract branch name
         id: extract_branch

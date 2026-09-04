@@ -1209,6 +1209,9 @@
     "backgroundUploaded": "Custom background uploaded to cloud",
     "settingsSaved": "Settings saved successfully",
     "switchBoardToUndo": "Switch back to that board to undo this",
+    "notebookImporting": "Importing lesson…",
+    "notebookImportFailed": "Failed to import lesson",
+    "notebookTooLarge": "Lesson file is too large (max {{limit}}MB)",
     "classLink": {
       "fetchFailed": "Failed to fetch from ClassLink. Check console.",
       "imported": "Imported {{name}}",
@@ -2251,6 +2254,8 @@
       "orgBadge": "Your school",
       "clearWidgetFilter": "Clear widget filter",
       "activityUnavailable": "This activity is no longer available",
+      "fullscreen": "Full screen",
+      "exitFullscreen": "Exit full screen",
       "kinds": {
         "docs": "Docs",
         "slides": "Slides",

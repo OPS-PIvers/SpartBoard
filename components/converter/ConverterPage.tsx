@@ -13,6 +13,8 @@ import {
   convertNotebookToBundle,
   ConvertResult,
 } from '@/utils/notebookConverter';
+import { convertOlfToBundle, isOlfFile } from '@/utils/olfConverter';
+import { formatImportSummary, ImportSummary } from '@/utils/notebookImport';
 
 type Stage = 'idle' | 'converting' | 'done' | 'error';
 
@@ -23,25 +25,49 @@ export const ConverterPage: React.FC = () => {
   const [stage, setStage] = useState<Stage>('idle');
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [result, setResult] = useState<ConvertResult | null>(null);
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
-    if (!/\.notebook$/i.test(file.name)) {
+    if (!/\.(notebook|olf)$/i.test(file.name)) {
       setStage('error');
-      setError('Please choose a SMART Notebook (.notebook) file.');
+      setError(
+        'Please choose a SMART Notebook (.notebook) or myViewBoard (.olf) file.'
+      );
       return;
     }
     setStage('converting');
     setError(null);
     setResult(null);
+    setSummary(null);
     setProgress({ done: 0, total: 0 });
     try {
-      const res = await convertNotebookToBundle(file, {
-        onProgress: (done, total) => setProgress({ done, total }),
-      });
-      setResult(res);
+      const onProgress = (done: number, total: number) =>
+        setProgress({ done, total });
+      if (isOlfFile(file.name)) {
+        const olf = await convertOlfToBundle(file, { onProgress });
+        setResult({
+          blob: olf.blob,
+          fileName: `${olf.title}.spartnb`,
+          title: olf.title,
+          pageCount: olf.pageCount,
+          sectionCount: 0,
+          bytesBefore: file.size,
+          bytesAfter: olf.blob.size,
+        });
+        setSummary({
+          pageCount: olf.pageCount,
+          hiddenPageCount: olf.hiddenPageCount,
+          skipped: olf.skipped,
+          warnings: olf.warnings,
+        });
+      } else {
+        const res = await convertNotebookToBundle(file, { onProgress });
+        setResult(res);
+        setSummary(null);
+      }
       setStage('done');
     } catch (err) {
       console.error(err);
@@ -49,7 +75,7 @@ export const ConverterPage: React.FC = () => {
       setError(
         err instanceof Error
           ? err.message
-          : 'Conversion failed. Is this a valid .notebook file?'
+          : 'Conversion failed. Is this a valid .notebook or .olf file?'
       );
     }
   }, []);
@@ -82,6 +108,7 @@ export const ConverterPage: React.FC = () => {
   const reset = () => {
     setStage('idle');
     setResult(null);
+    setSummary(null);
     setError(null);
     setProgress({ done: 0, total: 0 });
   };
@@ -94,12 +121,13 @@ export const ConverterPage: React.FC = () => {
       <div className="w-full max-w-xl">
         <header className="text-center mb-8">
           <h1 className="text-3xl font-black tracking-tight text-slate-900">
-            SMART Notebook Converter
+            Lesson Converter
           </h1>
           <p className="mt-2 text-slate-500 font-medium">
-            Shrink a large <span className="font-bold">.notebook</span> file
-            into a SpartBoard <span className="font-bold">.spartnb</span> you
-            can import.
+            Turn a SMART Notebook <span className="font-bold">.notebook</span>{' '}
+            or myViewBoard <span className="font-bold">.olf</span> file into a
+            SpartBoard <span className="font-bold">.spartnb</span> you can
+            import.
           </p>
         </header>
 
@@ -127,7 +155,7 @@ export const ConverterPage: React.FC = () => {
                 </div>
                 <div className="text-center">
                   <p className="font-bold text-slate-800 text-lg">
-                    Drag your .notebook here
+                    Drag your .notebook or .olf here
                   </p>
                   <p className="text-slate-500 text-sm mt-1">
                     or click to browse
@@ -137,7 +165,7 @@ export const ConverterPage: React.FC = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".notebook"
+                accept=".notebook,.olf"
                 onChange={onInputChange}
                 className="hidden"
               />
@@ -194,6 +222,12 @@ export const ConverterPage: React.FC = () => {
                   small
                 />
               </div>
+
+              {summary && (
+                <p className="w-full text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                  {formatImportSummary(summary)}
+                </p>
+              )}
 
               <button
                 onClick={download}

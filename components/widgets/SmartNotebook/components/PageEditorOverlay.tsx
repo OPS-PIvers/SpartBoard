@@ -9,6 +9,8 @@ import {
   ChevronUp,
   Circle,
   Eraser,
+  Eye,
+  EyeOff,
   Highlighter,
   Loader2,
   Minus,
@@ -91,6 +93,10 @@ interface PageEditorOverlayProps {
   onMovePage?: (dir: -1 | 1) => void;
   canMoveEarlier?: boolean;
   canMoveLater?: boolean;
+  /** Pages hidden from present mode (answer keys). */
+  hiddenPages?: number[];
+  /** Hide/unhide the current page. */
+  onToggleHiddenPage?: () => void;
   pageOpBusy?: boolean;
   onPresent: () => void;
   onClose: () => void;
@@ -121,10 +127,13 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   onMovePage,
   canMoveEarlier = false,
   canMoveLater = false,
+  hiddenPages,
+  onToggleHiddenPage,
   pageOpBusy = false,
   onPresent,
   onClose,
 }) => {
+  const isCurrentHidden = (hiddenPages ?? []).includes(currentPage);
   const pageUrl = pageUrls[currentPage];
   const totalPages = pageUrls.length;
   const [fetchedSvg, setFetchedSvg] = useState<string | null>(null);
@@ -257,6 +266,12 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
               }}
             >
               Editing · Page {currentPage + 1} of {totalPages}
+              {isCurrentHidden && (
+                <>
+                  {'  ·  '}
+                  <span className="text-amber-600">Hidden page</span>
+                </>
+              )}
               {currentSection && (
                 <>
                   {'  ·  '}
@@ -312,6 +327,31 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 title="Add blank page"
               >
                 <Plus style={iconStyle} />
+              </button>
+            )}
+            {onToggleHiddenPage && (
+              <button
+                onClick={onToggleHiddenPage}
+                disabled={pageOpBusy}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title={
+                  isCurrentHidden
+                    ? 'Show this page when presenting'
+                    : 'Hide this page when presenting'
+                }
+                aria-label={
+                  isCurrentHidden
+                    ? 'Show this page when presenting'
+                    : 'Hide this page when presenting'
+                }
+                aria-pressed={isCurrentHidden}
+              >
+                {isCurrentHidden ? (
+                  <EyeOff style={iconStyle} />
+                ) : (
+                  <Eye style={iconStyle} />
+                )}
               </button>
             )}
             {onDeletePage && (
@@ -591,6 +631,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                   // catches up, which is the right thing for at-a-glance nav.
                   pageUrls={pageUrls}
                   sections={sections}
+                  hiddenPages={hiddenPages}
                   currentPage={currentPage}
                   onSelect={onPageChange}
                   onClose={() => setJumpMenuOpen(false)}

@@ -1209,6 +1209,9 @@
     "backgroundUploaded": "Arrière-plan personnalisé téléchargé dans le cloud",
     "settingsSaved": "Paramètres enregistrés avec succès",
     "switchBoardToUndo": "Revenez à ce tableau pour annuler cette action",
+    "notebookImporting": "Importation de la leçon…",
+    "notebookImportFailed": "Échec de l'importation de la leçon",
+    "notebookTooLarge": "Le fichier de la leçon est trop volumineux (max {{limit}} Mo)",
     "classLink": {
       "fetchFailed": "Échec de la récupération depuis ClassLink. Consultez la console.",
       "imported": "{{name}} importée",
@@ -2251,6 +2254,8 @@
       "orgBadge": "Votre établissement",
       "clearWidgetFilter": "Effacer le filtre de widget",
       "activityUnavailable": "Cette activité n'est plus disponible",
+      "fullscreen": "Plein écran",
+      "exitFullscreen": "Quitter le plein écran",
       "kinds": {
         "docs": "Documents",
         "slides": "Diaporamas",

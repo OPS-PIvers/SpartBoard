@@ -1209,6 +1209,9 @@
     "backgroundUploaded": "Fondo personalizado subido a la nube",
     "settingsSaved": "Configuración guardada con éxito",
     "switchBoardToUndo": "Vuelve a ese tablero para deshacer esto",
+    "notebookImporting": "Importando la lección…",
+    "notebookImportFailed": "No se pudo importar la lección",
+    "notebookTooLarge": "El archivo de la lección es demasiado grande (máx. {{limit}} MB)",
     "classLink": {
       "fetchFailed": "Error al obtener datos de ClassLink. Revisa la consola.",
       "imported": "{{name}} importada",
@@ -2251,6 +2254,8 @@
       "orgBadge": "Tu centro",
       "clearWidgetFilter": "Quitar el filtro de widget",
       "activityUnavailable": "Esta actividad ya no está disponible",
+      "fullscreen": "Pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
       "kinds": {
         "docs": "Documentos",
         "slides": "Presentaciones",

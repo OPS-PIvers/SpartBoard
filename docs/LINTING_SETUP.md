@@ -167,7 +167,9 @@ Runs on all pull requests to `main` and `dev-*` branches:
 - ✅ Type checking (`npm run type-check`)
 - ✅ Linting (`npm run lint`)
 - ✅ Code formatting check (`npm run format:check`)
+- ✅ Unit tests (3 Vitest shards, merged for the count guard), Firestore rules tests, E2E
 - ✅ Build verification (`npm run build`)
+- ⏩ `preflight` skips everything except E2E when the head SHA already passed a `dev-*` push run
 - 💬 Adds comment to PR with validation results
 
 **Purpose**: Ensures no broken code can be merged via pull requests.
@@ -176,10 +178,9 @@ Runs on all pull requests to `main` and `dev-*` branches:
 
 Runs on pushes to `main` branch:
 
-- ✅ Type checking
-- ✅ Linting
-- ✅ Code formatting check
-- 🏗️ Production build
+- ✅ Type checking, linting (app / functions / format as parallel legs)
+- ✅ Unit tests (3 shards + count guard) and Firestore rules tests
+- 🏗️ Production build (parallel job; uploaded as an artifact the deploy reuses)
 - 🚀 Deploy to Firebase live environment
 
 **Purpose**: Validates and deploys production code.
@@ -188,10 +189,9 @@ Runs on pushes to `main` branch:
 
 Runs on pushes to `dev-*` branches:
 
-- ✅ Type checking
-- ✅ Linting
-- ✅ Code formatting check
-- 🏗️ Preview build
+- ✅ Type checking, linting (app / functions / format as parallel legs)
+- ✅ Unit tests (3 shards + count guard) and Firestore rules tests
+- 🏗️ Preview build (parallel job; uploaded as an artifact the deploy reuses)
 - 🚀 Deploy to Firebase preview channel (30-day persistent URLs)
 
 **Purpose**: Validates and creates preview deployments for development branches.

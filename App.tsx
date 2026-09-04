@@ -241,6 +241,14 @@ const MediaReviewDevHarness = import.meta.env.DEV
     )
   : null;
 
+const NotebookViewsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/NotebookViewsDevHarness').then((module) => ({
+        default: module.NotebookViewsDevHarness,
+      }))
+    )
+  : null;
+
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
     <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
@@ -674,6 +682,22 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <MediaReviewDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: visual harness for the SmartNotebook widget's Library / Viewer
+  // / PageEditorOverlay UI states against a real converted mock notebook, so
+  // Help Center doc screenshots don't need Firestore/Storage. Same
+  // import.meta.env.DEV gating as the harnesses above.
+  if (
+    import.meta.env.DEV &&
+    NotebookViewsDevHarness &&
+    pathname === '/notebook-views-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <NotebookViewsDevHarness />
       </Suspense>
     );
   }

@@ -11,6 +11,7 @@ import {
   resolvePageOrder,
   svgDimensions,
 } from './smartNotebook';
+import { normalizeHiddenPages } from './notebookPages';
 
 /**
  * Client-side SMART Notebook -> .spartnb converter. The browser counterpart of
@@ -38,6 +39,8 @@ export interface ConvertOptions {
   optimizeImage?: ImageOptimizer;
   /** Progress callback, fired after each page is written. */
   onProgress?: (done: number, total: number) => void;
+  /** 0-based page indices to flag hidden in the bundle's manifest.json. */
+  hiddenPages?: number[];
 }
 
 export interface ConvertResult {
@@ -226,6 +229,10 @@ export const convertNotebookToBundle = async (
     options.onProgress?.(index + 1, plan.order.length);
   }
 
+  const hiddenPages = normalizeHiddenPages(
+    options.hiddenPages,
+    manifestPages.length
+  );
   const title = stripExtension(file.name);
   const sections: NotebookSection[] = plan.sections;
   out.file(
@@ -240,6 +247,7 @@ export const convertNotebookToBundle = async (
         // Only include the field when there's actually data to write —
         // keeps existing converted bundles diff-clean and parsers happy.
         ...(collectedLinks.length > 0 ? { objectLinks: collectedLinks } : {}),
+        ...(hiddenPages.length > 0 ? { hiddenPages } : {}),
       },
       null,
       2

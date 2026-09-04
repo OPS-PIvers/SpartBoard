@@ -3,6 +3,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Eye,
+  EyeOff,
   FileText,
   Pencil,
   Plus,
@@ -15,6 +17,13 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { PageCanvas } from './PageCanvas';
 import { PageJumpMenu } from './PageJumpMenu';
 import { ReorderPageControl } from './ReorderPageControl';
+import {
+  effectiveHiddenPages,
+  nextVisiblePage,
+  normalizeHiddenPages,
+  visiblePageIndices,
+  visiblePositionOf,
+} from '@/utils/notebookPages';
 
 interface ViewerProps {
   activeNotebook: NotebookItem;
@@ -39,7 +48,11 @@ interface ViewerProps {
   onMovePage?: (dir: -1 | 1) => void;
   canMoveEarlier?: boolean;
   canMoveLater?: boolean;
+  /** Hide/unhide the current page from presenting. */
+  onToggleHiddenPage?: () => void;
   pageOpBusy?: boolean;
+  /** Dev-harness only: open the page-jump menu on mount for screenshots. */
+  initialJumpMenuOpen?: boolean;
 }
 
 export const Viewer: React.FC<ViewerProps> = ({
@@ -62,9 +75,11 @@ export const Viewer: React.FC<ViewerProps> = ({
   onMovePage,
   canMoveEarlier = false,
   canMoveLater = false,
+  onToggleHiddenPage,
   pageOpBusy = false,
+  initialJumpMenuOpen = false,
 }) => {
-  const [jumpMenuOpen, setJumpMenuOpen] = useState(false);
+  const [jumpMenuOpen, setJumpMenuOpen] = useState(initialJumpMenuOpen);
   const jumpTriggerRef = useRef<HTMLButtonElement>(null);
   const iconStyle = {
     width: 'min(16px, 4cqmin)',
@@ -76,6 +91,29 @@ export const Viewer: React.FC<ViewerProps> = ({
   // Optional lesson grouping (derived from the notebook's manifest at import,
   // for both raw .notebook and converted .spartnb files). Find which lesson
   // the current page falls in.
+  // Hidden pages (answer keys) are skipped by prev/next and excluded from the
+  // page counter/progress, but stay reachable from the jump menu.
+  const totalPages = activeNotebook.pageUrls.length;
+  const hiddenPages = effectiveHiddenPages(
+    activeNotebook.hiddenPages,
+    totalPages
+  );
+  // Raw (non-effective) hidden state drives the badge/toggle so an
+  // all-hidden notebook still shows the page as hidden instead of unhiding
+  // it on click; prev/next/counter/progress use the effective set above.
+  const isCurrentHidden = normalizeHiddenPages(
+    activeNotebook.hiddenPages,
+    totalPages
+  ).includes(currentPage);
+  const visibleCount = visiblePageIndices(totalPages, hiddenPages).length;
+  const visiblePosition = visiblePositionOf(
+    currentPage,
+    totalPages,
+    hiddenPages
+  );
+  const prevVisible = nextVisiblePage(currentPage, -1, totalPages, hiddenPages);
+  const nextVisible = nextVisiblePage(currentPage, 1, totalPages, hiddenPages);
+
   const sections = activeNotebook.sections;
   const currentSectionIndex =
     sections?.findIndex(
@@ -107,7 +145,13 @@ export const Viewer: React.FC<ViewerProps> = ({
                 marginTop: 'min(2px, 0.5cqmin)',
               }}
             >
-              Page {currentPage + 1} of {activeNotebook.pageUrls.length}
+              Page {visiblePosition} of {visibleCount}
+              {isCurrentHidden && (
+                <>
+                  {'  ·  '}
+                  <span className="text-amber-600">Hidden page</span>
+                </>
+              )}
               {currentSection && (
                 <>
                   {'  ·  '}
@@ -162,6 +206,31 @@ export const Viewer: React.FC<ViewerProps> = ({
                 title="Add blank page"
               >
                 <Plus style={iconStyle} />
+              </button>
+            )}
+            {onToggleHiddenPage && (
+              <button
+                onClick={onToggleHiddenPage}
+                disabled={pageOpBusy}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title={
+                  isCurrentHidden
+                    ? 'Show this page when presenting'
+                    : 'Hide this page when presenting'
+                }
+                aria-label={
+                  isCurrentHidden
+                    ? 'Show this page when presenting'
+                    : 'Hide this page when presenting'
+                }
+                aria-pressed={isCurrentHidden}
+              >
+                {isCurrentHidden ? (
+                  <EyeOff style={iconStyle} />
+                ) : (
+                  <Eye style={iconStyle} />
+                )}
               </button>
             )}
             {onDeletePage && (
@@ -231,7 +300,28 @@ export const Viewer: React.FC<ViewerProps> = ({
         </div>
       }
       content={
-        <div className="flex-1 w-full h-full flex overflow-hidden bg-slate-100">
+        <div className="relative flex-1 w-full h-full flex overflow-hidden bg-slate-100">
+          {isCurrentHidden && (
+            <div
+              className="absolute z-20 flex items-center rounded-lg bg-slate-900/80 text-white font-bold uppercase tracking-widest pointer-events-none"
+              style={{
+                top: 'min(8px, 2cqmin)',
+                left: 'min(8px, 2cqmin)',
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                fontSize: 'min(10px, 2.5cqmin)',
+              }}
+            >
+              <EyeOff
+                aria-hidden
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+              Hidden page
+            </div>
+          )}
           {/* Slide + placed-asset overlay */}
           <PageCanvas
             pageUrl={activeNotebook.pageUrls[currentPage]}
@@ -310,8 +400,8 @@ export const Viewer: React.FC<ViewerProps> = ({
           }}
         >
           <button
-            disabled={currentPage === 0}
-            onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+            disabled={prevVisible === null}
+            onClick={() => prevVisible !== null && setCurrentPage(prevVisible)}
             className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
             style={{ padding: 'min(12px, 2.5cqmin)' }}
           >
@@ -342,7 +432,7 @@ export const Viewer: React.FC<ViewerProps> = ({
                 className="font-black text-slate-700 tracking-widest uppercase"
                 style={{ fontSize: 'min(12px, 3cqmin)' }}
               >
-                {currentPage + 1} / {activeNotebook.pageUrls.length}
+                {visiblePosition} / {visibleCount}
               </span>
               <ChevronUp
                 className={`text-slate-400 transition-transform ${jumpMenuOpen ? '' : 'rotate-180'}`}
@@ -362,7 +452,7 @@ export const Viewer: React.FC<ViewerProps> = ({
               <div
                 className="h-full bg-indigo-500 transition-all duration-300"
                 style={{
-                  width: `${((currentPage + 1) / activeNotebook.pageUrls.length) * 100}%`,
+                  width: `${(visiblePosition / Math.max(1, visibleCount)) * 100}%`,
                 }}
               />
             </div>
@@ -370,6 +460,7 @@ export const Viewer: React.FC<ViewerProps> = ({
               <PageJumpMenu
                 pageUrls={activeNotebook.pageUrls}
                 sections={sections}
+                hiddenPages={hiddenPages}
                 currentPage={currentPage}
                 onSelect={(page) => setCurrentPage(page)}
                 onClose={() => setJumpMenuOpen(false)}
@@ -378,12 +469,8 @@ export const Viewer: React.FC<ViewerProps> = ({
             )}
           </div>
           <button
-            disabled={currentPage === activeNotebook.pageUrls.length - 1}
-            onClick={() =>
-              setCurrentPage((p) =>
-                Math.min(activeNotebook.pageUrls.length - 1, p + 1)
-              )
-            }
+            disabled={nextVisible === null}
+            onClick={() => nextVisible !== null && setCurrentPage(nextVisible)}
             className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
             style={{ padding: 'min(12px, 2.5cqmin)' }}
           >
