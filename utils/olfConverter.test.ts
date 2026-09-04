@@ -516,7 +516,7 @@ describe('convertOlfToBundle', () => {
     expect(svg).toContain('translate(10 0) scale(-1 1)');
   });
 
-  it('applies non-identity element and page matrices as SVG transforms', async () => {
+  it('ignores the page camera matrix but keeps element matrices', async () => {
     const content = doc([
       page(
         [
@@ -529,7 +529,7 @@ describe('convertOlfToBundle', () => {
             },
           },
         ],
-        { matrix: '2,0,0,0,2,0,0,0,1' }
+        { matrix: '1.7,0,-580,0,1.7,-215,0,0,1' }
       ),
     ]);
     const result = await convertOlfToBundle(await olfFile(content), {
@@ -537,10 +537,127 @@ describe('convertOlfToBundle', () => {
     });
     const { zip } = await readBundle(result.blob);
     const svg = await pageSvg(zip);
-    expect(svg).toContain(
-      '<g class="foreground" transform="matrix(2 0 0 2 0 0)">'
-    );
+    expect(svg).toContain('<g class="foreground">');
+    expect(svg).not.toContain('class="foreground" transform');
+    expect(svg).toContain('<polygon points="0,0 10,0"');
     expect(svg).toContain('transform="matrix(1 0 0 1 5 7)"');
+  });
+
+  it('grows the page viewBox to cover content outside the declared page', async () => {
+    const content = doc([
+      page([
+        {
+          image: {
+            id: 'img-1',
+            x: 1800,
+            y: -100,
+            width: 300,
+            height: 200,
+            href: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip, manifest } = await readBundle(result.blob);
+    expect(manifest.pages).toEqual([
+      { file: 'pages/0.svg', width: 2124, height: 1204 },
+    ]);
+    const svg = await pageSvg(zip);
+    expect(svg).toContain('viewBox="0 -124 2124 1204"');
+    expect(svg).toContain('width="2124"');
+    expect(svg).toContain('height="1204"');
+    expect(svg).toContain(
+      '<rect x="0" y="-124" width="2124" height="1204" fill="#ffffff"/>'
+    );
+  });
+
+  it('grows the viewBox using an element matrix translation', async () => {
+    const content = doc([
+      page([
+        {
+          image: {
+            id: 'img-1',
+            x: 100,
+            y: 100,
+            width: 100,
+            height: 100,
+            matrix: '1,0,1900,0,1,0,0,0,1',
+            href: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip, manifest } = await readBundle(result.blob);
+    expect(manifest.pages).toEqual([
+      { file: 'pages/0.svg', width: 2124, height: 1080 },
+    ]);
+    expect(await pageSvg(zip)).toContain('viewBox="0 0 2124 1080"');
+  });
+
+  it('leaves the viewBox alone when content fits the page', async () => {
+    const content = doc([
+      page([
+        {
+          image: {
+            id: 'img-1',
+            x: 100,
+            y: 100,
+            width: 300,
+            height: 200,
+            href: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip, manifest } = await readBundle(result.blob);
+    expect(manifest.pages).toEqual([
+      { file: 'pages/0.svg', width: 1920, height: 1080 },
+    ]);
+    expect(await pageSvg(zip)).toContain('viewBox="0 0 1920 1080"');
+  });
+
+  it('emits nothing for empty textareas and leaves the viewBox alone', async () => {
+    const content = doc([
+      page([
+        {
+          textarea: {
+            id: 'ta-empty-1',
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            'custom-data': '',
+            'text-blocks-container': [paragraph([run('')], 'p1')],
+          },
+        },
+        {
+          textarea: {
+            id: 'ta-empty-2',
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            'custom-data': '',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip } = await readBundle(result.blob);
+    const svg = await pageSvg(zip);
+    expect(svg).toContain('<g class="foreground"></g>');
+    expect(svg).toContain('viewBox="0 0 1920 1080"');
   });
 
   it('produces a bundle that parseNotebookFile can read back', async () => {
@@ -671,4 +788,311 @@ describe('paragraph object identity', () => {
     expect(svg).not.toContain('<g data-olf-id=');
     expect(svg).toContain('data-olf-id="ta-1-p0"');
   });
+});
+
+describe('convertOlfToBundle images, ink and shapes', () => {
+  // 1x1 transparent PNG, the same fixture the SMART converter tests use.
+  const PNG_BASE64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+  const olfWithImages = async (
+    content: unknown,
+    files: Record<string, string>
+  ): Promise<File> => {
+    const zip = new JSZip();
+    zip.file('content.json', JSON.stringify(content));
+    for (const [name, base64] of Object.entries(files)) {
+      zip.file(name, base64, { base64: true });
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    return new File([blob], 'Lesson.olf');
+  };
+
+  const stubUri = (bytes: Uint8Array): Promise<string> =>
+    Promise.resolve(`data:image/webp;base64,STUB${bytes.byteLength}`);
+
+  const image = (source: string, extra: Record<string, unknown> = {}) => ({
+    image: {
+      id: `img-${source}`,
+      x: 10,
+      y: 20,
+      width: 300,
+      height: 300,
+      source,
+      'mime-type': 'image/png',
+      matrix: '2,0,5,0,2,7,0,0,1',
+      ...extra,
+    },
+  });
+
+  it('inlines a zip image as an optimized data URI with its matrix', async () => {
+    const file = await olfWithImages(doc([page([image('images/a.png')])]), {
+      'images/a.png': PNG_BASE64,
+    });
+    const result = await convertOlfToBundle(file, {
+      measureText: monoMeasure,
+      optimizeImage: stubUri,
+    });
+    const svg = await pageSvg((await readBundle(result.blob)).zip);
+    expect(svg).toContain('<image');
+    expect(svg).toContain('data:image/webp;base64,STUB');
+    expect(svg).toContain('width="300"');
+    expect(svg).toContain('transform="matrix(2 0 0 2 5 7)"');
+    expect(result.skipped).toEqual({});
+  });
+
+  it('optimizes a source shared by two pages only once', async () => {
+    const calls: string[] = [];
+    const file = await olfWithImages(
+      doc([page([image('images/a.png')]), page([image('images/a.png')])]),
+      { 'images/a.png': PNG_BASE64 }
+    );
+    const result = await convertOlfToBundle(file, {
+      measureText: monoMeasure,
+      optimizeImage: async (bytes, mime) => {
+        calls.push(mime);
+        return stubUri(bytes);
+      },
+    });
+    expect(calls).toEqual(['image/png']);
+    expect(result.pageCount).toBe(2);
+  });
+
+  it('resolves a source case-insensitively and by basename', async () => {
+    const file = await olfWithImages(
+      doc([page([image('Images/A.PNG'), image('a.png')])]),
+      { 'images/a.png': PNG_BASE64 }
+    );
+    const result = await convertOlfToBundle(file, {
+      measureText: monoMeasure,
+      optimizeImage: stubUri,
+    });
+    const svg = await pageSvg((await readBundle(result.blob)).zip);
+    expect(svg.match(/<image/g)).toHaveLength(2);
+    expect(result.skipped).toEqual({});
+  });
+
+  it('counts an image whose source is missing from the zip', async () => {
+    const file = await olfWithImages(
+      doc([page([image('images/gone.png')])]),
+      {}
+    );
+    const result = await convertOlfToBundle(file, {
+      measureText: monoMeasure,
+      optimizeImage: stubUri,
+    });
+    expect(result.skipped).toEqual({ 'image-missing': 1 });
+  });
+
+  const stroke = (extra: Record<string, unknown> = {}) => ({
+    stroke: {
+      id: 'ink-1',
+      points: '10,10 10,10 10,10 20,20 20,20 30.005,30.004',
+      stroke: '#FF0000',
+      'pen-width': 3.5294117647058822,
+      'pen-height': 3.5294117647058822,
+      opacity: 1,
+      'is-highlighter': false,
+      'pen-type': 'pen',
+      'stylus-tip-transform': '1.7,0,0,0,1.7,0,0,0,1',
+      matrix: '1,0,0,0,1,0,0,0,1',
+      ...extra,
+    },
+  });
+
+  const shapeSvg = async (element: unknown): Promise<string> => {
+    const file = await olfFile(doc([page([element])]));
+    const result = await convertOlfToBundle(file, { measureText: monoMeasure });
+    return pageSvg((await readBundle(result.blob)).zip);
+  };
+
+  it('renders a pen stroke as a deduped polyline scaled by the stylus tip', async () => {
+    const svg = await shapeSvg(stroke());
+    expect(svg).toContain('points="10,10 20,20 30.01,30"');
+    expect(svg).toContain('stroke-width="6"');
+    expect(svg).toContain('stroke="#ff0000"');
+    expect(svg).toContain('stroke-linecap="round"');
+    expect(svg).toContain('fill="none"');
+    expect(svg).toContain('data-olf-id="ink-1"');
+  });
+
+  it('renders a highlighter stroke at reduced opacity with square caps', async () => {
+    const svg = await shapeSvg(
+      stroke({ 'is-highlighter': true, opacity: 0.5 })
+    );
+    expect(svg).toContain('stroke-opacity="0.2"');
+    expect(svg).toContain('stroke-linecap="butt"');
+  });
+
+  it('classifies a pen stroke as ink for the editor', async () => {
+    // notebookSvgEdit treats <polyline> as ink, so the eraser tool can hit it.
+    expect(await shapeSvg(stroke())).toMatch(
+      /<polyline[^>]*data-olf-id="ink-1"/
+    );
+  });
+
+  it('counts a stroke with no usable points', async () => {
+    const file = await olfFile(doc([page([stroke({ points: '' })])]));
+    const result = await convertOlfToBundle(file, { measureText: monoMeasure });
+    expect(result.skipped).toEqual({ stroke: 1 });
+  });
+
+  const ellipse = (extra: Record<string, unknown> = {}) => ({
+    ellipse: {
+      id: 'el-1',
+      x: 0,
+      y: 0,
+      width: 374.15,
+      height: 398.09,
+      cx: 117.08,
+      cy: 117.08,
+      rx: 117.08,
+      ry: 117.08,
+      'is-pie': false,
+      'angle-start': 0,
+      'angle-end': 359.9,
+      stroke: '#0000FF',
+      'stroke-width': 3,
+      fill: '#FFFFFF',
+      'fill-opacity': 0,
+      'stroke-opacity': 1,
+      boundary: '1 2 3 4',
+      matrix: '1,0,0,0,1,0,0,0,1',
+      ...extra,
+    },
+  });
+
+  it('prefers cx/cy/rx/ry over the bounding box', async () => {
+    const svg = await shapeSvg(ellipse());
+    expect(svg).toContain(
+      '<ellipse cx="117.08" cy="117.08" rx="117.08" ry="117.08"'
+    );
+    expect(svg).toContain('fill="none"');
+    expect(svg).not.toContain('boundary=');
+  });
+
+  it('renders a partial pie as an arc wedge path', async () => {
+    const svg = await shapeSvg(
+      ellipse({ 'is-pie': true, 'angle-start': 0, 'angle-end': 90 })
+    );
+    expect(svg).toContain(
+      '<path d="M 117.08 117.08 L 234.16 117.08 A 117.08 117.08 0 0 1 117.08 234.16 Z"'
+    );
+    expect(svg).not.toContain('<ellipse');
+  });
+
+  it('renders a full-sweep pie as a plain ellipse', async () => {
+    expect(await shapeSvg(ellipse({ 'is-pie': true }))).toContain('<ellipse');
+  });
+
+  const arrow = (id: string, hex: string) => ({
+    polyline: {
+      id,
+      x: 0,
+      y: 0,
+      width: 80,
+      height: 40,
+      points: '10,10 90,10',
+      stroke: hex,
+      'stroke-width': 6,
+      'stroke-opacity': 1,
+      'stroke-linecap': 'round',
+      'lineshape-start': 'normal',
+      'lineshape-end': 'arrow',
+      matrix: '1,0,0,0,1,0,0,0,1',
+    },
+  });
+
+  it('emits one arrow marker per colour and references it', async () => {
+    const svg = await shapeSvg(arrow('a1', '#000000'));
+    expect(svg).toContain('<defs><marker id="olf-arrow-000000"');
+    expect(svg).toContain('marker-end="url(#olf-arrow-000000)"');
+    expect(svg).not.toContain('marker-start=');
+    expect(svg).toContain('stroke-linecap="round"');
+  });
+
+  it('reuses one marker def for two arrows of the same colour', async () => {
+    const file = await olfFile(
+      doc([page([arrow('a1', '#000000'), arrow('a2', '#000000')])])
+    );
+    const result = await convertOlfToBundle(file, { measureText: monoMeasure });
+    const svg = await pageSvg((await readBundle(result.blob)).zip);
+    expect(svg.match(/<marker /g)).toHaveLength(1);
+    expect(svg.match(/marker-end=/g)).toHaveLength(2);
+  });
+});
+
+describe('convertOlfToBundle real .olf samples', () => {
+  const SCRATCH =
+    'C:\\Users\\PAUL~1.IVE\\AppData\\Local\\Temp\\claude\\C--Users-paul-ivers-Desktop-Code-SpartBoard--claude-worktrees-spartboard-realtime-sync-ee34e1\\bef16118-50ef-4aee-91b4-3824c2f685ec\\scratchpad\\olf\\';
+
+  const convertSample = async (
+    name: string
+  ): Promise<{
+    result: Awaited<ReturnType<typeof convertOlfToBundle>>;
+    svg: string;
+    svgs: string[];
+  }> => {
+    const bytes = fs.readFileSync(`${SCRATCH}${name}`);
+    const file = new File([new Uint8Array(bytes)], name);
+    const result = await convertOlfToBundle(file, {
+      measureText: monoMeasure,
+      optimizeImage: (b) =>
+        Promise.resolve(`data:image/webp;base64,STUB${b.byteLength}`),
+    });
+    const { zip } = await readBundle(result.blob);
+    const svgs: string[] = [];
+    for (let i = 0; i < result.pageCount; i++) svgs.push(await pageSvg(zip, i));
+    return { result, svg: svgs.join(''), svgs };
+  };
+
+  const countOf = (svg: string, re: RegExp): number =>
+    svg.match(re)?.length ?? 0;
+
+  it.skipIf(!fs.existsSync(`${SCRATCH}seating.olf`))(
+    'converts seating.olf with nothing skipped',
+    async () => {
+      const { result, svg, svgs } = await convertSample('seating.olf');
+      expect(result.pageCount).toBe(4);
+      expect(result.skipped).toEqual({});
+      expect(countOf(svg, /<image /g)).toBe(14);
+      expect(countOf(svg, /<polyline /g)).toBe(13);
+      // The camera matrix is ignored, so no page carries a foreground transform.
+      expect(countOf(svg, /class="foreground" transform/g)).toBe(0);
+      const box = (page: number): number[] =>
+        (
+          /viewBox="(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+)"/
+            .exec(svgs[page])
+            ?.slice(1) ?? []
+        ).map(Number);
+      // Page 1 is text-only and stays anchored at the page origin.
+      expect(box(1).slice(0, 2)).toEqual([0, 0]);
+      expect(box(1)[3]).toBe(1080);
+      // Pages 0 and 3 hold images placed above and right of the declared page.
+      expect(box(0)[2]).toBeGreaterThan(1920);
+      expect(box(0)[1]).toBeLessThan(0);
+      expect(box(3)[1]).toBeLessThan(0);
+    }
+  );
+
+  it.skipIf(!fs.existsSync(`${SCRATCH}kreise.olf`))(
+    'converts kreise.olf with nothing skipped',
+    async () => {
+      const { result, svg, svgs } = await convertSample('kreise.olf');
+      expect(result.pageCount).toBe(1);
+      expect(svgs[0]).toContain('viewBox="0 0 1067 600"');
+      expect(result.skipped).toEqual({});
+      expect(countOf(svg, /<ellipse /g)).toBe(2);
+      expect(countOf(svg, /<image /g)).toBe(4);
+      expect(countOf(svg, /marker-end=/g)).toBe(1);
+    }
+  );
+
+  it.skipIf(!fs.existsSync(`${SCRATCH}sample.olf`))(
+    'keeps sample.olf at the declared page size',
+    async () => {
+      const { svgs } = await convertSample('sample.olf');
+      expect(svgs[0]).toContain('viewBox="0 0 1920 1080"');
+    }
+  );
 });
