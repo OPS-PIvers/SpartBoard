@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - dev-*
-    # Skip the full 6-job suite for docs-only PRs. The nightly agent fleet opens
+    # Skip the full suite for docs-only PRs. The nightly agent fleet opens
     # many journal-only PRs (docs/routines/*.md), and Markdown never affects the
     # build, tests, or rules — so validating it is pure Actions spend. A PR that
     # also touches any non-doc file still runs everything (paths-ignore only
@@ -15,15 +15,70 @@ on:
       - 'docs/**'
 
 # Cancel a superseded run when a newer commit is pushed to the same PR, so
-# rapid successive pushes don't each run the full 6-job suite to completion.
+# rapid successive pushes don't each run the full suite to completion.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+env:
+  VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'test-key' }}
+  VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || 'test.firebaseapp.com' }}
+  VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || 'test-project' }}
+  VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET || 'test.appspot.com' }}
+  VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789' }}
+  VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || '1:123456789:web:abc123' }}
+  VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY || 'test-key' }}
+  VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
+
 jobs:
-  quality:
+  # A dev-* push already ran lint, type-check, unit tests, rules tests and the
+  # build on this exact commit. When that run succeeded, only E2E (which the
+  # dev workflow doesn't run) still needs to execute here.
+  preflight:
     runs-on: ubuntu-24.04
-    name: Code Quality Checks
+    name: Check for prior dev-branch validation
+    outputs:
+      reuse: ${{ steps.check.outputs.reuse }}
+    steps:
+      - id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const headSha = context.payload.pull_request.head.sha;
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'firebase-dev-deploy.yml',
+              head_sha: headSha,
+              status: 'success',
+              per_page: 5,
+            });
+            const run = data.workflow_runs.find((r) => r.event === 'push');
+            if (run) {
+              core.info(`Reusing dev-branch validation for ${headSha}: ${run.html_url}`);
+              await core.summary
+                .addHeading('Validation reused')
+                .addRaw(`Lint, type-check, unit tests, rules tests and build already passed on this commit in [the dev-branch run](${run.html_url}). Only E2E runs here.`)
+                .write();
+            } else {
+              core.info(`No successful dev-branch run found for ${headSha}; running the full suite.`);
+            }
+            core.setOutput('reuse', run ? 'true' : 'false');
+
+  quality:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
+    runs-on: ubuntu-24.04
+    name: Code Quality (${{ matrix.check }})
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint-app, lint-functions, format, type-check]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -31,25 +86,28 @@ jobs:
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup
 
-      - name: Run linter
-        # `pnpm run lint` runs two SEPARATE type-aware ESLint passes in their
-        # own processes: the root app (root tsconfig) and functions/ (functions
-        # tsconfig). Splitting them means peak heap is bounded by the larger
-        # single TS program (the app, ~4.5GB measured) instead of both programs
-        # held in one process (which previously needed a 6144MB cap). 5120MB
-        # leaves comfortable headroom above the measured peak. Rule coverage is
-        # unchanged — see eslint.config.js and functions/eslint.config.mjs.
-        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint
-
-      - name: Check code formatting
+      # Type-aware ESLint on the root app holds a ~4.5GB TS program; 5120MB leaves headroom.
+      - if: matrix.check == 'lint-app'
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
+      - if: matrix.check == 'lint-functions'
+        run: pnpm run lint:functions
+      - if: matrix.check == 'format'
         run: pnpm run format:check
-
-      - name: Run type check
+      - if: matrix.check == 'type-check'
         run: pnpm run type-check:all
 
+  # The root suite is ~840 jsdom files; sharding across runners cuts wall time
+  # roughly by the shard count. Each shard uploads its JSON report so the
+  # test-counts job can merge them and apply the silent-omission guard.
   test:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
-    name: Unit Tests
+    name: Unit Tests (shard ${{ matrix.shard }}/3)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -58,16 +116,36 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run unit tests
-        run: pnpm run test:all
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'test-key' }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || 'test.firebaseapp.com' }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || 'test-project' }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET || 'test.appspot.com' }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789' }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || '1:123456789:web:abc123' }}
-          VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY || 'test-key' }}
-          VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
+        run: pnpm run test:shard --shard=${{ matrix.shard }}/3 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-report-shard-${{ matrix.shard }}
+          path: .vitest-reports/root-shard-${{ matrix.shard }}.json
+          retention-days: 1
+
+  # Functions suite (~5s) plus the merged-shard count guard from scripts/checkTestCounts.mjs.
+  test-counts:
+    needs: test
+    runs-on: ubuntu-24.04
+    name: Unit Tests (functions + count guard)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-report-shard-*
+          path: .vitest-reports/shards
+          merge-multiple: true
+
+      - run: pnpm run test:merge-reports .vitest-reports/root.json .vitest-reports/shards/root-shard-*.json
+      - run: pnpm -C functions test
+      - run: pnpm run test:counts
 
   e2e:
     runs-on: ubuntu-24.04
@@ -85,7 +163,6 @@ jobs:
       - name: Run E2E tests
         run: pnpm run test:e2e
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'test-key' }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID || 'test-client-id' }}
           VITE_AUTH_BYPASS: 'true'
 
@@ -98,6 +175,8 @@ jobs:
           retention-days: 30
 
   rules:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: Firestore Rules Tests
     steps:
@@ -115,10 +194,19 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Cache Firestore emulator jar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
+
       - name: Run Firestore rules tests
         run: pnpm run test:rules
 
   build:
+    needs: preflight
+    if: needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
     name: Build
     steps:
@@ -130,37 +218,31 @@ jobs:
 
       - name: Build project
         run: pnpm run build:all
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'test-key' }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || 'test.firebaseapp.com' }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || 'test-project' }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET || 'test.appspot.com' }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789' }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || '1:123456789:web:abc123' }}
-          VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY || 'test-key' }}
-          VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
 
   summary:
-    needs: [quality, test, rules, build, e2e]
+    needs: [preflight, quality, test, test-counts, rules, build, e2e]
     runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Add PR Comment
-        if: ${{ needs.quality.result == 'success' && needs.test.result == 'success' && needs.rules.result == 'success' && needs.build.result == 'success' && needs.e2e.result == 'success' }}
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GH_PR_COMMENT_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const reused = '${{ needs.preflight.outputs.reuse }}' === 'true';
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ All validation checks passed! Code quality looks good.'
+              body: reused
+                ? '✅ All validation checks passed (lint, types, unit and rules tests reused from the dev-branch run on this commit; E2E ran here).'
+                : '✅ All validation checks passed! Code quality looks good.'
             })
 
       - name: Add PR Comment on Failure
-        if: ${{ needs.quality.result == 'failure' || needs.test.result == 'failure' || needs.rules.result == 'failure' || needs.build.result == 'failure' || needs.e2e.result == 'failure' }}
+        if: ${{ contains(needs.*.result, 'failure') }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:

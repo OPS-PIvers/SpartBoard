@@ -118,6 +118,7 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 - **Run Firestore rules tests**: `pnpm run test:rules` (boots the Firestore emulator and runs `vitest.rules.config.ts` against `tests/rules/`)
 - **Run all unit tests (root + functions)**: `pnpm run test:all`
 - **Test-count guard**: `pnpm run test:counts` (fails if Vitest silently collected fewer suites than baseline; runs inside `validate` and `test:all`)
+- **Sharded tests (CI)**: `pnpm run test:shard --shard=1/3 --outputFile=...` then `pnpm run test:merge-reports .vitest-reports/root.json <shard reports>` before `test:counts`
 - **Perf tests**: `pnpm run test:perf` (`vitest.perf.config.ts`, `tests/perf/`)
 - **Draft changelog**: `pnpm run changelog:draft` (prints a draft entry for `public/changelog.json`; rewrite before committing)
 
@@ -880,6 +881,8 @@ The app uses Firebase Authentication with admin role management through Firestor
    firebase deploy --only firestore:rules
    ```
 
+   Note: `firebase.json` has no hosting `predeploy` hook. Run `pnpm run build` before a manual `firebase deploy --only hosting`; CI builds explicitly.
+
 3. **Run the admin setup script** (optional):
    ```bash
    pnpm run install:all
@@ -917,7 +920,8 @@ function MyComponent() {
 **1. PR Validation** (`.github/workflows/pr-validation.yml`)
 
 - Runs on PRs to `main` and `dev-*` branches
-- Checks: type-check, lint, format-check, build
+- Checks: type-check, lint, format-check, unit tests (3 Vitest shards + count guard), rules tests, build, E2E
+- **Reuses dev-branch validation**: a `preflight` job looks for a successful `firebase-dev-deploy.yml` run on the PR's head SHA. If found, everything except E2E is skipped — so a PR opened from an already-green `dev-*` branch is fast.
 - Adds comment to PR with results
 - **Enforces**: Zero TypeScript errors, zero ESLint errors, proper formatting
 
@@ -930,6 +934,7 @@ function MyComponent() {
 **3. Dev Branch Deploy** (`.github/workflows/firebase-dev-deploy.yml`)
 
 - Runs on pushes to configured dev branches (`dev-lead`, `dev-developer1`, `dev-developer2`, etc.)
+- Lint (app / functions / format), type-check, 3 unit-test shards, rules tests and the build all run in parallel; `deploy` downloads the build artifact instead of rebuilding
 - Creates persistent preview URLs (30 days)
 - Pattern: `https://spartboard--dev-{branch}-XXXXXXXX.web.app`
 
