@@ -405,6 +405,7 @@ interface Cell {
   width: number;
   text: string;
   style: RunStyle;
+  column: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +479,54 @@ const readRunStyle = (run: Json, paragraphSize: number): RunStyle => ({
   backgroundOpacity: num(run, 'background-opacity', 0),
 });
 
+const cellFont = (style: RunStyle): string =>
+  fontCss(style.size, style.family, style.weight, style.style);
+
+/** Groups cells into the columns produced by tab / wide-space breaks. */
+const groupColumns = (cells: Cell[]): Cell[][] => {
+  const groups: Cell[][] = [];
+  cells.forEach((cell) => {
+    const last = groups[groups.length - 1];
+    if (last && last[0].column === cell.column) last.push(cell);
+    else groups.push([cell]);
+  });
+  return groups;
+};
+
+/** Trims each column's outer whitespace, shifting x by the dropped prefix. */
+const trimColumns = (groups: Cell[][], ctx: PageContext): Cell[][] =>
+  groups
+    .map((group) => {
+      const kept: Cell[] = [];
+      let leading = true;
+      group.forEach((cell) => {
+        let { x, text, width } = cell;
+        if (leading) {
+          const lead = /^\s*/.exec(text)?.[0] ?? '';
+          if (lead) {
+            const shift = ctx.measure(lead, cellFont(cell.style));
+            x += shift;
+            width -= shift;
+            text = text.slice(lead.length);
+          }
+          if (text.length > 0) leading = false;
+        }
+        if (text.length > 0) kept.push({ ...cell, x, text, width });
+      });
+      while (kept.length > 0) {
+        const last = kept[kept.length - 1];
+        const trail = /\s*$/.exec(last.text)?.[0] ?? '';
+        if (trail) {
+          last.width -= ctx.measure(trail, cellFont(last.style));
+          last.text = last.text.slice(0, last.text.length - trail.length);
+        }
+        if (last.text.length === 0) kept.pop();
+        else break;
+      }
+      return kept;
+    })
+    .filter((group) => group.length > 0);
+
 /** Splits a paragraph's runs into tab-delimited, absolutely positioned cells. */
 const layoutParagraph = (
   runs: Json[],
@@ -486,21 +535,19 @@ const layoutParagraph = (
   ctx: PageContext,
   rtfFallback: string | undefined,
   tabStops: number[]
-): Cell[] => {
+): Cell[][] => {
   const cells: Cell[] = [];
   let cursor = originX;
   let pendingX = originX;
   let pendingText = '';
   let pendingStyle: RunStyle | null = null;
+  let column = 0;
 
   const flush = (): void => {
     if (pendingText.length > 0 && pendingStyle) {
       const style = pendingStyle;
-      const width = ctx.measure(
-        pendingText,
-        fontCss(style.size, style.family, style.weight, style.style)
-      );
-      cells.push({ x: pendingX, width, text: pendingText, style });
+      const width = ctx.measure(pendingText, cellFont(style));
+      cells.push({ x: pendingX, width, text: pendingText, style, column });
     }
     pendingText = '';
     pendingStyle = null;
@@ -524,26 +571,31 @@ const layoutParagraph = (
       text = rtfFallback;
       bump(ctx.skipped, 'text-encoding-repaired-from-rtf');
     }
-    const segments = text.split('\t');
-    segments.forEach((segment, segIndex) => {
-      if (segIndex > 0) {
+    // A run of 3+ spaces reads as a column gap, like a tab.
+    const parts = text.split(/(\t| {3,})/);
+    parts.forEach((part, partIndex) => {
+      if (partIndex % 2 === 1) {
         flush();
-        cursor = nextTabStop(cursor, originX, tabStops);
+        column += 1;
+        cursor =
+          part === '\t'
+            ? nextTabStop(cursor, originX, tabStops)
+            : cursor + ctx.measure(part, cellFont(style));
+        return;
       }
-      if (segment.length === 0) return;
+      if (part.length === 0) return;
       if (!pendingStyle) {
         pendingX = cursor;
         pendingStyle = style;
       }
-      pendingText += segment;
-      cursor += ctx.measure(
-        segment,
-        fontCss(style.size, style.family, style.weight, style.style)
-      );
+      pendingText += part;
+      cursor += ctx.measure(part, cellFont(style));
     });
   });
   flush();
-  return cells;
+  return trimColumns(groupColumns(cells), ctx).map((group, index) =>
+    group.map((cell) => ({ ...cell, column: index }))
+  );
 };
 
 const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
@@ -573,7 +625,7 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
       offset += lineHeight;
       return;
     }
-    const cells = layoutParagraph(
+    const columns = layoutParagraph(
       runs,
       paragraphSize,
       x,
@@ -581,86 +633,93 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
       rtf.paragraphs[index],
       rtf.tabStopsPx
     );
-    if (cells.length === 0) {
+    if (columns.length === 0) {
       offset += lineHeight;
       return;
     }
     const baseline = y + offset + paragraphSize * 0.8;
-    const first = cells[0].style;
-
-    const highlights = cells
-      .filter(
-        (cell) =>
-          cell.style.backgroundOpacity > 0 &&
-          cell.style.background !== null &&
-          cell.style.background.hex !== ctx.pageBackgroundHex
-      )
-      .map(
-        (cell) =>
-          `<rect${attrs({
-            x: round(cell.x),
-            y: round(baseline - cell.style.size * 0.8),
-            width: round(cell.width),
-            height: round(cell.style.size * 1.2),
-            fill: cell.style.background?.hex,
-            'fill-opacity':
-              cell.style.backgroundOpacity < 1
-                ? round(cell.style.backgroundOpacity)
-                : undefined,
-          })}/>`
-      )
-      .join('');
-
-    const tspans = cells
-      .map(
-        (cell) =>
-          `<tspan${attrs({
-            x: round(cell.x),
-            'font-size':
-              cell.style.size !== first.size ? cell.style.size : undefined,
-            'font-family':
-              cell.style.family !== first.family
-                ? fontStack(cell.style.family)
-                : undefined,
-            'font-weight':
-              cell.style.weight !== first.weight
-                ? cell.style.weight
-                : undefined,
-            fill:
-              cell.style.fill?.hex !== first.fill?.hex
-                ? cell.style.fill?.hex
-                : undefined,
-          })}>${xmlEscape(cell.text)}</tspan>`
-      )
-      .join('');
-
-    // One id per paragraph — ids must be unique within a page.
-    const paragraphId = id ? `${id}-p${index}` : '';
     const ownAttrs = `${metaAttrs(meta)}${transform ? attrs({ transform }) : ''}`;
-    const text = `<text${attrs({
-      'xml:space': 'preserve',
-      x: round(x),
-      y: round(baseline),
-      'font-family': fontStack(first.family),
-      'font-size': first.size,
-      'font-weight': first.weight !== 'normal' ? first.weight : undefined,
-      'font-style': first.style !== 'normal' ? first.style : undefined,
-      'text-decoration':
-        first.decoration !== 'normal' ? first.decoration : undefined,
-      fill: first.fill?.hex ?? '#000000',
-      'fill-opacity':
-        first.fill && first.fill.opacity < 1
-          ? round(first.fill.opacity)
-          : undefined,
-      ...(highlights ? {} : { 'data-olf-id': paragraphId }),
-    })}${highlights ? '' : ownAttrs}>${tspans}</text>`;
 
-    // Highlight rects and their text must be one editable object for the editor.
-    pieces.push(
-      highlights
-        ? `<g${attrs({ 'data-olf-id': paragraphId })}${ownAttrs}>${highlights}${text}</g>`
-        : text
-    );
+    // Each column is its own editable object so cells drag independently.
+    columns.forEach((cells, columnIndex) => {
+      const first = cells[0].style;
+
+      const highlights = cells
+        .filter(
+          (cell) =>
+            cell.style.backgroundOpacity > 0 &&
+            cell.style.background !== null &&
+            cell.style.background.hex !== ctx.pageBackgroundHex
+        )
+        .map(
+          (cell) =>
+            `<rect${attrs({
+              x: round(cell.x),
+              y: round(baseline - cell.style.size * 0.8),
+              width: round(cell.width),
+              height: round(cell.style.size * 1.2),
+              fill: cell.style.background?.hex,
+              'fill-opacity':
+                cell.style.backgroundOpacity < 1
+                  ? round(cell.style.backgroundOpacity)
+                  : undefined,
+            })}/>`
+        )
+        .join('');
+
+      const tspans = cells
+        .map(
+          (cell) =>
+            `<tspan${attrs({
+              x: round(cell.x),
+              'font-size':
+                cell.style.size !== first.size ? cell.style.size : undefined,
+              'font-family':
+                cell.style.family !== first.family
+                  ? fontStack(cell.style.family)
+                  : undefined,
+              'font-weight':
+                cell.style.weight !== first.weight
+                  ? cell.style.weight
+                  : undefined,
+              fill:
+                cell.style.fill?.hex !== first.fill?.hex
+                  ? cell.style.fill?.hex
+                  : undefined,
+            })}>${xmlEscape(cell.text)}</tspan>`
+        )
+        .join('');
+
+      // One id per column — ids must be unique within a page.
+      const base = id ? `${id}-p${index}` : '';
+      const cellId =
+        base && columns.length > 1 ? `${base}-c${columnIndex}` : base;
+      const text = `<text${attrs({
+        'xml:space': 'preserve',
+        x: round(cells[0].x),
+        y: round(baseline),
+        'font-family': fontStack(first.family),
+        'font-size': first.size,
+        'font-weight': first.weight !== 'normal' ? first.weight : undefined,
+        'font-style': first.style !== 'normal' ? first.style : undefined,
+        'text-decoration':
+          first.decoration !== 'normal' ? first.decoration : undefined,
+        fill: first.fill?.hex ?? '#000000',
+        'fill-opacity':
+          first.fill && first.fill.opacity < 1
+            ? round(first.fill.opacity)
+            : undefined,
+        ...(highlights ? {} : { 'data-olf-id': cellId }),
+      })}${highlights ? '' : ownAttrs}>${tspans}</text>`;
+
+      // Highlight rects and their text must be one editable object for the editor.
+      pieces.push(
+        highlights
+          ? `<g${attrs({ 'data-olf-id': cellId })}${ownAttrs}>${highlights}${text}</g>`
+          : text
+      );
+    });
+
     offset += lineHeight;
   });
 
