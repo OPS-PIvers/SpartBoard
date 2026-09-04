@@ -2251,6 +2251,8 @@
       "orgBadge": "Tu centro",
       "clearWidgetFilter": "Quitar el filtro de widget",
       "activityUnavailable": "Esta actividad ya no está disponible",
+      "fullscreen": "Pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
       "kinds": {
         "docs": "Documentos",
         "slides": "Presentaciones",

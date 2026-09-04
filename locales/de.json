@@ -2251,6 +2251,8 @@
       "orgBadge": "Deine Schule",
       "clearWidgetFilter": "Widget-Filter entfernen",
       "activityUnavailable": "Diese Aktivität ist nicht mehr verfügbar",
+      "fullscreen": "Vollbild",
+      "exitFullscreen": "Vollbild beenden",
       "kinds": {
         "docs": "Dokumente",
         "slides": "Präsentationen",

@@ -2251,6 +2251,8 @@
       "orgBadge": "Your school",
       "clearWidgetFilter": "Clear widget filter",
       "activityUnavailable": "This activity is no longer available",
+      "fullscreen": "Full screen",
+      "exitFullscreen": "Exit full screen",
       "kinds": {
         "docs": "Docs",
         "slides": "Slides",

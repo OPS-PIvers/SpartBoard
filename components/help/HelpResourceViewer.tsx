@@ -1,6 +1,12 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ExternalLink,
+  Loader2,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import type { GuidedLearningSet } from '@/types';
 import {
@@ -30,7 +36,10 @@ type GlState =
   | { status: 'missing' };
 
 // Keyed on setId by the caller, so a different set remounts instead of resetting state in an effect.
-const GuidedLearningViewer: React.FC<{ setId: string }> = ({ setId }) => {
+const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
+  setId,
+  fill,
+}) => {
   const { t } = useTranslation();
   const [state, setState] = useState<GlState>({ status: 'loading' });
 
@@ -68,7 +77,9 @@ const GuidedLearningViewer: React.FC<{ setId: string }> = ({ setId }) => {
 
   return (
     <div
-      className="relative aspect-video w-full overflow-hidden rounded-lg bg-slate-900"
+      className={`relative w-full overflow-hidden bg-slate-900 ${
+        fill ? 'h-full' : 'aspect-video rounded-lg'
+      }`}
       style={{ containerType: 'size' }}
     >
       <Suspense
@@ -84,7 +95,10 @@ const GuidedLearningViewer: React.FC<{ setId: string }> = ({ setId }) => {
   );
 };
 
-const EmbedViewer: React.FC<{ item: HelpResourceItem }> = ({ item }) => {
+const EmbedViewer: React.FC<{ item: HelpResourceItem; fill: boolean }> = ({
+  item,
+  fill,
+}) => {
   const { t } = useTranslation();
   const url = item.url ?? '';
   // The sandbox comes from the URL below; the stored embedType is only a display hint.
@@ -106,13 +120,14 @@ const EmbedViewer: React.FC<{ item: HelpResourceItem }> = ({ item }) => {
     );
   }
 
-  const boxClass =
-    item.embedType === 'youtube'
-      ? 'relative w-full aspect-video'
-      : 'relative w-full min-h-[60vh]';
+  const boxClass = fill
+    ? 'relative w-full h-full'
+    : item.embedType === 'youtube'
+      ? 'relative w-full aspect-video rounded-lg'
+      : 'relative w-full min-h-[60vh] rounded-lg';
 
   return (
-    <div className={`${boxClass} overflow-hidden rounded-lg bg-slate-100`}>
+    <div className={`${boxClass} overflow-hidden bg-slate-100`}>
       <iframe
         src={src}
         title={item.title}
@@ -131,10 +146,37 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
 }) => {
   const { t } = useTranslation();
   const backRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const canFullscreen =
+    typeof document !== 'undefined' && !!document.fullscreenEnabled;
 
   useEffect(() => {
     void incrementHelpOpenCount(item.id);
   }, [item.id]);
+
+  // Esc and browser chrome can exit fullscreen without us, so mirror the DOM state.
+  useEffect(() => {
+    const sync = () =>
+      setIsFullscreen(
+        !!contentRef.current &&
+          document.fullscreenElement === contentRef.current
+      );
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {
+        /* ignore */
+      });
+      return;
+    }
+    contentRef.current?.requestFullscreen().catch((err: unknown) => {
+      logError('HelpResourceViewer requestFullscreen', err);
+    });
+  };
 
   useEffect(() => {
     backRef.current?.focus();
@@ -152,12 +194,24 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
           <ArrowLeft className="w-4 h-4" />
           {t('helpCenter.guides.back')}
         </button>
+        {canFullscreen && (
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            <Maximize2 className="w-4 h-4" />
+            {t('helpCenter.guides.fullscreen')}
+          </button>
+        )}
         {item.url && (
           <a
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:underline"
+            className={`flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:underline ${
+              canFullscreen ? '' : 'ml-auto'
+            }`}
           >
             {t('helpCenter.guides.open')}
             <ExternalLink className="w-4 h-4" />
@@ -172,17 +226,38 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
         )}
       </div>
 
-      {item.kind === 'guided-learning' ? (
-        item.setId ? (
-          <GuidedLearningViewer key={item.setId} setId={item.setId} />
+      <div
+        ref={contentRef}
+        className={
+          isFullscreen ? 'relative h-full w-full bg-slate-900' : 'min-w-0'
+        }
+      >
+        {item.kind === 'guided-learning' ? (
+          item.setId ? (
+            <GuidedLearningViewer
+              key={item.setId}
+              setId={item.setId}
+              fill={isFullscreen}
+            />
+          ) : (
+            <p className="py-16 text-center text-sm text-slate-500">
+              {t('helpCenter.guides.activityUnavailable')}
+            </p>
+          )
         ) : (
-          <p className="py-16 text-center text-sm text-slate-500">
-            {t('helpCenter.guides.activityUnavailable')}
-          </p>
-        )
-      ) : (
-        <EmbedViewer item={item} />
-      )}
+          <EmbedViewer item={item} fill={isFullscreen} />
+        )}
+        {isFullscreen && (
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm hover:bg-slate-900/90 transition-colors"
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+            {t('helpCenter.guides.exitFullscreen')}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
