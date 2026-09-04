@@ -593,6 +593,53 @@ const elementTransform = (
   return parts.length > 0 ? parts.join(' ') : undefined;
 };
 
+/** Where a box element's local geometry is drawn, and how it is transformed. */
+interface BoxPlacement {
+  /** Offset baked into the emitted geometry (0 whenever a transform is used). */
+  ox: number;
+  oy: number;
+  transform: string | undefined;
+  /** Numeric twin of `transform`, for the bounds accumulator. */
+  mat: Mat;
+}
+
+const matToSvg = (m: Mat): string =>
+  `matrix(${m[0]} ${m[1]} ${m[2]} ${m[3]} ${m[4]} ${m[5]})`;
+
+/**
+ * myViewBoard renders a box element as `translate(x, y) * matrix * local`, with
+ * the local content drawn at the origin. When there is nothing to apply, the
+ * geometry keeps its absolute x/y so the simple case stays readable.
+ */
+const boxPlacement = (
+  body: Json,
+  meta: ElementMeta | undefined,
+  box: { x: number; y: number; width: number; height: number }
+): BoxPlacement => {
+  const matrix = parseOlfMatrix(str(body, 'matrix'));
+  const local = { x: 0, y: 0, width: box.width, height: box.height };
+  const flip = flipMatrix(meta, local);
+  if (!matrix && !flip) {
+    return { ox: box.x, oy: box.y, transform: undefined, mat: IDENTITY_MAT };
+  }
+  const parts: string[] = [];
+  let mat: Mat = IDENTITY_MAT;
+  if (box.x !== 0 || box.y !== 0) {
+    parts.push(`translate(${round(box.x)} ${round(box.y)})`);
+    mat = [1, 0, 0, 1, box.x, box.y];
+  }
+  const flipString = flipTransform(meta, local);
+  if (flip && flipString) {
+    parts.push(flipString);
+    mat = mulMat(mat, flip);
+  }
+  if (matrix) {
+    parts.push(matToSvg(matrix));
+    mat = mulMat(mat, matrix);
+  }
+  return { ox: 0, oy: 0, transform: parts.join(' ') || undefined, mat };
+};
+
 const readRunStyle = (run: Json, paragraphSize: number): RunStyle => ({
   size: num(run, 'font-size', paragraphSize),
   family: str(run, 'font-family'),
@@ -734,8 +781,9 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
     .filter((b): b is { kind: string; body: Json } => b?.kind === 'paragraph');
 
   const meta = ctx.meta.get(id);
-  const transform = elementTransform(body, meta, { x, y, width, height });
-  const mat = elementMatrix(body, meta, { x, y, width, height });
+  const place = boxPlacement(body, meta, { x, y, width, height });
+  const transform = place.transform;
+  const mat = place.mat;
   const pieces: string[] = [];
 
   let offset = 0;
@@ -754,7 +802,7 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
     const columns = layoutParagraph(
       runs,
       paragraphSize,
-      x,
+      place.ox,
       ctx,
       rtf.paragraphs[index],
       rtf.tabStopsPx
@@ -763,7 +811,7 @@ const renderTextarea = (body: Json, ctx: PageContext, id: string): string => {
       offset += lineHeight;
       return;
     }
-    const baseline = y + offset + paragraphSize * 0.8;
+    const baseline = place.oy + offset + paragraphSize * 0.8;
     const ownAttrs = `${metaAttrs(meta)}${transform ? attrs({ transform }) : ''}`;
 
     // Each column is its own editable object so cells drag independently.
@@ -864,14 +912,13 @@ const shapeAttrs = (
   body: Json,
   ctx: PageContext,
   id: string,
-  box: { x: number; y: number; width: number; height: number }
+  transform: string | undefined
 ): string => {
   const meta = ctx.meta.get(id);
   const stroke = splitArgb(str(body, 'stroke'));
   const fill = splitArgb(str(body, 'fill'));
   const fillOpacity = num(body, 'fill-opacity', 1);
   const strokeOpacity = num(body, 'stroke-opacity', 1);
-  const transform = elementTransform(body, meta, box);
   return (
     attrs({
       stroke: stroke?.hex,
@@ -1015,7 +1062,10 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
     height: num(body, 'height', 0),
   };
 
+  // Points-based elements carry absolute page coordinates; boxes carry local ones.
   const mat = elementMatrix(body, ctx.meta.get(id), box);
+  const pointsTransform = elementTransform(body, ctx.meta.get(id), box);
+  const place = boxPlacement(body, ctx.meta.get(id), box);
   const halfStroke = num(body, 'stroke-width', 1) / 2;
 
   switch (kind) {
@@ -1029,29 +1079,38 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         return null;
       }
       extendBounds(ctx, mat, parsePointList(points), halfStroke);
-      return `<${kind}${attrs({ points })}${shapeAttrs(body, ctx, id, box)}${
+      return `<${kind}${attrs({ points })}${shapeAttrs(body, ctx, id, pointsTransform)}${
         kind === 'polyline' ? lineShapeAttrs(body, ctx) : ''
       }/>`;
     }
     case 'stroke':
       return renderStroke(body, ctx, id, box);
     case 'rect':
-    case 'rectangle':
-      extendBounds(ctx, mat, cornersOf(box), halfStroke);
+    case 'rectangle': {
+      const local = {
+        x: place.ox,
+        y: place.oy,
+        width: box.width,
+        height: box.height,
+      };
+      extendBounds(ctx, place.mat, cornersOf(local), halfStroke);
       return `<rect${attrs({
-        x: round(box.x),
-        y: round(box.y),
-        width: round(box.width),
-        height: round(box.height),
+        x: round(local.x),
+        y: round(local.y),
+        width: round(local.width),
+        height: round(local.height),
         rx: body['rx'] !== undefined ? num(body, 'rx', 0) : undefined,
-      })}${shapeAttrs(body, ctx, id, box)}/>`;
+      })}${shapeAttrs(body, ctx, id, place.transform)}/>`;
+    }
     case 'ellipse':
     case 'circle': {
-      // cx/cy/rx/ry are authoritative; width/height are the transformed bounds.
+      // cx/cy/rx/ry are authoritative and local; width/height are the bounds.
       const cx =
-        body['cx'] !== undefined ? num(body, 'cx', 0) : box.x + box.width / 2;
+        place.ox +
+        (body['cx'] !== undefined ? num(body, 'cx', 0) : box.width / 2);
       const cy =
-        body['cy'] !== undefined ? num(body, 'cy', 0) : box.y + box.height / 2;
+        place.oy +
+        (body['cy'] !== undefined ? num(body, 'cy', 0) : box.height / 2);
       const rx = body['rx'] !== undefined ? num(body, 'rx', 0) : box.width / 2;
       const ry = body['ry'] !== undefined ? num(body, 'ry', 0) : box.height / 2;
       const start = num(body, 'angle-start', 0);
@@ -1059,19 +1118,19 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
       const isPie = body['is-pie'] === true && Math.abs(end - start) < 359;
       extendBounds(
         ctx,
-        mat,
+        place.mat,
         cornersOf({ x: cx - rx, y: cy - ry, width: 2 * rx, height: 2 * ry }),
         halfStroke
       );
       if (isPie) {
-        return `<path${attrs({ d: pieWedge(cx, cy, rx, ry, start, end) })}${shapeAttrs(body, ctx, id, box)}/>`;
+        return `<path${attrs({ d: pieWedge(cx, cy, rx, ry, start, end) })}${shapeAttrs(body, ctx, id, place.transform)}/>`;
       }
       return `<ellipse${attrs({
         cx: round(cx),
         cy: round(cy),
         rx: round(rx),
         ry: round(ry),
-      })}${shapeAttrs(body, ctx, id, box)}/>`;
+      })}${shapeAttrs(body, ctx, id, place.transform)}/>`;
     }
     case 'line': {
       const x1 = num(body, 'x1', box.x);
@@ -1092,7 +1151,7 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         y1: round(y1),
         x2: round(x2),
         y2: round(y2),
-      })}${shapeAttrs(body, ctx, id, box)}${lineShapeAttrs(body, ctx)}/>`;
+      })}${shapeAttrs(body, ctx, id, pointsTransform)}${lineShapeAttrs(body, ctx)}/>`;
     }
     case 'path':
     case 'ink':
@@ -1102,7 +1161,7 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         bump(ctx.skipped, kind);
         return null;
       }
-      return `<path${attrs({ d })}${shapeAttrs(body, ctx, id, box)}/>`;
+      return `<path${attrs({ d })}${shapeAttrs(body, ctx, id, pointsTransform)}/>`;
     }
     case 'image':
     case 'picture': {
@@ -1115,15 +1174,21 @@ const renderElement = (entry: unknown, ctx: PageContext): string | null => {
         return null;
       }
       const meta = ctx.meta.get(id);
-      extendBounds(ctx, mat, cornersOf(box));
+      const local = {
+        x: place.ox,
+        y: place.oy,
+        width: box.width,
+        height: box.height,
+      };
+      extendBounds(ctx, place.mat, cornersOf(local));
       return `<image${attrs({
         href,
-        x: round(box.x),
-        y: round(box.y),
-        width: round(box.width),
-        height: round(box.height),
+        x: round(local.x),
+        y: round(local.y),
+        width: round(local.width),
+        height: round(local.height),
         'data-olf-id': id,
-        transform: elementTransform(body, meta, box),
+        transform: place.transform,
       })}${metaAttrs(meta)}/>`;
     }
     default:
