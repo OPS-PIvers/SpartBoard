@@ -138,6 +138,9 @@ import {
   type WidgetHistoryStack,
 } from '@/utils/widgetHistory';
 
+// Upper bound on the cloud dock read before the dock falls back to cache/defaults.
+const DOCK_HYDRATION_TIMEOUT_MS = 10000;
+
 // Helper to migrate legacy visibleTools to dockItems
 const migrateToDockItems = (
   visibleTools: (WidgetType | InternalToolType)[]
@@ -1198,6 +1201,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     dockHydratedForUidRef.current = user.uid;
 
     let cancelled = false;
+    let settled = false;
+    // A hung read must not wedge the dock: unblock the init/recovery effects
+    // from cache or defaults while leaving dockHydrationOk false.
+    const hydrationTimer = setTimeout(() => {
+      if (!cancelled && !settled) setDockHydrated(true);
+    }, DOCK_HYDRATION_TIMEOUT_MS);
     void (async () => {
       let succeeded = false;
       try {
@@ -1297,6 +1306,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           dockHydratedForUidRef.current = null;
         }
       } finally {
+        settled = true;
+        clearTimeout(hydrationTimer);
         if (!cancelled) {
           setDockHydrated(true);
           if (succeeded) setDockHydrationOk(true);
@@ -1306,6 +1317,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     return () => {
       cancelled = true;
+      clearTimeout(hydrationTimer);
+      // Cancelled mid-flight (profileLoaded flips false→true right after the
+      // provider mounts): release the per-uid lock so the re-run hydrates.
+      if (!settled && dockHydratedForUidRef.current === user.uid) {
+        dockHydratedForUidRef.current = null;
+      }
     };
   }, [user, profileLoaded]);
 
