@@ -22,7 +22,6 @@ import {
   collection,
   onSnapshot,
   doc,
-  setDoc,
   updateDoc,
   deleteDoc,
   getDoc,
@@ -32,10 +31,12 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { NotebookTooLargeError } from '@/utils/notebookParser';
 import {
-  parseNotebookFile,
-  NotebookTooLargeError,
-} from '@/utils/notebookParser';
+  importNotebookFile,
+  formatImportSummary,
+} from '@/utils/notebookImport';
+import { uploadParsedNotebook } from '@/utils/notebookUpload';
 import {
   insertBlankPage,
   deletePage,
@@ -213,72 +214,17 @@ export const SmartNotebookWidget: React.FC<{
     }
 
     setIsImporting(true);
-    // Track uploaded storage paths so we can clean up if a later step (e.g. the
-    // Firestore write) fails, instead of leaking orphaned blobs (quota cost).
-    let uploadedStoragePaths: string[] = [];
     try {
-      const { title, pages, assets, sections, objectLinks, hiddenPages } =
-        await parseNotebookFile(file);
-      const notebookId = crypto.randomUUID();
-
-      // Helper to upload a set of blobs to a specific path structure
-      const uploadBatch = async (
-        items: { blob: Blob; extension: string }[],
-        basePath: string,
-        namePrefix: string
-      ) => {
-        return Promise.all(
-          items.map(async (item, index) => {
-            const fileName = `${namePrefix}${index}.${item.extension}`;
-            const fileObj = new File([item.blob], fileName, {
-              type: item.blob.type,
-            });
-            const path = `${basePath}/${fileName}`;
-            const url = await uploadFile(path, fileObj);
-            return { url, path };
-          })
-        );
-      };
-
-      // Upload pages and assets in parallel batches
-      const notebookPath = `users/${user.uid}/notebooks/${notebookId}`;
-      const [uploadedPages, uploadedAssets] = await Promise.all([
-        uploadBatch(pages, notebookPath, 'page'),
-        assets ? uploadBatch(assets, `${notebookPath}/assets`, 'asset') : [],
-      ]);
-
-      const uploadedUrls = uploadedPages.map((p) => p.url);
-      const uploadedPaths = uploadedPages.map((p) => p.path);
-      const uploadedAssetUrls = uploadedAssets.map((a) => a.url);
-      uploadedStoragePaths = [
-        ...uploadedPaths,
-        ...uploadedAssets.map((a) => a.path),
-      ];
-
-      const notebook: NotebookItem = {
-        id: notebookId,
-        title,
-        pageUrls: uploadedUrls,
-        pagePaths: uploadedPaths,
-        assetUrls: uploadedAssetUrls,
-        createdAt: Date.now(),
-        // Only include optional fields when populated — Firestore rejects
-        // `undefined`, and empty arrays would create distracting "no
-        // sections / no links" diffs in console.
-        ...(sections && sections.length > 0 ? { sections } : {}),
-        ...(objectLinks && objectLinks.length > 0 ? { objectLinks } : {}),
-        ...(hiddenPages && hiddenPages.length > 0 ? { hiddenPages } : {}),
-      };
-
-      await setDoc(
-        doc(db, 'users', user.uid, 'notebooks', notebookId),
-        notebook
-      );
-      addToast('Notebook imported successfully', 'success');
+      const { parsed, summary } = await importNotebookFile(file);
+      const notebook = await uploadParsedNotebook(user.uid, parsed, {
+        uploadFile,
+        deleteFile,
+      });
+      addToast(formatImportSummary(summary), 'success');
 
       // Auto-select
       updateWidget(widget.id, {
-        config: { ...config, activeNotebookId: notebookId },
+        config: { ...config, activeNotebookId: notebook.id },
       });
     } catch (err) {
       console.error(err);
@@ -298,14 +244,6 @@ export const SmartNotebookWidget: React.FC<{
           window.open('/convert', '_blank', 'noopener,noreferrer');
         }
       } else {
-        // Clean up any blobs uploaded before the failure (e.g. setDoc threw).
-        if (uploadedStoragePaths.length > 0) {
-          await Promise.all(
-            uploadedStoragePaths.map((p) =>
-              deleteFile(p).catch((e) => console.error(e))
-            )
-          );
-        }
         addToast('Failed to import notebook', 'error');
       }
     } finally {

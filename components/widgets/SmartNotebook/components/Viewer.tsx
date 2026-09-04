@@ -51,6 +51,8 @@ interface ViewerProps {
   /** Hide/unhide the current page from presenting. */
   onToggleHiddenPage?: () => void;
   pageOpBusy?: boolean;
+  /** Dev-harness only: open the page-jump menu on mount for screenshots. */
+  initialJumpMenuOpen?: boolean;
 }
 
 export const Viewer: React.FC<ViewerProps> = ({
@@ -75,8 +77,9 @@ export const Viewer: React.FC<ViewerProps> = ({
   canMoveLater = false,
   onToggleHiddenPage,
   pageOpBusy = false,
+  initialJumpMenuOpen = false,
 }) => {
-  const [jumpMenuOpen, setJumpMenuOpen] = useState(false);
+  const [jumpMenuOpen, setJumpMenuOpen] = useState(initialJumpMenuOpen);
   const jumpTriggerRef = useRef<HTMLButtonElement>(null);
   const iconStyle = {
     width: 'min(16px, 4cqmin)',

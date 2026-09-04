@@ -12,6 +12,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
 import * as firestore from 'firebase/firestore';
 import * as parser from '@/utils/notebookParser';
+import * as olf from '@/utils/olfConverter';
 import { WidgetData } from '@/types';
 
 // Mock Modules
@@ -20,6 +21,10 @@ vi.mock('@/context/useDashboard');
 vi.mock('@/hooks/useStorage');
 vi.mock('firebase/firestore');
 vi.mock('@/utils/notebookParser');
+vi.mock('@/utils/olfConverter', () => ({
+  isOlfFile: (name: string) => /\.olf$/i.test(name),
+  convertOlfToBundle: vi.fn(),
+}));
 vi.mock('@/config/firebase', () => ({
   db: {},
 }));
@@ -421,5 +426,53 @@ describe('SmartNotebookWidget', () => {
     });
 
     expect(firestore.deleteDoc).toHaveBeenCalled();
+  });
+
+  it('converts a dropped-in .olf and reports the summary', async () => {
+    (firestore.onSnapshot as unknown as Mock).mockImplementation(
+      (_query: unknown, callback: (snapshot: { docs: unknown[] }) => void) => {
+        callback({ docs: [] });
+        return vi.fn();
+      }
+    );
+
+    const mockFile = new File(['dummy'], 'Lesson.olf');
+    (olf.convertOlfToBundle as unknown as Mock).mockResolvedValue({
+      blob: new Blob(['bundle']),
+      title: 'Lesson',
+      pageCount: 2,
+      hiddenPageCount: 1,
+      skipped: { shape: 2 },
+      warnings: [],
+    });
+    (parser.parseNotebookFile as unknown as Mock).mockResolvedValue({
+      title: 'Lesson',
+      pages: [
+        { blob: new Blob(['p0'], { type: 'image/svg+xml' }), extension: 'svg' },
+        { blob: new Blob(['p1'], { type: 'image/svg+xml' }), extension: 'svg' },
+      ],
+      assets: [],
+      hiddenPages: [1],
+    });
+    mockUploadFile.mockResolvedValue('http://example.com/page.svg');
+
+    const { container } = render(<SmartNotebookWidget widget={mockWidget} />);
+    const fileInput = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [mockFile] } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(olf.convertOlfToBundle).toHaveBeenCalledWith(mockFile);
+    await waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Imported 2 pages (1 hidden). Skipped 2 unsupported objects.',
+        'success'
+      );
+    });
+    expect(mockUpdateWidget).toHaveBeenCalled();
   });
 });
