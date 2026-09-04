@@ -8,6 +8,10 @@
       "title": "Tafeln",
       "switch": "Tafel wechseln",
       "close": "Schließen"
+    },
+    "disabled": {
+      "title": "Fernsteuerung ist deaktiviert",
+      "hint": "Aktiviere die Fernsteuerung wieder auf der Tafel, um Widgets von diesem Gerät aus zu steuern."
     }
   },
   "common": {

@@ -26,6 +26,7 @@ const authState = vi.hoisted(() => ({
     user: { uid: 'u1', email: 'super@school.org' },
     userRoles: { superAdmins: ['super@school.org'] },
     orgId: null as string | null,
+    roleId: null as string | null,
   },
 }));
 
@@ -164,6 +165,7 @@ const asSuperAdmin = () => {
     user: { uid: 'u1', email: 'super@school.org' },
     userRoles: { superAdmins: ['super@school.org'] },
     orgId: null,
+    roleId: null,
   };
 };
 
@@ -172,6 +174,17 @@ const asOrgAdmin = () => {
     user: { uid: 'u2', email: 'admin@school.org' },
     userRoles: { superAdmins: ['super@school.org'] },
     orgId: 'orono',
+    roleId: 'domain_admin',
+  };
+};
+
+// The rules also accept a member doc with roleId super_admin.
+const asMemberSuperAdmin = () => {
+  authState.value = {
+    user: { uid: 'u3', email: 'member-super@school.org' },
+    userRoles: { superAdmins: ['super@school.org'] },
+    orgId: 'orono',
+    roleId: 'super_admin',
   };
 };
 
@@ -331,6 +344,12 @@ describe('HelpCenterManager', () => {
     asOrgAdmin();
     render(<HelpCenterManager />);
     expect(helpState.allOrgs).toBe(false);
+  });
+
+  it('treats a super_admin member doc as a super admin, like the rules do', () => {
+    asMemberSuperAdmin();
+    render(<HelpCenterManager />);
+    expect(helpState.allOrgs).toBe(true);
   });
 
   it('writes new order values on reorder', async () => {

@@ -232,6 +232,28 @@ describe('HelpGuidesTab', () => {
     );
   });
 
+  it('ignores a stored embedType that the url does not support', async () => {
+    // The rules only require embedType to be a string, so the sandbox is
+    // derived from the url instead of the stored hint.
+    helpState.items = [
+      makeItem({
+        id: 'x1',
+        title: 'Lying embed type',
+        url: 'https://drive.google.com/open?id=abc123',
+        embedType: 'drive',
+      }),
+    ];
+    const user = userEvent.setup();
+    render(<HelpGuidesTab query="" />);
+    await user.click(screen.getByText('Lying embed type'));
+
+    const frame = document.querySelector('iframe');
+    expect(frame).not.toBeNull();
+    expect(frame?.getAttribute('sandbox')).toBe(
+      'allow-scripts allow-forms allow-popups'
+    );
+  });
+
   it('links out instead of framing an arbitrary-host pdf', async () => {
     helpState.items = [
       makeItem({

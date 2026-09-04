@@ -8,6 +8,10 @@
       "title": "Tableros",
       "switch": "Cambiar de tablero",
       "close": "Cerrar"
+    },
+    "disabled": {
+      "title": "El control remoto está desactivado",
+      "hint": "Vuelve a activar el control remoto desde el tablero para controlar los widgets desde este dispositivo."
     }
   },
   "common": {

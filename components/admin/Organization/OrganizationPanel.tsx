@@ -23,6 +23,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgBuildings } from '@/hooks/useOrgBuildings';
@@ -146,12 +147,11 @@ const SECTIONS: SectionDef[] = [
 const STORAGE_KEY = 'adm.section';
 
 // Resolve the actor's role. The member doc (`/organizations/{orgId}/members/{email}.roleId`)
-// is authoritative — it's what Firestore rules use to gate writes. The legacy
-// `admin_settings/user_roles.superAdmins[]` list still wins for super admin
-// because that's the only source the rules currently check for super-admin
-// status (a harmonization pass is on the Phase 4.1 backlog). Fall back to the
-// legacy `isAdmin` flag only when there's no member doc yet, so a pre-Phase-4
-// admin still sees the panel while their membership hydrates.
+// is authoritative — it's what Firestore rules use to gate writes. Super admin
+// comes from isSuperAdminActor, which folds the legacy superAdmins list and the
+// member doc exactly as the rules do. Fall back to the legacy `isAdmin` flag
+// only when there's no member doc yet, so a pre-Phase-4 admin still sees the
+// panel while their membership hydrates.
 const resolveActorRole = (
   legacySuperAdmin: boolean,
   legacyIsAdmin: boolean | null,
@@ -176,11 +176,10 @@ export const OrganizationPanel: React.FC = () => {
     buildingIds: memberBuildingIds,
     canAccessFeature,
   } = useAuth();
-  const isSuperAdmin = Boolean(
-    user?.email &&
-    userRoles?.superAdmins?.some(
-      (e) => e.toLowerCase() === user.email?.toLowerCase()
-    )
+  const isSuperAdmin = isSuperAdminActor(
+    user?.email,
+    userRoles?.superAdmins,
+    memberRoleId
   );
   const actorRole = resolveActorRole(isSuperAdmin, isAdmin, memberRoleId);
 

@@ -53,6 +53,16 @@ describe('inferHelpEmbedType', () => {
   it('falls back to other for an unparseable url', () => {
     expect(inferHelpEmbedType('not a url')).toBe('other');
   });
+
+  it('does not treat a look-alike host as a trusted embed', () => {
+    for (const url of [
+      'https://youtube.com.evil.test/watch?v=abc',
+      'https://docs.google.com.evil.test/document/d/abc/edit',
+      'https://drive.google.com.evil.test/file/d/abc/view',
+    ]) {
+      expect(inferHelpEmbedType(url)).toBe('other');
+    }
+  });
 });
 
 describe('isAllowedHelpUrl', () => {

@@ -22,6 +22,7 @@ import {
 } from '@/utils/dashboardSaveMerge';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { migrateDashboardWidgets } from '@/utils/migrateProportionalLayout';
+import { migrateWidget } from '@/utils/migration';
 import {
   Dashboard,
   SharedBoardIntendedMode,
@@ -285,14 +286,14 @@ function mapSharedDocToDashboard(
  */
 const normalizeServerBoard = (board: Dashboard): Dashboard => {
   const withCollections = migrateBoardForCollections(board);
+  // Snapshot-path order: without migrateWidget the merge folds a legacy timer config onto a migrated time-tool widget.
+  const typeMigrated = (withCollections.widgets ?? []).map(migrateWidget);
   const widgets = migrateDashboardWidgets(
-    withCollections.widgets ?? [],
+    typeMigrated,
     withCollections.viewportWidth,
     withCollections.viewportHeight
   );
-  return widgets === withCollections.widgets
-    ? withCollections
-    : { ...withCollections, widgets };
+  return { ...withCollections, widgets };
 };
 
 /** The only Firestore codes that mean "no server round trip happened". */

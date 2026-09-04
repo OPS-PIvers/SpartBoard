@@ -35,6 +35,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { DEFAULT_HELP_CATEGORIES } from '@/types/helpCenter';
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
 import { logError } from '@/utils/logError';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 import { HelpCategoryEditor } from './HelpCategoryEditor';
 import { HelpItemForm } from './HelpItemForm';
 import {
@@ -57,13 +58,12 @@ const UNCATEGORIZED: HelpCategory = {
 };
 
 export const HelpCenterManager: React.FC = () => {
-  const { user, userRoles, orgId } = useAuth();
+  const { user, userRoles, orgId, roleId } = useAuth();
   const { showConfirm } = useDialog();
-  const isSuperAdmin = Boolean(
-    user?.email &&
-    userRoles?.superAdmins?.some(
-      (e) => e.toLowerCase() === user.email?.toLowerCase()
-    )
+  const isSuperAdmin = isSuperAdminActor(
+    user?.email,
+    userRoles?.superAdmins,
+    roleId
   );
   const {
     items,

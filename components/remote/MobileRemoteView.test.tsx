@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileRemoteView } from './MobileRemoteView';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useRemoteControlSetting } from './useRemoteControlSetting';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
@@ -11,6 +12,10 @@ vi.mock('@/context/useDashboard', () => ({
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
+}));
+
+vi.mock('./useRemoteControlSetting', () => ({
+  useRemoteControlSetting: vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -37,6 +42,9 @@ describe('MobileRemoteView', () => {
     typeof vi.fn
   >;
   const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
+  const mockedRemoteSetting = useRemoteControlSetting as unknown as ReturnType<
+    typeof vi.fn
+  >;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -45,6 +53,7 @@ describe('MobileRemoteView', () => {
       value: new URL('https://spart.test/remote'),
     });
     mockedUseAuth.mockReturnValue({ remoteControlEnabled: true });
+    mockedRemoteSetting.mockReturnValue(true);
   });
 
   const dashboardCtx = (dashboard: ReturnType<typeof makeDashboard>) => ({
@@ -151,5 +160,26 @@ describe('MobileRemoteView', () => {
       const activeRow = within(dialog).getByRole('button', { name: /Board A/ });
       expect(activeRow).toHaveAttribute('aria-current', 'true');
     });
+  });
+
+  it('goes read-only when the account toggle is switched off mid-session', () => {
+    const ctx = dashboardCtx(makeDashboard([makeWidget('w1')]));
+    mockedUseDashboard.mockReturnValue(ctx);
+    const { rerender } = render(<MobileRemoteView />);
+    expect(screen.getAllByRole('button', { name: /spotlight/i })).toHaveLength(
+      1
+    );
+
+    // Teacher flips the toggle off on the desktop; the live setting updates.
+    mockedRemoteSetting.mockReturnValue(false);
+    rerender(<MobileRemoteView />);
+
+    expect(screen.getByText('remote.disabled.title')).toBeInTheDocument();
+    expect(screen.getByText('remote.disabled.hint')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /spotlight/i })
+    ).not.toBeInTheDocument();
+    expect(ctx.updateWidget).not.toHaveBeenCalled();
+    expect(ctx.updateDashboardSettings).not.toHaveBeenCalled();
   });
 });

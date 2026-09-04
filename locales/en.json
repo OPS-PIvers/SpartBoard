@@ -8,6 +8,10 @@
       "title": "Boards",
       "switch": "Switch board",
       "close": "Close"
+    },
+    "disabled": {
+      "title": "Remote control is off",
+      "hint": "Turn Remote Control back on from the board to control widgets from this device."
     }
   },
   "common": {

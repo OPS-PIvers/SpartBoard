@@ -292,5 +292,25 @@ describe('urlHelpers', () => {
       const invalidUrl = 'https://docs.google.com:999999/%%';
       expect(convertToEmbedUrl(invalidUrl)).toBe(invalidUrl);
     });
+
+    describe('host spoofing', () => {
+      // A substring host check framed an attacker origin under the sandbox
+      // reserved for trusted Google embeds.
+      it.each([
+        'https://docs.google.com.evil.test/document/d/abc123/edit',
+        'https://evil-docs.google.com.attacker.test/presentation/d/abc123/edit',
+        'https://drive.google.com.evil.test/file/d/abc123/view',
+        'https://vids.google.com.evil.test/vids/abc123',
+        'https://evil.test/redirect?to=https://docs.google.com/document/d/abc123/edit',
+      ])('leaves %s untouched', (url) => {
+        expect(convertToEmbedUrl(url)).toBe(url);
+      });
+
+      it('still converts the real docs.google.com host', () => {
+        expect(
+          convertToEmbedUrl('https://docs.google.com/document/d/abc123/edit')
+        ).toBe('https://docs.google.com/document/d/abc123/edit?rm=minimal');
+      });
+    });
   });
 });

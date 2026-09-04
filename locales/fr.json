@@ -8,6 +8,10 @@
       "title": "Tableaux",
       "switch": "Changer de tableau",
       "close": "Fermer"
+    },
+    "disabled": {
+      "title": "La commande à distance est désactivée",
+      "hint": "Réactivez la commande à distance depuis le tableau pour contrôler les widgets depuis cet appareil."
     }
   },
   "common": {
