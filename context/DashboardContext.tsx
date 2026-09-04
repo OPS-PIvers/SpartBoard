@@ -2285,6 +2285,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 annotationOverlay: annotationOverlayChangedLocally
                   ? {
                       ...currentActive.annotationOverlay,
+                      // A local clear drops the authored canvas size; fall
+                      // back to the server's so surviving remote ink is not
+                      // scaled against the worldRect fallback.
+                      canvasWidth:
+                        currentActive.annotationOverlay?.canvasWidth ??
+                        db.annotationOverlay?.canvasWidth,
+                      canvasHeight:
+                        currentActive.annotationOverlay?.canvasHeight ??
+                        db.annotationOverlay?.canvasHeight,
                       objects: mergeAnnotationObjects(
                         currentActive.annotationOverlay?.objects ?? [],
                         db.annotationOverlay?.objects ?? [],
@@ -3279,6 +3288,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Last serialized payload we mirrored per shareId — skip duplicate writes. */
   const lastMirroredRef = useRef<Map<string, string>>(new Map());
+  // Per-share ink present when we first subscribed — the fallback merge
+  // baseline before this device has mirrored or received anything.
+  const mountInkBaselineRef = useRef<Map<string, DrawableObject[]>>(new Map());
   /** Pending debounced mirror timers per shareId. */
   const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map()
@@ -3315,9 +3327,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Cheap dedupe based on the same fields the saveDashboard path uses.
       const payload = serializeDashboard(scrubbed);
-      if (lastMirroredRef.current.get(shareId) === payload) return;
-
       const existing = mirrorTimersRef.current.get(shareId);
+      if (lastMirroredRef.current.get(shareId) === payload) {
+        // A queued write now holds stale content (e.g. ink a snapshot just
+        // erased) — drop it rather than let it echo back to the share.
+        if (existing) {
+          clearTimeout(existing);
+          mirrorTimersRef.current.delete(shareId);
+        }
+        return;
+      }
       if (existing) clearTimeout(existing);
 
       const timer = setTimeout(() => {
@@ -3375,6 +3394,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const dashboardId = d.id;
       const shareId = d.linkedShareId;
       if (!shareId) return () => undefined;
+
+      // Ink we already had when this share was first subscribed. It stands in
+      // as the merge baseline until we have mirrored (or received) once, so
+      // persisted local strokes a collaborator has since erased are treated
+      // as remote deletes instead of local adds.
+      if (!mountInkBaselineRef.current.has(shareId)) {
+        mountInkBaselineRef.current.set(
+          shareId,
+          d.annotationOverlay?.objects ?? []
+        );
+      }
 
       return subscribeToSharedBoard(shareId, (remote) => {
         if (!remote) {
@@ -3460,6 +3490,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         //   - viewer       receives owner edits (View-Only one-way)
         // The echo filter above prevents a writer from re-applying its own
         // mirrored update.
+        const hasBaseline = lastMirroredRef.current.has(shareId);
         setDashboards((prev) =>
           prev.map((x) => {
             if (x.id !== dashboardId) return x;
@@ -3497,12 +3528,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     canvasHeight:
                       remote.annotationOverlay.canvasHeight ??
                       x.annotationOverlay?.canvasHeight,
+                    // Without a mirrored payload (first snapshot on this
+                    // device, or after a mirror failure/unlink cleared it)
+                    // every local object would look like a local add and
+                    // resurrect ink a collaborator just erased. Fall back to
+                    // the ink we had at subscribe time as the baseline.
                     objects: mergeAnnotationObjects(
                       x.annotationOverlay?.objects ?? [],
                       remote.annotationOverlay.objects ?? [],
-                      mirroredAnnotationBaseline(
-                        lastMirroredRef.current.get(shareId)
-                      )
+                      hasBaseline
+                        ? mirroredAnnotationBaseline(
+                            lastMirroredRef.current.get(shareId)
+                          )
+                        : (mountInkBaselineRef.current.get(shareId) ?? [])
                     ),
                   }
                 : x.annotationOverlay,
@@ -3511,8 +3549,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             // Prime the mirror dedupe so the state change we just made
             // doesn't trigger an immediate echo write back to the shared
             // doc. Without this, every remote apply costs an extra
-            // Firestore write of identical content.
-            lastMirroredRef.current.set(shareId, serializeDashboard(next));
+            // Firestore write of identical content. Prime it with the
+            // remote ink, not the merged ink: local-only strokes the shared
+            // doc never saw must stay pending for the mirror effect.
+            lastMirroredRef.current.set(
+              shareId,
+              serializeDashboard(
+                remote.annotationOverlay
+                  ? { ...next, annotationOverlay: remote.annotationOverlay }
+                  : next
+              )
+            );
             return next;
           })
         );
@@ -6096,13 +6143,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     widgets: WidgetData[] | undefined;
     bytes: number;
   } | null>(null);
-  const getWidgetBytes = (widgets: WidgetData[] | undefined): number => {
-    const cached = widgetBytesCacheRef.current;
-    if (cached && cached.widgets === widgets) return cached.bytes;
-    const bytes = estimateWidgetBytes(widgets);
-    widgetBytesCacheRef.current = { widgets, bytes };
-    return bytes;
-  };
+  const getWidgetBytes = useCallback(
+    (widgets: WidgetData[] | undefined): number => {
+      const cached = widgetBytesCacheRef.current;
+      if (cached && cached.widgets === widgets) return cached.bytes;
+      const bytes = estimateWidgetBytes(widgets);
+      widgetBytesCacheRef.current = { widgets, bytes };
+      return bytes;
+    },
+    []
+  );
 
   // Every write lands here, so the size guard lives here too. Returns
   // false when the write was refused (no active board or size cap).
@@ -6194,7 +6244,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       return true;
     },
-    [addToast]
+    [addToast, getWidgetBytes]
   );
 
   // Forward-declared setter for the Wave 5 redo stack — declared below but

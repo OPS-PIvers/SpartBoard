@@ -1049,5 +1049,84 @@ describe('DashboardContext Sharing Logic', () => {
         expect(ids).toEqual(['mine', 'theirs']);
       });
     });
+
+    // Regression: with no mirrored payload yet (fresh mount after a reload)
+    // the merge baseline was empty, so persisted local ink counted as a
+    // local add and survived — a peer's clear was undone for everyone.
+    it('REGRESSION: fresh mount adopts a remote clear of persisted ink', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const linked: Dashboard = {
+        id: 'reload-board',
+        name: 'Reloaded Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-reload',
+        linkedShareRole: 'collaborator',
+        annotationOverlay: {
+          objects: [
+            {
+              id: 'persisted',
+              kind: 'path' as const,
+              z: 1,
+              points: [{ x: 1, y: 1 }],
+              color: '#000',
+              width: 2,
+              authorUid: 'test-user',
+            },
+          ],
+          updatedAt: 1,
+        },
+      };
+      initialDashboardsSeed = [linked];
+
+      let captured: Dashboard | undefined;
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          captured = dashboards.find((d) => d.id === 'reload-board');
+        }, [dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+      // Peer cleared the layer.
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: { objects: [], updatedAt: 99 },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => {
+        expect(captured?.annotationOverlay?.objects ?? []).toEqual([]);
+      });
+
+      // And the stale ink is never pushed back to the share.
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 800));
+      });
+      const mirroredInk = mockMirrorSharedBoard.mock.calls.flatMap(
+        (call) =>
+          (call[1] as Dashboard | undefined)?.annotationOverlay?.objects ?? []
+      );
+      expect(mirroredInk.map((o) => o.id)).not.toContain('persisted');
+    });
   });
 });
