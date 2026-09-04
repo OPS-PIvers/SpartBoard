@@ -249,7 +249,7 @@ const MAX_UNSAVED_INK_AGE_MS = 8000;
  * it is a write stamp, not content, and would make every board look dirty.
  */
 const serializeAnnotationOverlay = (d: Dashboard): string =>
-  JSON.stringify({
+  stableStringify({
     objects: d.annotationOverlay?.objects ?? [],
     canvasWidth: d.annotationOverlay?.canvasWidth,
     canvasHeight: d.annotationOverlay?.canvasHeight,
@@ -298,9 +298,9 @@ const stableStringify = (value: unknown): string => {
 const widgetMirrorSignature = (widgets: WidgetData[]): string =>
   stableStringify(scrubWidgetsPII(widgets).map(stripDerivedPixels));
 
-/** Serialize dashboard state for change-detection comparisons. */
+// Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
 const serializeDashboard = (d: Dashboard): string =>
-  JSON.stringify({
+  stableStringify({
     widgets: d.widgets.map((w) => {
       const { config, ...rest } = stripDerivedPixels(w);
       return {
