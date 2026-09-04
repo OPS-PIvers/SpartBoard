@@ -928,7 +928,7 @@ function MyComponent() {
 **2. Production Deploy** (`.github/workflows/firebase-deploy.yml`)
 
 - Runs on pushes to `main` branch
-- Same validation as PR + deploy to Firebase live site
+- Same parallel check layout as the dev-branch workflow (lint legs, type-check, 3 test shards, rules, build), then deploys the build artifact to the live site
 - Production URL: https://spartboard.web.app
 
 **3. Dev Branch Deploy** (`.github/workflows/firebase-dev-deploy.yml`)

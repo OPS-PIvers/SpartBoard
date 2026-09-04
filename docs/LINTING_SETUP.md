@@ -178,10 +178,9 @@ Runs on all pull requests to `main` and `dev-*` branches:
 
 Runs on pushes to `main` branch:
 
-- ✅ Type checking
-- ✅ Linting
-- ✅ Code formatting check
-- 🏗️ Production build
+- ✅ Type checking, linting (app / functions / format as parallel legs)
+- ✅ Unit tests (3 shards + count guard) and Firestore rules tests
+- 🏗️ Production build (parallel job; uploaded as an artifact the deploy reuses)
 - 🚀 Deploy to Firebase live environment
 
 **Purpose**: Validates and deploys production code.
