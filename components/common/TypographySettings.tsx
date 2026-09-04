@@ -1,9 +1,10 @@
 import React, { useId } from 'react';
-import { Type, Palette } from 'lucide-react';
+import { Type } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
 import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 import { FONTS } from '@/config/fonts';
-import { TEXT_COLOR_PRESETS } from '@/config/widgetAppearance';
+import { TEXT_COLOR_SWATCHES } from '@/config/widgetAppearance';
+import { ColorPresetPicker } from './ColorPresetPicker';
 import { WidgetConfig } from '@/types';
 
 interface TypographySettingsProps<T extends WidgetConfig> {
@@ -27,11 +28,6 @@ export const TypographySettings = <
 }: TypographySettingsProps<T>) => {
   const { fontFamily = 'global', fontColor = '#334155' } = config;
   const typographyLabelId = useId();
-  const textColorLabelId = useId();
-  // The default/custom fontColor isn't always one of the presets (unlike 'global' for fontFamily) — fall back to tabbing preset 0 so the group stays keyboard-reachable.
-  const hasSelectedColorPreset = TEXT_COLOR_PRESETS.some(
-    (c) => c === fontColor
-  );
 
   return (
     <>
@@ -94,56 +90,14 @@ export const TypographySettings = <
       </div>
 
       {showColorPicker && (
-        <div>
-          <SettingsLabel icon={Palette} as="span" id={textColorLabelId}>
-            Text Color
-          </SettingsLabel>
-          <div
-            className="flex flex-wrap gap-2 px-1 mb-2"
-            role="radiogroup"
-            aria-labelledby={textColorLabelId}
-            onKeyDown={(e) =>
-              handleRadioGroupKeyDown(e, TEXT_COLOR_PRESETS, (color) =>
-                updateConfig({ fontColor: color } as Partial<T>)
-              )
-            }
-          >
-            {TEXT_COLOR_PRESETS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                role="radio"
-                aria-checked={fontColor === color}
-                tabIndex={
-                  fontColor === color ||
-                  (!hasSelectedColorPreset && color === TEXT_COLOR_PRESETS[0])
-                    ? 0
-                    : -1
-                }
-                onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
-                className={`w-6 h-6 rounded-full border-2 transition hover:scale-110 ${
-                  fontColor === color
-                    ? 'border-slate-800 scale-110 shadow-sm'
-                    : color === '#ffffff'
-                      ? 'border-slate-300'
-                      : 'border-transparent'
-                }`}
-                style={{ backgroundColor: color }}
-                title={color}
-                aria-label={`Select text color ${color}`}
-              />
-            ))}
-          </div>
-          <input
-            type="color"
-            value={fontColor}
-            onChange={(e) =>
-              updateConfig({ fontColor: e.target.value } as Partial<T>)
-            }
-            className="h-8 w-full rounded-md border border-slate-200 bg-white"
-            aria-label="Custom text color"
-          />
-        </div>
+        <ColorPresetPicker
+          label="Text Color"
+          subject="text color"
+          presets={TEXT_COLOR_SWATCHES}
+          value={fontColor}
+          fallback="#334155"
+          onChange={(color) => updateConfig({ fontColor: color } as Partial<T>)}
+        />
       )}
     </>
   );

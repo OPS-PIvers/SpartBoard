@@ -6809,15 +6809,8 @@ export interface WidgetData {
   config: WidgetConfig;
 
   // Universal style properties
-  backgroundColor?:
-    | 'bg-white'
-    | 'bg-slate-50'
-    | 'bg-blue-50'
-    | 'bg-indigo-50'
-    | 'bg-purple-50'
-    | 'bg-rose-50'
-    | 'bg-amber-50'
-    | 'bg-emerald-50';
+  /** Frame background: a hex color, or a legacy `bg-*` Tailwind class on older boards */
+  backgroundColor?: string;
   fontFamily?: 'sans' | 'serif' | 'mono' | 'handwritten' | 'comic';
   baseTextSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl';
 }
