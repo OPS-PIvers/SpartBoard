@@ -160,7 +160,7 @@ describe('mergeDashboardForSave', () => {
     const local = board([]);
     const server = board([], {
       settings: { spotlight: true } as never,
-      libraryOrder: ['w1'],
+      libraryOrder: ['clock'],
     });
 
     const merged = mergeDashboardForSave(local, server, {
@@ -170,7 +170,7 @@ describe('mergeDashboardForSave', () => {
     });
 
     expect(merged.settings).toEqual({ spotlight: true });
-    expect(merged.libraryOrder).toEqual(['w1']);
+    expect(merged.libraryOrder).toEqual(['clock']);
   });
 
   it('treats an absent field and an explicit null as the same baseline value', () => {
