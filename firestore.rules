@@ -4306,6 +4306,26 @@ service cloud.firestore {
                (awStudentAudienceOk() &&
                 awParentSession().get('studentsCanSeePosts', true) != false);
       }
+      // Engagement (likes/comments) reads are an unfiltered collection listen
+      // (useWallEngagement.ts has no per-post `where`, by design — see its
+      // header comment), so Firestore's list-query rule can only depend on
+      // session-level state: a rule referencing resource.data here would
+      // make the ENTIRE listen provably unsafe and Firestore denies the
+      // whole query outright (not a per-doc filter) the moment any narrower
+      // document could exist — this is NOT the "sessions broad read" tradeoff,
+      // it is a hard List-query constraint (rules aren't filters). So the
+      // moderation boundary has to hold at CREATE time instead: a like/comment
+      // may never be attached to a submission that is still pending review,
+      // for ANY caller including the owner — otherwise that still-unreviewed
+      // post's existence/content reaches the whole class through this same
+      // unfiltered listen the instant anyone engages with it, before a
+      // teacher ever approved it. A submissionId with no matching submission
+      // doc (untracked/legacy) is permitted, matching every pre-existing
+      // engagement doc shape in this collection.
+      function awEngagementSubmissionOk(refSubmissionId) {
+        let ref = /databases/$(database)/documents/activity_wall_sessions/$(sessionId)/submissions/$(refSubmissionId);
+        return !exists(ref) || get(ref).data.get('status', 'approved') == 'approved';
+      }
 
       match /submissions/{submissionId} {
         // Single cached read of the parent session (same-path get() is cached
@@ -4580,6 +4600,7 @@ service cloud.firestore {
           awViewerOk() &&
           (awIsOwner() || awSessionAcceptingResponses()) &&
           awParentSession().get('allowLikes', false) == true &&
+          awEngagementSubmissionOk(request.resource.data.get('submissionId', '')) &&
           request.resource.data.keys().hasOnly([
             'id', 'submissionId', 'authorUid', 'createdAt'
           ]) &&
@@ -4599,6 +4620,7 @@ service cloud.firestore {
           awViewerOk() &&
           (awIsOwner() || awSessionAcceptingResponses()) &&
           awParentSession().get('allowComments', false) == true &&
+          awEngagementSubmissionOk(request.resource.data.get('submissionId', '')) &&
           (
             request.resource.data.get('parentCommentId', null) == null ||
             awParentSession().get('allowCommentResponses', false) == true

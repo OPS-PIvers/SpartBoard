@@ -56,7 +56,12 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
   }, [comments]);
 
   const [likeBusy, setLikeBusy] = useState(false);
-  const writable = canWrite && viewerUid !== null;
+  // Engagement can only ever be stored against an approved post (see
+  // firestore.rules' awEngagementSubmissionOk) — a still-pending post
+  // (visible only via the author's own "my posts" listener) would silently
+  // reject the write, so disable the controls rather than show a dead one.
+  const writable =
+    canWrite && viewerUid !== null && submission.status === 'approved';
 
   const toggleLike = async () => {
     if (!flags.allowLikes || likeBusy || !writable) return;
