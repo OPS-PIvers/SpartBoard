@@ -490,7 +490,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
                 {
                   borderRadius: '0.5cqmin',
                   padding: '0.5cqmin',
-                  fontSize: 'min(24px, 15cqmin)',
+                  fontSize: 'clamp(12px, 15cqmin, 48px)',
                   '--ring-width': '0.2cqmin',
                 } as React.CSSProperties
               }

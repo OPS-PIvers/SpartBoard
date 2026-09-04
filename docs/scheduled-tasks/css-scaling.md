@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-09-04_
-_Last action: 2026-09-04 — MEDIUM `ConceptWeb` node-text uncapped `cqmin` resolved: wrapped the node textarea's `fontSize` in a `min(24px, 15cqmin)` ceiling, matching the file's own capping pattern already used on its sibling delete/handle icons. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. Moved to Completed. PR opened to dev-paul._
+_Last action: 2026-09-04 — MEDIUM `ConceptWeb` node-text uncapped `cqmin` resolved, then revised same-day on PR #2835 automated review: initial fix capped the node text at `min(24px, 15cqmin)` to match its sibling icons, but the review pointed out the node text is primary content (not decorative chrome) and a hard 24px ceiling halves the intended size on large/maximized displays — exactly the "glanceable at distance" case this codebase's scaling rules exist for. Switched to `clamp(12px, 15cqmin, 48px)` per the review's suggestion. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean. Moved to Completed. PR #2835 updated._
 
 ---
 
@@ -387,6 +387,7 @@ _2026-08-30: Targeted scan (Sunday daily). Loaded `spart-new-widget` skill for t
 - **File:** `components/widgets/ConceptWeb/Widget.tsx:493`
 - **Detail:** The node textarea's `fontSize: '15cqmin'` had no px ceiling, while the delete/handle icons ~15 lines later in the same component correctly used `min(16px, 4cqmin)` — an internal inconsistency within one file, not just a deviation from the codebase norm.
 - **Resolution:** Wrapped the node textarea's `fontSize` in a `min(24px, 15cqmin)` ceiling, matching the file's own capping pattern used for the icons. `pnpm exec tsc --noEmit` exit 0, `eslint components/widgets/ConceptWeb/Widget.tsx --max-warnings 0` exit 0, `prettier --check` clean. No dedicated `ConceptWeb` test file exists.
+- **Revision (same day, PR #2835 automated review):** The review pointed out that the node text is this widget's primary content, not decorative chrome like the sibling icons it was matched to — CLAUDE.md's scaling table puts primary content at a 20-32px floor and recommends `clamp()` (not a hard `min()` ceiling meant only as a blur guard) so it keeps scaling on large displays. Worked the numbers: at the widget's default 800×600 size the node is ~120×90px and `15cqmin` ≈ 13.5px (cap inert), but on a maximized/4K display or with a raised `defaultNodeHeight` building default, the node's short side can reach 300px+, wanting ≈45-49px while the 24px cap delivered half that — binding hardest exactly in the projected/maximized case CLAUDE.md's "glanceable at distance" principle targets. Switched to `clamp(12px, 15cqmin, 48px)`, keeping a floor for legibility at the smallest node sizes and a ceiling only to guard against blur on very large displays, per the reviewer's suggestion. `pnpm exec tsc --noEmit` exit 0, `eslint components/widgets/ConceptWeb/Widget.tsx --max-warnings 0` exit 0, `prettier --check` clean.
 
 ### MEDIUM `ActivityWall` WordCloudLayout word-size formula uses uncapped `cqmin`, no px ceiling
 
