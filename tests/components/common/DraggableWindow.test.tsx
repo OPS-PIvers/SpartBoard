@@ -216,9 +216,62 @@ describe('DraggableWindow (Tests folder)', () => {
     expect(dragSurface.className).toContain('font-comic');
     expect(dragSurface.className).toContain('text-2xl');
 
-    // The frame tint is applied as an rgba() so the transparency slider still applies
+    // The frame tint is applied inline as an rgba() rather than a Tailwind class
     const widgetCard = content.closest('.widget') as HTMLElement;
     expect(widgetCard.style.backgroundColor).toMatch(/^rgba?\(236, 253, 245/);
+  });
+
+  // Regression: a chosen frame color used to be painted by an opaque Tailwind
+  // class. Routing it through the transparency slider made every existing
+  // tinted widget translucent, and invisible at transparency 0.
+  it('keeps an explicitly chosen frame color opaque at zero transparency', () => {
+    const styledWidget = {
+      ...mockWidget,
+      transparency: 0,
+      backgroundColor: 'bg-emerald-50' as const,
+    };
+
+    render(
+      <DashboardContext.Provider
+        value={mockContext as unknown as DashboardContextValue}
+      >
+        <DraggableWindow
+          widget={styledWidget}
+          globalStyle={{ ...mockGlobalStyle, windowTransparency: 0 }}
+          title="Opaque Frame Widget"
+          settings={<div>Settings</div>}
+        >
+          <div data-testid="opaque-content">Content</div>
+        </DraggableWindow>
+      </DashboardContext.Provider>
+    );
+
+    const widgetCard = screen
+      .getByTestId('opaque-content')
+      .closest('.widget') as HTMLElement;
+    expect(widgetCard.style.backgroundColor).toBe('rgb(236, 253, 245)');
+  });
+
+  it('leaves the default glass frame on the transparency slider', () => {
+    render(
+      <DashboardContext.Provider
+        value={mockContext as unknown as DashboardContextValue}
+      >
+        <DraggableWindow
+          widget={{ ...mockWidget, transparency: 0.4 }}
+          globalStyle={mockGlobalStyle}
+          title="Default Frame Widget"
+          settings={<div>Settings</div>}
+        >
+          <div data-testid="default-frame-content">Content</div>
+        </DraggableWindow>
+      </DashboardContext.Provider>
+    );
+
+    const widgetCard = screen
+      .getByTestId('default-frame-content')
+      .closest('.widget') as HTMLElement;
+    expect(widgetCard.style.backgroundColor).toBe('rgba(255, 255, 255, 0.4)');
   });
 
   describe('Pin feature', () => {

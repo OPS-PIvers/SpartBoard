@@ -1656,7 +1656,8 @@
     "emptyResults": "Aucun widget ne correspond."
   },
   "style": {
-    "readOnlyNotice": "Ce tableau est en lecture seule. Les modifications de style ne sont pas enregistrées."
+    "readOnlyNotice": "Ce tableau est en lecture seule. Les modifications de style ne sont pas enregistrées.",
+    "frameColorSolidHint": "La couleur du cadre reste opaque. Choisissez Par défaut pour utiliser ce curseur."
   },
   "whatsNew": {
     "title": "Nouveautés",

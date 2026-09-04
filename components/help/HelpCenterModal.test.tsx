@@ -117,6 +117,32 @@ describe('HelpCenterModal', () => {
     expect(getLastHelpTab()).toBe('guides');
   });
 
+  // The global Ctrl+/ handler keys off this marker to toggle Help back closed
+  // even though the autofocused search box is a typing field.
+  it('marks its search box and body as inside the Help modal', () => {
+    render(<Harness initialTab="shortcuts" />);
+    expect(
+      screen.getByRole('searchbox').closest('[data-help-modal]')
+    ).not.toBeNull();
+    expect(
+      screen.getByRole('tablist').closest('[data-help-modal]')
+    ).not.toBeNull();
+  });
+
+  it('uses AA-contrast group headings and footer text on the white surface', () => {
+    render(<Harness initialTab="shortcuts" />);
+    const headings = screen.getAllByText('Board');
+    expect(headings.length).toBeGreaterThan(0);
+    headings.forEach((heading) => {
+      expect(heading.className).toContain('text-slate-500');
+      expect(heading.className).not.toContain('text-slate-400');
+    });
+
+    const footer = document.querySelector('#help-tabpanel > p') as HTMLElement;
+    expect(footer.textContent).toContain('to open Help');
+    expect(footer.className).toContain('text-slate-500');
+  });
+
   it('closes on Escape', () => {
     const onClose = vi.fn();
     render(<Harness initialTab="shortcuts" onClose={onClose} />);

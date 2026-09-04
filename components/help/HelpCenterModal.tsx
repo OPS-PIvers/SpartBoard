@@ -81,7 +81,11 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
   };
 
   const header = (
-    <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 shrink-0">
+    // Marker lets the global Ctrl+/ handler toggle Help even though the search box has focus.
+    <div
+      data-help-modal=""
+      className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 shrink-0"
+    >
       <h2 className="font-black text-lg text-slate-900 shrink-0">
         {t('helpCenter.title')}
       </h2>
@@ -120,7 +124,10 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
       customHeader={header}
       ariaLabel={t('helpCenter.title')}
     >
-      <div className="flex flex-1 min-h-0 min-w-0 flex-col md:flex-row">
+      <div
+        data-help-modal=""
+        className="flex flex-1 min-h-0 min-w-0 flex-col md:flex-row"
+      >
         <nav
           role="tablist"
           aria-label={t('helpCenter.title')}
@@ -182,7 +189,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           ) : (
             <HelpGuidesTab query={query} widgetType={widgetType} />
           )}
-          <p className="mt-8 text-center text-xs text-slate-400">
+          <p className="mt-8 text-center text-xs text-slate-500">
             <Trans i18nKey="helpCenter.footer" components={{ kbd: <kbd /> }} />
           </p>
         </div>
