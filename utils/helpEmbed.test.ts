@@ -18,6 +18,22 @@ describe('inferHelpEmbedType', () => {
     expect(inferHelpEmbedType('https://youtu.be/abc')).toBe('youtube');
   });
 
+  it('infers youtube from a youtube subdomain', () => {
+    expect(inferHelpEmbedType('https://m.youtube.com/watch?v=abc')).toBe(
+      'youtube'
+    );
+  });
+
+  it('does not treat a lookalike host as youtube', () => {
+    // A youtube classification earns allow-same-origin in helpIframeSandbox,
+    // so a substring match here would hand that to an attacker-owned host.
+    expect(inferHelpEmbedType('https://youtube.com.evil.test/watch')).toBe(
+      'other'
+    );
+    expect(inferHelpEmbedType('https://evil-youtube.com/watch')).toBe('other');
+    expect(inferHelpEmbedType('https://youtu.be.evil.test/abc')).toBe('other');
+  });
+
   it('infers doc from docs.google.com/document', () => {
     expect(
       inferHelpEmbedType('https://docs.google.com/document/d/abc/edit')

@@ -13,15 +13,10 @@ export const isAllowedHelpUrl = (url: string): boolean => {
   }
 };
 
-// Exact hosts only: this type picks the iframe sandbox, so youtube.com.evil.test must not pass.
-const YOUTUBE_HOSTS = new Set([
-  'youtube.com',
-  'www.youtube.com',
-  'm.youtube.com',
-  'youtube-nocookie.com',
-  'www.youtube-nocookie.com',
-  'youtu.be',
-]);
+// Exact host or a true subdomain. `includes` would accept youtube.com.evil.com,
+// which helpIframeSandbox below then trusts with allow-same-origin.
+const isHost = (host: string, domain: string): boolean =>
+  host === domain || host.endsWith(`.${domain}`);
 
 // Infers the display kind for an embed URL; unrecognized URLs are 'other'.
 export const inferHelpEmbedType = (url: string): HelpEmbedType => {
@@ -35,13 +30,18 @@ export const inferHelpEmbedType = (url: string): HelpEmbedType => {
   } catch {
     return 'other';
   }
-  if (YOUTUBE_HOSTS.has(host)) return 'youtube';
-  if (host === 'docs.google.com') {
+  const isYouTube =
+    isHost(host, 'youtube.com') ||
+    isHost(host, 'youtube-nocookie.com') ||
+    isHost(host, 'youtu.be');
+  if (isYouTube) return 'youtube';
+  if (isHost(host, 'docs.google.com')) {
     if (path.startsWith('/document')) return 'doc';
     if (path.startsWith('/presentation')) return 'slides';
     if (path.startsWith('/spreadsheets')) return 'sheet';
   }
-  if (host === 'drive.google.com' && path.includes('/file')) return 'drive';
+  if (isHost(host, 'drive.google.com') && path.includes('/file'))
+    return 'drive';
   if (path.toLowerCase().endsWith('.pdf')) return 'pdf';
   return 'other';
 };
