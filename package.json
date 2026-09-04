@@ -28,6 +28,8 @@
     "lint:all": "pnpm run lint",
     "validate": "pnpm run type-check:all && pnpm lint && pnpm format:check && pnpm test && pnpm -C functions test && pnpm run test:counts",
     "test": "vitest run --reporter=default --reporter=json --outputFile=.vitest-reports/root.json",
+    "test:shard": "vitest run --reporter=default --reporter=json",
+    "test:merge-reports": "node scripts/mergeVitestReports.mjs",
     "test:all": "pnpm test && pnpm -C functions test && pnpm run test:counts",
     "test:counts": "node scripts/checkTestCounts.mjs",
     "test:e2e": "playwright test",
