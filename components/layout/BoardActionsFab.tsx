@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { HelpCircle, RotateCcw, Search, ZoomIn, ZoomOut } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { Z_INDEX } from '@/config/zIndex';
 import { FAB_BASE } from './fabClasses';
 import {
   ZOOM_DEFAULT,
@@ -114,9 +115,17 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
     <div
       ref={containerRef}
       data-screenshot="exclude"
-      className={`fixed bottom-6 right-4 z-dock ${
-        inkingOwnsPointer ? 'pointer-events-none' : ''
+      // inert (not aria-disabled on a div) so the faded FAB is unreachable by
+      // keyboard too while the pen owns the pointer.
+      inert={inkingOwnsPointer}
+      // Faded so the dead pointer target reads as deliberate, not broken.
+      className={`fixed bottom-6 right-4 z-dock transition-opacity ${
+        inkingOwnsPointer ? 'pointer-events-none opacity-40' : ''
       }`}
+      style={{
+        // Above #dashboard-ink-layer so the FAB stays clickable in Select mode.
+        zIndex: annotationActive ? Z_INDEX.annotationChromeLift : undefined,
+      }}
     >
       {isSliderOpen && (
         <div

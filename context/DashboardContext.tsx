@@ -52,6 +52,7 @@ import {
 } from '@/utils/widgetMergeFields';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
+import i18n from '@/i18n';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { TOOLS } from '@/config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
@@ -234,6 +235,11 @@ const stripDerivedPixels = (w: WidgetData) => {
 
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
+// Ink-only edits rewrite the whole board document, so sustained drawing gets a
+// longer ceiling than a widget edit — but the teardown flush (beforeunload,
+// pagehide, visibilitychange) is unreliable on iPadOS, so this bounds the
+// worst-case ink loss window at 8s of continuous drawing.
+const MAX_UNSAVED_INK_AGE_MS = 8000;
 
 /**
  * Annotation ink for change-detection. `updatedAt` is deliberately excluded —
@@ -268,6 +274,26 @@ const mirroredAnnotationBaseline = (
     return [];
   }
 };
+
+// Firestore hands documents back with alphabetically sorted keys, so a plain
+// JSON.stringify of a remote widget never matches the local one it echoes.
+const stableStringify = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const body = Object.keys(obj)
+      .sort()
+      .filter((k) => obj[k] !== undefined)
+      .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
+      .join(',');
+    return `{${body}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+};
+
+/** Widget signature for remote-vs-local comparison: PII-free and key-stable. */
+const widgetMirrorSignature = (widgets: WidgetData[]): string =>
+  stableStringify(scrubWidgetsPII(widgets).map(stripDerivedPixels));
 
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
@@ -1503,12 +1529,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard, baseline?: SaveBaseline): Promise<number> => {
+    async (
+      dashboard: Dashboard,
+      baseline?: SaveBaseline,
+      // Teardown flushes pass this: the page is already going away, so the two
+      // Drive round-trips below would run out the clock before Firestore is
+      // even reached. The PII backup still fires, just unawaited.
+      options?: { skipDrive?: boolean }
+    ): Promise<number> => {
       // Always save to Firestore for real-time sync
       let driveFileId = dashboard.driveFileId;
+      const skipDrive = options?.skipDrive === true;
 
       // MANDATE: Save to Drive for non-admins (full dashboard with PII goes to Drive)
-      if (!isAdmin && driveService) {
+      if (!skipDrive && !isAdmin && driveService) {
         try {
           // Only perform immediate export if it's a new dashboard or doesn't have an ID yet
           // Background effect handles ongoing sync
@@ -1518,7 +1552,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      await backupDashboardPIIToDrive(dashboard);
+      // Teardown skips the awaits, not the backup itself: scrubbing PII into
+      // Firestore without refreshing the Drive copy resurrects stale rosters.
+      if (skipDrive) {
+        void backupDashboardPIIToDrive(dashboard).catch((e) =>
+          console.error('[PII] Teardown PII backup failed:', e)
+        );
+      } else {
+        await backupDashboardPIIToDrive(dashboard);
+      }
 
       // CRITICAL: Strip all student PII before writing to Firestore.
       // Custom widget names (firstNames, lastNames, completedNames, etc.) must
@@ -2721,11 +2763,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // previous timer, so without this ceiling a stream of edits closer together
     // than the debounce postpones the write forever.
     oldestUnsavedEditAtRef.current ??= Date.now();
+    const maxUnsavedAgeMs = isInkOnlyChange
+      ? MAX_UNSAVED_INK_AGE_MS
+      : MAX_UNSAVED_EDIT_AGE_MS;
     const debounceMs = Math.max(
       0,
       Math.min(
         baseDebounceMs,
-        MAX_UNSAVED_EDIT_AGE_MS - (Date.now() - oldestUnsavedEditAtRef.current)
+        maxUnsavedAgeMs - (Date.now() - oldestUnsavedEditAtRef.current)
       )
     );
     // The immediate-write flag has now been consumed for this scheduling pass.
@@ -2967,33 +3012,57 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // supplement entry; the latch above is cleared alongside the bump.
   }, [activeId, loading, driveService, piiRestoreNonce]);
 
-  // Flush pending saves on page refresh/close
+  // Flush pending saves on page refresh/close. iPadOS Safari never fires
+  // beforeunload, so pagehide and the hidden visibilitychange (the only events
+  // a backgrounded tab reliably gets) run the same flush.
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const flushPendingSave = (mode: 'teardown' | 'hidden') => {
       // oldestUnsavedEditAtRef tracks "content differs from what was saved";
       // saveTimerRef only tracks "a timer happens to be scheduled right now",
       // which the effect's cleanup clears on every re-render.
       if (
-        oldestUnsavedEditAtRef.current !== null &&
-        user &&
-        !loading &&
-        activeId
-      ) {
-        const active = dashboards.find((d) => d.id === activeId);
-        if (active) {
-          // Note: We can't reliably await this in beforeunload, but we can try
-          // to trigger it. Deliberately baseline-free: the merge transaction
-          // needs a server read before it can write anything, and the page is
-          // already tearing down. The blind write is the only one with a
-          // chance of landing.
-          void saveDashboard(active);
-        }
+        oldestUnsavedEditAtRef.current === null ||
+        !user ||
+        loading ||
+        !activeId
+      )
+        return;
+      const active = dashboards.find((d) => d.id === activeId);
+      if (!active) return;
+      // This flush covers every edit up to now — cancel the debounced write so
+      // it doesn't fire a second copy of the same document afterwards.
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
       }
+      oldestUnsavedEditAtRef.current = null;
+      // Hiding a tab is routine (app switch, iPad lock), so it takes the normal
+      // baselined merge — a blind whole-doc write there would clobber a
+      // co-teacher's unreceived edits. Only real teardown, where the merge
+      // transaction's server read would never finish, writes blind.
+      const write =
+        mode === 'hidden'
+          ? saveDashboard(active, buildSaveBaseline(active.id))
+          : saveDashboard(active, undefined, { skipDrive: true });
+      void write.catch((err) => {
+        console.error('Flush save failed:', err);
+        oldestUnsavedEditAtRef.current ??= Date.now();
+      });
+    };
+    const onTeardown = () => flushPendingSave('teardown');
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushPendingSave('hidden');
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [dashboards, activeId, user, loading, saveDashboard]);
+    window.addEventListener('beforeunload', onTeardown);
+    window.addEventListener('pagehide', onTeardown);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', onTeardown);
+      window.removeEventListener('pagehide', onTeardown);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
 
   const toggleToolVisibility = useCallback(
     (type: WidgetType | InternalToolType) => {
@@ -3491,6 +3560,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // The echo filter above prevents a writer from re-applying its own
         // mirrored update.
         const hasBaseline = lastMirroredRef.current.has(shareId);
+        // A co-teacher's widget edit invalidates local undo for that board.
+        // Both sides go through the same PII scrub and key-stable serializer:
+        // comparing the remote (scrubbed, Firestore-sorted) against the local
+        // copy (PII merged back in) marked every snapshot of a roster-bearing
+        // board as a remote edit and wiped the undo stack.
+        const localBeforeMirror = dashboardsRef.current.find(
+          (x) => x.id === dashboardId
+        );
+        if (
+          remote.widgets &&
+          localBeforeMirror &&
+          widgetMirrorSignature(remote.widgets) !==
+            widgetMirrorSignature(localBeforeMirror.widgets)
+        ) {
+          widgetHistoryRef.current.delete(dashboardId);
+        }
         setDashboards((prev) =>
           prev.map((x) => {
             if (x.id !== dashboardId) return x;
@@ -5083,7 +5168,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const isHistoryTargetActive = useCallback(
     (boardId: string | undefined, id: string | null) => {
       if (!boardId || boardId === id) return true;
-      addToast('Switch back to that board to undo this', 'info');
+      addToast(i18n.t('toasts.switchBoardToUndo'), 'info');
       return false;
     },
     [addToast]

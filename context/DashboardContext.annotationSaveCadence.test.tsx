@@ -204,7 +204,9 @@ const stroke = (id: string): DrawableObject => ({
   strokeWidth: 2,
 });
 
-async function setup(): Promise<{ current: Snap | null }> {
+async function setup(seed: Dashboard = board()): Promise<{
+  current: Snap | null;
+}> {
   const stateRef: { current: Snap | null } = { current: null };
   render(
     <DashboardProvider>
@@ -214,7 +216,7 @@ async function setup(): Promise<{ current: Snap | null }> {
   const cb = capturedSnapshotCb;
   if (!cb) throw new Error('Provider not mounted');
   await act(async () => {
-    cb([board()], false);
+    cb([seed], false);
     await vi.advanceTimersByTimeAsync(0);
   });
   if (!stateRef.current?.activeDashboard)
@@ -225,6 +227,8 @@ async function setup(): Promise<{ current: Snap | null }> {
   await advance(12000);
   saveDashboardMock.mockClear();
   exportDashboardMock.mockClear();
+  driveServiceMock.uploadFile.mockClear();
+  driveServiceMock.updateFileContent.mockClear();
   return stateRef;
 }
 
@@ -240,6 +244,8 @@ describe('DashboardContext annotation save cadence', () => {
     saveDashboardMock.mockResolvedValue(Date.now());
     exportDashboardMock.mockClear();
     exportDashboardMock.mockResolvedValue('drive-file-1');
+    driveServiceMock.uploadFile.mockClear();
+    driveServiceMock.updateFileContent.mockClear();
     firestoreMock.subscribeToDashboards.mockClear();
     vi.useFakeTimers();
   });
@@ -295,6 +301,158 @@ describe('DashboardContext annotation save cadence', () => {
     });
     await advance(6000);
     expect(exportDashboardMock).toHaveBeenCalledTimes(1);
+  });
+
+  // The 3s unsaved-edit ceiling clamped the 2.5s ink debounce, so sustained
+  // drawing forced a whole-document transactional write roughly every 3s.
+  // Ink-only edits get an 8s ceiling instead — long enough to coalesce a
+  // drawing burst, short enough to bound the loss window on a tablet where
+  // the teardown flush may never run.
+  it('REGRESSION: sustained inking does not force a full write every 3 seconds', async () => {
+    const stateRef = await setup();
+
+    // Seven seconds of steady inking, one stroke per second — every stroke
+    // lands inside the 2.5s debounce window, so nothing should be written.
+    for (let i = 0; i < 7; i++) {
+      act(() => {
+        stateRef.current?.addAnnotationObject(stroke(`s${i}`));
+      });
+      await advance(1000);
+    }
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+
+    // Past the 8s ink ceiling the write is forced even with strokes arriving.
+    for (let i = 7; i < 10; i++) {
+      act(() => {
+        stateRef.current?.addAnnotationObject(stroke(`s${i}`));
+      });
+      await advance(1000);
+    }
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+  });
+
+  // The longer ceiling is ink-only: a widget edit keeps the 3s bound.
+  it('a widget edit still hits the 3s unsaved-edit ceiling', async () => {
+    const stateRef = await setup();
+
+    for (let i = 0; i < 5; i++) {
+      act(() => {
+        stateRef.current?.updateWidget('w1', { z: 5 + i });
+      });
+      await advance(700);
+    }
+    expect(saveDashboardMock).toHaveBeenCalled();
+  });
+
+  // iPadOS Safari never fires beforeunload, so a teacher who closes the tab or
+  // switches apps mid-stroke lost everything since the last write.
+  it.each(['pagehide', 'beforeunload'])(
+    'REGRESSION: %s flushes unsaved ink',
+    async (eventName) => {
+      const stateRef = await setup();
+
+      act(() => {
+        stateRef.current?.addAnnotationObject(stroke('s1'));
+      });
+      expect(saveDashboardMock).not.toHaveBeenCalled();
+
+      act(() => {
+        window.dispatchEvent(new Event(eventName));
+      });
+      await advance(0);
+
+      expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+      const saved = saveDashboardMock.mock.calls[0][0] as Dashboard;
+      expect(saved.annotationOverlay?.objects.map((o) => o.id)).toEqual(['s1']);
+      // Real teardown writes blind: the merge transaction's server read would
+      // never come back before the tab is frozen.
+      expect(saveDashboardMock.mock.calls[0][1]).toBeUndefined();
+
+      // The flush consumed the pending edit — no second copy of the same doc.
+      await advance(10000);
+      expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  // Backgrounding a tab on iPadOS produces neither beforeunload nor a
+  // reliable pagehide, but it always produces a hidden visibilitychange.
+  it('REGRESSION: hiding the tab flushes unsaved ink', async () => {
+    const stateRef = await setup();
+
+    act(() => {
+      stateRef.current?.addAnnotationObject(stroke('s1'));
+    });
+
+    const visibility = vi
+      .spyOn(document, 'visibilityState', 'get')
+      .mockReturnValue('hidden');
+    try {
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await advance(0);
+      expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+      // Hiding is routine (app switch, iPad lock), so it takes the normal
+      // baselined merge rather than a blind whole-doc overwrite that would
+      // clobber a co-teacher's unreceived edits.
+      expect(saveDashboardMock.mock.calls[0][1]).toBeDefined();
+      await advance(10000);
+      expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+    } finally {
+      visibility.mockRestore();
+    }
+  });
+
+  it('a visible visibilitychange does not flush', async () => {
+    const stateRef = await setup();
+
+    act(() => {
+      stateRef.current?.addAnnotationObject(stroke('s1'));
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await advance(0);
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+  });
+
+  // The flush races the page teardown, so it writes Firestore directly rather
+  // than awaiting two Drive round-trips first. The PII backup still fires,
+  // unawaited — skipping it would scrub the roster into Firestore while the
+  // Drive copy stayed stale, and the next load would restore the old names.
+  it('REGRESSION: the teardown flush skips the Drive awaits but still backs up PII', async () => {
+    const piiBoard: Dashboard = {
+      ...board(),
+      driveFileId: undefined,
+      widgets: [
+        {
+          ...widget('w1'),
+          config: { firstNames: 'Ada\nGrace' } as WidgetData['config'],
+        },
+      ],
+    };
+    const stateRef = await setup(piiBoard);
+
+    act(() => {
+      stateRef.current?.addAnnotationObject(stroke('s1'));
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    await advance(0);
+
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+    expect(exportDashboardMock).not.toHaveBeenCalled();
+    // Fired, but not awaited ahead of the Firestore write.
+    expect(driveServiceMock.uploadFile).toHaveBeenCalled();
+
+    // The roster never reaches the Firestore payload.
+    const saved = saveDashboardMock.mock.calls[0][0] as Dashboard;
+    expect(
+      (saved.widgets[0].config as Record<string, unknown>).firstNames
+    ).toBeUndefined();
   });
 
   // Strokes no longer reschedule the export, so cancelling on every effect

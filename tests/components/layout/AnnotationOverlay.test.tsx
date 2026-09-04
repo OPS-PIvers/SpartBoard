@@ -12,6 +12,8 @@ import type {
 import type { DrawableObject, TextObject } from '@/types';
 import { getAnnotationWorldRect } from '@/utils/annotationSize';
 import { ZOOM_MIN } from '@/utils/zoomMapping';
+import { Z_INDEX } from '@/config/zIndex';
+import i18n from '@/i18n';
 
 // Mock the auth and dashboard contexts. Both are accessed as plain hooks by
 // AnnotationOverlay, so vi.mock + vi.mocked is the standard pattern (mirrors
@@ -515,22 +517,42 @@ describe('AnnotationOverlay — persistence + layout', () => {
     strokeWidth: 2,
   };
 
-  it('mounts the canvas inside the zoom surface and the toolbar top-center', () => {
-    const surface = document.createElement('div');
-    surface.id = 'dashboard-zoom-surface';
+  // Regression: mounting the ink inside `#dashboard-zoom-surface` forced that
+  // surface above the fixed chrome, and the world-sized canvas then swallowed
+  // every Dock/Sidebar/FAB click for the whole session.
+  it('REGRESSION: mounts the canvas in the ink layer, not the widget surface', () => {
     const root = document.getElementById('dashboard-root');
     if (!root) throw new Error('dashboard-root missing');
+    const surface = document.createElement('div');
+    surface.id = 'dashboard-zoom-surface';
     root.appendChild(surface);
+    const inkLayer = document.createElement('div');
+    inkLayer.id = 'dashboard-ink-layer';
+    root.appendChild(inkLayer);
     setupContext();
     render(<AnnotationOverlay />);
     const canvas = document.querySelector('canvas');
-    expect(canvas?.parentElement).toBe(surface);
+    expect(canvas?.parentElement).toBe(inkLayer);
+    expect(surface.contains(canvas)).toBe(false);
     const toolbar = screen
       .getByRole('button', { name: /^exit/i })
       .closest('[data-screenshot="exclude"]') as HTMLElement;
     expect(toolbar.className).toContain('top-6');
     expect(toolbar.className).not.toContain('bottom-6');
-    expect(surface.contains(toolbar)).toBe(false);
+    expect(inkLayer.contains(toolbar)).toBe(false);
+  });
+
+  // Older shells (and the passive viewer path) may render before the layer
+  // exists; the canvas still has to land somewhere it can paint.
+  it('falls back to the zoom surface when no ink layer exists', () => {
+    const root = document.getElementById('dashboard-root');
+    if (!root) throw new Error('dashboard-root missing');
+    const surface = document.createElement('div');
+    surface.id = 'dashboard-zoom-surface';
+    root.appendChild(surface);
+    setupContext();
+    render(<AnnotationOverlay />);
+    expect(document.querySelector('canvas')?.parentElement).toBe(surface);
   });
 
   it('trash asks for confirmation and only clears on yes', async () => {
@@ -749,6 +771,126 @@ describe('AnnotationOverlay — persistence + layout', () => {
       parseFloat(before) - 300,
       1
     );
+  });
+
+  // The canvas no longer fights the widget stack for a layer — the ink layer
+  // that hosts it already sits above the whole zoom surface (asserted in
+  // DashboardView.test.tsx), so a z-index here would only risk outranking
+  // modals.
+  it('leaves stacking to the ink layer instead of setting its own z-index', () => {
+    setupContext();
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    expect(canvas.style.zIndex).toBe('');
+  });
+
+  // The toolbar/text-editor portal must stay above the ink layer.
+  it('the toolbar portal outranks the ink layer', () => {
+    setupContext();
+    render(<AnnotationOverlay />);
+    const portal = screen
+      .getByRole('button', { name: /^exit/i })
+      .closest('.fixed') as HTMLElement;
+    expect(Number(portal.style.zIndex)).toBeGreaterThan(
+      Z_INDEX.annotationSurface
+    );
+  });
+
+  // Regression: a ~1100px toolbar centered at top-6 collided with the fixed
+  // Sidebar pill and was clipped by the overflow-hidden portal on 1024px
+  // projectors, putting Select and Exit out of reach. A first fix re-centered
+  // above 1400px, which put the bar back under the pill at 1440-1728px — the
+  // clearance is now unconditional and the bar centers in the room left over.
+  it.each([1024, 1440, 1728, 1920, 2560])(
+    'REGRESSION: at %ipx the toolbar clears the sidebar pill and stays reachable',
+    (viewportWidth) => {
+      const originalW = window.innerWidth;
+      const originalH = window.innerHeight;
+      try {
+        setWindowSize(viewportWidth, 768);
+        setupContext();
+        const view = render(<AnnotationOverlay />);
+        const wrapper = screen
+          .getByRole('button', { name: /^exit/i })
+          .closest('[data-screenshot="exclude"]') as HTMLElement;
+        // Offset right of the top-left pill instead of centered on the viewport.
+        // The 40vw cap only bites below 860px, so it is inert at these widths.
+        expect(wrapper.className).toContain('left-[min(344px,40vw)]');
+        expect(wrapper.className).not.toContain('left-1/2');
+        expect(wrapper.className).toContain('justify-center');
+
+        const bar = wrapper.firstElementChild as HTMLElement;
+        expect(bar.className).toContain('max-w-[max(60vw,calc(100vw-360px))]');
+        expect(bar.className).toContain('flex-wrap');
+
+        // Both ends of the toolbar are still present and operable.
+        expect(screen.getByLabelText('Select')).toBeEnabled();
+        expect(screen.getByRole('button', { name: /^exit/i })).toBeEnabled();
+        view.unmount();
+      } finally {
+        setWindowSize(originalW, originalH);
+      }
+    }
+  );
+
+  // Regression: an unconditional 344px inset plus a calc(100vw - 360px) cap
+  // left the toolbar 15px wide on a 375px phone. Both are now bounded.
+  it.each([375, 768])(
+    'REGRESSION: at %ipx the toolbar keeps a usable width',
+    (viewportWidth) => {
+      const originalW = window.innerWidth;
+      const originalH = window.innerHeight;
+      try {
+        setWindowSize(viewportWidth, 812);
+        setupContext();
+        const view = render(<AnnotationOverlay />);
+        const wrapper = screen
+          .getByRole('button', { name: /^exit/i })
+          .closest('[data-screenshot="exclude"]') as HTMLElement;
+        expect(wrapper.className).toContain('left-[min(344px,40vw)]');
+        const bar = wrapper.firstElementChild as HTMLElement;
+        expect(bar.className).toContain('max-w-[max(60vw,calc(100vw-360px))]');
+        expect(screen.getByLabelText('Select')).toBeEnabled();
+        view.unmount();
+      } finally {
+        setWindowSize(originalW, originalH);
+      }
+    }
+  );
+
+  it('explains the inert dock only while a drawing tool is armed', () => {
+    setupContext({ annotationState: baseState({ activeTool: 'pen' }) });
+    const { unmount } = render(<AnnotationOverlay />);
+    expect(
+      screen.getByText(i18n.t('annotation.chromeInertHint'))
+    ).toBeInTheDocument();
+    unmount();
+
+    setupContext({ annotationState: baseState({ activeTool: 'select' }) });
+    render(<AnnotationOverlay />);
+    expect(screen.queryByText(i18n.t('annotation.chromeInertHint'))).toBeNull();
+  });
+
+  // The clear-all confirm was hardcoded English; it now follows the locale.
+  it('translates the clear-all confirmation', async () => {
+    setupContext({ annotationState: baseState({ objects: [stroke] }) });
+    mockShowConfirm.mockResolvedValue(false);
+    try {
+      await i18n.changeLanguage('de');
+      render(<AnnotationOverlay />);
+      fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
+      await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+      expect(mockShowConfirm.mock.calls[0][0]).toBe(
+        i18n.t('annotation.clearConfirmBody')
+      );
+      expect(mockShowConfirm.mock.calls[0][0]).not.toContain('Clear all');
+      expect(mockShowConfirm.mock.calls[0][1]?.confirmLabel).toBe(
+        i18n.t('annotation.clearConfirmAction')
+      );
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('with the toolbar closed, persisted ink renders inert and Escape does nothing', () => {

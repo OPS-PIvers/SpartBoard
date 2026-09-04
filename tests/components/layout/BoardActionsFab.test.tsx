@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BoardActionsFab } from '@/components/layout/BoardActionsFab';
+import { Z_INDEX } from '@/config/zIndex';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
@@ -121,5 +122,59 @@ describe('BoardActionsFab', () => {
     } finally {
       window.removeEventListener('keydown', windowKeydownSpy);
     }
+  });
+
+  const fabRoot = () =>
+    screen
+      .getByLabelText('Zoom level')
+      .closest('[data-screenshot="exclude"]') as HTMLElement;
+
+  // The dead pointer target had no visible affordance, so a click over the
+  // FAB just drew an ink dot and read as a broken control. aria-disabled on a
+  // generic div is ignored and pointer-events:none leaves the buttons
+  // keyboard-operable, so the container is marked inert instead.
+  it('marks the FAB inert and fades it while a drawing tool is armed', () => {
+    mockedUseDashboard.mockReturnValue({
+      zoom: 1,
+      setZoom: vi.fn(),
+      annotationActive: true,
+      annotationState: { activeTool: 'pen' },
+    } as unknown as ReturnType<typeof useDashboard>);
+    render(<BoardActionsFab onOpenHelp={noop} />);
+    const root = fabRoot();
+    expect(root).toHaveAttribute('inert');
+    expect(root).not.toHaveAttribute('aria-disabled');
+    expect(root.className).toContain('opacity-40');
+    expect(root.className).toContain('pointer-events-none');
+  });
+
+  it('drops the inert state once Select is armed', () => {
+    mockedUseDashboard.mockReturnValue({
+      zoom: 1,
+      setZoom: vi.fn(),
+      annotationActive: true,
+      annotationState: { activeTool: 'select' },
+    } as unknown as ReturnType<typeof useDashboard>);
+    render(<BoardActionsFab onOpenHelp={noop} />);
+    const root = fabRoot();
+    expect(root).not.toHaveAttribute('inert');
+    expect(root.className).not.toContain('opacity-40');
+  });
+
+  // Regression: the ink layer sits above the fixed chrome, so the FAB has to
+  // outrank it or Select mode leaves the zoom controls unclickable.
+  it('REGRESSION: the FAB outranks the ink layer while annotating', () => {
+    mockedUseDashboard.mockReturnValue({
+      zoom: 1,
+      setZoom: vi.fn(),
+      annotationActive: true,
+      annotationState: { activeTool: 'select' },
+    } as unknown as ReturnType<typeof useDashboard>);
+    render(<BoardActionsFab onOpenHelp={noop} />);
+    const root = fabRoot();
+    expect(Number(root.style.zIndex)).toBeGreaterThan(
+      Z_INDEX.annotationSurface
+    );
+    expect(root.className).not.toContain('pointer-events-none');
   });
 });

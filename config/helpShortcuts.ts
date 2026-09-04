@@ -36,6 +36,18 @@ export const HELP_SHORTCUTS: HelpShortcut[] = [
     labelKey: 'helpCenter.shortcuts.zoom-board',
   },
   {
+    id: 'undo',
+    keys: ['Ctrl/⌘', 'Z'],
+    group: 'board',
+    labelKey: 'helpCenter.shortcuts.undo',
+  },
+  {
+    id: 'redo',
+    keys: ['Ctrl/⌘', 'Shift', 'Z'],
+    group: 'board',
+    labelKey: 'helpCenter.shortcuts.redo',
+  },
+  {
     id: 'pin-widget',
     keys: ['Alt', 'P'],
     group: 'widget',

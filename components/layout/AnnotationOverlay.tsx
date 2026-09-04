@@ -23,6 +23,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { toPng } from 'html-to-image';
 import {
   ArrowRight,
@@ -106,15 +107,24 @@ const FALLBACK_ANNOTATION_STATE: {
   shapeFill: DRAWING_DEFAULTS.SHAPE_FILL,
 };
 
+// Horizontal room the fixed Sidebar pill needs at top-left (344px) before the
+// toolbar may start, capped at 40vw so it does not crush the bar on phones; the
+// bar keeps at least 60vw. Re-centering on the viewport instead put it back
+// under the pill on 1440-1728px screens. Literal classes so Tailwind sees them.
+const TOOLBAR_INSET_CLASS = 'left-[min(344px,40vw)] right-4';
+const TOOLBAR_MAX_WIDTH_CLASS = 'max-w-[max(60vw,calc(100vw-360px))]';
+
 /**
  * Full-screen annotation overlay — NOT a widget.
  *
- * The canvas renders inside `#dashboard-zoom-surface` so ink shares the
+ * The canvas renders inside `#dashboard-ink-layer` so ink shares the
  * widgets' pan/zoom camera and stores board coordinates. The toolbar and
- * text editor portal into `#dashboard-root` (fixed, top-center) so they stay
- * outside the transform. No dimming layer; the Dock stays available.
+ * text editor portal into `#dashboard-root` (fixed, centred in the room left
+ * beside the Sidebar pill) so they stay outside the transform. No dimming
+ * layer; the Dock stays available.
  */
 export const AnnotationOverlay: React.FC = () => {
+  const { t } = useTranslation();
   const dashboard = useDashboard();
   const {
     annotationActive,
@@ -156,7 +166,8 @@ export const AnnotationOverlay: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  // Canvas lives in the zoom surface; falls back to the root when absent.
+  // Canvas lives in the dedicated ink layer beside the zoom surface; falls
+  // back to the surface, then the root, when an older shell lacks it.
   const [canvasTarget, setCanvasTarget] = useState<HTMLElement | null>(null);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1280,
@@ -197,7 +208,9 @@ export const AnnotationOverlay: React.FC = () => {
       if (target) {
         setPortalTarget(target);
         setCanvasTarget(
-          document.getElementById('dashboard-zoom-surface') ?? target
+          document.getElementById('dashboard-ink-layer') ??
+            document.getElementById('dashboard-zoom-surface') ??
+            target
         );
         return true;
       }
@@ -248,12 +261,13 @@ export const AnnotationOverlay: React.FC = () => {
 
   // Trash wipes ink that may be days old and mirrored to viewers: confirm.
   const handleClear = useCallback(async () => {
-    const ok = await showConfirm(
-      'Clear all annotations on this board? This cannot be undone.',
-      { title: 'Clear annotations', variant: 'danger', confirmLabel: 'Clear' }
-    );
+    const ok = await showConfirm(t('annotation.clearConfirmBody'), {
+      title: t('annotation.clearConfirmTitle'),
+      variant: 'danger',
+      confirmLabel: t('annotation.clearConfirmAction'),
+    });
     if (ok) clearAnnotation();
-  }, [showConfirm, clearAnnotation]);
+  }, [showConfirm, clearAnnotation, t]);
 
   // The canvas covers the whole world rect, not the viewport: at ZOOM_MIN the
   // zoom surface shows the entire world, so a viewport-sized canvas would
@@ -714,7 +728,6 @@ export const AnnotationOverlay: React.FC = () => {
         width: worldRect.width,
         height: worldRect.height,
         touchAction: interactive ? 'none' : 'auto',
-        zIndex: Z_INDEX.overlay,
       }}
     />,
     canvasTarget
@@ -723,7 +736,7 @@ export const AnnotationOverlay: React.FC = () => {
   const chromePortal = createPortal(
     <div
       className="fixed inset-0 pointer-events-none overflow-hidden"
-      style={{ zIndex: Z_INDEX.overlay }}
+      style={{ zIndex: Z_INDEX.annotationChrome }}
     >
       {interactive && <input {...fileInputProps} />}
 
@@ -738,90 +751,99 @@ export const AnnotationOverlay: React.FC = () => {
         />
       )}
 
-      {/* Floating toolbar — top-center so the Dock stays free below.
-          Hidden for viewers and for the passive render path. */}
+      {/* Floating toolbar — top, centered in whatever room is left beside the
+          fixed Sidebar pill. Hidden for viewers and for the passive path. */}
       {interactive && (
         <div
           data-screenshot="exclude"
-          className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex items-center gap-2 motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-300"
+          className={`absolute top-6 flex justify-center pointer-events-none ${TOOLBAR_INSET_CLASS}`}
         >
-          <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
-            <MousePointer2 className="w-4 h-4 text-indigo-600 motion-safe:animate-pulse" />
-            <span className="text-xxs font-black uppercase tracking-widest text-slate-700">
-              Annotating
-            </span>
-          </div>
+          <div
+            className={`pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex flex-wrap items-center justify-center gap-2 overflow-x-auto motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-300 ${TOOLBAR_MAX_WIDTH_CLASS}`}
+          >
+            <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
+              <MousePointer2 className="w-4 h-4 text-indigo-600 motion-safe:animate-pulse" />
+              <span className="text-xxs font-black uppercase tracking-widest text-slate-700">
+                Annotating
+              </span>
+            </div>
 
-          {/* Toggle-button group (not radiogroup) — tools are modes; the
+            {activeTool !== 'select' && (
+              <span className="text-xxs font-semibold text-slate-600 px-2 py-1 rounded-md bg-slate-100">
+                {t('annotation.chromeInertHint')}
+              </span>
+            )}
+
+            {/* Toggle-button group (not radiogroup) — tools are modes; the
               button + aria-pressed pattern gives us native Tab/Space/Enter
               keyboard handling without roving-tabindex machinery. */}
-          <div
-            role="group"
-            aria-label="Drawing tool"
-            className="flex gap-1 bg-slate-100 p-1 rounded-lg"
-          >
-            {TOOL_BUTTONS.map(({ tool, Icon, label }) => (
-              <button
-                key={tool}
-                type="button"
-                aria-pressed={activeTool === tool}
-                onClick={() => updateAnnotationState({ activeTool: tool })}
-                className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 ${
-                  activeTool === tool
-                    ? 'ring-2 ring-indigo-500'
-                    : 'hover:bg-slate-50'
-                }`}
-                title={label}
-                aria-label={label}
-              >
-                <Icon className="w-4 h-4 text-slate-600" />
-              </button>
-            ))}
-          </div>
+            <div
+              role="group"
+              aria-label="Drawing tool"
+              className="flex gap-1 bg-slate-100 p-1 rounded-lg"
+            >
+              {TOOL_BUTTONS.map(({ tool, Icon, label }) => (
+                <button
+                  key={tool}
+                  type="button"
+                  aria-pressed={activeTool === tool}
+                  onClick={() => updateAnnotationState({ activeTool: tool })}
+                  className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 ${
+                    activeTool === tool
+                      ? 'ring-2 ring-indigo-500'
+                      : 'hover:bg-slate-50'
+                  }`}
+                  title={label}
+                  aria-label={label}
+                >
+                  <Icon className="w-4 h-4 text-slate-600" />
+                </button>
+              ))}
+            </div>
 
-          <div
-            className={`flex gap-1 bg-slate-100 p-1 rounded-lg transition-opacity ${
-              isErasing ? 'opacity-50 pointer-events-none' : ''
-            }`}
-            aria-hidden={isErasing}
-          >
-            {customColors.map((c) => (
-              <button
-                key={c}
-                onClick={() => updateAnnotationState({ color: c })}
-                className={`w-7 h-7 rounded-md transition-all ${
-                  color === c
-                    ? 'scale-110 shadow-sm ring-2 ring-indigo-500'
-                    : 'hover:scale-105'
-                }`}
-                style={{ backgroundColor: c }}
-                aria-label={`Color ${c}`}
+            <div
+              className={`flex gap-1 bg-slate-100 p-1 rounded-lg transition-opacity ${
+                isErasing ? 'opacity-50 pointer-events-none' : ''
+              }`}
+              aria-hidden={isErasing}
+            >
+              {customColors.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => updateAnnotationState({ color: c })}
+                  className={`w-7 h-7 rounded-md transition-all ${
+                    color === c
+                      ? 'scale-110 shadow-sm ring-2 ring-indigo-500'
+                      : 'hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: c }}
+                  aria-label={`Color ${c}`}
+                />
+              ))}
+            </div>
+
+            {/* Width slider */}
+            <div className="flex items-center gap-2 px-2">
+              <input
+                type="range"
+                min={1}
+                max={80}
+                step={1}
+                value={width}
+                onChange={(e) =>
+                  updateAnnotationState({ width: parseInt(e.target.value, 10) })
+                }
+                className="w-20 accent-indigo-600"
+                aria-label="Brush thickness"
               />
-            ))}
-          </div>
+              <span className="w-9 text-center font-mono text-xs text-slate-600">
+                {width}px
+              </span>
+            </div>
 
-          {/* Width slider */}
-          <div className="flex items-center gap-2 px-2">
-            <input
-              type="range"
-              min={1}
-              max={80}
-              step={1}
-              value={width}
-              onChange={(e) =>
-                updateAnnotationState({ width: parseInt(e.target.value, 10) })
-              }
-              className="w-20 accent-indigo-600"
-              aria-label="Brush thickness"
-            />
-            <span className="w-9 text-center font-mono text-xs text-slate-600">
-              {width}px
-            </span>
-          </div>
+            <div className="h-6 w-px bg-slate-200 mx-1" />
 
-          <div className="h-6 w-px bg-slate-200 mx-1" />
-
-          {/*
+            {/*
             Per-author Undo: scans for the local user's most recent stroke
             so a synced collaborator can't accidentally clobber another
             teacher's drawing. Wave 5 deliberately did NOT unify this with
@@ -830,101 +852,102 @@ export const AnnotationOverlay: React.FC = () => {
             below is an in-memory stack layered on top of that per-author
             undo (see DashboardContext.redoAnnotation for the implementation).
           */}
-          <Button
-            onClick={undoAnnotation}
-            title="Undo"
-            aria-label="Undo"
-            variant="ghost"
-            size="icon"
-            disabled={!canUndoAnnotation}
-            icon={<Undo2 className="w-4 h-4" />}
-          />
-          <Button
-            onClick={redoAnnotation}
-            title="Redo"
-            aria-label="Redo"
-            variant="ghost"
-            size="icon"
-            disabled={!canRedoAnnotation}
-            icon={<Redo2 className="w-4 h-4" />}
-          />
-          <Button
-            onClick={handleClear}
-            title="Clear all"
-            variant="ghost-danger"
-            size="icon"
-            disabled={objects.length === 0}
-            icon={<Trash2 className="w-4 h-4" />}
-          />
-
-          <Button
-            onClick={openImagePicker}
-            disabled={isUploadingImage}
-            title="Insert image"
-            aria-label="Insert image"
-            variant="ghost"
-            size="icon"
-            icon={
-              isUploadingImage ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
-              ) : (
-                <ImagePlus className="w-4 h-4" />
-              )
-            }
-          />
-
-          <div className="h-6 w-px bg-slate-200 mx-1" />
-
-          <Button
-            onClick={() => void handleDownload()}
-            disabled={isBusy !== null}
-            variant="ghost"
-            size="icon"
-            title="Download PNG"
-            icon={<Camera className="w-4 h-4" />}
-          />
-          <Button
-            onClick={() => void handleSaveToDrive()}
-            disabled={isBusy !== null}
-            variant="ghost"
-            size="icon"
-            title="Save to Google Drive"
-            icon={
-              isBusy === 'drive' ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
-              ) : (
-                <HardDriveUpload className="w-4 h-4" />
-              )
-            }
-          />
-          {canAccessFeature('gemini-functions') && (
             <Button
-              onClick={() => void handleExtractText()}
-              disabled={isBusy !== null}
+              onClick={undoAnnotation}
+              title="Undo"
+              aria-label="Undo"
               variant="ghost"
               size="icon"
-              title="Extract text (AI)"
+              disabled={!canUndoAnnotation}
+              icon={<Undo2 className="w-4 h-4" />}
+            />
+            <Button
+              onClick={redoAnnotation}
+              title="Redo"
+              aria-label="Redo"
+              variant="ghost"
+              size="icon"
+              disabled={!canRedoAnnotation}
+              icon={<Redo2 className="w-4 h-4" />}
+            />
+            <Button
+              onClick={handleClear}
+              title="Clear all"
+              variant="ghost-danger"
+              size="icon"
+              disabled={objects.length === 0}
+              icon={<Trash2 className="w-4 h-4" />}
+            />
+
+            <Button
+              onClick={openImagePicker}
+              disabled={isUploadingImage}
+              title="Insert image"
+              aria-label="Insert image"
+              variant="ghost"
+              size="icon"
               icon={
-                isBusy === 'ocr' ? (
+                isUploadingImage ? (
                   <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
                 ) : (
-                  <Type className="w-4 h-4" />
+                  <ImagePlus className="w-4 h-4" />
                 )
               }
             />
-          )}
 
-          <div className="h-6 w-px bg-slate-200 mx-1" />
+            <div className="h-6 w-px bg-slate-200 mx-1" />
 
-          <Button
-            onClick={exitAnnotation}
-            variant="secondary"
-            size="sm"
-            title="Exit annotation (Esc)"
-            icon={<X className="w-3.5 h-3.5" />}
-          >
-            Exit
-          </Button>
+            <Button
+              onClick={() => void handleDownload()}
+              disabled={isBusy !== null}
+              variant="ghost"
+              size="icon"
+              title="Download PNG"
+              icon={<Camera className="w-4 h-4" />}
+            />
+            <Button
+              onClick={() => void handleSaveToDrive()}
+              disabled={isBusy !== null}
+              variant="ghost"
+              size="icon"
+              title="Save to Google Drive"
+              icon={
+                isBusy === 'drive' ? (
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+                ) : (
+                  <HardDriveUpload className="w-4 h-4" />
+                )
+              }
+            />
+            {canAccessFeature('gemini-functions') && (
+              <Button
+                onClick={() => void handleExtractText()}
+                disabled={isBusy !== null}
+                variant="ghost"
+                size="icon"
+                title="Extract text (AI)"
+                icon={
+                  isBusy === 'ocr' ? (
+                    <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+                  ) : (
+                    <Type className="w-4 h-4" />
+                  )
+                }
+              />
+            )}
+
+            <div className="h-6 w-px bg-slate-200 mx-1" />
+
+            <Button
+              onClick={exitAnnotation}
+              variant="secondary"
+              size="sm"
+              title="Exit annotation (Esc)"
+              icon={<X className="w-3.5 h-3.5" />}
+            >
+              Exit
+            </Button>
+          </div>
         </div>
       )}
 

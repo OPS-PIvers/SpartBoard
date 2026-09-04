@@ -834,18 +834,22 @@ export const Dock: React.FC = () => {
       data-role="dock"
       data-testid="dock"
       data-screenshot="exclude"
+      // inert (not aria-disabled on a div) so the faded dock is unreachable by
+      // keyboard too while the pen owns the pointer.
+      inert={inkingOwnsPointer}
       className={`fixed ${containerPositionClasses} z-dock flex items-center gap-4 transition-all duration-300 select-none ${
         isDragCollapsing ? 'transition-none' : 'ease-out'
       }`}
       style={{
-        // Lift above the annotation canvas so the dock stays usable while
-        // the toolbar is open (mirrors the Sidebar's lift).
-        zIndex: annotationActive ? Z_INDEX.confirmOverlay : undefined,
+        // Lift above #dashboard-ink-layer so the dock stays usable in Select
+        // mode (mirrors the Sidebar's lift).
+        zIndex: annotationActive ? Z_INDEX.annotationChromeLift : undefined,
         // ...but never steal the pen: with a drawing tool selected the dock
         // must let strokes through. Switching to Select re-arms it.
         pointerEvents: inkingOwnsPointer ? 'none' : undefined,
         transform: `${baseTransform} ${dragTransform} scale(${scaleFactor})`,
-        opacity: 1 - Math.min(dragOffset / 400, 0.4),
+        // Faded so the dead pointer target reads as deliberate, not broken.
+        opacity: inkingOwnsPointer ? 0.4 : 1 - Math.min(dragOffset / 400, 0.4),
         touchAction: isVerticalDock ? 'pan-y' : 'pan-x',
       }}
     >

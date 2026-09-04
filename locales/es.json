@@ -1208,6 +1208,7 @@
     "imageTooLarge": "Imagen demasiado grande (máx. 5 MB)",
     "backgroundUploaded": "Fondo personalizado subido a la nube",
     "settingsSaved": "Configuración guardada con éxito",
+    "switchBoardToUndo": "Vuelve a ese tablero para deshacer esto",
     "classLink": {
       "fetchFailed": "Error al obtener datos de ClassLink. Revisa la consola.",
       "imported": "{{name}} importada",
@@ -2213,6 +2214,12 @@
       "scorePending": "Your score is being prepared. Check back soon."
     }
   },
+  "annotation": {
+    "clearConfirmBody": "¿Borrar todas las anotaciones de este tablero? Esta acción no se puede deshacer.",
+    "clearConfirmTitle": "Borrar anotaciones",
+    "clearConfirmAction": "Borrar",
+    "chromeInertHint": "Elige Seleccionar para volver a usar el dock"
+  },
   "helpCenter": {
     "title": "Ayuda",
     "widgetHelp": "Guías para este widget",
@@ -2256,6 +2263,8 @@
       "open-help": "Abrir la ayuda",
       "switch-boards": "Cambiar de tablero",
       "zoom-board": "Acercar y alejar el tablero",
+      "undo": "Deshacer el último cambio del tablero",
+      "redo": "Rehacer el cambio deshecho (también Ctrl+Y)",
       "pin-widget": "Fijar / soltar el widget",
       "widget-settings": "Abrir / cerrar los ajustes del widget",
       "annotate": "Alternar el modo de dibujo",
