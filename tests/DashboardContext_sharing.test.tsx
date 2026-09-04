@@ -538,6 +538,78 @@ describe('DashboardContext Sharing Logic', () => {
       ]);
     });
 
+    it('shareDashboard writes only the link fields, not the whole board', async () => {
+      // BoardsModal shares any row, so the target need not be the active
+      // board — and a non-active board has no save baseline, so a whole
+      // document write would blind-overwrite its widgets. Seed a second,
+      // active board so `otherBoard` is genuinely non-active here.
+      const activeBoard: Dashboard = {
+        id: 'active-board',
+        name: 'Active Board',
+        background: 'bg-slate-900',
+        widgets: [],
+        createdAt: 1,
+      };
+      const otherBoard: Dashboard = {
+        id: 'other-board',
+        name: 'Not The Active Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1234567890,
+      };
+      initialDashboardsSeed = [activeBoard, otherBoard];
+
+      type Share = ReturnType<typeof useDashboard>['shareDashboard'];
+      let share: Share | null = null;
+
+      const Probe: React.FC = () => {
+        const { shareDashboard } = useDashboard();
+        useEffect(() => {
+          share = shareDashboard;
+        }, [shareDashboard]);
+        return <div>Test App</div>;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => expect(share).not.toBeNull());
+
+      mockSaveDashboard.mockClear();
+
+      await act(async () => {
+        if (share) await share(otherBoard, 'synced');
+      });
+
+      // No whole-document save was triggered for the non-active board.
+      expect(mockSaveDashboard).not.toHaveBeenCalled();
+
+      const linkUpdate = vi
+        .mocked(updateDoc)
+        .mock.calls.find((c) =>
+          (c[0] as unknown as { __path?: string }).__path?.endsWith(
+            'other-board'
+          )
+        );
+      expect(linkUpdate).toBeDefined();
+      const patch = (linkUpdate?.[1] ?? {}) as Record<string, unknown>;
+      expect(Object.keys(patch).sort()).toEqual([
+        'linkedShareEnded',
+        'linkedShareHostName',
+        'linkedShareId',
+        'linkedShareRole',
+        'updatedAt',
+      ]);
+      expect(patch.linkedShareId).toBe('mock-share-id');
+      expect(patch.linkedShareRole).toBe('owner');
+      expect(patch.linkedShareHostName).toBe('Test User');
+      expect(patch.linkedShareEnded).toBe(false);
+      expect(patch.updatedAt).toEqual(expect.any(Number));
+    });
+
     it('guest stopSharingDashboard calls leaveSharedBoard, not stopSharingBoard', async () => {
       // Guests can leave but cannot tear down the host's shared doc.
       const linkedDashboard: Dashboard = {
