@@ -159,6 +159,26 @@ describe('EngagementFooter', () => {
     consoleSpy.mockRestore();
   });
 
+  it('disables engagement controls for a still-pending submission', () => {
+    renderFooter({
+      submission: makeSubmission({ status: 'pending' }),
+      comments: [comment()],
+    });
+    expect(screen.getByLabelText('Like')).toBeDisabled();
+    expect(
+      screen.queryByPlaceholderText('Leave a comment…')
+    ).not.toBeInTheDocument();
+  });
+
+  it('treats a legacy submission with no status field as approved, matching the server rule default', () => {
+    const { status: _status, ...legacySubmission } = makeSubmission();
+    renderFooter({
+      submission: legacySubmission as EngagementFooterProps['submission'],
+    });
+    expect(screen.getByLabelText('Like')).not.toBeDisabled();
+    expect(screen.getByPlaceholderText('Leave a comment…')).toBeInTheDocument();
+  });
+
   it('masks commenter labels when showNames is false', () => {
     renderFooter({
       showNames: false,
