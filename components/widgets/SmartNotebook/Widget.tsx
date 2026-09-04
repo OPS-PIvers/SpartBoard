@@ -45,6 +45,7 @@ import {
   blankPageSvg,
   toggleHiddenPage,
   normalizeHiddenPages,
+  visiblePageIndices,
   PageListState,
 } from '@/utils/notebookPages';
 
@@ -159,8 +160,10 @@ export const SmartNotebookWidget: React.FC<{
   if (activeNotebookId !== prevNotebookId) {
     setPrevNotebookId(activeNotebookId);
     setPrevPageCount(pageCount);
-    if (currentPage !== 0) {
-      setCurrentPage(0);
+    const firstVisible =
+      visiblePageIndices(pageCount, activeNotebook?.hiddenPages)[0] ?? 0;
+    if (currentPage !== firstVisible) {
+      setCurrentPage(firstVisible);
     }
     // Switching notebooks must drop in-memory edits for the previous one and
     // land in edit mode again — anything else either leaks edits across
@@ -175,9 +178,20 @@ export const SmartNotebookWidget: React.FC<{
     if (presentMode) setPresentMode(false);
   } else if (pageCount !== prevPageCount) {
     setPrevPageCount(pageCount);
-    const clamped = clampPageIndex(currentPage, pageCount);
-    if (clamped !== currentPage) {
-      setCurrentPage(clamped);
+    if (prevPageCount === 0 && currentPage === 0) {
+      // Notebook data just finished loading (async Firestore snapshot) for a
+      // notebook that was already active on mount — land on its first
+      // visible page instead of assuming page 0 (which may be hidden).
+      const firstVisible =
+        visiblePageIndices(pageCount, activeNotebook?.hiddenPages)[0] ?? 0;
+      if (currentPage !== firstVisible) {
+        setCurrentPage(firstVisible);
+      }
+    } else {
+      const clamped = clampPageIndex(currentPage, pageCount);
+      if (clamped !== currentPage) {
+        setCurrentPage(clamped);
+      }
     }
   }
 
@@ -365,7 +379,13 @@ export const SmartNotebookWidget: React.FC<{
 
   const handleSelect = (id: string) => {
     updateWidget(widget.id, { config: { ...config, activeNotebookId: id } });
-    setCurrentPage(0);
+    const selected = notebooks.find((n) => n.id === id);
+    setCurrentPage(
+      visiblePageIndices(
+        selected?.pageUrls.length ?? 0,
+        selected?.hiddenPages
+      )[0] ?? 0
+    );
   };
 
   const setDisplayMode = (mode: 'cards' | 'list') => {

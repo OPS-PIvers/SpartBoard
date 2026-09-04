@@ -20,6 +20,7 @@ import { ReorderPageControl } from './ReorderPageControl';
 import {
   effectiveHiddenPages,
   nextVisiblePage,
+  normalizeHiddenPages,
   visiblePageIndices,
   visiblePositionOf,
 } from '@/utils/notebookPages';
@@ -94,7 +95,13 @@ export const Viewer: React.FC<ViewerProps> = ({
     activeNotebook.hiddenPages,
     totalPages
   );
-  const isCurrentHidden = hiddenPages.includes(currentPage);
+  // Raw (non-effective) hidden state drives the badge/toggle so an
+  // all-hidden notebook still shows the page as hidden instead of unhiding
+  // it on click; prev/next/counter/progress use the effective set above.
+  const isCurrentHidden = normalizeHiddenPages(
+    activeNotebook.hiddenPages,
+    totalPages
+  ).includes(currentPage);
   const visibleCount = visiblePageIndices(totalPages, hiddenPages).length;
   const visiblePosition = visiblePositionOf(
     currentPage,
