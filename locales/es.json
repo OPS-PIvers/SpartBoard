@@ -8,6 +8,10 @@
       "title": "Tableros",
       "switch": "Cambiar de tablero",
       "close": "Cerrar"
+    },
+    "disabled": {
+      "title": "El control remoto está desactivado",
+      "hint": "Vuelve a activar el control remoto desde el tablero para controlar los widgets desde este dispositivo."
     }
   },
   "common": {
@@ -1185,7 +1189,8 @@
     "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?",
     "clearBoardTitle": "Borrar Tablero",
     "minimizedToast": "Minimizado: lo encontrarás en el Dock",
-    "minimizedAllToast": "Todos los widgets minimizados"
+    "minimizedAllToast": "Todos los widgets minimizados",
+    "closedToast": "Widget cerrado"
   },
   "login": {
     "signInToAccess": "Inicia sesión para acceder a tus tableros",
@@ -1203,6 +1208,7 @@
     "imageTooLarge": "Imagen demasiado grande (máx. 5 MB)",
     "backgroundUploaded": "Fondo personalizado subido a la nube",
     "settingsSaved": "Configuración guardada con éxito",
+    "switchBoardToUndo": "Vuelve a ese tablero para deshacer esto",
     "classLink": {
       "fetchFailed": "Error al obtener datos de ClassLink. Revisa la consola.",
       "imported": "{{name}} importada",
@@ -1315,7 +1321,9 @@
         "default": "Predeterminado",
         "lcd": "Panel LCD",
         "minimal": "Minimalista"
-      }
+      },
+      "dateColor": "Color de la Fecha",
+      "matchTime": "Igual que la hora"
     },
     "timeTool": {
       "mode": "Modo",
@@ -1412,7 +1420,10 @@
         "lightJacket": "Chaqueta Ligera",
         "longSleeves": "Manga Larga",
         "shortSleeves": "Manga Corta"
-      }
+      },
+      "secondaryColor": "Color del Texto Secundario",
+      "matchText": "Igual que el texto",
+      "clothingCard": "Tarjeta de Ropa"
     },
     "stickers": {
       "collectionTitle": "Colección de Stickers",
@@ -1451,57 +1462,8 @@
           "hint": "Abre la barra lateral y haz clic en + Nuevo Tablero"
         },
         "openCheatsheet": {
-          "label": "Abre la Guía de Atajos",
           "hint": "Pulsa Ctrl/⌘+/ o haz clic en el botón ? de la esquina inferior derecha"
         }
-      }
-    },
-    "cheatSheet": {
-      "title": "Atajos y Gestos",
-      "keyboard": "Teclado",
-      "touchscreenGestures": "Gestos Táctiles",
-      "boardGestures": "Fondo del Tablero",
-      "widgetGestures": "Ventana de Widget",
-      "footer": "Pulsa <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> en cualquier momento para abrir este panel",
-      "shortcuts": {
-        "openCheatSheet": "Abrir esta guía",
-        "switchBoards": "Cambiar de tablero",
-        "widgetSettings": "Abrir / cerrar ajustes de widget",
-        "annotate": "Alternar modo de dibujo",
-        "maximize": "Maximizar / restaurar widget",
-        "resetSize": "Restablecer tamaño predeterminado",
-        "minimizeFocused": "Minimizar widget enfocado",
-        "minimizeAll": "Minimizar todos los widgets",
-        "closeFocused": "Cerrar widget enfocado",
-        "clearBoard": "Limpiar tablero completo"
-      },
-      "gestures": {
-        "switchBoards": "Cambiar de tablero",
-        "minimizeAll": "Minimizar todo al Dock",
-        "restoreAll": "Restaurar todos los widgets",
-        "toggleAnnotation": "Activar/desactivar anotación (mantener ~0,6 s)",
-        "screenshot": "Tomar captura",
-        "minimizeWidget": "Minimizar widget",
-        "minimizeOrRestoreWidget": "Minimizar widget (o restaurar si está maximizado)",
-        "openSidebar": "Abrir barra lateral",
-        "fullscreen": "Alternar pantalla completa",
-        "maximizeWidget": "Maximizar widget (deslizar ↑ de nuevo para primer plano)",
-        "spotlight": "Widget en primer plano",
-        "resize": "Redimensionar widget",
-        "panBoard": "Desplazar tablero"
-      },
-      "gestureNames": {
-        "oneFingerDoubleTap": "Doble toque con 1 dedo",
-        "oneFingerLongPress": "Mantener presionado con 1 dedo",
-        "oneFingerDrag": "Arrastrar con 1 dedo sobre el fondo",
-        "oneFingerSwipeEdge": "Deslizar 1 dedo desde el borde izquierdo",
-        "twoFingerSwipeLR": "Deslizar 2 dedos ←/→",
-        "twoFingerSwipeDown": "Deslizar 2 dedos ↓",
-        "twoFingerSwipeUp": "Deslizar 2 dedos ↑",
-        "twoFingerLongPress": "Mantener 2 dedos (~0,6 s)",
-        "dragDownToDock": "Arrastrar al dock ↓",
-        "widgetTwoFingerSwipeDown": "Deslizar 2 dedos ↓",
-        "widgetTwoFingerSwipeUp": "Deslizar 2 dedos ↑"
       }
     },
     "dashboard": {
@@ -1699,7 +1661,8 @@
     "emptyResults": "No hay widgets que coincidan."
   },
   "style": {
-    "readOnlyNotice": "Este tablero es de solo lectura. Los cambios de estilo no se guardan."
+    "readOnlyNotice": "Este tablero es de solo lectura. Los cambios de estilo no se guardan.",
+    "frameColorSolidHint": "El color de fondo del marco permanece opaco. Selecciona Predeterminado para usar este control."
   },
   "whatsNew": {
     "title": "Novedades",
@@ -2096,7 +2059,7 @@
       },
       "state": {
         "scored": "Graded",
-        "awaiting-grade": "Needs you",
+        "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
         "excused": "Excused"
       },
@@ -2111,8 +2074,8 @@
       "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
-      "prev": "Previous",
-      "next": "Next",
+      "prev": "Previous ungraded",
+      "next": "Next ungraded",
       "mode": {
         "label": "Grade by",
         "question": "Question",
@@ -2129,7 +2092,6 @@
       "questionStep": "Q{{index}} of {{total}}",
       "closeWithFailures": "Grades for {{names}} could not be saved. Close anyway and lose them?",
       "advancing": "Moving to the next response…",
-      "keyboardHint": "← / → move between students. Esc closes the grader.",
       "discardTitle": "Discard grade edits?",
       "discardMessage": "You have unsaved grade edits. Discard them?",
       "empty": {
@@ -2170,7 +2132,7 @@
         "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
         "addComment": "Comment here",
-        "noComments": "Play the take and add a comment at the moment you want to talk about.",
+        "noComments": "Aún no hay comentarios.",
         "commentLabel": "Comment at {{time}}",
         "commentPlaceholder": "What happens at this moment…",
         "seekTo": "Jump to {{time}}",
@@ -2221,9 +2183,8 @@
       "timedOutUnderMinimum": "Tiempo agotado por debajo del mínimo",
       "noTextAnswer": "El estudiante no respondió esta pregunta.",
       "highlights": "Resaltados y comentarios ({{count}})",
-      "highlightsEmpty": "Selecciona texto en la respuesta para añadir un resaltado o un comentario al margen.",
+      "highlightsEmpty": "Selecciona texto para resaltarlo.",
       "highlightNoComment": "(sin comentario aún — haz clic para añadir)",
-      "keyboardHintText": "← / → cambian de estudiante. Esc cierra el calificador. Selecciona texto en la respuesta para resaltar; haz clic en un resaltado para editar su comentario.",
       "rubricOverrideNote": "Rúbrica alternativa para este estudiante",
       "pointsOverrideNote": "Solo puntos para este estudiante — rúbrica anulada.",
       "tabSwitches_one": "{{count}} cambio de pestaña",
@@ -2251,6 +2212,90 @@
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
+    }
+  },
+  "annotation": {
+    "clearConfirmBody": "¿Borrar todas las anotaciones de este tablero? Esta acción no se puede deshacer.",
+    "clearConfirmTitle": "Borrar anotaciones",
+    "clearConfirmAction": "Borrar",
+    "chromeInertHint": "Elige Seleccionar para volver a usar el dock"
+  },
+  "helpCenter": {
+    "title": "Ayuda",
+    "widgetHelp": "Guías para este widget",
+    "search": "Buscar en la ayuda",
+    "close": "Cerrar la ayuda",
+    "noResults": "No hay resultados para tu búsqueda",
+    "onboardingTask": "Abrir el centro de ayuda",
+    "footer": "Pulsa <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> en cualquier momento para abrir la ayuda",
+    "tabs": {
+      "shortcuts": "Atajos",
+      "guides": "Guías"
+    },
+    "sections": {
+      "keyboard": "Atajos de teclado",
+      "gestures": "Gestos táctiles"
+    },
+    "groups": {
+      "board": "Tablero",
+      "widget": "Widget"
+    },
+    "guides": {
+      "allCategories": "Todas",
+      "categories": "Categorías",
+      "empty": "Tu administrador aún no ha añadido guías",
+      "noMatches": "Ninguna guía coincide con tu búsqueda",
+      "back": "Volver",
+      "open": "Abrir",
+      "openExternal": "Abrir en una pestaña nueva",
+      "orgBadge": "Tu centro",
+      "clearWidgetFilter": "Quitar el filtro de widget",
+      "activityUnavailable": "Esta actividad ya no está disponible",
+      "kinds": {
+        "docs": "Documentos",
+        "slides": "Presentaciones",
+        "videos": "Vídeos",
+        "activities": "Actividades",
+        "other": "Otros"
+      }
+    },
+    "shortcuts": {
+      "open-help": "Abrir la ayuda",
+      "switch-boards": "Cambiar de tablero",
+      "zoom-board": "Acercar y alejar el tablero",
+      "undo": "Deshacer el último cambio del tablero",
+      "redo": "Rehacer el cambio deshecho (también Ctrl+Y)",
+      "pin-widget": "Fijar / soltar el widget",
+      "widget-settings": "Abrir / cerrar los ajustes del widget",
+      "annotate": "Alternar el modo de dibujo",
+      "maximize": "Maximizar / restaurar el widget",
+      "reset-size": "Restablecer el tamaño del widget",
+      "minimize-focused": "Minimizar el widget enfocado",
+      "minimize-all": "Minimizar todos los widgets",
+      "close-focused": "Cerrar el widget enfocado",
+      "clear-board": "Vaciar todo el tablero",
+      "annotation-delete-selected": "Eliminar la anotación seleccionada",
+      "annotation-nudge": "Mover la anotación seleccionada"
+    },
+    "gestures": {
+      "two-finger-swipe-lr": "Deslizar ←/→ con 2 dedos",
+      "two-finger-swipe-lrDescription": "Cambiar de tablero",
+      "two-finger-swipe-up": "Deslizar ↑ con 2 dedos sobre el fondo",
+      "two-finger-swipe-upDescription": "Restaurar todos los widgets",
+      "one-finger-drag": "Arrastrar con 1 dedo sobre el fondo",
+      "one-finger-dragDescription": "Desplazar el tablero con zoom",
+      "one-finger-swipe-edge": "Deslizar con 1 dedo desde el borde izquierdo",
+      "one-finger-swipe-edgeDescription": "Abrir la barra lateral",
+      "one-finger-double-tap": "Doble toque con 1 dedo",
+      "one-finger-double-tapDescription": "Alternar pantalla completa",
+      "widget-two-finger-swipe-down-restore": "Deslizar ↓ con 2 dedos sobre un widget",
+      "widget-two-finger-swipe-down-restoreDescription": "Restaurar un widget maximizado a su tamaño normal",
+      "widget-two-finger-swipe-up": "Deslizar ↑ con 2 dedos sobre un widget",
+      "widget-two-finger-swipe-upDescription": "Maximizar el widget o destacarlo si ya está maximizado",
+      "two-finger-long-press": "Mantener pulsado con 2 dedos sobre un widget",
+      "two-finger-long-pressDescription": "Alternar el modo de dibujo (mantén ~0,6 s)",
+      "one-finger-long-press": "Mantener pulsado con 1 dedo sobre un widget",
+      "one-finger-long-pressDescription": "Hacer una captura de pantalla (mantén ~0,6 s)"
     }
   }
 }

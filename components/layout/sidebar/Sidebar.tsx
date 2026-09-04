@@ -235,12 +235,13 @@ export const Sidebar: React.FC = () => {
         style={{
           top: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
           left: 'calc(1.5rem + env(safe-area-inset-left, 0px))',
-          // While annotation is active, the AnnotationOverlay's full-viewport
-          // canvas sits at Z_INDEX.overlay with pointer-events-auto, which
-          // would otherwise swallow clicks on this toolbar (specifically the
-          // pencil toggle that's supposed to close annotation). Lift the
-          // toolbar above the overlay so the toggle remains reachable.
-          zIndex: annotationActive ? Z_INDEX.confirmOverlay : Z_INDEX.dock,
+          // The ink canvas in #dashboard-ink-layer is pointer-events-auto in
+          // every tool mode and covers more than the viewport, so it would
+          // swallow clicks on this pill — including the pencil toggle that
+          // ends annotation. Lift the pill above that layer.
+          zIndex: annotationActive
+            ? Z_INDEX.annotationChromeLift
+            : Z_INDEX.dock,
         }}
       >
         <IconButton

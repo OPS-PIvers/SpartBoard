@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { HelpCircle, RotateCcw, Search, ZoomIn, ZoomOut } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { Z_INDEX } from '@/config/zIndex';
 import { FAB_BASE } from './fabClasses';
 import {
   ZOOM_DEFAULT,
@@ -20,7 +21,7 @@ import {
 } from '@/utils/zoomMapping';
 
 interface BoardActionsFabProps {
-  onOpenCheatSheet: () => void;
+  onOpenHelp: () => void;
 }
 
 const PRESETS: { value: number; labelKey: string; defaultLabel: string }[] = [
@@ -30,11 +31,14 @@ const PRESETS: { value: number; labelKey: string; defaultLabel: string }[] = [
   { value: 5, labelKey: 'boardZoom.preset500', defaultLabel: '500%' },
 ];
 
-export const BoardActionsFab: FC<BoardActionsFabProps> = ({
-  onOpenCheatSheet,
-}) => {
+export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
   const { t } = useTranslation();
-  const { zoom, setZoom } = useDashboard();
+  const { zoom, setZoom, annotationActive, annotationState } = useDashboard();
+
+  // A pen/shape tool is armed: ink, not the FAB, owns the pointer so a stroke
+  // over this corner reaches the canvas. Switching to Select re-arms it.
+  const inkingOwnsPointer =
+    annotationActive && annotationState?.activeTool !== 'select';
 
   const [isSliderOpen, setIsSliderOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -111,7 +115,17 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
     <div
       ref={containerRef}
       data-screenshot="exclude"
-      className="fixed bottom-6 right-4 z-dock"
+      // inert (not aria-disabled on a div) so the faded FAB is unreachable by
+      // keyboard too while the pen owns the pointer.
+      inert={inkingOwnsPointer}
+      // Faded so the dead pointer target reads as deliberate, not broken.
+      className={`fixed bottom-6 right-4 z-dock transition-opacity ${
+        inkingOwnsPointer ? 'pointer-events-none opacity-40' : ''
+      }`}
+      style={{
+        // Above #dashboard-ink-layer so the FAB stays clickable in Select mode.
+        zIndex: annotationActive ? Z_INDEX.annotationChromeLift : undefined,
+      }}
     >
       {isSliderOpen && (
         <div
@@ -212,9 +226,9 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
         </button>
         <button
           type="button"
-          onClick={onOpenCheatSheet}
-          aria-label={t('widgets.cheatSheet.title')}
-          title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
+          onClick={onOpenHelp}
+          aria-label={t('helpCenter.title')}
+          title={`${t('helpCenter.title')} (Ctrl+/)`}
           className={FAB_BASE}
         >
           <HelpCircle className="w-4 h-4" />

@@ -6,14 +6,20 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { CircleHelp, X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
 import { WidgetData, GlobalStyle } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
-import { UniversalStyleSettings } from '@/components/common/UniversalStyleSettings';
+import {
+  UniversalStyleSettings,
+  WidgetBackgroundSettings,
+} from '@/components/common/UniversalStyleSettings';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
+import { useHelpItemsForWidget } from '@/hooks/useHelpResources';
+import { requestOpenHelp } from '@/components/help/helpCenterState';
 
 interface SettingsPanelProps {
   widget: WidgetData;
@@ -53,6 +59,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onCloseRef.current = onClose;
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'settings' | 'style'>('settings');
+  const { t } = useTranslation();
+  const helpItems = useHelpItemsForWidget(widget.type);
   const viewport = useWindowSize();
   // Subscribe to zoom so the panel re-positions when the canvas zoom changes
   // while open. Pan offset is intentionally local state in DashboardView (not
@@ -249,6 +257,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <WidgetBuildingToggle widget={widget} updateWidget={updateWidget} />
+            {helpItems.length > 0 && (
+              <IconButton
+                onClick={() => {
+                  requestOpenHelp({ tab: 'guides', widgetType: widget.type });
+                  onClose();
+                }}
+                icon={<CircleHelp className="w-4 h-4" />}
+                label={t('helpCenter.widgetHelp')}
+                title={t('helpCenter.widgetHelp')}
+                variant="ghost"
+                size="sm"
+                shape="square"
+                className="shrink-0"
+              />
+            )}
             <IconButton
               onClick={onClose}
               icon={<X className="w-4 h-4" />}
@@ -308,7 +331,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div className="px-5 py-4 flex flex-col gap-4">
               {/* Widget-specific appearance settings */}
               {shouldRenderSettings && appearanceSettings && (
-                <div>{appearanceSettings}</div>
+                <>
+                  <div>{appearanceSettings}</div>
+                  <WidgetBackgroundSettings
+                    widget={widget}
+                    updateWidget={updateWidget}
+                  />
+                </>
               )}
 
               {/* Universal Style Settings (only if no custom appearance settings) */}
@@ -358,6 +387,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     {Math.round(transparency * 100)}%
                   </span>
                 </div>
+                {widget.backgroundColor && (
+                  <p className="text-xs text-slate-500 leading-snug">
+                    {t('style.frameColorSolidHint', {
+                      defaultValue:
+                        'A frame background color stays solid. Set it to Default to use this slider.',
+                    })}
+                  </p>
+                )}
               </div>
             </div>
           )}

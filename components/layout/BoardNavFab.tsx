@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { Z_INDEX } from '@/config/zIndex';
 import { FAB_BASE } from './fabClasses';
 import { BoardBreadcrumb } from './BoardBreadcrumb';
 import { CollectionSwitcherMenu } from './CollectionSwitcherMenu';
@@ -32,8 +33,13 @@ export const BoardNavFab: FC = () => {
     activeDashboard,
     loadDashboard,
     setActiveCollectionId,
+    annotationActive,
+    annotationState,
     collectionsApi: { collections },
   } = useDashboard();
+  // A pen/shape tool is armed: ink, not this FAB, owns the pointer.
+  const inkingOwnsPointer =
+    annotationActive && annotationState?.activeTool !== 'select';
   const [isBoardsMenuOpen, setIsBoardsMenuOpen] = useState(false);
   const [isCollectionMenuOpen, setIsCollectionMenuOpen] = useState(false);
   const [isBoardsModalOpen, setIsBoardsModalOpen] = useState(false);
@@ -191,7 +197,16 @@ export const BoardNavFab: FC = () => {
     <div
       ref={containerRef}
       data-screenshot="exclude"
-      className="fixed bottom-6 left-4 z-dock"
+      // inert (not aria-disabled on a div) so the faded FAB is unreachable by
+      // keyboard too while the pen owns the pointer.
+      inert={inkingOwnsPointer}
+      className={`fixed bottom-6 left-4 z-dock transition-opacity ${
+        inkingOwnsPointer ? 'pointer-events-none opacity-40' : ''
+      }`}
+      style={{
+        // Above #dashboard-ink-layer so the FAB stays clickable in Select mode.
+        zIndex: annotationActive ? Z_INDEX.annotationChromeLift : undefined,
+      }}
     >
       {isCollectionMenuOpen && (
         <CollectionSwitcherMenu

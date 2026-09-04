@@ -104,6 +104,9 @@ export interface AnnotationState {
   activeTool: ShapeTool;
   /** Fill rectangles/ellipses with the current color when true. */
   shapeFill: boolean;
+  /** Canvas the stored ink was authored on. Read-only for consumers. */
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 export interface DashboardContextValue {
@@ -185,8 +188,19 @@ export interface DashboardContextValue {
   updateWidget: (
     id: string,
     updates: Partial<WidgetData>,
-    opts?: { immediate?: boolean }
+    opts?: { immediate?: boolean; skipHistory?: boolean }
   ) => void;
+  /**
+   * Board-level undo/redo of widget add/remove/move/config changes. Pass the
+   * board id an action was offered on to pin it there; omit it for the
+   * keyboard shortcut, which always targets the active board.
+   */
+  undoWidgets: (boardId?: string) => void;
+  redoWidgets: (boardId?: string) => void;
+  /** Capture one undo entry for a multi-call gesture (e.g. a group drag). */
+  recordWidgetSnapshot: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   bringToFront: (id: string) => void;
   moveWidgetLayer: (id: string, direction: 'up' | 'down') => void;
   minimizeAllWidgets: () => void;
@@ -206,8 +220,10 @@ export interface DashboardContextValue {
   annotationState: AnnotationState;
   openAnnotation: () => void;
   closeAnnotation: () => void;
-  updateAnnotationState: (updates: Partial<AnnotationState>) => void;
-  addAnnotationObject: (obj: DrawableObject) => void;
+  /** Returns false when an `objects` write was refused (no board or size cap). */
+  updateAnnotationState: (updates: Partial<AnnotationState>) => boolean;
+  /** Returns false when the ink was refused (no board or size cap). */
+  addAnnotationObject: (obj: DrawableObject) => boolean;
   /** Phase 2 PR 2.1c — selection mutation: replace `next` (matched by id)
    *  in the active overlay objects. Routed through the same mirror-friendly
    *  setter as add/undo so synced participants see edits live. */
@@ -225,10 +241,19 @@ export interface DashboardContextValue {
    *  would break that multi-author safety guarantee. Wave 5 instead layers a
    *  small in-memory redo stack on top of the existing per-author undo. */
   redoAnnotation: () => void;
+  /** True when undoAnnotation has something to remove. Undo is session-scoped
+   *  and per-author, so ink alone does not make it actionable. */
+  canUndoAnnotation: boolean;
   /** True when redoAnnotation has at least one undone object to re-emit.
    *  Drives the disabled state on the overlay toolbar's Redo button. */
   canRedoAnnotation: boolean;
   clearAnnotation: () => void;
+  /** The overlay reports the canvas it is drawing into; ink is stamped with
+   *  that size so the stamp can never disagree with the backing store the
+   *  stroke was authored in. `null` on unmount restores the window fallback. */
+  reportAnnotationCanvasSize: (
+    size: { width: number; height: number } | null
+  ) => void;
 
   // Zoom system
   zoom: number;
@@ -245,7 +270,8 @@ export interface DashboardContextValue {
     updates: Array<{
       id: string;
       changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
-    }>
+    }>,
+    opts?: { skipHistory?: boolean }
   ) => void;
   /**
    * Applies `transform` to the config of every widget of `type` on every board.

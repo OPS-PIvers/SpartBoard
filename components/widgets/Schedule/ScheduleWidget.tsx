@@ -510,19 +510,25 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       if (!active) return;
 
       if (active.isLegacy) {
-        updateWidget(widget.id, {
-          config: { ...currentConfig, items: newItems } as ScheduleConfig,
-        });
+        updateWidget(
+          widget.id,
+          { config: { ...currentConfig, items: newItems } as ScheduleConfig },
+          { skipHistory: true }
+        );
       } else {
         const newSchedules = schedules.map((s) =>
           s.id === active.id ? { ...s, items: newItems } : s
         );
-        updateWidget(widget.id, {
-          config: {
-            ...currentConfig,
-            schedules: newSchedules,
-          } as ScheduleConfig,
-        });
+        updateWidget(
+          widget.id,
+          {
+            config: {
+              ...currentConfig,
+              schedules: newSchedules,
+            } as ScheduleConfig,
+          },
+          { skipHistory: true }
+        );
       }
     };
 

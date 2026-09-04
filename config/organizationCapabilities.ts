@@ -31,6 +31,7 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       { id: 'configureWidgets', label: 'Configure widget defaults' },
       { id: 'manageBackgrounds', label: 'Manage backgrounds' },
       { id: 'postAnnouncements', label: 'Post announcements' },
+      { id: 'manageHelpResources', label: 'Manage help resources' },
     ],
   },
   {

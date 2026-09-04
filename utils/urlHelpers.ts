@@ -60,6 +60,15 @@ export const ensureProtocol = (url: string): string => {
   return `https://${trimmed}`;
 };
 
+// Exact-host gate for the docs branch, which echoes the caller's origin back as the embed src.
+const embedHostname = (url: string): string => {
+  try {
+    return new URL(ensureProtocol(url)).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
 /**
  * Converts various service URLs (YouTube, Google Docs/Slides/Sheets/Forms) to their embeddable counterparts.
  * @param url The original URL to convert
@@ -68,6 +77,7 @@ export const ensureProtocol = (url: string): string => {
 export const convertToEmbedUrl = (url: string): string => {
   if (!url) return '';
   const trimmedUrl = url.trim();
+  const host = embedHostname(trimmedUrl);
 
   // YouTube watch & short links.
   // The watch-URL branch uses a [?&]v= lookahead so it matches whether v= is
@@ -96,6 +106,9 @@ export const convertToEmbedUrl = (url: string): string => {
   }
 
   // Google Drive file links  (drive.google.com/file/d/{id}/...)
+  // Substring-matched on purpose: the result is a hardcoded drive.google.com
+  // origin, so a spoofed host cannot be framed and google.com/url?q= wrappers
+  // (the shape Classroom and Gmail hand teachers) still convert.
   const driveFileMatch = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/.exec(
     trimmedUrl
   );
@@ -118,18 +131,12 @@ export const convertToEmbedUrl = (url: string): string => {
   }
 
   // Google Services
-  if (trimmedUrl.includes('docs.google.com/')) {
-    const fullUrlString = trimmedUrl.startsWith('http')
-      ? trimmedUrl
-      : `https://${trimmedUrl}`;
+  if (host === 'docs.google.com') {
     try {
-      const parsed = new URL(fullUrlString);
+      const parsed = new URL(ensureProtocol(trimmedUrl));
 
       // Google Docs
-      if (
-        parsed.hostname.includes('docs.google.com') &&
-        parsed.pathname.includes('/document/')
-      ) {
+      if (parsed.pathname.includes('/document/')) {
         const docIdMatch = /\/document\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]+)/.exec(
           parsed.pathname
         );
@@ -149,10 +156,7 @@ export const convertToEmbedUrl = (url: string): string => {
       }
 
       // Google Slides
-      if (
-        parsed.hostname.includes('docs.google.com') &&
-        parsed.pathname.includes('/presentation/')
-      ) {
+      if (parsed.pathname.includes('/presentation/')) {
         const slideIdMatch =
           /\/presentation\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]+)/.exec(
             parsed.pathname
@@ -167,10 +171,7 @@ export const convertToEmbedUrl = (url: string): string => {
       }
 
       // Google Sheets
-      if (
-        parsed.hostname.includes('docs.google.com') &&
-        parsed.pathname.includes('/spreadsheets/')
-      ) {
+      if (parsed.pathname.includes('/spreadsheets/')) {
         const sheetIdMatch =
           /\/spreadsheets\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]+)/.exec(
             parsed.pathname
@@ -183,10 +184,7 @@ export const convertToEmbedUrl = (url: string): string => {
       }
 
       // Google Forms
-      if (
-        parsed.hostname.includes('docs.google.com') &&
-        parsed.pathname.includes('/forms/')
-      ) {
+      if (parsed.pathname.includes('/forms/')) {
         parsed.searchParams.set('embedded', 'true');
         return parsed.toString();
       }

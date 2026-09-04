@@ -3735,6 +3735,64 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+
+    // Help Center config — the shared category list. Any authed user reads it
+    // (the Help modal renders categories); only super admins edit it.
+    match /help_center/config {
+      allow read: if request.auth != null;
+      allow write: if isAdmin() && isSuperAdmin()
+        && request.resource.data.keys().hasOnly(['categories', 'updatedAt', 'updatedBy'])
+        && request.resource.data.categories is list
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt is int;
+    }
+
+    // Help resources — admin-curated guides. orgId == null means global (super
+    // admin only); an org-scoped item is written by that org's admins and read
+    // by its members. Teachers may only bump openCount, by exactly one.
+    match /help_resources/{itemId} {
+      function helpScopeOk(d) {
+        return (d.orgId == null && isSuperAdmin())
+          || (d.orgId is string && isOrgMember(d.orgId));
+      }
+      function helpShapeOk(d) {
+        return d.id == itemId
+          && d.keys().hasOnly(['id', 'kind', 'title', 'description', 'categoryId', 'order',
+               'visible', 'orgId', 'widgetTypes', 'url', 'embedType', 'setId', 'openCount',
+               'createdBy', 'createdByEmail', 'createdAt', 'updatedAt'])
+          && d.kind in ['embed', 'guided-learning']
+          && d.title is string && d.title.size() > 0 && d.title.size() <= 200
+          && d.description is string && d.description.size() <= 1000
+          && d.categoryId is string && d.order is int && d.visible is bool
+          && d.widgetTypes is list && d.openCount is int
+          && (d.kind == 'embed'
+                ? (d.url is string && d.url.matches('^https://.*') && d.embedType is string && d.setId == null)
+                : (d.setId is string && d.url == null && d.embedType == null))
+          && d.createdByEmail is string && d.createdAt is int && d.updatedAt is int;
+      }
+      // Teacher-only: anon PIN and studentRole tokens carry no email claim, so
+      // the same idiom isAdmin() uses keeps student sessions out of the library.
+      function helpReaderOk() {
+        return request.auth != null
+          && request.auth.token.get('email', '') != ''
+          && (resource.data.orgId == null || isAdmin() || isOrgMember(resource.data.orgId));
+      }
+      allow read: if helpReaderOk();
+      allow create: if isAdmin() && helpShapeOk(request.resource.data)
+        && helpScopeOk(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.openCount == 0;
+      allow update: if (isAdmin() && helpShapeOk(request.resource.data)
+        && helpScopeOk(resource.data)
+        && request.resource.data.orgId == resource.data.orgId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.openCount == resource.data.openCount)
+        || (helpReaderOk()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['openCount'])
+        && request.resource.data.openCount == resource.data.openCount + 1);
+      allow delete: if isAdmin() && helpScopeOk(resource.data);
+    }
+
     // Global PDFs - all authenticated users can read, only admins can write
     match /global_pdfs/{pdfId} {
       allow read: if request.auth != null;

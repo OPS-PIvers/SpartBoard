@@ -1,6 +1,48 @@
 {
   "entries": [
     {
+      "version": "2026.09.03",
+      "date": "2026-09-03",
+      "title": "A Help center, right from the dock",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Help",
+          "items": [
+            {
+              "text": "A new Help button opens a modal with two tabs: Shortcuts, for the keyboard shortcuts and gestures you already had, and Guides, a library of docs, slides, videos and Guided Learning walkthroughs your admin curates for your school."
+            },
+            {
+              "text": "Every widget's settings panel now has a \"?\" that jumps straight to that widget's guide, if one exists."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Admin",
+          "items": [
+            {
+              "text": "Admins manage the Guides library from Admin Settings: add items, group them into categories, scope them to your school or everyone, and see how many times each one has been opened."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Help modal — Shortcuts tab keeps the existing keyboard-shortcut and gesture cheat sheet; Guides tab lists admin-published docs, slide decks, videos, and Guided Learning activities by category, with a search box."
+        },
+        {
+          "type": "feature",
+          "text": "Widget deep link — the settings panel's \"?\" opens the Help modal straight to any guide tagged for that widget type, so a teacher never has to hunt through categories."
+        },
+        {
+          "type": "improvement",
+          "text": "Admin — the Help Center tab lists every item with an eye icon and open count, a running total per category, and a \"Sort by opens\" view that ranks every guide you can see by popularity."
+        }
+      ]
+    },
+    {
       "version": "2026.09.02.1",
       "date": "2026-09-02",
       "title": "One grader for every Free Response answer",

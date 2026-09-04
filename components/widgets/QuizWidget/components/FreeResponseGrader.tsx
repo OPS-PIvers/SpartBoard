@@ -985,17 +985,27 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               total: students.length,
             })}
           </span>
-          <span className="font-semibold text-slate-700">{studentLabel}</span>
-          <span
-            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
-          >
-            {headerVocabulary.key.endsWith('.scored') && !slotExcused && (
-              <CheckCircle2 aria-hidden className="h-3 w-3" />
-            )}
-            {t(headerVocabulary.key)}
-          </span>
         </>
       )}
+    </span>
+  );
+
+  const stepperButton =
+    'rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30';
+
+  const studentHeading = response && (
+    <div className="flex flex-wrap items-center gap-2">
+      <h3 className="text-base font-bold leading-tight text-slate-900">
+        {studentLabel}
+      </h3>
+      <span
+        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
+      >
+        {headerVocabulary.key.endsWith('.scored') && !slotExcused && (
+          <CheckCircle2 aria-hidden className="h-3 w-3" />
+        )}
+        {t(headerVocabulary.key)}
+      </span>
       {tabSwitches > 0 && (
         <span
           className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
@@ -1005,7 +1015,13 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           {tg('tabSwitches', { count: tabSwitches })}
         </span>
       )}
-    </span>
+      {textEntry?.timedOutUnderMinimum && (
+        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
+          <Clock aria-hidden className="h-3 w-3" />
+          {tg('timedOutUnderMinimum')}
+        </span>
+      )}
+    </div>
   );
 
   const status = writeQueue.status;
@@ -1089,31 +1105,53 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         </span>
         {tg('autoAdvance')}
       </button>
-      <button
-        type="button"
-        onClick={mode === 'question' ? goPrevQuestion : goPrevStudent}
-        disabled={mode === 'question' ? questionIdx === 0 : studentIdx === 0}
-        aria-label={tg(mode === 'question' ? 'prevQuestion' : 'prevStudent')}
-        title={tg(mode === 'question' ? 'prevQuestion' : 'prevStudent')}
-        className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        <ChevronLeft aria-hidden className="h-5 w-5" />
-      </button>
-      <button
-        type="button"
-        onClick={mode === 'question' ? goNextQuestion : goNextStudent}
-        disabled={
-          mode === 'question'
-            ? questionIdx >= questions.length - 1
-            : studentIdx >= students.length - 1
-        }
-        aria-label={tg(mode === 'question' ? 'nextQuestion' : 'nextStudent')}
-        title={tg(mode === 'question' ? 'nextQuestion' : 'nextStudent')}
-        className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        <ChevronRight aria-hidden className="h-5 w-5" />
-      </button>
     </>
+  );
+
+  const footerNav = (
+    <div className="flex items-center gap-2">
+      {showAllGraded && (
+        <span
+          role="status"
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700"
+        >
+          <CheckCircle2 aria-hidden className="h-3 w-3" />
+          {tg('allGraded')}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => advance(-1)}
+        aria-label={tg('prev')}
+        title={`${tg('prev')} (←)`}
+        className="shrink-0 rounded-lg border border-slate-300 p-1.5 text-slate-600 transition-colors hover:bg-slate-100"
+      >
+        <ChevronLeft aria-hidden className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => advance(1)}
+        aria-label={tg('next')}
+        title={`${tg('next')} (→)`}
+        data-advance-armed={advanceArmed || undefined}
+        className="relative inline-flex shrink-0 items-center gap-1 overflow-hidden rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark"
+      >
+        <span
+          aria-hidden
+          data-testid="advance-fill"
+          className={`absolute inset-0 origin-left bg-white/25 transition-transform ease-linear [transition-duration:900ms] motion-reduce:transition-none ${
+            advanceArmed ? 'scale-x-100' : 'scale-x-0'
+          }`}
+        />
+        <span className="relative">{tg('next')}</span>
+        <ChevronRight aria-hidden className="relative h-4 w-4" />
+      </button>
+      {advanceArmed && (
+        <span role="status" className="sr-only">
+          {tg('advancing')}
+        </span>
+      )}
+    </div>
   );
 
   return (
@@ -1124,6 +1162,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       headerExtras={headerExtras}
       isDirty={false}
       hideSaveButton
+      hideHeaderClose
+      footerEnd={footerNav}
       onSave={() => undefined}
       onClose={handleClose}
       bodyClassName="!p-0 !overflow-hidden"
@@ -1135,9 +1175,31 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           aria-label={tg('queueLabel')}
           className="overflow-y-auto border-r border-slate-200 bg-slate-50"
         >
-          <p className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur">
-            {tg('queueLabel')}
-          </p>
+          <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur">
+            <p className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              {tg('queueLabel')}
+            </p>
+            <button
+              type="button"
+              onClick={goPrevStudent}
+              disabled={studentIdx === 0}
+              aria-label={tg('prevStudent')}
+              title={tg('prevStudent')}
+              className={stepperButton}
+            >
+              <ChevronLeft aria-hidden className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={goNextStudent}
+              disabled={studentIdx >= students.length - 1}
+              aria-label={tg('nextStudent')}
+              title={tg('nextStudent')}
+              className={stepperButton}
+            >
+              <ChevronRight aria-hidden className="h-4 w-4" />
+            </button>
+          </div>
           <ul>
             {students.map((entry, idx) => {
               const entryRow =
@@ -1190,38 +1252,38 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               <span>
                 {tg(question.recording ? 'format.spoken' : 'format.typed')}
               </span>
-              {mode === 'student' && (
-                <span
-                  role="group"
-                  aria-label={tg('questionLabel')}
-                  className="ml-auto inline-flex items-center gap-0.5 normal-case tracking-normal"
+              <span
+                role="group"
+                aria-label={tg('questionLabel')}
+                className="ml-auto inline-flex items-center gap-0.5 normal-case tracking-normal"
+              >
+                <button
+                  type="button"
+                  onClick={goPrevQuestion}
+                  disabled={questionIdx === 0}
+                  aria-label={tg('prevQuestion')}
+                  title={tg('prevQuestion')}
+                  className={stepperButton}
                 >
-                  <button
-                    type="button"
-                    onClick={goPrevQuestion}
-                    disabled={questionIdx === 0}
-                    aria-label={tg('prevQuestion')}
-                    className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ChevronLeft aria-hidden className="h-4 w-4" />
-                  </button>
-                  <span className="min-w-[4.5rem] text-center text-xs font-bold text-slate-700">
-                    {tg('questionStep', {
-                      index: questionIdx + 1,
-                      total: questions.length,
-                    })}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={goNextQuestion}
-                    disabled={questionIdx >= questions.length - 1}
-                    aria-label={tg('nextQuestion')}
-                    className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ChevronRight aria-hidden className="h-4 w-4" />
-                  </button>
+                  <ChevronLeft aria-hidden className="h-4 w-4" />
+                </button>
+                <span className="min-w-[4.5rem] text-center text-xs font-bold text-slate-700">
+                  {tg('questionStep', {
+                    index: questionIdx + 1,
+                    total: questions.length,
+                  })}
                 </span>
-              )}
+                <button
+                  type="button"
+                  onClick={goNextQuestion}
+                  disabled={questionIdx >= questions.length - 1}
+                  aria-label={tg('nextQuestion')}
+                  title={tg('nextQuestion')}
+                  className={stepperButton}
+                >
+                  <ChevronRight aria-hidden className="h-4 w-4" />
+                </button>
+              </span>
             </div>
             <p className="text-sm font-semibold leading-snug text-slate-900">
               {question.text}
@@ -1232,6 +1294,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           </div>
 
           <div className="flex flex-col gap-4 p-6">
+            {studentHeading}
             {!target && (
               <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                 {tg('noAnswersOnQuestion')}
@@ -1266,24 +1329,19 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
             {target && !isMedia && (
               <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+                <div className="-mt-2 flex flex-wrap items-baseline gap-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     {tg('responseLabel')}
-                  </h3>
+                  </h4>
                   <span
                     className={`font-mono text-xs ${outsideWordRange ? 'text-amber-700' : 'text-slate-500'}`}
                   >
                     {wordCounterLabel(answerWordCount, question)}
                   </span>
-                  {textEntry?.timedOutUnderMinimum && (
-                    <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
-                      <Clock aria-hidden className="h-3 w-3" />
-                      {tg('timedOutUnderMinimum')}
-                    </span>
-                  )}
                 </div>
                 {studentAnswer ? (
                   <AnnotatedResponseView
+                    key={targetKey}
                     mode="edit"
                     snapshot={snapshotForList}
                     annotations={draftAnnotations}
@@ -1373,29 +1431,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           ref={railRef}
           className="flex flex-col gap-5 overflow-y-auto border-l border-slate-200 bg-white p-5"
         >
-          {target &&
-            showPoints &&
-            effectiveRubric &&
-            slot?.slot !== 'addendum' && (
-              <RubricScoringPanel
-                key={targetKey}
-                rubric={effectiveRubric}
-                maxPoints={maxPoints}
-                initialScores={savedGrade?.rubricScores}
-                onChange={handleRubricScoresChange}
-                overrideNote={
-                  resolvedRubric.overrideMode === 'rubric'
-                    ? tg('rubricOverrideNote')
-                    : undefined
-                }
-              />
-            )}
-          {target && showPoints && resolvedRubric.overrideMode === 'points' && (
-            <p className="-mb-2 text-xs italic text-slate-500">
-              {tg('pointsOverrideNote')}
-            </p>
-          )}
-
           {target && showPoints && (
             <div>
               <label
@@ -1431,6 +1466,31 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   {tg('errors.range', { max: maxPoints })}
                 </p>
               )}
+
+              {target &&
+                showPoints &&
+                effectiveRubric &&
+                slot?.slot !== 'addendum' && (
+                  <RubricScoringPanel
+                    key={targetKey}
+                    rubric={effectiveRubric}
+                    maxPoints={maxPoints}
+                    initialScores={savedGrade?.rubricScores}
+                    onChange={handleRubricScoresChange}
+                    overrideNote={
+                      resolvedRubric.overrideMode === 'rubric'
+                        ? tg('rubricOverrideNote')
+                        : undefined
+                    }
+                  />
+                )}
+              {target &&
+                showPoints &&
+                resolvedRubric.overrideMode === 'points' && (
+                  <p className="-mb-2 text-xs italic text-slate-500">
+                    {tg('pointsOverrideNote')}
+                  </p>
+                )}
             </div>
           )}
 
@@ -1549,53 +1609,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               )}
             </div>
           )}
-
-          <div className="mt-auto flex flex-col gap-2">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => advance(-1)}
-                aria-label={tg('prev')}
-                className="shrink-0 rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100"
-              >
-                <ChevronLeft aria-hidden className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => advance(1)}
-                aria-label={tg('next')}
-                data-advance-armed={advanceArmed || undefined}
-                className="relative inline-flex shrink-0 items-center gap-1 overflow-hidden rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                <span
-                  aria-hidden
-                  data-testid="advance-fill"
-                  className={`absolute inset-0 origin-left bg-brand-blue-primary/20 transition-transform ease-linear [transition-duration:900ms] motion-reduce:transition-none ${
-                    advanceArmed ? 'scale-x-100' : 'scale-x-0'
-                  }`}
-                />
-                <span className="relative">{tg('next')}</span>
-                <ChevronRight aria-hidden className="relative h-4 w-4" />
-              </button>
-              {advanceArmed && (
-                <span role="status" className="sr-only">
-                  {tg('advancing')}
-                </span>
-              )}
-              {showAllGraded && (
-                <span
-                  role="status"
-                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700"
-                >
-                  <CheckCircle2 aria-hidden className="h-3 w-3" />
-                  {tg('allGraded')}
-                </span>
-              )}
-            </div>
-            <p className="text-xs leading-relaxed text-slate-500">
-              {tg(isMedia ? 'keyboardHint' : 'keyboardHintText')}
-            </p>
-          </div>
 
           {saveError && (
             <div

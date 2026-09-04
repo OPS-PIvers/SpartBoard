@@ -8,6 +8,7 @@ import {
   type DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import { useLiveSession } from '@/hooks/useLiveSession';
+import { Z_INDEX } from '@/config/zIndex';
 import { Dashboard } from '@/types';
 
 // The canvas hot path (BoardCanvas's group overlay, DraggableWindow) reads
@@ -144,6 +145,10 @@ vi.mock('@/components/layout/Dock', () => ({
 }));
 vi.mock('@/components/announcements/AnnouncementOverlay', () => ({
   AnnouncementOverlay: () => <div data-testid="announcement-overlay" />,
+}));
+// Its own suite covers the ink surface; here it would only drag in Drive/canvas I/O.
+vi.mock('@/components/layout/AnnotationOverlay', () => ({
+  AnnotationOverlay: () => null,
 }));
 vi.mock('@/components/widgets/WidgetRenderer', () => ({
   WidgetRenderer: () => <div data-testid="widget">Widget</div>,
@@ -2153,6 +2158,189 @@ describe('DashboardView Gestures & Navigation', () => {
       await waitFor(() => expect(openedEvents).toHaveLength(1));
 
       window.removeEventListener('spart:cheatsheet-opened', spy);
+    });
+  });
+
+  describe('annotation overlay integration', () => {
+    const collectionsStub = {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    };
+
+    const annotationCtx = (annotationActive: boolean) => {
+      const undoWidgets = vi.fn();
+      const redoWidgets = vi.fn();
+      const undoAnnotation = vi.fn();
+      const redoAnnotation = vi.fn();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [],
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        addToast: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        annotationActive,
+        undoWidgets,
+        redoWidgets,
+        undoAnnotation,
+        redoAnnotation,
+        canUndoAnnotation: true,
+        canRedoAnnotation: true,
+        collectionsApi: collectionsStub,
+      });
+      return { undoWidgets, redoWidgets, undoAnnotation, redoAnnotation };
+    };
+
+    // Regression: Ctrl+Z while the annotation toolbar was open ran the board's
+    // widget undo, so a teacher correcting a stroke lost a widget instead.
+    it('REGRESSION: Ctrl+Z undoes ink, not widgets, while annotating', () => {
+      const { undoWidgets, undoAnnotation } = annotationCtx(true);
+      renderView();
+      fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+      expect(undoAnnotation).toHaveBeenCalledTimes(1);
+      expect(undoWidgets).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Shift+Z and Ctrl+Y redo ink while annotating', () => {
+      const { redoWidgets, redoAnnotation } = annotationCtx(true);
+      renderView();
+      fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+      fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
+      expect(redoAnnotation).toHaveBeenCalledTimes(2);
+      expect(redoWidgets).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Z still undoes widgets when the toolbar is closed', () => {
+      const { undoWidgets, undoAnnotation } = annotationCtx(false);
+      renderView();
+      fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+      expect(undoWidgets).toHaveBeenCalledTimes(1);
+      expect(undoAnnotation).not.toHaveBeenCalled();
+    });
+
+    // Regression: lifting the whole zoom surface over the fixed chrome put the
+    // world-sized, pointer-events-auto ink canvas on top of the Dock, Sidebar
+    // pill and FAB, so nothing in the chrome could be clicked all session.
+    // Ink now lives in its own sibling layer and the surface stays unlayered.
+    it('REGRESSION: the ink layer is a sibling of the zoom surface, not the surface itself', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
+      );
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(surface).not.toBeNull();
+      expect(ink).not.toBeNull();
+      expect(ink?.parentElement).toBe(surface?.parentElement);
+      expect(surface?.style.zIndex).toBe('');
+      expect(Number(ink?.style.zIndex)).toBe(Z_INDEX.annotationSurface);
+    });
+
+    it('the ink layer carries the same camera transform as the widget surface', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
+      );
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(ink?.style.transform).toBe(surface?.style.transform);
+      expect(ink?.style.transformOrigin).toBe(surface?.style.transformOrigin);
+      expect(surface?.style.transform).toContain('scale(');
+    });
+
+    // A maximized widget carries Z_INDEX.maximized, a bigger number than the
+    // ink layer's — but it is trapped inside the zoom surface's transform
+    // (its own stacking context), so the later sibling still paints above it.
+    it('the ink layer paints over maximized widgets and under modals', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
+      );
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      if (!surface || !ink) throw new Error('zoom surface and ink layer');
+      expect(surface.style.transform).not.toBe('');
+      expect(
+        surface.compareDocumentPosition(ink) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(Number(ink?.style.zIndex)).toBeLessThan(Z_INDEX.modal);
+    });
+
+    it('the ink layer never takes the pointer itself', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(ink?.className).toContain('pointer-events-none');
+    });
+
+    it('leaves the zoom surface unlayered when not annotating', () => {
+      annotationCtx(false);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
+      );
+      expect(surface?.style.zIndex).toBe('');
+    });
+
+    // Regression: the ink layer kept annotationSurface with the toolbar closed
+    // while the chrome lift did not, so a board's saved ink painted over the
+    // Dock, Sidebar pill and FABs. Both now share one condition.
+    it('REGRESSION: the ink layer is unlayered when the toolbar is closed', () => {
+      annotationCtx(false);
+      const { container } = renderView();
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(ink).not.toBeNull();
+      expect(ink?.style.zIndex).toBe('');
+    });
+  });
+
+  describe('Help Center wiring', () => {
+    const selectedTab = () =>
+      screen
+        .getAllByRole('tab')
+        .find((el) => el.getAttribute('aria-selected') === 'true')?.id;
+
+    it('opens Help on the Shortcuts tab for Ctrl+/', async () => {
+      renderView();
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+      await waitFor(() => expect(selectedTab()).toBe('help-tab-shortcuts'));
+    });
+
+    // Regression: Help autofocuses its search box, so the typing-field guard on
+    // Ctrl+/ made the shortcut one-way — it could open Help but never close it.
+    it('closes Help with Ctrl+/ while the Help search box holds focus', async () => {
+      renderView();
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('searchbox'))
+      );
+
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+      await waitFor(() =>
+        expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+      );
+    });
+
+    it('opens Help on the requested tab for the spart:open-help event', async () => {
+      renderView();
+      fireEvent(
+        window,
+        new CustomEvent('spart:open-help', {
+          detail: { tab: 'guides', widgetType: 'clock' },
+        })
+      );
+      await waitFor(() => expect(selectedTab()).toBe('help-tab-guides'));
     });
   });
 });

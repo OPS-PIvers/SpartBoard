@@ -363,16 +363,24 @@ describe('ClockWidget', () => {
     expect(fontSize).toMatch(/cqmin/);
   });
 
-  // Regression: the date label must use the muted-text-on-dark-surface classes
-  // from CLAUDE.md (text-slate-300 body / text-slate-200 heading), never a
-  // near-black literal like text-slate-900 which is dark-on-dark on the app's
-  // slate-900 dashboard background and fails WCAG AA.
-  it('date label uses a WCAG-AA-safe muted text class on the dark dashboard surface', () => {
-    renderWidget(createWidget());
+  // The date label must never carry a fixed slate text class: the frame tint
+  // and transparency are user-controlled, so only a config-driven color is legible everywhere.
+  it('date label follows the time color by default', () => {
+    renderWidget(createWidget({ themeColor: 'rgb(255, 0, 0)' }));
 
     const dateLabel = screen.getByTestId('clock-date');
-    expect(dateLabel.className).not.toContain('text-slate-900');
-    expect(dateLabel.className).not.toContain('text-slate-800');
-    expect(dateLabel.className).toMatch(/text-slate-(200|300)/);
+    expect(dateLabel.className).not.toMatch(/text-slate-\d+/);
+    expect(dateLabel.style.color).toBe('rgb(255, 0, 0)');
+  });
+
+  it('date label uses dateColor when set', () => {
+    renderWidget(
+      createWidget({
+        themeColor: 'rgb(255, 0, 0)',
+        dateColor: 'rgb(0, 0, 255)',
+      })
+    );
+
+    expect(screen.getByTestId('clock-date').style.color).toBe('rgb(0, 0, 255)');
   });
 });

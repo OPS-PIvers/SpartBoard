@@ -513,15 +513,19 @@ describe('ScheduleWidget', () => {
     render(<ScheduleWidget widget={widget} />);
 
     // Should make 08:00 (Math) done, because 09:00 (Reading) has started.
-    expect(mockUpdateWidget).toHaveBeenCalledWith('schedule-1', {
-      config: expect.objectContaining({
-        items: [
-          expect.objectContaining({ task: 'Math', done: true }),
-          expect.objectContaining({ task: 'Reading', done: false }),
-          expect.objectContaining({ task: 'Recess', done: false }),
-        ],
-      }),
-    });
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'schedule-1',
+      {
+        config: expect.objectContaining({
+          items: [
+            expect.objectContaining({ task: 'Math', done: true }),
+            expect.objectContaining({ task: 'Reading', done: false }),
+            expect.objectContaining({ task: 'Recess', done: false }),
+          ],
+        }),
+      },
+      { skipHistory: true }
+    );
   });
 
   it('marks all items as done when time is past the last item', () => {
@@ -533,15 +537,19 @@ describe('ScheduleWidget', () => {
     const widget = createWidget({ autoProgress: true });
     render(<ScheduleWidget widget={widget} />);
 
-    expect(mockUpdateWidget).toHaveBeenCalledWith('schedule-1', {
-      config: expect.objectContaining({
-        items: [
-          expect.objectContaining({ task: 'Math', done: true }),
-          expect.objectContaining({ task: 'Reading', done: true }),
-          expect.objectContaining({ task: 'Recess', done: true }),
-        ],
-      }),
-    });
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'schedule-1',
+      {
+        config: expect.objectContaining({
+          items: [
+            expect.objectContaining({ task: 'Math', done: true }),
+            expect.objectContaining({ task: 'Reading', done: true }),
+            expect.objectContaining({ task: 'Recess', done: true }),
+          ],
+        }),
+      },
+      { skipHistory: true }
+    );
   });
 
   describe('autoScroll', () => {

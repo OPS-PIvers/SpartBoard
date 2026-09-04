@@ -36,3 +36,21 @@ export const presetFromScale = (scale: number): TextSizePreset => {
   if (scale >= 1.1) return 'large';
   return 'medium';
 };
+
+// Frame tints for WidgetData.backgroundColor; an explicit hex paints solid (GlassCard forces alpha 1).
+export const WINDOW_BACKGROUND_OPTIONS = [
+  { label: 'Default', value: '', hex: undefined },
+  { label: 'White', value: 'bg-white', hex: '#ffffff' },
+  { label: 'Slate', value: 'bg-slate-50', hex: '#f8fafc' },
+  { label: 'Blue', value: 'bg-blue-50', hex: '#eff6ff' },
+  { label: 'Indigo', value: 'bg-indigo-50', hex: '#eef2ff' },
+  { label: 'Purple', value: 'bg-purple-50', hex: '#faf5ff' },
+  { label: 'Rose', value: 'bg-rose-50', hex: '#fff1f2' },
+  { label: 'Amber', value: 'bg-amber-50', hex: '#fffbeb' },
+  { label: 'Emerald', value: 'bg-emerald-50', hex: '#ecfdf5' },
+] as const;
+
+export const resolveWindowBackgroundHex = (
+  value: string | undefined
+): string | undefined =>
+  WINDOW_BACKGROUND_OPTIONS.find((o) => o.value === (value ?? ''))?.hex;

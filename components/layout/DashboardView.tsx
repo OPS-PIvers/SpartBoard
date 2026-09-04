@@ -24,11 +24,18 @@ import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
-import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { HelpCenterModal } from '@/components/help/HelpCenterModal';
+import {
+  getLastHelpTab,
+  HELP_OPEN_EVENT,
+  type HelpOpenRequest,
+  type HelpTab,
+} from '@/components/help/helpCenterState';
 import { useHasOpenModal } from '@/components/common/modalStore';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { BoardActionsFab } from './BoardActionsFab';
 import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
+import { Z_INDEX } from '@/config/zIndex';
 import {
   clampPan,
   clampWidgetToWorld,
@@ -50,7 +57,7 @@ import {
   LiveStudent,
   SpartStickerDropPayload,
 } from '@/types';
-import type { LiveSession } from '@/types';
+import type { LiveSession, WidgetType } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
@@ -99,6 +106,12 @@ const isTypingFieldActive = (): boolean => {
     !!activeEl?.isContentEditable
   );
 };
+
+// True when focus sits inside the Help Center, whose search box autofocuses on open.
+const isHelpCenterFocused = (): boolean =>
+  !!(document.activeElement as HTMLElement | null)?.closest?.(
+    '[data-help-modal]'
+  );
 
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
@@ -271,6 +284,12 @@ export const DashboardView: React.FC = () => {
     setSelectedWidgetIds,
     annotationActive,
     isActiveBoardReadOnly,
+    undoWidgets,
+    redoWidgets,
+    undoAnnotation,
+    redoAnnotation,
+    canUndoAnnotation,
+    canRedoAnnotation,
   } = useDashboard();
 
   // Surface fire-and-forget PLC sync failures as a toast. Helpers
@@ -387,7 +406,25 @@ export const DashboardView: React.FC = () => {
   }, []);
   const { uploadAndRegisterPdf } = useStorage();
 
-  const [isCheatSheetOpen, setIsCheatSheetOpen] = React.useState(false);
+  const [helpState, setHelpState] = React.useState<{
+    open: boolean;
+    tab: HelpTab;
+    widgetType?: WidgetType;
+  }>({ open: false, tab: 'shortcuts' });
+
+  // Any surface (widget settings "?", future entry points) can open Help via this event.
+  React.useEffect(() => {
+    const handleOpenHelp = (e: Event) => {
+      const detail = (e as CustomEvent<HelpOpenRequest>).detail ?? {};
+      setHelpState({
+        open: true,
+        tab: detail.tab ?? getLastHelpTab() ?? 'guides',
+        widgetType: detail.widgetType,
+      });
+    };
+    window.addEventListener(HELP_OPEN_EVENT, handleOpenHelp);
+    return () => window.removeEventListener(HELP_OPEN_EVENT, handleOpenHelp);
+  }, []);
   const onboardingShownRef = React.useRef(false);
 
   // Auto-add onboarding widget for brand-new users on their first empty board.
@@ -1061,14 +1098,48 @@ export const DashboardView: React.FC = () => {
         return;
       }
 
-      // Ctrl + /: Open Cheat Sheet
+      // Ctrl/Cmd + Z / Shift+Z / Y: board-level undo/redo. Widgets with their
+      // own history (Drawing, Notebook) preventDefault first, so they win.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'z' || key === 'y') {
+          if (
+            e.defaultPrevented ||
+            isTypingFieldActive() ||
+            hasOpenModalRef.current
+          )
+            return;
+          e.preventDefault();
+          const wantsRedo = key === 'y' || e.shiftKey;
+          // The annotation toolbar owns the history while it is open —
+          // otherwise Ctrl+Z mid-stroke deletes widgets instead of ink.
+          if (annotationActive) {
+            if (wantsRedo) {
+              if (canRedoAnnotation) redoAnnotation();
+            } else if (canUndoAnnotation) {
+              undoAnnotation();
+            }
+            return;
+          }
+          if (wantsRedo) redoWidgets();
+          else undoWidgets();
+          return;
+        }
+      }
+      // Ctrl + /: Open Help Center
       // Guard: don't intercept Ctrl+/ while the user is typing in a form
       // field — Ctrl+/ is a common "comment/uncomment" shortcut in many
       // text editors and widgets that embed rich-text inputs.
+      // Exception: the Help search box holds focus while Help is open, so the
+      // shortcut must still close it from there.
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-        if (isTypingFieldActive()) return;
+        if (isTypingFieldActive() && !isHelpCenterFocused()) return;
         e.preventDefault();
-        setIsCheatSheetOpen((prev) => !prev);
+        setHelpState((prev) => ({
+          open: !prev.open,
+          tab: 'shortcuts',
+          widgetType: undefined,
+        }));
         return;
       }
 
@@ -1116,6 +1187,13 @@ export const DashboardView: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    undoWidgets,
+    redoWidgets,
+    annotationActive,
+    undoAnnotation,
+    redoAnnotation,
+    canUndoAnnotation,
+    canRedoAnnotation,
     currentIndex,
     dashboards,
     loadDashboard,
@@ -1398,6 +1476,10 @@ export const DashboardView: React.FC = () => {
     '--spart-window-title': windowTitle,
   } as React.CSSProperties;
 
+  // One camera for two sibling layers — the widget surface and the ink layer
+  // must move together or ink drifts off the widgets it annotates.
+  const boardCameraTransform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`;
+
   return (
     <div
       ref={dashboardRef}
@@ -1454,11 +1536,12 @@ export const DashboardView: React.FC = () => {
         <div className="absolute inset-0 bg-black/10 pointer-events-none" />
       </div>
 
-      {/* ZOOMABLE WIDGET SURFACE: Only widgets get pan/zoom. */}
+      {/* ZOOMABLE WIDGET SURFACE: widgets get pan/zoom. */}
       <div
+        id="dashboard-zoom-surface"
         className="absolute inset-0 transition-transform duration-300 ease-out"
         style={{
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+          transform: boardCameraTransform,
           transformOrigin: 'center center',
         }}
       >
@@ -1503,6 +1586,22 @@ export const DashboardView: React.FC = () => {
           updateDashboardSettings={updateDashboardSettings}
         />
       </div>
+
+      {/* INK LAYER: the annotation canvas mounts here, not in the widget
+          surface — lifting that surface over the fixed chrome let the
+          world-sized canvas swallow every Dock/Sidebar/FAB click. Maximized
+          widgets stay trapped in the surface's transform, so this sibling
+          paints over them without outranking modals. */}
+      <div
+        id="dashboard-ink-layer"
+        className="absolute inset-0 transition-transform duration-300 ease-out pointer-events-none"
+        style={{
+          transform: boardCameraTransform,
+          transformOrigin: 'center center',
+          // Only lift when the toolbar is open — chrome lift shares this exact condition.
+          zIndex: annotationActive ? Z_INDEX.annotationSurface : undefined,
+        }}
+      />
 
       {/* Group-building mode floating action bar */}
       {groupBuildMode &&
@@ -1558,14 +1657,10 @@ export const DashboardView: React.FC = () => {
           dashboard. */}
       <LazyChunkErrorBoundary>
         <React.Suspense
-          fallback={
-            !annotationActive && !isActiveBoardReadOnly ? (
-              <ShellPlaceholder />
-            ) : null
-          }
+          fallback={!isActiveBoardReadOnly ? <ShellPlaceholder /> : null}
         >
           <Sidebar />
-          {!annotationActive && !isActiveBoardReadOnly && <Dock />}
+          {!isActiveBoardReadOnly && <Dock />}
         </React.Suspense>
       </LazyChunkErrorBoundary>
       <AnnotationOverlay />
@@ -1585,7 +1680,15 @@ export const DashboardView: React.FC = () => {
           }}
         />
       )}
-      <BoardActionsFab onOpenCheatSheet={() => setIsCheatSheetOpen(true)} />
+      <BoardActionsFab
+        onOpenHelp={() =>
+          setHelpState({
+            open: true,
+            tab: getLastHelpTab() ?? 'guides',
+            widgetType: undefined,
+          })
+        }
+      />
 
       {/* Deep-link share-import machinery (Quiz / Video-Activity / PLC) —
           mounted lazily only once a pending share id appears, so the common
@@ -1654,18 +1757,14 @@ export const DashboardView: React.FC = () => {
         </button>
       )}
 
-      {/* Only mount the cheat sheet when open. CheatSheetModal builds its full
-          body (≈30 translation calls + the entire shortcut/gesture tree) on
-          every render, and Modal then returns null while closed — so rendering
-          it unconditionally cost ~2ms on every dashboard load for a panel
-          that's hidden. Gating here removes that from the mount path with no
-          behavior change: the open-effect fires on mount (isOpen=true) exactly
-          as it did on the false→true transition, and the entrance animation
-          still plays. */}
-      {isCheatSheetOpen && (
-        <CheatSheetModal
-          isOpen={isCheatSheetOpen}
-          onClose={() => setIsCheatSheetOpen(false)}
+      {/* Only mount Help when open — its body builds the whole shortcut tree. */}
+      {helpState.open && (
+        <HelpCenterModal
+          isOpen={helpState.open}
+          tab={helpState.tab}
+          widgetType={helpState.widgetType}
+          onTabChange={(tab) => setHelpState((prev) => ({ ...prev, tab }))}
+          onClose={() => setHelpState((prev) => ({ ...prev, open: false }))}
         />
       )}
     </div>

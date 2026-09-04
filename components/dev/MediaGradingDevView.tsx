@@ -54,6 +54,42 @@ const TYPED_QUESTION = {
   points: 5,
   minWords: 40,
   maxWords: 120,
+  rubricSnapshot: {
+    id: 'dev-rubric',
+    title: 'Explanation Rubric',
+    createdAt: 0,
+    updatedAt: 0,
+    criteria: [
+      {
+        id: 'c1',
+        name: 'Identifies the cause',
+        description: 'Names what actually went wrong.',
+        levels: [
+          { id: 'c1l1', label: 'Missing', points: 0 },
+          { id: 'c1l2', label: 'Partial', points: 1 },
+          { id: 'c1l3', label: 'Clear', points: 3 },
+        ],
+      },
+      {
+        id: 'c2',
+        name: 'Supports with evidence',
+        levels: [
+          {
+            id: 'c2l1',
+            label: 'No',
+            points: 0,
+            description: 'Assertion only.',
+          },
+          {
+            id: 'c2l2',
+            label: 'Yes',
+            points: 2,
+            description: 'Cites the data.',
+          },
+        ],
+      },
+    ],
+  },
 };
 
 function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {

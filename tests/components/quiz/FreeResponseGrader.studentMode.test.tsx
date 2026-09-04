@@ -75,26 +75,21 @@ const renderGrader = (
   );
 };
 
-// The header-extras strip that holds the mode toggle and the chevrons.
-const header = () =>
-  screen.getByRole('group', { name: /Grade by/i }).parentElement as HTMLElement;
+const rail = () =>
+  screen.getByRole('navigation', { name: /students on this question/i });
 
 describe('FreeResponseGrader — By-Student mode', () => {
   it('walks every question for one student before the next student', () => {
     renderGrader({ graderMode: 'student' });
     expect(screen.getByText('Question 1 of 2')).toBeTruthy();
-    expect(
-      screen.getByText('Ada', { selector: '.font-semibold' })
-    ).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    expect(screen.getByText('Ada', { selector: 'h3' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(screen.getByText('Question 2 of 2')).toBeTruthy();
     expect(screen.getByText('Student 1 of 2')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(screen.getByText('Question 1 of 2')).toBeTruthy();
     expect(screen.getByText('Student 2 of 2')).toBeTruthy();
-    expect(
-      screen.getByText('Grace', { selector: '.font-semibold' })
-    ).toBeTruthy();
+    expect(screen.getByText('Grace', { selector: 'h3' })).toBeTruthy();
   });
 
   it('keeps the student rail and adds a question stepper', () => {
@@ -113,14 +108,10 @@ describe('FreeResponseGrader — By-Student mode', () => {
     expect(screen.getByText('Student 1 of 2')).toBeTruthy();
   });
 
-  it('turns the header chevrons into student chevrons', () => {
+  it('steps students from the rail without leaving the question', () => {
     renderGrader({ graderMode: 'student' });
-    const head = header();
-    expect(
-      within(head).queryByRole('button', { name: /next question/i })
-    ).toBeNull();
     fireEvent.click(
-      within(head).getByRole('button', { name: /next student/i })
+      within(rail()).getByRole('button', { name: /next student/i })
     );
     expect(screen.getByText('Student 2 of 2')).toBeTruthy();
     expect(screen.getByText('Question 1 of 2')).toBeTruthy();
@@ -138,12 +129,11 @@ describe('FreeResponseGrader — By-Student mode', () => {
   it('switches mode from the header and reports the preference', () => {
     const onGraderModeChange = vi.fn();
     renderGrader({ onGraderModeChange });
-    expect(screen.queryByRole('group', { name: /^Question$/ })).toBeNull();
     const group = screen.getByRole('group', { name: /Grade by/i });
     fireEvent.click(within(group).getByRole('button', { name: /^Student$/ }));
     expect(onGraderModeChange).toHaveBeenCalledWith('student');
     expect(screen.getByRole('group', { name: /^Question$/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(screen.getByText('Question 2 of 2')).toBeTruthy();
     expect(screen.getByText('Student 1 of 2')).toBeTruthy();
   });
@@ -158,22 +148,13 @@ describe('FreeResponseGrader — By-Student mode', () => {
       responseFor('a'),
       responseFor('b', { q1: done }),
     ]);
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     // Grace's q1 is graded, so Next lands on Ada's q2.
     expect(screen.getByText('Question 2 of 2')).toBeTruthy();
-    expect(
-      screen.getByText('Ada', { selector: '.font-semibold' })
-    ).toBeTruthy();
-    fireEvent.click(
-      within(header()).getByRole('button', { name: /previous question/i })
-    );
-    const rail = screen.getByRole('navigation', {
-      name: /students on this question/i,
-    });
-    fireEvent.click(within(rail).getByText('Grace'));
-    expect(
-      screen.getByText('Grace', { selector: '.font-semibold' })
-    ).toBeTruthy();
+    expect(screen.getByText('Ada', { selector: 'h3' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /previous question/i }));
+    fireEvent.click(within(rail()).getByText('Grace'));
+    expect(screen.getByText('Grace', { selector: 'h3' })).toBeTruthy();
     expect(screen.getByLabelText(/Points awarded/i)).toHaveValue(8);
   });
 });

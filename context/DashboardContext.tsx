@@ -30,10 +30,29 @@ import {
   Collection,
   CollectionSubstituteShareInput,
 } from '@/types';
-import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import {
+  deleteField,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import {
+  DASHBOARD_FIELDS,
+  serializeDashboardField,
+  type MergedDashboardField,
+  type SaveBaseline,
+} from '@/utils/dashboardSaveMerge';
+import {
+  LAYOUT_FIELDS,
+  STYLE_FIELDS,
+  INSTANCE_FIELDS,
+} from '@/utils/widgetMergeFields';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
+import i18n from '@/i18n';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { TOOLS } from '@/config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
@@ -61,9 +80,11 @@ import {
 } from '@/utils/migrateProportionalLayout';
 import {
   scrubDashboardPII,
+  scrubWidgetsPII,
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
+  type DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
@@ -100,7 +121,22 @@ import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
+import { mergeAnnotationObjects } from '@/utils/annotationMerge';
+import {
+  estimateAnnotationBytes,
+  estimateWidgetBytes,
+  getAnnotationCapReason,
+  getAnnotationSoftWarning,
+  getAnnotationWorldRect,
+} from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
+import {
+  createWidgetHistoryStack,
+  recordWidgetHistory,
+  undoWidgetHistory,
+  redoWidgetHistory,
+  type WidgetHistoryStack,
+} from '@/utils/widgetHistory';
 
 // Helper to migrate legacy visibleTools to dockItems
 const migrateToDockItems = (
@@ -199,6 +235,65 @@ const stripDerivedPixels = (w: WidgetData) => {
 
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
+// Ink-only edits rewrite the whole board document, so sustained drawing gets a
+// longer ceiling than a widget edit — but the teardown flush (beforeunload,
+// pagehide, visibilitychange) is unreliable on iPadOS, so this bounds the
+// worst-case ink loss window at 8s of continuous drawing.
+const MAX_UNSAVED_INK_AGE_MS = 8000;
+
+/**
+ * Annotation ink for change-detection. `updatedAt` is deliberately excluded —
+ * it is a write stamp, not content, and would make every board look dirty.
+ */
+const serializeAnnotationOverlay = (d: Dashboard): string =>
+  JSON.stringify({
+    objects: d.annotationOverlay?.objects ?? [],
+    canvasWidth: d.annotationOverlay?.canvasWidth,
+    canvasHeight: d.annotationOverlay?.canvasHeight,
+  });
+
+const parseAnnotationBaseline = (serialized: string): DrawableObject[] => {
+  if (!serialized) return [];
+  try {
+    const parsed = JSON.parse(serialized) as { objects?: DrawableObject[] };
+    return parsed.objects ?? [];
+  } catch {
+    return [];
+  }
+};
+
+/** The ink in the last payload we mirrored — the merge baseline for a share. */
+const mirroredAnnotationBaseline = (
+  payload: string | undefined
+): DrawableObject[] => {
+  if (!payload) return [];
+  try {
+    const parsed = JSON.parse(payload) as { annotationOverlay?: string };
+    return parseAnnotationBaseline(parsed.annotationOverlay ?? '');
+  } catch {
+    return [];
+  }
+};
+
+// Firestore hands documents back with alphabetically sorted keys, so a plain
+// JSON.stringify of a remote widget never matches the local one it echoes.
+const stableStringify = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const body = Object.keys(obj)
+      .sort()
+      .filter((k) => obj[k] !== undefined)
+      .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
+      .join(',');
+    return `{${body}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+};
+
+/** Widget signature for remote-vs-local comparison: PII-free and key-stable. */
+const widgetMirrorSignature = (widgets: WidgetData[]): string =>
+  stableStringify(scrubWidgetsPII(widgets).map(stripDerivedPixels));
 
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
@@ -215,7 +310,46 @@ const serializeDashboard = (d: Dashboard): string =>
     name: d.name,
     libraryOrder: d.libraryOrder,
     settings: d.settings,
+    // Ink-only edits must mark the board dirty so autosave picks them up.
+    annotationOverlay: serializeAnnotationOverlay(d),
   });
+
+/**
+ * The same signature with the ink dropped. Drive exports and the ink-only
+ * autosave cadence both need "did anything but the annotation layer change".
+ */
+const serializeWithoutInk = (serialized: string): string => {
+  try {
+    const parsed = JSON.parse(serialized) as Record<string, unknown>;
+    delete parsed.annotationOverlay;
+    return JSON.stringify(parsed);
+  } catch {
+    return serialized;
+  }
+};
+
+/**
+ * A cached Drive PII supplement plus the widget `version` each entry was
+ * captured against. Re-overlaying it blindly would let this device push its
+ * own stale roster back over another device's edit, so an entry is only
+ * applied while the server widget is still the one it came from.
+ */
+interface CachedPiiSupplement {
+  supplement: DashboardPiiSupplement;
+  versions: Record<string, number | undefined>;
+}
+
+/** Stamp each supplement entry with the version of the widget it came from. */
+const stampPiiVersions = (
+  dashboard: Dashboard,
+  supplement: DashboardPiiSupplement
+): CachedPiiSupplement => {
+  const versions: Record<string, number | undefined> = {};
+  for (const widget of dashboard.widgets) {
+    if (supplement[widget.id]) versions[widget.id] = widget.version;
+  }
+  return { supplement, versions };
+};
 
 /** Capture the serialized state used to populate lastSaved* refs. */
 const getDashboardSaveState = (d: Dashboard) => ({
@@ -226,6 +360,11 @@ const getDashboardSaveState = (d: Dashboard) => ({
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
     settings: JSON.stringify(d.settings ?? {}),
+    annotationOverlay: serializeAnnotationOverlay(d),
+    // Only the save merge reads these; the snapshot merge uses the five above.
+    dashboardFields: Object.fromEntries(
+      DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(d[f])])
+    ) as Record<MergedDashboardField, string>,
   },
 });
 
@@ -249,7 +388,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     lastActiveCollectionId,
     lastBoardIdByCollection,
-    remoteControlEnabled: accountRemoteControlEnabled,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -422,10 +560,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ) => void)
     | null
   >(null);
-  // Keep a ref to account-level remote control so the Firestore snapshot
-  // handler can read the latest value without triggering a re-subscription.
-  const accountRemoteControlEnabledRef = useRef(accountRemoteControlEnabled);
-  accountRemoteControlEnabledRef.current = accountRemoteControlEnabled;
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [groupBuildMode, setGroupBuildMode] = useState(false);
@@ -475,11 +609,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
-  // --- Annotation (ephemeral full-screen draw-over overlay; NOT a widget) ---
+  // --- Annotation (full-screen draw-over overlay; NOT a widget) ---
   // The `objects` array is stored on the active dashboard's
-  // `annotationOverlay` so it rides through the live-share mirror to all
-  // participants. Per-user UI state (color, width, palette) stays local.
+  // `annotationOverlay` so it persists with the board and rides through the
+  // live-share mirror. Per-user UI state (color, width, palette) stays local.
   const [annotationActive, setAnnotationActive] = useState(false);
+  // Ids present when the toolbar opened; undo never reaches past them.
+  const annotationSessionIdsRef = useRef<Set<string>>(new Set());
   const [annotationLocalState, setAnnotationLocalState] = useState<
     Omit<AnnotationState, 'objects'>
   >(() => ({
@@ -1290,6 +1426,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const pendingSaveCountRef = useRef<number>(0);
   // Tracks Drive file IDs for PII supplements per dashboard to enable in-place updates
   const piiDriveFileIdRef = useRef<Map<string, string>>(new Map());
+  // Latest PII supplement known for each board. Firestore only ever holds the
+  // scrubbed copy, so any server snapshot this device adopts must be re-overlaid
+  // or a roster disappears the moment a snapshot replaces a widget's config.
+  const dashboardPiiRef = useRef<Map<string, CachedPiiSupplement>>(new Map());
+  // Bumped whenever a stale supplement entry is dropped, so the Drive restore
+  // effect re-reads the authoritative copy instead of waiting for a board switch.
+  const [piiRestoreNonce, setPiiRestoreNonce] = useState(0);
+  // `updatedAt` values this device itself wrote. A transaction write bypasses
+  // the local mutation queue, so its own commit arrives as a real snapshot
+  // (hasPendingWrites === false) that would otherwise be mistaken for a remote
+  // edit and blind-adopted over local state.
+  const selfWrittenUpdatedAtRef = useRef<Set<number>>(new Set());
+  const rememberSelfWrite = useCallback((updatedAt: number) => {
+    const seen = selfWrittenUpdatedAtRef.current;
+    seen.add(updatedAt);
+    // Bounded: only the most recent writes can still be in flight.
+    while (seen.size > 20) seen.delete(seen.values().next().value as number);
+  }, []);
   // Tracks widget IDs added locally but not yet confirmed by a server snapshot
   const locallyAddedWidgetIds = useRef<Set<string>>(new Set());
 
@@ -1304,6 +1458,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (dashboard: Dashboard): Promise<void> => {
       if (!dashboardHasPII(dashboard)) {
         // Names were cleared — overwrite any existing supplement so old ones aren't merged back.
+        dashboardPiiRef.current.delete(dashboard.id);
         const staleFileId = piiDriveFileIdRef.current.get(dashboard.id);
         if (driveService && staleFileId) {
           try {
@@ -1328,6 +1483,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const pii = extractDashboardPII(dashboard);
+      // Record before the upload: the snapshot overlay needs this even if Drive
+      // is momentarily unreachable, or the failed save's next snapshot strips
+      // the roster from local state too.
+      dashboardPiiRef.current.set(
+        dashboard.id,
+        stampPiiVersions(dashboard, pii)
+      );
       const blob = new Blob([JSON.stringify(pii)], {
         type: 'application/json',
       });
@@ -1354,13 +1516,33 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [driveService]
   );
 
+  // The offline fallback write is not awaited, so its rejection lands long
+  // after the save resolved and the baseline advanced. Re-arm the unsaved
+  // window (which the beforeunload flush gates on) and tell the teacher.
+  const handleDeferredWriteFailed = useCallback(
+    (err: unknown) => {
+      console.error('Queued offline save failed:', err);
+      oldestUnsavedEditAtRef.current ??= Date.now();
+      addToast('Failed to sync changes', 'error');
+    },
+    [addToast]
+  );
+
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<number> => {
+    async (
+      dashboard: Dashboard,
+      baseline?: SaveBaseline,
+      // Teardown flushes pass this: the page is already going away, so the two
+      // Drive round-trips below would run out the clock before Firestore is
+      // even reached. The PII backup still fires, just unawaited.
+      options?: { skipDrive?: boolean }
+    ): Promise<number> => {
       // Always save to Firestore for real-time sync
       let driveFileId = dashboard.driveFileId;
+      const skipDrive = options?.skipDrive === true;
 
       // MANDATE: Save to Drive for non-admins (full dashboard with PII goes to Drive)
-      if (!isAdmin && driveService) {
+      if (!skipDrive && !isAdmin && driveService) {
         try {
           // Only perform immediate export if it's a new dashboard or doesn't have an ID yet
           // Background effect handles ongoing sync
@@ -1370,19 +1552,78 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      await backupDashboardPIIToDrive(dashboard);
+      // Teardown skips the awaits, not the backup itself: scrubbing PII into
+      // Firestore without refreshing the Drive copy resurrects stale rosters.
+      if (skipDrive) {
+        void backupDashboardPIIToDrive(dashboard).catch((e) =>
+          console.error('[PII] Teardown PII backup failed:', e)
+        );
+      } else {
+        await backupDashboardPIIToDrive(dashboard);
+      }
 
       // CRITICAL: Strip all student PII before writing to Firestore.
       // Custom widget names (firstNames, lastNames, completedNames, etc.) must
       // NEVER reach Firestore — they are preserved in Drive only.
       const scrubbed = scrubDashboardPII(dashboard);
 
-      return saveDashboardFirestore({
-        ...scrubbed,
-        driveFileId,
-      });
+      // The baseline is built from unscrubbed local widgets, so scrub it the
+      // same way. Otherwise a widget still on its initial config (no `version`
+      // yet) falls to the config deep-compare and reads as locally changed on
+      // every save purely because the baseline still carries its roster.
+      const scrubbedBaseline = baseline && {
+        ...baseline,
+        widgets: scrubWidgetsPII(baseline.widgets),
+      };
+
+      const updatedAt = await saveDashboardFirestore(
+        {
+          ...scrubbed,
+          driveFileId,
+        },
+        scrubbedBaseline,
+        handleDeferredWriteFailed
+      );
+      rememberSelfWrite(updatedAt);
+      return updatedAt;
     },
-    [isAdmin, driveService, saveDashboardFirestore, backupDashboardPIIToDrive]
+    [
+      isAdmin,
+      driveService,
+      saveDashboardFirestore,
+      backupDashboardPIIToDrive,
+      rememberSelfWrite,
+      handleDeferredWriteFailed,
+    ]
+  );
+
+  /**
+   * Persist a couple of named board fields without touching the rest of the
+   * document. Used by paths that change one thing on a board that may not be
+   * the active one — there is no save baseline for those, so a whole-document
+   * write would blind-overwrite every widget with a stale in-memory copy.
+   * Mirrors pinBoard / moveBoardToCollection.
+   */
+  const updateDashboardFields = useCallback(
+    async (dashboard: Dashboard, fields: Record<string, unknown>) => {
+      if (isAuthBypass) {
+        await saveDashboard(dashboard);
+        return;
+      }
+      if (!user?.uid) return;
+      try {
+        await updateDoc(
+          doc(db, 'users', user.uid, 'dashboards', dashboard.id),
+          { ...fields, updatedAt: Date.now() }
+        );
+      } catch (err) {
+        // A board created moments ago may not have reached Firestore yet;
+        // updateDoc cannot create it, so write the whole document instead.
+        if ((err as { code?: unknown } | null)?.code !== 'not-found') throw err;
+        await saveDashboard(dashboard);
+      }
+    },
+    [user?.uid, saveDashboard]
   );
 
   const saveDashboards = useCallback(
@@ -1487,12 +1728,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setDashboards((prev) =>
         prev.map((d) => (d.id === dashboard.id ? tagged : d))
       );
-      // Persist the linkage via the full saveDashboard pipeline, which
-      // handles PII scrub + Drive supplement. Going through
-      // saveDashboardFirestore directly would bypass that and could leak
-      // restored-from-Drive PII to Firestore.
+      // Only the four linkedShare* fields change, so write just those. The
+      // board being shared need not be the active one (BoardsModal shares any
+      // row), and a non-active board has no save baseline — a whole-document
+      // write would blind-overwrite its widgets with this device's copy. No
+      // widget config is written here, so the PII scrub this used to rely on
+      // has nothing to scrub.
       try {
-        await saveDashboard(tagged);
+        await updateDashboardFields(tagged, {
+          linkedShareId: shareId,
+          linkedShareRole: 'owner',
+          linkedShareHostName: hostName,
+          linkedShareEnded: false,
+        });
       } catch (e) {
         console.error('Failed to persist share linkage on dashboard:', e);
       }
@@ -1502,7 +1750,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       isAdmin,
       driveService,
       shareDashboardFirestore,
-      saveDashboard,
+      updateDashboardFields,
       userDomain,
       user,
       // NOTE: substitute-share handler below has its own dep list; this block
@@ -1654,14 +1902,51 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         const { vpW, vpH } = getCurrentViewport();
+        const staleSupplementBoardIds = new Set<string>();
         const migratedDashboards = sortedDashboards.map((db) => {
           const collectionsMigrated = migrateBoardForCollections(db);
           const widgetMigrated: Dashboard = {
             ...collectionsMigrated,
             widgets: collectionsMigrated.widgets.map(migrateWidget),
           };
-          return hydrateDashboardForViewport(widgetMigrated, vpW, vpH);
+          const hydrated = hydrateDashboardForViewport(
+            widgetMigrated,
+            vpW,
+            vpH
+          );
+          // Firestore holds the scrubbed copy; Drive holds the PII. Overlay it
+          // back before anything downstream can adopt a server config, or a
+          // restored roster is silently replaced by the scrubbed one. Only
+          // where the widget's version still matches the one the supplement was
+          // captured against: past that, another device has edited the roster
+          // and this cache would re-apply the copy it already deleted.
+          const cached = dashboardPiiRef.current.get(hydrated.id);
+          if (!cached) return hydrated;
+          const applicable: DashboardPiiSupplement = {};
+          let droppedStale = false;
+          for (const widget of hydrated.widgets) {
+            if (!cached.supplement[widget.id]) continue;
+            if (cached.versions[widget.id] === widget.version) {
+              applicable[widget.id] = cached.supplement[widget.id];
+            } else {
+              // Drop it so the staleness is detected once, not on every snapshot.
+              delete cached.supplement[widget.id];
+              delete cached.versions[widget.id];
+              droppedStale = true;
+            }
+          }
+          if (droppedStale) staleSupplementBoardIds.add(hydrated.id);
+          return Object.keys(applicable).length > 0
+            ? mergeDashboardPII(hydrated, applicable)
+            : hydrated;
         });
+
+        // Re-read the authoritative supplement from Drive before the next
+        // autosave can write this device's stale roster back over the edit.
+        if (staleSupplementBoardIds.has(activeIdRef.current ?? '')) {
+          lastPiiRestoredIdRef.current = null;
+          setPiiRestoreNonce((n) => n + 1);
+        }
 
         // Update saving status: clear when Firestore confirms no pending writes
         // and we have no local saves in flight
@@ -1705,6 +1990,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastSavedDataRef.current = initData;
           lastSavedFieldsRef.current = initFields;
           lastSavedDashboardIdRef.current = currentActive.id;
+          baselineGenerationRef.current++;
         }
 
         const now = Date.now();
@@ -1724,10 +2010,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           (d) => d.id === activeIdRef.current
         );
 
+        // This device's own committed transaction write. It carries nothing
+        // local state does not already hold except whatever the transaction
+        // folded in from another device, so route it through the surgical
+        // merge below instead of the wholesale-adopt branch.
+        const isSelfEcho =
+          serverActive?.updatedAt !== undefined &&
+          selfWrittenUpdatedAtRef.current.has(serverActive.updatedAt);
+
         let newDashboards: Dashboard[];
 
         if (
           hasPendingWrites ||
+          isSelfEcho ||
           isRecentlyUpdatedLocally ||
           hasUnsavedLocalChanges ||
           pendingSaveCountRef.current > 0
@@ -1756,6 +2051,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const settingsChangedLocally =
                 JSON.stringify(currentActive.settings ?? {}) !==
                 (lastSavedFieldsRef.current.settings ?? '{}');
+              // Unsaved ink must survive an incoming snapshot, same as name
+              // and background — otherwise every remote echo erases it.
+              const annotationOverlayChangedLocally =
+                serializeAnnotationOverlay(currentActive) !==
+                lastSavedFieldsRef.current.annotationOverlay;
 
               // Per-widget merge: only keep a widget's local config when THAT
               // specific widget changed locally (e.g. running timer). Accept the
@@ -1780,40 +2080,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const localById = new Map(
                 currentActive.widgets.map((w) => [w.id, w])
               );
-              // Proportional fields are the canonical layout source — pixel
-              // x/y/w/h are derived per-viewport and would produce false
-              // positives when two devices on different screen sizes view
-              // the same board.
-              const LAYOUT_FIELDS = [
-                'xProp',
-                'yProp',
-                'wProp',
-                'hProp',
-                'aspectRatio',
-                'z',
-                'minimized',
-                'flipped',
-                'maximized',
-                'groupId',
-              ] as const;
-
-              const STYLE_FIELDS = [
-                'backgroundColor',
-                'fontFamily',
-                'baseTextSize',
-                'transparency',
-                'buildingId',
-                'customTitle',
-                'isPinned',
-                'isLocked',
-                'annotation',
-              ] as const;
-
-              const INSTANCE_FIELDS = ['customTitle', 'isPinned'] as const;
-
-              const remoteControlEnabled =
-                accountRemoteControlEnabledRef.current;
-
               // Pre-calculate merge decisions for all incoming server widgets
               const widgetMergeDecisions = db.widgets.map((sw) => {
                 const lw = localById.get(sw.id);
@@ -1872,16 +2138,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   lw,
                   saved,
                   isDeletedLocally,
-                  // If remote control is OFF, do not accept incoming server changes
-                  keepLocalConfig:
-                    configChangedLocally || !remoteControlEnabled,
-                  keepLocalLayout:
-                    layoutChangedLocally || !remoteControlEnabled,
-                  keepLocalStyle: styleChangedLocally || !remoteControlEnabled,
-                  keepLocalInstance:
-                    instanceChangedLocally || !remoteControlEnabled,
-                  keepLocalAnnotation:
-                    annotationChangedLocally || !remoteControlEnabled,
+                  // Keep only what changed locally; untouched fields take the server value so edits from another device land.
+                  keepLocalConfig: configChangedLocally,
+                  keepLocalLayout: layoutChangedLocally,
+                  keepLocalStyle: styleChangedLocally,
+                  keepLocalInstance: instanceChangedLocally,
+                  keepLocalAnnotation: annotationChangedLocally,
                 };
               });
 
@@ -1972,6 +2234,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   db.settings ?? {}
                 );
               }
+              if (!annotationOverlayChangedLocally) {
+                lastSavedFieldsRef.current.annotationOverlay =
+                  serializeAnnotationOverlay(db);
+              }
+              // The merge below returns `...db` for every DASHBOARD_FIELDS
+              // value, so the baseline moves with it — except `annotationOverlay`,
+              // which has a keep-local branch below. Advancing its baseline to
+              // the server copy would make the next transactional save read the
+              // kept local ink as unchanged and discard it.
+              const priorInkBaseline =
+                lastSavedFieldsRef.current.dashboardFields.annotationOverlay;
+              const nextDashboardFields = Object.fromEntries(
+                DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(db[f])])
+              ) as Partial<Record<MergedDashboardField, string>>;
+              if (annotationOverlayChangedLocally) {
+                if (priorInkBaseline === undefined) {
+                  delete nextDashboardFields.annotationOverlay;
+                } else {
+                  nextDashboardFields.annotationOverlay = priorInkBaseline;
+                }
+              }
+              lastSavedFieldsRef.current.dashboardFields = nextDashboardFields;
 
               // For widgets, construct the array of what we would have saved if we had
               // accepted the server's widget baseline for non-locally-modified widgets.
@@ -2024,6 +2308,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               );
               lastSavedFieldsRef.current.widgets =
                 JSON.stringify(nextLastSavedWidgets);
+              baselineGenerationRef.current++;
 
               return {
                 ...db,
@@ -2038,6 +2323,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 settings: settingsChangedLocally
                   ? currentActive.settings
                   : db.settings,
+                // Per-object merge so a collaborator's concurrent stroke is
+                // not dropped by unsaved local ink (mirrors the widget merge).
+                annotationOverlay: annotationOverlayChangedLocally
+                  ? {
+                      ...currentActive.annotationOverlay,
+                      // A local clear drops the authored canvas size; fall
+                      // back to the server's so surviving remote ink is not
+                      // scaled against the worldRect fallback.
+                      canvasWidth:
+                        currentActive.annotationOverlay?.canvasWidth ??
+                        db.annotationOverlay?.canvasWidth,
+                      canvasHeight:
+                        currentActive.annotationOverlay?.canvasHeight ??
+                        db.annotationOverlay?.canvasHeight,
+                      objects: mergeAnnotationObjects(
+                        currentActive.annotationOverlay?.objects ?? [],
+                        db.annotationOverlay?.objects ?? [],
+                        parseAnnotationBaseline(
+                          lastSavedFieldsRef.current.annotationOverlay
+                        )
+                      ),
+                      updatedAt: Date.now(),
+                    }
+                  : db.annotationOverlay,
               };
             }
             return db;
@@ -2054,8 +2363,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             lastSavedFieldsRef.current = serverFields;
             lastWidgetCountRef.current = serverActive.widgets.length;
             lastSavedDashboardIdRef.current = serverActive.id;
+            baselineGenerationRef.current++;
           }
           newDashboards = migratedDashboards;
+        }
+
+        // A real remote change invalidates local undo history for that board.
+        const nextActive = newDashboards.find(
+          (d) => d.id === activeIdRef.current
+        );
+        if (
+          nextActive &&
+          currentActive &&
+          nextActive !== currentActive &&
+          JSON.stringify(nextActive.widgets) !==
+            JSON.stringify(currentActive.widgets)
+        ) {
+          widgetHistoryRef.current.delete(nextActive.id);
         }
 
         setDashboards(newDashboards);
@@ -2284,7 +2608,49 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     name: string;
     libraryOrder: string;
     settings: string;
-  }>({ widgets: '', background: '', name: '', libraryOrder: '', settings: '' });
+    annotationOverlay: string;
+    dashboardFields: Partial<Record<MergedDashboardField, string>>;
+  }>({
+    widgets: '',
+    background: '',
+    name: '',
+    libraryOrder: '',
+    settings: '',
+    annotationOverlay: '',
+    dashboardFields: {},
+  });
+  // Bumped by every snapshot-handler write to lastSavedFieldsRef. A save that
+  // started before such a write must not restore its own pre-write capture:
+  // the snapshot already advanced the baseline to another device's newer
+  // values and adopted them into local state, so regressing it would make the
+  // next transaction read those adopted values as local edits and clobber the
+  // remote copy.
+  const baselineGenerationRef = useRef(0);
+  const buildSaveBaseline = useCallback(
+    (dashboardId: string): SaveBaseline | undefined => {
+      if (lastSavedDashboardIdRef.current !== dashboardId) return undefined;
+      // No serialized widgets means nothing has been baselined for this board
+      // yet; a baseline claiming zero widgets would resurrect local deletions.
+      if (!lastSavedFieldsRef.current.widgets) return undefined;
+      let widgets: WidgetData[] = [];
+      try {
+        widgets = JSON.parse(
+          lastSavedFieldsRef.current.widgets
+        ) as WidgetData[];
+      } catch {
+        return undefined;
+      }
+      return {
+        widgets,
+        background: lastSavedFieldsRef.current.background,
+        name: lastSavedFieldsRef.current.name,
+        libraryOrder: lastSavedFieldsRef.current.libraryOrder,
+        settings: lastSavedFieldsRef.current.settings,
+        dashboardFields: lastSavedFieldsRef.current.dashboardFields,
+      };
+    },
+    []
+  );
 
   useEffect(() => {
     // Capture ref value for stable cleanup (react-hooks/exhaustive-deps)
@@ -2336,7 +2702,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         // Flush the outgoing board — re-baselining below would otherwise drop its unsaved edits.
         pendingSaveCountRef.current++;
-        saveDashboard(outgoing)
+        saveDashboard(outgoing, buildSaveBaseline(outgoing.id))
           .catch((err) => {
             console.error('Auto-save failed:', err);
             setToasts((prev) => [
@@ -2375,6 +2741,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Detect structural changes (adding/removing widgets) for more aggressive saving
     const isStructuralChange =
       active.widgets.length !== lastWidgetCountRef.current;
+    // Ink-only edits rewrite the whole board document per stroke pause, so
+    // they get a longer idle window than a widget edit. The unsaved-age
+    // ceiling below still bounds how long a stroke can sit unwritten.
+    const isInkOnlyChange =
+      serializeWithoutInk(currentData) ===
+      serializeWithoutInk(lastSavedDataRef.current);
     // Settings-only changes (spotlight, maximize) are small and urgent —
     // use a fast 100 ms debounce so the desktop board reflects remote-
     // controlled presentation changes with minimal perceived delay.
@@ -2384,16 +2756,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ? 200 // add/remove widget
         : lastUpdateWasSettingsOnly.current
           ? 100 // settings toggle (spotlight, maximize, etc.)
-          : 800; // widget config / position
+          : isInkOnlyChange
+            ? 2500 // annotation stroke — coalesce a drawing burst
+            : 800; // widget config / position
     // Cap the total time an edit can sit unsaved. Each re-run above cancels the
     // previous timer, so without this ceiling a stream of edits closer together
     // than the debounce postpones the write forever.
     oldestUnsavedEditAtRef.current ??= Date.now();
+    const maxUnsavedAgeMs = isInkOnlyChange
+      ? MAX_UNSAVED_INK_AGE_MS
+      : MAX_UNSAVED_EDIT_AGE_MS;
     const debounceMs = Math.max(
       0,
       Math.min(
         baseDebounceMs,
-        MAX_UNSAVED_EDIT_AGE_MS - (Date.now() - oldestUnsavedEditAtRef.current)
+        maxUnsavedAgeMs - (Date.now() - oldestUnsavedEditAtRef.current)
       )
     );
     // The immediate-write flag has now been consumed for this scheduling pass.
@@ -2416,15 +2793,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         widgets: JSON.stringify(active.widgets),
         background: active.background,
         name: active.name,
-        libraryOrder: JSON.stringify(active.libraryOrder),
-        settings: JSON.stringify(active.settings),
+        // Coalesce so an absent field serializes to '[]'/'{}' like the other
+        // capture sites — JSON.stringify(undefined) returns undefined, not a
+        // string, which would read as a local edit on every subsequent save.
+        libraryOrder: JSON.stringify(active.libraryOrder ?? []),
+        settings: JSON.stringify(active.settings ?? {}),
+        annotationOverlay: serializeAnnotationOverlay(active),
+        dashboardFields: Object.fromEntries(
+          DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(active[f])])
+        ) as Record<MergedDashboardField, string>,
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
-      saveDashboard(active)
+      const baselineGenerationAtSave = baselineGenerationRef.current;
+      saveDashboard(active, buildSaveBaseline(active.id))
         .then(() => {
-          lastSavedDataRef.current = savedData;
-          lastSavedFieldsRef.current = savedFields;
+          // Skip when a snapshot merge landed mid-flight: it already advanced
+          // the baseline to the server values it adopted into local state, and
+          // this pre-write capture would regress it (see baselineGenerationRef).
+          if (baselineGenerationRef.current === baselineGenerationAtSave) {
+            lastSavedDataRef.current = savedData;
+            lastSavedFieldsRef.current = savedFields;
+          }
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -2467,13 +2857,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       for (const t of auxTimers) clearTimeout(t);
       auxTimers.clear();
     };
-  }, [dashboards, activeId, user, loading, saveDashboard]);
+  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
 
   // --- GOOGLE DRIVE SYNC EFFECT ---
   // Decoupled from Firestore auto-save to ensure performance.
   // Debounced heavily (5 seconds) to avoid hitting Drive API limits.
   const lastExportedDataRef = useRef<string>('');
   const driveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Payload of the queued export, so a re-render that changes nothing this
+  // effect cares about (an annotation stroke, a timer tick) leaves the queued
+  // export alone instead of pushing it out another 5 seconds.
+  const pendingExportDataRef = useRef<string | null>(null);
+
+  // Cancel a queued export on unmount only. Cancelling on every effect re-run
+  // would let an ink stroke (which no longer reschedules) drop the widget
+  // edit that scheduled the pending export.
+  useEffect(
+    () => () => {
+      if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!user || isAdmin || !driveService || loading || !activeId) return;
@@ -2481,23 +2885,37 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const active = dashboards.find((d) => d.id === activeId);
     if (!active) return;
 
-    const currentData = serializeDashboard(active);
+    // Ink is excluded from the dedupe: a Drive re-export of the whole board
+    // per annotation session is a lot of API traffic for markup the export
+    // is not there to carry. The next real board edit ships current ink.
+    const currentData = serializeWithoutInk(serializeDashboard(active));
 
     if (currentData === lastExportedDataRef.current) return;
+    if (currentData === pendingExportDataRef.current) return;
 
     if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
+    pendingExportDataRef.current = currentData;
 
     driveSyncTimerRef.current = setTimeout(() => {
+      pendingExportDataRef.current = null;
       void driveService
         .exportDashboard(active)
         .then((newFileId) => {
           lastExportedDataRef.current = currentData;
-          // If we got a new ID (e.g. first sync), save it back to Firestore silently
-          if (newFileId !== active.driveFileId) {
-            // CRITICAL: Scrub PII before writing directly to Firestore.
-            void saveDashboardFirestore({
-              ...scrubDashboardPII(active),
-              driveFileId: newFileId,
+          // If we got a new ID (e.g. first sync), save it back to Firestore
+          // silently. Only `driveFileId` needs persisting, and `active` is a
+          // 5s-old closure plus a Drive round trip by now — writing the whole
+          // document would blind-overwrite whatever was saved in between, on
+          // this device or another.
+          if (newFileId !== active.driveFileId && !isAuthBypass) {
+            void updateDoc(
+              doc(db, 'users', user.uid, 'dashboards', active.id),
+              {
+                driveFileId: newFileId,
+                updatedAt: Date.now(),
+              }
+            ).catch((err: unknown) => {
+              console.error('[Drive Sync] Failed to persist driveFileId:', err);
             });
           }
         })
@@ -2510,19 +2928,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           console.error('[Drive Sync] Background export failed:', err);
         });
     }, 5000);
-
-    return () => {
-      if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
-    };
-  }, [
-    user,
-    isAdmin,
-    driveService,
-    dashboards,
-    activeId,
-    loading,
-    saveDashboardFirestore,
-  ]);
+  }, [user, isAdmin, driveService, dashboards, activeId, loading]);
 
   // --- PII RESTORE EFFECT ---
   // When the active dashboard changes, attempt to restore any custom widget
@@ -2559,6 +2965,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!piiFile) {
           // No supplement found — clear any stale cached ID for this dashboard
           piiDriveFileIdRef.current.delete(currentId);
+          dashboardPiiRef.current.delete(currentId);
           return;
         }
         // Cache the file ID so future saves can update in-place
@@ -2566,8 +2973,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const blob = await driveService.downloadFile(piiFile.id);
         const text = await blob.text();
         const pii = JSON.parse(text) as ReturnType<typeof extractDashboardPII>;
-        if (Object.keys(pii).length === 0) return;
+        if (Object.keys(pii).length === 0) {
+          dashboardPiiRef.current.delete(currentId);
+          return;
+        }
 
+        // Keep the supplement so the snapshot handler can re-apply it. Restore
+        // alone is not enough: the widget's `version` is unchanged, so the next
+        // server snapshot would hand back the scrubbed config as authoritative.
+        // Stamp it against the versions currently in state — that is the server
+        // copy this supplement is known to belong to.
+        const current = dashboardsRef.current.find((d) => d.id === currentId);
+        if (current) {
+          dashboardPiiRef.current.set(
+            currentId,
+            stampPiiVersions(current, pii)
+          );
+        }
         setDashboards((prev) =>
           prev.map((d) => (d.id === currentId ? mergeDashboardPII(d, pii) : d))
         );
@@ -2586,32 +3008,61 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // which spammed disconnected users on every board switch.
         console.warn('[PII Restore] Could not load supplement:', err);
       });
-  }, [activeId, loading, driveService]);
+    // piiRestoreNonce re-runs this when the snapshot handler dropped a stale
+    // supplement entry; the latch above is cleared alongside the bump.
+  }, [activeId, loading, driveService, piiRestoreNonce]);
 
-  // Flush pending saves on page refresh/close
+  // Flush pending saves on page refresh/close. iPadOS Safari never fires
+  // beforeunload, so pagehide and the hidden visibilitychange (the only events
+  // a backgrounded tab reliably gets) run the same flush.
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const flushPendingSave = (mode: 'teardown' | 'hidden') => {
       // oldestUnsavedEditAtRef tracks "content differs from what was saved";
       // saveTimerRef only tracks "a timer happens to be scheduled right now",
       // which the effect's cleanup clears on every re-render.
       if (
-        oldestUnsavedEditAtRef.current !== null &&
-        user &&
-        !loading &&
-        activeId
-      ) {
-        const active = dashboards.find((d) => d.id === activeId);
-        if (active) {
-          // Note: We can't reliably await this in beforeunload,
-          // but we can try to trigger it.
-          void saveDashboard(active);
-        }
+        oldestUnsavedEditAtRef.current === null ||
+        !user ||
+        loading ||
+        !activeId
+      )
+        return;
+      const active = dashboards.find((d) => d.id === activeId);
+      if (!active) return;
+      // This flush covers every edit up to now — cancel the debounced write so
+      // it doesn't fire a second copy of the same document afterwards.
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
       }
+      oldestUnsavedEditAtRef.current = null;
+      // Hiding a tab is routine (app switch, iPad lock), so it takes the normal
+      // baselined merge — a blind whole-doc write there would clobber a
+      // co-teacher's unreceived edits. Only real teardown, where the merge
+      // transaction's server read would never finish, writes blind.
+      const write =
+        mode === 'hidden'
+          ? saveDashboard(active, buildSaveBaseline(active.id))
+          : saveDashboard(active, undefined, { skipDrive: true });
+      void write.catch((err) => {
+        console.error('Flush save failed:', err);
+        oldestUnsavedEditAtRef.current ??= Date.now();
+      });
+    };
+    const onTeardown = () => flushPendingSave('teardown');
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushPendingSave('hidden');
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [dashboards, activeId, user, loading, saveDashboard]);
+    window.addEventListener('beforeunload', onTeardown);
+    window.addEventListener('pagehide', onTeardown);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', onTeardown);
+      window.removeEventListener('pagehide', onTeardown);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
 
   const toggleToolVisibility = useCallback(
     (type: WidgetType | InternalToolType) => {
@@ -2906,6 +3357,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Last serialized payload we mirrored per shareId — skip duplicate writes. */
   const lastMirroredRef = useRef<Map<string, string>>(new Map());
+  // Per-share ink present when we first subscribed — the fallback merge
+  // baseline before this device has mirrored or received anything.
+  const mountInkBaselineRef = useRef<Map<string, DrawableObject[]>>(new Map());
   /** Pending debounced mirror timers per shareId. */
   const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map()
@@ -2942,9 +3396,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Cheap dedupe based on the same fields the saveDashboard path uses.
       const payload = serializeDashboard(scrubbed);
-      if (lastMirroredRef.current.get(shareId) === payload) return;
-
       const existing = mirrorTimersRef.current.get(shareId);
+      if (lastMirroredRef.current.get(shareId) === payload) {
+        // A queued write now holds stale content (e.g. ink a snapshot just
+        // erased) — drop it rather than let it echo back to the share.
+        if (existing) {
+          clearTimeout(existing);
+          mirrorTimersRef.current.delete(shareId);
+        }
+        return;
+      }
       if (existing) clearTimeout(existing);
 
       const timer = setTimeout(() => {
@@ -3002,6 +3463,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const dashboardId = d.id;
       const shareId = d.linkedShareId;
       if (!shareId) return () => undefined;
+
+      // Ink we already had when this share was first subscribed. It stands in
+      // as the merge baseline until we have mirrored (or received) once, so
+      // persisted local strokes a collaborator has since erased are treated
+      // as remote deletes instead of local adds.
+      if (!mountInkBaselineRef.current.has(shareId)) {
+        mountInkBaselineRef.current.set(
+          shareId,
+          d.annotationOverlay?.objects ?? []
+        );
+      }
 
       return subscribeToSharedBoard(shareId, (remote) => {
         if (!remote) {
@@ -3087,6 +3559,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         //   - viewer       receives owner edits (View-Only one-way)
         // The echo filter above prevents a writer from re-applying its own
         // mirrored update.
+        const hasBaseline = lastMirroredRef.current.has(shareId);
+        // A co-teacher's widget edit invalidates local undo for that board.
+        // Both sides go through the same PII scrub and key-stable serializer:
+        // comparing the remote (scrubbed, Firestore-sorted) against the local
+        // copy (PII merged back in) marked every snapshot of a roster-bearing
+        // board as a remote edit and wiped the undo stack.
+        const localBeforeMirror = dashboardsRef.current.find(
+          (x) => x.id === dashboardId
+        );
+        if (
+          remote.widgets &&
+          localBeforeMirror &&
+          widgetMirrorSignature(remote.widgets) !==
+            widgetMirrorSignature(localBeforeMirror.widgets)
+        ) {
+          widgetHistoryRef.current.delete(dashboardId);
+        }
         setDashboards((prev) =>
           prev.map((x) => {
             if (x.id !== dashboardId) return x;
@@ -3110,17 +3599,52 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               settings: remote.settings ?? x.settings,
               // Live annotation overlay — hosts and collaborators push
               // strokes through this field so all participants see strokes
-              // appear in real time. Falls back to the local copy when the
-              // remote omits it (legacy docs).
-              annotationOverlay:
-                remote.annotationOverlay ?? x.annotationOverlay,
+              // appear in real time. Merged per object against the last
+              // payload we mirrored: taking the remote array wholesale made
+              // two co-annotating teachers erase each other's strokes.
+              // Falls back to the local copy when the remote omits it
+              // (legacy docs).
+              annotationOverlay: remote.annotationOverlay
+                ? {
+                    ...remote.annotationOverlay,
+                    canvasWidth:
+                      remote.annotationOverlay.canvasWidth ??
+                      x.annotationOverlay?.canvasWidth,
+                    canvasHeight:
+                      remote.annotationOverlay.canvasHeight ??
+                      x.annotationOverlay?.canvasHeight,
+                    // Without a mirrored payload (first snapshot on this
+                    // device, or after a mirror failure/unlink cleared it)
+                    // every local object would look like a local add and
+                    // resurrect ink a collaborator just erased. Fall back to
+                    // the ink we had at subscribe time as the baseline.
+                    objects: mergeAnnotationObjects(
+                      x.annotationOverlay?.objects ?? [],
+                      remote.annotationOverlay.objects ?? [],
+                      hasBaseline
+                        ? mirroredAnnotationBaseline(
+                            lastMirroredRef.current.get(shareId)
+                          )
+                        : (mountInkBaselineRef.current.get(shareId) ?? [])
+                    ),
+                  }
+                : x.annotationOverlay,
               linkedShareEnded: false,
             };
             // Prime the mirror dedupe so the state change we just made
             // doesn't trigger an immediate echo write back to the shared
             // doc. Without this, every remote apply costs an extra
-            // Firestore write of identical content.
-            lastMirroredRef.current.set(shareId, serializeDashboard(next));
+            // Firestore write of identical content. Prime it with the
+            // remote ink, not the merged ink: local-only strokes the shared
+            // doc never saw must stay pending for the mirror effect.
+            lastMirroredRef.current.set(
+              shareId,
+              serializeDashboard(
+                remote.annotationOverlay
+                  ? { ...next, annotationOverlay: remote.annotationOverlay }
+                  : next
+              )
+            );
             return next;
           })
         );
@@ -3207,7 +3731,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         prev.map((d) => (d.id === dashboardId ? detached : d))
       );
       try {
-        await saveDashboard(detached);
+        // Only the link bookkeeping changed. `detached` may be an inactive
+        // board with no save baseline, so writing the whole document would
+        // overwrite its widgets with whatever this device last read.
+        await updateDashboardFields(detached, {
+          linkedShareId: deleteField(),
+          linkedShareRole: deleteField(),
+          linkedShareHostName: deleteField(),
+          linkedShareEnded: deleteField(),
+        });
       } catch (err) {
         console.error('Failed to persist detached share state:', err);
       }
@@ -3216,7 +3748,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [
       stopSharingBoard,
       leaveSharedBoard,
-      saveDashboard,
+      updateDashboardFields,
       addToast,
       deleteDashboardFirestore,
       updateActiveId,
@@ -3790,14 +4322,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const active = dashboards.find((d) => d.id === activeId);
     if (active) {
       try {
-        await saveDashboard(active);
+        await saveDashboard(active, buildSaveBaseline(active.id));
         addToast('All changes saved to cloud', 'success');
       } catch (err) {
         console.error('Save failed:', err);
         addToast('Save failed', 'error');
       }
     }
-  }, [user, dashboards, activeId, saveDashboard, addToast]);
+  }, [user, dashboards, activeId, saveDashboard, buildSaveBaseline, addToast]);
 
   const deleteDashboard = useCallback(
     async (id: string) => {
@@ -4010,7 +4542,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        await saveDashboard(updated);
+        // Rename can target an inactive board, which has no save baseline —
+        // write just the name rather than the whole (possibly stale) document.
+        await updateDashboardFields(updated, { name });
         addToast('Dashboard renamed');
       } catch (err) {
         console.error('Rename failed:', err);
@@ -4019,7 +4553,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         setDashboards((prev) => prev.map((d) => (d.id === id ? dashboard : d)));
       }
     },
-    [user, dashboards, activeId, saveDashboard, addToast]
+    [user, dashboards, activeId, updateDashboardFields, addToast]
   );
 
   const reorderDashboards = useCallback(
@@ -4583,12 +5117,114 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [featurePermissions, selectedBuildings]
   );
 
+  // Board-level undo/redo of widget mutations, keyed by dashboard id.
+  const widgetHistoryRef = useRef(new Map<string, WidgetHistoryStack>());
+  const [widgetHistoryVersion, setWidgetHistoryVersion] = useState(0);
+
+  const recordHistory = useCallback((coalesceKey: string | null = null) => {
+    const id = activeIdRef.current;
+    if (!id) return;
+    // Every mutating action already returns before reaching here on a
+    // read-only board; the guard keeps that true for future callers.
+    if (isActiveBoardReadOnlyRef.current) return;
+    const active = dashboardsRef.current.find((d) => d.id === id);
+    if (!active) return;
+    let stack = widgetHistoryRef.current.get(id);
+    if (!stack) {
+      stack = createWidgetHistoryStack();
+      widgetHistoryRef.current.set(id, stack);
+    }
+    recordWidgetHistory(stack, active.widgets, coalesceKey);
+    setWidgetHistoryVersion((v) => v + 1);
+  }, []);
+
+  const applyHistoryWidgets = useCallback(
+    (restored: WidgetData[], current: WidgetData[]) => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      const currentById = new Map(current.map((w) => [w.id, w]));
+      // Bump version past the live one so the Firestore merge keeps the restored config.
+      const widgets = restored.map((w) => {
+        const live = currentById.get(w.id);
+        if (!live || live === w) return w;
+        return {
+          ...w,
+          version: Math.max(w.version ?? 1, live.version ?? 1) + 1,
+        };
+      });
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, widgets } : d))
+      );
+      setWidgetHistoryVersion((v) => v + 1);
+    },
+    []
+  );
+
+  // `boardId` pins the action to the board it was offered on. Undo toasts are
+  // global and outlive a board switch, so an unpinned undo would silently
+  // rewrite whichever board happens to be active when the toast is clicked.
+  const isHistoryTargetActive = useCallback(
+    (boardId: string | undefined, id: string | null) => {
+      if (!boardId || boardId === id) return true;
+      addToast(i18n.t('toasts.switchBoardToUndo'), 'info');
+      return false;
+    },
+    [addToast]
+  );
+
+  const undoWidgets = useCallback(
+    (boardId?: string) => {
+      const id = activeIdRef.current;
+      if (!id || isActiveBoardReadOnlyRef.current) return;
+      if (!isHistoryTargetActive(boardId, id)) return;
+      const stack = widgetHistoryRef.current.get(id);
+      const active = dashboardsRef.current.find((d) => d.id === id);
+      if (!stack || !active) return;
+      const restored = undoWidgetHistory(stack, active.widgets);
+      if (restored) applyHistoryWidgets(restored, active.widgets);
+    },
+    [applyHistoryWidgets, isHistoryTargetActive]
+  );
+
+  // Public entry point for a gesture that mutates through several calls and
+  // wants them to collapse into one undo step.
+  const recordWidgetSnapshot = useCallback(
+    () => recordHistory(),
+    [recordHistory]
+  );
+
+  const redoWidgets = useCallback(
+    (boardId?: string) => {
+      const id = activeIdRef.current;
+      if (!id || isActiveBoardReadOnlyRef.current) return;
+      if (!isHistoryTargetActive(boardId, id)) return;
+      const stack = widgetHistoryRef.current.get(id);
+      const active = dashboardsRef.current.find((d) => d.id === id);
+      if (!stack || !active) return;
+      const restored = redoWidgetHistory(stack, active.widgets);
+      if (restored) applyHistoryWidgets(restored, active.widgets);
+    },
+    [applyHistoryWidgets, isHistoryTargetActive]
+  );
+
+  // widgetHistoryVersion only exists to re-derive these after a ref mutation.
+  const activeHistory = activeId
+    ? widgetHistoryRef.current.get(activeId)
+    : undefined;
+  const canUndo =
+    widgetHistoryVersion >= 0 && (activeHistory?.undo.length ?? 0) > 0;
+  const canRedo =
+    widgetHistoryVersion >= 0 && (activeHistory?.redo.length ?? 0) > 0;
+
   const addWidget = useCallback(
     (type: WidgetType, overrides?: AddWidgetOverrides) => {
       if (!activeId) return;
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
 
       const adminConfig = getAdminBuildingConfig(type);
 
@@ -4679,7 +5315,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId, getAdminBuildingConfig, materialsPreferences, savedWidgetConfigs]
+    [
+      activeId,
+      getAdminBuildingConfig,
+      materialsPreferences,
+      savedWidgetConfigs,
+      recordHistory,
+    ]
   );
 
   const addWidgets = useCallback(
@@ -4694,6 +5336,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
 
       setDashboards((prev) =>
         prev.map((d) => {
@@ -4825,7 +5468,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId, getAdminBuildingConfig, savedWidgetConfigs]
+    [activeId, getAdminBuildingConfig, savedWidgetConfigs, recordHistory]
   );
 
   const removeWidget = useCallback(
@@ -4834,6 +5477,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeId) return d;
@@ -4853,7 +5497,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId]
+    [activeId, recordHistory]
   );
 
   const duplicateWidget = useCallback(
@@ -4862,6 +5506,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeId) return d;
@@ -4893,7 +5538,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId]
+    [activeId, recordHistory]
   );
 
   const removeWidgets = useCallback(
@@ -4902,6 +5547,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
       const idSet = new Set(ids);
       setDashboards((prev) =>
         prev.map((d) => {
@@ -4945,7 +5591,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId]
+    [activeId, recordHistory]
   );
   const clearAllStickers = useCallback(() => {
     if (!activeDashboard) return;
@@ -4962,23 +5608,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
+    recordHistory();
     setDashboards((prev) =>
       prev.map((d) => (d.id === activeId ? { ...d, widgets: [] } : d))
     );
-    addToast('All windows cleared');
-  }, [activeId, addToast]);
+    addToast('All windows cleared', 'info', {
+      label: 'Undo',
+      onClick: () => undoWidgets(activeId),
+    });
+  }, [activeId, addToast, recordHistory, undoWidgets]);
 
   const updateWidget = useCallback(
     (
       id: string,
       updates: Partial<WidgetData>,
-      opts?: { immediate?: boolean }
+      opts?: { immediate?: boolean; skipHistory?: boolean }
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       if (opts?.immediate) pendingImmediateWrite.current = true;
+      if (!opts?.skipHistory) recordHistory(id);
 
       // A pixel-size change implies the user resized — refresh aspectRatio.
       // A pure position change keeps the locked aspect ratio.
@@ -5047,7 +5698,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [saveWidgetConfig]
+    [saveWidgetConfig, recordHistory]
   );
 
   // Mirror the latest updateWidget closure into the forward-declared ref
@@ -5121,12 +5772,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updates: Array<{
         id: string;
         changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
-      }>
+      }>,
+      opts?: { skipHistory?: boolean }
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      if (!opts?.skipHistory)
+        recordHistory(
+          updates
+            .map((u) => u.id)
+            .sort()
+            .join(',')
+        );
       const updateMap = new Map(updates.map((u) => [u.id, u.changes]));
       setDashboards((prev) =>
         prev.map((d) => {
@@ -5150,7 +5809,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    []
+    [recordHistory]
   );
 
   const groupWidgets = useCallback(
@@ -5186,6 +5845,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (eligible.length < 2) return;
 
+      recordHistory();
       const gid = crypto.randomUUID();
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
@@ -5202,26 +5862,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [addToast]
+    [addToast, recordHistory]
   );
 
-  const ungroupWidgets = useCallback((groupId: string) => {
-    if (!activeIdRef.current) return;
-    if (isActiveBoardReadOnlyRef.current) return;
-    lastLocalUpdateAt.current = Date.now();
-    lastUpdateWasSettingsOnly.current = false;
-    setDashboards((prev) =>
-      prev.map((d) => {
-        if (d.id !== activeIdRef.current) return d;
-        return {
-          ...d,
-          widgets: d.widgets.map((w) =>
-            w.groupId === groupId ? { ...w, groupId: undefined } : w
-          ),
-        };
-      })
-    );
-  }, []);
+  const ungroupWidgets = useCallback(
+    (groupId: string) => {
+      if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
+      setDashboards((prev) =>
+        prev.map((d) => {
+          if (d.id !== activeIdRef.current) return d;
+          return {
+            ...d,
+            widgets: d.widgets.map((w) =>
+              w.groupId === groupId ? { ...w, groupId: undefined } : w
+            ),
+          };
+        })
+      );
+    },
+    [recordHistory]
+  );
 
   const bringToFront = useCallback((id: string) => {
     if (!activeIdRef.current) return;
@@ -5302,6 +5966,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
 
+      // Record only once the move is known to mutate — a boundary widget is a
+      // no-op below, and a stray snapshot would cost the user a dead Ctrl+Z.
+      const current = dashboardsRef.current.find(
+        (d) => d.id === activeIdRef.current
+      );
+      if (!current) return;
+      const byZ = [...current.widgets].sort((a, b) => a.z - b.z);
+      const currentIdx = byZ.findIndex((w) => w.id === id);
+      if (currentIdx === -1) return;
+      if (direction === 'up' ? currentIdx >= byZ.length - 1 : currentIdx <= 0)
+        return;
+      recordHistory();
+
       setDashboards((prev) => {
         const active = prev.find((d) => d.id === activeIdRef.current);
         if (!active) return prev;
@@ -5348,14 +6025,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       });
     },
-    []
+    [recordHistory]
   );
 
   const minimizeAllWidgets = useCallback(() => {
     if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    const current = dashboardsRef.current.find(
+      (d) => d.id === activeIdRef.current
+    );
+    if (!current) return;
+    // Nothing to minimize means nothing to record — see moveWidgetLayer.
+    if (!current.widgets.some((w) => !w.minimized || w.flipped)) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
+    recordHistory();
     setDashboards((prev) =>
       prev.map((d) => {
         if (d.id !== activeIdRef.current) return d;
@@ -5370,13 +6054,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return changed ? { ...d, widgets } : d;
       })
     );
-  }, []);
+  }, [recordHistory]);
 
   const restoreAllWidgets = useCallback(() => {
     if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    const current = dashboardsRef.current.find(
+      (d) => d.id === activeIdRef.current
+    );
+    if (!current) return;
+    if (
+      !current.widgets.some(
+        (w) =>
+          w.minimized === true || w.flipped === true || w.maximized === true
+      )
+    )
+      return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
+    recordHistory();
     setDashboards((prev) =>
       prev.map((d) => {
         if (d.id !== activeIdRef.current) return d;
@@ -5390,18 +6086,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return changed ? { ...d, widgets } : d;
       })
     );
-  }, []);
+  }, [recordHistory]);
 
   const deleteAllWidgets = useCallback(() => {
     if (!activeId) return;
     if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
+    recordHistory();
     setDashboards((prev) =>
       prev.map((d) => (d.id === activeId ? { ...d, widgets: [] } : d))
     );
-    addToast('All widgets removed');
-  }, [activeId, addToast]);
+    addToast('All widgets removed', 'info', {
+      label: 'Undo',
+      onClick: () => undoWidgets(activeId),
+    });
+  }, [activeId, addToast, recordHistory, undoWidgets]);
 
   const resetWidgetSize = useCallback(
     (id: string) => {
@@ -5409,6 +6109,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeId) return d;
@@ -5427,7 +6128,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [activeId]
+    [activeId, recordHistory]
   );
 
   const setBackground = useCallback((bg: string) => {
@@ -5521,25 +6222,124 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // annotations on Synced boards are bidirectional by design (host and
   // collaborator both push). For viewers, the pencil button is hidden in
   // the UI, so they have no way to invoke these.
-  const setActiveAnnotationObjects = useCallback((next: DrawableObject[]) => {
-    const id = activeIdRef.current;
-    if (!id) return;
-    lastLocalUpdateAt.current = Date.now();
-    lastUpdateWasSettingsOnly.current = false;
-    setDashboards((prev) =>
-      prev.map((d) =>
-        d.id === id
-          ? {
-              ...d,
-              annotationOverlay: {
-                objects: next,
-                updatedAt: Date.now(),
-              },
-            }
-          : d
-      )
-    );
-  }, []);
+  // Widget bytes only change when widgets do; cache by array identity so a
+  // pen stroke never re-serializes a widget-heavy board.
+  const widgetBytesCacheRef = useRef<{
+    widgets: WidgetData[] | undefined;
+    bytes: number;
+  } | null>(null);
+  const getWidgetBytes = useCallback(
+    (widgets: WidgetData[] | undefined): number => {
+      const cached = widgetBytesCacheRef.current;
+      if (cached && cached.widgets === widgets) return cached.bytes;
+      const bytes = estimateWidgetBytes(widgets);
+      widgetBytesCacheRef.current = { widgets, bytes };
+      return bytes;
+    },
+    []
+  );
+
+  // Every write lands here, so the size guard lives here too. Returns
+  // false when the write was refused (no active board or size cap).
+  // The mounted overlay reports the canvas it renders into; ink is stamped
+  // with that, not with a rect re-derived from `window` at write time.
+  const annotationCanvasSizeRef = useRef<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const reportAnnotationCanvasSize = useCallback(
+    (size: { width: number; height: number } | null) => {
+      annotationCanvasSizeRef.current = size;
+    },
+    []
+  );
+
+  const setActiveAnnotationObjects = useCallback(
+    (next: DrawableObject[]): boolean => {
+      const id = activeIdRef.current;
+      if (!id) return false;
+      const board = dashboardsRef.current.find((d) => d.id === id);
+      const overlay = board?.annotationOverlay;
+      const current = overlay?.objects ?? [];
+      // Ink and widgets share one 1 MiB document: measure both together.
+      const nextBytes = estimateAnnotationBytes(next);
+      const currentBytes = estimateAnnotationBytes(current);
+      const widgetBytes = getWidgetBytes(board?.widgets);
+      if (nextBytes > currentBytes) {
+        const capped = getAnnotationCapReason(nextBytes, widgetBytes);
+        if (capped) {
+          addToast(
+            capped === 'ink'
+              ? 'The annotation layer is full. Clear it (trash) to keep drawing.'
+              : 'This board is full, so the annotation layer cannot take more ink. Clear it (trash) or remove a widget.',
+            'error'
+          );
+          return false;
+        }
+        const warning = getAnnotationSoftWarning(
+          currentBytes,
+          nextBytes,
+          widgetBytes
+        );
+        if (warning === 'ink') {
+          addToast(
+            'Annotations on this board are getting large. Clear old ink soon.',
+            'warning'
+          );
+        } else if (warning === 'document') {
+          addToast(
+            'This board is nearly full. Remove a widget or clear old ink soon.',
+            'warning'
+          );
+        }
+      }
+      // Ink stores coordinates in the canvas it was authored on. Stamp that
+      // size once (when the layer goes from empty to inked) and keep it, so
+      // a different window scales the ink instead of clipping it. The size
+      // comes from the overlay itself — measuring `window` here could stamp a
+      // rect the stroke was never drawn in.
+      const authored =
+        current.length > 0 && overlay?.canvasWidth && overlay?.canvasHeight
+          ? { width: overlay.canvasWidth, height: overlay.canvasHeight }
+          : (annotationCanvasSizeRef.current ??
+            getAnnotationWorldRect(
+              typeof window === 'undefined' ? 1280 : window.innerWidth,
+              typeof window === 'undefined' ? 720 : window.innerHeight
+            ));
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) =>
+          d.id === id
+            ? {
+                ...d,
+                annotationOverlay: {
+                  objects: next,
+                  updatedAt: Date.now(),
+                  ...(next.length > 0
+                    ? {
+                        canvasWidth: authored.width,
+                        canvasHeight: authored.height,
+                      }
+                    : {}),
+                },
+              }
+            : d
+        )
+      );
+      return true;
+    },
+    [addToast, getWidgetBytes]
+  );
+
+  // Forward-declared setter for the Wave 5 redo stack — declared below but
+  // referenced from `openAnnotation` (fresh session) and `addAnnotationObject`
+  // (a fresh stroke drops the redo branch, standard undo/redo semantics).
+  // We use a ref dance to avoid the temporal-dead-zone problem of referencing
+  // a useState setter that's defined later in the function body.
+  const annotationRedoSetterRef = useRef<React.Dispatch<
+    React.SetStateAction<DrawableObject[]>
+  > | null>(null);
 
   const openAnnotation = useCallback(() => {
     // Seed from admin building defaults for width + color palette.
@@ -5558,45 +6358,48 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       activeTool: prev.activeTool,
       shapeFill: prev.shapeFill,
     }));
-    // Reset the dashboard's overlay so a fresh session starts blank for
-    // everyone (including remote participants on a synced board).
-    setActiveAnnotationObjects([]);
+    // Ink persists per board until trashed; opening only starts a fresh
+    // undo/redo session over whatever is already there.
+    const existing =
+      dashboardsRef.current.find((d) => d.id === activeIdRef.current)
+        ?.annotationOverlay?.objects ?? [];
+    annotationSessionIdsRef.current = new Set(existing.map((o) => o.id));
+    annotationRedoSetterRef.current?.([]);
     setAnnotationActive(true);
-  }, [getAdminBuildingConfig, setActiveAnnotationObjects]);
+  }, [getAdminBuildingConfig]);
 
+  // Exit hides the toolbar only; the ink stays on the board (inert) and
+  // stays mirrored to live-share participants.
   const closeAnnotation = useCallback(() => {
     setAnnotationActive(false);
-    // Clear shared strokes so collaborators / viewers see them disappear
-    // when the host (or any synced participant) ends the session.
-    setActiveAnnotationObjects([]);
-  }, [setActiveAnnotationObjects]);
+  }, []);
 
+  // Returns false when an `objects` write was refused (no board or size cap).
   const updateAnnotationState = useCallback(
-    (updates: Partial<AnnotationState>) => {
-      const { objects: nextObjects, ...rest } = updates;
+    (updates: Partial<AnnotationState>): boolean => {
+      // Canvas size is derived from the stored ink, never set by a consumer.
+      const {
+        objects: nextObjects,
+        canvasWidth: _cw,
+        canvasHeight: _ch,
+        ...rest
+      } = updates;
       if (Object.keys(rest).length > 0) {
         setAnnotationLocalState((prev) => ({ ...prev, ...rest }));
       }
       if (nextObjects !== undefined) {
-        setActiveAnnotationObjects(nextObjects);
+        return setActiveAnnotationObjects(nextObjects);
       }
+      return true;
     },
     [setActiveAnnotationObjects]
   );
 
-  // Forward-declared setter for the Wave 5 redo stack — declared below but
-  // referenced from `addAnnotationObject` so a fresh stroke invalidates the
-  // redo branch (standard undo/redo semantics: any new action drops redo).
-  // We use a ref dance to avoid the temporal-dead-zone problem of referencing
-  // a useState setter that's defined later in the function body.
-  const annotationRedoSetterRef = useRef<React.Dispatch<
-    React.SetStateAction<DrawableObject[]>
-  > | null>(null);
-
+  // Returns false when the ink was refused (no active board or size cap).
   const addAnnotationObject = useCallback(
-    (obj: DrawableObject) => {
+    (obj: DrawableObject): boolean => {
       const id = activeIdRef.current;
-      if (!id) return;
+      if (!id) return false;
       const stamped: DrawableObject = {
         ...obj,
         authorUid: obj.authorUid ?? user?.uid,
@@ -5604,7 +6407,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const current =
         dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
           ?.objects ?? [];
-      setActiveAnnotationObjects([...current, stamped]);
+      if (!setActiveAnnotationObjects([...current, stamped])) return false;
       // Wave 5: invalidate the redo branch on every fresh add. Guarded so
       // `redoAnnotation` (which calls addAnnotationObject internally) doesn't
       // wipe the stack it's trying to drain — see `redoAnnotation` for the
@@ -5614,6 +6417,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           prev.length === 0 ? prev : []
         );
       }
+      return true;
     },
     [setActiveAnnotationObjects, user?.uid]
   );
@@ -5653,19 +6457,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // collaborators on a synced board can't accidentally clobber each
     // other's drawings. Falls back to the very last object when the
     // user's uid isn't known (auth-bypass / pre-stamped legacy data).
+    // Undo is scoped to this toolbar session: ink that predates open is
+    // only removable via select + delete or the trash.
+    const sessionIds = annotationSessionIdsRef.current;
     const uid = user?.uid;
     let removeAt = -1;
-    if (uid) {
-      for (let i = current.length - 1; i >= 0; i--) {
-        if (current[i].authorUid === uid) {
-          removeAt = i;
-          break;
-        }
+    for (let i = current.length - 1; i >= 0; i--) {
+      if (sessionIds.has(current[i].id)) continue;
+      if (!uid || current[i].authorUid === uid) {
+        removeAt = i;
+        break;
       }
     }
-    if (removeAt < 0) {
-      removeAt = current.length - 1;
-    }
+    if (removeAt < 0) return;
     const removed = current[removeAt];
     const next = [
       ...current.slice(0, removeAt),
@@ -5684,14 +6488,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Flag the upcoming addAnnotationObject so it doesn't also clear our
       // redo branch — without this, `redo` would always leave the stack at 0.
       isRedoingAnnotationRef.current = true;
+      let added = false;
       try {
         // Re-emit through the canonical add path so the live-share mirror,
         // author-uid stamping, and listener semantics all stay consistent.
-        addAnnotationObject(top);
+        added = addAnnotationObject(top);
       } finally {
         isRedoingAnnotationRef.current = false;
       }
-      return prev.slice(0, -1);
+      // A refused add (size cap) keeps the stroke redoable after a clear.
+      return added ? prev.slice(0, -1) : prev;
     });
   }, [addAnnotationObject]);
 
@@ -5738,9 +6544,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     () => ({
       ...annotationLocalState,
       objects: activeDashboard?.annotationOverlay?.objects ?? [],
+      canvasWidth: activeDashboard?.annotationOverlay?.canvasWidth,
+      canvasHeight: activeDashboard?.annotationOverlay?.canvasHeight,
     }),
-    [annotationLocalState, activeDashboard?.annotationOverlay?.objects]
+    [
+      annotationLocalState,
+      activeDashboard?.annotationOverlay?.objects,
+      activeDashboard?.annotationOverlay?.canvasWidth,
+      activeDashboard?.annotationOverlay?.canvasHeight,
+    ]
   );
+
+  // Undo is session-scoped and per-author, so "there is ink" is not enough —
+  // mirror `undoAnnotation`'s scan so the button disables when it is a no-op.
+  const canUndoAnnotation = useMemo(() => {
+    if (!annotationActive) return false;
+    const sessionIds = annotationSessionIdsRef.current;
+    const uid = user?.uid;
+    return (activeDashboard?.annotationOverlay?.objects ?? []).some(
+      (o) => !sessionIds.has(o.id) && (!uid || o.authorUid === uid)
+    );
+  }, [
+    annotationActive,
+    activeDashboard?.annotationOverlay?.objects,
+    user?.uid,
+  ]);
 
   // ---- Canvas hot-path surfaces (whole-board re-render fix, Stage 1) ----
   // Latest-ref delegation: the ref is reassigned with the freshest action
@@ -5755,6 +6583,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     updateWidget,
     updateWidgets,
     removeWidget,
+    undoWidgets,
+    recordWidgetSnapshot,
     duplicateWidget,
     bringToFront,
     moveWidgetLayer,
@@ -5777,8 +6607,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         liveActionsRef.current.addWidget(type, overrides),
       updateWidget: (id, updates, opts) =>
         liveActionsRef.current.updateWidget(id, updates, opts),
-      updateWidgets: (updates) => liveActionsRef.current.updateWidgets(updates),
+      updateWidgets: (updates, opts) =>
+        liveActionsRef.current.updateWidgets(updates, opts),
       removeWidget: (id) => liveActionsRef.current.removeWidget(id),
+      undoWidgets: (boardId) => liveActionsRef.current.undoWidgets(boardId),
+      recordWidgetSnapshot: () => liveActionsRef.current.recordWidgetSnapshot(),
       duplicateWidget: (id) => liveActionsRef.current.duplicateWidget(id),
       bringToFront: (id) => liveActionsRef.current.bringToFront(id),
       moveWidgetLayer: (id, direction) =>
@@ -5899,6 +6732,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setGroupBuildMode,
       clearAllStickers,
       clearAllWidgets,
+      undoWidgets,
+      redoWidgets,
+      recordWidgetSnapshot,
+      canUndo,
+      canRedo,
       rosters,
       activeRosterId,
       addRoster,
@@ -5955,8 +6793,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       removeAnnotationObject,
       undoAnnotation,
       redoAnnotation,
+      canUndoAnnotation,
       canRedoAnnotation: annotationRedoStack.length > 0,
       clearAnnotation,
+      reportAnnotationCanvasSize,
     }),
     [
       driveService,
@@ -6011,6 +6851,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setGroupBuildMode,
       clearAllStickers,
       clearAllWidgets,
+      undoWidgets,
+      redoWidgets,
+      recordWidgetSnapshot,
+      canUndo,
+      canRedo,
       rosters,
       activeRosterId,
       addRoster,
@@ -6067,7 +6912,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       undoAnnotation,
       redoAnnotation,
       annotationRedoStack.length,
+      canUndoAnnotation,
       clearAnnotation,
+      reportAnnotationCanvasSize,
     ]
   );
 

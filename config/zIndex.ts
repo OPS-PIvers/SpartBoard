@@ -34,6 +34,9 @@ export const Z_INDEX = {
   backdrop: 9900, // Dimmed backgrounds
   overlay: 9910, // Full-screen overlays (e.g. DrawingWidget)
   confirmOverlay: 9950, // Confirmation dialogs within widgets
+  annotationSurface: 9960, // Ink layer beside the zoom surface, above fixed chrome
+  annotationChromeLift: 9965, // Dock/Sidebar/FAB raised over the ink layer while annotating
+  annotationChrome: 9970, // Annotation toolbar / text editor (above the ink layer)
   announcementOverlay: 9985, // Windowed announcements
   announcementMaximized: 9990, // Maximized announcements
   snapPreview: 9998, // Drag-to-edge visual preview
@@ -47,6 +50,7 @@ export const Z_INDEX = {
 
   // Floating/Pop-up layers
   popover: 11000, // Popovers, Menus attached to elements
+  popoverMenu: 11010, // Menus opened from a popover-level surface (e.g. Notes toolbar)
   toolMenu: 12000, // DraggableWindow specific tool menu
   tooltip: 13000, // Tooltips
   toast: 14000, // Toast notifications

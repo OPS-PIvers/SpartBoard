@@ -197,6 +197,17 @@ const mockDashboard: DashboardContextValue = {
   clearAllWidgets: () => {
     // No-op
   },
+  undoWidgets: () => {
+    // No-op
+  },
+  redoWidgets: () => {
+    // No-op
+  },
+  recordWidgetSnapshot: () => {
+    // No-op
+  },
+  canUndo: false,
+  canRedo: false,
   updateWidget: () => {
     // No-op. Widgets in student view are read-only or handle state internally.
   },
@@ -375,12 +386,8 @@ const mockDashboard: DashboardContextValue = {
   closeAnnotation: () => {
     // No-op
   },
-  updateAnnotationState: () => {
-    // No-op
-  },
-  addAnnotationObject: () => {
-    // No-op
-  },
+  updateAnnotationState: () => false,
+  addAnnotationObject: () => false,
   updateAnnotationObject: () => {
     // No-op
   },
@@ -393,8 +400,12 @@ const mockDashboard: DashboardContextValue = {
   redoAnnotation: () => {
     // No-op — students don't surface the annotation overlay.
   },
+  canUndoAnnotation: false,
   canRedoAnnotation: false,
   clearAnnotation: () => {
+    // No-op
+  },
+  reportAnnotationCanvasSize: () => {
     // No-op
   },
 };

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BoardNavFab } from '@/components/layout/BoardNavFab';
+import { Z_INDEX } from '@/config/zIndex';
 import type { useDashboard } from '@/context/useDashboard';
 
 const useDashboardMock = vi.fn();
@@ -53,6 +54,8 @@ const mockContext = (
     active?: ReturnType<typeof dashboard> | null;
     loadDashboard?: ReturnType<typeof vi.fn>;
     setActiveCollectionId?: ReturnType<typeof vi.fn>;
+    annotationActive?: boolean;
+    annotationTool?: string;
   } = {}
 ) => {
   const dashboards = over.dashboards ?? [
@@ -64,6 +67,8 @@ const mockContext = (
     activeDashboard: over.active ?? dashboards[0],
     loadDashboard: over.loadDashboard ?? vi.fn(),
     setActiveCollectionId: over.setActiveCollectionId ?? vi.fn(),
+    annotationActive: over.annotationActive ?? false,
+    annotationState: { activeTool: over.annotationTool ?? 'select' },
     collectionsApi: { collections: over.collections ?? [] },
   });
 };
@@ -338,6 +343,40 @@ describe('BoardNavFab', () => {
       expect(document.activeElement?.textContent?.trim()).toMatch(
         /manage all boards/i
       );
+    });
+  });
+
+  describe('annotation mode', () => {
+    const fabRoot = () =>
+      screen
+        .getByRole('button', { name: /select board/i })
+        .closest('[data-screenshot="exclude"]') as HTMLElement;
+
+    // Regression: the ink layer paints above the fixed chrome, so this FAB
+    // has to outrank it or Select mode leaves board navigation unclickable.
+    it('REGRESSION: outranks the ink layer while annotating', () => {
+      mockContext({ annotationActive: true, annotationTool: 'select' });
+      render(<BoardNavFab />);
+      const root = fabRoot();
+      expect(Number(root.style.zIndex)).toBeGreaterThan(
+        Z_INDEX.annotationSurface
+      );
+      expect(root).not.toHaveAttribute('inert');
+    });
+
+    it('goes inert and fades while a drawing tool is armed', () => {
+      mockContext({ annotationActive: true, annotationTool: 'pen' });
+      render(<BoardNavFab />);
+      const root = fabRoot();
+      expect(root).toHaveAttribute('inert');
+      expect(root.className).toContain('pointer-events-none');
+      expect(root.className).toContain('opacity-40');
+    });
+
+    it('is unlayered when not annotating', () => {
+      mockContext();
+      render(<BoardNavFab />);
+      expect(fabRoot().style.zIndex).toBe('');
     });
   });
 });

@@ -167,7 +167,7 @@ describe('FreeResponseGrader — auto-save', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
     tick(5000);
     expect(onSave).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     await flush();
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][2].pointsAwarded).toBe(3);
@@ -182,7 +182,7 @@ describe('FreeResponseGrader — auto-save', () => {
       target: { value: 'Just a note' },
     });
     tick(5000);
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     await flush();
     expect(onSave).not.toHaveBeenCalled();
   });
@@ -195,7 +195,7 @@ describe('FreeResponseGrader — auto-save', () => {
     await flush();
     expect(onSave).toHaveBeenCalledTimes(1);
     // Navigation works while the queue is still retrying.
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(screen.getByText('Student 2 of 2')).toBeTruthy();
     for (const delay of DEFAULT_GRADE_WRITE_BACKOFF_MS) {
       tick(delay);

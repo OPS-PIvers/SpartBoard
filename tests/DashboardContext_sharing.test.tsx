@@ -3,6 +3,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
+import { updateDoc } from 'firebase/firestore';
 import { Dashboard } from '@/types';
 
 // Mock dependencies
@@ -517,13 +518,96 @@ describe('DashboardContext Sharing Logic', () => {
       });
       // The shared doc was deleted on the firestore side.
       expect(mockStopSharingBoard).toHaveBeenCalledWith('test-share-id');
-      // saveDashboard was called with the detached (cleared-link) snapshot.
-      const detachedSave = (
-        mockSaveDashboard.mock.calls as Array<[Dashboard]>
-      ).find(
-        (c) => c[0].id === 'local-dash-2' && c[0].linkedShareId === undefined
+      // Only the link bookkeeping is written back. A whole-document save would
+      // blind-overwrite a board this device may not have the latest copy of.
+      const detachedUpdate = vi
+        .mocked(updateDoc)
+        .mock.calls.find((c) =>
+          (c[0] as unknown as { __path?: string }).__path?.endsWith(
+            'local-dash-2'
+          )
+        );
+      expect(detachedUpdate).toBeDefined();
+      const patch = (detachedUpdate?.[1] ?? {}) as Record<string, unknown>;
+      expect(Object.keys(patch).sort()).toEqual([
+        'linkedShareEnded',
+        'linkedShareHostName',
+        'linkedShareId',
+        'linkedShareRole',
+        'updatedAt',
+      ]);
+    });
+
+    it('shareDashboard writes only the link fields, not the whole board', async () => {
+      // BoardsModal shares any row, so the target need not be the active
+      // board — and a non-active board has no save baseline, so a whole
+      // document write would blind-overwrite its widgets. Seed a second,
+      // active board so `otherBoard` is genuinely non-active here.
+      const activeBoard: Dashboard = {
+        id: 'active-board',
+        name: 'Active Board',
+        background: 'bg-slate-900',
+        widgets: [],
+        createdAt: 1,
+      };
+      const otherBoard: Dashboard = {
+        id: 'other-board',
+        name: 'Not The Active Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1234567890,
+      };
+      initialDashboardsSeed = [activeBoard, otherBoard];
+
+      type Share = ReturnType<typeof useDashboard>['shareDashboard'];
+      let share: Share | null = null;
+
+      const Probe: React.FC = () => {
+        const { shareDashboard } = useDashboard();
+        useEffect(() => {
+          share = shareDashboard;
+        }, [shareDashboard]);
+        return <div>Test App</div>;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
       );
-      expect(detachedSave).toBeDefined();
+
+      await waitFor(() => expect(share).not.toBeNull());
+
+      mockSaveDashboard.mockClear();
+
+      await act(async () => {
+        if (share) await share(otherBoard, 'synced');
+      });
+
+      // No whole-document save was triggered for the non-active board.
+      expect(mockSaveDashboard).not.toHaveBeenCalled();
+
+      const linkUpdate = vi
+        .mocked(updateDoc)
+        .mock.calls.find((c) =>
+          (c[0] as unknown as { __path?: string }).__path?.endsWith(
+            'other-board'
+          )
+        );
+      expect(linkUpdate).toBeDefined();
+      const patch = (linkUpdate?.[1] ?? {}) as Record<string, unknown>;
+      expect(Object.keys(patch).sort()).toEqual([
+        'linkedShareEnded',
+        'linkedShareHostName',
+        'linkedShareId',
+        'linkedShareRole',
+        'updatedAt',
+      ]);
+      expect(patch.linkedShareId).toBe('mock-share-id');
+      expect(patch.linkedShareRole).toBe('owner');
+      expect(patch.linkedShareHostName).toBe('Test User');
+      expect(patch.linkedShareEnded).toBe(false);
+      expect(patch.updatedAt).toEqual(expect.any(Number));
     });
 
     it('guest stopSharingDashboard calls leaveSharedBoard, not stopSharingBoard', async () => {
@@ -937,6 +1021,365 @@ describe('DashboardContext Sharing Logic', () => {
         expect(objects.length).toBe(1);
         expect(objects[0].id).toBe('host-stroke');
       });
+    });
+
+    // Regression: the subscribe path took `remote.annotationOverlay` whole,
+    // replacing the local objects array. Two teachers annotating the same
+    // Synced board therefore destroyed each other's strokes on every mirror
+    // round-trip: whoever wrote last won the entire layer.
+    it('REGRESSION: two co-annotating teachers keep both sets of strokes', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const stroke = (id: string, authorUid: string) => ({
+        id,
+        kind: 'path' as const,
+        z: 1,
+        points: [{ x: 1, y: 1 }],
+        color: '#000',
+        width: 2,
+        authorUid,
+      });
+
+      const linked: Dashboard = {
+        id: 'co-board',
+        name: 'Co-annotated Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-co',
+        linkedShareRole: 'collaborator',
+        annotationOverlay: { objects: [], updatedAt: 1 },
+      };
+      initialDashboardsSeed = [linked];
+
+      type Add = ReturnType<typeof useDashboard>['addAnnotationObject'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let add: Add | null = null;
+      let load: Load | null = null;
+      let captured: Dashboard | undefined;
+
+      const Probe: React.FC = () => {
+        const { addAnnotationObject, loadDashboard, dashboards } =
+          useDashboard();
+        useEffect(() => {
+          add = addAnnotationObject;
+          load = loadDashboard;
+          captured = dashboards.find((d) => d.id === 'co-board');
+        }, [addAnnotationObject, loadDashboard, dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(add).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('co-board');
+      });
+      // Teacher A (this client) draws.
+      act(() => {
+        if (add) add(stroke('mine', 'test-user'));
+      });
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? []).map(
+          (o) => o.id
+        );
+        expect(ids).toContain('mine');
+      });
+
+      // Teacher B's mirror lands. Their doc never saw 'mine', so a wholesale
+      // replace would erase it.
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: {
+              objects: [stroke('theirs', 'other-user')],
+              updatedAt: 99,
+            },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? [])
+          .map((o) => o.id)
+          .sort();
+        expect(ids).toEqual(['mine', 'theirs']);
+      });
+    });
+
+    // Regression: with no mirrored payload yet (fresh mount after a reload)
+    // the merge baseline was empty, so persisted local ink counted as a
+    // local add and survived — a peer's clear was undone for everyone.
+    it('REGRESSION: fresh mount adopts a remote clear of persisted ink', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const linked: Dashboard = {
+        id: 'reload-board',
+        name: 'Reloaded Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-reload',
+        linkedShareRole: 'collaborator',
+        annotationOverlay: {
+          objects: [
+            {
+              id: 'persisted',
+              kind: 'path' as const,
+              z: 1,
+              points: [{ x: 1, y: 1 }],
+              color: '#000',
+              width: 2,
+              authorUid: 'test-user',
+            },
+          ],
+          updatedAt: 1,
+        },
+      };
+      initialDashboardsSeed = [linked];
+
+      let captured: Dashboard | undefined;
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          captured = dashboards.find((d) => d.id === 'reload-board');
+        }, [dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+      // Peer cleared the layer.
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: { objects: [], updatedAt: 99 },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => {
+        expect(captured?.annotationOverlay?.objects ?? []).toEqual([]);
+      });
+
+      // And the stale ink is never pushed back to the share.
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 800));
+      });
+      const mirroredInk = mockMirrorSharedBoard.mock.calls.flatMap(
+        (call) =>
+          (call[1] as Dashboard | undefined)?.annotationOverlay?.objects ?? []
+      );
+      expect(mirroredInk.map((o) => o.id)).not.toContain('persisted');
+    });
+
+    // Regression: the mirror apply swapped in the remote widgets without
+    // clearing the board's undo stack (unlike the Firestore snapshot path),
+    // so the host's next Ctrl+Z deleted a co-teacher's widgets.
+    it('REGRESSION: a remote widget change invalidates the local undo stack', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const widget = {
+        id: 'w1',
+        type: 'text',
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 100,
+        z: 1,
+        flipped: false,
+        config: {},
+      } as unknown as Dashboard['widgets'][number];
+
+      const linked: Dashboard = {
+        id: 'hist-board',
+        name: 'Shared Board',
+        background: 'bg-slate-800',
+        widgets: [widget],
+        createdAt: 1,
+        linkedShareId: 'share-hist',
+        linkedShareRole: 'collaborator',
+      };
+      initialDashboardsSeed = [linked];
+
+      type Update = ReturnType<typeof useDashboard>['updateWidget'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let update: Update | null = null;
+      let load: Load | null = null;
+      let canUndo = false;
+
+      const Probe: React.FC = () => {
+        const ctx = useDashboard();
+        useEffect(() => {
+          update = ctx.updateWidget;
+          load = ctx.loadDashboard;
+          canUndo = ctx.canUndo;
+        });
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(update).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('hist-board');
+      });
+      act(() => {
+        if (update) update('w1', { z: 9 });
+      });
+      await waitFor(() => expect(canUndo).toBe(true));
+
+      // A co-teacher removes the widget; the mirror applies their widgets.
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            widgets: [],
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => expect(canUndo).toBe(false));
+    });
+
+    // Regression: the invalidation compared the remote widgets (PII-scrubbed
+    // and key-sorted by Firestore) against the local ones (PII merged back
+    // in), so every snapshot of a roster-bearing board wiped the undo stack.
+    it('REGRESSION: a PII-only difference does not wipe the undo stack', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const widget = {
+        id: 'w1',
+        type: 'random',
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 100,
+        z: 1,
+        flipped: false,
+        config: { firstNames: 'Ada\nGrace', mode: 'picker' },
+      } as unknown as Dashboard['widgets'][number];
+
+      const linked: Dashboard = {
+        id: 'pii-board',
+        name: 'Roster Board',
+        background: 'bg-slate-800',
+        widgets: [widget],
+        createdAt: 1,
+        linkedShareId: 'share-pii',
+        linkedShareRole: 'collaborator',
+      };
+      initialDashboardsSeed = [linked];
+
+      type Update = ReturnType<typeof useDashboard>['updateWidget'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let update: Update | null = null;
+      let load: Load | null = null;
+      let active: Dashboard | null = null;
+      let canUndo = false;
+
+      const Probe: React.FC = () => {
+        const ctx = useDashboard();
+        useEffect(() => {
+          update = ctx.updateWidget;
+          load = ctx.loadDashboard;
+          active = ctx.activeDashboard;
+          canUndo = ctx.canUndo;
+        });
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(update).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('pii-board');
+      });
+      act(() => {
+        if (update) update('w1', { z: 9 });
+      });
+      await waitFor(() => expect(canUndo).toBe(true));
+
+      // What Firestore would echo back: the same widgets with the roster
+      // stripped and every key re-ordered.
+      const localWidgets = (active as Dashboard | null)?.widgets ?? [];
+      expect(localWidgets).toHaveLength(1);
+      const remoteWidgets = localWidgets.map((w) => {
+        const config = { ...(w.config as Record<string, unknown>) };
+        delete config.firstNames;
+        const reordered = Object.fromEntries(Object.entries(w).reverse());
+        return { ...reordered, config } as unknown as typeof w;
+      });
+
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            widgets: remoteWidgets,
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(canUndo).toBe(true);
     });
   });
 });

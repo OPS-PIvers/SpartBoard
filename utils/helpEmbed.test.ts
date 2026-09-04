@@ -1,0 +1,145 @@
+import { describe, it, expect } from 'vitest';
+import {
+  inferHelpEmbedType,
+  isAllowedHelpUrl,
+  toHelpEmbedSrc,
+  HELP_IFRAME_SANDBOX,
+  helpIframeSandbox,
+} from './helpEmbed';
+
+describe('inferHelpEmbedType', () => {
+  it('infers youtube from youtube.com', () => {
+    expect(inferHelpEmbedType('https://www.youtube.com/watch?v=abc')).toBe(
+      'youtube'
+    );
+  });
+
+  it('infers youtube from youtu.be', () => {
+    expect(inferHelpEmbedType('https://youtu.be/abc')).toBe('youtube');
+  });
+
+  it('infers youtube from a youtube subdomain', () => {
+    expect(inferHelpEmbedType('https://m.youtube.com/watch?v=abc')).toBe(
+      'youtube'
+    );
+  });
+
+  it('does not treat a lookalike host as youtube', () => {
+    // A youtube classification earns allow-same-origin in helpIframeSandbox,
+    // so a substring match here would hand that to an attacker-owned host.
+    expect(inferHelpEmbedType('https://youtube.com.evil.test/watch')).toBe(
+      'other'
+    );
+    expect(inferHelpEmbedType('https://evil-youtube.com/watch')).toBe('other');
+    expect(inferHelpEmbedType('https://youtu.be.evil.test/abc')).toBe('other');
+  });
+
+  it('infers doc from docs.google.com/document', () => {
+    expect(
+      inferHelpEmbedType('https://docs.google.com/document/d/abc/edit')
+    ).toBe('doc');
+  });
+
+  it('infers slides from docs.google.com/presentation', () => {
+    expect(
+      inferHelpEmbedType('https://docs.google.com/presentation/d/abc/edit')
+    ).toBe('slides');
+  });
+
+  it('infers sheet from docs.google.com/spreadsheets', () => {
+    expect(
+      inferHelpEmbedType('https://docs.google.com/spreadsheets/d/abc/edit')
+    ).toBe('sheet');
+  });
+
+  it('infers drive from drive.google.com/file', () => {
+    expect(inferHelpEmbedType('https://drive.google.com/file/d/abc/view')).toBe(
+      'drive'
+    );
+  });
+
+  it('infers pdf from a .pdf url', () => {
+    expect(inferHelpEmbedType('https://example.com/guide.pdf')).toBe('pdf');
+  });
+
+  it('falls back to other for unrecognized urls', () => {
+    expect(inferHelpEmbedType('https://example.com/page')).toBe('other');
+  });
+
+  it('falls back to other for an unparseable url', () => {
+    expect(inferHelpEmbedType('not a url')).toBe('other');
+  });
+
+  it('does not treat a look-alike host as a trusted embed', () => {
+    for (const url of [
+      'https://youtube.com.evil.test/watch?v=abc',
+      'https://docs.google.com.evil.test/document/d/abc/edit',
+      'https://drive.google.com.evil.test/file/d/abc/view',
+    ]) {
+      expect(inferHelpEmbedType(url)).toBe('other');
+    }
+  });
+});
+
+describe('isAllowedHelpUrl', () => {
+  it('allows https urls', () => {
+    expect(isAllowedHelpUrl('https://example.com')).toBe(true);
+  });
+
+  it('rejects http urls', () => {
+    expect(isAllowedHelpUrl('http://example.com')).toBe(false);
+  });
+
+  it('rejects unparseable urls', () => {
+    expect(isAllowedHelpUrl('not a url')).toBe(false);
+  });
+});
+
+describe('toHelpEmbedSrc', () => {
+  it('converts a recognized url', () => {
+    expect(toHelpEmbedSrc('https://youtu.be/abc123defgh')).toContain(
+      'youtube.com/embed'
+    );
+  });
+
+  it('returns the input unchanged for unrecognized urls', () => {
+    expect(toHelpEmbedSrc('https://example.com/page')).toBe(
+      'https://example.com/page'
+    );
+  });
+});
+
+describe('HELP_IFRAME_SANDBOX', () => {
+  it('matches the BlendingBoard precedent', () => {
+    expect(HELP_IFRAME_SANDBOX).toBe(
+      'allow-scripts allow-forms allow-popups allow-same-origin'
+    );
+  });
+});
+
+describe('helpIframeSandbox', () => {
+  it('withholds allow-same-origin for arbitrary hosts', () => {
+    for (const type of ['other', 'pdf'] as const) {
+      expect(helpIframeSandbox(type)).toBe(
+        'allow-scripts allow-forms allow-popups'
+      );
+      expect(helpIframeSandbox(type)).not.toContain('allow-same-origin');
+    }
+  });
+
+  it('keeps the full sandbox for known Google and video hosts', () => {
+    for (const type of [
+      'youtube',
+      'doc',
+      'slides',
+      'sheet',
+      'drive',
+    ] as const) {
+      expect(helpIframeSandbox(type)).toBe(HELP_IFRAME_SANDBOX);
+    }
+  });
+
+  it('keeps the full sandbox when no type is known yet', () => {
+    expect(helpIframeSandbox(null)).toBe(HELP_IFRAME_SANDBOX);
+  });
+});

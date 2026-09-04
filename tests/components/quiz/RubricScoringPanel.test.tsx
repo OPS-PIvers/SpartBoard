@@ -174,6 +174,6 @@ describe('RubricScoringPanel', () => {
     );
     fireEvent.click(screen.getByRole('radio', { name: /Exceeds/ }));
     fireEvent.click(screen.getAllByRole('radio', { name: /Meets/ })[1]);
-    expect(screen.getByText(/points capped at 4/)).toBeInTheDocument();
+    expect(screen.getByText(/Points capped at 4/)).toBeInTheDocument();
   });
 });

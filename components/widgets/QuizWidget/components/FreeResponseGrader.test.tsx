@@ -335,7 +335,7 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
     );
     expect(screen.getByRole('alert').textContent).toMatch(/needs a note/i);
     // Moving on with no note banks nothing.
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(onSave).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText(/Note \(required\)/i), {
@@ -354,7 +354,7 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
 
   it('writes nothing before the teacher picks an outcome', async () => {
     const onSave = renderGrader([unavailable('grace')]);
-    fireEvent.click(screen.getByRole('button', { name: /^Next$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     await act(() => Promise.resolve());
     expect(onSave).not.toHaveBeenCalled();
   });
@@ -413,11 +413,11 @@ describe('FreeResponseGrader time-anchored comments', () => {
 
 // INT-B6: one vocabulary map keyed on the slot's state, header and rail alike.
 describe('FreeResponseGrader state vocabulary', () => {
-  it('uses the same word in the header badge and the queue rail', async () => {
+  it('uses the same word in the student heading and the queue rail', async () => {
     renderGrader([recorded('ada', 1)]);
     await screen.findByText('Question 1 of 2');
-    // "Provisional" in the header vs "Needs you" in the rail was the bug.
-    expect(screen.getAllByText('Needs you').length).toBe(2);
+    // "Provisional" in the heading vs "Ungraded" in the rail was the bug.
+    expect(screen.getAllByText('Ungraded').length).toBe(2);
     expect(screen.queryByText('Provisional')).toBeNull();
   });
 

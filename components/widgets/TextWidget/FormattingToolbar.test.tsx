@@ -103,6 +103,18 @@ describe('FormattingToolbar', () => {
     );
   });
 
+  it('layers the Colors menu above the popover-level toolbar', () => {
+    render(<FormattingToolbar {...defaultProps} />);
+    fireEvent.click(screen.getByTitle('Colors'));
+    const menu = screen
+      .getByText('Font Color')
+      .closest('[data-widget-portal]') as HTMLElement;
+    expect(menu).toHaveClass('z-popover-menu');
+    expect(menu).not.toHaveClass('z-dropdown');
+    // Positioned fixed from the first render so it never flashes at 0,0.
+    expect(menu.style.position).toBe('fixed');
+  });
+
   it('wraps selection in <span style="font-size:Xpx"> when + is clicked', () => {
     const editor = document.createElement('div');
     const text = document.createTextNode('hello');

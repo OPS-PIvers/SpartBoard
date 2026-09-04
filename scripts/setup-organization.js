@@ -49,6 +49,7 @@ const ALL_CAPS = [
   'configureWidgets',
   'manageBackgrounds',
   'postAnnouncements',
+  'manageHelpResources',
   'editOrg',
   'manageDomains',
   'editStudentPage',
