@@ -1,9 +1,9 @@
 ---
-name: guided-learning-author
+name: gl-author
 description: Author or fill in importable SpartBoard Guided Learning activities (.gl.json) from images plus a learning-goal description. Use when asked to create, generate, or convert a guided learning activity, hotspot lesson, labeled-diagram walkthrough, app-screenshot walkthrough, or .gl.json file, or to configure the empty hotspots in an exported one. Covers the exact schema, hotspot coordinate rules, interaction choice, and validation requirements so the output imports cleanly via the Guided Learning widget's Import wizard.
 ---
 
-# Guided Learning Author
+# GL Author
 
 Produce a single self-contained `.gl.json` file that the SpartBoard Guided
 Learning widget can import (Library tab → Import → upload file or paste JSON).
@@ -13,33 +13,68 @@ data URIs.
 
 ## Workflow
 
-1. **Read the source image(s) at full resolution.** Look at every slide
-   before placing hotspots — coordinates must land on the real features.
-   When starting from an exported file, decode each `imageUrls` entry and
-   overlay its existing pins (numbered circles) so you can see what the
-   author meant.
-2. **Plan steps from the learning goal.** One hotspot per concept the
-   audience must notice. 4–10 steps for a diagram; up to ~16 for an app
-   walkthrough. Add pins for controls the story needs (a Save button, an
-   "active" toggle) even if the author skipped them.
+1. **Get the images.** For app walkthroughs, capture screenshots with
+   Playwright (see Screenshots below). For diagrams, read the supplied
+   image at full resolution. When starting from an exported file, decode
+   each `imageUrls` entry and overlay its existing pins so you can see what
+   the author meant.
+2. **Plan steps.** One hotspot per thing the audience must notice. 4–10
+   steps for a diagram; up to ~16 for an app walkthrough. Add pins for
+   controls the story needs (a Save button, a toggle) even if the author
+   skipped them.
 3. **Place coordinates.** `xPct`/`yPct` are percentages (0–100) **of the
-   image itself**, not the screen: `xPct = 100 * x_pixels / image_width`,
-   `yPct = 100 * y_pixels / image_height`. Measure pixels on the
-   full-resolution image, never on a thumbnail; place the point at the
-   center of the feature.
+   image itself**: `xPct = 100 * x_pixels / image_width`. Measure on the
+   full-resolution image, never a thumbnail; aim at the center of the
+   feature.
 4. **Verify placement.** Render each slide with the pins overlaid and look
    at it. Every pin sits on its target before you move on; estimated pins
    miss small icons about half the time.
-5. **Choose the interaction per step** (see Interaction choice below) and
-   write the text: 1–3 sentences, audience-facing, directly serving the
-   learning goal. Every step gets a `label` — it is the only visible caption
-   while a step is live.
+5. **Choose the interaction per step** (see Interaction choice) and write
+   the text (see Writing rules). Every step gets a `label`.
 6. **Embed images.** Convert each image to a base64 data URI
-   (`data:image/png;base64,…` or `image/jpeg`). Put them in `imageUrls` in
-   slide order. Remote `https:` URLs import too, but embedded is preferred;
-   the importer re-hosts data URIs to Storage.
+   (`data:image/png;base64,…` or `image/jpeg`), in `imageUrls` in slide
+   order. The importer re-hosts data URIs to Storage.
 7. **Validate** against the rules below, then save as
    `<Title>.<first-8-of-id>.gl.json`.
+
+## Screenshots (app walkthroughs)
+
+Use the Playwright MCP (`mcp__plugin_playwright_playwright__*`). It is the
+only tool that writes screenshot files; the Browser pane returns inline
+images you cannot embed.
+
+- Start `vite-dev-bypass` (port 56300) or a `*-dev` harness route; drive
+  the UI with `browser_click` / `browser_type` / `browser_evaluate`.
+- Save with `browser_take_screenshot` to `.playwright-mcp/shots/<n>.png`.
+  Relative paths resolve against the worktree root, and Playwright can only
+  read or write inside the worktree and `.playwright-mcp/`. Copy any fixture
+  you upload into one of those roots first.
+- Use a fixed viewport (`browser_resize`, e.g. 1440×900) for every slide so
+  coordinates stay comparable, and hide harness chrome (state bars, dev
+  banners) via `browser_evaluate` before capturing.
+- Toasts and other timed UI: override `window.setTimeout` for delays ≥
+  1500 ms before triggering them so they stay on screen for the capture.
+- Read each saved PNG back to measure pixel positions; do not estimate
+  from memory of the page.
+
+## Writing rules (step `text` and `label`)
+
+Text is read on a projector by a teacher mid-lesson. Keep it short and
+plain.
+
+- `label`: 1–4 words, the name of the thing (`Import button`, `Nucleus`).
+- `text`: 1–2 sentences, 25 words max. State what the thing is or what to
+  do. One idea per step; split anything longer into two steps.
+- Imperative voice for actions (`Click Import.`), declarative for concepts
+  (`The nucleus stores DNA.`).
+- No mannered prose or AI-isms. Banned: `Let's`, `Simply`, `Just`,
+  `Now that`, `Next, we'll`, `Great!`, `Notice how`, `Feel free`,
+  `Keep in mind`, `It's worth noting`, `powerful`, `seamless`, `intuitive`,
+  `dive in`, `explore`, `journey`, rhetorical questions, exclamation
+  points, em-dashes, and any sentence that restates the previous step.
+- No filler openers or closers. Do not welcome, congratulate, or summarize.
+  `welcomeMessage`, if used, is one sentence naming the goal.
+- Test: read every step aloud. If it sounds like a narrator, cut it.
 
 ## Interaction choice
 
