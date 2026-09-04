@@ -295,11 +295,18 @@ const normalizeServerBoard = (board: Dashboard): Dashboard => {
     : { ...withCollections, widgets };
 };
 
-/** Firestore transactions reject outright while offline; a blind write queues instead. */
+/** The only Firestore codes that mean "no server round trip happened". */
+const OFFLINE_ERROR_CODES = new Set(['unavailable', 'deadline-exceeded']);
+
+/**
+ * Firestore transactions reject outright while offline; a blind write queues
+ * instead. Gated on the error code alone — `navigator.onLine === false` may
+ * corroborate but must never stand in for it, or a permission-denied
+ * transaction while offline would fall through to a blind overwrite.
+ */
 const isOfflineError = (err: unknown): boolean => {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false)
-    return true;
-  return (err as { code?: unknown } | null)?.code === 'unavailable';
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && OFFLINE_ERROR_CODES.has(code);
 };
 
 export const useFirestore = (userId: string | null) => {
@@ -325,7 +332,11 @@ export const useFirestore = (userId: string | null) => {
   }, [dashboardsRef]);
 
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard, baseline?: SaveBaseline): Promise<number> => {
+    async (
+      dashboard: Dashboard,
+      baseline?: SaveBaseline,
+      onDeferredWriteFailed?: (err: unknown) => void
+    ): Promise<number> => {
       if (isAuthBypass) {
         mockStore.saveDashboard(dashboard);
         return Date.now();
@@ -364,7 +375,18 @@ export const useFirestore = (userId: string | null) => {
         // settles once it reaches the server, which would hang the caller's
         // save (and its saving indicator) for the whole outage.
         if (!isOfflineError(err)) throw err;
-        void setDoc(docRef, { ...dashboard, updatedAt });
+        // The caller has already advanced its saved baseline by the time this
+        // settles, so a rejection has to be reported back or the edit is
+        // silently lost with no toast and no retry.
+        void setDoc(docRef, { ...dashboard, updatedAt }).catch(
+          (writeErr: unknown) => {
+            console.error(
+              '[useFirestore] Deferred offline save never landed:',
+              writeErr
+            );
+            onDeferredWriteFailed?.(writeErr);
+          }
+        );
       }
       return updatedAt;
     },

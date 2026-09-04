@@ -71,6 +71,7 @@ describe('useFirestore – saveDashboard transaction', () => {
     vi.clearAllMocks();
     (firestore.doc as unknown as Fn).mockReturnValue({});
     (firestore.collection as unknown as Fn).mockReturnValue({});
+    (firestore.setDoc as unknown as Fn).mockResolvedValue(undefined);
   });
 
   it('writes directly when no baseline is supplied', async () => {
@@ -148,6 +149,65 @@ describe('useFirestore – saveDashboard transaction', () => {
     const written = (firestore.setDoc as unknown as Fn).mock
       .calls[0][1] as Dashboard;
     expect(textOf(written.widgets[0])).toBe('a-local');
+  });
+
+  it('reports a queued fallback write that later rejects', async () => {
+    (firestore.runTransaction as unknown as Fn).mockRejectedValue(
+      Object.assign(new Error('client is offline'), { code: 'unavailable' })
+    );
+    (firestore.setDoc as unknown as Fn).mockRejectedValue(
+      new Error('never landed')
+    );
+    const onDeferredWriteFailed = vi.fn();
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([widget('a', 'a-local')]),
+      baseline([widget('a', 'a0')]),
+      onDeferredWriteFailed
+    );
+    // The fallback is deliberately un-awaited, so its rejection settles on a
+    // later microtask — without the .catch it is an unhandled rejection and
+    // the edit is silently lost.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onDeferredWriteFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not treat a permission-denied failure as offline just because the browser is', async () => {
+    // navigator.onLine is a hint, not a verdict: a blind setDoc fallback here
+    // would queue an overwrite of the server copy the rules just refused.
+    const onLine = vi
+      .spyOn(navigator, 'onLine', 'get')
+      .mockReturnValue(false as unknown as boolean);
+    (firestore.runTransaction as unknown as Fn).mockRejectedValue(
+      Object.assign(new Error('nope'), { code: 'permission-denied' })
+    );
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await expect(
+      result.current.saveDashboard(
+        board([widget('a', 'a-local')]),
+        baseline([widget('a', 'a0')])
+      )
+    ).rejects.toThrow('nope');
+    expect(firestore.setDoc).not.toHaveBeenCalled();
+    onLine.mockRestore();
+  });
+
+  it('falls back for a deadline-exceeded transaction', async () => {
+    (firestore.runTransaction as unknown as Fn).mockRejectedValue(
+      Object.assign(new Error('deadline'), { code: 'deadline-exceeded' })
+    );
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([widget('a', 'a-local')]),
+      baseline([widget('a', 'a0')])
+    );
+
+    expect(firestore.setDoc).toHaveBeenCalledTimes(1);
   });
 
   it('rethrows a transaction failure that is not an offline error', async () => {
