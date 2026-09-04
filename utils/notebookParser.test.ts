@@ -170,6 +170,45 @@ describe('parseNotebookFile — .spartnb bundle', () => {
     expect(first).toContain('height="600"');
   });
 
+  it('round-trips hiddenPages from the manifest, normalized', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'manifest.json',
+      JSON.stringify({
+        version: 1,
+        title: 'Answer Keys',
+        pageCount: 2,
+        pages: [
+          { file: 'pages/0.svg', width: 800, height: 600 },
+          { file: 'pages/1.svg', width: 800, height: 600 },
+        ],
+        hiddenPages: [1, 1, 5, -2],
+      })
+    );
+    zip.file('pages/0.svg', pageSvg(600));
+    zip.file('pages/1.svg', pageSvg(600));
+    const file = await toFile(zip, 'Hidden.spartnb');
+
+    const result = await parseNotebookFile(file);
+    expect(result.hiddenPages).toEqual([1]);
+  });
+
+  it('leaves hiddenPages undefined for bundles without the field', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'manifest.json',
+      JSON.stringify({
+        version: 1,
+        title: 'No Hidden',
+        pageCount: 1,
+        pages: [{ file: 'pages/0.svg', width: 800, height: 600 }],
+      })
+    );
+    zip.file('pages/0.svg', pageSvg(600));
+    const result = await parseNotebookFile(await toFile(zip, 'Plain.spartnb'));
+    expect(result.hiddenPages).toBeUndefined();
+  });
+
   it('returns page blobs tagged image/svg+xml so they render via <img>', async () => {
     // Without this MIME tag the blob inherits JSZip's application/octet-stream
     // default, the upload to Storage is served back as octet-stream, and every

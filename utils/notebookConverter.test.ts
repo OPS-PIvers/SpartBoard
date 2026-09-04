@@ -68,6 +68,7 @@ const readEntry = async (bundle: JSZip, name: string): Promise<string> => {
 interface BundleManifest {
   pages: { file: string; width: number; height: number }[];
   sections: { title: string; startIndex: number; pageCount: number }[];
+  hiddenPages?: number[];
 }
 
 describe('convertNotebookToBundle', () => {
@@ -198,5 +199,29 @@ describe('convertNotebookToBundle', () => {
     // editor's ensureObjectIds preserves it and the link FAB reconnects.
     const page0Svg = await readEntry(bundle, 'pages/0.svg');
     expect(page0Svg).toContain('data-edit-id="link-annotation.HOMEBASE1"');
+  });
+});
+
+describe('convertNotebookToBundle — hidden pages', () => {
+  const manifestOf = async (hiddenPages?: number[]) => {
+    const file = await buildNotebookFile();
+    const result = await convertNotebookToBundle(file, {
+      optimizeImage: stubOptimizer,
+      hiddenPages,
+    });
+    const bundle = await readBundle(result.blob);
+    return JSON.parse(
+      await readEntry(bundle, 'manifest.json')
+    ) as BundleManifest;
+  };
+
+  it('writes a normalized hiddenPages list into manifest.json', async () => {
+    const manifest = await manifestOf([2, 0, 0, 9]);
+    expect(manifest.hiddenPages).toEqual([0, 2]);
+  });
+
+  it('omits the field entirely when nothing is hidden', async () => {
+    const manifest = await manifestOf();
+    expect(manifest.hiddenPages).toBeUndefined();
   });
 });

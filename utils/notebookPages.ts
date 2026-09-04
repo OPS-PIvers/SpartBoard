@@ -19,6 +19,12 @@ export interface PageListState {
    * pageUrls and sections.
    */
   objectLinks?: NotebookObjectLink[];
+  /**
+   * 0-based indices of pages hidden from presenting (teacher answer keys, or
+   * pages carrying myViewBoard's `is-hidden` flag). Sorted, deduped and in
+   * range; absent/empty means nothing is hidden.
+   */
+  hiddenPages?: number[];
 }
 
 const cloneSections = (sections?: NotebookSection[]): NotebookSection[] =>
@@ -42,6 +48,101 @@ const remapLinkPages = (
     next.push({ ...link, sourcePage: source, targetPage: target });
   }
   return next;
+};
+
+/** Sort, dedupe and drop out-of-range entries from a hidden-page list. */
+export const normalizeHiddenPages = (
+  pages: number[] | undefined,
+  pageCount: number
+): number[] =>
+  Array.from(new Set(pages ?? []))
+    .filter((p) => Number.isInteger(p) && p >= 0 && p < pageCount)
+    .sort((a, b) => a - b);
+
+/**
+ * Apply a per-page-index transform to a hidden-page list, dropping indices the
+ * transform maps to `null` (the page itself was deleted).
+ */
+const remapHiddenPages = (
+  hidden: number[] | undefined,
+  remap: (page: number) => number | null
+): number[] | undefined => {
+  if (!hidden) return hidden;
+  const next: number[] = [];
+  for (const page of hidden) {
+    const mapped = remap(page);
+    if (mapped !== null) next.push(mapped);
+  }
+  return next.sort((a, b) => a - b);
+};
+
+/** Toggle page `index` in a hidden-page list; returns the new sorted list. */
+export const toggleHiddenPage = (
+  hidden: number[] | undefined,
+  index: number
+): number[] => {
+  const current = hidden ?? [];
+  return current.includes(index)
+    ? current.filter((p) => p !== index).sort((a, b) => a - b)
+    : [...current, index].sort((a, b) => a - b);
+};
+
+/**
+ * The hidden set the Viewer should actually honour. If every page is hidden
+ * we honour none, so the teacher never faces a blank viewer.
+ */
+export const effectiveHiddenPages = (
+  hidden: number[] | undefined,
+  pageCount: number
+): number[] => {
+  const normalized = normalizeHiddenPages(hidden, pageCount);
+  return normalized.length >= pageCount ? [] : normalized;
+};
+
+/** Visible (non-hidden) page indices, in order. Never empty for a non-empty notebook. */
+export const visiblePageIndices = (
+  pageCount: number,
+  hidden: number[] | undefined
+): number[] => {
+  const effective = new Set(effectiveHiddenPages(hidden, pageCount));
+  return Array.from({ length: pageCount }, (_, i) => i).filter(
+    (i) => !effective.has(i)
+  );
+};
+
+/**
+ * 1-based position of `page` among the visible pages. A hidden page (opened
+ * deliberately from the jump menu) reports the position of the last visible
+ * page before it, so the counter never jumps backwards mid-deck.
+ */
+export const visiblePositionOf = (
+  page: number,
+  pageCount: number,
+  hidden: number[] | undefined
+): number => {
+  const visible = visiblePageIndices(pageCount, hidden);
+  const exact = visible.indexOf(page);
+  if (exact >= 0) return exact + 1;
+  const before = visible.filter((p) => p < page).length;
+  return Math.max(1, before);
+};
+
+/**
+ * Next visible page in direction `dir` from `page`, or null when there is
+ * none (used to disable prev/next). Works from a hidden page too, so stepping
+ * off a deliberately-opened answer key lands on the adjacent visible page.
+ */
+export const nextVisiblePage = (
+  page: number,
+  dir: -1 | 1,
+  pageCount: number,
+  hidden: number[] | undefined
+): number | null => {
+  const effective = new Set(effectiveHiddenPages(hidden, pageCount));
+  for (let p = page + dir; p >= 0 && p < pageCount; p += dir) {
+    if (!effective.has(p)) return p;
+  }
+  return null;
 };
 
 /**
@@ -90,12 +191,16 @@ export const insertBlankPage = (
   const objectLinks = remapLinkPages(state.objectLinks, (p) =>
     p >= insertAt ? p + 1 : p
   );
+  const hiddenPages = remapHiddenPages(state.hiddenPages, (p) =>
+    p >= insertAt ? p + 1 : p
+  );
 
   return {
     pageUrls,
     pagePaths,
     sections: state.sections ? sections : undefined,
     objectLinks,
+    hiddenPages,
   };
 };
 
@@ -126,6 +231,10 @@ export const deletePage = (
     if (p === index) return null;
     return p > index ? p - 1 : p;
   });
+  const hiddenPages = remapHiddenPages(state.hiddenPages, (p) => {
+    if (p === index) return null;
+    return p > index ? p - 1 : p;
+  });
 
   return {
     state: {
@@ -133,6 +242,7 @@ export const deletePage = (
       pagePaths,
       sections: state.sections ? sections : undefined,
       objectLinks,
+      hiddenPages,
     },
     removedPath,
   };
@@ -173,17 +283,17 @@ export const movePage = (
   [pageUrls[index], pageUrls[target]] = [pageUrls[target], pageUrls[index]];
   [pagePaths[index], pagePaths[target]] = [pagePaths[target], pagePaths[index]];
 
-  const objectLinks = remapLinkPages(state.objectLinks, (p) => {
-    if (p === index) return target;
-    if (p === target) return index;
-    return p;
-  });
+  const swap = (p: number): number =>
+    p === index ? target : p === target ? index : p;
+  const objectLinks = remapLinkPages(state.objectLinks, swap);
+  const hiddenPages = remapHiddenPages(state.hiddenPages, swap);
 
   return {
     pageUrls,
     pagePaths,
     sections: state.sections,
     objectLinks,
+    hiddenPages,
   };
 };
 

@@ -7,6 +7,12 @@ import {
   sectionIndexOfPage,
   clampPageIndex,
   blankPageSvg,
+  normalizeHiddenPages,
+  toggleHiddenPage,
+  effectiveHiddenPages,
+  visiblePageIndices,
+  visiblePositionOf,
+  nextVisiblePage,
   PageListState,
 } from './notebookPages';
 import { NotebookObjectLink } from '@/types';
@@ -243,5 +249,88 @@ describe('helpers', () => {
     expect(clampPageIndex(3, 0)).toBe(0); // empty notebook, stale index
     expect(clampPageIndex(-1, 5)).toBe(0); // negative -> 0
     expect(clampPageIndex(4, 5)).toBe(4); // last page (delete-last case)
+  });
+});
+
+// --- hidden pages -----------------------------------------------------------
+
+const hiddenState = (hiddenPages: number[]): PageListState => ({
+  ...state(),
+  hiddenPages,
+});
+
+describe('normalizeHiddenPages', () => {
+  it('sorts, dedupes and drops out-of-range indices', () => {
+    expect(normalizeHiddenPages([4, 1, 1, -1, 9, 0], 5)).toEqual([0, 1, 4]);
+  });
+
+  it('treats a missing list as nothing hidden', () => {
+    expect(normalizeHiddenPages(undefined, 5)).toEqual([]);
+  });
+});
+
+describe('toggleHiddenPage', () => {
+  it('adds a page and keeps the list sorted', () => {
+    expect(toggleHiddenPage([3, 0], 1)).toEqual([0, 1, 3]);
+  });
+
+  it('removes an already-hidden page', () => {
+    expect(toggleHiddenPage([0, 1, 3], 1)).toEqual([0, 3]);
+  });
+});
+
+describe('hidden page index remapping', () => {
+  it('shifts hidden pages right when a blank page is inserted before them', () => {
+    const next = insertBlankPage(hiddenState([1, 3]), 1, 'NEW', 'NEWP');
+    // Insert lands at index 2; p3 becomes p4, p1 is unaffected.
+    expect(next.hiddenPages).toEqual([1, 4]);
+  });
+
+  it('drops the deleted page and shifts later hidden pages left', () => {
+    const { state: next } = deletePage(hiddenState([1, 3, 4]), 3);
+    expect(next.hiddenPages).toEqual([1, 3]);
+  });
+
+  it('swaps hidden indices in lockstep with a move', () => {
+    const next = movePage(hiddenState([1]), 1, 1);
+    expect(next.hiddenPages).toEqual([2]);
+  });
+
+  it('leaves notebooks without hidden pages untouched', () => {
+    expect(
+      insertBlankPage(state(), 0, 'NEW', 'NEWP').hiddenPages
+    ).toBeUndefined();
+    expect(deletePage(state(), 0).state.hiddenPages).toBeUndefined();
+  });
+});
+
+describe('viewer visibility helpers', () => {
+  it('excludes hidden pages from the visible list and count', () => {
+    expect(visiblePageIndices(5, [1, 3])).toEqual([0, 2, 4]);
+    expect(visiblePositionOf(4, 5, [1, 3])).toBe(3);
+  });
+
+  it('reports a hidden page at the position of the preceding visible page', () => {
+    expect(visiblePositionOf(3, 5, [1, 3])).toBe(2);
+  });
+
+  it('skips hidden pages when stepping forward and back', () => {
+    expect(nextVisiblePage(0, 1, 5, [1, 2])).toBe(3);
+    expect(nextVisiblePage(4, -1, 5, [1, 2, 3])).toBe(0);
+  });
+
+  it('steps off a deliberately-opened hidden page to the adjacent visible one', () => {
+    expect(nextVisiblePage(1, 1, 5, [1])).toBe(2);
+    expect(nextVisiblePage(1, -1, 5, [1])).toBe(0);
+  });
+
+  it('returns null at the ends so prev/next can disable', () => {
+    expect(nextVisiblePage(0, -1, 5, [])).toBeNull();
+    expect(nextVisiblePage(3, 1, 5, [4])).toBeNull();
+  });
+
+  it('falls back to showing every page when all pages are hidden', () => {
+    expect(effectiveHiddenPages([0, 1, 2], 3)).toEqual([]);
+    expect(visiblePageIndices(3, [0, 1, 2])).toEqual([0, 1, 2]);
   });
 });
