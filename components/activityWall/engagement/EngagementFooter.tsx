@@ -56,7 +56,11 @@ export const EngagementFooter: React.FC<EngagementFooterProps> = ({
   }, [comments]);
 
   const [likeBusy, setLikeBusy] = useState(false);
-  const writable = canWrite && viewerUid !== null;
+  // A pending post's engagement writes are rejected server-side (firestore.rules' awEngagementSubmissionOk) — disable rather than show a dead control.
+  const writable =
+    canWrite &&
+    viewerUid !== null &&
+    (submission.status ?? 'approved') === 'approved';
 
   const toggleLike = async () => {
     if (!flags.allowLikes || likeBusy || !writable) return;

@@ -442,6 +442,75 @@ describe('merged student page — session likes and comments', () => {
       )
     );
   });
+
+  it('nobody can create a comment on a still-pending post — not even the post author', async () => {
+    // Reads of this collection are an unfiltered listen (see useWallEngagement.ts),
+    // so a comment/like attached to a pending post would leak to the whole
+    // class the instant it existed; the boundary has to hold at create time.
+    await seedSession(
+      padletSession({ moderationEnabled: true, allowComments: true })
+    );
+    await seedSubmission(
+      'pending-mine',
+      submission({ status: 'pending', authorUid: STUDENT_UID })
+    );
+    await assertFails(
+      setDoc(
+        doc(asStudent(), commentPath('c-on-pending')),
+        comment('c-on-pending', STUDENT_UID, { submissionId: 'pending-mine' })
+      )
+    );
+  });
+
+  it('nobody can create a like on a still-pending post', async () => {
+    await seedSession(
+      padletSession({ moderationEnabled: true, allowLikes: true })
+    );
+    await seedSubmission(
+      'pending-other',
+      submission({ status: 'pending', authorUid: OTHER_STUDENT_UID })
+    );
+    await assertFails(
+      setDoc(
+        doc(asStudent(), likePath('pending-other', STUDENT_UID)),
+        like('pending-other', STUDENT_UID)
+      )
+    );
+  });
+
+  it('the owner cannot create a comment on a pending post either', async () => {
+    await seedSession(
+      padletSession({ moderationEnabled: true, allowComments: true })
+    );
+    await seedSubmission(
+      'pending-other',
+      submission({ status: 'pending', authorUid: OTHER_STUDENT_UID })
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(), commentPath('c-teacher-on-pending')),
+        comment('c-teacher-on-pending', TEACHER_UID, {
+          submissionId: 'pending-other',
+        })
+      )
+    );
+  });
+
+  it('a student can still comment on an approved post', async () => {
+    await seedSession(
+      padletSession({ moderationEnabled: true, allowComments: true })
+    );
+    await seedSubmission(
+      'approved-1',
+      submission({ status: 'approved', authorUid: OTHER_STUDENT_UID })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), commentPath('c-on-approved')),
+        comment('c-on-approved', STUDENT_UID, { submissionId: 'approved-1' })
+      )
+    );
+  });
 });
 
 describe('merged student page — engagement on a closed wall', () => {
