@@ -1,9 +1,9 @@
 ---
-name: guided-learning-author
+name: gl-author
 description: Author or fill in importable SpartBoard Guided Learning activities (.gl.json) from images plus a learning-goal description. Use when asked to create, generate, or convert a guided learning activity, hotspot lesson, labeled-diagram walkthrough, app-screenshot walkthrough, or .gl.json file, or to configure the empty hotspots in an exported one. Covers the exact schema, hotspot coordinate rules, interaction choice, and validation requirements so the output imports cleanly via the Guided Learning widget's Import wizard.
 ---
 
-# Guided Learning Author
+# GL Author
 
 Produce a single self-contained `.gl.json` file that the SpartBoard Guided
 Learning widget can import (Library tab → Import → upload file or paste JSON).
