@@ -30,8 +30,26 @@ import {
   Collection,
   CollectionSubstituteShareInput,
 } from '@/types';
-import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import {
+  deleteField,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import {
+  DASHBOARD_FIELDS,
+  serializeDashboardField,
+  type MergedDashboardField,
+  type SaveBaseline,
+} from '@/utils/dashboardSaveMerge';
+import {
+  LAYOUT_FIELDS,
+  STYLE_FIELDS,
+  INSTANCE_FIELDS,
+} from '@/utils/widgetMergeFields';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
@@ -61,9 +79,11 @@ import {
 } from '@/utils/migrateProportionalLayout';
 import {
   scrubDashboardPII,
+  scrubWidgetsPII,
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
+  type DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
@@ -224,6 +244,29 @@ const serializeDashboard = (d: Dashboard): string =>
     settings: d.settings,
   });
 
+/**
+ * A cached Drive PII supplement plus the widget `version` each entry was
+ * captured against. Re-overlaying it blindly would let this device push its
+ * own stale roster back over another device's edit, so an entry is only
+ * applied while the server widget is still the one it came from.
+ */
+interface CachedPiiSupplement {
+  supplement: DashboardPiiSupplement;
+  versions: Record<string, number | undefined>;
+}
+
+/** Stamp each supplement entry with the version of the widget it came from. */
+const stampPiiVersions = (
+  dashboard: Dashboard,
+  supplement: DashboardPiiSupplement
+): CachedPiiSupplement => {
+  const versions: Record<string, number | undefined> = {};
+  for (const widget of dashboard.widgets) {
+    if (supplement[widget.id]) versions[widget.id] = widget.version;
+  }
+  return { supplement, versions };
+};
+
 /** Capture the serialized state used to populate lastSaved* refs. */
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
@@ -233,6 +276,10 @@ const getDashboardSaveState = (d: Dashboard) => ({
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
     settings: JSON.stringify(d.settings ?? {}),
+    // Only the save merge reads these; the snapshot merge uses the four above.
+    dashboardFields: Object.fromEntries(
+      DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(d[f])])
+    ) as Record<MergedDashboardField, string>,
   },
 });
 
@@ -256,7 +303,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     lastActiveCollectionId,
     lastBoardIdByCollection,
-    remoteControlEnabled: accountRemoteControlEnabled,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -429,10 +475,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ) => void)
     | null
   >(null);
-  // Keep a ref to account-level remote control so the Firestore snapshot
-  // handler can read the latest value without triggering a re-subscription.
-  const accountRemoteControlEnabledRef = useRef(accountRemoteControlEnabled);
-  accountRemoteControlEnabledRef.current = accountRemoteControlEnabled;
+  // Same forward-declaration reason: handleShareDashboard sits above
+  // buildSaveBaseline, so naming it in that callback's dep array would read
+  // the binding before its `const` initializer runs.
+  const buildSaveBaselineRef = useRef<
+    ((dashboardId: string) => SaveBaseline | undefined) | null
+  >(null);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [groupBuildMode, setGroupBuildMode] = useState(false);
@@ -1297,6 +1345,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const pendingSaveCountRef = useRef<number>(0);
   // Tracks Drive file IDs for PII supplements per dashboard to enable in-place updates
   const piiDriveFileIdRef = useRef<Map<string, string>>(new Map());
+  // Latest PII supplement known for each board. Firestore only ever holds the
+  // scrubbed copy, so any server snapshot this device adopts must be re-overlaid
+  // or a roster disappears the moment a snapshot replaces a widget's config.
+  const dashboardPiiRef = useRef<Map<string, CachedPiiSupplement>>(new Map());
+  // Bumped whenever a stale supplement entry is dropped, so the Drive restore
+  // effect re-reads the authoritative copy instead of waiting for a board switch.
+  const [piiRestoreNonce, setPiiRestoreNonce] = useState(0);
+  // `updatedAt` values this device itself wrote. A transaction write bypasses
+  // the local mutation queue, so its own commit arrives as a real snapshot
+  // (hasPendingWrites === false) that would otherwise be mistaken for a remote
+  // edit and blind-adopted over local state.
+  const selfWrittenUpdatedAtRef = useRef<Set<number>>(new Set());
+  const rememberSelfWrite = useCallback((updatedAt: number) => {
+    const seen = selfWrittenUpdatedAtRef.current;
+    seen.add(updatedAt);
+    // Bounded: only the most recent writes can still be in flight.
+    while (seen.size > 20) seen.delete(seen.values().next().value as number);
+  }, []);
   // Tracks widget IDs added locally but not yet confirmed by a server snapshot
   const locallyAddedWidgetIds = useRef<Set<string>>(new Set());
 
@@ -1311,6 +1377,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (dashboard: Dashboard): Promise<void> => {
       if (!dashboardHasPII(dashboard)) {
         // Names were cleared — overwrite any existing supplement so old ones aren't merged back.
+        dashboardPiiRef.current.delete(dashboard.id);
         const staleFileId = piiDriveFileIdRef.current.get(dashboard.id);
         if (driveService && staleFileId) {
           try {
@@ -1335,6 +1402,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const pii = extractDashboardPII(dashboard);
+      // Record before the upload: the snapshot overlay needs this even if Drive
+      // is momentarily unreachable, or the failed save's next snapshot strips
+      // the roster from local state too.
+      dashboardPiiRef.current.set(
+        dashboard.id,
+        stampPiiVersions(dashboard, pii)
+      );
       const blob = new Blob([JSON.stringify(pii)], {
         type: 'application/json',
       });
@@ -1361,8 +1435,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [driveService]
   );
 
+  // The offline fallback write is not awaited, so its rejection lands long
+  // after the save resolved and the baseline advanced. Re-arm the unsaved
+  // window (which the beforeunload flush gates on) and tell the teacher.
+  const handleDeferredWriteFailed = useCallback(
+    (err: unknown) => {
+      console.error('Queued offline save failed:', err);
+      oldestUnsavedEditAtRef.current ??= Date.now();
+      addToast('Failed to sync changes', 'error');
+    },
+    [addToast]
+  );
+
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<number> => {
+    async (dashboard: Dashboard, baseline?: SaveBaseline): Promise<number> => {
       // Always save to Firestore for real-time sync
       let driveFileId = dashboard.driveFileId;
 
@@ -1384,12 +1470,63 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // NEVER reach Firestore — they are preserved in Drive only.
       const scrubbed = scrubDashboardPII(dashboard);
 
-      return saveDashboardFirestore({
-        ...scrubbed,
-        driveFileId,
-      });
+      // The baseline is built from unscrubbed local widgets, so scrub it the
+      // same way. Otherwise a widget still on its initial config (no `version`
+      // yet) falls to the config deep-compare and reads as locally changed on
+      // every save purely because the baseline still carries its roster.
+      const scrubbedBaseline = baseline && {
+        ...baseline,
+        widgets: scrubWidgetsPII(baseline.widgets),
+      };
+
+      const updatedAt = await saveDashboardFirestore(
+        {
+          ...scrubbed,
+          driveFileId,
+        },
+        scrubbedBaseline,
+        handleDeferredWriteFailed
+      );
+      rememberSelfWrite(updatedAt);
+      return updatedAt;
     },
-    [isAdmin, driveService, saveDashboardFirestore, backupDashboardPIIToDrive]
+    [
+      isAdmin,
+      driveService,
+      saveDashboardFirestore,
+      backupDashboardPIIToDrive,
+      rememberSelfWrite,
+      handleDeferredWriteFailed,
+    ]
+  );
+
+  /**
+   * Persist a couple of named board fields without touching the rest of the
+   * document. Used by paths that change one thing on a board that may not be
+   * the active one — there is no save baseline for those, so a whole-document
+   * write would blind-overwrite every widget with a stale in-memory copy.
+   * Mirrors pinBoard / moveBoardToCollection.
+   */
+  const updateDashboardFields = useCallback(
+    async (dashboard: Dashboard, fields: Record<string, unknown>) => {
+      if (isAuthBypass) {
+        await saveDashboard(dashboard);
+        return;
+      }
+      if (!user?.uid) return;
+      try {
+        await updateDoc(
+          doc(db, 'users', user.uid, 'dashboards', dashboard.id),
+          { ...fields, updatedAt: Date.now() }
+        );
+      } catch (err) {
+        // A board created moments ago may not have reached Firestore yet;
+        // updateDoc cannot create it, so write the whole document instead.
+        if ((err as { code?: unknown } | null)?.code !== 'not-found') throw err;
+        await saveDashboard(dashboard);
+      }
+    },
+    [user?.uid, saveDashboard]
   );
 
   const saveDashboards = useCallback(
@@ -1499,7 +1636,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // saveDashboardFirestore directly would bypass that and could leak
       // restored-from-Drive PII to Firestore.
       try {
-        await saveDashboard(tagged);
+        await saveDashboard(tagged, buildSaveBaselineRef.current?.(tagged.id));
       } catch (e) {
         console.error('Failed to persist share linkage on dashboard:', e);
       }
@@ -1661,14 +1798,51 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         const { vpW, vpH } = getCurrentViewport();
+        const staleSupplementBoardIds = new Set<string>();
         const migratedDashboards = sortedDashboards.map((db) => {
           const collectionsMigrated = migrateBoardForCollections(db);
           const widgetMigrated: Dashboard = {
             ...collectionsMigrated,
             widgets: collectionsMigrated.widgets.map(migrateWidget),
           };
-          return hydrateDashboardForViewport(widgetMigrated, vpW, vpH);
+          const hydrated = hydrateDashboardForViewport(
+            widgetMigrated,
+            vpW,
+            vpH
+          );
+          // Firestore holds the scrubbed copy; Drive holds the PII. Overlay it
+          // back before anything downstream can adopt a server config, or a
+          // restored roster is silently replaced by the scrubbed one. Only
+          // where the widget's version still matches the one the supplement was
+          // captured against: past that, another device has edited the roster
+          // and this cache would re-apply the copy it already deleted.
+          const cached = dashboardPiiRef.current.get(hydrated.id);
+          if (!cached) return hydrated;
+          const applicable: DashboardPiiSupplement = {};
+          let droppedStale = false;
+          for (const widget of hydrated.widgets) {
+            if (!cached.supplement[widget.id]) continue;
+            if (cached.versions[widget.id] === widget.version) {
+              applicable[widget.id] = cached.supplement[widget.id];
+            } else {
+              // Drop it so the staleness is detected once, not on every snapshot.
+              delete cached.supplement[widget.id];
+              delete cached.versions[widget.id];
+              droppedStale = true;
+            }
+          }
+          if (droppedStale) staleSupplementBoardIds.add(hydrated.id);
+          return Object.keys(applicable).length > 0
+            ? mergeDashboardPII(hydrated, applicable)
+            : hydrated;
         });
+
+        // Re-read the authoritative supplement from Drive before the next
+        // autosave can write this device's stale roster back over the edit.
+        if (staleSupplementBoardIds.has(activeIdRef.current ?? '')) {
+          lastPiiRestoredIdRef.current = null;
+          setPiiRestoreNonce((n) => n + 1);
+        }
 
         // Update saving status: clear when Firestore confirms no pending writes
         // and we have no local saves in flight
@@ -1712,6 +1886,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastSavedDataRef.current = initData;
           lastSavedFieldsRef.current = initFields;
           lastSavedDashboardIdRef.current = currentActive.id;
+          baselineGenerationRef.current++;
         }
 
         const now = Date.now();
@@ -1731,10 +1906,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           (d) => d.id === activeIdRef.current
         );
 
+        // This device's own committed transaction write. It carries nothing
+        // local state does not already hold except whatever the transaction
+        // folded in from another device, so route it through the surgical
+        // merge below instead of the wholesale-adopt branch.
+        const isSelfEcho =
+          serverActive?.updatedAt !== undefined &&
+          selfWrittenUpdatedAtRef.current.has(serverActive.updatedAt);
+
         let newDashboards: Dashboard[];
 
         if (
           hasPendingWrites ||
+          isSelfEcho ||
           isRecentlyUpdatedLocally ||
           hasUnsavedLocalChanges ||
           pendingSaveCountRef.current > 0
@@ -1787,40 +1971,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const localById = new Map(
                 currentActive.widgets.map((w) => [w.id, w])
               );
-              // Proportional fields are the canonical layout source — pixel
-              // x/y/w/h are derived per-viewport and would produce false
-              // positives when two devices on different screen sizes view
-              // the same board.
-              const LAYOUT_FIELDS = [
-                'xProp',
-                'yProp',
-                'wProp',
-                'hProp',
-                'aspectRatio',
-                'z',
-                'minimized',
-                'flipped',
-                'maximized',
-                'groupId',
-              ] as const;
-
-              const STYLE_FIELDS = [
-                'backgroundColor',
-                'fontFamily',
-                'baseTextSize',
-                'transparency',
-                'buildingId',
-                'customTitle',
-                'isPinned',
-                'isLocked',
-                'annotation',
-              ] as const;
-
-              const INSTANCE_FIELDS = ['customTitle', 'isPinned'] as const;
-
-              const remoteControlEnabled =
-                accountRemoteControlEnabledRef.current;
-
               // Pre-calculate merge decisions for all incoming server widgets
               const widgetMergeDecisions = db.widgets.map((sw) => {
                 const lw = localById.get(sw.id);
@@ -1879,16 +2029,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   lw,
                   saved,
                   isDeletedLocally,
-                  // If remote control is OFF, do not accept incoming server changes
-                  keepLocalConfig:
-                    configChangedLocally || !remoteControlEnabled,
-                  keepLocalLayout:
-                    layoutChangedLocally || !remoteControlEnabled,
-                  keepLocalStyle: styleChangedLocally || !remoteControlEnabled,
-                  keepLocalInstance:
-                    instanceChangedLocally || !remoteControlEnabled,
-                  keepLocalAnnotation:
-                    annotationChangedLocally || !remoteControlEnabled,
+                  // Keep only what changed locally; untouched fields take the server value so edits from another device land.
+                  keepLocalConfig: configChangedLocally,
+                  keepLocalLayout: layoutChangedLocally,
+                  keepLocalStyle: styleChangedLocally,
+                  keepLocalInstance: instanceChangedLocally,
+                  keepLocalAnnotation: annotationChangedLocally,
                 };
               });
 
@@ -1979,6 +2125,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   db.settings ?? {}
                 );
               }
+              // The merge below currently returns `...db` for every
+              // DASHBOARD_FIELDS value, so the baseline moves with it
+              // unconditionally. Leaving it behind would make the next save
+              // read a field it just accepted as a local edit. `annotationOverlay`
+              // is expected to gain a keep-local branch (PR #2820) — when it
+              // does, this write has to skip that field the same way
+              // background/name/settings above already do.
+              lastSavedFieldsRef.current.dashboardFields = Object.fromEntries(
+                DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(db[f])])
+              ) as Record<MergedDashboardField, string>;
 
               // For widgets, construct the array of what we would have saved if we had
               // accepted the server's widget baseline for non-locally-modified widgets.
@@ -2031,6 +2187,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               );
               lastSavedFieldsRef.current.widgets =
                 JSON.stringify(nextLastSavedWidgets);
+              baselineGenerationRef.current++;
 
               return {
                 ...db,
@@ -2061,6 +2218,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             lastSavedFieldsRef.current = serverFields;
             lastWidgetCountRef.current = serverActive.widgets.length;
             lastSavedDashboardIdRef.current = serverActive.id;
+            baselineGenerationRef.current++;
           }
           newDashboards = migratedDashboards;
         }
@@ -2305,7 +2463,48 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     name: string;
     libraryOrder: string;
     settings: string;
-  }>({ widgets: '', background: '', name: '', libraryOrder: '', settings: '' });
+    dashboardFields: Partial<Record<MergedDashboardField, string>>;
+  }>({
+    widgets: '',
+    background: '',
+    name: '',
+    libraryOrder: '',
+    settings: '',
+    dashboardFields: {},
+  });
+  // Bumped by every snapshot-handler write to lastSavedFieldsRef. A save that
+  // started before such a write must not restore its own pre-write capture:
+  // the snapshot already advanced the baseline to another device's newer
+  // values and adopted them into local state, so regressing it would make the
+  // next transaction read those adopted values as local edits and clobber the
+  // remote copy.
+  const baselineGenerationRef = useRef(0);
+  const buildSaveBaseline = useCallback(
+    (dashboardId: string): SaveBaseline | undefined => {
+      if (lastSavedDashboardIdRef.current !== dashboardId) return undefined;
+      // No serialized widgets means nothing has been baselined for this board
+      // yet; a baseline claiming zero widgets would resurrect local deletions.
+      if (!lastSavedFieldsRef.current.widgets) return undefined;
+      let widgets: WidgetData[] = [];
+      try {
+        widgets = JSON.parse(
+          lastSavedFieldsRef.current.widgets
+        ) as WidgetData[];
+      } catch {
+        return undefined;
+      }
+      return {
+        widgets,
+        background: lastSavedFieldsRef.current.background,
+        name: lastSavedFieldsRef.current.name,
+        libraryOrder: lastSavedFieldsRef.current.libraryOrder,
+        settings: lastSavedFieldsRef.current.settings,
+        dashboardFields: lastSavedFieldsRef.current.dashboardFields,
+      };
+    },
+    []
+  );
+  buildSaveBaselineRef.current = buildSaveBaseline;
 
   useEffect(() => {
     // Capture ref value for stable cleanup (react-hooks/exhaustive-deps)
@@ -2357,7 +2556,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         // Flush the outgoing board — re-baselining below would otherwise drop its unsaved edits.
         pendingSaveCountRef.current++;
-        saveDashboard(outgoing)
+        saveDashboard(outgoing, buildSaveBaseline(outgoing.id))
           .catch((err) => {
             console.error('Auto-save failed:', err);
             setToasts((prev) => [
@@ -2437,15 +2636,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         widgets: JSON.stringify(active.widgets),
         background: active.background,
         name: active.name,
-        libraryOrder: JSON.stringify(active.libraryOrder),
-        settings: JSON.stringify(active.settings),
+        // Coalesce so an absent field serializes to '[]'/'{}' like the other
+        // capture sites — JSON.stringify(undefined) returns undefined, not a
+        // string, which would read as a local edit on every subsequent save.
+        libraryOrder: JSON.stringify(active.libraryOrder ?? []),
+        settings: JSON.stringify(active.settings ?? {}),
+        dashboardFields: Object.fromEntries(
+          DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(active[f])])
+        ) as Record<MergedDashboardField, string>,
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
-      saveDashboard(active)
+      const baselineGenerationAtSave = baselineGenerationRef.current;
+      saveDashboard(active, buildSaveBaseline(active.id))
         .then(() => {
-          lastSavedDataRef.current = savedData;
-          lastSavedFieldsRef.current = savedFields;
+          // Skip when a snapshot merge landed mid-flight: it already advanced
+          // the baseline to the server values it adopted into local state, and
+          // this pre-write capture would regress it (see baselineGenerationRef).
+          if (baselineGenerationRef.current === baselineGenerationAtSave) {
+            lastSavedDataRef.current = savedData;
+            lastSavedFieldsRef.current = savedFields;
+          }
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -2488,7 +2699,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       for (const t of auxTimers) clearTimeout(t);
       auxTimers.clear();
     };
-  }, [dashboards, activeId, user, loading, saveDashboard]);
+  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
 
   // --- GOOGLE DRIVE SYNC EFFECT ---
   // Decoupled from Firestore auto-save to ensure performance.
@@ -2513,12 +2724,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         .exportDashboard(active)
         .then((newFileId) => {
           lastExportedDataRef.current = currentData;
-          // If we got a new ID (e.g. first sync), save it back to Firestore silently
-          if (newFileId !== active.driveFileId) {
-            // CRITICAL: Scrub PII before writing directly to Firestore.
-            void saveDashboardFirestore({
-              ...scrubDashboardPII(active),
-              driveFileId: newFileId,
+          // If we got a new ID (e.g. first sync), save it back to Firestore
+          // silently. Only `driveFileId` needs persisting, and `active` is a
+          // 5s-old closure plus a Drive round trip by now — writing the whole
+          // document would blind-overwrite whatever was saved in between, on
+          // this device or another.
+          if (newFileId !== active.driveFileId && !isAuthBypass) {
+            void updateDoc(
+              doc(db, 'users', user.uid, 'dashboards', active.id),
+              {
+                driveFileId: newFileId,
+                updatedAt: Date.now(),
+              }
+            ).catch((err: unknown) => {
+              console.error('[Drive Sync] Failed to persist driveFileId:', err);
             });
           }
         })
@@ -2535,15 +2754,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
     };
-  }, [
-    user,
-    isAdmin,
-    driveService,
-    dashboards,
-    activeId,
-    loading,
-    saveDashboardFirestore,
-  ]);
+  }, [user, isAdmin, driveService, dashboards, activeId, loading]);
 
   // --- PII RESTORE EFFECT ---
   // When the active dashboard changes, attempt to restore any custom widget
@@ -2580,6 +2791,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!piiFile) {
           // No supplement found — clear any stale cached ID for this dashboard
           piiDriveFileIdRef.current.delete(currentId);
+          dashboardPiiRef.current.delete(currentId);
           return;
         }
         // Cache the file ID so future saves can update in-place
@@ -2587,8 +2799,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const blob = await driveService.downloadFile(piiFile.id);
         const text = await blob.text();
         const pii = JSON.parse(text) as ReturnType<typeof extractDashboardPII>;
-        if (Object.keys(pii).length === 0) return;
+        if (Object.keys(pii).length === 0) {
+          dashboardPiiRef.current.delete(currentId);
+          return;
+        }
 
+        // Keep the supplement so the snapshot handler can re-apply it. Restore
+        // alone is not enough: the widget's `version` is unchanged, so the next
+        // server snapshot would hand back the scrubbed config as authoritative.
+        // Stamp it against the versions currently in state — that is the server
+        // copy this supplement is known to belong to.
+        const current = dashboardsRef.current.find((d) => d.id === currentId);
+        if (current) {
+          dashboardPiiRef.current.set(
+            currentId,
+            stampPiiVersions(current, pii)
+          );
+        }
         setDashboards((prev) =>
           prev.map((d) => (d.id === currentId ? mergeDashboardPII(d, pii) : d))
         );
@@ -2607,7 +2834,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // which spammed disconnected users on every board switch.
         console.warn('[PII Restore] Could not load supplement:', err);
       });
-  }, [activeId, loading, driveService]);
+    // piiRestoreNonce re-runs this when the snapshot handler dropped a stale
+    // supplement entry; the latch above is cleared alongside the bump.
+  }, [activeId, loading, driveService, piiRestoreNonce]);
 
   // Flush pending saves on page refresh/close
   useEffect(() => {
@@ -2623,8 +2852,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         const active = dashboards.find((d) => d.id === activeId);
         if (active) {
-          // Note: We can't reliably await this in beforeunload,
-          // but we can try to trigger it.
+          // Note: We can't reliably await this in beforeunload, but we can try
+          // to trigger it. Deliberately baseline-free: the merge transaction
+          // needs a server read before it can write anything, and the page is
+          // already tearing down. The blind write is the only one with a
+          // chance of landing.
           void saveDashboard(active);
         }
       }
@@ -3228,7 +3460,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         prev.map((d) => (d.id === dashboardId ? detached : d))
       );
       try {
-        await saveDashboard(detached);
+        // Only the link bookkeeping changed. `detached` may be an inactive
+        // board with no save baseline, so writing the whole document would
+        // overwrite its widgets with whatever this device last read.
+        await updateDashboardFields(detached, {
+          linkedShareId: deleteField(),
+          linkedShareRole: deleteField(),
+          linkedShareHostName: deleteField(),
+          linkedShareEnded: deleteField(),
+        });
       } catch (err) {
         console.error('Failed to persist detached share state:', err);
       }
@@ -3237,7 +3477,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [
       stopSharingBoard,
       leaveSharedBoard,
-      saveDashboard,
+      updateDashboardFields,
       addToast,
       deleteDashboardFirestore,
       updateActiveId,
@@ -3811,14 +4051,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const active = dashboards.find((d) => d.id === activeId);
     if (active) {
       try {
-        await saveDashboard(active);
+        await saveDashboard(active, buildSaveBaseline(active.id));
         addToast('All changes saved to cloud', 'success');
       } catch (err) {
         console.error('Save failed:', err);
         addToast('Save failed', 'error');
       }
     }
-  }, [user, dashboards, activeId, saveDashboard, addToast]);
+  }, [user, dashboards, activeId, saveDashboard, buildSaveBaseline, addToast]);
 
   const deleteDashboard = useCallback(
     async (id: string) => {
@@ -4031,7 +4271,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        await saveDashboard(updated);
+        // Rename can target an inactive board, which has no save baseline —
+        // write just the name rather than the whole (possibly stale) document.
+        await updateDashboardFields(updated, { name });
         addToast('Dashboard renamed');
       } catch (err) {
         console.error('Rename failed:', err);
@@ -4040,7 +4282,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         setDashboards((prev) => prev.map((d) => (d.id === id ? dashboard : d)));
       }
     },
-    [user, dashboards, activeId, saveDashboard, addToast]
+    [user, dashboards, activeId, updateDashboardFields, addToast]
   );
 
   const reorderDashboards = useCallback(

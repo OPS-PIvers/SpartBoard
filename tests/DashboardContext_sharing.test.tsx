@@ -3,6 +3,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
+import { updateDoc } from 'firebase/firestore';
 import { Dashboard } from '@/types';
 
 // Mock dependencies
@@ -517,13 +518,24 @@ describe('DashboardContext Sharing Logic', () => {
       });
       // The shared doc was deleted on the firestore side.
       expect(mockStopSharingBoard).toHaveBeenCalledWith('test-share-id');
-      // saveDashboard was called with the detached (cleared-link) snapshot.
-      const detachedSave = (
-        mockSaveDashboard.mock.calls as Array<[Dashboard]>
-      ).find(
-        (c) => c[0].id === 'local-dash-2' && c[0].linkedShareId === undefined
-      );
-      expect(detachedSave).toBeDefined();
+      // Only the link bookkeeping is written back. A whole-document save would
+      // blind-overwrite a board this device may not have the latest copy of.
+      const detachedUpdate = vi
+        .mocked(updateDoc)
+        .mock.calls.find((c) =>
+          (c[0] as unknown as { __path?: string }).__path?.endsWith(
+            'local-dash-2'
+          )
+        );
+      expect(detachedUpdate).toBeDefined();
+      const patch = (detachedUpdate?.[1] ?? {}) as Record<string, unknown>;
+      expect(Object.keys(patch).sort()).toEqual([
+        'linkedShareEnded',
+        'linkedShareHostName',
+        'linkedShareId',
+        'linkedShareRole',
+        'updatedAt',
+      ]);
     });
 
     it('guest stopSharingDashboard calls leaveSharedBoard, not stopSharingBoard', async () => {
