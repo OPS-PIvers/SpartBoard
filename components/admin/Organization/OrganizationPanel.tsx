@@ -157,8 +157,10 @@ const resolveActorRole = (
   legacyIsAdmin: boolean | null,
   memberRoleId: string | null
 ): ActorRole => {
+  // `legacySuperAdmin` already folds the operator-org check, so a raw
+  // `super_admin` roleId is not re-promoted here — outside the operator org the
+  // rules would refuse those writes.
   if (legacySuperAdmin) return 'super_admin';
-  if (memberRoleId === 'super_admin') return 'super_admin';
   if (memberRoleId === 'domain_admin') return 'domain_admin';
   if (memberRoleId === 'building_admin') return 'building_admin';
   if (memberRoleId) return 'building_admin'; // teacher/student fall through to least-privileged
@@ -179,7 +181,8 @@ export const OrganizationPanel: React.FC = () => {
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
     userRoles?.superAdmins,
-    memberRoleId
+    memberRoleId,
+    authOrgId
   );
   const actorRole = resolveActorRole(isSuperAdmin, isAdmin, memberRoleId);
 

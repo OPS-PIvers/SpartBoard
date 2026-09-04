@@ -60,7 +60,7 @@ export const ensureProtocol = (url: string): string => {
   return `https://${trimmed}`;
 };
 
-// Exact-host gate: a substring match would frame docs.google.com.evil.com.
+// Exact-host gate for the docs branch, which echoes the caller's origin back as the embed src.
 const embedHostname = (url: string): string => {
   try {
     return new URL(ensureProtocol(url)).hostname.toLowerCase();
@@ -106,28 +106,26 @@ export const convertToEmbedUrl = (url: string): string => {
   }
 
   // Google Drive file links  (drive.google.com/file/d/{id}/...)
-  const driveFileMatch =
-    host === 'drive.google.com'
-      ? /\/file\/d\/([a-zA-Z0-9_-]+)/.exec(trimmedUrl)
-      : null;
+  // Substring-matched on purpose: the result is a hardcoded drive.google.com
+  // origin, so a spoofed host cannot be framed and google.com/url?q= wrappers
+  // (the shape Classroom and Gmail hand teachers) still convert.
+  const driveFileMatch = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/.exec(
+    trimmedUrl
+  );
   if (driveFileMatch) {
     return `https://drive.google.com/file/d/${driveFileMatch[1]}/preview`;
   }
 
   // Google Drive open links  (drive.google.com/open?id={id})
   const driveOpenMatch =
-    host === 'drive.google.com'
-      ? /\/open\?(?:.*&)?id=([a-zA-Z0-9_-]+)/.exec(trimmedUrl)
-      : null;
+    /drive\.google\.com\/open\?(?:.*&)?id=([a-zA-Z0-9_-]+)/.exec(trimmedUrl);
   if (driveOpenMatch) {
     return `https://drive.google.com/file/d/${driveOpenMatch[1]}/preview`;
   }
 
   // Google Vids  (vids.google.com/vids/{id}  or  vids.google.com/u/0/vids/{id})
   const vidsMatch =
-    host === 'vids.google.com'
-      ? /\/(?:u\/\d+\/)?vids\/([a-zA-Z0-9_-]+)/.exec(trimmedUrl)
-      : null;
+    /vids\.google\.com\/(?:u\/\d+\/)?vids\/([a-zA-Z0-9_-]+)/.exec(trimmedUrl);
   if (vidsMatch) {
     return `https://vids.google.com/vids/${vidsMatch[1]}/preview`;
   }

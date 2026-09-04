@@ -27,11 +27,12 @@ export const useRemoteControlSetting = (): boolean => {
         setLive({ uid, value: typeof value === 'boolean' ? value : true });
       },
       (err: unknown) => {
+        // Keep the last received value: dropping it would fail open, reviving a
+        // stale `true` from sign-in after the teacher switched the toggle off.
         console.error(
           '[useRemoteControlSetting] profile listener failed:',
           err
         );
-        setLive(null);
       }
     );
   }, [uid]);

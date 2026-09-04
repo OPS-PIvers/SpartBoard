@@ -63,7 +63,8 @@ export const HelpCenterManager: React.FC = () => {
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
     userRoles?.superAdmins,
-    roleId
+    roleId,
+    orgId
   );
   const {
     items,
