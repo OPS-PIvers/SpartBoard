@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import { Palette, LucideIcon } from 'lucide-react';
 import { WidgetConfig } from '@/types';
 import { SettingsLabel } from './SettingsLabel';
+import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 import { SURFACE_COLOR_PRESETS } from '@/config/widgetAppearance';
 
 interface SurfaceColorSettingsProps<T extends WidgetConfig> {
@@ -22,6 +23,10 @@ export const SurfaceColorSettings = <
   const cardColor = config.cardColor ?? '#ffffff';
   const cardOpacity = config.cardOpacity ?? 1;
   const surfaceLabelId = useId();
+  // A custom color (from the picker below) isn't always one of the presets — fall back to tabbing preset 0 so the group stays keyboard-reachable.
+  const hasSelectedColorPreset = SURFACE_COLOR_PRESETS.some(
+    (c) => c === cardColor
+  );
   // Callers are inconsistent about whether `label` already names a color:
   // DiceWidget passes "Die Color"/"Pip Color", while others pass "Surface"
   // or "Card surface". The aria-labels below all append the word "color", so
@@ -45,13 +50,23 @@ export const SurfaceColorSettings = <
           className="flex flex-wrap gap-2"
           role="radiogroup"
           aria-label={`${colorSubject} color`}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, SURFACE_COLOR_PRESETS, (color) =>
+              updateConfig({ cardColor: color } as Partial<T>)
+            )
+          }
         >
-          {SURFACE_COLOR_PRESETS.map((color) => (
+          {SURFACE_COLOR_PRESETS.map((color, idx) => (
             <button
               key={color}
               type="button"
               role="radio"
               aria-checked={cardColor === color}
+              tabIndex={
+                cardColor === color || (!hasSelectedColorPreset && idx === 0)
+                  ? 0
+                  : -1
+              }
               onClick={() => updateConfig({ cardColor: color } as Partial<T>)}
               className={`h-6 w-6 rounded-md border transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                 cardColor === color
