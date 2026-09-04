@@ -2187,6 +2187,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                             const acc: Record<string, unknown> = {};
                             for (const f of LAYOUT_FIELDS)
                               acc[f] = lw[f as keyof WidgetData];
+                            // Pixels are derived from the proportions kept above; taking sw's would paint the stale server size until the next hydration.
+                            acc.x = lw.x;
+                            acc.y = lw.y;
+                            acc.w = lw.w;
+                            acc.h = lw.h;
                             return acc as Partial<WidgetData>;
                           })()
                         : {}),

@@ -440,4 +440,38 @@ describe('DashboardContext per-widget merge', () => {
       expect(wB?.config).toMatchObject({ text: 'server-B' });
     });
   });
+
+  it('REGRESSION: a locally resized widget keeps its pixel size when a stale snapshot arrives', async () => {
+    const stateRef = setup();
+
+    const initialDashboard = makeDashboard([makeWidget('wA', 'a')]);
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // Resize on this device (drag-end commit writes pixels; proportions follow).
+    await act(async () => {
+      stateRef.current?.updateWidget('wA', { w: 400, h: 200 });
+      await Promise.resolve();
+    });
+    const resized = stateRef.current?.activeDashboard?.widgets.find(
+      (w) => w.id === 'wA'
+    );
+    expect(resized?.w).toBe(400);
+    expect(resized?.h).toBe(200);
+
+    // Another device's write lands before this device's save: the server copy
+    // still carries the old size.
+    await pushSnapshot([{ ...initialDashboard, updatedAt: 2000 }]);
+
+    await waitFor(() => {
+      const wA = stateRef.current?.activeDashboard?.widgets.find(
+        (w) => w.id === 'wA'
+      );
+      expect(wA?.w).toBe(400);
+      expect(wA?.h).toBe(200);
+    });
+  });
 });
