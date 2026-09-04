@@ -25,6 +25,43 @@ const monoMeasure: MeasureText = (text, css) => {
   return text.length * (size / 2);
 };
 
+type Mat6 = [number, number, number, number, number, number];
+
+const mul6 = (a: Mat6, b: Mat6): Mat6 => [
+  a[0] * b[0] + a[2] * b[1],
+  a[1] * b[0] + a[3] * b[1],
+  a[0] * b[2] + a[2] * b[3],
+  a[1] * b[2] + a[3] * b[3],
+  a[0] * b[4] + a[2] * b[5] + a[4],
+  a[1] * b[4] + a[3] * b[5] + a[5],
+];
+
+/** Collapses an SVG transform list into one matrix. */
+const parseTransform = (value: string): Mat6 => {
+  let out: Mat6 = [1, 0, 0, 1, 0, 0];
+  for (const m of value.matchAll(/(translate|matrix|scale)\(([^)]*)\)/g)) {
+    const n = m[2]
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    const step: Mat6 =
+      m[1] === 'translate'
+        ? [1, 0, 0, 1, n[0], n[1] ?? 0]
+        : m[1] === 'scale'
+          ? [n[0], 0, 0, n[1] ?? n[0], 0, 0]
+          : [n[0], n[1], n[2], n[3], n[4], n[5]];
+    out = mul6(out, step);
+  }
+  return out;
+};
+
+const applyTransform = (m: Mat6, x: number, y: number): [number, number] => [
+  m[0] * x + m[2] * y + m[4],
+  m[1] * x + m[3] * y + m[5],
+];
+
+const scaleOf = (m: Mat6): number => Math.hypot(m[0], m[1]);
+
 const olfFile = async (
   content: unknown,
   name = 'Lesson.olf'
@@ -673,6 +710,139 @@ describe('convertOlfToBundle', () => {
   });
 });
 
+describe('box element placement', () => {
+  const svgFor = async (element: unknown): Promise<string> => {
+    const file = await olfFile(doc([page([element])]));
+    const result = await convertOlfToBundle(file, { measureText: monoMeasure });
+    return pageSvg((await readBundle(result.blob)).zip);
+  };
+
+  const tagOf = (svg: string, re: RegExp): string => re.exec(svg)?.[0] ?? '';
+  const attrOf = (tag: string, name: string): string =>
+    new RegExp(`${name}="([^"]*)"`).exec(tag)?.[1] ?? '';
+
+  it('offsets a scaled image by x/y after its matrix', async () => {
+    const svg = await svgFor({
+      image: {
+        id: 'img-1',
+        x: 1538.2,
+        y: 517.3,
+        width: 300,
+        height: 300,
+        matrix: '0.6,0,-573.4,0,0.6,-342.7,0,0,1',
+        href: 'data:image/png;base64,iVBORw0KGgo=',
+      },
+    });
+    const tag = tagOf(svg, /<image [^>]*\/>/);
+    expect(attrOf(tag, 'x')).toBe('0');
+    expect(attrOf(tag, 'y')).toBe('0');
+    const m = parseTransform(attrOf(tag, 'transform'));
+    const [x, y] = applyTransform(m, 0, 0);
+    expect(x).toBeCloseTo(964.8, 2);
+    expect(y).toBeCloseTo(174.6, 2);
+    expect(300 * scaleOf(m)).toBeCloseTo(180, 2);
+  });
+
+  it('scales a textarea through its transform, not its font-size', async () => {
+    const svg = await svgFor({
+      textarea: {
+        id: 'ta-1',
+        x: 901.5,
+        y: 95.2,
+        width: 460,
+        height: 29,
+        'custom-data': '',
+        matrix: '1.7,0,0,0,1.7,0,0,0,1',
+        'text-blocks-container': [paragraph([run('Bleistift')], 'p0')],
+      },
+    });
+    const tag = tagOf(svg, /<text [^>]*>/);
+    expect(attrOf(tag, 'x')).toBe('0');
+    expect(attrOf(tag, 'font-size')).toBe('30');
+    const m = parseTransform(attrOf(tag, 'transform'));
+    expect(scaleOf(m)).toBeCloseTo(1.7, 6);
+    const [x, y] = applyTransform(m, 0, Number(attrOf(tag, 'y')));
+    expect(x).toBeCloseTo(901.5, 2);
+    // Baseline is local (0.8em), so it scales with the paragraph.
+    expect(y).toBeCloseTo(95.2 + 24 * 1.7, 2);
+  });
+
+  it('rotates a textarea about its local origin then offsets it', async () => {
+    const svg = await svgFor({
+      textarea: {
+        id: 'ta-rot',
+        x: 30,
+        y: 620,
+        width: 132,
+        height: 75,
+        'custom-data': '',
+        matrix: '0,1.7,0,-1.7,0,0,0,0,1',
+        'text-blocks-container': [paragraph([run('door')], 'p0')],
+      },
+    });
+    const m = parseTransform(attrOf(tagOf(svg, /<text [^>]*>/), 'transform'));
+    // A local point one unit right of the origin rotates to one unit up.
+    const [x, y] = applyTransform(m, 1, 0);
+    expect(x).toBeCloseTo(30, 6);
+    expect(y).toBeCloseTo(620 - 1.7, 6);
+  });
+
+  it('keeps ellipse cx/cy local and offsets them by x/y', async () => {
+    const svg = await svgFor({
+      ellipse: {
+        id: 'el-1',
+        x: 200,
+        y: 300,
+        width: 374,
+        height: 398,
+        cx: 117,
+        cy: 117,
+        rx: 117,
+        ry: 117,
+        stroke: '#0000FF',
+        'stroke-width': 3,
+        matrix: '2,0,0,0,2,0,0,0,1',
+      },
+    });
+    const tag = tagOf(svg, /<ellipse [^>]*\/>/);
+    expect(attrOf(tag, 'cx')).toBe('117');
+    expect(attrOf(tag, 'cy')).toBe('117');
+    const [x, y] = applyTransform(
+      parseTransform(attrOf(tag, 'transform')),
+      117,
+      117
+    );
+    expect(x).toBeCloseTo(434, 6);
+    expect(y).toBeCloseTo(534, 6);
+  });
+
+  it('grows the page using translate(x,y) * matrix, not matrix alone', async () => {
+    // The old rule put this at 100*2+1900 = 2100; the correct one at 1900+200.
+    const content = doc([
+      page([
+        {
+          image: {
+            id: 'img-1',
+            x: 1900,
+            y: 100,
+            width: 100,
+            height: 100,
+            matrix: '2,0,0,0,2,0,0,0,1',
+            href: 'data:image/png;base64,iVBORw0KGgo=',
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { manifest } = await readBundle(result.blob);
+    expect(manifest.pages).toEqual([
+      { file: 'pages/0.svg', width: 2124, height: 1080 },
+    ]);
+  });
+});
+
 describe('convertOlfToBundle against the real sample', () => {
   const exists = SAMPLE_PATH !== '';
 
@@ -837,7 +1007,8 @@ describe('convertOlfToBundle images, ink and shapes', () => {
     expect(svg).toContain('<image');
     expect(svg).toContain('data:image/webp;base64,STUB');
     expect(svg).toContain('width="300"');
-    expect(svg).toContain('transform="matrix(2 0 0 2 5 7)"');
+    expect(svg).toContain('transform="translate(10 20) matrix(2 0 0 2 5 7)"');
+    expect(svg).toContain('<image href="data:image/webp;base64,STUB70" x="0"');
     expect(result.skipped).toEqual({});
   });
 
@@ -1065,13 +1236,74 @@ describe('convertOlfToBundle real .olf samples', () => {
             .exec(svgs[page])
             ?.slice(1) ?? []
         ).map(Number);
-      // Page 1 is text-only and stays anchored at the page origin.
+      // Page 1 stays anchored at the page origin but overflows to the right.
       expect(box(1).slice(0, 2)).toEqual([0, 0]);
+      expect(box(1)[2]).toBeGreaterThan(1920);
       expect(box(1)[3]).toBe(1080);
-      // Pages 0 and 3 hold images placed above and right of the declared page.
-      expect(box(0)[2]).toBeGreaterThan(1920);
-      expect(box(0)[1]).toBeLessThan(0);
+      // Pages 0 and 2 now land inside the declared page; page 3 still overflows.
+      expect(box(0)).toEqual([0, 0, 1920, 1080]);
+      expect(box(2)).toEqual([0, 0, 1920, 1080]);
+      expect(box(3)[0]).toBeLessThan(0);
       expect(box(3)[1]).toBeLessThan(0);
+    }
+  );
+
+  it.skipIf(!fs.existsSync(`${SCRATCH}seating.olf`))(
+    'places seating.olf page 2 boxes at translate(x,y) * matrix * local',
+    async () => {
+      const { svgs } = await convertSample('seating.olf');
+      const svg = svgs[2];
+
+      const attrOf = (tag: string, name: string): string =>
+        new RegExp(`${name}="([^"]*)"`).exec(tag)?.[1] ?? '';
+
+      const images = Array.from(svg.matchAll(/<image [^>]*\/>/g)).map(
+        (m) => m[0]
+      );
+      expect(images).toHaveLength(4);
+
+      // "phone in pocket chart", "smartwatch in backpack", "pencil on desk",
+      // "backpacks in front", in document order.
+      const expected: [number, number, number][] = [
+        [1391.2, 508.3, 271.1],
+        [940.9, 514.2, 242.4],
+        [964.8, 174.6, 180],
+        [1382.1, 134.7, 278.7],
+      ];
+      images.forEach((tag, index) => {
+        const [x, y, size] = expected[index];
+        expect(Number(attrOf(tag, 'x'))).toBe(0);
+        expect(Number(attrOf(tag, 'y'))).toBe(0);
+        expect(Number(attrOf(tag, 'width'))).toBe(300);
+        const t = parseTransform(attrOf(tag, 'transform'));
+        const [rx, ry] = applyTransform(t, 0, 0);
+        expect(Math.abs(rx - x)).toBeLessThan(0.5);
+        expect(Math.abs(ry - y)).toBeLessThan(0.5);
+        expect(Math.abs(300 * scaleOf(t) - size)).toBeLessThan(0.5);
+      });
+
+      // The "Bleistift auf dem Tisch" label sits at its raw x/y, scaled 1.7x.
+      const label = /<g data-olf-id="5a3346b5[^>]*>/.exec(svg)?.[0] ?? '';
+      const labelT = parseTransform(attrOf(label, 'transform'));
+      const [lx, ly] = applyTransform(labelT, 0, 0);
+      expect(Math.abs(lx - 901.5)).toBeLessThan(0.5);
+      expect(Math.abs(ly - 95.2)).toBeLessThan(0.5);
+      expect(scaleOf(labelT)).toBeCloseTo(1.7, 3);
+      // The baseline stays local, so the label's own y is the 19px baseline.
+      const inner = /<text [^>]*y="([\d.]+)"/.exec(
+        svg.slice(svg.indexOf(label))
+      );
+      expect(Number(inner?.[1])).toBeCloseTo(15.2, 3);
+
+      // Strokes keep their absolute page coordinates.
+      const points = /<polyline [^>]*points="([^"]*)"/.exec(svg)?.[1] ?? '';
+      const pairs = points.split(' ').map((p) => p.split(',').map(Number));
+      expect(
+        Math.abs(Math.min(...pairs.map((p) => p[0])) - 1018.8)
+      ).toBeLessThan(0.5);
+      expect(Math.abs(Math.min(...pairs.map((p) => p[1])) - 242)).toBeLessThan(
+        0.5
+      );
     }
   );
 
