@@ -17,6 +17,7 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Dock } from '@/components/layout/Dock';
+import { Z_INDEX } from '@/config/zIndex';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -977,21 +978,36 @@ describe('Dock – annotation overlay guards', () => {
   });
 
   // The dead pointer target had no visible affordance, so a click just drew
-  // an ink dot and read as a broken dock.
+  // an ink dot and read as a broken dock. aria-disabled on a generic div is
+  // ignored and pointer-events:none leaves the buttons keyboard-operable, so
+  // the container is marked inert instead.
   it('marks the dock inert and fades it while a drawing tool is armed', () => {
     setupMocks({ annotationActive: true, annotationTool: 'pen' });
     render(<Dock />);
     const shell = screen.getByTestId('dock');
-    expect(shell).toHaveAttribute('aria-disabled', 'true');
+    expect(shell).toHaveAttribute('inert');
+    expect(shell).not.toHaveAttribute('aria-disabled');
     expect(shell.style.opacity).toBe('0.4');
-    expect(shell.style.cursor).toBe('default');
+    expect(shell.style.pointerEvents).toBe('none');
   });
 
   it('drops the inert state once Select is armed', () => {
     setupMocks({ annotationActive: true, annotationTool: 'select' });
     render(<Dock />);
     const shell = screen.getByTestId('dock');
-    expect(shell).not.toHaveAttribute('aria-disabled');
+    expect(shell).not.toHaveAttribute('inert');
     expect(shell.style.opacity).toBe('1');
+  });
+
+  // Regression: the ink layer sits above the fixed chrome, so the dock has to
+  // outrank it or Select mode leaves every dock button unclickable.
+  it('REGRESSION: the dock outranks the ink layer while annotating', () => {
+    setupMocks({ annotationActive: true, annotationTool: 'select' });
+    render(<Dock />);
+    const shell = screen.getByTestId('dock');
+    expect(Number(shell.style.zIndex)).toBeGreaterThan(
+      Z_INDEX.annotationSurface
+    );
+    expect(shell.style.pointerEvents).not.toBe('none');
   });
 });

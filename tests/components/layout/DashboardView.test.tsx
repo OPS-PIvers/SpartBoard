@@ -2229,17 +2229,59 @@ describe('DashboardView Gestures & Navigation', () => {
       expect(undoAnnotation).not.toHaveBeenCalled();
     });
 
-    // Regression: the zoom surface's transform is a stacking context, so ink
-    // inside it could never paint over the fixed Dock/Sidebar chrome.
-    it('REGRESSION: the zoom surface is lifted over fixed chrome while annotating', () => {
+    // Regression: lifting the whole zoom surface over the fixed chrome put the
+    // world-sized, pointer-events-auto ink canvas on top of the Dock, Sidebar
+    // pill and FAB, so nothing in the chrome could be clicked all session.
+    // Ink now lives in its own sibling layer and the surface stays unlayered.
+    it('REGRESSION: the ink layer is a sibling of the zoom surface, not the surface itself', () => {
       annotationCtx(true);
       const { container } = renderView();
       const surface = container.querySelector<HTMLElement>(
         '#dashboard-zoom-surface'
       );
-      expect(Number(surface?.style.zIndex)).toBeGreaterThan(
-        Z_INDEX.confirmOverlay
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(surface).not.toBeNull();
+      expect(ink).not.toBeNull();
+      expect(ink?.parentElement).toBe(surface?.parentElement);
+      expect(surface?.style.zIndex).toBe('');
+      expect(Number(ink?.style.zIndex)).toBe(Z_INDEX.annotationSurface);
+    });
+
+    it('the ink layer carries the same camera transform as the widget surface', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
       );
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(ink?.style.transform).toBe(surface?.style.transform);
+      expect(ink?.style.transformOrigin).toBe(surface?.style.transformOrigin);
+      expect(surface?.style.transform).toContain('scale(');
+    });
+
+    // A maximized widget carries Z_INDEX.maximized, a bigger number than the
+    // ink layer's — but it is trapped inside the zoom surface's transform
+    // (its own stacking context), so the later sibling still paints above it.
+    it('the ink layer paints over maximized widgets and under modals', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
+      );
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(surface?.style.transform).not.toBe('');
+      expect(
+        surface?.compareDocumentPosition(ink as Node) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(Number(ink?.style.zIndex)).toBeLessThan(Z_INDEX.modal);
+    });
+
+    it('the ink layer never takes the pointer itself', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(ink?.className).toContain('pointer-events-none');
     });
 
     it('leaves the zoom surface unlayered when not annotating', () => {

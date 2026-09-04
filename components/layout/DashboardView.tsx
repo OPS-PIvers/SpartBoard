@@ -1468,6 +1468,10 @@ export const DashboardView: React.FC = () => {
     '--spart-window-title': windowTitle,
   } as React.CSSProperties;
 
+  // One camera for two sibling layers — the widget surface and the ink layer
+  // must move together or ink drifts off the widgets it annotates.
+  const boardCameraTransform = `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`;
+
   return (
     <div
       ref={dashboardRef}
@@ -1524,16 +1528,13 @@ export const DashboardView: React.FC = () => {
         <div className="absolute inset-0 bg-black/10 pointer-events-none" />
       </div>
 
-      {/* ZOOMABLE WIDGET SURFACE: widgets and the annotation canvas get pan/zoom. */}
+      {/* ZOOMABLE WIDGET SURFACE: widgets get pan/zoom. */}
       <div
         id="dashboard-zoom-surface"
         className="absolute inset-0 transition-transform duration-300 ease-out"
         style={{
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+          transform: boardCameraTransform,
           transformOrigin: 'center center',
-          // The transform is a stacking context, so ink inside it can only
-          // outrank the fixed Dock/Sidebar if the surface itself does.
-          zIndex: annotationActive ? Z_INDEX.annotationSurface : undefined,
         }}
       >
         {/* Empty Board Hint */}
@@ -1577,6 +1578,21 @@ export const DashboardView: React.FC = () => {
           updateDashboardSettings={updateDashboardSettings}
         />
       </div>
+
+      {/* INK LAYER: the annotation canvas mounts here, not in the widget
+          surface — lifting that surface over the fixed chrome let the
+          world-sized canvas swallow every Dock/Sidebar/FAB click. Maximized
+          widgets stay trapped in the surface's transform, so this sibling
+          paints over them without outranking modals. */}
+      <div
+        id="dashboard-ink-layer"
+        className="absolute inset-0 transition-transform duration-300 ease-out pointer-events-none"
+        style={{
+          transform: boardCameraTransform,
+          transformOrigin: 'center center',
+          zIndex: Z_INDEX.annotationSurface,
+        }}
+      />
 
       {/* Group-building mode floating action bar */}
       {groupBuildMode &&

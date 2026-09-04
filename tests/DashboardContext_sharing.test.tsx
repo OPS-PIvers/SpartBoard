@@ -1283,5 +1283,103 @@ describe('DashboardContext Sharing Logic', () => {
 
       await waitFor(() => expect(canUndo).toBe(false));
     });
+
+    // Regression: the invalidation compared the remote widgets (PII-scrubbed
+    // and key-sorted by Firestore) against the local ones (PII merged back
+    // in), so every snapshot of a roster-bearing board wiped the undo stack.
+    it('REGRESSION: a PII-only difference does not wipe the undo stack', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const widget = {
+        id: 'w1',
+        type: 'random',
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 100,
+        z: 1,
+        flipped: false,
+        config: { firstNames: 'Ada\nGrace', mode: 'picker' },
+      } as unknown as Dashboard['widgets'][number];
+
+      const linked: Dashboard = {
+        id: 'pii-board',
+        name: 'Roster Board',
+        background: 'bg-slate-800',
+        widgets: [widget],
+        createdAt: 1,
+        linkedShareId: 'share-pii',
+        linkedShareRole: 'collaborator',
+      };
+      initialDashboardsSeed = [linked];
+
+      type Update = ReturnType<typeof useDashboard>['updateWidget'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let update: Update | null = null;
+      let load: Load | null = null;
+      let active: Dashboard | null = null;
+      let canUndo = false;
+
+      const Probe: React.FC = () => {
+        const ctx = useDashboard();
+        useEffect(() => {
+          update = ctx.updateWidget;
+          load = ctx.loadDashboard;
+          active = ctx.activeDashboard;
+          canUndo = ctx.canUndo;
+        });
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(update).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('pii-board');
+      });
+      act(() => {
+        if (update) update('w1', { z: 9 });
+      });
+      await waitFor(() => expect(canUndo).toBe(true));
+
+      // What Firestore would echo back: the same widgets with the roster
+      // stripped and every key re-ordered.
+      const localWidgets = (active as Dashboard | null)?.widgets ?? [];
+      expect(localWidgets).toHaveLength(1);
+      const remoteWidgets = localWidgets.map((w) => {
+        const config = { ...(w.config as Record<string, unknown>) };
+        delete config.firstNames;
+        const reordered = Object.fromEntries(Object.entries(w).reverse());
+        return { ...reordered, config } as unknown as typeof w;
+      });
+
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            widgets: remoteWidgets,
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(canUndo).toBe(true);
+    });
   });
 });

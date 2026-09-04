@@ -108,17 +108,19 @@ const FALLBACK_ANNOTATION_STATE: {
 };
 
 // Horizontal room the fixed Sidebar pill needs at top-left before the toolbar
-// may start; below this viewport width the toolbar is offset instead of centered.
+// may start. Applied at every width: re-centering on the viewport put the
+// toolbar back under the pill on 1440-1728px screens.
 const SIDEBAR_PILL_CLEARANCE_PX = 344;
-const TOOLBAR_CENTERING_MIN_WIDTH_PX = 1400;
+const TOOLBAR_INSET_RIGHT_PX = 16;
 
 /**
  * Full-screen annotation overlay — NOT a widget.
  *
- * The canvas renders inside `#dashboard-zoom-surface` so ink shares the
+ * The canvas renders inside `#dashboard-ink-layer` so ink shares the
  * widgets' pan/zoom camera and stores board coordinates. The toolbar and
- * text editor portal into `#dashboard-root` (fixed, top-center) so they stay
- * outside the transform. No dimming layer; the Dock stays available.
+ * text editor portal into `#dashboard-root` (fixed, centred in the room left
+ * beside the Sidebar pill) so they stay outside the transform. No dimming
+ * layer; the Dock stays available.
  */
 export const AnnotationOverlay: React.FC = () => {
   const { t } = useTranslation();
@@ -163,7 +165,8 @@ export const AnnotationOverlay: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  // Canvas lives in the zoom surface; falls back to the root when absent.
+  // Canvas lives in the dedicated ink layer beside the zoom surface; falls
+  // back to the surface, then the root, when an older shell lacks it.
   const [canvasTarget, setCanvasTarget] = useState<HTMLElement | null>(null);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1280,
@@ -204,7 +207,9 @@ export const AnnotationOverlay: React.FC = () => {
       if (target) {
         setPortalTarget(target);
         setCanvasTarget(
-          document.getElementById('dashboard-zoom-surface') ?? target
+          document.getElementById('dashboard-ink-layer') ??
+            document.getElementById('dashboard-zoom-surface') ??
+            target
         );
         return true;
       }
@@ -722,19 +727,10 @@ export const AnnotationOverlay: React.FC = () => {
         width: worldRect.width,
         height: worldRect.height,
         touchAction: interactive ? 'none' : 'auto',
-        // The zoom surface's transform is its own stacking context, so the ink
-        // must outrank a maximized widget to paint over it.
-        zIndex: Z_INDEX.annotationInk,
       }}
     />,
     canvasTarget
   );
-
-  // Below the centering width the fixed Sidebar pill owns the top-left corner.
-  const toolbarInsetLeft =
-    viewport.width < TOOLBAR_CENTERING_MIN_WIDTH_PX
-      ? SIDEBAR_PILL_CLEARANCE_PX
-      : 16;
 
   const chromePortal = createPortal(
     <div
@@ -760,11 +756,16 @@ export const AnnotationOverlay: React.FC = () => {
         <div
           data-screenshot="exclude"
           className="absolute top-6 flex justify-center pointer-events-none"
-          style={{ left: toolbarInsetLeft, right: 16 }}
+          style={{
+            left: SIDEBAR_PILL_CLEARANCE_PX,
+            right: TOOLBAR_INSET_RIGHT_PX,
+          }}
         >
           <div
             className="pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex flex-wrap items-center justify-center gap-2 overflow-x-auto motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-300"
-            style={{ maxWidth: 'calc(100vw - 2rem)' }}
+            style={{
+              maxWidth: `calc(100vw - ${SIDEBAR_PILL_CLEARANCE_PX + TOOLBAR_INSET_RIGHT_PX}px)`,
+            }}
           >
             <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
               <MousePointer2 className="w-4 h-4 text-indigo-600 motion-safe:animate-pulse" />
