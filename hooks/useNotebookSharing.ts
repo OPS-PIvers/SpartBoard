@@ -43,6 +43,9 @@ export const useNotebookSharing = () => {
         ...(notebook.objectLinks && notebook.objectLinks.length > 0
           ? { objectLinks: notebook.objectLinks }
           : {}),
+        ...(notebook.hiddenPages && notebook.hiddenPages.length > 0
+          ? { hiddenPages: notebook.hiddenPages }
+          : {}),
       };
       const ref = await addDoc(collection(db, 'shared_notebooks'), payload);
       return `${window.location.origin}/share/notebook/${ref.id}`;
@@ -106,6 +109,9 @@ export const useNotebookSharing = () => {
             : {}),
           ...(shared.objectLinks && shared.objectLinks.length > 0
             ? { objectLinks: shared.objectLinks }
+            : {}),
+          ...(shared.hiddenPages && shared.hiddenPages.length > 0
+            ? { hiddenPages: shared.hiddenPages }
             : {}),
         };
 

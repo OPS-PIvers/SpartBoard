@@ -12,12 +12,15 @@ import {
   resolvePageOrder,
   svgDimensions,
 } from './smartNotebook';
+import { normalizeHiddenPages } from './notebookPages';
 
 export interface ParsedNotebook {
   title: string;
   pages: { blob: Blob; extension: string }[];
   assets: { blob: Blob; extension: string }[];
   sections?: NotebookSection[];
+  /** 0-based page indices flagged hidden in a bundle's manifest.json. */
+  hiddenPages?: number[];
   /** Object→page hyperlinks extracted from SMART's `shortcut="page://…"`
    *  attributes, or carried through a pre-converted .spartnb bundle. */
   objectLinks?: NotebookObjectLink[];
@@ -55,6 +58,8 @@ interface BundleManifest {
   pages?: { file: string; width?: number; height?: number }[];
   sections?: NotebookSection[];
   objectLinks?: NotebookObjectLink[];
+  /** 0-based hidden page indices (teacher answer keys). */
+  hiddenPages?: number[];
 }
 
 const parseBundle = async (
@@ -95,12 +100,15 @@ const parseBundle = async (
       ? manifest.objectLinks
       : undefined;
 
+  const hiddenPages = normalizeHiddenPages(manifest.hiddenPages, pages.length);
+
   return {
     title: manifest.title?.trim() ? manifest.title : fallbackTitle,
     pages,
     assets: [], // images are inlined into the page SVGs
     sections,
     objectLinks,
+    hiddenPages: hiddenPages.length > 0 ? hiddenPages : undefined,
   };
 };
 

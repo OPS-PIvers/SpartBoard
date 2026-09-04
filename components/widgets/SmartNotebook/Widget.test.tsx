@@ -266,6 +266,52 @@ describe('SmartNotebookWidget', () => {
     vi.unstubAllGlobals();
   });
 
+  it('opens on the first visible page when page 0 is hidden', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+      })
+    );
+
+    const mockNotebook = {
+      id: 'notebook-1',
+      title: 'My Lesson',
+      pageUrls: ['http://example.com/p1.svg', 'http://example.com/p2.svg'],
+      hiddenPages: [0],
+      createdAt: 123,
+    };
+
+    const activeWidget = {
+      ...mockWidget,
+      config: { activeNotebookId: 'notebook-1' },
+    };
+
+    (firestore.onSnapshot as unknown as Mock).mockImplementation(
+      (_query: unknown, callback: (snapshot: { docs: unknown[] }) => void) => {
+        callback({
+          docs: [
+            {
+              data: () => mockNotebook,
+              id: 'notebook-1',
+            },
+          ],
+        });
+        return vi.fn();
+      }
+    );
+
+    render(<SmartNotebookWidget widget={activeWidget} />);
+
+    expect(screen.getByText('My Lesson')).toBeInTheDocument();
+    // Page 0 is hidden, so the widget should land on page index 1 (page 2).
+    expect(screen.getByText(/Editing · Page 2 of 2/)).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
   it('exposes the assets panel after switching to present mode', () => {
     vi.stubGlobal(
       'fetch',

@@ -3135,6 +3135,12 @@ export interface NotebookItem {
    * object (re-link to refresh).
    */
   objectLinks?: NotebookObjectLink[];
+  /**
+   * 0-based indices of pages hidden from presenting (e.g. teacher answer
+   * keys). Sorted and deduped. Present mode skips these when stepping
+   * through the deck; they remain reachable from the page-jump menu.
+   */
+  hiddenPages?: number[];
 }
 
 export interface NotebookObjectLink {
@@ -3215,6 +3221,8 @@ export interface SharedNotebook {
    * SVG objects' `data-edit-id`s round-trip unchanged through the re-upload.
    */
   objectLinks?: NotebookObjectLink[];
+  /** Hidden page indices, preserved so a copy hides the same answer keys. */
+  hiddenPages?: number[];
   originalAuthor: string;
   sharedAt: number;
 }
