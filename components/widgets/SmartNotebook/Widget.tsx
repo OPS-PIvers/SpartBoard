@@ -30,6 +30,7 @@ import {
   orderBy,
   arrayRemove,
   arrayUnion,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
@@ -590,23 +591,31 @@ export const SmartNotebookWidget: React.FC<{
     return readFreshNotebook(activeNotebook);
   };
 
-  // Add or replace an object→page link. The same {objectId, sourcePage}
-  // pair always maps to ONE hotspot, so any prior entry is removed before
-  // the new one is unioned in. arrayRemove + arrayUnion keep concurrent
-  // writers from clobbering each other the way a read-modify-write would.
+  // Add or replace an object→page link. The same {objectId, sourcePage} pair
+  // always maps to ONE hotspot. This must read-modify-write inside a single
+  // transaction against the server doc — not the local `activeNotebook`
+  // snapshot, which lags the just-completed onSnapshot round trip — or two
+  // saves for the same pair issued before that round trip lands (two tabs,
+  // or a quick re-link) compute the same stale "existing" entry: the second
+  // save's removal becomes a no-op against the server's already-updated
+  // array, leaving a duplicate hotspot for that object/page.
   const handleSaveObjectLink = async (
     link: NotebookObjectLink
   ): Promise<void> => {
     if (!user || !activeNotebook) return;
-    const existing = (activeNotebook.objectLinks ?? []).find(
-      (l) => l.objectId === link.objectId && l.sourcePage === link.sourcePage
-    );
     const ref = doc(db, 'users', user.uid, 'notebooks', activeNotebook.id);
     try {
-      if (existing) {
-        await updateDoc(ref, { objectLinks: arrayRemove(existing) });
-      }
-      await updateDoc(ref, { objectLinks: arrayUnion(link) });
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const current =
+          (snap.data()?.objectLinks as NotebookObjectLink[] | undefined) ?? [];
+        const next = current.filter(
+          (l) =>
+            !(l.objectId === link.objectId && l.sourcePage === link.sourcePage)
+        );
+        next.push(link);
+        tx.update(ref, { objectLinks: next });
+      });
     } catch (err) {
       console.error('Failed to save object link', err);
       addToast('Could not save link', 'error');
