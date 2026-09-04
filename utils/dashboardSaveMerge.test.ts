@@ -155,12 +155,11 @@ describe('mergeDashboardForSave', () => {
   });
 
   it('accepts server settings and libraryOrder when the baseline captured them as undefined', () => {
-    // JSON.stringify(undefined) is undefined, not a string — an uncoalesced
-    // baseline made an untouched board look locally edited forever.
+    // JSON.stringify(undefined) is undefined, so an uncoalesced baseline looked locally edited forever.
     const local = board([]);
     const server = board([], {
       settings: { spotlight: true } as never,
-      libraryOrder: ['w1'],
+      libraryOrder: ['text'],
     });
 
     const merged = mergeDashboardForSave(local, server, {
@@ -170,7 +169,7 @@ describe('mergeDashboardForSave', () => {
     });
 
     expect(merged.settings).toEqual({ spotlight: true });
-    expect(merged.libraryOrder).toEqual(['w1']);
+    expect(merged.libraryOrder).toEqual(['text']);
   });
 
   it('treats an absent field and an explicit null as the same baseline value', () => {
