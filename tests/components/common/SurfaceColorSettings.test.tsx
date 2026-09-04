@@ -46,7 +46,7 @@ describe('SurfaceColorSettings — aria-label composition', () => {
     expect(swatches.length).toBeGreaterThan(0);
     for (const swatch of swatches) {
       const name = swatch.getAttribute('aria-label') ?? '';
-      expect(name).toMatch(/^Select die color #/);
+      expect(name).toMatch(/^Select die color [A-Z]/);
       // Belt and braces: no accessible name may contain "color" twice.
       expect(name.toLowerCase().match(/color/g) ?? []).toHaveLength(1);
     }
@@ -95,14 +95,14 @@ describe('SurfaceColorSettings — aria-label composition', () => {
 describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
   type Cfg = { cardColor?: string; cardOpacity?: number };
 
-  const swatchFor = (color: string) =>
-    screen.getByRole('radio', { name: `Select surface color ${color}` });
+  const swatchFor = (preset: { name: string }) =>
+    screen.getByRole('radio', { name: `Select surface color ${preset.name}` });
 
   it('applies roving tabindex: selected preset=0, others=-1', () => {
     const selected = SURFACE_COLOR_PRESETS[2];
     render(
       <SurfaceColorSettings
-        config={{ cardColor: selected } as Cfg}
+        config={{ cardColor: selected.hex } as Cfg}
         updateConfig={vi.fn()}
       />
     );
@@ -118,52 +118,51 @@ describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
     const updateConfig = vi.fn();
     render(
       <SurfaceColorSettings
-        config={{ cardColor: SURFACE_COLOR_PRESETS[0] } as Cfg}
+        config={{ cardColor: SURFACE_COLOR_PRESETS[0].hex } as Cfg}
         updateConfig={updateConfig}
       />
     );
 
     const first = swatchFor(SURFACE_COLOR_PRESETS[0]);
     const second = swatchFor(SURFACE_COLOR_PRESETS[1]);
-    const last = swatchFor(
-      SURFACE_COLOR_PRESETS[SURFACE_COLOR_PRESETS.length - 1]
-    );
+    const lastPreset = SURFACE_COLOR_PRESETS[SURFACE_COLOR_PRESETS.length - 1];
+    const last = swatchFor(lastPreset);
 
     first.focus();
     fireEvent.keyDown(first, { key: 'ArrowRight' });
     expect(second).toHaveFocus();
     expect(updateConfig).toHaveBeenLastCalledWith({
-      cardColor: SURFACE_COLOR_PRESETS[1],
+      cardColor: SURFACE_COLOR_PRESETS[1].hex,
     });
 
     fireEvent.keyDown(second, { key: 'ArrowLeft' });
     expect(first).toHaveFocus();
     expect(updateConfig).toHaveBeenLastCalledWith({
-      cardColor: SURFACE_COLOR_PRESETS[0],
+      cardColor: SURFACE_COLOR_PRESETS[0].hex,
     });
 
     fireEvent.keyDown(first, { key: 'End' });
     expect(last).toHaveFocus();
     expect(updateConfig).toHaveBeenLastCalledWith({
-      cardColor: SURFACE_COLOR_PRESETS[SURFACE_COLOR_PRESETS.length - 1],
+      cardColor: lastPreset.hex,
     });
 
     fireEvent.keyDown(last, { key: 'Home' });
     expect(first).toHaveFocus();
     expect(updateConfig).toHaveBeenLastCalledWith({
-      cardColor: SURFACE_COLOR_PRESETS[0],
+      cardColor: SURFACE_COLOR_PRESETS[0].hex,
     });
   });
 
   it('keeps exactly one swatch tabbable when cardColor defaults (unset)', () => {
     render(<SurfaceColorSettings config={{} as Cfg} updateConfig={vi.fn()} />);
 
-    const swatches = SURFACE_COLOR_PRESETS.map((c) => swatchFor(c));
-    const tabbable = swatches.filter(
-      (el) => el.getAttribute('tabindex') === '0'
-    );
+    const tabbable = screen
+      .getAllByRole('radio')
+      .filter((el) => el.getAttribute('tabindex') === '0');
     expect(tabbable).toHaveLength(1);
-    expect(tabbable[0]).toBe(swatches[0]);
+    // The unset default (#ffffff) matches the White preset.
+    expect(tabbable[0]).toBe(swatchFor(SURFACE_COLOR_PRESETS[0]));
   });
 
   it('keeps exactly one swatch tabbable when cardColor is a custom (non-preset) value', () => {
@@ -174,11 +173,16 @@ describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
       />
     );
 
-    const swatches = SURFACE_COLOR_PRESETS.map((c) => swatchFor(c));
-    const tabbable = swatches.filter(
-      (el) => el.getAttribute('tabindex') === '0'
-    );
+    const tabbable = screen
+      .getAllByRole('radio')
+      .filter((el) => el.getAttribute('tabindex') === '0');
     expect(tabbable).toHaveLength(1);
-    expect(tabbable[0]).toBe(swatches[0]);
+    expect(tabbable[0]).toBe(swatchFor(SURFACE_COLOR_PRESETS[0]));
+  });
+
+  it('still exposes the custom color input and opacity slider', () => {
+    render(<SurfaceColorSettings config={{} as Cfg} updateConfig={vi.fn()} />);
+    expect(screen.getByLabelText('Custom surface color')).toBeInTheDocument();
+    expect(screen.getByLabelText('Surface opacity')).toBeInTheDocument();
   });
 });

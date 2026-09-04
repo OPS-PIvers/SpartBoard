@@ -23,7 +23,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { FONTS } from '@/config/fonts';
-import { TEXT_COLOR_PRESETS } from '@/config/widgetAppearance';
+import { TEXT_COLOR_SWATCHES } from '@/config/widgetAppearance';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -225,66 +225,70 @@ describe('TypographySettings — radiogroup keyboard contract', () => {
     expect(updateConfig).toHaveBeenLastCalledWith({ fontFamily: undefined });
   });
 
+  const colorSwatch = (preset: { name: string }) =>
+    screen.getByRole('radio', { name: `Select text color ${preset.name}` });
+
   it('applies roving tabindex to the text color radiogroup: selected=0, others=-1', () => {
-    const secondColor = TEXT_COLOR_PRESETS[1];
-    const config: Cfg = { fontColor: secondColor };
+    const second = TEXT_COLOR_SWATCHES[1];
+    const config: Cfg = { fontColor: second.hex };
     render(<TypographySettings config={config} updateConfig={vi.fn()} />);
 
-    expect(
-      screen.getByRole('radio', { name: `Select text color ${secondColor}` })
-    ).toHaveAttribute('tabindex', '0');
-    expect(
-      screen.getByRole('radio', {
-        name: `Select text color ${TEXT_COLOR_PRESETS[0]}`,
-      })
-    ).toHaveAttribute('tabindex', '-1');
+    expect(colorSwatch(second)).toHaveAttribute('tabindex', '0');
+    expect(colorSwatch(TEXT_COLOR_SWATCHES[0])).toHaveAttribute(
+      'tabindex',
+      '-1'
+    );
   });
 
   it('moves focus AND updates config on ArrowRight in the text color radiogroup', () => {
     const updateConfig = vi.fn();
-    const config: Cfg = { fontColor: TEXT_COLOR_PRESETS[0] };
+    const config: Cfg = { fontColor: TEXT_COLOR_SWATCHES[0].hex };
     render(<TypographySettings config={config} updateConfig={updateConfig} />);
 
-    const first = screen.getByRole('radio', {
-      name: `Select text color ${TEXT_COLOR_PRESETS[0]}`,
-    });
-    const second = screen.getByRole('radio', {
-      name: `Select text color ${TEXT_COLOR_PRESETS[1]}`,
-    });
+    const first = colorSwatch(TEXT_COLOR_SWATCHES[0]);
+    const second = colorSwatch(TEXT_COLOR_SWATCHES[1]);
 
     first.focus();
     fireEvent.keyDown(first, { key: 'ArrowRight' });
     expect(second).toHaveFocus();
     expect(updateConfig).toHaveBeenLastCalledWith({
-      fontColor: TEXT_COLOR_PRESETS[1],
+      fontColor: TEXT_COLOR_SWATCHES[1].hex,
     });
   });
 
-  it('keeps exactly one text color swatch tabbable when fontColor is unset (defaults to a non-preset value)', () => {
+  it('checks the Slate preset when fontColor is unset (defaults to #334155)', () => {
     const config: Cfg = {};
     render(<TypographySettings config={config} updateConfig={vi.fn()} />);
 
-    const swatches = TEXT_COLOR_PRESETS.map((color) =>
-      screen.getByRole('radio', { name: `Select text color ${color}` })
+    expect(colorSwatch({ name: 'Slate' })).toHaveAttribute(
+      'aria-checked',
+      'true'
     );
-    const tabbable = swatches.filter(
-      (el) => el.getAttribute('tabindex') === '0'
-    );
-    expect(tabbable).toHaveLength(1);
-    expect(tabbable[0]).toBe(swatches[0]);
+    const tabbable = screen
+      .getAllByRole('radio')
+      .filter((el) => el.getAttribute('tabindex') === '0');
+    // One font radio + one color radio are tabbable.
+    expect(tabbable).toHaveLength(2);
   });
 
   it('keeps exactly one text color swatch tabbable when fontColor is a custom (non-preset) value', () => {
     const config: Cfg = { fontColor: '#123456' };
     render(<TypographySettings config={config} updateConfig={vi.fn()} />);
 
-    const swatches = TEXT_COLOR_PRESETS.map((color) =>
-      screen.getByRole('radio', { name: `Select text color ${color}` })
-    );
+    const swatches = TEXT_COLOR_SWATCHES.map((p) => colorSwatch(p));
     const tabbable = swatches.filter(
       (el) => el.getAttribute('tabindex') === '0'
     );
     expect(tabbable).toHaveLength(1);
     expect(tabbable[0]).toBe(swatches[0]);
+  });
+
+  it('writes the native color input value to fontColor', () => {
+    const updateConfig = vi.fn();
+    render(<TypographySettings config={{}} updateConfig={updateConfig} />);
+    fireEvent.change(screen.getByLabelText('Custom text color'), {
+      target: { value: '#abcdef' },
+    });
+    expect(updateConfig).toHaveBeenLastCalledWith({ fontColor: '#abcdef' });
   });
 });
