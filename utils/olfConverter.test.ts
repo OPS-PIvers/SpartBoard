@@ -12,8 +12,12 @@ import {
 } from './olfConverter';
 import { parseNotebookFile } from './notebookParser';
 
-const SAMPLE_PATH =
-  'C:\\Users\\PAUL~1.IVE\\AppData\\Local\\Temp\\claude\\C--Users-paul-ivers-Desktop-Code-SpartBoard--claude-worktrees-spartboard-realtime-sync-ee34e1\\037b0c15-7e63-4766-a7ef-cb86131dc6cc\\scratchpad\\olf\\sample.olf';
+// Local-only fixtures; every test that reads them is guarded by existsSync.
+const SAMPLE_PATHS = [
+  'C:\\Users\\PAUL~1.IVE\\AppData\\Local\\Temp\\claude\\C--Users-paul-ivers-Desktop-Code-SpartBoard--claude-worktrees-spartboard-realtime-sync-ee34e1\\037b0c15-7e63-4766-a7ef-cb86131dc6cc\\scratchpad\\olf\\sample.olf',
+  'C:\\Users\\paul.ivers\\Desktop\\delete later\\Spielmaterialien, Spielaktivitäten, Spielarten.olf',
+];
+const SAMPLE_PATH = SAMPLE_PATHS.find((p) => fs.existsSync(p)) ?? '';
 
 // Monospace stub: every glyph is exactly half the font size wide.
 const monoMeasure: MeasureText = (text, css) => {
@@ -245,7 +249,7 @@ describe('convertOlfToBundle', () => {
     expect(svg.match(/<text/g)).toHaveLength(2);
   });
 
-  it('splits tabs into tspan cells snapped to 48px tab stops', async () => {
+  it('splits tabs into separate text objects snapped to 48px tab stops', async () => {
     const content = doc([
       page([
         {
@@ -273,6 +277,102 @@ describe('convertOlfToBundle', () => {
     expect(xs).toEqual(['0', '48', '144']);
     expect(svg).toContain('>ab</tspan>');
     expect(svg).toContain('>ef</tspan>');
+    // Each cell is its own draggable object now.
+    expect(svg.match(/<text/g)).toHaveLength(3);
+    expect(svg.match(/<text[^>]* x="0"/g)).toHaveLength(1);
+    expect(svg.match(/<text[^>]* x="48"/g)).toHaveLength(1);
+    expect(svg.match(/<text[^>]* x="144"/g)).toHaveLength(1);
+    expect(svg.match(/data-olf-id="ta-tab-p0-c\d+"/g)).toHaveLength(3);
+    // Font attributes repeat on every element — there is no shared parent.
+    expect(svg.match(/<text[^>]*font-size="30"/g)).toHaveLength(3);
+    expect(svg.match(/<text[^>]*xml:space="preserve"/g)).toHaveLength(3);
+  });
+
+  it('treats a run of 3+ spaces as a column break but keeps shorter runs', async () => {
+    const content = doc([
+      page([
+        {
+          textarea: {
+            id: 'ta-gap',
+            x: 0,
+            y: 0,
+            width: 800,
+            height: 60,
+            'custom-data': '',
+            'text-blocks-container': [paragraph([run('ab cd    ef')])],
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip } = await readBundle(result.blob);
+    const svg = await pageSvg(zip);
+    expect(svg.match(/<text/g)).toHaveLength(2);
+    expect(svg).toContain('>ab cd</tspan>');
+    expect(svg).toContain('>ef</tspan>');
+    // "ab cd" is 5 glyphs = 75px, plus 4 consumed spaces = 60px.
+    const xs = Array.from(svg.matchAll(/<tspan x="([\d.]+)"/g)).map(
+      (m) => m[1]
+    );
+    expect(xs).toEqual(['0', '135']);
+  });
+
+  it('trims a cell and advances its x past the dropped leading spaces', async () => {
+    const content = doc([
+      page([
+        {
+          textarea: {
+            id: 'ta-trim',
+            x: 0,
+            y: 0,
+            width: 800,
+            height: 60,
+            'custom-data': '',
+            'text-blocks-container': [paragraph([run('ab\t  cd  ')])],
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip } = await readBundle(result.blob);
+    const svg = await pageSvg(zip);
+    expect(svg).toContain('>cd</tspan>');
+    expect(svg).not.toContain('>  cd  </tspan>');
+    // Tab stop 48 plus the two 15px spaces that were trimmed away.
+    const xs = Array.from(svg.matchAll(/<tspan x="([\d.]+)"/g)).map(
+      (m) => m[1]
+    );
+    expect(xs).toEqual(['0', '78']);
+  });
+
+  it('leaves a paragraph without column breaks as a single object', async () => {
+    const content = doc([
+      page([
+        {
+          textarea: {
+            id: 'ta-one',
+            x: 5,
+            y: 0,
+            width: 800,
+            height: 60,
+            'custom-data': '',
+            'text-blocks-container': [paragraph([run('ab cd')], 'p0')],
+          },
+        },
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const { zip } = await readBundle(result.blob);
+    const svg = await pageSvg(zip);
+    expect(svg.match(/<text/g)).toHaveLength(1);
+    expect(svg).toContain('data-olf-id="ta-one-p0"');
+    expect(svg).not.toContain('-p0-c');
   });
 
   it('repairs mojibake in the JSON text', async () => {
@@ -457,7 +557,7 @@ describe('convertOlfToBundle', () => {
 });
 
 describe('convertOlfToBundle against the real sample', () => {
-  const exists = fs.existsSync(SAMPLE_PATH);
+  const exists = SAMPLE_PATH !== '';
 
   it.runIf(exists)(
     'converts sample.olf with the expected object mix',
@@ -476,9 +576,16 @@ describe('convertOlfToBundle against the real sample', () => {
       ]);
 
       const svg = await pageSvg(zip);
-      // 3 textareas -> 1 + 3 + 5 paragraphs, of which 2 are empty spacers.
+      // The heading has no column breaks, so it stays one object.
       expect(svg.match(/data-olf-id="9bbae995/g)).toHaveLength(1);
-      expect(svg.match(/data-olf-id="4bc0c20d/g)).toHaveLength(3);
+      // The vocabulary grid's three rows split into 5 + 5 + 4 cells.
+      expect(svg.match(/data-olf-id="4bc0c20d/g)).toHaveLength(14);
+      expect(svg.match(/data-olf-id="4bc0c20d[^"]*-p0-c\d+"/g)).toHaveLength(5);
+      expect(svg.match(/data-olf-id="4bc0c20d[^"]*-p1-c\d+"/g)).toHaveLength(5);
+      expect(svg.match(/data-olf-id="4bc0c20d[^"]*-p2-c\d+"/g)).toHaveLength(4);
+      expect(svg).toContain('>das Spielbrett</tspan>');
+      expect(svg).toContain('>eine Runde aussetzen</tspan>');
+      // The row-label column has one object per non-empty paragraph.
       expect(svg.match(/data-olf-id="dd677dd0/g)).toHaveLength(3);
       expect(svg.match(/<polygon /g)).toHaveLength(1);
       expect(svg).toContain('Ordnen Sie die Ausdrücke ein.');
@@ -530,6 +637,18 @@ describe('paragraph object identity', () => {
     expect(svg).toMatch(/<g data-olf-id="ta-1-p0">.*<\/text><\/g>/);
     // The id lives on the group, not on the text inside it.
     expect(svg.match(/data-olf-id="ta-1-p0"/g)).toHaveLength(1);
+  });
+
+  it('wraps each highlighted cell in its own group', async () => {
+    const svg = await svgFor([
+      paragraph(
+        [run('Lit\tUp', { background: '#FFFFFF00', 'background-opacity': 1 })],
+        'p0'
+      ),
+    ]);
+    expect(svg.match(/<g data-olf-id="ta-1-p0-c\d+"><rect/g)).toHaveLength(2);
+    expect(svg).toContain('>Lit</tspan>');
+    expect(svg).toContain('>Up</tspan>');
   });
 
   it('keeps runs with different highlight colors as separate cells', async () => {
