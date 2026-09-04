@@ -62,7 +62,7 @@ export function scrubDashboardPII(dashboard: Dashboard): Dashboard {
   return { ...dashboard, widgets: scrubWidgetsPII(dashboard.widgets) };
 }
 
-/** The widget half of `scrubDashboardPII` — what Firestore actually stores. */
+/** Widget-level scrub, for callers holding widgets without a whole dashboard. */
 export function scrubWidgetsPII(widgets: WidgetData[]): WidgetData[] {
   return widgets.map((widget) => {
     const config = { ...(widget.config as Record<string, unknown>) };

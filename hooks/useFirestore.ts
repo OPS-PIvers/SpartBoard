@@ -11,10 +11,17 @@ import {
   onSnapshot,
   query,
   orderBy,
+  runTransaction,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import {
+  mergeDashboardForSave,
+  type SaveBaseline,
+} from '@/utils/dashboardSaveMerge';
+import { migrateBoardForCollections } from '@/utils/collectionsMigration';
+import { migrateDashboardWidgets } from '@/utils/migrateProportionalLayout';
 import {
   Dashboard,
   SharedBoardIntendedMode,
@@ -270,6 +277,38 @@ function mapSharedDocToDashboard(
   };
 }
 
+/**
+ * Bring a raw server doc up to the same shape the snapshot path produces
+ * before merging against it. Without this the merge folds an un-migrated
+ * legacy doc back in — widgets with no proportional bounds, boards with no
+ * `collectionId` — and writes that regression to Firestore.
+ */
+const normalizeServerBoard = (board: Dashboard): Dashboard => {
+  const withCollections = migrateBoardForCollections(board);
+  const widgets = migrateDashboardWidgets(
+    withCollections.widgets ?? [],
+    withCollections.viewportWidth,
+    withCollections.viewportHeight
+  );
+  return widgets === withCollections.widgets
+    ? withCollections
+    : { ...withCollections, widgets };
+};
+
+/** The only Firestore codes that mean "no server round trip happened". */
+const OFFLINE_ERROR_CODES = new Set(['unavailable', 'deadline-exceeded']);
+
+/**
+ * Firestore transactions reject outright while offline; a blind write queues
+ * instead. Gated on the error code alone — `navigator.onLine === false` may
+ * corroborate but must never stand in for it, or a permission-denied
+ * transaction while offline would fall through to a blind overwrite.
+ */
+const isOfflineError = (err: unknown): boolean => {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && OFFLINE_ERROR_CODES.has(code);
+};
+
 export const useFirestore = (userId: string | null) => {
   const dashboardsRef = useMemo(
     () =>
@@ -293,7 +332,11 @@ export const useFirestore = (userId: string | null) => {
   }, [dashboardsRef]);
 
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<number> => {
+    async (
+      dashboard: Dashboard,
+      baseline?: SaveBaseline,
+      onDeferredWriteFailed?: (err: unknown) => void
+    ): Promise<number> => {
       if (isAuthBypass) {
         mockStore.saveDashboard(dashboard);
         return Date.now();
@@ -302,10 +345,49 @@ export const useFirestore = (userId: string | null) => {
       if (!dashboardsRef) throw new Error('User not authenticated');
       const docRef = doc(dashboardsRef, dashboard.id);
       const updatedAt = Date.now();
-      await setDoc(docRef, {
-        ...dashboard,
-        updatedAt,
-      });
+      if (!baseline) {
+        await setDoc(docRef, { ...dashboard, updatedAt });
+        return updatedAt;
+      }
+      // Another device may have written since this one last synced; merge
+      // inside the transaction so that write survives. The merge runs on every
+      // baselined save rather than only when `updatedAt` moved: this device's
+      // own merged write advances the server timestamp to a value it then
+      // treats as its own, so a timestamp gate would let the very next save
+      // blind-write over the edit that was just folded in. When the server
+      // still matches the baseline the merge is a no-op by construction —
+      // every field either changed locally (keep local) or matches the server.
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(docRef);
+          const server = snap.exists()
+            ? normalizeServerBoard({ ...snap.data(), id: snap.id } as Dashboard)
+            : null;
+          const toWrite = server
+            ? mergeDashboardForSave(dashboard, server, baseline)
+            : dashboard;
+          tx.set(docRef, { ...toWrite, updatedAt });
+        });
+      } catch (err) {
+        // A transaction needs a live server read, so it fails outright offline
+        // where the old blind `setDoc` queued and flushed on reconnect. Fall
+        // back to that. Deliberately not awaited: an offline `setDoc` only
+        // settles once it reaches the server, which would hang the caller's
+        // save (and its saving indicator) for the whole outage.
+        if (!isOfflineError(err)) throw err;
+        // The caller has already advanced its saved baseline by the time this
+        // settles, so a rejection has to be reported back or the edit is
+        // silently lost with no toast and no retry.
+        void setDoc(docRef, { ...dashboard, updatedAt }).catch(
+          (writeErr: unknown) => {
+            console.error(
+              '[useFirestore] Deferred offline save never landed:',
+              writeErr
+            );
+            onDeferredWriteFailed?.(writeErr);
+          }
+        );
+      }
       return updatedAt;
     },
     [dashboardsRef]

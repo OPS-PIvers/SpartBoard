@@ -48,7 +48,8 @@ let capturedSnapshotCb: SnapshotCb | null = null;
 // load effect's re-subscriptions leave `loading` stuck true.
 let latestSnapshot: Dashboard[] | null = null;
 
-const mockSaveDashboard = vi.fn<(d: unknown) => Promise<number>>();
+const mockSaveDashboard =
+  vi.fn<(d: unknown, baseline?: unknown) => Promise<number>>();
 
 // Stable singleton for the same reason as authMock above.
 const firestoreMock = {
@@ -146,6 +147,8 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 // ---------------------------------------------------------------------------
 
 import type { DrawableObject, TextObject } from '@/types';
+import { mergeDashboardForSave } from '@/utils/dashboardSaveMerge';
+import type { SaveBaseline } from '@/utils/dashboardSaveMerge';
 import {
   ANNOTATION_HARD_LIMIT_BYTES,
   ANNOTATION_SOFT_LIMIT_BYTES,
@@ -517,6 +520,52 @@ describe('DashboardContext annotation persistence', () => {
         .objects.map((o) => o.id)
         .sort()
     ).toEqual(['X', 'Y', 'Z']);
+  });
+
+  // Regression: the snapshot merge kept local ink but still advanced the
+  // dashboardFields baseline to the server overlay, so the next transactional
+  // save read the kept ink as unchanged and wrote the server's copy back.
+  it('REGRESSION: kept-local ink is still changed-locally in the next save baseline', async () => {
+    const get = await mount([]);
+    act(() => {
+      get().addAnnotationObject(rect('keep'));
+    });
+    const cb = capturedSnapshotCb;
+    if (!cb) throw new Error('Provider not mounted');
+    const serverBoard = board([rect('remote', 'other')]);
+    await act(async () => {
+      cb([serverBoard], false);
+      await Promise.resolve();
+    });
+    expect(
+      get()
+        .objects.map((o) => o.id)
+        .sort()
+    ).toEqual(['keep', 'remote']);
+
+    await waitFor(() => expect(mockSaveDashboard).toHaveBeenCalled(), {
+      timeout: 6000,
+    });
+    const [local, baseline] = mockSaveDashboard.mock.calls.at(-1) as [
+      Dashboard,
+      SaveBaseline | undefined,
+    ];
+    expect(baseline).toBeDefined();
+    // The baseline must not have advanced to the server overlay the merge
+    // just declined to adopt wholesale.
+    const baselineInk = JSON.parse(
+      (baseline as SaveBaseline).dashboardFields.annotationOverlay ?? 'null'
+    ) as { objects?: DrawableObject[] } | null;
+    expect(baselineInk?.objects ?? []).toEqual([]);
+    const merged = mergeDashboardForSave(
+      local,
+      serverBoard,
+      baseline as SaveBaseline
+    );
+    expect(merged.annotationOverlay?.objects.map((o) => o.id).sort()).toEqual([
+      'keep',
+      'remote',
+    ]);
   });
 
   it('trash clears everything, including pre-session ink', async () => {
