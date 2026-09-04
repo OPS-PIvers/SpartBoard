@@ -162,7 +162,9 @@ export const useNotebookZoomGestures = (zoom: NotebookZoom): void => {
       e.preventDefault();
       e.stopPropagation();
       if (e.deltaY === 0) return;
-      zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
+      // Clamp so a 100-unit mouse notch is ~1.25x while trackpad pinch deltas stay fine.
+      const delta = Math.max(-50, Math.min(50, e.deltaY));
+      zoomAt(e.clientX, e.clientY, Math.exp(-delta * 0.0045));
     };
 
     let pinch: { distance: number; x: number; y: number } | null = null;
