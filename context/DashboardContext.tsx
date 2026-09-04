@@ -3044,10 +3044,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         mode === 'hidden'
           ? saveDashboard(active, buildSaveBaseline(active.id))
           : saveDashboard(active, undefined, { skipDrive: true });
-      void write.catch((err) => {
-        console.error('Flush save failed:', err);
-        oldestUnsavedEditAtRef.current ??= Date.now();
-      });
+      // Mirrors the normal debounced save's success handler: without
+      // advancing lastSaved*Ref here, they stay pinned to the pre-flush
+      // snapshot forever, so the onSnapshot merge keeps comparing every
+      // future incoming snapshot against a stale baseline — permanently
+      // treating this already-synced board as "changed locally" and
+      // discarding any later legitimate remote edit to the same widget.
+      const { serializedData: savedData, fields: savedFields } =
+        getDashboardSaveState(active);
+      const baselineGenerationAtSave = baselineGenerationRef.current;
+      void write.then(
+        () => {
+          // Skip if a snapshot merge advanced the baseline while this was in
+          // flight — that merge already holds the more current truth.
+          if (baselineGenerationRef.current === baselineGenerationAtSave) {
+            lastSavedDataRef.current = savedData;
+            lastSavedFieldsRef.current = savedFields;
+          }
+        },
+        (err) => {
+          console.error('Flush save failed:', err);
+          oldestUnsavedEditAtRef.current ??= Date.now();
+        }
+      );
     };
     const onTeardown = () => flushPendingSave('teardown');
     const onVisibilityChange = () => {
