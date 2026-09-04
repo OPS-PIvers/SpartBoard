@@ -6,73 +6,132 @@ on:
       - main
   workflow_dispatch:
 
+# Never run two production deploys at once; a newer main commit waits for the
+# in-flight one to finish rather than cancelling it mid-release.
+concurrency:
+  group: ${{ github.workflow }}-production
+  cancel-in-progress: false
+
+env:
+  VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+  VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+  VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+  VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+  VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+  VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+  VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
+  VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+  VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
+  VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
+
 jobs:
-  build-and-deploy:
+  # Same parallel layout as the dev-branch workflow: every check runs on its
+  # own runner and deploy waits for all of them.
+  lint:
     runs-on: ubuntu-24.04
+    name: lint (${{ matrix.check }})
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [app, functions, format]
     steps:
-      - name: Checkout repository
-        # Immutable version pin (was the floating @v6 tag) for supply-chain
-        # hygiene, matching the action-hosting-deploy pin below.
-        uses: actions/checkout@v6.0.3
-
-      - name: Setup Node.js and pnpm
-        uses: ./.github/actions/setup
-
-      - name: Run unit tests
-        run: pnpm run test:all
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'test-key' }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || 'test.firebaseapp.com' }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID || 'test-project' }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET || 'test.appspot.com' }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789' }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || '1:123456789:web:abc123' }}
-          VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY || 'test-key' }}
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID || 'test-client-id' }}
-          VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
-          VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID || 'test-client-id' }}
-
-      - name: Run type check
-        run: pnpm run type-check:all
-
-      - name: Run linter
-        # `pnpm run lint` runs two SEPARATE type-aware ESLint passes in their
-        # own processes: the root app (root tsconfig) and functions/ (functions
-        # tsconfig). Splitting them means peak heap is bounded by the larger
-        # single TS program (the app, ~4.5GB measured) instead of both programs
-        # held in one process (which previously needed a 6144MB cap). 5120MB
-        # leaves comfortable headroom above the measured peak. Rule coverage is
-        # unchanged — see eslint.config.js and functions/eslint.config.mjs.
-        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint
-
-      - name: Check code formatting
+      - uses: actions/checkout@v6.0.3
+      - uses: ./.github/actions/setup
+      # Type-aware ESLint on the root app holds a ~4.5GB TS program; 5120MB leaves headroom.
+      - if: matrix.check == 'app'
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
+      - if: matrix.check == 'functions'
+        run: pnpm run lint:functions
+      - if: matrix.check == 'format'
         run: pnpm run format:check
 
-      # test:all doesn't include test:rules; without this a firestore.rules regression could reach prod unverified.
+  type-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: ./.github/actions/setup
+      - run: pnpm run type-check:all
+
+  test:
+    runs-on: ubuntu-24.04
+    name: test (shard ${{ matrix.shard }}/3)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: ./.github/actions/setup
+      - run: pnpm run test:shard --shard=${{ matrix.shard }}/3 --outputFile=.vitest-reports/root-shard-${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-report-shard-${{ matrix.shard }}
+          path: .vitest-reports/root-shard-${{ matrix.shard }}.json
+          retention-days: 1
+
+  # Functions suite (~5s) plus the merged-shard count guard from scripts/checkTestCounts.mjs.
+  test-counts:
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-report-shard-*
+          path: .vitest-reports/shards
+          merge-multiple: true
+      - run: pnpm run test:merge-reports .vitest-reports/root.json .vitest-reports/shards/root-shard-*.json
+      - run: pnpm -C functions test
+      - run: pnpm run test:counts
+
+  # test:all doesn't include test:rules; without this a firestore.rules regression could reach prod unverified.
+  rules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: ./.github/actions/setup
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-
+      - name: Cache Firestore emulator jar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
       - name: Run Firestore rules tests
         run: pnpm run test:rules
 
-      - name: Create .env file for Vite and Firebase
-        run: |
-          echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
-          echo "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}" >> .env
-          echo "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}" >> .env
-          echo "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}" >> .env
-          echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
-          echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env
-          echo "VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY }}" >> .env
-          echo "VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}" >> .env
-          echo "VITE_PEXELS_API_KEY=${{ secrets.VITE_PEXELS_API_KEY }}" >> .env
-          echo "VITE_SPOTIFY_CLIENT_ID=${{ secrets.VITE_SPOTIFY_CLIENT_ID }}" >> .env
-
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: ./.github/actions/setup
       - name: Build project
         run: pnpm run build:all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            dist
+            functions/lib
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    needs: [lint, type-check, test, test-counts, rules, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: ./.github/actions/setup
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
 
       # Deploy backend (rules, indexes, functions, storage) BEFORE hosting.
       # Reason: a new Firestore composite index isn't usable until it
@@ -104,9 +163,9 @@ jobs:
         # FirebaseExtended/action-hosting-deploy@v0.10.0, whose OWN bundled
         # (older) firebase-tools hits "premature close" on googleapis
         # token/cloudfunctions calls under the current GitHub runner image —
-        # the same root cause that broke the 15.8.0 backend deploy. The build
-        # already ran above (firebase.json has no predeploy hook), so this
-        # just releases the built dist to the live channel.
+        # the same root cause that broke the 15.8.0 backend deploy. dist was
+        # built in the parallel build job (firebase.json has no predeploy
+        # hook), so this just releases it to the live channel.
         # Idempotent: when the built bundle is byte-identical to the current
         # live version, firebase rejects the re-release with 400 "is the current
         # active version". That's a no-op success (backend/workflow/docs-only
