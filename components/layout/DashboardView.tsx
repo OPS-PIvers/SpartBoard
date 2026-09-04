@@ -27,6 +27,7 @@ import {
   isNotebookImportFile,
 } from '@/utils/notebookImport';
 import { uploadParsedNotebook } from '@/utils/notebookUpload';
+import { getAdminBuildingConfig } from '@/utils/adminBuildingConfig';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
@@ -256,7 +257,7 @@ function resolveTargetWidgetId(topWidgetId: string): string | null {
 
 export const DashboardView: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, featurePermissions, selectedBuildings } = useAuth();
   const { showConfirm } = useDialog();
   const {
     activeDashboard,
@@ -1302,6 +1303,22 @@ export const DashboardView: React.FC = () => {
       const notebookFile = files.find((f) => isNotebookImportFile(f.name));
       if (notebookFile && user) {
         e.preventDefault();
+        // Same admin storage cap the Library Import button enforces (0 = no limit).
+        const rawLimit = getAdminBuildingConfig(
+          'smartNotebook',
+          featurePermissions,
+          selectedBuildings
+        ).storageLimitMb;
+        const limitMb = Math.max(
+          0,
+          typeof rawLimit === 'number' && Number.isFinite(rawLimit)
+            ? rawLimit
+            : 50
+        );
+        if (limitMb > 0 && notebookFile.size > limitMb * 1024 * 1024) {
+          addToast(t('toasts.notebookTooLarge', { limit: limitMb }), 'error');
+          return;
+        }
         const defaults = WIDGET_DEFAULTS.smartNotebook;
         const w = defaults.w ?? 600;
         const h = defaults.h ?? 500;

@@ -512,7 +512,9 @@ const layoutParagraph = (
     a.weight === b.weight &&
     a.style === b.style &&
     a.decoration === b.decoration &&
-    a.fill?.hex === b.fill?.hex;
+    a.fill?.hex === b.fill?.hex &&
+    a.background?.hex === b.background?.hex &&
+    a.backgroundOpacity === b.backgroundOpacity;
 
   runs.forEach((run) => {
     const style = readRunStyle(run, paragraphSize);

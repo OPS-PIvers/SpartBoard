@@ -532,6 +532,21 @@ describe('paragraph object identity', () => {
     expect(svg.match(/data-olf-id="ta-1-p0"/g)).toHaveLength(1);
   });
 
+  it('keeps runs with different highlight colors as separate cells', async () => {
+    const svg = await svgFor([
+      paragraph(
+        [
+          run('Red', { background: '#FFFF0000', 'background-opacity': 1 }),
+          run('Blue', { background: '#FF0000FF', 'background-opacity': 1 }),
+        ],
+        'p0'
+      ),
+    ]);
+    expect(svg).toContain('fill="#ff0000"');
+    expect(svg).toContain('fill="#0000ff"');
+    expect(svg.match(/<tspan/g)).toHaveLength(2);
+  });
+
   it('emits a bare text element when there are no highlights', async () => {
     const svg = await svgFor([paragraph([run('Plain')], 'p0')]);
     expect(svg).not.toContain('<g data-olf-id=');

@@ -1211,6 +1211,7 @@
     "switchBoardToUndo": "Wechsle zurück zu dieser Tafel, um das rückgängig zu machen",
     "notebookImporting": "Lektion wird importiert…",
     "notebookImportFailed": "Lektion konnte nicht importiert werden",
+    "notebookTooLarge": "Lektionsdatei ist zu groß (max. {{limit}} MB)",
     "classLink": {
       "fetchFailed": "Abruf von ClassLink fehlgeschlagen. Prüfe die Konsole.",
       "imported": "{{name}} importiert",

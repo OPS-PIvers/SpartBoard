@@ -1211,6 +1211,7 @@
     "switchBoardToUndo": "Revenez à ce tableau pour annuler cette action",
     "notebookImporting": "Importation de la leçon…",
     "notebookImportFailed": "Échec de l'importation de la leçon",
+    "notebookTooLarge": "Le fichier de la leçon est trop volumineux (max {{limit}} Mo)",
     "classLink": {
       "fetchFailed": "Échec de la récupération depuis ClassLink. Consultez la console.",
       "imported": "{{name}} importée",
