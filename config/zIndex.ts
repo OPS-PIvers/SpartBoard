@@ -23,6 +23,7 @@ export const Z_INDEX = {
   widget: 100, // Standard widget level (DraggableWindow uses this as base + widget.z)
   widgetDrag: 500, // Widget being dragged
   maximized: 10500, // Maximized widget
+  annotationInk: 10600, // Ink canvas inside the zoom surface (above maximized widgets)
 
   // System UI layers
   dock: 1000, // Dock bar
@@ -34,6 +35,8 @@ export const Z_INDEX = {
   backdrop: 9900, // Dimmed backgrounds
   overlay: 9910, // Full-screen overlays (e.g. DrawingWidget)
   confirmOverlay: 9950, // Confirmation dialogs within widgets
+  annotationSurface: 9960, // Zoom surface lifted over fixed chrome while annotating
+  annotationChrome: 9970, // Annotation toolbar / text editor (above the lifted surface)
   announcementOverlay: 9985, // Windowed announcements
   announcementMaximized: 9990, // Maximized announcements
   snapPreview: 9998, // Drag-to-edge visual preview

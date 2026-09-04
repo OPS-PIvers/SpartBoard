@@ -297,6 +297,45 @@ describe('DashboardContext annotation save cadence', () => {
     expect(exportDashboardMock).toHaveBeenCalledTimes(1);
   });
 
+  // The 3s unsaved-edit ceiling clamped the 2.5s ink debounce, so sustained
+  // drawing forced a whole-document transactional write roughly every 3s.
+  // Ink-only edits now get a 15s ceiling instead.
+  it('REGRESSION: sustained inking does not force a full write every 3 seconds', async () => {
+    const stateRef = await setup();
+
+    // Ten seconds of steady inking, one stroke per second — every stroke
+    // lands inside the 2.5s debounce window, so nothing should be written.
+    for (let i = 0; i < 10; i++) {
+      act(() => {
+        stateRef.current?.addAnnotationObject(stroke(`s${i}`));
+      });
+      await advance(1000);
+    }
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+
+    // Past the 15s ink ceiling the write is forced even with strokes arriving.
+    for (let i = 10; i < 16; i++) {
+      act(() => {
+        stateRef.current?.addAnnotationObject(stroke(`s${i}`));
+      });
+      await advance(1000);
+    }
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+  });
+
+  // The longer ceiling is ink-only: a widget edit keeps the 3s bound.
+  it('a widget edit still hits the 3s unsaved-edit ceiling', async () => {
+    const stateRef = await setup();
+
+    for (let i = 0; i < 5; i++) {
+      act(() => {
+        stateRef.current?.updateWidget('w1', { z: 5 + i });
+      });
+      await advance(700);
+    }
+    expect(saveDashboardMock).toHaveBeenCalled();
+  });
+
   // Strokes no longer reschedule the export, so cancelling on every effect
   // re-run would let a long annotation session postpone a queued widget edit
   // out of Drive forever. The queued export survives the whole session.

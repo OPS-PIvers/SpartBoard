@@ -8,6 +8,7 @@ import {
   type DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import { useLiveSession } from '@/hooks/useLiveSession';
+import { Z_INDEX } from '@/config/zIndex';
 import { Dashboard } from '@/types';
 
 // The canvas hot path (BoardCanvas's group overlay, DraggableWindow) reads
@@ -144,6 +145,10 @@ vi.mock('@/components/layout/Dock', () => ({
 }));
 vi.mock('@/components/announcements/AnnouncementOverlay', () => ({
   AnnouncementOverlay: () => <div data-testid="announcement-overlay" />,
+}));
+// Its own suite covers the ink surface; here it would only drag in Drive/canvas I/O.
+vi.mock('@/components/layout/AnnotationOverlay', () => ({
+  AnnotationOverlay: () => null,
 }));
 vi.mock('@/components/widgets/WidgetRenderer', () => ({
   WidgetRenderer: () => <div data-testid="widget">Widget</div>,
@@ -2153,6 +2158,97 @@ describe('DashboardView Gestures & Navigation', () => {
       await waitFor(() => expect(openedEvents).toHaveLength(1));
 
       window.removeEventListener('spart:cheatsheet-opened', spy);
+    });
+  });
+
+  describe('annotation overlay integration', () => {
+    const collectionsStub = {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    };
+
+    const annotationCtx = (annotationActive: boolean) => {
+      const undoWidgets = vi.fn();
+      const redoWidgets = vi.fn();
+      const undoAnnotation = vi.fn();
+      const redoAnnotation = vi.fn();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        activeDashboard: mockDashboards[1],
+        dashboards: mockDashboards,
+        toasts: [],
+        loadDashboard: mockLoadDashboard,
+        removeToast: vi.fn(),
+        addToast: vi.fn(),
+        setSelectedWidgetId: vi.fn(),
+        zoom: 1,
+        setZoom: vi.fn(),
+        annotationActive,
+        undoWidgets,
+        redoWidgets,
+        undoAnnotation,
+        redoAnnotation,
+        canUndoAnnotation: true,
+        canRedoAnnotation: true,
+        collectionsApi: collectionsStub,
+      });
+      return { undoWidgets, redoWidgets, undoAnnotation, redoAnnotation };
+    };
+
+    // Regression: Ctrl+Z while the annotation toolbar was open ran the board's
+    // widget undo, so a teacher correcting a stroke lost a widget instead.
+    it('REGRESSION: Ctrl+Z undoes ink, not widgets, while annotating', () => {
+      const { undoWidgets, undoAnnotation } = annotationCtx(true);
+      renderView();
+      fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+      expect(undoAnnotation).toHaveBeenCalledTimes(1);
+      expect(undoWidgets).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Shift+Z and Ctrl+Y redo ink while annotating', () => {
+      const { redoWidgets, redoAnnotation } = annotationCtx(true);
+      renderView();
+      fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+      fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
+      expect(redoAnnotation).toHaveBeenCalledTimes(2);
+      expect(redoWidgets).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Z still undoes widgets when the toolbar is closed', () => {
+      const { undoWidgets, undoAnnotation } = annotationCtx(false);
+      renderView();
+      fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+      expect(undoWidgets).toHaveBeenCalledTimes(1);
+      expect(undoAnnotation).not.toHaveBeenCalled();
+    });
+
+    // Regression: the zoom surface's transform is a stacking context, so ink
+    // inside it could never paint over the fixed Dock/Sidebar chrome.
+    it('REGRESSION: the zoom surface is lifted over fixed chrome while annotating', () => {
+      annotationCtx(true);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
+      );
+      expect(Number(surface?.style.zIndex)).toBeGreaterThan(
+        Z_INDEX.confirmOverlay
+      );
+    });
+
+    it('leaves the zoom surface unlayered when not annotating', () => {
+      annotationCtx(false);
+      const { container } = renderView();
+      const surface = container.querySelector<HTMLElement>(
+        '#dashboard-zoom-surface'
+      );
+      expect(surface?.style.zIndex).toBe('');
     });
   });
 

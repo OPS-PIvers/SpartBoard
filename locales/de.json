@@ -1204,6 +1204,7 @@
     "imageTooLarge": "Bild zu groß (max. 5 MB)",
     "backgroundUploaded": "Benutzerdefinierter Hintergrund in die Cloud hochgeladen",
     "settingsSaved": "Einstellungen erfolgreich gespeichert",
+    "switchBoardToUndo": "Wechsle zurück zu dieser Tafel, um das rückgängig zu machen",
     "classLink": {
       "fetchFailed": "Abruf von ClassLink fehlgeschlagen. Prüfe die Konsole.",
       "imported": "{{name}} importiert",
@@ -2208,6 +2209,12 @@
       "scorePending": "Your score is being prepared. Check back soon."
     }
   },
+  "annotation": {
+    "clearConfirmBody": "Alle Anmerkungen auf dieser Tafel löschen? Das kann nicht rückgängig gemacht werden.",
+    "clearConfirmTitle": "Anmerkungen löschen",
+    "clearConfirmAction": "Löschen",
+    "chromeInertHint": "Wähle „Auswahl“, um das Dock wieder zu nutzen"
+  },
   "helpCenter": {
     "title": "Hilfe",
     "widgetHelp": "Anleitungen für dieses Widget",
@@ -2251,6 +2258,8 @@
       "open-help": "Hilfe öffnen",
       "switch-boards": "Tafel wechseln",
       "zoom-board": "Tafel vergrößern und verkleinern",
+      "undo": "Letzte Änderung an der Tafel rückgängig machen",
+      "redo": "Rückgängig gemachte Änderung wiederherstellen (auch Strg+Y)",
       "pin-widget": "Widget anheften / lösen",
       "widget-settings": "Widget-Einstellungen öffnen / schließen",
       "annotate": "Zeichenmodus umschalten",

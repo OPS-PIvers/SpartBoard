@@ -52,6 +52,16 @@ describe('helpShortcuts data', () => {
     expect(nudge?.keys).toEqual(['Arrow keys']);
   });
 
+  // #2811 shipped board undo/redo but the audit table never listed them.
+  it('documents the board undo/redo chords from DashboardView', () => {
+    const undo = HELP_SHORTCUTS.find((s) => s.id === 'undo');
+    expect(undo?.keys).toEqual(['Ctrl/⌘', 'Z']);
+    expect(undo?.group).toBe('board');
+    const redo = HELP_SHORTCUTS.find((s) => s.id === 'redo');
+    expect(redo?.keys).toEqual(['Ctrl/⌘', 'Shift', 'Z']);
+    expect(redo?.group).toBe('board');
+  });
+
   it('does not document background two-finger swipe-down (SWIPE_MINIMIZE_ENABLED is false)', () => {
     const bg = HELP_GESTURES.find((g) => g.id === 'two-finger-swipe-down');
     expect(bg).toBeUndefined();

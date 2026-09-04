@@ -834,6 +834,7 @@ export const Dock: React.FC = () => {
       data-role="dock"
       data-testid="dock"
       data-screenshot="exclude"
+      aria-disabled={inkingOwnsPointer || undefined}
       className={`fixed ${containerPositionClasses} z-dock flex items-center gap-4 transition-all duration-300 select-none ${
         isDragCollapsing ? 'transition-none' : 'ease-out'
       }`}
@@ -844,8 +845,10 @@ export const Dock: React.FC = () => {
         // ...but never steal the pen: with a drawing tool selected the dock
         // must let strokes through. Switching to Select re-arms it.
         pointerEvents: inkingOwnsPointer ? 'none' : undefined,
+        cursor: inkingOwnsPointer ? 'default' : undefined,
         transform: `${baseTransform} ${dragTransform} scale(${scaleFactor})`,
-        opacity: 1 - Math.min(dragOffset / 400, 0.4),
+        // Faded so the dead pointer target reads as deliberate, not broken.
+        opacity: inkingOwnsPointer ? 0.4 : 1 - Math.min(dragOffset / 400, 0.4),
         touchAction: isVerticalDock ? 'pan-y' : 'pan-x',
       }}
     >

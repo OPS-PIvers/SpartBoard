@@ -1200,5 +1200,88 @@ describe('DashboardContext Sharing Logic', () => {
       );
       expect(mirroredInk.map((o) => o.id)).not.toContain('persisted');
     });
+
+    // Regression: the mirror apply swapped in the remote widgets without
+    // clearing the board's undo stack (unlike the Firestore snapshot path),
+    // so the host's next Ctrl+Z deleted a co-teacher's widgets.
+    it('REGRESSION: a remote widget change invalidates the local undo stack', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const widget = {
+        id: 'w1',
+        type: 'text',
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 100,
+        z: 1,
+        flipped: false,
+        config: {},
+      } as unknown as Dashboard['widgets'][number];
+
+      const linked: Dashboard = {
+        id: 'hist-board',
+        name: 'Shared Board',
+        background: 'bg-slate-800',
+        widgets: [widget],
+        createdAt: 1,
+        linkedShareId: 'share-hist',
+        linkedShareRole: 'collaborator',
+      };
+      initialDashboardsSeed = [linked];
+
+      type Update = ReturnType<typeof useDashboard>['updateWidget'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let update: Update | null = null;
+      let load: Load | null = null;
+      let canUndo = false;
+
+      const Probe: React.FC = () => {
+        const ctx = useDashboard();
+        useEffect(() => {
+          update = ctx.updateWidget;
+          load = ctx.loadDashboard;
+          canUndo = ctx.canUndo;
+        });
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(update).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('hist-board');
+      });
+      act(() => {
+        if (update) update('w1', { z: 9 });
+      });
+      await waitFor(() => expect(canUndo).toBe(true));
+
+      // A co-teacher removes the widget; the mirror applies their widgets.
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            widgets: [],
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => expect(canUndo).toBe(false));
+    });
   });
 });

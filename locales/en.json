@@ -1204,6 +1204,7 @@
     "imageTooLarge": "Image too large (Max 5MB)",
     "backgroundUploaded": "Custom background uploaded to cloud",
     "settingsSaved": "Settings saved successfully",
+    "switchBoardToUndo": "Switch back to that board to undo this",
     "classLink": {
       "fetchFailed": "Failed to fetch from ClassLink. Check console.",
       "imported": "Imported {{name}}",
@@ -2208,6 +2209,12 @@
       "scorePending": "Your score is being prepared. Check back soon."
     }
   },
+  "annotation": {
+    "clearConfirmBody": "Clear all annotations on this board? This cannot be undone.",
+    "clearConfirmTitle": "Clear annotations",
+    "clearConfirmAction": "Clear",
+    "chromeInertHint": "Pick Select to use the dock again"
+  },
   "helpCenter": {
     "title": "Help",
     "widgetHelp": "Guides for this widget",
@@ -2251,6 +2258,8 @@
       "open-help": "Open Help",
       "switch-boards": "Switch boards",
       "zoom-board": "Zoom the board in and out",
+      "undo": "Undo the last board change",
+      "redo": "Redo the last undone change (Ctrl+Y also works)",
       "pin-widget": "Pin / unpin widget",
       "widget-settings": "Open / close widget settings",
       "annotate": "Toggle annotation draw mode",

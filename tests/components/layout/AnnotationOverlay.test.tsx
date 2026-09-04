@@ -12,6 +12,8 @@ import type {
 import type { DrawableObject, TextObject } from '@/types';
 import { getAnnotationWorldRect } from '@/utils/annotationSize';
 import { ZOOM_MIN } from '@/utils/zoomMapping';
+import { Z_INDEX } from '@/config/zIndex';
+import i18n from '@/i18n';
 
 // Mock the auth and dashboard contexts. Both are accessed as plain hooks by
 // AnnotationOverlay, so vi.mock + vi.mocked is the standard pattern (mirrors
@@ -749,6 +751,107 @@ describe('AnnotationOverlay — persistence + layout', () => {
       parseFloat(before) - 300,
       1
     );
+  });
+
+  // Regression: the ink sat at Z_INDEX.overlay inside the transformed zoom
+  // surface, so a maximized widget (Z_INDEX.maximized) painted straight over it.
+  it('REGRESSION: the ink canvas outranks a maximized widget inside the zoom surface', () => {
+    setupContext();
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    expect(Number(canvas.style.zIndex)).toBeGreaterThan(Z_INDEX.maximized);
+  });
+
+  // The toolbar/text-editor portal must stay above the lifted zoom surface.
+  it('the toolbar portal outranks the lifted zoom surface', () => {
+    setupContext();
+    render(<AnnotationOverlay />);
+    const portal = screen
+      .getByRole('button', { name: /^exit/i })
+      .closest('.fixed') as HTMLElement;
+    expect(Number(portal.style.zIndex)).toBeGreaterThan(
+      Z_INDEX.annotationSurface
+    );
+  });
+
+  // Regression: a ~1100px toolbar centered at top-6 collided with the fixed
+  // Sidebar pill and was clipped by the overflow-hidden portal on 1024px
+  // projectors, putting Select and Exit out of reach.
+  it('REGRESSION: at 1024px the toolbar clears the sidebar pill and stays reachable', () => {
+    const originalW = window.innerWidth;
+    const originalH = window.innerHeight;
+    try {
+      setWindowSize(1024, 768);
+      setupContext();
+      render(<AnnotationOverlay />);
+      const wrapper = screen
+        .getByRole('button', { name: /^exit/i })
+        .closest('[data-screenshot="exclude"]') as HTMLElement;
+      // Offset right of the top-left pill instead of centered on the viewport.
+      expect(parseFloat(wrapper.style.left)).toBeGreaterThanOrEqual(300);
+      expect(wrapper.className).not.toContain('left-1/2');
+
+      const bar = wrapper.firstElementChild as HTMLElement;
+      expect(bar.style.maxWidth).toBe('calc(100vw - 2rem)');
+      expect(bar.className).toContain('flex-wrap');
+
+      // Both ends of the toolbar are still present and operable.
+      expect(screen.getByLabelText('Select')).toBeEnabled();
+      expect(screen.getByRole('button', { name: /^exit/i })).toBeEnabled();
+    } finally {
+      setWindowSize(originalW, originalH);
+    }
+  });
+
+  it('centers the toolbar again on a wide projector', () => {
+    const originalW = window.innerWidth;
+    const originalH = window.innerHeight;
+    try {
+      setWindowSize(1920, 1080);
+      setupContext();
+      render(<AnnotationOverlay />);
+      const wrapper = screen
+        .getByRole('button', { name: /^exit/i })
+        .closest('[data-screenshot="exclude"]') as HTMLElement;
+      expect(parseFloat(wrapper.style.left)).toBeLessThan(100);
+    } finally {
+      setWindowSize(originalW, originalH);
+    }
+  });
+
+  it('explains the inert dock only while a drawing tool is armed', () => {
+    setupContext({ annotationState: baseState({ activeTool: 'pen' }) });
+    const { unmount } = render(<AnnotationOverlay />);
+    expect(
+      screen.getByText(i18n.t('annotation.chromeInertHint'))
+    ).toBeInTheDocument();
+    unmount();
+
+    setupContext({ annotationState: baseState({ activeTool: 'select' }) });
+    render(<AnnotationOverlay />);
+    expect(screen.queryByText(i18n.t('annotation.chromeInertHint'))).toBeNull();
+  });
+
+  // The clear-all confirm was hardcoded English; it now follows the locale.
+  it('translates the clear-all confirmation', async () => {
+    setupContext({ annotationState: baseState({ objects: [stroke] }) });
+    mockShowConfirm.mockResolvedValue(false);
+    try {
+      await i18n.changeLanguage('de');
+      render(<AnnotationOverlay />);
+      fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
+      await waitFor(() => expect(mockShowConfirm).toHaveBeenCalledTimes(1));
+      expect(mockShowConfirm.mock.calls[0][0]).toBe(
+        i18n.t('annotation.clearConfirmBody')
+      );
+      expect(mockShowConfirm.mock.calls[0][0]).not.toContain('Clear all');
+      expect(mockShowConfirm.mock.calls[0][1]?.confirmLabel).toBe(
+        i18n.t('annotation.clearConfirmAction')
+      );
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('with the toolbar closed, persisted ink renders inert and Escape does nothing', () => {

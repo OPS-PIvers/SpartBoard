@@ -114,8 +114,10 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
     <div
       ref={containerRef}
       data-screenshot="exclude"
-      className={`fixed bottom-6 right-4 z-dock ${
-        inkingOwnsPointer ? 'pointer-events-none' : ''
+      aria-disabled={inkingOwnsPointer || undefined}
+      // Faded so the dead pointer target reads as deliberate, not broken.
+      className={`fixed bottom-6 right-4 z-dock transition-opacity ${
+        inkingOwnsPointer ? 'pointer-events-none opacity-40 cursor-default' : ''
       }`}
     >
       {isSliderOpen && (

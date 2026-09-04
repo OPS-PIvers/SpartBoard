@@ -52,6 +52,7 @@ import {
 } from '@/utils/widgetMergeFields';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
+import i18n from '@/i18n';
 import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { TOOLS } from '@/config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
@@ -234,6 +235,9 @@ const stripDerivedPixels = (w: WidgetData) => {
 
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
+// Ink-only edits rewrite the whole board document, so sustained drawing gets a
+// far longer ceiling than a widget edit. beforeunload still flushes.
+const MAX_UNSAVED_INK_AGE_MS = 15000;
 
 /**
  * Annotation ink for change-detection. `updatedAt` is deliberately excluded —
@@ -2721,11 +2725,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // previous timer, so without this ceiling a stream of edits closer together
     // than the debounce postpones the write forever.
     oldestUnsavedEditAtRef.current ??= Date.now();
+    const maxUnsavedAgeMs = isInkOnlyChange
+      ? MAX_UNSAVED_INK_AGE_MS
+      : MAX_UNSAVED_EDIT_AGE_MS;
     const debounceMs = Math.max(
       0,
       Math.min(
         baseDebounceMs,
-        MAX_UNSAVED_EDIT_AGE_MS - (Date.now() - oldestUnsavedEditAtRef.current)
+        maxUnsavedAgeMs - (Date.now() - oldestUnsavedEditAtRef.current)
       )
     );
     // The immediate-write flag has now been consumed for this scheduling pass.
@@ -3491,6 +3498,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // The echo filter above prevents a writer from re-applying its own
         // mirrored update.
         const hasBaseline = lastMirroredRef.current.has(shareId);
+        // A co-teacher's widget edit invalidates local undo for that board.
+        const localBeforeMirror = dashboardsRef.current.find(
+          (x) => x.id === dashboardId
+        );
+        if (
+          remote.widgets &&
+          localBeforeMirror &&
+          JSON.stringify(remote.widgets.map(stripDerivedPixels)) !==
+            JSON.stringify(localBeforeMirror.widgets.map(stripDerivedPixels))
+        ) {
+          widgetHistoryRef.current.delete(dashboardId);
+        }
         setDashboards((prev) =>
           prev.map((x) => {
             if (x.id !== dashboardId) return x;
@@ -5083,7 +5102,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const isHistoryTargetActive = useCallback(
     (boardId: string | undefined, id: string | null) => {
       if (!boardId || boardId === id) return true;
-      addToast('Switch back to that board to undo this', 'info');
+      addToast(i18n.t('toasts.switchBoardToUndo'), 'info');
       return false;
     },
     [addToast]

@@ -122,4 +122,37 @@ describe('BoardActionsFab', () => {
       window.removeEventListener('keydown', windowKeydownSpy);
     }
   });
+
+  // The dead pointer target had no visible affordance, so a click over the
+  // FAB just drew an ink dot and read as a broken control.
+  it('marks the FAB inert and fades it while a drawing tool is armed', () => {
+    mockedUseDashboard.mockReturnValue({
+      zoom: 1,
+      setZoom: vi.fn(),
+      annotationActive: true,
+      annotationState: { activeTool: 'pen' },
+    } as unknown as ReturnType<typeof useDashboard>);
+    render(<BoardActionsFab onOpenHelp={noop} />);
+    const root = screen
+      .getByLabelText('Zoom level')
+      .closest('[data-screenshot="exclude"]') as HTMLElement;
+    expect(root).toHaveAttribute('aria-disabled', 'true');
+    expect(root.className).toContain('opacity-40');
+    expect(root.className).toContain('pointer-events-none');
+  });
+
+  it('drops the inert state once Select is armed', () => {
+    mockedUseDashboard.mockReturnValue({
+      zoom: 1,
+      setZoom: vi.fn(),
+      annotationActive: true,
+      annotationState: { activeTool: 'select' },
+    } as unknown as ReturnType<typeof useDashboard>);
+    render(<BoardActionsFab onOpenHelp={noop} />);
+    const root = screen
+      .getByLabelText('Zoom level')
+      .closest('[data-screenshot="exclude"]') as HTMLElement;
+    expect(root).not.toHaveAttribute('aria-disabled');
+    expect(root.className).not.toContain('opacity-40');
+  });
 });

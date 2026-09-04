@@ -975,4 +975,23 @@ describe('Dock – annotation overlay guards', () => {
     );
     expect(shell).toBeNull();
   });
+
+  // The dead pointer target had no visible affordance, so a click just drew
+  // an ink dot and read as a broken dock.
+  it('marks the dock inert and fades it while a drawing tool is armed', () => {
+    setupMocks({ annotationActive: true, annotationTool: 'pen' });
+    render(<Dock />);
+    const shell = screen.getByTestId('dock');
+    expect(shell).toHaveAttribute('aria-disabled', 'true');
+    expect(shell.style.opacity).toBe('0.4');
+    expect(shell.style.cursor).toBe('default');
+  });
+
+  it('drops the inert state once Select is armed', () => {
+    setupMocks({ annotationActive: true, annotationTool: 'select' });
+    render(<Dock />);
+    const shell = screen.getByTestId('dock');
+    expect(shell).not.toHaveAttribute('aria-disabled');
+    expect(shell.style.opacity).toBe('1');
+  });
 });

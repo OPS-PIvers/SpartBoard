@@ -35,6 +35,7 @@ import { useHasOpenModal } from '@/components/common/modalStore';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 import { BoardActionsFab } from './BoardActionsFab';
 import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
+import { Z_INDEX } from '@/config/zIndex';
 import {
   clampPan,
   clampWidgetToWorld,
@@ -279,6 +280,10 @@ export const DashboardView: React.FC = () => {
     isActiveBoardReadOnly,
     undoWidgets,
     redoWidgets,
+    undoAnnotation,
+    redoAnnotation,
+    canUndoAnnotation,
+    canRedoAnnotation,
   } = useDashboard();
 
   // Surface fire-and-forget PLC sync failures as a toast. Helpers
@@ -1099,7 +1104,18 @@ export const DashboardView: React.FC = () => {
           )
             return;
           e.preventDefault();
-          if (key === 'y' || e.shiftKey) redoWidgets();
+          const wantsRedo = key === 'y' || e.shiftKey;
+          // The annotation toolbar owns the history while it is open —
+          // otherwise Ctrl+Z mid-stroke deletes widgets instead of ink.
+          if (annotationActive) {
+            if (wantsRedo) {
+              if (canRedoAnnotation) redoAnnotation();
+            } else if (canUndoAnnotation) {
+              undoAnnotation();
+            }
+            return;
+          }
+          if (wantsRedo) redoWidgets();
           else undoWidgets();
           return;
         }
@@ -1165,6 +1181,11 @@ export const DashboardView: React.FC = () => {
   }, [
     undoWidgets,
     redoWidgets,
+    annotationActive,
+    undoAnnotation,
+    redoAnnotation,
+    canUndoAnnotation,
+    canRedoAnnotation,
     currentIndex,
     dashboards,
     loadDashboard,
@@ -1510,6 +1531,9 @@ export const DashboardView: React.FC = () => {
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
           transformOrigin: 'center center',
+          // The transform is a stacking context, so ink inside it can only
+          // outrank the fixed Dock/Sidebar if the surface itself does.
+          zIndex: annotationActive ? Z_INDEX.annotationSurface : undefined,
         }}
       >
         {/* Empty Board Hint */}
