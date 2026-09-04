@@ -100,6 +100,7 @@ import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
+import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import {
   ANNOTATION_SOFT_LIMIT_BYTES,
   estimateAnnotationBytes,
@@ -224,6 +225,16 @@ const serializeAnnotationOverlay = (d: Dashboard): string =>
     canvasWidth: d.annotationOverlay?.canvasWidth,
     canvasHeight: d.annotationOverlay?.canvasHeight,
   });
+
+const parseAnnotationBaseline = (serialized: string): DrawableObject[] => {
+  if (!serialized) return [];
+  try {
+    const parsed = JSON.parse(serialized) as { objects?: DrawableObject[] };
+    return parsed.objects ?? [];
+  } catch {
+    return [];
+  }
+};
 
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
@@ -2077,8 +2088,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 settings: settingsChangedLocally
                   ? currentActive.settings
                   : db.settings,
+                // Per-object merge so a collaborator's concurrent stroke is
+                // not dropped by unsaved local ink (mirrors the widget merge).
                 annotationOverlay: annotationOverlayChangedLocally
-                  ? currentActive.annotationOverlay
+                  ? {
+                      ...currentActive.annotationOverlay,
+                      objects: mergeAnnotationObjects(
+                        currentActive.annotationOverlay?.objects ?? [],
+                        db.annotationOverlay?.objects ?? [],
+                        parseAnnotationBaseline(
+                          lastSavedFieldsRef.current.annotationOverlay
+                        )
+                      ),
+                      updatedAt: Date.now(),
+                    }
                   : db.annotationOverlay,
               };
             }

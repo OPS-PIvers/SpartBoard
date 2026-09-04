@@ -420,6 +420,25 @@ describe('DashboardContext annotation persistence', () => {
     expect(get().canRedoAnnotation).toBe(true);
   });
 
+  it('a concurrent remote stroke survives unsaved local ink', async () => {
+    const get = await mount([rect('X', 'other')]);
+    act(() => get().openAnnotation());
+    act(() => {
+      get().addAnnotationObject(rect('Y'));
+    });
+    const cb = capturedSnapshotCb;
+    if (!cb) throw new Error('Provider not mounted');
+    await act(async () => {
+      cb([board([rect('X', 'other'), rect('Z', 'other')])], false);
+      await Promise.resolve();
+    });
+    expect(
+      get()
+        .objects.map((o) => o.id)
+        .sort()
+    ).toEqual(['X', 'Y', 'Z']);
+  });
+
   it('trash clears everything, including pre-session ink', async () => {
     const get = await mount([rect('old', 'test-user')]);
     act(() => get().openAnnotation());
