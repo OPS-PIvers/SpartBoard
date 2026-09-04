@@ -8,7 +8,7 @@ import type { WidgetData } from '@/types';
  * remote edit through the other.
  */
 
-/** Position, size and stacking. */
+/** Position, size and stacking. Proportional, not pixel: `x`/`y`/`w`/`h` are derived per-viewport and would differ between two devices showing the same board. */
 export const LAYOUT_FIELDS = [
   'xProp',
   'yProp',

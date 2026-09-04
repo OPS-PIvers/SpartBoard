@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { updateDoc } from 'firebase/firestore';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
 import {
@@ -168,6 +169,7 @@ interface ContextSnapshot {
     transform: (config: WidgetConfig) => WidgetConfig | null
   ) => Promise<void>;
   updateWidget: (id: string, updates: Partial<WidgetData>) => void;
+  renameDashboard: (id: string, name: string) => Promise<void>;
   toasts: Toast[];
 }
 
@@ -183,6 +185,7 @@ const TestConsumer: React.FC<{
       reorderDashboards: ctx.reorderDashboards,
       updateWidgetConfigsAcrossBoards: ctx.updateWidgetConfigsAcrossBoards,
       updateWidget: ctx.updateWidget,
+      renameDashboard: ctx.renameDashboard,
       toasts: ctx.toasts,
     };
   });
@@ -612,5 +615,161 @@ describe('DashboardContext save baseline PII scrub', () => {
     // A baseline still reading "false" would make the accepted pin look like a
     // local edit and clobber a newer server value on the next save.
     expect(baseline?.dashboardFields.isPinned).toBe('true');
+  });
+});
+
+function makeTextWidget(id: string, text: string): WidgetData {
+  return {
+    id,
+    type: 'text',
+    x: 0,
+    y: 0,
+    w: 1,
+    h: 1,
+    z: 1,
+    flipped: false,
+    config: { content: text } as unknown as WidgetConfig,
+  };
+}
+
+const configOf = (d: Dashboard | null | undefined, widgetId: string) =>
+  (d?.widgets.find((w) => w.id === widgetId)?.config ?? {}) as Record<
+    string,
+    unknown
+  >;
+
+describe('DashboardContext transaction self-echo', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    exportDashboardMock.mockClear();
+    listFilesMock.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('keeps roster names and the Drive supplement when its own transaction write echoes back', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', [
+        makePiiWidget('w-pii'),
+        makeTextWidget('w-text', 'v0'),
+      ]),
+    ]);
+
+    // Edit an unrelated widget so the autosave fires without touching the roster.
+    saveDashboardMock.mockResolvedValueOnce(4242);
+    act(() => {
+      stateRef.current?.updateWidget('w-text', {
+        config: { content: 'v1' } as unknown as WidgetConfig,
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    // Firestore only ever receives the scrubbed board.
+    const scrubbed = saveDashboardMock.mock.calls.at(-1)?.[0] as Dashboard;
+    expect(configOf(scrubbed, 'w-pii').names).toBeUndefined();
+
+    // A transaction commit bypasses the local mutation queue, so it comes back
+    // as a real snapshot (hasPendingWrites false), not a suppressed local echo.
+    // It also carries an edit the transaction folded in from another device.
+    await pushSnapshot([
+      {
+        ...scrubbed,
+        updatedAt: 4242,
+        widgets: scrubbed.widgets.map((w) =>
+          w.id === 'w-text'
+            ? {
+                ...w,
+                config: {
+                  content: 'from-other-device',
+                } as unknown as WidgetConfig,
+              }
+            : w
+        ),
+      },
+    ]);
+
+    const live = stateRef.current?.activeDashboard;
+    // The roster must survive — Firestore holds only the scrubbed config.
+    expect(configOf(live, 'w-pii').names).toBe('Alice\nBob');
+    // ...and the echo must not be dropped wholesale, or the edit the
+    // transaction merged in from another device would be lost.
+    expect(configOf(live, 'w-text').content).toBe('from-other-device');
+
+    // The next save must still find PII to back up — writing `{}` over the
+    // supplement is what made the loss permanent.
+    updateFileContentMock.mockClear();
+    uploadFileMock.mockClear();
+    act(() => {
+      stateRef.current?.updateWidget('w-text', {
+        config: { content: 'v2' } as unknown as WidgetConfig,
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    const blobs = [
+      ...updateFileContentMock.mock.calls.map((c) => c[1] as Blob),
+      ...uploadFileMock.mock.calls.map((c) => c[0] as Blob),
+    ];
+    expect(blobs.length).toBeGreaterThan(0);
+    // An empty supplement serializes to the two bytes of `{}`; anything larger
+    // still carries the roster. (jsdom Blob has no `.text()`.)
+    for (const blob of blobs) expect(blob.size).toBeGreaterThan(2);
+  });
+});
+
+describe('DashboardContext renameDashboard', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    vi.mocked(updateDoc).mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('writes only the name, not the whole board', async () => {
+    const stateRef = setup();
+    // dash-1 becomes active; dash-2 is the one being renamed, and this device
+    // has no save baseline for it — a full-document write would push a stale
+    // widget array over whatever is actually stored.
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', []),
+      makeDashboard('dash-2', [makePiiWidget('w-pii')]),
+    ]);
+    saveDashboardMock.mockClear();
+    vi.mocked(updateDoc).mockClear();
+
+    await act(async () => {
+      await stateRef.current?.renameDashboard('dash-2', 'Period 3');
+    });
+
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+    const call = vi
+      .mocked(updateDoc)
+      .mock.calls.find((c) =>
+        (c[0] as unknown as { __path?: string }).__path?.endsWith('dash-2')
+      );
+    expect(call).toBeDefined();
+    const patch = (call?.[1] ?? {}) as Record<string, unknown>;
+    expect(Object.keys(patch).sort()).toEqual(['name', 'updatedAt']);
+    expect(
+      stateRef.current?.dashboards.find((d) => d.id === 'dash-2')?.name
+    ).toBe('Period 3');
   });
 });

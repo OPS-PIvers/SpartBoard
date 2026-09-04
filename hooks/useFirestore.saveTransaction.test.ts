@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import * as firestore from 'firebase/firestore';
 import { useFirestore } from './useFirestore';
+import {
+  DASHBOARD_FIELDS,
+  serializeDashboardField,
+} from '@/utils/dashboardSaveMerge';
 import type { Dashboard, WidgetData } from '@/types';
 
 vi.mock('firebase/firestore');
@@ -40,7 +44,11 @@ const baseline = (widgets: WidgetData[]) => ({
   name: 'B',
   libraryOrder: '[]',
   settings: '{}',
-  dashboardFields: {},
+  // Every board field absent on both sides, so the merge is free to take the
+  // server's — which is how a legacy doc's missing collectionId gets noticed.
+  dashboardFields: Object.fromEntries(
+    DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(undefined)])
+  ),
 });
 
 const mockTransaction = (serverDoc: Dashboard) => {
@@ -121,5 +129,72 @@ describe('useFirestore – saveDashboard transaction', () => {
       'a-local-2',
       'b-other-device',
     ]);
+  });
+
+  it('falls back to a queued setDoc when the transaction fails because we are offline', async () => {
+    // Transactions need a live server read and reject outright offline, where
+    // the old blind setDoc queued and flushed on reconnect.
+    (firestore.runTransaction as unknown as Fn).mockRejectedValue(
+      Object.assign(new Error('client is offline'), { code: 'unavailable' })
+    );
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([widget('a', 'a-local')]),
+      baseline([widget('a', 'a0')])
+    );
+
+    expect(firestore.setDoc).toHaveBeenCalledTimes(1);
+    const written = (firestore.setDoc as unknown as Fn).mock
+      .calls[0][1] as Dashboard;
+    expect(textOf(written.widgets[0])).toBe('a-local');
+  });
+
+  it('rethrows a transaction failure that is not an offline error', async () => {
+    (firestore.runTransaction as unknown as Fn).mockRejectedValue(
+      Object.assign(new Error('nope'), { code: 'permission-denied' })
+    );
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await expect(
+      result.current.saveDashboard(
+        board([widget('a', 'a-local')]),
+        baseline([widget('a', 'a0')])
+      )
+    ).rejects.toThrow('nope');
+    expect(firestore.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('normalizes a legacy server doc before merging it', async () => {
+    // A pre-Collections, pre-proportional doc must not be folded back in as-is:
+    // that would write widgets with no proportional bounds and a board with no
+    // collectionId, undoing both migrations.
+    const legacyWidget = {
+      ...widget('a', 'a0'),
+      w: 200,
+      h: 100,
+    } as WidgetData;
+    const tx = mockTransaction(board([legacyWidget]));
+
+    // Layout untouched locally (local === baseline), so the merge adopts the
+    // server's layout fields — which only exist once the doc is migrated.
+    const localWidget = {
+      ...widget('a', 'a0'),
+      xProp: 0.25,
+      yProp: 0.25,
+    } as WidgetData;
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([localWidget]),
+      baseline([{ ...localWidget }])
+    );
+
+    const written = tx.set.mock.calls[0][1] as Dashboard;
+    expect(written.collectionId).toBeNull();
+    expect(written.isPinned).toBe(false);
+    // Layout was untouched locally, so the server's (now migrated) proportional
+    // fields are adopted — they must be numbers, not undefined.
+    expect(typeof written.widgets[0].xProp).toBe('number');
+    expect(typeof written.widgets[0].wProp).toBe('number');
   });
 });
