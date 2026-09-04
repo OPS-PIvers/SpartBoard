@@ -15,6 +15,8 @@ import {
 import { NotebookItem, PlacedNotebookAsset } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { PageCanvas } from './PageCanvas';
+import { NotebookZoomControls } from './NotebookZoomControls';
+import { useNotebookZoom } from '../useNotebookZoom';
 import { PageJumpMenu } from './PageJumpMenu';
 import { ReorderPageControl } from './ReorderPageControl';
 import {
@@ -80,6 +82,8 @@ export const Viewer: React.FC<ViewerProps> = ({
   initialJumpMenuOpen = false,
 }) => {
   const [jumpMenuOpen, setJumpMenuOpen] = useState(initialJumpMenuOpen);
+  // Fit resets whenever the page or the notebook changes.
+  const zoom = useNotebookZoom(`${activeNotebook.id}:${currentPage}`);
   const jumpTriggerRef = useRef<HTMLButtonElement>(null);
   const iconStyle = {
     width: 'min(16px, 4cqmin)',
@@ -333,6 +337,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             objectLinks={activeNotebook.objectLinks?.filter(
               (l) => l.sourcePage === currentPage
             )}
+            zoom={zoom}
             onFollowLink={(targetPage) => {
               const clamped = Math.max(
                 0,
@@ -468,6 +473,7 @@ export const Viewer: React.FC<ViewerProps> = ({
               />
             )}
           </div>
+          <NotebookZoomControls zoom={zoom} />
           <button
             disabled={nextVisible === null}
             onClick={() => nextVisible !== null && setCurrentPage(nextVisible)}
