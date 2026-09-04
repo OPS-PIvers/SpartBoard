@@ -37,7 +37,7 @@ export const presetFromScale = (scale: number): TextSizePreset => {
   return 'medium';
 };
 
-// Frame tints for WidgetData.backgroundColor; hex lets GlassCard honor transparency.
+// Frame tints for WidgetData.backgroundColor; an explicit hex paints solid (GlassCard forces alpha 1).
 export const WINDOW_BACKGROUND_OPTIONS = [
   { label: 'Default', value: '', hex: undefined },
   { label: 'White', value: 'bg-white', hex: '#ffffff' },
