@@ -591,14 +591,7 @@ export const SmartNotebookWidget: React.FC<{
     return readFreshNotebook(activeNotebook);
   };
 
-  // Add or replace an object→page link. The same {objectId, sourcePage} pair
-  // always maps to ONE hotspot. This must read-modify-write inside a single
-  // transaction against the server doc — not the local `activeNotebook`
-  // snapshot, which lags the just-completed onSnapshot round trip — or two
-  // saves for the same pair issued before that round trip lands (two tabs,
-  // or a quick re-link) compute the same stale "existing" entry: the second
-  // save's removal becomes a no-op against the server's already-updated
-  // array, leaving a duplicate hotspot for that object/page.
+  // Transaction reads the server doc directly — the local snapshot can lag and cause duplicate hotspots on concurrent saves.
   const handleSaveObjectLink = async (
     link: NotebookObjectLink
   ): Promise<void> => {
