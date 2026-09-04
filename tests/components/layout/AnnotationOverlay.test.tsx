@@ -117,7 +117,24 @@ interface ContextOverrides {
   canUndoAnnotation?: boolean;
   /** What the shared-objects writers report back (false = refused by the cap). */
   writesAccepted?: boolean;
+  zoom?: number;
+  reportAnnotationCanvasSize?: (
+    size: { width: number; height: number } | null
+  ) => void;
 }
+
+const setWindowSize = (width: number, height: number) => {
+  Object.defineProperty(window, 'innerWidth', {
+    value: width,
+    writable: true,
+    configurable: true,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    value: height,
+    writable: true,
+    configurable: true,
+  });
+};
 
 const setupContext = (overrides: ContextOverrides = {}) => {
   const accepted = overrides.writesAccepted ?? true;
@@ -150,6 +167,8 @@ const setupContext = (overrides: ContextOverrides = {}) => {
     updateWidget,
     addWidget,
     addToast,
+    zoom: overrides.zoom ?? 1,
+    reportAnnotationCanvasSize: overrides.reportAnnotationCanvasSize ?? vi.fn(),
   } as unknown as DashboardContextValue);
 
   (useAuth as Mock).mockReturnValue({
@@ -612,6 +631,124 @@ describe('AnnotationOverlay — persistence + layout', () => {
     });
     render(<AnnotationOverlay />);
     expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  });
+
+  // Regression: the resize listener was gated on `shouldRender`, so a window
+  // resized while the board held no ink left `viewport` at its mount-time
+  // value. Opening the pencil then sized the canvas to the OLD world rect —
+  // the outer band was un-inkable and the first stroke landed offset.
+  it('REGRESSION: a resize while the board held no ink still sizes the canvas to the current window', () => {
+    const originalW = window.innerWidth;
+    const originalH = window.innerHeight;
+    try {
+      setupContext({ annotationActive: false });
+      const { rerender } = render(<AnnotationOverlay />);
+      // Nothing rendered: no toolbar, no ink.
+      expect(document.querySelector('canvas')).toBeNull();
+
+      // The teacher resizes (or plugs in a projector) with the overlay gone,
+      // so no 'resize' event ever reaches the component.
+      setWindowSize(1920, 1080);
+
+      setupContext({ annotationActive: true });
+      rerender(<AnnotationOverlay />);
+
+      const canvas = document.querySelector('canvas');
+      if (!canvas) throw new Error('Canvas not found');
+      const expected = getAnnotationWorldRect(1920, 1080);
+      expect(canvas.style.width).toBe(`${expected.width}px`);
+      expect(canvas.style.height).toBe(`${expected.height}px`);
+      expect(canvas.style.left).toBe(`${expected.left}px`);
+    } finally {
+      setWindowSize(originalW, originalH);
+    }
+  });
+
+  // The stamp written with the ink must be the canvas the ink was drawn into,
+  // not a rect the write path re-derives from `window`.
+  it('reports the canvas it renders into to the write path', () => {
+    const reportAnnotationCanvasSize = vi.fn();
+    setupContext({ reportAnnotationCanvasSize });
+    const { unmount } = render(<AnnotationOverlay />);
+
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    expect(reportAnnotationCanvasSize).toHaveBeenCalledWith({
+      width: canvas.width,
+      height: canvas.height,
+    });
+
+    // Unmounting restores the window fallback for programmatic writes.
+    reportAnnotationCanvasSize.mockClear();
+    unmount();
+    expect(reportAnnotationCanvasSize).toHaveBeenCalledWith(null);
+  });
+
+  // Regression: `canvasRect` was measured in an effect keyed only on the
+  // editing object and the viewport, but the canvas rides the board camera —
+  // panning or zooming left the text editor parked at the old screen position.
+  it('REGRESSION: the text editor re-measures the canvas when the board pans', async () => {
+    const existing: TextObject = {
+      id: 'txt-pan',
+      kind: 'text',
+      z: 1,
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 40,
+      content: 'hello',
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    setupContext({
+      annotationState: baseState({ activeTool: 'select', objects: [existing] }),
+    });
+    const VIEWPORT_W = 1024;
+    const VIEWPORT_H = 768;
+    const rectAt = (left: number): DOMRect =>
+      ({
+        left,
+        top: 0,
+        width: VIEWPORT_W,
+        height: VIEWPORT_H,
+        right: left + VIEWPORT_W,
+        bottom: VIEWPORT_H,
+        x: left,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    const rectSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue(rectAt(0));
+
+    render(<AnnotationOverlay />);
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    canvas.width = VIEWPORT_W;
+    canvas.height = VIEWPORT_H;
+
+    fireEvent.doubleClick(canvas, { clientX: 150, clientY: 110 });
+    const editor = (await waitFor(() => {
+      const node = document.querySelector('[role="textbox"]');
+      if (!node) throw new Error('Editor not yet mounted');
+      return node;
+    })) as HTMLElement;
+    const before = editor.style.left;
+
+    // DashboardView owns panOffset and announces every pan as `board-pan`.
+    rectSpy.mockReturnValue(rectAt(-300));
+    fireEvent(window, new CustomEvent('board-pan'));
+
+    await waitFor(() => {
+      const node = document.querySelector('[role="textbox"]') as HTMLElement;
+      expect(node.style.left).not.toBe(before);
+    });
+    const after = document.querySelector('[role="textbox"]') as HTMLElement;
+    expect(parseFloat(after.style.left)).toBeCloseTo(
+      parseFloat(before) - 300,
+      1
+    );
   });
 
   it('with the toolbar closed, persisted ink renders inert and Escape does nothing', () => {

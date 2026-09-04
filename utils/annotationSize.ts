@@ -1,4 +1,5 @@
 import type { DrawableObject, WidgetData } from '@/types';
+import { scrubWidgetsPII } from '@/utils/dashboardPII';
 import { getWorldBounds } from '@/utils/zoomPanMath';
 
 // The overlay shares the dashboard document, which Firestore caps at 1 MiB.
@@ -8,6 +9,8 @@ export const ANNOTATION_HARD_LIMIT_BYTES = 600_000;
 // Ink and widgets live in the same doc, so they share one budget. Leaves
 // headroom under 1 MiB for the rest of the board (name, background, settings).
 export const DASHBOARD_DOC_BUDGET_BYTES = 850_000;
+// Warn once the combined document nears that budget, whatever is filling it.
+export const DASHBOARD_DOC_SOFT_LIMIT_BYTES = 680_000;
 
 /** Serialized size of a value in UTF-8 bytes (what Firestore counts). */
 export const estimateJsonBytes = (value: unknown): number =>
@@ -17,10 +20,14 @@ export const estimateJsonBytes = (value: unknown): number =>
 export const estimateAnnotationBytes = (objects: DrawableObject[]): number =>
   estimateJsonBytes(objects);
 
-/** Serialized size of the widgets that share the annotation layer's document. */
+/**
+ * Serialized size of the widgets that share the annotation layer's document.
+ * Measured scrubbed, because student PII never reaches the document we are
+ * budgeting — an unscrubbed roster would inflate the estimate.
+ */
 export const estimateWidgetBytes = (
   widgets: WidgetData[] | undefined
-): number => estimateJsonBytes(widgets ?? []);
+): number => estimateJsonBytes(scrubWidgetsPII(widgets ?? []));
 
 /**
  * Why a growing ink write was refused, or null when it is allowed. The two
@@ -36,6 +43,34 @@ export const getAnnotationCapReason = (
 ): AnnotationCapReason | null => {
   if (inkBytes > ANNOTATION_HARD_LIMIT_BYTES) return 'ink';
   if (inkBytes + widgetBytes > DASHBOARD_DOC_BUDGET_BYTES) return 'document';
+  return null;
+};
+
+/**
+ * Which "getting full" warning a growing ink write should raise, or null.
+ * Ink is compared against its own soft limit — folding widget bytes into that
+ * comparison fired the ink warning on the first stroke of a widget-heavy
+ * board. The shared document has its own, larger threshold.
+ */
+export type AnnotationSoftWarning = 'ink' | 'document';
+
+export const getAnnotationSoftWarning = (
+  currentInkBytes: number,
+  nextInkBytes: number,
+  widgetBytes: number
+): AnnotationSoftWarning | null => {
+  if (
+    nextInkBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
+    currentInkBytes <= ANNOTATION_SOFT_LIMIT_BYTES
+  ) {
+    return 'ink';
+  }
+  if (
+    nextInkBytes + widgetBytes > DASHBOARD_DOC_SOFT_LIMIT_BYTES &&
+    currentInkBytes + widgetBytes <= DASHBOARD_DOC_SOFT_LIMIT_BYTES
+  ) {
+    return 'document';
+  }
   return null;
 };
 

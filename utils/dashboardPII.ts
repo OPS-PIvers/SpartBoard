@@ -13,7 +13,7 @@
  * and is a Record<widgetId, Partial<WidgetConfig>> containing only PII fields.
  */
 
-import { Dashboard, WidgetConfig } from '@/types';
+import { Dashboard, WidgetConfig, WidgetData } from '@/types';
 
 /** Widget config keys that may contain student PII and must never reach Firestore. */
 export const PII_WIDGET_FIELDS = [
@@ -59,19 +59,21 @@ function hasPiiContent(value: unknown): boolean {
  * widget's config. Safe to write to Firestore.
  */
 export function scrubDashboardPII(dashboard: Dashboard): Dashboard {
-  return {
-    ...dashboard,
-    widgets: dashboard.widgets.map((widget) => {
-      const config = { ...(widget.config as Record<string, unknown>) };
-      if (isCustomModeAssignments(config)) {
-        delete config.assignments;
-      }
-      for (const field of PII_WIDGET_FIELDS) {
-        delete config[field];
-      }
-      return { ...widget, config: config as WidgetConfig };
-    }),
-  };
+  return { ...dashboard, widgets: scrubWidgetsPII(dashboard.widgets) };
+}
+
+/** The widget half of `scrubDashboardPII` — what Firestore actually stores. */
+export function scrubWidgetsPII(widgets: WidgetData[]): WidgetData[] {
+  return widgets.map((widget) => {
+    const config = { ...(widget.config as Record<string, unknown>) };
+    if (isCustomModeAssignments(config)) {
+      delete config.assignments;
+    }
+    for (const field of PII_WIDGET_FIELDS) {
+      delete config[field];
+    }
+    return { ...widget, config: config as WidgetConfig };
+  });
 }
 
 /**

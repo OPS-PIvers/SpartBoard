@@ -18,8 +18,10 @@ import type { Dashboard } from '@/types';
  *   and isn't reachable under the recipient's auth — let it regenerate
  *   on first save.
  * - `sharedGroups`: per-host share permissions; not transferable.
- * - `annotationOverlay`: live pencil-overlay strokes from the host's
- *   session. Transient state — never persisted state.
+ * - `annotationOverlay`: the host's pencil markup. It DOES persist with the
+ *   host's own Board, but it is the host's annotation of their lesson — a
+ *   duplicate, template, or Collection share starts from the design, not
+ *   from someone else's marked-up copy. Locked in dashboardSanitize.test.ts.
  * - `isDefault`: host's "open this on sign-in" flag. Snapshots must not
  *   silently change which Board the recipient lands on.
  * - `isPinned`: host's pin in the FAB popover. Snapshots should not

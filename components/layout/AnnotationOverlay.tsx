@@ -175,12 +175,19 @@ export const AnnotationOverlay: React.FC = () => {
   editingTextRef.current = editingText;
   const textEditorRef = useRef<TextEditorHandle | null>(null);
   const [canvasRect, setCanvasRect] = useState<DOMRect | null>(null);
+  // The canvas moves with the board camera, so the editor has to re-measure on
+  // zoom and on pan. Pan lives outside context (DashboardView owns it and
+  // announces it as `board-pan`), so it is tracked by event, not by dep.
   useEffect(() => {
-    if (!editingText) return;
-    const node = canvasRef.current;
-    if (!node) return;
-    setCanvasRect(node.getBoundingClientRect());
-  }, [editingText, viewport.width, viewport.height]);
+    if (!editingText) return undefined;
+    const measure = () => {
+      const node = canvasRef.current;
+      if (node) setCanvasRect(node.getBoundingClientRect());
+    };
+    measure();
+    window.addEventListener('board-pan', measure);
+    return () => window.removeEventListener('board-pan', measure);
+  }, [editingText, viewport.width, viewport.height, dashboard.zoom]);
 
   // Locate the dashboard root portal target (waits for mount if needed)
   useEffect(() => {
@@ -204,11 +211,18 @@ export const AnnotationOverlay: React.FC = () => {
     return () => observer.disconnect();
   }, [shouldRender]);
 
-  // Track viewport size for canvas resolution
+  // Track viewport size for canvas resolution. Syncs on attach as well as on
+  // resize: a window resized while the board held no ink left this state at
+  // its mount-time value, so the world rect was stale on the first stroke.
   useEffect(() => {
     if (!shouldRender) return undefined;
     const handleResize = () =>
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
+      setViewport((prev) =>
+        prev.width === window.innerWidth && prev.height === window.innerHeight
+          ? prev
+          : { width: window.innerWidth, height: window.innerHeight }
+      );
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [shouldRender]);
@@ -270,6 +284,17 @@ export const AnnotationOverlay: React.FC = () => {
       worldRect,
     ]
   );
+
+  // Tell the write path which canvas the ink is being authored on. Without
+  // this the stamp was recomputed from `window` at write time and could
+  // disagree with the backing store the stroke was actually drawn into.
+  const reportAnnotationCanvasSize = dashboard.reportAnnotationCanvasSize;
+  useEffect(() => {
+    if (!reportAnnotationCanvasSize) return undefined;
+    if (canvasSize.width <= 0 || canvasSize.height <= 0) return undefined;
+    reportAnnotationCanvasSize(canvasSize);
+    return () => reportAnnotationCanvasSize(null);
+  }, [reportAnnotationCanvasSize, canvasSize]);
 
   const handleTextSpawn = useCallback((obj: TextObject) => {
     // Clicking away from an open editor only commits it (the blur that

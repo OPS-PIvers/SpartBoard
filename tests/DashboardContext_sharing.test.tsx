@@ -938,5 +938,104 @@ describe('DashboardContext Sharing Logic', () => {
         expect(objects[0].id).toBe('host-stroke');
       });
     });
+
+    // Regression: the subscribe path took `remote.annotationOverlay` whole,
+    // replacing the local objects array. Two teachers annotating the same
+    // Synced board therefore destroyed each other's strokes on every mirror
+    // round-trip: whoever wrote last won the entire layer.
+    it('REGRESSION: two co-annotating teachers keep both sets of strokes', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const stroke = (id: string, authorUid: string) => ({
+        id,
+        kind: 'path' as const,
+        z: 1,
+        points: [{ x: 1, y: 1 }],
+        color: '#000',
+        width: 2,
+        authorUid,
+      });
+
+      const linked: Dashboard = {
+        id: 'co-board',
+        name: 'Co-annotated Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-co',
+        linkedShareRole: 'collaborator',
+        annotationOverlay: { objects: [], updatedAt: 1 },
+      };
+      initialDashboardsSeed = [linked];
+
+      type Add = ReturnType<typeof useDashboard>['addAnnotationObject'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let add: Add | null = null;
+      let load: Load | null = null;
+      let captured: Dashboard | undefined;
+
+      const Probe: React.FC = () => {
+        const { addAnnotationObject, loadDashboard, dashboards } =
+          useDashboard();
+        useEffect(() => {
+          add = addAnnotationObject;
+          load = loadDashboard;
+          captured = dashboards.find((d) => d.id === 'co-board');
+        }, [addAnnotationObject, loadDashboard, dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(add).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('co-board');
+      });
+      // Teacher A (this client) draws.
+      act(() => {
+        if (add) add(stroke('mine', 'test-user'));
+      });
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? []).map(
+          (o) => o.id
+        );
+        expect(ids).toContain('mine');
+      });
+
+      // Teacher B's mirror lands. Their doc never saw 'mine', so a wholesale
+      // replace would erase it.
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: {
+              objects: [stroke('theirs', 'other-user')],
+              updatedAt: 99,
+            },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? [])
+          .map((o) => o.id)
+          .sort();
+        expect(ids).toEqual(['mine', 'theirs']);
+      });
+    });
   });
 });

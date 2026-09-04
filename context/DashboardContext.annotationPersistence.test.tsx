@@ -148,6 +148,9 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 import type { DrawableObject, TextObject } from '@/types';
 import {
   ANNOTATION_HARD_LIMIT_BYTES,
+  ANNOTATION_SOFT_LIMIT_BYTES,
+  estimateAnnotationBytes,
+  estimateWidgetBytes,
   getAnnotationWorldRect,
 } from '@/utils/annotationSize';
 
@@ -162,6 +165,9 @@ interface Snap {
   redoAnnotation: () => void;
   canRedoAnnotation: boolean;
   clearAnnotation: () => void;
+  reportAnnotationCanvasSize: (
+    size: { width: number; height: number } | null
+  ) => void;
   annotationActive: boolean;
   toasts: { message: string; type?: string }[];
 }
@@ -182,6 +188,7 @@ const Consumer: React.FC<{ stateRef: { current: Snap | null } }> = ({
       redoAnnotation: ctx.redoAnnotation,
       canRedoAnnotation: ctx.canRedoAnnotation,
       clearAnnotation: ctx.clearAnnotation,
+      reportAnnotationCanvasSize: ctx.reportAnnotationCanvasSize,
       annotationActive: ctx.annotationActive,
       toasts: ctx.toasts,
     };
@@ -202,17 +209,37 @@ const rect = (id: string, authorUid?: string): DrawableObject => ({
   authorUid,
 });
 
-const board = (objects: DrawableObject[]): Dashboard => ({
+const board = (
+  objects: DrawableObject[],
+  widgets: WidgetData[] = []
+): Dashboard => ({
   id: 'dash-1',
   name: 'Board',
   background: 'bg-slate-900',
-  widgets: [] as WidgetData[],
+  widgets,
   createdAt: 1000,
   updatedAt: 1000,
   annotationOverlay: { objects, updatedAt: 1000 },
 });
 
-async function mount(objects: DrawableObject[]) {
+/** A widget measuring exactly `bytes` once serialized (padding is 1 byte/char). */
+const widgetSizedTo = (bytes: number): WidgetData => {
+  const make = (len: number): WidgetData =>
+    ({
+      id: 'w-fat',
+      type: 'text',
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+      config: { text: 'x'.repeat(len) },
+    }) as WidgetData;
+  return make(Math.max(0, bytes - estimateWidgetBytes([make(0)])));
+};
+
+async function mount(objects: DrawableObject[], widgets: WidgetData[] = []) {
   const stateRef: { current: Snap | null } = { current: null };
   const get = (): Snap => {
     if (!stateRef.current) throw new Error('Consumer not mounted');
@@ -226,7 +253,7 @@ async function mount(objects: DrawableObject[]) {
   await waitFor(() => expect(capturedSnapshotCb).not.toBeNull());
   const cb = capturedSnapshotCb;
   if (!cb) throw new Error('Provider not mounted');
-  latestSnapshot = [board(objects)];
+  latestSnapshot = [board(objects, widgets)];
   await act(async () => {
     cb(latestSnapshot ?? [], false);
     await Promise.resolve();
@@ -292,6 +319,59 @@ describe('DashboardContext annotation persistence', () => {
     );
     expect(saved.annotationOverlay?.canvasWidth).toBe(expected.width);
     expect(saved.annotationOverlay?.canvasHeight).toBe(expected.height);
+  });
+
+  // The overlay renders the canvas; measuring `window` again at write time
+  // could stamp a rect the stroke was never drawn into, and the first stroke
+  // would jump on pen-up.
+  it('stamps the canvas the overlay reported, not one re-derived from window', async () => {
+    const get = await mount([]);
+    act(() => get().reportAnnotationCanvasSize({ width: 640, height: 480 }));
+    act(() => {
+      get().addAnnotationObject(rect('ink'));
+    });
+    await waitFor(() => expect(mockSaveDashboard).toHaveBeenCalled(), {
+      timeout: 6000,
+    });
+    const saved = mockSaveDashboard.mock.calls.at(-1)?.[0] as Dashboard;
+    expect(saved.annotationOverlay?.canvasWidth).toBe(640);
+    expect(saved.annotationOverlay?.canvasHeight).toBe(480);
+  });
+
+  // Regression: the soft-limit check compared ink + widget bytes against the
+  // ink-only 300 KB limit, so the very first stroke on a widget-heavy board
+  // told the teacher their annotations were getting large.
+  it('REGRESSION: the first stroke on a widget-heavy board raises no size warning', async () => {
+    // Widgets sized just under the ink-only soft limit, so one stroke pushes
+    // ink + widgets across it while the ink itself is 8 KB — nowhere near
+    // "the annotation layer is getting large".
+    const get = await mount(
+      [],
+      [widgetSizedTo(ANNOTATION_SOFT_LIMIT_BYTES - 3000)]
+    );
+    act(() => get().openAnnotation());
+    const note: TextObject = {
+      id: 'note',
+      kind: 'text',
+      z: 1,
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 10,
+      content: 'x'.repeat(8000),
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    expect(estimateAnnotationBytes([note])).toBeLessThan(
+      ANNOTATION_SOFT_LIMIT_BYTES
+    );
+    let added: boolean | undefined;
+    act(() => {
+      added = get().addAnnotationObject(note);
+    });
+    expect(added).toBe(true);
+    expect(get().toasts.map((t) => t.message)).toEqual([]);
   });
 
   it('open and close keep existing ink on the board', async () => {

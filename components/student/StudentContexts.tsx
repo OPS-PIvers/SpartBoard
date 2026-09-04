@@ -405,6 +405,9 @@ const mockDashboard: DashboardContextValue = {
   clearAnnotation: () => {
     // No-op
   },
+  reportAnnotationCanvasSize: () => {
+    // No-op
+  },
 };
 
 export const StudentProvider: React.FC<StudentProviderProps> = ({

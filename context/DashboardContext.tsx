@@ -102,10 +102,10 @@ import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import {
-  ANNOTATION_SOFT_LIMIT_BYTES,
   estimateAnnotationBytes,
   estimateWidgetBytes,
   getAnnotationCapReason,
+  getAnnotationSoftWarning,
   getAnnotationWorldRect,
 } from '@/utils/annotationSize';
 import { STANDARD_COLORS } from '@/config/colors';
@@ -236,6 +236,19 @@ const parseAnnotationBaseline = (serialized: string): DrawableObject[] => {
   }
 };
 
+/** The ink in the last payload we mirrored — the merge baseline for a share. */
+const mirroredAnnotationBaseline = (
+  payload: string | undefined
+): DrawableObject[] => {
+  if (!payload) return [];
+  try {
+    const parsed = JSON.parse(payload) as { annotationOverlay?: string };
+    return parseAnnotationBaseline(parsed.annotationOverlay ?? '');
+  } catch {
+    return [];
+  }
+};
+
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
   JSON.stringify({
@@ -254,6 +267,20 @@ const serializeDashboard = (d: Dashboard): string =>
     // Ink-only edits must mark the board dirty so autosave picks them up.
     annotationOverlay: serializeAnnotationOverlay(d),
   });
+
+/**
+ * The same signature with the ink dropped. Drive exports and the ink-only
+ * autosave cadence both need "did anything but the annotation layer change".
+ */
+const serializeWithoutInk = (serialized: string): string => {
+  try {
+    const parsed = JSON.parse(serialized) as Record<string, unknown>;
+    delete parsed.annotationOverlay;
+    return JSON.stringify(parsed);
+  } catch {
+    return serialized;
+  }
+};
 
 /** Capture the serialized state used to populate lastSaved* refs. */
 const getDashboardSaveState = (d: Dashboard) => ({
@@ -2462,6 +2489,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Detect structural changes (adding/removing widgets) for more aggressive saving
     const isStructuralChange =
       active.widgets.length !== lastWidgetCountRef.current;
+    // Ink-only edits rewrite the whole board document per stroke pause, so
+    // they get a longer idle window than a widget edit. The unsaved-age
+    // ceiling below still bounds how long a stroke can sit unwritten.
+    const isInkOnlyChange =
+      serializeWithoutInk(currentData) ===
+      serializeWithoutInk(lastSavedDataRef.current);
     // Settings-only changes (spotlight, maximize) are small and urgent —
     // use a fast 100 ms debounce so the desktop board reflects remote-
     // controlled presentation changes with minimal perceived delay.
@@ -2471,7 +2504,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ? 200 // add/remove widget
         : lastUpdateWasSettingsOnly.current
           ? 100 // settings toggle (spotlight, maximize, etc.)
-          : 800; // widget config / position
+          : isInkOnlyChange
+            ? 2500 // annotation stroke — coalesce a drawing burst
+            : 800; // widget config / position
     // Cap the total time an edit can sit unsaved. Each re-run above cancels the
     // previous timer, so without this ceiling a stream of edits closer together
     // than the debounce postpones the write forever.
@@ -2562,6 +2597,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Debounced heavily (5 seconds) to avoid hitting Drive API limits.
   const lastExportedDataRef = useRef<string>('');
   const driveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Payload of the queued export, so a re-render that changes nothing this
+  // effect cares about (an annotation stroke, a timer tick) leaves the queued
+  // export alone instead of pushing it out another 5 seconds.
+  const pendingExportDataRef = useRef<string | null>(null);
+
+  // Cancel a queued export on unmount only. Cancelling on every effect re-run
+  // would let an ink stroke (which no longer reschedules) drop the widget
+  // edit that scheduled the pending export.
+  useEffect(
+    () => () => {
+      if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!user || isAdmin || !driveService || loading || !activeId) return;
@@ -2569,13 +2618,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const active = dashboards.find((d) => d.id === activeId);
     if (!active) return;
 
-    const currentData = serializeDashboard(active);
+    // Ink is excluded from the dedupe: a Drive re-export of the whole board
+    // per annotation session is a lot of API traffic for markup the export
+    // is not there to carry. The next real board edit ships current ink.
+    const currentData = serializeWithoutInk(serializeDashboard(active));
 
     if (currentData === lastExportedDataRef.current) return;
+    if (currentData === pendingExportDataRef.current) return;
 
     if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
+    pendingExportDataRef.current = currentData;
 
     driveSyncTimerRef.current = setTimeout(() => {
+      pendingExportDataRef.current = null;
       void driveService
         .exportDashboard(active)
         .then((newFileId) => {
@@ -2598,10 +2653,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           console.error('[Drive Sync] Background export failed:', err);
         });
     }, 5000);
-
-    return () => {
-      if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
-    };
   }, [
     user,
     isAdmin,
@@ -3198,10 +3249,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               settings: remote.settings ?? x.settings,
               // Live annotation overlay — hosts and collaborators push
               // strokes through this field so all participants see strokes
-              // appear in real time. Falls back to the local copy when the
-              // remote omits it (legacy docs).
-              annotationOverlay:
-                remote.annotationOverlay ?? x.annotationOverlay,
+              // appear in real time. Merged per object against the last
+              // payload we mirrored: taking the remote array wholesale made
+              // two co-annotating teachers erase each other's strokes.
+              // Falls back to the local copy when the remote omits it
+              // (legacy docs).
+              annotationOverlay: remote.annotationOverlay
+                ? {
+                    ...remote.annotationOverlay,
+                    canvasWidth:
+                      remote.annotationOverlay.canvasWidth ??
+                      x.annotationOverlay?.canvasWidth,
+                    canvasHeight:
+                      remote.annotationOverlay.canvasHeight ??
+                      x.annotationOverlay?.canvasHeight,
+                    objects: mergeAnnotationObjects(
+                      x.annotationOverlay?.objects ?? [],
+                      remote.annotationOverlay.objects ?? [],
+                      mirroredAnnotationBaseline(
+                        lastMirroredRef.current.get(shareId)
+                      )
+                    ),
+                  }
+                : x.annotationOverlay,
               linkedShareEnded: false,
             };
             // Prime the mirror dedupe so the state change we just made
@@ -5792,6 +5862,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Every write lands here, so the size guard lives here too. Returns
   // false when the write was refused (no active board or size cap).
+  // The mounted overlay reports the canvas it renders into; ink is stamped
+  // with that, not with a rect re-derived from `window` at write time.
+  const annotationCanvasSizeRef = useRef<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const reportAnnotationCanvasSize = useCallback(
+    (size: { width: number; height: number } | null) => {
+      annotationCanvasSizeRef.current = size;
+    },
+    []
+  );
+
   const setActiveAnnotationObjects = useCallback(
     (next: DrawableObject[]): boolean => {
       const id = activeIdRef.current;
@@ -5814,26 +5897,36 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           return false;
         }
-        if (
-          nextBytes + widgetBytes > ANNOTATION_SOFT_LIMIT_BYTES &&
-          currentBytes + widgetBytes <= ANNOTATION_SOFT_LIMIT_BYTES
-        ) {
+        const warning = getAnnotationSoftWarning(
+          currentBytes,
+          nextBytes,
+          widgetBytes
+        );
+        if (warning === 'ink') {
           addToast(
             'Annotations on this board are getting large. Clear old ink soon.',
+            'warning'
+          );
+        } else if (warning === 'document') {
+          addToast(
+            'This board is nearly full. Remove a widget or clear old ink soon.',
             'warning'
           );
         }
       }
       // Ink stores coordinates in the canvas it was authored on. Stamp that
       // size once (when the layer goes from empty to inked) and keep it, so
-      // a different window scales the ink instead of clipping it.
+      // a different window scales the ink instead of clipping it. The size
+      // comes from the overlay itself — measuring `window` here could stamp a
+      // rect the stroke was never drawn in.
       const authored =
         current.length > 0 && overlay?.canvasWidth && overlay?.canvasHeight
           ? { width: overlay.canvasWidth, height: overlay.canvasHeight }
-          : getAnnotationWorldRect(
+          : (annotationCanvasSizeRef.current ??
+            getAnnotationWorldRect(
               typeof window === 'undefined' ? 1280 : window.innerWidth,
               typeof window === 'undefined' ? 720 : window.innerHeight
-            );
+            ));
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -6324,6 +6417,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       canUndoAnnotation,
       canRedoAnnotation: annotationRedoStack.length > 0,
       clearAnnotation,
+      reportAnnotationCanvasSize,
     }),
     [
       driveService,
@@ -6441,6 +6535,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       annotationRedoStack.length,
       canUndoAnnotation,
       clearAnnotation,
+      reportAnnotationCanvasSize,
     ]
   );
 

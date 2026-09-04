@@ -248,6 +248,12 @@ export interface DashboardContextValue {
    *  Drives the disabled state on the overlay toolbar's Redo button. */
   canRedoAnnotation: boolean;
   clearAnnotation: () => void;
+  /** The overlay reports the canvas it is drawing into; ink is stamped with
+   *  that size so the stamp can never disagree with the backing store the
+   *  stroke was authored in. `null` on unmount restores the window fallback. */
+  reportAnnotationCanvasSize: (
+    size: { width: number; height: number } | null
+  ) => void;
 
   // Zoom system
   zoom: number;

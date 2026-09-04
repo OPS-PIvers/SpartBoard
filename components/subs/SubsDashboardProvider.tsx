@@ -328,6 +328,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       canUndoAnnotation: false,
       canRedoAnnotation: false,
       clearAnnotation: NOOP,
+      reportAnnotationCanvasSize: NOOP,
       setZoom: NOOP,
       setSelectedWidgetId: NOOP,
       setSelectedWidgetIds: NOOP as (
