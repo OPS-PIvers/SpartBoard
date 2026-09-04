@@ -66,6 +66,17 @@ import {
   PUSH_PERMISSION_DENIED_MESSAGE,
 } from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from './gisOAuth';
+import { httpsCallable } from 'firebase/functions';
+import { isGoogleSession } from '@/utils/googleSession';
+import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
+import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import {
+  bucketLtiPushResults,
+  formatLtiPushToast,
+  ltiPushErrorMessage,
+  type LtiPushGradesRequest,
+  type LtiPushGradesData,
+} from '@/utils/ltiGradePush';
 import { logError } from '@/utils/logError';
 import {
   isFreeResponseType,
@@ -95,14 +106,35 @@ const PUBLISH_OPTIONS: {
   },
 ];
 
-export const ClassroomAddonTeacherReview: React.FC = () => {
+export type TeacherReviewPlatform = 'classroom' | 'schoology';
+
+interface TeacherReviewProps {
+  /** Join code of the attached quiz; defaults to the `?code=` URL param. */
+  code?: string;
+  /** `quiz` | `va`; defaults to the `?kind=` URL param. */
+  kind?: string;
+  /** Which LMS iframe this runs in — picks the grade-push path and copy. */
+  platform?: TeacherReviewPlatform;
+}
+
+const PLATFORM_LABEL: Record<TeacherReviewPlatform, string> = {
+  classroom: 'Classroom',
+  schoology: 'Schoology',
+};
+
+export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
+  code: codeProp,
+  kind: kindProp,
+  platform = 'classroom',
+}) => {
   const params =
     typeof window === 'undefined'
       ? new URLSearchParams()
       : new URLSearchParams(window.location.search);
-  const code = params.get('code') ?? '';
-  const kind = params.get('kind') ?? 'quiz';
+  const code = codeProp ?? params.get('code') ?? '';
+  const kind = kindProp ?? params.get('kind') ?? 'quiz';
   const loginHint = params.get('login_hint') ?? undefined;
+  const lms = PLATFORM_LABEL[platform];
 
   const {
     user,
@@ -126,8 +158,11 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   // so an effect is the right tool here).
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [resolvingSession, setResolvingSession] = useState(true);
+  // A leftover studentRole custom-token session in the partitioned iframe has a
+  // uid but is not the teacher — only a Google session may resolve the session.
+  const teacherReady = isGoogleSession(user);
   useEffect(() => {
-    if (kind !== 'quiz' || !code || !user) {
+    if (kind !== 'quiz' || !code || !teacherReady) {
       // Clear any prior session id so a stale one (after logout / a code change)
       // can't keep useQuizSessionTeacher subscribed to the previous session.
       setSessionId(null);
@@ -157,7 +192,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [kind, code, user]);
+  }, [kind, code, teacherReady]);
 
   const {
     session,
@@ -219,6 +254,16 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     session?.classIds ?? null,
     orgId
   );
+  // Schoology students live in no ClassLink roster; NRPS names them on read.
+  const ltiNames = useLtiSessionNames(sessionId, session?.ltiNrps === true);
+  const byStudentUid = useMemo(() => {
+    if (ltiNames.size === 0) return pseudonyms.byStudentUid;
+    const merged = new Map(pseudonyms.byStudentUid);
+    for (const [uid, name] of ltiNames) {
+      if (!merged.has(uid)) merged.set(uid, name);
+    }
+    return merged;
+  }, [pseudonyms.byStudentUid, ltiNames]);
 
   const questions = useMemo(() => quizData?.questions ?? [], [quizData]);
   const hasWritten = useMemo(
@@ -236,11 +281,11 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     for (const r of responses) {
       map.set(
         getResponseDocKey(r),
-        resolveResponseDisplayName(r, {}, pseudonyms.byStudentUid)
+        resolveResponseDisplayName(r, {}, byStudentUid)
       );
     }
     return map;
-  }, [responses, pseudonyms.byStudentUid]);
+  }, [responses, byStudentUid]);
 
   const [showGrader, setShowGrader] = useState(false);
   // Spoken answers play only behind the media gate; without it they stay out of the queue.
@@ -409,6 +454,51 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     sessionId,
   ]);
 
+  // Schoology (LTI AGS) push — same grade builder as the dashboard Results view.
+  const pushSchoologyGrades = useCallback(async () => {
+    if (!session?.ltiAttachment || !sessionId || !quizData) return;
+    const maxPoints = quizMaxPoints(questions);
+    const grades = buildQuizClassroomGradeEntries(
+      responses.filter((r) => r.status === 'completed'),
+      questions,
+      maxPoints
+    );
+    if (grades.length === 0) {
+      setStatusMsg('No completed responses to push yet.');
+      return;
+    }
+    setBusy(true);
+    setErrorMsg(null);
+    setStatusMsg('Pushing grades to Schoology…');
+    try {
+      const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
+        functions,
+        'ltiPushGradesForAssignmentV1'
+      );
+      const { data } = await push({
+        sessionId,
+        kind: 'quiz',
+        maxPoints,
+        grades,
+      });
+      const bucket = bucketLtiPushResults(data);
+      if (bucket.failed > 0) {
+        setStatusMsg(null);
+        setErrorMsg(formatLtiPushToast(bucket));
+      } else {
+        setStatusMsg(formatLtiPushToast(bucket));
+      }
+    } catch (err) {
+      logError('ClassroomAddonTeacherReview.pushSchoologyGrades', err, {
+        sessionId,
+      });
+      setStatusMsg(null);
+      setErrorMsg(ltiPushErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [session?.ltiAttachment, sessionId, quizData, questions, responses]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (kind !== 'quiz') {
@@ -425,7 +515,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     );
   }
 
-  if (!user) {
+  if (!teacherReady) {
     return (
       <AddonShell maxWidthClassName="max-w-md">
         <AddonHeader
@@ -492,7 +582,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
             {responses.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No responses yet — students who open and complete the assignment
-                in Classroom will appear here.
+                in {lms} will appear here.
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">
@@ -601,6 +691,23 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
                 Students see their results when they reopen the assignment.
               </p>
             </div>
+
+            {session?.ltiAttachment && (
+              <div className="border-t border-slate-100 pt-4">
+                <AddonButton
+                  icon={Send}
+                  loading={busy}
+                  disabled={!quizData}
+                  onClick={() => void pushSchoologyGrades()}
+                >
+                  Push grades to Schoology
+                </AddonButton>
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Sends each student’s score to the Schoology gradebook for this
+                  assignment.
+                </p>
+              </div>
+            )}
 
             {session?.classroomAttachment && (
               <div className="border-t border-slate-100 pt-4">
