@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import type { GuidedLearningSet } from '@/types';
-import { helpIframeSandbox, toHelpEmbedSrc } from '@/utils/helpEmbed';
+import {
+  helpIframeSandbox,
+  inferHelpEmbedType,
+  toHelpEmbedSrc,
+} from '@/utils/helpEmbed';
 import { incrementHelpOpenCount } from '@/hooks/useHelpResources';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { logError } from '@/utils/logError';
@@ -83,6 +87,7 @@ const GuidedLearningViewer: React.FC<{ setId: string }> = ({ setId }) => {
 const EmbedViewer: React.FC<{ item: HelpResourceItem }> = ({ item }) => {
   const { t } = useTranslation();
   const url = item.url ?? '';
+  // The sandbox comes from the URL below; the stored embedType is only a display hint.
   const src = toHelpEmbedSrc(url);
   // Anything the converter left alone is a raw admin-entered URL: link out instead of framing it.
   const unconverted = src === url;
@@ -111,7 +116,7 @@ const EmbedViewer: React.FC<{ item: HelpResourceItem }> = ({ item }) => {
       <iframe
         src={src}
         title={item.title}
-        sandbox={helpIframeSandbox(item.embedType)}
+        sandbox={helpIframeSandbox(inferHelpEmbedType(url))}
         referrerPolicy="strict-origin-when-cross-origin"
         allow="autoplay; fullscreen"
         className="absolute inset-0 w-full h-full border-0"

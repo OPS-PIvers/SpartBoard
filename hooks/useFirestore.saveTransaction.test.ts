@@ -257,4 +257,49 @@ describe('useFirestore – saveDashboard transaction', () => {
     expect(typeof written.widgets[0].xProp).toBe('number');
     expect(typeof written.widgets[0].wProp).toBe('number');
   });
+
+  it('migrates a legacy timer widget on the server before merging it', async () => {
+    // The snapshot path renames timer/stopwatch to time-tool with a new config.
+    // Without the same rename here the merge takes the server's legacy config
+    // onto the locally migrated time-tool widget and corrupts it.
+    const serverLegacy = {
+      id: 'a',
+      type: 'timer',
+      x: 0,
+      y: 0,
+      w: 320,
+      h: 220,
+      z: 1,
+      flipped: false,
+      config: { duration: 300 },
+    } as unknown as WidgetData;
+    const serverOnlyLegacy = {
+      ...serverLegacy,
+      id: 'b',
+      type: 'stopwatch',
+      config: {},
+    } as unknown as WidgetData;
+    const tx = mockTransaction(board([serverLegacy, serverOnlyLegacy]));
+
+    const localMigrated = {
+      ...serverLegacy,
+      type: 'time-tool',
+      config: { mode: 'timer', duration: 300, elapsedTime: 300 },
+    } as unknown as WidgetData;
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([localMigrated]),
+      baseline([{ ...localMigrated }])
+    );
+
+    const written = tx.set.mock.calls[0][1] as Dashboard;
+    const merged = written.widgets.find((w) => w.id === 'a') as WidgetData;
+    expect(merged.type).toBe('time-tool');
+    expect((merged.config as { mode?: string }).mode).toBe('timer');
+    expect((merged.config as { duration?: number }).duration).toBe(300);
+    // A widget only the server has is carried over migrated, not as 'stopwatch'.
+    const carried = written.widgets.find((w) => w.id === 'b') as WidgetData;
+    expect(carried.type).toBe('time-tool');
+    expect((carried.config as { mode?: string }).mode).toBe('stopwatch');
+  });
 });

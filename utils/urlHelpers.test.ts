@@ -292,5 +292,58 @@ describe('urlHelpers', () => {
       const invalidUrl = 'https://docs.google.com:999999/%%';
       expect(convertToEmbedUrl(invalidUrl)).toBe(invalidUrl);
     });
+
+    describe('host spoofing', () => {
+      // The docs branch echoes the caller's origin back as the iframe src, so a
+      // substring host check framed an attacker origin. Each vector below
+      // satisfied the old `includes('docs.google.com/')` gate.
+      it.each([
+        'https://docs.google.com.evil.test/document/d/abc123/edit?q=docs.google.com/',
+        'https://docs.google.com.evil.test/docs.google.com/document/d/abc123/edit',
+        'https://docs.google.com.evil.test/presentation/d/abc123/edit?q=docs.google.com/',
+        'https://docs.google.com.evil.test/spreadsheets/d/abc123/edit?q=docs.google.com/',
+        'https://evil-docs.google.com.attacker.test/presentation/d/abc123/edit',
+        'https://evil.test/redirect?to=https://docs.google.com/document/d/abc123/edit',
+      ])('leaves %s untouched', (url) => {
+        expect(convertToEmbedUrl(url)).toBe(url);
+      });
+
+      it('still converts the real docs.google.com host', () => {
+        expect(
+          convertToEmbedUrl('https://docs.google.com/document/d/abc123/edit')
+        ).toBe('https://docs.google.com/document/d/abc123/edit?rm=minimal');
+      });
+
+      // Drive/Vids stay substring-matched: they rebuild a hardcoded
+      // drive/vids origin, so a spoofed host is never framed.
+      it('leaves a spoofed drive host untouched', () => {
+        const url = 'https://drive.google.com.evil.test/file/d/abc123/view';
+        expect(convertToEmbedUrl(url)).toBe(url);
+      });
+
+      it('rewrites an attacker-hosted drive substring to the real drive origin', () => {
+        expect(
+          convertToEmbedUrl(
+            'https://evil.test/go?u=drive.google.com/file/d/abc123/view'
+          )
+        ).toBe('https://drive.google.com/file/d/abc123/preview');
+      });
+
+      it('converts a google.com/url-wrapped Drive link', () => {
+        expect(
+          convertToEmbedUrl(
+            'https://www.google.com/url?q=https://drive.google.com/file/d/abc123/view'
+          )
+        ).toBe('https://drive.google.com/file/d/abc123/preview');
+      });
+
+      it('converts a google.com/url-wrapped Vids link', () => {
+        expect(
+          convertToEmbedUrl(
+            'https://www.google.com/url?q=https://vids.google.com/vids/abc123'
+          )
+        ).toBe('https://vids.google.com/vids/abc123/preview');
+      });
+    });
   });
 });

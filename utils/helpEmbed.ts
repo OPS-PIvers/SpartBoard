@@ -30,13 +30,18 @@ export const inferHelpEmbedType = (url: string): HelpEmbedType => {
   } catch {
     return 'other';
   }
-  if (isHost(host, 'youtube.com') || isHost(host, 'youtu.be')) return 'youtube';
-  if (host === 'docs.google.com') {
+  const isYouTube =
+    isHost(host, 'youtube.com') ||
+    isHost(host, 'youtube-nocookie.com') ||
+    isHost(host, 'youtu.be');
+  if (isYouTube) return 'youtube';
+  if (isHost(host, 'docs.google.com')) {
     if (path.startsWith('/document')) return 'doc';
     if (path.startsWith('/presentation')) return 'slides';
     if (path.startsWith('/spreadsheets')) return 'sheet';
   }
-  if (host === 'drive.google.com' && path.includes('/file')) return 'drive';
+  if (isHost(host, 'drive.google.com') && path.includes('/file'))
+    return 'drive';
   if (path.toLowerCase().endsWith('.pdf')) return 'pdf';
   return 'other';
 };

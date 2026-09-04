@@ -1,8 +1,8 @@
 // Firestore security-rules regression for the Help Center collections:
 //   - `/help_center/config` — authed read, super-admin-only write
 //   - `/help_resources/{itemId}` — admin writes scoped by org (orgId == null is
-//     global and super-admin-only), authed reads limited to global or own-org
-//     items, and a teacher-only openCount increment of exactly +1
+//     global and super-admin-only), reads limited to email-bearing teachers on
+//     global or own-org items, and a teacher-only openCount increment of +1
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -29,6 +29,8 @@ const TEACHER_UID = 'teacher-uid';
 const TEACHER_EMAIL = 'teacher@example.com';
 const TEACHER_B_UID = 'teacher-b-uid';
 const TEACHER_B_EMAIL = 'teacher-b@example.com';
+const ANON_STUDENT_UID = 'anon-pin-student-uid';
+const GIS_STUDENT_UID = 'gis-student-uid';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -49,6 +51,17 @@ const asTeacher = () =>
 const asTeacherB = () =>
   testEnv
     .authenticatedContext(TEACHER_B_UID, { email: TEACHER_B_EMAIL })
+    .firestore();
+// Anon PIN and GIS students authenticate without an email claim.
+const asAnonStudent = () =>
+  testEnv.authenticatedContext(ANON_STUDENT_UID).firestore();
+const asGisStudent = () =>
+  testEnv
+    .authenticatedContext(GIS_STUDENT_UID, {
+      studentRole: true,
+      orgId: ORG_A,
+      classIds: ['class-1'],
+    })
     .firestore();
 
 const validItem = (
@@ -302,6 +315,14 @@ describe('help_resources — read', () => {
   it("a teacher cannot read another org's items", async () => {
     await assertFails(getDoc(doc(asTeacher(), 'help_resources/org-b-1')));
   });
+
+  it('an anonymous PIN student cannot read a global item', async () => {
+    await assertFails(getDoc(doc(asAnonStudent(), 'help_resources/global-1')));
+  });
+
+  it('a GIS student cannot read an item scoped to their own org', async () => {
+    await assertFails(getDoc(doc(asGisStudent(), 'help_resources/org-a-1')));
+  });
 });
 
 describe('help_resources — update', () => {
@@ -373,6 +394,26 @@ describe('help_resources — update', () => {
   it('a teacher cannot increment openCount by 2', async () => {
     await assertFails(
       updateDoc(doc(asTeacher(), 'help_resources/org-a-1'), { openCount: 2 })
+    );
+  });
+
+  it('an anonymous PIN student cannot inflate openCount on a global item', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'help_resources/global-1'),
+        validItem('global-1')
+      );
+    });
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), 'help_resources/global-1'), {
+        openCount: 1,
+      })
+    );
+  });
+
+  it('a GIS student cannot inflate openCount on their own org item', async () => {
+    await assertFails(
+      updateDoc(doc(asGisStudent(), 'help_resources/org-a-1'), { openCount: 1 })
     );
   });
 

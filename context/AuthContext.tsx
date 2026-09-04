@@ -90,6 +90,7 @@ import {
 } from '@/utils/lastActiveThrottle';
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
+import { OPERATOR_ORG_ID } from '@/config/organization';
 
 // The operator's own organization. Two narrow uses remain after dynamic
 // org resolution shipped:
@@ -101,7 +102,6 @@ import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 //      there and resolve to the free tier — the correct degraded behavior.
 // Every signed-in user's actual org is resolved dynamically from their email
 // domain via `resolveOrgForUser` (see the membership effect below).
-const OPERATOR_ORG_ID = 'orono';
 
 /** Session cache of a POSITIVE org resolution keyed by lowercased email, so
  * repeat loads within a session skip the `resolveOrgForUser` round-trip.
