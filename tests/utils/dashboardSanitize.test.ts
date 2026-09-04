@@ -50,6 +50,34 @@ describe('sanitizeBoardSnapshot', () => {
     expect(out.annotationOverlay).toBeUndefined();
   });
 
+  // Decision (PR #2820 review round 2): ink persists with its own Board, but
+  // a duplicate, template, or Collection share is a copy of the DESIGN. The
+  // recipient starts clean rather than inheriting the author's markup.
+  it('DECISION: a snapshot never carries the author markup, even with ink on the board', () => {
+    const out = sanitizeBoardSnapshot({
+      ...baseBoard(),
+      annotationOverlay: {
+        objects: [
+          {
+            id: 'stroke-1',
+            kind: 'path',
+            z: 1,
+            points: [{ x: 0, y: 0 }],
+            color: '#000',
+            width: 2,
+          },
+        ],
+        updatedAt: 5,
+        canvasWidth: 1920,
+        canvasHeight: 1080,
+      },
+    });
+    expect(out.annotationOverlay).toBeUndefined();
+    // The design itself still travels.
+    expect(out.widgets).toEqual([]);
+    expect(out.background).toBe('bg-slate-900');
+  });
+
   it('strips isDefault, isPinned, updatedAt, collectionId', () => {
     const out = sanitizeBoardSnapshot({
       ...baseBoard(),

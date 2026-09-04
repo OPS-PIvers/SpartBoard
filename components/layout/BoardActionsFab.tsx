@@ -32,7 +32,12 @@ const PRESETS: { value: number; labelKey: string; defaultLabel: string }[] = [
 
 export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
   const { t } = useTranslation();
-  const { zoom, setZoom } = useDashboard();
+  const { zoom, setZoom, annotationActive, annotationState } = useDashboard();
+
+  // A pen/shape tool is armed: ink, not the FAB, owns the pointer so a stroke
+  // over this corner reaches the canvas. Switching to Select re-arms it.
+  const inkingOwnsPointer =
+    annotationActive && annotationState?.activeTool !== 'select';
 
   const [isSliderOpen, setIsSliderOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -109,7 +114,9 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
     <div
       ref={containerRef}
       data-screenshot="exclude"
-      className="fixed bottom-6 right-4 z-dock"
+      className={`fixed bottom-6 right-4 z-dock ${
+        inkingOwnsPointer ? 'pointer-events-none' : ''
+      }`}
     >
       {isSliderOpen && (
         <div

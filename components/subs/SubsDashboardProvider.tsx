@@ -319,14 +319,16 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       // Annotation / zoom / selection — disabled for subs.
       openAnnotation: NOOP,
       closeAnnotation: NOOP,
-      updateAnnotationState: NOOP,
-      addAnnotationObject: NOOP,
+      updateAnnotationState: () => false,
+      addAnnotationObject: () => false,
       updateAnnotationObject: NOOP,
       removeAnnotationObject: NOOP,
       undoAnnotation: NOOP,
       redoAnnotation: NOOP,
+      canUndoAnnotation: false,
       canRedoAnnotation: false,
       clearAnnotation: NOOP,
+      reportAnnotationCanvasSize: NOOP,
       setZoom: NOOP,
       setSelectedWidgetId: NOOP,
       setSelectedWidgetIds: NOOP as (
