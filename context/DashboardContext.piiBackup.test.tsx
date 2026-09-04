@@ -46,6 +46,7 @@ const uploadFileMock = vi
 const updateFileContentMock = vi.fn().mockResolvedValue(undefined);
 const exportDashboardMock = vi.fn().mockResolvedValue('drive-file-id');
 const listFilesMock = vi.fn().mockResolvedValue([]);
+const downloadFileMock = vi.fn();
 
 const driveMock = {
   driveService: {
@@ -53,6 +54,7 @@ const driveMock = {
     updateFileContent: updateFileContentMock,
     exportDashboard: exportDashboardMock,
     listFiles: listFilesMock,
+    downloadFile: downloadFileMock,
   },
   userDomain: 'example.com',
   isConnected: true,
@@ -771,5 +773,165 @@ describe('DashboardContext renameDashboard', () => {
     expect(
       stateRef.current?.dashboards.find((d) => d.id === 'dash-2')?.name
     ).toBe('Period 3');
+  });
+});
+
+describe('DashboardContext save baseline vs concurrent snapshot', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    listFilesMock.mockResolvedValue([]);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('keeps a baseline the mid-flight snapshot advanced instead of regressing it', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', [
+        { ...makeTextWidget('w-local', 'l0'), version: 1 },
+        { ...makeTextWidget('w-remote', 'r0'), version: 1 },
+      ]),
+    ]);
+
+    // Hold the autosave in flight so a snapshot can land mid-write.
+    let resolveSave: (updatedAt: number) => void = () => undefined;
+    saveDashboardMock.mockReturnValueOnce(
+      new Promise<number>((resolve) => {
+        resolveSave = resolve;
+      })
+    );
+    act(() => {
+      stateRef.current?.updateWidget('w-local', {
+        config: { content: 'l1' } as unknown as WidgetConfig,
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(saveDashboardMock).toHaveBeenCalled();
+
+    // Another device edits the widget this one has NOT touched. The snapshot
+    // merge adopts it into local state and advances the baseline with it.
+    await pushSnapshot([
+      makeDashboard('dash-1', [
+        { ...makeTextWidget('w-local', 'l0'), version: 1 },
+        { ...makeTextWidget('w-remote', 'r1'), version: 2 },
+      ]),
+    ]);
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-remote').content
+    ).toBe('r1');
+
+    await act(async () => {
+      resolveSave(1234);
+      await Promise.resolve();
+    });
+
+    saveDashboardMock.mockClear();
+    act(() => {
+      stateRef.current?.updateWidget('w-local', {
+        config: { content: 'l2' } as unknown as WidgetConfig,
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    const baseline = saveDashboardMock.mock.calls.at(-1)?.[1] as
+      | { widgets: WidgetData[] }
+      | undefined;
+    const baseRemote = baseline?.widgets.find((w) => w.id === 'w-remote');
+    // The settled save's pre-write capture still held version 1. Restoring it
+    // would make the adopted remote edit read as a local change, so the next
+    // transaction would write r1 back over whatever that device wrote next.
+    expect(baseRemote?.version).toBe(2);
+    expect((baseRemote?.config as Record<string, unknown>).content).toBe('r1');
+  });
+});
+
+const piiBlob = (supplement: Record<string, unknown>) =>
+  ({
+    text: () => Promise.resolve(JSON.stringify(supplement)),
+  }) as unknown as Blob;
+
+describe('DashboardContext stale PII supplement', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardsMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    listFilesMock.mockReset();
+    downloadFileMock.mockReset();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    listFilesMock.mockResolvedValue([]);
+    vi.useRealTimers();
+  });
+
+  it('drops a cached roster once another device moves the widget version, then re-reads Drive', async () => {
+    listFilesMock.mockResolvedValue([{ id: 'pii-1', name: 'dash-1-pii.json' }]);
+    downloadFileMock.mockResolvedValue(
+      piiBlob({ 'w-pii': { names: 'Alice\nBob' } })
+    );
+
+    const stateRef = setup();
+    // Firestore only ever holds the scrubbed config; Drive supplies the roster.
+    const scrubbedWidget = {
+      ...makePiiWidget('w-pii'),
+      version: 1,
+      config: {} as WidgetConfig,
+    };
+    await settleSnapshot(stateRef, [makeDashboard('dash-1', [scrubbedWidget])]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(configOf(stateRef.current?.activeDashboard, 'w-pii').names).toBe(
+      'Alice\nBob'
+    );
+
+    // Device A deletes "Bob": the widget version moves, Firestore gets the
+    // scrubbed doc and the Drive supplement is rewritten with just "Alice".
+    // Hold the re-read open so the window between the two is observable.
+    let releaseReread: () => void = () => undefined;
+    listFilesMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        releaseReread = () =>
+          resolve([{ id: 'pii-1', name: 'dash-1-pii.json' }]);
+      })
+    );
+    downloadFileMock.mockResolvedValue(
+      piiBlob({ 'w-pii': { names: 'Alice' } })
+    );
+    listFilesMock.mockClear();
+    await pushSnapshot([
+      makeDashboard('dash-1', [{ ...scrubbedWidget, version: 2 }]),
+    ]);
+
+    // Re-overlaying the version-1 cache here is what resurrected "Bob" and
+    // wrote him straight back to the same Drive file on the next autosave.
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-pii').names
+    ).toBeUndefined();
+    // ...and the authoritative supplement is re-read rather than waiting for
+    // the next board switch.
+    expect(listFilesMock).toHaveBeenCalled();
+
+    await act(async () => {
+      releaseReread();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(configOf(stateRef.current?.activeDashboard, 'w-pii').names).toBe(
+      'Alice'
+    );
   });
 });
