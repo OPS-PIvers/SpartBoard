@@ -815,17 +815,43 @@ describe('AnnotationOverlay — persistence + layout', () => {
           .getByRole('button', { name: /^exit/i })
           .closest('[data-screenshot="exclude"]') as HTMLElement;
         // Offset right of the top-left pill instead of centered on the viewport.
-        expect(parseFloat(wrapper.style.left)).toBeGreaterThanOrEqual(344);
+        // The 40vw cap only bites below 860px, so it is inert at these widths.
+        expect(wrapper.className).toContain('left-[min(344px,40vw)]');
         expect(wrapper.className).not.toContain('left-1/2');
         expect(wrapper.className).toContain('justify-center');
 
         const bar = wrapper.firstElementChild as HTMLElement;
-        expect(bar.style.maxWidth).toBe('calc(100vw - 360px)');
+        expect(bar.className).toContain('max-w-[max(60vw,calc(100vw-360px))]');
         expect(bar.className).toContain('flex-wrap');
 
         // Both ends of the toolbar are still present and operable.
         expect(screen.getByLabelText('Select')).toBeEnabled();
         expect(screen.getByRole('button', { name: /^exit/i })).toBeEnabled();
+        view.unmount();
+      } finally {
+        setWindowSize(originalW, originalH);
+      }
+    }
+  );
+
+  // Regression: an unconditional 344px inset plus a calc(100vw - 360px) cap
+  // left the toolbar 15px wide on a 375px phone. Both are now bounded.
+  it.each([375, 768])(
+    'REGRESSION: at %ipx the toolbar keeps a usable width',
+    (viewportWidth) => {
+      const originalW = window.innerWidth;
+      const originalH = window.innerHeight;
+      try {
+        setWindowSize(viewportWidth, 812);
+        setupContext();
+        const view = render(<AnnotationOverlay />);
+        const wrapper = screen
+          .getByRole('button', { name: /^exit/i })
+          .closest('[data-screenshot="exclude"]') as HTMLElement;
+        expect(wrapper.className).toContain('left-[min(344px,40vw)]');
+        const bar = wrapper.firstElementChild as HTMLElement;
+        expect(bar.className).toContain('max-w-[max(60vw,calc(100vw-360px))]');
+        expect(screen.getByLabelText('Select')).toBeEnabled();
         view.unmount();
       } finally {
         setWindowSize(originalW, originalH);

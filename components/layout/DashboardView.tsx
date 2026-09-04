@@ -1598,7 +1598,8 @@ export const DashboardView: React.FC = () => {
         style={{
           transform: boardCameraTransform,
           transformOrigin: 'center center',
-          zIndex: Z_INDEX.annotationSurface,
+          // Only lift when the toolbar is open — chrome lift shares this exact condition.
+          zIndex: annotationActive ? Z_INDEX.annotationSurface : undefined,
         }}
       />
 

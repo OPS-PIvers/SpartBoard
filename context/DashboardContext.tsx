@@ -1534,7 +1534,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       baseline?: SaveBaseline,
       // Teardown flushes pass this: the page is already going away, so the two
       // Drive round-trips below would run out the clock before Firestore is
-      // even reached. PII is still scrubbed — it just isn't backed up here.
+      // even reached. The PII backup still fires, just unawaited.
       options?: { skipDrive?: boolean }
     ): Promise<number> => {
       // Always save to Firestore for real-time sync
@@ -1552,7 +1552,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      if (!skipDrive) await backupDashboardPIIToDrive(dashboard);
+      // Teardown skips the awaits, not the backup itself: scrubbing PII into
+      // Firestore without refreshing the Drive copy resurrects stale rosters.
+      if (skipDrive) {
+        void backupDashboardPIIToDrive(dashboard).catch((e) =>
+          console.error('[PII] Teardown PII backup failed:', e)
+        );
+      } else {
+        await backupDashboardPIIToDrive(dashboard);
+      }
 
       // CRITICAL: Strip all student PII before writing to Firestore.
       // Custom widget names (firstNames, lastNames, completedNames, etc.) must
@@ -3008,7 +3016,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // beforeunload, so pagehide and the hidden visibilitychange (the only events
   // a backgrounded tab reliably gets) run the same flush.
   useEffect(() => {
-    const flushPendingSave = () => {
+    const flushPendingSave = (mode: 'teardown' | 'hidden') => {
       // oldestUnsavedEditAtRef tracks "content differs from what was saved";
       // saveTimerRef only tracks "a timer happens to be scheduled right now",
       // which the effect's cleanup clears on every re-render.
@@ -3021,27 +3029,40 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       const active = dashboards.find((d) => d.id === activeId);
       if (!active) return;
-      // Note: We can't reliably await this during teardown, but we can try
-      // to trigger it. Deliberately baseline-free: the merge transaction
-      // needs a server read before it can write anything, and the page is
-      // already tearing down. The blind write is the only one with a
-      // chance of landing — and it skips Drive so Firestore is reached
-      // before the tab is frozen.
-      void saveDashboard(active, undefined, { skipDrive: true });
+      // This flush covers every edit up to now — cancel the debounced write so
+      // it doesn't fire a second copy of the same document afterwards.
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      oldestUnsavedEditAtRef.current = null;
+      // Hiding a tab is routine (app switch, iPad lock), so it takes the normal
+      // baselined merge — a blind whole-doc write there would clobber a
+      // co-teacher's unreceived edits. Only real teardown, where the merge
+      // transaction's server read would never finish, writes blind.
+      const write =
+        mode === 'hidden'
+          ? saveDashboard(active, buildSaveBaseline(active.id))
+          : saveDashboard(active, undefined, { skipDrive: true });
+      void write.catch((err) => {
+        console.error('Flush save failed:', err);
+        oldestUnsavedEditAtRef.current ??= Date.now();
+      });
     };
+    const onTeardown = () => flushPendingSave('teardown');
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flushPendingSave();
+      if (document.visibilityState === 'hidden') flushPendingSave('hidden');
     };
 
-    window.addEventListener('beforeunload', flushPendingSave);
-    window.addEventListener('pagehide', flushPendingSave);
+    window.addEventListener('beforeunload', onTeardown);
+    window.addEventListener('pagehide', onTeardown);
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
-      window.removeEventListener('beforeunload', flushPendingSave);
-      window.removeEventListener('pagehide', flushPendingSave);
+      window.removeEventListener('beforeunload', onTeardown);
+      window.removeEventListener('pagehide', onTeardown);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [dashboards, activeId, user, loading, saveDashboard]);
+  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
 
   const toggleToolVisibility = useCallback(
     (type: WidgetType | InternalToolType) => {

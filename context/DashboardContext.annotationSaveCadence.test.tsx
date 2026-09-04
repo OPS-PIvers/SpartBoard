@@ -364,6 +364,13 @@ describe('DashboardContext annotation save cadence', () => {
       expect(saveDashboardMock).toHaveBeenCalledTimes(1);
       const saved = saveDashboardMock.mock.calls[0][0] as Dashboard;
       expect(saved.annotationOverlay?.objects.map((o) => o.id)).toEqual(['s1']);
+      // Real teardown writes blind: the merge transaction's server read would
+      // never come back before the tab is frozen.
+      expect(saveDashboardMock.mock.calls[0][1]).toBeUndefined();
+
+      // The flush consumed the pending edit — no second copy of the same doc.
+      await advance(10000);
+      expect(saveDashboardMock).toHaveBeenCalledTimes(1);
     }
   );
 
@@ -385,6 +392,12 @@ describe('DashboardContext annotation save cadence', () => {
       });
       await advance(0);
       expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+      // Hiding is routine (app switch, iPad lock), so it takes the normal
+      // baselined merge rather than a blind whole-doc overwrite that would
+      // clobber a co-teacher's unreceived edits.
+      expect(saveDashboardMock.mock.calls[0][1]).toBeDefined();
+      await advance(10000);
+      expect(saveDashboardMock).toHaveBeenCalledTimes(1);
     } finally {
       visibility.mockRestore();
     }
@@ -405,9 +418,10 @@ describe('DashboardContext annotation save cadence', () => {
   });
 
   // The flush races the page teardown, so it writes Firestore directly rather
-  // than awaiting two Drive round-trips first. PII is still scrubbed by
-  // saveDashboard — it just isn't backed up on this path.
-  it('REGRESSION: the teardown flush skips the Drive round-trips', async () => {
+  // than awaiting two Drive round-trips first. The PII backup still fires,
+  // unawaited — skipping it would scrub the roster into Firestore while the
+  // Drive copy stayed stale, and the next load would restore the old names.
+  it('REGRESSION: the teardown flush skips the Drive awaits but still backs up PII', async () => {
     const piiBoard: Dashboard = {
       ...board(),
       driveFileId: undefined,
@@ -431,8 +445,8 @@ describe('DashboardContext annotation save cadence', () => {
 
     expect(saveDashboardMock).toHaveBeenCalledTimes(1);
     expect(exportDashboardMock).not.toHaveBeenCalled();
-    expect(driveServiceMock.uploadFile).not.toHaveBeenCalled();
-    expect(driveServiceMock.updateFileContent).not.toHaveBeenCalled();
+    // Fired, but not awaited ahead of the Firestore write.
+    expect(driveServiceMock.uploadFile).toHaveBeenCalled();
 
     // The roster never reaches the Firestore payload.
     const saved = saveDashboardMock.mock.calls[0][0] as Dashboard;

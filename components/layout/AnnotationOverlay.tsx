@@ -107,11 +107,12 @@ const FALLBACK_ANNOTATION_STATE: {
   shapeFill: DRAWING_DEFAULTS.SHAPE_FILL,
 };
 
-// Horizontal room the fixed Sidebar pill needs at top-left before the toolbar
-// may start. Applied at every width: re-centering on the viewport put the
-// toolbar back under the pill on 1440-1728px screens.
-const SIDEBAR_PILL_CLEARANCE_PX = 344;
-const TOOLBAR_INSET_RIGHT_PX = 16;
+// Horizontal room the fixed Sidebar pill needs at top-left (344px) before the
+// toolbar may start, capped at 40vw so it does not crush the bar on phones; the
+// bar keeps at least 60vw. Re-centering on the viewport instead put it back
+// under the pill on 1440-1728px screens. Literal classes so Tailwind sees them.
+const TOOLBAR_INSET_CLASS = 'left-[min(344px,40vw)] right-4';
+const TOOLBAR_MAX_WIDTH_CLASS = 'max-w-[max(60vw,calc(100vw-360px))]';
 
 /**
  * Full-screen annotation overlay — NOT a widget.
@@ -755,17 +756,10 @@ export const AnnotationOverlay: React.FC = () => {
       {interactive && (
         <div
           data-screenshot="exclude"
-          className="absolute top-6 flex justify-center pointer-events-none"
-          style={{
-            left: SIDEBAR_PILL_CLEARANCE_PX,
-            right: TOOLBAR_INSET_RIGHT_PX,
-          }}
+          className={`absolute top-6 flex justify-center pointer-events-none ${TOOLBAR_INSET_CLASS}`}
         >
           <div
-            className="pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex flex-wrap items-center justify-center gap-2 overflow-x-auto motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-300"
-            style={{
-              maxWidth: `calc(100vw - ${SIDEBAR_PILL_CLEARANCE_PX + TOOLBAR_INSET_RIGHT_PX}px)`,
-            }}
+            className={`pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex flex-wrap items-center justify-center gap-2 overflow-x-auto motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-300 ${TOOLBAR_MAX_WIDTH_CLASS}`}
           >
             <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
               <MousePointer2 className="w-4 h-4 text-indigo-600 motion-safe:animate-pulse" />

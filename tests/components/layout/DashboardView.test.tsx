@@ -2269,10 +2269,10 @@ describe('DashboardView Gestures & Navigation', () => {
         '#dashboard-zoom-surface'
       );
       const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
-      expect(surface?.style.transform).not.toBe('');
+      if (!surface || !ink) throw new Error('zoom surface and ink layer');
+      expect(surface.style.transform).not.toBe('');
       expect(
-        surface?.compareDocumentPosition(ink as Node) &
-          Node.DOCUMENT_POSITION_FOLLOWING
+        surface.compareDocumentPosition(ink) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
       expect(Number(ink?.style.zIndex)).toBeLessThan(Z_INDEX.modal);
     });
@@ -2291,6 +2291,17 @@ describe('DashboardView Gestures & Navigation', () => {
         '#dashboard-zoom-surface'
       );
       expect(surface?.style.zIndex).toBe('');
+    });
+
+    // Regression: the ink layer kept annotationSurface with the toolbar closed
+    // while the chrome lift did not, so a board's saved ink painted over the
+    // Dock, Sidebar pill and FABs. Both now share one condition.
+    it('REGRESSION: the ink layer is unlayered when the toolbar is closed', () => {
+      annotationCtx(false);
+      const { container } = renderView();
+      const ink = container.querySelector<HTMLElement>('#dashboard-ink-layer');
+      expect(ink).not.toBeNull();
+      expect(ink?.style.zIndex).toBe('');
     });
   });
 
