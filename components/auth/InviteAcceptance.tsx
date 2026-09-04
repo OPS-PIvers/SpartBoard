@@ -8,15 +8,14 @@ import {
 } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { APP_NAME } from '@/config/constants';
+import { OPERATOR_ORG_ID } from '@/config/organization';
 import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 
-// Resilience fallback only. The org a user is claiming an invite for normally
-// comes from the invite URL's `?org=` param (see `extractOrgId`); failing that,
-// it's resolved from their verified email domain via `resolveOrgForUser`. This
-// operator-org id is the last resort if both are unavailable, so existing
-// internal invites keep working.
-const OPERATOR_ORG_ID = 'orono';
+// OPERATOR_ORG_ID is a resilience fallback only here. The org a user is claiming
+// an invite for normally comes from the invite URL's `?org=` param (see
+// `extractOrgId`); failing that, it's resolved from their verified email domain
+// via `resolveOrgForUser`.
 
 /**
  * Resolves which org the signed-in invitee belongs to, from their verified

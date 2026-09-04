@@ -8,6 +8,10 @@
       "title": "Tableaux",
       "switch": "Changer de tableau",
       "close": "Fermer"
+    },
+    "disabled": {
+      "title": "La commande à distance est désactivée",
+      "hint": "Réactivez la commande à distance depuis le tableau pour contrôler les widgets depuis cet appareil."
     }
   },
   "common": {
@@ -1657,7 +1661,8 @@
     "emptyResults": "Aucun widget ne correspond."
   },
   "style": {
-    "readOnlyNotice": "Ce tableau est en lecture seule. Les modifications de style ne sont pas enregistrées."
+    "readOnlyNotice": "Ce tableau est en lecture seule. Les modifications de style ne sont pas enregistrées.",
+    "frameColorSolidHint": "La couleur du cadre reste opaque. Choisissez Par défaut pour utiliser ce curseur."
   },
   "whatsNew": {
     "title": "Nouveautés",

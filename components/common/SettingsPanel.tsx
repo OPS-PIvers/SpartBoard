@@ -387,6 +387,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     {Math.round(transparency * 100)}%
                   </span>
                 </div>
+                {widget.backgroundColor && (
+                  <p className="text-xs text-slate-500 leading-snug">
+                    {t('style.frameColorSolidHint', {
+                      defaultValue:
+                        'A frame background color stays solid. Set it to Default to use this slider.',
+                    })}
+                  </p>
+                )}
               </div>
             </div>
           )}

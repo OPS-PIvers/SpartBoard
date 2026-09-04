@@ -35,10 +35,10 @@ import {
   X,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { WidgetData, WidgetType, DashboardSettings } from '@/types';
 import { RemoteWidgetCard } from './RemoteWidgetCard';
 import { useRemoteConnection } from './useRemoteConnection';
+import { useRemoteControlSetting } from './useRemoteControlSetting';
 
 /** Widget types with full custom remote controls — sorted to the front of the carousel */
 const REMOTE_SUPPORTED_TYPES: WidgetType[] = [
@@ -79,7 +79,7 @@ export const MobileRemoteView: React.FC = () => {
     loadDashboard,
     dashboards,
   } = useDashboard();
-  const { remoteControlEnabled: accountRemoteEnabled } = useAuth();
+  const remoteEnabled = useRemoteControlSetting();
   const {
     status: connStatus,
     lastSyncedAt: connLastSyncedAt,
@@ -209,6 +209,8 @@ export const MobileRemoteView: React.FC = () => {
   // rapid successive writes don't clear the guard prematurely.
   const handleUpdateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
+      // Read-only once the account toggle is off, even mid-session.
+      if (!remoteEnabled) return;
       const existing = pendingWidgetTimers.current.get(id);
       if (existing !== undefined) clearTimeout(existing);
       pendingWidgetTimers.current.set(
@@ -230,7 +232,7 @@ export const MobileRemoteView: React.FC = () => {
       });
       ctxUpdateWidget(id, updates, { immediate: true });
     },
-    [ctxUpdateWidget]
+    [ctxUpdateWidget, remoteEnabled]
   );
 
   // Write-through updateDashboardSettings: update local snapshot AND write to Firestore.
@@ -238,6 +240,7 @@ export const MobileRemoteView: React.FC = () => {
   // successive settings writes don't clear the guard prematurely.
   const handleUpdateDashboardSettings = useCallback(
     (updates: Partial<DashboardSettings>) => {
+      if (!remoteEnabled) return;
       if (pendingSettingsTimer.current !== null) {
         clearTimeout(pendingSettingsTimer.current);
       }
@@ -247,7 +250,7 @@ export const MobileRemoteView: React.FC = () => {
       setLocalSettings((prev) => ({ ...(prev ?? {}), ...updates }));
       ctxUpdateDashboardSettings(updates, { immediate: true });
     },
-    [ctxUpdateDashboardSettings]
+    [ctxUpdateDashboardSettings, remoteEnabled]
   );
 
   // Reset local snapshot when switching dashboards so the new dashboard
@@ -303,17 +306,14 @@ export const MobileRemoteView: React.FC = () => {
     );
   }
 
-  const remoteEnabled = accountRemoteEnabled;
-
   if (!remoteEnabled) {
     return (
       <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center gap-4 p-8 text-center">
         <Smartphone className="w-12 h-12 text-white/20" />
-        <p className="text-white/60 font-semibold">Remote Control Disabled</p>
-        <p className="text-white/40 text-sm">
-          Enable Remote Control in your account Preferences to start controlling
-          widgets here.
+        <p className="text-white/60 font-semibold">
+          {t('remote.disabled.title')}
         </p>
+        <p className="text-white/40 text-sm">{t('remote.disabled.hint')}</p>
       </div>
     );
   }

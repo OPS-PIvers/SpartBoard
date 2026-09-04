@@ -8,6 +8,10 @@
       "title": "Tafeln",
       "switch": "Tafel wechseln",
       "close": "Schließen"
+    },
+    "disabled": {
+      "title": "Fernsteuerung ist deaktiviert",
+      "hint": "Aktiviere die Fernsteuerung wieder auf der Tafel, um Widgets von diesem Gerät aus zu steuern."
     }
   },
   "common": {
@@ -1657,7 +1661,8 @@
     "emptyResults": "Keine passenden Widgets."
   },
   "style": {
-    "readOnlyNotice": "Diese Tafel ist schreibgeschützt. Stiländerungen werden nicht gespeichert."
+    "readOnlyNotice": "Diese Tafel ist schreibgeschützt. Stiländerungen werden nicht gespeichert.",
+    "frameColorSolidHint": "Eine Rahmenfarbe bleibt deckend. Setze sie auf Standard, um diesen Regler zu nutzen."
   },
   "whatsNew": {
     "title": "Was ist neu",

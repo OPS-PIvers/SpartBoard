@@ -2306,6 +2306,21 @@ describe('DashboardView Gestures & Navigation', () => {
       await waitFor(() => expect(selectedTab()).toBe('help-tab-shortcuts'));
     });
 
+    // Regression: Help autofocuses its search box, so the typing-field guard on
+    // Ctrl+/ made the shortcut one-way — it could open Help but never close it.
+    it('closes Help with Ctrl+/ while the Help search box holds focus', async () => {
+      renderView();
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+      await waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('searchbox'))
+      );
+
+      fireEvent.keyDown(window, { key: '/', ctrlKey: true });
+      await waitFor(() =>
+        expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+      );
+    });
+
     it('opens Help on the requested tab for the spart:open-help event', async () => {
       renderView();
       fireEvent(

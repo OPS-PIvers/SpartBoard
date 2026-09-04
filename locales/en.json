@@ -8,6 +8,10 @@
       "title": "Boards",
       "switch": "Switch board",
       "close": "Close"
+    },
+    "disabled": {
+      "title": "Remote control is off",
+      "hint": "Turn Remote Control back on from the board to control widgets from this device."
     }
   },
   "common": {
@@ -1772,7 +1776,8 @@
     }
   },
   "style": {
-    "readOnlyNotice": "This board is read-only. Style changes are not saved."
+    "readOnlyNotice": "This board is read-only. Style changes are not saved.",
+    "frameColorSolidHint": "A frame background color stays solid. Set it to Default to use this slider."
   },
   "plcRoute": {
     "loading": "Loading PLC…",

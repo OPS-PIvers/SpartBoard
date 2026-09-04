@@ -66,6 +66,9 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
     // We normalize to the default transparency so it looks consistent at 80%
     const factor = finalTransparency / DEFAULT_GLOBAL_STYLE.windowTransparency;
 
+    // An explicitly chosen frame tint stays solid; the default glass still follows transparency.
+    const backgroundAlpha = bgHex ? 1 : finalTransparency;
+
     // If bgClass is set, append it to the wrapper class and do not apply an inline background color
     return (
       <div
@@ -75,7 +78,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
           ['--window-radius' as string]: radiusPx,
           backgroundColor: bgClass
             ? undefined
-            : hexToRgba(bgHex, finalTransparency),
+            : hexToRgba(bgHex, backgroundAlpha),
           border: `1px solid rgba(255, 255, 255, ${Math.min(1, 0.3 * factor)})`,
           boxShadow: selected
             ? `0 0 0 2px rgba(99, 102, 241, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.25)`

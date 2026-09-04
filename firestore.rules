@@ -3770,8 +3770,14 @@ service cloud.firestore {
                 : (d.setId is string && d.url == null && d.embedType == null))
           && d.createdByEmail is string && d.createdAt is int && d.updatedAt is int;
       }
-      allow read: if request.auth != null
-        && (resource.data.orgId == null || isAdmin() || isOrgMember(resource.data.orgId));
+      // Teacher-only: anon PIN and studentRole tokens carry no email claim, so
+      // the same idiom isAdmin() uses keeps student sessions out of the library.
+      function helpReaderOk() {
+        return request.auth != null
+          && request.auth.token.get('email', '') != ''
+          && (resource.data.orgId == null || isAdmin() || isOrgMember(resource.data.orgId));
+      }
+      allow read: if helpReaderOk();
       allow create: if isAdmin() && helpShapeOk(request.resource.data)
         && helpScopeOk(request.resource.data)
         && request.resource.data.createdBy == request.auth.uid
@@ -3781,8 +3787,7 @@ service cloud.firestore {
         && request.resource.data.orgId == resource.data.orgId
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.openCount == resource.data.openCount)
-        || (request.auth != null
-        && (resource.data.orgId == null || isAdmin() || isOrgMember(resource.data.orgId))
+        || (helpReaderOk()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['openCount'])
         && request.resource.data.openCount == resource.data.openCount + 1);
       allow delete: if isAdmin() && helpScopeOk(resource.data);

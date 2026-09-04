@@ -135,7 +135,7 @@ export const HelpShortcutsTab: React.FC<HelpShortcutsTabProps> = ({
               if (rows.length === 0) return null;
               return (
                 <div key={group}>
-                  <h4 className="text-xxs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                  <h4 className="text-xxs font-bold uppercase tracking-widest text-slate-500 mb-2">
                     {t(`helpCenter.groups.${group}`)}
                   </h4>
                   <ul className="flex flex-col divide-y divide-slate-100">
@@ -151,7 +151,7 @@ export const HelpShortcutsTab: React.FC<HelpShortcutsTabProps> = ({
                           {row.keys.map((k, i) => (
                             <React.Fragment key={k}>
                               {i > 0 && (
-                                <span className="text-slate-400 text-xs">
+                                <span className="text-slate-500 text-xs">
                                   +
                                 </span>
                               )}
@@ -180,7 +180,7 @@ export const HelpShortcutsTab: React.FC<HelpShortcutsTabProps> = ({
               if (rows.length === 0) return null;
               return (
                 <div key={group}>
-                  <h4 className="text-xxs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                  <h4 className="text-xxs font-bold uppercase tracking-widest text-slate-500 mb-2">
                     {t(`helpCenter.groups.${group}`)}
                   </h4>
                   <ul className="flex flex-col divide-y divide-slate-100">
