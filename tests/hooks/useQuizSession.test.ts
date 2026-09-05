@@ -13,7 +13,7 @@ import {
   servedSnapshotPatch,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
-import { makeTestArtifact } from '../testHelpers/responseArtifacts';
+import { makeTestArtifact } from '@/tests/testHelpers/responseArtifacts';
 import type {
   QuizQuestion,
   QuizResponse,

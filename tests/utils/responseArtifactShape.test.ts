@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeTestArtifact } from '../testHelpers/responseArtifacts';
+import { makeTestArtifact } from '@/tests/testHelpers/responseArtifacts';
 import {
   artifactCountsAsTake,
   isArtifactPlayable,
