@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 import { Type } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
+import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 import { TEXT_SIZE_PRESETS, presetFromScale } from '@/config/widgetAppearance';
 import type { TextSizePreset } from '@/types';
 
@@ -33,6 +34,12 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
       typeof scaleCandidate === 'number' ? scaleCandidate : fallbackScale
     );
 
+  const selectPreset = (preset: (typeof TEXT_SIZE_PRESETS)[number]) =>
+    updateConfig({
+      textSizePreset: preset.id,
+      ...(writeScaleMultiplier ? { scaleMultiplier: preset.multiplier } : {}),
+    });
+
   return (
     <div>
       <SettingsLabel icon={Type} as="span" id={textSizeLabelId}>
@@ -42,6 +49,9 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
         className="grid grid-cols-2 gap-2"
         role="radiogroup"
         aria-labelledby={textSizeLabelId}
+        onKeyDown={(e) =>
+          handleRadioGroupKeyDown(e, TEXT_SIZE_PRESETS, selectPreset)
+        }
       >
         {TEXT_SIZE_PRESETS.map((preset) => (
           <button
@@ -49,14 +59,8 @@ export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
             key={preset.id}
             role="radio"
             aria-checked={selectedPreset === preset.id}
-            onClick={() =>
-              updateConfig({
-                textSizePreset: preset.id,
-                ...(writeScaleMultiplier
-                  ? { scaleMultiplier: preset.multiplier }
-                  : {}),
-              })
-            }
+            tabIndex={selectedPreset === preset.id ? 0 : -1}
+            onClick={() => selectPreset(preset)}
             className={`rounded-lg border px-3 py-2 text-xs font-bold uppercase tracking-wide ${
               selectedPreset === preset.id
                 ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
