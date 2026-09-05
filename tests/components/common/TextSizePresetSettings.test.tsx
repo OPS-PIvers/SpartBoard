@@ -87,6 +87,28 @@ describe('TextSizePresetSettings — radiogroup keyboard contract', () => {
     expect(updateConfig).toHaveBeenLastCalledWith({ textSizePreset: 'small' });
   });
 
+  it('treats ArrowDown/ArrowUp as ArrowRight/ArrowLeft in the grid layout', () => {
+    const updateConfig = vi.fn();
+    render(
+      <TextSizePresetSettings
+        config={{ textSizePreset: 'small' }}
+        updateConfig={updateConfig}
+      />
+    );
+
+    const small = screen.getByRole('radio', { name: 'Small' });
+    const medium = screen.getByRole('radio', { name: 'Medium' });
+
+    small.focus();
+    fireEvent.keyDown(small, { key: 'ArrowDown' });
+    expect(medium).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({ textSizePreset: 'medium' });
+
+    fireEvent.keyDown(medium, { key: 'ArrowUp' });
+    expect(small).toHaveFocus();
+    expect(updateConfig).toHaveBeenLastCalledWith({ textSizePreset: 'small' });
+  });
+
   it('also writes scaleMultiplier on arrow-key navigation when writeScaleMultiplier is set', () => {
     const updateConfig = vi.fn();
     render(

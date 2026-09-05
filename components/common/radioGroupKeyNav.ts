@@ -6,11 +6,18 @@ export function handleRadioGroupKeyDown<O>(
   options: readonly O[],
   onSelect: (option: O) => void
 ): void {
+  // WAI-ARIA's radiogroup pattern treats Down/Up as equivalent to Right/Left, which matters for grid-laid-out groups.
+  const key =
+    e.key === 'ArrowDown'
+      ? 'ArrowRight'
+      : e.key === 'ArrowUp'
+        ? 'ArrowLeft'
+        : e.key;
   if (
-    e.key !== 'ArrowRight' &&
-    e.key !== 'ArrowLeft' &&
-    e.key !== 'Home' &&
-    e.key !== 'End'
+    key !== 'ArrowRight' &&
+    key !== 'ArrowLeft' &&
+    key !== 'Home' &&
+    key !== 'End'
   )
     return;
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -22,9 +29,9 @@ export function handleRadioGroupKeyDown<O>(
   const idx = nodes.indexOf(document.activeElement as HTMLButtonElement);
   const safeIdx = idx < 0 ? 0 : idx;
   let nextIdx: number;
-  if (e.key === 'Home') nextIdx = 0;
-  else if (e.key === 'End') nextIdx = nodes.length - 1;
-  else if (e.key === 'ArrowRight') nextIdx = (safeIdx + 1) % nodes.length;
+  if (key === 'Home') nextIdx = 0;
+  else if (key === 'End') nextIdx = nodes.length - 1;
+  else if (key === 'ArrowRight') nextIdx = (safeIdx + 1) % nodes.length;
   else nextIdx = (safeIdx - 1 + nodes.length) % nodes.length;
   const nextOption = options[nextIdx];
   if (!nextOption) return;
