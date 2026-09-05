@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-09-05_
-_Last action: 2026-09-05 — MEDIUM `ExpectationsWidget` category-card icon-container uncapped-`cqmin` resolved: capped all three containers (Volume/Group Size/Interaction) at `min(72px, 18cqmin)`, matching the file's own two already-capped pairs. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, dedicated test file 8/8 pass. Moved to Completed. PR opened to dev-paul._
+_Last action: 2026-09-05 — MEDIUM `ExpectationsWidget` category-card icon-container uncapped-`cqmin` resolved, then revised same-day on PR #2872 automated review: initial fix capped all three containers (Volume/Group Size/Interaction) at `min(72px, 18cqmin)`, but the review pointed out Volume's icon is the only one that's genuinely capped (Group Size/Interaction use percentage-sized icons) and stacks a label below it, needing 88px at full cap — 72px clipped it. Kept Group Size/Interaction at `min(72px, 18cqmin)`, raised Volume to `min(88px, 18cqmin)`. `pnpm exec tsc --noEmit` exit 0, `eslint --max-warnings 0` exit 0, `prettier --check` clean, dedicated test file 8/8 pass. Moved to Completed. PR #2872 updated._
 
 ---
 
@@ -382,8 +382,8 @@ _2026-09-05 action notes (Saturday): Reading list = three dailies (widget-regist
 - **Detected:** 2026-08-26
 - **Completed:** 2026-09-05
 - **File:** `components/widgets/ExpectationsWidget/Widget.tsx:472-473, 560-561, 629-630`
-- **Detail:** All three category cards (Volume/Group Size/Interaction) had an icon container sized `width: '18cqmin', height: '18cqmin'` with no ceiling, while the icon rendered inside each container is correctly capped at `min(48px, 11cqmin)`. On a widened widget the container grew unbounded past the icon's cap, leaving the icon visibly floating in oversized empty space instead of filling its box.
-- **Resolution:** Capped all three containers at `width: 'min(72px, 18cqmin)', height: 'min(72px, 18cqmin)'`, matching the file's own two already-capped icon-container pairs (lines 289-290, 366-367). `pnpm exec tsc --noEmit` exit 0, `eslint components/widgets/ExpectationsWidget/Widget.tsx --max-warnings 0` exit 0, `prettier --check` clean, `vitest run components/widgets/ExpectationsWidget/ExpectationsWidget.test.tsx` 8/8 pass.
+- **Detail:** All three category cards (Volume/Group Size/Interaction) had an icon container sized `width: '18cqmin', height: '18cqmin'` with no ceiling. Correction from the original filing (caught by PR #2872's automated review): only the Volume icon is genuinely capped, at `min(48px, 11cqmin)`; Group Size and Interaction size their icons at `80%`/`100%` of the container, so they always fill it regardless of any cap. On a widened widget the uncapped container grew past the Volume icon's cap specifically, leaving it visibly floating in oversized empty space.
+- **Resolution:** Capped Group Size and Interaction at `width: 'min(72px, 18cqmin)', height: 'min(72px, 18cqmin)'`, matching the file's own two already-capped icon-container pairs (lines 289-290, 366-367) — safe for both since their icons are percentage-sized. Volume needed a taller ceiling: its container stacks the icon (`min(48px, 11cqmin)`) plus a `min(2px, 0.5cqmin)` gap plus a two-line "Level N" label (`min(8px, 2.2cqmin)` + `min(14px, 3.8cqmin)`) inside `min(8px, 2cqmin)` top+bottom padding — 88px of content at full cap, which the initial `72px` ceiling clipped. Capped Volume at `min(88px, 18cqmin)` instead, fitting its own contents exactly. `pnpm exec tsc --noEmit` exit 0, `eslint components/widgets/ExpectationsWidget/Widget.tsx --max-warnings 0` exit 0, `prettier --check` clean, `vitest run components/widgets/ExpectationsWidget/ExpectationsWidget.test.tsx` 8/8 pass.
 
 ### MEDIUM `ConceptWeb` node text uses uncapped `cqmin` while its sibling icons are capped
 
