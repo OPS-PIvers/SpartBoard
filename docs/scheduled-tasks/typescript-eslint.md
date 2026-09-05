@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-04_
+_Last audited: 2026-09-05_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-05: Full audit (Saturday daily). `pnpm type-check` (`tsc --noEmit`, full root run) exit 0 — 0 TypeScript errors. `pnpm lint`: the combined `pnpm run lint` (`lint:app && lint:functions`) timed out (exit 124, >280s), same recurring environment limit as prior cycles — the log showed `lint:app` had already completed silently (no error output) before the timeout hit mid-way through the subsequent `lint:functions` step. Ran `lint:app` (`eslint . --max-warnings 0`) and `functions/`'s own `pnpm run lint` (`eslint . --max-warnings 0`) as two separate fresh invocations instead: both exit 0 with no output beyond the pnpm banner — 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both. HEAD (`67ba5095`) is a Saturday widget-registry audit commit (docs-only); no unaudited source changes found to introduce type or lint issues. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs). 0 new issues found._
 
 _2026-09-04: Full audit (Friday daily). `pnpm run type-check` (`tsc --noEmit`, full root run) exit 0 — 0 TypeScript errors. `pnpm run lint`: the full `pnpm run lint` timed out (exit 124, >280s), same recurring environment limit as prior cycles. Fell back to the established 5-sweep methodology: `context/ hooks/ utils/ config/` exit 0; `components/widgets` exit 0; the remaining 29 `components/*` subdirs (including a new `components/help` directory since 2026-09-03) exit 0; `App.tsx index.tsx types.ts i18n/ tests/ types/` exit 0; `functions/`'s own `pnpm run lint` exit 0. All 5 sweeps exit 0, covering the same lintable file set as a full run. 0 TypeScript errors, 0 ESLint errors, 0 ESLint warnings across the whole codebase, root and functions both. No structured Open items to cross-reference (prior entries remain narrative daily-check logs). 0 new issues found._
 
