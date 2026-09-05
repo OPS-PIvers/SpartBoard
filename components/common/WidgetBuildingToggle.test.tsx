@@ -142,4 +142,44 @@ describe('WidgetBuildingToggle', () => {
     expect(screen.getByLabelText('K-2 – Schumann Elementary')).toBeTruthy();
     expect(screen.getByLabelText('3-5 – Orono Intermediate')).toBeTruthy();
   });
+
+  /**
+   * Regression: the radiogroup had no WAI-ARIA roving-tabindex/arrow-key
+   * keyboard contract — same bug class already fixed for
+   * TypographySettings.tsx (#2793) and SurfaceColorSettings.tsx (#2831) via
+   * the shared `handleRadioGroupKeyDown` helper.
+   */
+  describe('radiogroup keyboard contract', () => {
+    it('applies roving tabindex: active=0, others=-1', () => {
+      renderToggle(
+        ['schumann-elementary', 'orono-intermediate-school'],
+        makeWidget({ buildingId: 'orono-intermediate-school' })
+      );
+
+      expect(screen.getByLabelText('3-5 – Orono Intermediate')).toHaveAttribute(
+        'tabindex',
+        '0'
+      );
+      expect(
+        screen.getByLabelText('K-2 – Schumann Elementary')
+      ).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('moves focus AND updates config on ArrowRight/ArrowLeft', () => {
+      renderToggle(['schumann-elementary', 'orono-intermediate-school']);
+
+      const k2 = screen.getByLabelText('K-2 – Schumann Elementary');
+      const three5 = screen.getByLabelText('3-5 – Orono Intermediate');
+
+      k2.focus();
+      fireEvent.keyDown(k2, { key: 'ArrowRight' });
+      expect(three5).toHaveFocus();
+      expect(mockUpdateWidget).toHaveBeenLastCalledWith('w1', {
+        buildingId: 'intermediate',
+      });
+
+      fireEvent.keyDown(three5, { key: 'ArrowLeft' });
+      expect(k2).toHaveFocus();
+    });
+  });
 });

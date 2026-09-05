@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { canonicalBuildingId } from '@/config/buildings';
+import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 import { WidgetData } from '@/types';
 
 interface WidgetBuildingToggleProps {
@@ -45,11 +46,19 @@ export const WidgetBuildingToggle: React.FC<WidgetBuildingToggleProps> = ({
       ? widgetBuildingCanonical
       : userBuildings[0]?.id;
 
+  const selectBuilding = (building: (typeof userBuildings)[number]) => {
+    if (building.id === effectiveBuildingId) return;
+    updateWidget(widget.id, { buildingId: building.id });
+  };
+
   return (
     <div
       className="flex items-center bg-slate-200/80 rounded-lg p-0.5 shrink-0"
       role="radiogroup"
       aria-label="Building"
+      onKeyDown={(e) =>
+        handleRadioGroupKeyDown(e, userBuildings, selectBuilding)
+      }
     >
       {userBuildings.map((building) => {
         const isActive = building.id === effectiveBuildingId;
@@ -61,10 +70,8 @@ export const WidgetBuildingToggle: React.FC<WidgetBuildingToggleProps> = ({
             aria-checked={isActive}
             aria-label={`${building.gradeLabel} – ${building.name}`}
             title={building.name}
-            onClick={() => {
-              if (isActive) return;
-              updateWidget(widget.id, { buildingId: building.id });
-            }}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => selectBuilding(building)}
             className={`px-2 py-0.5 text-xxs font-bold rounded-md transition-all ${
               isActive
                 ? 'bg-white text-slate-700 shadow-sm'
