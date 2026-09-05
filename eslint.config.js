@@ -40,6 +40,10 @@ export default tseslint.config(
       // tsconfig + package.json) for rendering demo videos. Not part of
       // the main app's TypeScript project.
       'remotion',
+      // Standalone Node CLI script run directly via `node`/`execFileSync`
+      // from tests/ci.eslintConcurrencyMemory.test.ts, not app source — same
+      // category as `scripts` above, so it doesn't need browser globals.
+      'tests/fixtures/eslintWorkerMemoryProbe.mjs',
       'coverage',
       '.agents',
       '.gemini',
