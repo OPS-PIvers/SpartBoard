@@ -469,8 +469,8 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                     : 'bg-slate-50 border-slate-100'
                 }`}
                 style={{
-                  width: '18cqmin',
-                  height: '18cqmin',
+                  width: 'min(88px, 18cqmin)',
+                  height: 'min(88px, 18cqmin)',
                   padding: 'min(8px, 2cqmin)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -557,8 +557,8 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                     : 'bg-slate-50 border-slate-100'
                 }`}
                 style={{
-                  width: '18cqmin',
-                  height: '18cqmin',
+                  width: 'min(72px, 18cqmin)',
+                  height: 'min(72px, 18cqmin)',
                   padding: 'min(12px, 2.5cqmin)',
                   display: 'flex',
                   alignItems: 'center',
@@ -626,8 +626,8 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                     : 'bg-slate-50 border-slate-100'
                 }`}
                 style={{
-                  width: '18cqmin',
-                  height: '18cqmin',
+                  width: 'min(72px, 18cqmin)',
+                  height: 'min(72px, 18cqmin)',
                   padding: 'min(12px, 2.5cqmin)',
                   display: 'flex',
                   alignItems: 'center',
