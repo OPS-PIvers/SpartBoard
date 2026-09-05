@@ -1,8 +1,8 @@
-# SpartBoard Unifier — Archived Run Log (bootstrap through 2026-07-31)
+# SpartBoard Unifier — Archived Run Log (bootstrap through 2026-08-02)
 
 This file holds older Run Log entries moved out of `docs/routines/unifier.md` to keep the live
 memory doc a manageable size (proposed in runs 71-76's Notes, executed run 77). It covers the
-bootstrap run (2026-05-26) through 2026-07-31 (~runs 1-45). The Canon, Intentional Exceptions,
+bootstrap run (2026-05-26) through 2026-08-02 (~runs 1-46). The Canon, Intentional Exceptions,
 and Inconsistency Backlog sections all remain in the live doc — only these narrative Run Log rows
 moved. Nothing here is authoritative for current canon; consult the live doc for that.
 
