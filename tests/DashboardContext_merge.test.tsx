@@ -19,7 +19,7 @@ import { render, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
-import { Dashboard, WidgetData } from '@/types';
+import { Dashboard, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -553,5 +553,50 @@ describe('DashboardContext per-widget merge', () => {
     });
     const saved = mockSaveDashboard.mock.calls[0][0] as Dashboard;
     expect(saved.globalStyle?.fontFamily).toBe('serif');
+  });
+
+  it('REGRESSION: a kept-local dashboard field does not advance its save baseline to a same-valued incoming snapshot', async () => {
+    const stateRef = setup();
+
+    const initialDashboard = makeDashboard([makeWidget('wA', 'a')]);
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+    mockSaveDashboard.mockClear();
+
+    // Teacher picks a new global font; not saved yet.
+    await act(async () => {
+      stateRef.current?.setGlobalStyle({ fontFamily: 'serif' });
+      await Promise.resolve();
+    });
+
+    // A snapshot lands showing globalStyle already committed with the SAME
+    // value from a different device/tab (a coincidental match — plausible
+    // for any low-cardinality field, e.g. isPinned) before the debounced
+    // autosave flushes. The onSnapshot merge correctly keeps the local
+    // value either way; the bug was in what it recorded as the new
+    // "last synced" baseline for the field.
+    await pushSnapshot([
+      {
+        ...initialDashboard,
+        updatedAt: 2000,
+        globalStyle: { ...DEFAULT_GLOBAL_STYLE, fontFamily: 'serif' },
+      },
+    ]);
+
+    await waitFor(() => expect(mockSaveDashboard).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    });
+    const baseline = mockSaveDashboard.mock.calls[0][1] as
+      | { dashboardFields?: Record<string, string> }
+      | undefined;
+    // The true prior baseline is "no globalStyle was ever synced from this
+    // device" (serializes to the string "null"). If the incoming snapshot's
+    // matching value had advanced it instead, a later save racing a
+    // genuinely different concurrent edit would treat this still-unsaved
+    // edit as unchanged and silently adopt the other edit instead.
+    expect(baseline?.dashboardFields?.globalStyle).toBe('null');
   });
 });

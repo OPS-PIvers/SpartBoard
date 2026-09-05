@@ -2080,6 +2080,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
               // Remaining DASHBOARD_FIELDS need the same keep-local-until-confirmed treatment as background/name.
               const otherDashboardFieldOverrides: Partial<Dashboard> = {};
+              // Baseline pinned per kept-local field, mirroring annotationOverlay's priorInkBaseline below.
+              const otherDashboardFieldPriorBaselines: Partial<
+                Record<MergedDashboardField, string>
+              > = {};
               for (const field of DASHBOARD_FIELDS) {
                 if (field === 'annotationOverlay') continue;
                 const base = lastSavedFieldsRef.current.dashboardFields[field];
@@ -2090,6 +2094,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   (otherDashboardFieldOverrides as Record<string, unknown>)[
                     field
                   ] = currentActive[field];
+                  otherDashboardFieldPriorBaselines[field] = base;
                 }
               }
 
@@ -2294,6 +2299,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   delete nextDashboardFields.annotationOverlay;
                 } else {
                   nextDashboardFields.annotationOverlay = priorInkBaseline;
+                }
+              }
+              // Same treatment for every other kept-local DASHBOARD_FIELDS entry, or the baseline drifts to this snapshot's value and a later save can silently discard the still-unsaved local edit.
+              for (const field of Object.keys(
+                otherDashboardFieldPriorBaselines
+              ) as MergedDashboardField[]) {
+                const prior = otherDashboardFieldPriorBaselines[field];
+                if (prior === undefined) {
+                  delete nextDashboardFields[field];
+                } else {
+                  nextDashboardFields[field] = prior;
                 }
               }
               lastSavedFieldsRef.current.dashboardFields = nextDashboardFields;
