@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { isDeprecatedGeminiModelId } from '@/utils/geminiModelDeprecation';
-import { normalizeModelName } from '../../functions/src/shared';
+import { normalizeModelName } from '@/functions/src/shared';
 
 // The client mirror and the server predicate are duplicated (functions/ isn't resolvable
 // from the client bundle), so edit one and both suites still pass — this is what fails.
