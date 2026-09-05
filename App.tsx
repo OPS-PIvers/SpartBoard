@@ -771,8 +771,8 @@ const App: React.FC = () => {
   //   - /lti/teacher?mode=deeplink → the teacher resource PICKER
   //     (LtiDeepLinkPicker), which loads the teacher's SpartBoard quiz library.
   //   - /lti/teacher (instructor resource-link launch) → LtiLaunchPage, which
-  //     shows the validated-launch diagnostic card (grading is done from the
-  //     SpartBoard dashboard Results view, gated on session ownership).
+  //     mounts the in-iframe teacher review for the attached quiz (needs the
+  //     teacher's Google session — session ownership gates responses).
   // The deep-link picker needs AuthProvider (the uid + Drive token), mirroring
   // the Classroom teacher-discovery attach flow (AuthProvider, but no
   // DashboardProvider). So ALL /lti/teacher routes get AuthProvider.

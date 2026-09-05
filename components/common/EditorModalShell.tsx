@@ -1,8 +1,14 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { useDialog } from '@/context/useDialog';
-import { useDashboard } from '@/context/useDashboard';
+import { DashboardContext } from '@/context/DashboardContextValue';
 
 interface EditorModalShellProps {
   isOpen: boolean;
@@ -84,8 +90,9 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   saveErrorMessage = 'Could not save your changes. Please try again.',
   children,
 }) => {
-  const { showConfirm } = useDialog();
-  const { addToast } = useDashboard();
+  const { showConfirm, showAlert } = useDialog();
+  // Optional: LMS iframes (Classroom add-on, Schoology) mount editors with no DashboardProvider.
+  const addToast = useContext(DashboardContext)?.addToast;
 
   // "Latest ref" mirrors of the caller's handlers, synced in a layout effect
   // (the lint config forbids ref writes during render). Editors typically
@@ -132,13 +139,14 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       console.error('Failed to save editor modal changes.', error);
       if (saveErrorMessage !== false) {
         const detail = error instanceof Error ? error.message : null;
-        addToast(
-          detail ? `${saveErrorMessage} (${detail})` : saveErrorMessage,
-          'error'
-        );
+        const message = detail
+          ? `${saveErrorMessage} (${detail})`
+          : saveErrorMessage;
+        if (addToast) addToast(message, 'error');
+        else void showAlert(message, { variant: 'error' });
       }
     }
-  }, [saveDisabled, isSaving, saveErrorMessage, addToast]);
+  }, [saveDisabled, isSaving, saveErrorMessage, addToast, showAlert]);
 
   // Memoized chrome: a body-content render (e.g. a question keystroke)
   // reuses these elements so React bails out of the header/footer subtrees;
