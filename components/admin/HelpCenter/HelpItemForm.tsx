@@ -293,7 +293,10 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
             Related widgets
           </span>
           <div className="relative mb-2">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search
+              aria-hidden="true"
+              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
+            />
             <input
               type="text"
               value={widgetSearch}
