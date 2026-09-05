@@ -1,6 +1,6 @@
 # Widget Settings Drawer — Implementation Plan
 
-**Date**: 2026-09-05 · **Branch**: `claude/widget-settings-ux-hgbwcy` · **Status**: Revision 2 (2026-09-05) — decisions locked via design interview, hardened by adversarial code review, then revised against the graded comparison in §10 so every category scores A (not started)
+**Date**: 2026-09-05 · **Branch**: `claude/widget-settings-ux-hgbwcy` · **Status**: Revision 3 (2026-09-05) — decisions locked via design interview, hardened by adversarial code review, revised against the graded comparison in §10, then re-scoped by the product owner (§11: translation deferred, single-widget editing confirmed, drawer size confirmed) (not started)
 
 Replace the per-widget floating settings panel with a docked, schema-driven settings drawer so
 every widget's settings look and behave the same way while the live widget stays visible on the
@@ -39,28 +39,29 @@ waves, exactly as `.claude/workflows/optimize-pass.README.md` describes for its 
 
 ## 2. Locked decisions
 
-| #   | Decision                        | Detail                                                                                                                                                                                                                                                                                                                                       |
-| --- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | **Primary pains**               | Inside-panel structure differs; same setting rendered with different controls. Placement is secondary.                                                                                                                                                                                                                                       |
-| D2  | **Surface**                     | Docked **side drawer**, full viewport height, default right. Widget stays live on the board. The drawer docks on whichever side keeps the edited widget nearer and un-covered (§3 item 7); the choice is deterministic and announced.                                                                                                        |
-| D3  | **Overlap handling**            | **Side selection first, then auto-pan.** Pick the side that needs no pan when one exists; otherwise pan the canvas so the widget is fully visible beside the drawer; restore camera on close. The edited widget gets a focus ring while the drawer is open. Widget `x/y` never change.                                                       |
-| D4  | **Drawer sizing**               | **Resizable** via a drag handle on the board-facing edge (left when docked right, right when docked left), clamped 360–560px, default 400px, width persisted per user. One widget at a time: opening settings on another widget swaps the drawer contents.                                                                                   |
-| D5  | **Consistency depth**           | **Schema-driven fields.** Widgets declare a settings schema; a shared renderer draws it. Custom escape hatch for editors a field can't express.                                                                                                                                                                                              |
-| D6  | **Field kit v1**                | Everything standardized: basics, color + typography, sortable item list, pickers (see §4.2). Anything not in the kit uses the custom slot and is a tracked gap, not a permanent exception.                                                                                                                                                   |
-| D7  | **Style tab**                   | **One universal Style tab** for all widgets, built from the appearance keys the widget declares it consumes. `WIDGET_APPEARANCE_COMPONENTS` is removed at the end of the series; extra visual knobs move into the schema's `display` group or become universal keys.                                                                         |
-| D8  | **Settings tab groups**         | Fixed order **Content → Behavior → Display**. Empty groups omitted. Style is its own tab.                                                                                                                                                                                                                                                    |
-| D9  | **Scope**                       | Drawer shell applies to every widget from wave 1 (unmigrated widgets render their legacy JSX inside the drawer's custom slot). **Every widget's internals migrate in this series**: the top 10 by usage in waves 2–3, the remaining 49 in waves 5–9 (§5). `LegacySettingsSlot` is deleted in wave 10, so no second settings system survives. |
-| D10 | **Top-10 source**               | Admin Analytics (Firestore). Wave 0 queries it and writes the list into §6. Provisional list until then: the ten largest panels.                                                                                                                                                                                                             |
-| D11 | **Cruft cleanup in bounds**     | Remove dead/duplicate controls; rename/normalize config keys with a one-time migration; reorganize into the standard groups with i18n'd labels.                                                                                                                                                                                              |
-| D12 | **Rollout**                     | **Flag first, delete last.** Drawer ships behind a new global permission `settings-drawer`. Wave 4 flips the default and deletes `SettingsPanel.tsx`; wave 10 deletes the legacy slot.                                                                                                                                                       |
-| D13 | **Custom Widget Builder**       | `CustomWidgetSettingDef` becomes a subset of the new field schema so admin-built widgets render through the same drawer.                                                                                                                                                                                                                     |
-| D14 | **Mobile remote**               | `/remote` (`components/remote/`) untouched this series. Tablets using the teacher app are in scope: below 900px viewport width the drawer becomes a bottom sheet (§3 item 9).                                                                                                                                                                |
-| D15 | **Delivery**                    | One PR per wave. Each wave must leave `pnpm run validate` green.                                                                                                                                                                                                                                                                             |
-| D16 | **Done bar per migrated panel** | Schema unit test + config-migration test + drawer E2E + i18n parity + axe pass (see §7).                                                                                                                                                                                                                                                     |
-| D17 | **Accessibility**               | The drawer is a non-modal `role="dialog"` with managed focus, a keyboard-operable resize handle, and an automated axe check per migrated widget (§3 item 10).                                                                                                                                                                                |
-| D18 | **Style tab model**             | Two explicit tiers: **Window** (frame background, transparency, window font, window text size — `WidgetData` fields, every widget) and **Content** (declared `styleKeys` → `config`). No third path; the window-level fields are neither deleted nor duplicated.                                                                             |
-| D19 | **z-index**                     | Drawer renders at a new `Z_INDEX.drawer = 9980` (above annotation chrome, below `modal`). Every existing modal and picker already stacks above it, so nothing opened from a drawer field needs re-layering.                                                                                                                                  |
-| D20 | **Translation budget**          | Wave 0.3 counts every label string per widget; each migration wave carries a sized translation item for `de`/`es`/`fr`, reviewed by a fluent reader, not machine output pasted in.                                                                                                                                                           |
+| #   | Decision                        | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | **Primary pains**               | Inside-panel structure differs; same setting rendered with different controls. Placement is secondary.                                                                                                                                                                                                                                                                                                                                                                                        |
+| D2  | **Surface**                     | Docked **side drawer**, full viewport height, default right. Widget stays live on the board. The drawer docks on whichever side keeps the edited widget nearer and un-covered (§3 item 7); the choice is deterministic and announced.                                                                                                                                                                                                                                                         |
+| D3  | **Overlap handling**            | **Side selection first, then auto-pan.** Pick the side that needs no pan when one exists; otherwise pan the canvas so the widget is fully visible beside the drawer; restore camera on close. The edited widget gets a focus ring while the drawer is open. Widget `x/y` never change.                                                                                                                                                                                                        |
+| D4  | **Drawer sizing**               | **Resizable** via a drag handle on the board-facing edge (left when docked right, right when docked left), clamped 360–560px, default 400px, width persisted per user. Full viewport height. The current 380px × 80vh panel is judged cramped and overloaded by the product owner, so the larger, full-height, resizable surface is a goal of the series, not a cost of it. One widget at a time (D21).                                                                                       |
+| D5  | **Consistency depth**           | **Schema-driven fields.** Widgets declare a settings schema; a shared renderer draws it. Custom escape hatch for editors a field can't express.                                                                                                                                                                                                                                                                                                                                               |
+| D6  | **Field kit v1**                | Everything standardized: basics, color + typography, sortable item list, pickers (see §4.2). Anything not in the kit uses the custom slot and is a tracked gap, not a permanent exception.                                                                                                                                                                                                                                                                                                    |
+| D7  | **Style tab**                   | **One universal Style tab** for all widgets, built from the appearance keys the widget declares it consumes. `WIDGET_APPEARANCE_COMPONENTS` is removed at the end of the series; extra visual knobs move into the schema's `display` group or become universal keys.                                                                                                                                                                                                                          |
+| D8  | **Settings tab groups**         | Fixed order **Content → Behavior → Display**. Empty groups omitted. Style is its own tab.                                                                                                                                                                                                                                                                                                                                                                                                     |
+| D9  | **Scope**                       | Drawer shell applies to every widget from wave 1 (unmigrated widgets render their legacy JSX inside the drawer's custom slot). **Every widget's internals migrate in this series**: the top 10 by usage in waves 2–3, the remaining 49 in waves 5–9 (§5). `LegacySettingsSlot` is deleted in wave 10, so no second settings system survives.                                                                                                                                                  |
+| D10 | **Top-10 source**               | Admin Analytics (Firestore). Wave 0 queries it and writes the list into §6. Provisional list until then: the ten largest panels.                                                                                                                                                                                                                                                                                                                                                              |
+| D11 | **Cruft cleanup in bounds**     | Remove dead/duplicate controls; rename/normalize config keys with a one-time migration; reorganize into the standard groups with i18n'd labels.                                                                                                                                                                                                                                                                                                                                               |
+| D12 | **Rollout**                     | **Flag first, delete last.** Drawer ships behind a new global permission `settings-drawer`. Wave 4 flips the default and deletes `SettingsPanel.tsx`; wave 10 deletes the legacy slot.                                                                                                                                                                                                                                                                                                        |
+| D13 | **Custom Widget Builder**       | `CustomWidgetSettingDef` becomes a subset of the new field schema so admin-built widgets render through the same drawer.                                                                                                                                                                                                                                                                                                                                                                      |
+| D14 | **Mobile remote**               | `/remote` (`components/remote/`) untouched this series. Tablets using the teacher app are in scope: below 900px viewport width the drawer becomes a bottom sheet (§3 item 9).                                                                                                                                                                                                                                                                                                                 |
+| D15 | **Delivery**                    | One PR per wave. Each wave must leave `pnpm run validate` green.                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| D16 | **Done bar per migrated panel** | Schema unit test + config-migration test + drawer E2E + i18n parity + axe pass (see §7).                                                                                                                                                                                                                                                                                                                                                                                                      |
+| D17 | **Accessibility**               | The drawer is a non-modal `role="dialog"` with managed focus, a keyboard-operable resize handle, and an automated axe check per migrated widget (§3 item 10).                                                                                                                                                                                                                                                                                                                                 |
+| D18 | **Style tab model**             | Two explicit tiers: **Window** (frame background, transparency, window font, window text size — `WidgetData` fields, every widget) and **Content** (declared `styleKeys` → `config`). No third path; the window-level fields are neither deleted nor duplicated.                                                                                                                                                                                                                              |
+| D19 | **z-index**                     | Drawer renders at a new `Z_INDEX.drawer = 9980` (above annotation chrome, below `modal`). Every existing modal and picker already stacks above it, so nothing opened from a drawer field needs re-layering.                                                                                                                                                                                                                                                                                   |
+| D20 | **Translation deferred**        | Every drawer label goes through `t()` with keys under `widgetSettings.*` in `locales/en.json` only. `de`/`es`/`fr` entries are **not** written in this series and no `tests/i18n/widgetSettings*Locales.test.ts` parity test is added. i18next falls back to English (`fallbackLng: 'en'`). Rationale: the locales exist for student-facing widget content used by world-language teachers; staff-facing settings chrome was never the target. A follow-up series owns the translations (§8). |
+| D21 | **Single widget at a time**     | The drawer edits exactly one widget. Product owner confirmation: nobody edits two widgets' settings simultaneously, so the current ability to have several panels flipped at once is not a capability to preserve. The host un-flips siblings and `migrateWidget` normalizes stored boards to at most one `flipped` widget (§3, §4.4).                                                                                                                                                        |
 
 ## 3. Target UX
 
@@ -148,7 +149,8 @@ Today nothing unflips a sibling when another widget flips (every toggle is
 `DashboardContext.tsx`), so **stored boards can contain several `flipped: true` widgets**. The
 host therefore: (a) picks the flipped widget with the highest `z` (else first in array) to show,
 (b) un-flips the previous widget whenever a new one flips, and (c) relies on a one-time
-normalization in `migrateWidget` that clears `flipped` on all but one widget (§4.4).
+normalization in `migrateWidget` that clears `flipped` on all but one widget (§4.4). This is a
+simplification, not a loss (D21).
 
 ## 4. Architecture
 
@@ -175,8 +177,8 @@ components/settings/
 ```
 
 Also new: `scripts/new-widget-settings.ts` (run as `pnpm run new-widget-settings <type>`)
-scaffolds `settings.schema.ts`, the `widgetSettings.<type>.*` keys in all four locales with
-`TODO` markers, the schema test, and the migration fixture, so a new widget never starts from a
+scaffolds `settings.schema.ts`, the `widgetSettings.<type>.*` keys in `locales/en.json`, the
+schema test, and the migration fixture, so a new widget never starts from a
 copied 400-line file. The `new-widget` skill invokes it.
 
 Per widget: `components/widgets/<Widget>/settings.schema.ts` exporting a
@@ -251,8 +253,9 @@ Rules:
   part of any schema. The Content tier (`styleKeys`) writes `config` only. A widget that consumes
   `config.fontFamily` still shows the window font control; the two are different scopes (whole
   frame vs. widget content) and both are labeled as such.
-- Labels are i18n keys under `widgetSettings.<widgetType>.*` in `locales/*.json`. Shared field
-  labels live under `widgetSettings.common.*`.
+- Labels are i18n keys under `widgetSettings.<widgetType>.*` in `locales/en.json`. Shared field
+  labels live under `widgetSettings.common.*`. Per D20, only `en.json` is written in this series;
+  the other locales fall back to English.
 - Board isolation is unchanged: schema keys are per-board by default. `styleKeys` may reference
   only members of `APPEARANCE_CONFIG_KEYS` in `utils/widgetConfigPersistence.ts`. Promoting a
   widget knob to a universal key (D7) means adding it to that allowlist **in the same commit**,
@@ -262,18 +265,18 @@ Rules:
 
 Reuse, don't rebuild, where a shared component exists:
 
-| Field                                | Backed by                                                                                                                |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| FontFamily, Color(font)              | `components/common/TypographySettings.tsx`                                                                               |
-| TextSizePreset                       | `components/common/TextSizePresetSettings.tsx`                                                                           |
-| SurfaceColor                         | `components/common/SurfaceColorSettings.tsx`                                                                             |
-| AccentColor                          | `components/common/AccentColorSettings.tsx`                                                                              |
-| Color (generic)                      | `components/common/ColorPresetPicker.tsx`                                                                                |
-| List                                 | `components/common/SortableList.tsx`                                                                                     |
-| ImageUpload                          | `components/common/DriveImagePicker.tsx` + `hooks/useStorage.ts` (mind §3 item 6 on z-index)                             |
-| RosterPicker                         | `components/common/AssignClassPicker.tsx` / `RosterModeControl.tsx`                                                      |
-| Labels/sections                      | `components/common/SettingsLabel.tsx` (retained as the section-heading primitive)                                        |
-| IconPicker, EmojiPicker, SoundPicker | New; extracted from the first migrated widget that needs each (`TimeTool` for sounds, `Checklist`/`Stations` for icons). |
+| Field                                | Backed by                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FontFamily, Color(font)              | `components/common/TypographySettings.tsx`                                                                                                                          |
+| TextSizePreset                       | `components/common/TextSizePresetSettings.tsx`                                                                                                                      |
+| SurfaceColor                         | `components/common/SurfaceColorSettings.tsx`                                                                                                                        |
+| AccentColor                          | `components/common/AccentColorSettings.tsx`                                                                                                                         |
+| Color (generic)                      | `components/common/ColorPresetPicker.tsx` (today reached only through the `SurfaceColor`/`AccentColor`/`Typography` wrappers; no settings file imports it directly) |
+| List                                 | `components/common/SortableList.tsx`                                                                                                                                |
+| ImageUpload                          | `components/common/DriveImagePicker.tsx` + `hooks/useStorage.ts` (mind §3 item 6 on z-index)                                                                        |
+| RosterPicker                         | `components/common/AssignClassPicker.tsx` / `RosterModeControl.tsx`                                                                                                 |
+| Labels/sections                      | `components/common/SettingsLabel.tsx` (retained as the section-heading primitive)                                                                                   |
+| IconPicker, EmojiPicker, SoundPicker | New; extracted from the first migrated widget that needs each (`TimeTool` for sounds, `Checklist`/`Stations` for icons).                                            |
 
 Every field renders the same anatomy: label row (label + optional reset-to-default), control,
 optional help line, with the `<label for>` / `aria-describedby` wiring from §3 item 10 built into
@@ -412,9 +415,9 @@ commits, pushes, opens a draft PR, and only then starts the next wave.
   hardcoded labels, duplicate-of-Style controls, keys missing from `WIDGET_DEFAULTS`. Output
   `docs/plans/widget-settings-inventory.md` (table: widget · key · control · group guess ·
   keep/remove/rename · in-defaults?). Input for every migration item and for wave 1a's backfill.
-- **0.3** Translation budget (D20): from the 0.2 inventory, count label/help strings per widget
-  and write the totals into §6 (column "Strings"). Each migration wave's translation item is
-  sized from that column. Name the fluent reviewer for `de`/`es`/`fr` before wave 2 starts.
+- **0.3** String count (D20): from the 0.2 inventory, count label/help strings per widget and
+  write the totals into §6 (column "Strings"). This sizes the deferred translation follow-up;
+  it does not gate any wave in this series.
 - **0.4** Legacy render snapshots: a Vitest snapshot of every `WIDGET_SETTINGS_COMPONENTS` and
   `WIDGET_APPEARANCE_COMPONENTS` entry rendered with `WIDGET_DEFAULTS` config
   (`tests/components/settings/legacySnapshots.test.tsx`). Wave 1b's `LegacySettingsSlot` must
@@ -458,7 +461,7 @@ passing, Style tab two-tier, validate green.
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2.1 IconPicker, EmojiPicker, SoundPicker, ImageUpload, RosterPicker fields | `components/settings/renderer/fields/*` (+ extraction from the widget that owns the current implementation). **Must land before any 2.x widget that needs them**; the orchestrator sequences 2.1 first, then the five widgets in parallel.                                                                                  |
 | 2.2–2.6 Migrate widgets #1–#5                                              | `components/widgets/<W>/settings.schema.ts`; delete the widget's legacy settings file (**not always `Settings.tsx`**: e.g. `random/RandomSettings.tsx`; read `WIDGET_SETTINGS_COMPONENTS` for the real path) and its appearance export; registry entries and locale keys (orchestrator-owned); migration step; tests per §7 |
-| 2.7 Translations for #1–#5                                                 | `locales/{de,es,fr}.json` (orchestrator-owned). Sized from §6 "Strings"; reviewed by the fluent reader named in 0.3 before the wave's PR leaves draft.                                                                                                                                                                      |
+| 2.7 English keys for #1–#5                                                 | `locales/en.json` (orchestrator-owned). `de`/`es`/`fr` untouched per D20.                                                                                                                                                                                                                                                   |
 
 Each migration item is one agent, one widget. The agent owns only that widget's folder and its
 migration step; it hands registry lines and locale entries to the orchestrator as a patch.
@@ -471,7 +474,7 @@ migration step; it hands registry lines and locale entries to the orchestrator a
   is resolved as "full kit now"; the four legacy def types stay readable).
 - 3.7 Field-kit gap review: every `Custom` field left in migrated schemas gets a decision:
   promote to a real field type now, or record in §8.
-- 3.8 Translations for #6–#10 (same shape as 2.7).
+- 3.8 English keys for #6–#10 (same shape as 2.7).
 
 ### Wave 4 — Flip default and delete the floating panel
 
@@ -494,7 +497,7 @@ migration step; it hands registry lines and locale entries to the orchestrator a
 ### Waves 5–9 — Migrate the remaining 49 widgets (D9)
 
 Same item template as wave 2, ten widgets per wave (nine in the last), ordered by the analytics
-ranking continued past #10. Each wave carries its translation item and retires its 0.4
+ranking continued past #10. Each wave carries its `en.json` key item and retires its 0.4
 snapshots. Widgets whose settings open an editor modal (Quiz, VideoActivity, GuidedLearning)
 wrap the "open editor" button as a `Custom` field with a `// schema-gap:` note and do not inline
 the editor. Keep a burndown table in `docs/plans/widget-settings-inventory.md` (widget · wave ·
@@ -542,8 +545,9 @@ rest; do not exceed 10 in this series.
    group, observe the board widget update, close, reload, values persist.
 4. Legacy settings file deleted; no `WIDGET_SETTINGS_COMPONENTS` / `WIDGET_APPEARANCE_COMPONENTS`
    entry remains for the widget.
-5. All labels through `t()` with **real `de`/`es`/`fr` translations**. English placeholders are
-   rejected by `tests/i18n/*Locales.test.ts` (English-key leakage is treated as a bug there).
+5. All labels through `t()` with keys present in `locales/en.json`. No hardcoded English JSX
+   strings remain in the schema or drawer chrome. `de`/`es`/`fr` are deferred (D20); do **not**
+   add a `widgetSettings` parity test to `tests/i18n/`, it would fail by design.
 6. PR description lists removed controls, renamed keys, and `schema-gap` custom fields.
 7. Axe: `SettingsDrawer.a11y.test.tsx` renders the widget's schema in the drawer and passes
    `axe-core` with zero violations; every field has an accessible name.
@@ -561,9 +565,9 @@ rest; do not exceed 10 in this series.
 - ~~Widgets whose settings open other modals~~ **Resolved (rev 2):** they migrate in waves 5–9
   with the "open editor" button as a `Custom` field; the editor is never inlined.
 - ~~z-index resolution for nested pickers~~ **Resolved (rev 2):** D19, drawer below `modal`.
-- Who the fluent `de`/`es`/`fr` reviewer is (D20). Must be named in wave 0.3; if nobody is
-  available, machine translation is acceptable only with a tracked follow-up, and the wave's PR
-  says so.
+- ~~Who the fluent `de`/`es`/`fr` reviewer is~~ **Resolved (rev 3):** translations deferred to
+  a follow-up series (D20). The follow-up starts from the §6 "Strings" column and adds the
+  parity test when it lands. Only the analytics ranking question remains open.
 
 ## 9. Non-goals
 
@@ -572,6 +576,8 @@ rest; do not exceed 10 in this series.
 - Admin-level widget configuration modals (`admin-widget-config` skill territory).
 - Changing front-face widget rendering or container-query scaling.
 - Inlining the Quiz / VideoActivity / GuidedLearning editors into the drawer.
+- `de`/`es`/`fr` translations of settings labels (D20).
+- Editing more than one widget's settings at once (D21).
 
 ## 10. Revision 2 — changes made against the graded comparison
 
@@ -597,6 +603,21 @@ category. Every category below A was revised; this table records what changed an
 | Rollout safety                     | A-  | Legacy path unreachable by E2E while flagged.                                         | Bypass override env + `legacy-settings` Playwright project (§4.5).      |
 | Open questions                     | —   | z-index and editor-modal widgets were unresolved and blocked wave 1b.                 | Resolved in §8; only the translation reviewer remains open.             |
 
-Cost of the revision: the series grows from four code waves to ten, and the translation work is
-now explicit rather than hidden inside "done bar item 5". Both are the price of an A on coverage
-and i18n; neither changes the architecture agreed in the interview.
+Cost of the revision: the series grows from four code waves to ten. The translation work made
+explicit here was subsequently deferred in revision 3 (§11).
+
+## 11. Revision 3 — product owner re-scope
+
+A second independent grading on 2026-09-05 left four categories below A. The product owner ruled
+on each; this table records the ruling and where the plan changed.
+
+| Category                   | Was | Ruling                                                                                                                                    | Change                                                                                      |
+| -------------------------- | --- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Space / drawer size        | A-  | The current 380px × 80vh panel is cramped and overloaded. A larger full-height surface is the point, not a cost.                          | D4 rationale; "board coverage" is an accepted trade, not a regression to grade against.     |
+| Multi-widget editing       | C+  | Nobody edits two widgets' settings at once. The category is moot.                                                                         | D21 added; §3 and §9 updated. Not a graded category.                                        |
+| Internationalization       | B+  | Locales exist for student-facing widget content (world-language teachers). Staff-facing settings i18n ballooned beyond intent. Defer.     | D20 rewritten; 0.3, 2.7, 3.8, waves 5–9, done bar 5, §8, §9 updated. English keys only.     |
+| Scope, cost, delivery risk | C   | Removing the translation stream cuts the largest non-engineering dependency (an unnamed fluent reviewer) from every wave's critical path. | Waves keep their shape; each is now engineering-only and mergeable without external review. |
+
+Grading instruction for future reviewers: grade the drawer's larger footprint as an improvement
+over the current panel, do not grade multi-widget editing, and grade i18n on "every string goes
+through `t()` with an English key" rather than on locale coverage.
