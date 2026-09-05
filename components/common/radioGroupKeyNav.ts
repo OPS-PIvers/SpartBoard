@@ -26,8 +26,7 @@ export function handleRadioGroupKeyDown<O>(
   else if (e.key === 'End') nextIdx = nodes.length - 1;
   else if (e.key === 'ArrowRight') nextIdx = (safeIdx + 1) % nodes.length;
   else nextIdx = (safeIdx - 1 + nodes.length) % nodes.length;
-  const nextOption = options[nextIdx];
-  if (!nextOption) return;
+  if (nextIdx < 0 || nextIdx >= options.length) return;
   nodes[nextIdx].focus();
-  onSelect(nextOption);
+  onSelect(options[nextIdx]);
 }
