@@ -1,6 +1,6 @@
 # Widget Settings Drawer — Implementation Plan
 
-**Date**: 2026-09-05 · **Branch**: `claude/widget-settings-ux-hgbwcy` · **Status**: Revision 5 (2026-09-05) — decisions locked via design interview, hardened by adversarial code review, revised against the graded comparison in §10, re-scoped by the product owner (§11), corrected against a third independent grading (§12), then validated against a four-variant in-app UI prototype and amended per the product owner's pick (§13: find-a-setting filter, Window-tier dedupe, darker section labels, bottom-sheet viewport fixed) (not started)
+**Date**: 2026-09-05 · **Branch**: `claude/widget-settings-ux-hgbwcy` · **Status**: Revision 5.1 (2026-09-05) — decisions locked via design interview, hardened by adversarial code review, revised against the graded comparison in §10, re-scoped by the product owner (§11), corrected against a third independent grading (§12), then validated against a four-variant in-app UI prototype and amended per the product owner's pick (§13: find-a-setting filter, Window-tier dedupe, darker section labels, bottom-sheet viewport fixed) (not started)
 
 Replace the per-widget floating settings panel with a docked, schema-driven settings drawer so
 every widget's settings look and behave the same way while the live widget stays visible on the
@@ -85,7 +85,10 @@ waves, exactly as `.claude/workflows/optimize-pass.README.md` describes for its 
    `t('widgetSettings.common.noMatches', { query })`. Fields rendered through the legacy slot
    (§4.1) are not indexed; while a widget is still on the slot the no-match text appends
    `t('widgetSettings.common.legacyNotIndexed')`. The filter reads the same `label` i18n keys the
-   renderer resolves, so migrating a widget indexes it for free. Rationale: the prototype (§13)
+   renderer resolves, so migrating a widget indexes it for free. The Window tier is not a schema,
+   so `schema/windowStyle.tsx` exports `WINDOW_STYLE_LABELS` (the four i18n keys for background,
+   transparency, window font, window text size) and the filter indexes that list under the
+   "Window" heading; a Window match renders the whole Window tier. Rationale: the prototype (§13)
    showed the filter is the single most useful affordance against 400–940-line panels.
 3. Tab bar pinned under the filter: **Settings** · **Style**. Same two tabs, always.
 4. Scrollable body. Settings tab renders schema groups in D8 order as titled sections. Style tab
@@ -295,23 +298,33 @@ Rules:
 
 Reuse, don't rebuild, where a shared component exists:
 
-| Field                                | Backed by                                                                                                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FontFamily, Color(font)              | `components/common/TypographySettings.tsx`                                                                                                                          |
-| TextSizePreset                       | `components/common/TextSizePresetSettings.tsx`                                                                                                                      |
-| SurfaceColor                         | `components/common/SurfaceColorSettings.tsx`                                                                                                                        |
-| AccentColor                          | `components/common/AccentColorSettings.tsx`                                                                                                                         |
-| Color (generic)                      | `components/common/ColorPresetPicker.tsx` (today reached only through the `SurfaceColor`/`AccentColor`/`Typography` wrappers; no settings file imports it directly) |
-| List                                 | `components/common/SortableList.tsx`                                                                                                                                |
-| ImageUpload                          | `components/common/DriveImagePicker.tsx` + `hooks/useStorage.ts` (mind §3 item 7 on z-index)                                                                        |
-| RosterPicker                         | `components/common/AssignClassPicker.tsx` / `RosterModeControl.tsx`                                                                                                 |
-| Labels/sections                      | `components/common/SettingsLabel.tsx` (retained as the section-heading primitive)                                                                                   |
-| IconPicker, EmojiPicker, SoundPicker | New; extracted from the first migrated widget that needs each (`TimeTool` for sounds, `Checklist`/`Stations` for icons).                                            |
+| Field                                | Backed by                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FontFamily, Color(font)              | `components/common/TypographySettings.tsx`                                                                                                                                                                                                                                                                 |
+| TextSizePreset                       | `components/common/TextSizePresetSettings.tsx`                                                                                                                                                                                                                                                             |
+| SurfaceColor                         | `components/common/SurfaceColorSettings.tsx`                                                                                                                                                                                                                                                               |
+| AccentColor                          | `components/common/AccentColorSettings.tsx`                                                                                                                                                                                                                                                                |
+| Color (generic)                      | `components/common/ColorPresetPicker.tsx` (today reached only through the `SurfaceColor`/`AccentColor`/`Typography` wrappers; no settings file imports it directly)                                                                                                                                        |
+| List                                 | `components/common/SortableList.tsx`                                                                                                                                                                                                                                                                       |
+| ImageUpload                          | `components/common/DriveImagePicker.tsx` + `hooks/useStorage.ts` (mind §3 item 7 on z-index)                                                                                                                                                                                                               |
+| RosterPicker                         | `components/common/AssignClassPicker.tsx` / `RosterModeControl.tsx`                                                                                                                                                                                                                                        |
+| Labels/sections                      | `components/common/SettingsLabel.tsx`, retained as the section-heading primitive **after its default color moves from `text-slate-400` to `text-slate-700`** in wave 1a (§3 item 11). The 31 legacy settings files that use it inherit the darker heading; that is the intended outcome, not a regression. |
+| IconPicker, EmojiPicker, SoundPicker | New; extracted from the first migrated widget that needs each (`TimeTool` for sounds, `Checklist`/`Stations` for icons).                                                                                                                                                                                   |
 
 Every field renders the same anatomy: label row (label + optional reset-to-default), control,
 optional help line, with the `<label for>` / `aria-describedby` wiring from §3 item 11 built into
-`FieldRenderer` so no field author can omit it. Text sizes: `text-xs` body, `text-xxs` uppercase labels, matching
-`SettingsLabel`. Settings panels are not front-face content, so Tailwind sizes are fine here.
+`FieldRenderer` so no field author can omit it. **Layout has two shapes**, chosen by
+`FieldRenderer` from the field type, never by the field author:
+
+- **Inline** (`Toggle` only): label and help stacked on the left, the switch right-aligned on
+  the label's baseline, so a run of toggles reads as a scannable list. This is the layout the
+  product owner approved in the prototype (§13).
+- **Stacked** (every other type): label row, then the control at full drawer width, then help.
+
+Text sizes: `text-xs` semibold `text-slate-700` field labels, `text-xxs` `text-slate-600` help
+lines, `text-xxs` uppercase `text-slate-700` section headings via `SettingsLabel`. Rows within a
+group are separated by `divide-slate-100`; groups by vertical space, not rules. Settings panels
+are not front-face content, so Tailwind sizes are fine here.
 
 ### 4.4 Config migration
 
@@ -721,3 +734,12 @@ keyboard-operable resize, focus return, width persistence, the live-region annou
 
 Corrections made in this revision: the bottom-sheet E2E viewport was 1024×768 in three places
 while D14 sets the breakpoint at 900px; it is now 820×640 everywhere.
+
+**Rev 5.1 alignment pass.** A second read against the prototype found three places where the
+plan still described something other than what was approved:
+
+| Gap                    | Was                                                                                   | Now                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Section heading color  | `SettingsLabel` retained unchanged, but its default is `text-slate-400`.              | Default moves to `text-slate-700` in wave 1a; legacy panels inherit it (§4.3).            |
+| Window tier vs. filter | Filter results listed a "Window" heading, but the Window tier has no schema to index. | `WINDOW_STYLE_LABELS` static list is indexed; a match renders the whole tier (§3 item 2). |
+| Toggle row layout      | One vertical anatomy for every field type.                                            | Inline layout for `Toggle` (switch right of label), stacked for everything else (§4.3).   |
