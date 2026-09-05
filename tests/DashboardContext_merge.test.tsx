@@ -20,6 +20,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
 import { Dashboard, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
+import { updateDoc } from 'firebase/firestore';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -171,6 +172,7 @@ interface ContextSnapshot {
   activeDashboard: Dashboard | null;
   updateWidget: ReturnType<typeof useDashboard>['updateWidget'];
   setGlobalStyle: ReturnType<typeof useDashboard>['setGlobalStyle'];
+  pinBoard: ReturnType<typeof useDashboard>['pinBoard'];
 }
 
 /**
@@ -188,6 +190,7 @@ const TestConsumer: React.FC<{
       activeDashboard: ctx.activeDashboard,
       updateWidget: ctx.updateWidget,
       setGlobalStyle: ctx.setGlobalStyle,
+      pinBoard: ctx.pinBoard,
     };
   });
   return null;
@@ -598,5 +601,33 @@ describe('DashboardContext per-widget merge', () => {
     // genuinely different concurrent edit would treat this still-unsaved
     // edit as unchanged and silently adopt the other edit instead.
     expect(baseline?.dashboardFields?.globalStyle).toBe('null');
+  });
+
+  it('REGRESSION: pinning the active board does not also schedule a redundant full-document autosave', async () => {
+    const stateRef = setup();
+
+    const initialDashboard = makeDashboard([makeWidget('wA', 'a')]);
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+    mockSaveDashboard.mockClear();
+    vi.mocked(updateDoc).mockClear();
+
+    // pinBoard does its own optimistic setDashboards + a direct, immediate
+    // updateDoc — isPinned has a dedicated write path and must never also
+    // flow through the debounced whole-document autosave, which would
+    // silently double-write the board on every pin/unpin.
+    await act(async () => {
+      await stateRef.current?.pinBoard('dash-1');
+    });
+
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(stateRef.current?.activeDashboard?.isPinned).toBe(true);
+
+    // Give the debounced autosave timer (if wrongly scheduled) time to fire.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(mockSaveDashboard).not.toHaveBeenCalled();
   });
 });
