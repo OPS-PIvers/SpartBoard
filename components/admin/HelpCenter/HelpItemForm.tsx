@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Link2, GraduationCap, Search } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
@@ -63,6 +63,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
     editing ? toDraft(editing) : emptyDraft(categories[0]?.id ?? '')
   );
   const [widgetSearch, setWidgetSearch] = useState('');
+  const relatedWidgetsLabelId = useId();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -285,11 +286,17 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
         </div>
 
         <div>
-          <span className="block text-sm font-medium text-slate-700 mb-1">
+          <span
+            id={relatedWidgetsLabelId}
+            className="block text-sm font-medium text-slate-700 mb-1"
+          >
             Related widgets
           </span>
           <div className="relative mb-2">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search
+              aria-hidden="true"
+              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
+            />
             <input
               type="text"
               value={widgetSearch}
@@ -299,7 +306,11 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
               className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm"
             />
           </div>
-          <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 grid grid-cols-2 gap-1">
+          <div
+            role="group"
+            aria-labelledby={relatedWidgetsLabelId}
+            className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 grid grid-cols-2 gap-1"
+          >
             {visibleTools.map((tool) => (
               <label
                 key={tool.type}
