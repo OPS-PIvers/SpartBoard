@@ -297,6 +297,35 @@ The host reads the flipped widget through `useDashboardCanvasSelector` / the can
 hot-path rule. Mounting the host in `DashboardView` is fine only if it subscribes to that narrow
 slice.
 
+### 4.9 Invariant: the drawer must never move widgets
+
+Two mechanisms reposition widgets on a `window` `resize` event, and both read
+`window.innerWidth` / `window.innerHeight` directly:
+
+- `context/DashboardContext.tsx`: proportional re-hydration recomputes every widget's pixel
+  `x/y/w/h` from its stored `xProp/yProp/wProp/hProp` against the new viewport.
+- `components/layout/DashboardView.tsx`: `rescueWidgets` clamps any widget outside the world
+  rectangle (`clampWidgetToWorld`) and **persists** the new position via `updateWidget`.
+
+Docking the browser devtools shrinks the window, so both fire and widgets on the right edge get
+pushed inward. That is the known symptom to avoid. The drawer therefore obeys these rules:
+
+1. **Overlay only.** The drawer is a `position: fixed` portal on `document.body`. It must not
+   shrink, pad, or re-flow the board container, and must not change `window.innerWidth`.
+2. **Never dispatch `resize`.** No synthetic `window.dispatchEvent(new Event('resize'))`, and no
+   code path in the drawer, host, or camera hook may call `updateWidget` with `x`, `y`, `w`, or
+   `h`. Auto-pan moves the camera (`panOffset`) only.
+3. **No viewport substitution.** Do not introduce an "effective viewport" that subtracts the
+   drawer width and feed it to re-hydration or rescue. The drawer covering part of the board is
+   the accepted trade-off; the camera pan (D3) is how the widget is brought into view.
+4. **Resizing the drawer** (D4) changes only the drawer's own width and the pan target; it is
+   not a viewport change.
+
+Required test (wave 1b.9): a unit test that opens the drawer, resizes it across the full
+360–560px range, closes it, and asserts that no widget's `x/y/w/h` or proportional fields changed
+and that `updateWidget` was never called with positional keys. The drawer E2E also asserts widget
+bounding rects are identical before open and after close.
+
 ## 5. Waves
 
 Each wave is one PR. Items within a wave are file-disjoint unless marked **orchestrator-owned**,
@@ -329,17 +358,17 @@ Exit: nothing user-visible; validate green.
 
 ### Wave 1b — Drawer, host, flag, camera (behind flag, no widget migrated)
 
-| Item                           | Files                                                                                                                                      | Deliverable                                                                                                                                                                                                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1b.1 Drawer chrome + Style tab | `components/settings/SettingsDrawer.tsx`                                                                                                   | Header/tabs/body/resize; `data-widget-portal` + `data-widget-id` on root; ports help, building toggle, transparency from `SettingsPanel.tsx`; Style tab from `schema/styleKeys.ts`.                                                                |
-| 1b.2 Camera hook + pan request | `components/settings/useSettingsDrawerCamera.ts`, `DashboardView.tsx` (orchestrator-owned: `board-pan-request` handler)                    | §4.8.                                                                                                                                                                                                                                              |
-| 1b.3 Host + legacy slot        | `components/settings/SettingsDrawerHost.tsx`, `components/settings/legacy/LegacySettingsSlot.tsx`                                          | Narrow canvas-store subscription; flipped tie-break per §3; memoized schema `import()` map.                                                                                                                                                        |
-| 1b.4 Flag                      | `types.ts` (orchestrator-owned), `config/featureDefaults.ts` + test, `components/admin/GlobalPermissionsManager.tsx`                       | §4.5.                                                                                                                                                                                                                                              |
-| 1b.5 Renderer/window wiring    | `components/widgets/WidgetRenderer.tsx`, `components/common/DraggableWindow.tsx` (`settings` optional)                                     | Flag branch; drawer host receives the widget.                                                                                                                                                                                                      |
-| 1b.6 Migration plumbing        | `utils/migration.ts`, `hooks/useFirestore.ts`, `hooks/useTemplateStore.ts`, `hooks/useStarterPacks.ts`, `utils/widgetConfigPersistence.ts` | `configVersion` on `WidgetData`, `WIDGET_CONFIG_MIGRATIONS`, all load paths per §4.4, `flipped` normalization.                                                                                                                                     |
-| 1b.7 Width persistence         | `types.ts` (orchestrator-owned), `context/AuthContext.tsx` write path                                                                      | §4.6.                                                                                                                                                                                                                                              |
-| 1b.8 z-index decision          | `config/zIndex.ts`                                                                                                                         | §3 item 6.                                                                                                                                                                                                                                         |
-| 1b.9 Tests                     | `tests/components/settings/*`, `tests/e2e/settings-drawer.spec.ts`, `tests/e2e/nexus_qr_text.spec.ts`                                      | Port the nine `SettingsPanel.test.tsx` behaviours (portal attrs, click-outside after `onClose` identity change, dialog-click exclusion, `board-pan` re-measure, Escape-in-field, Escape propagation) to drawer tests; drawer E2E; fix the QR spec. |
+| Item                           | Files                                                                                                                                      | Deliverable                                                                                                                                                                                                                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1b.1 Drawer chrome + Style tab | `components/settings/SettingsDrawer.tsx`                                                                                                   | Header/tabs/body/resize; `data-widget-portal` + `data-widget-id` on root; ports help, building toggle, transparency from `SettingsPanel.tsx`; Style tab from `schema/styleKeys.ts`.                                                                                                       |
+| 1b.2 Camera hook + pan request | `components/settings/useSettingsDrawerCamera.ts`, `DashboardView.tsx` (orchestrator-owned: `board-pan-request` handler)                    | §4.8.                                                                                                                                                                                                                                                                                     |
+| 1b.3 Host + legacy slot        | `components/settings/SettingsDrawerHost.tsx`, `components/settings/legacy/LegacySettingsSlot.tsx`                                          | Narrow canvas-store subscription; flipped tie-break per §3; memoized schema `import()` map.                                                                                                                                                                                               |
+| 1b.4 Flag                      | `types.ts` (orchestrator-owned), `config/featureDefaults.ts` + test, `components/admin/GlobalPermissionsManager.tsx`                       | §4.5.                                                                                                                                                                                                                                                                                     |
+| 1b.5 Renderer/window wiring    | `components/widgets/WidgetRenderer.tsx`, `components/common/DraggableWindow.tsx` (`settings` optional)                                     | Flag branch; drawer host receives the widget.                                                                                                                                                                                                                                             |
+| 1b.6 Migration plumbing        | `utils/migration.ts`, `hooks/useFirestore.ts`, `hooks/useTemplateStore.ts`, `hooks/useStarterPacks.ts`, `utils/widgetConfigPersistence.ts` | `configVersion` on `WidgetData`, `WIDGET_CONFIG_MIGRATIONS`, all load paths per §4.4, `flipped` normalization.                                                                                                                                                                            |
+| 1b.7 Width persistence         | `types.ts` (orchestrator-owned), `context/AuthContext.tsx` write path                                                                      | §4.6.                                                                                                                                                                                                                                                                                     |
+| 1b.8 z-index decision          | `config/zIndex.ts`                                                                                                                         | §3 item 6.                                                                                                                                                                                                                                                                                |
+| 1b.9 Tests                     | `tests/components/settings/*`, `tests/e2e/settings-drawer.spec.ts`, `tests/e2e/nexus_qr_text.spec.ts`                                      | Port the nine `SettingsPanel.test.tsx` behaviours (portal attrs, click-outside after `onClose` identity change, dialog-click exclusion, `board-pan` re-measure, Escape-in-field, Escape propagation) to drawer tests; drawer E2E; fix the QR spec; the no-widget-movement test from §4.9. |
 
 Exit: flag on for admins (and always on in E2E via bypass), every widget opens in the drawer
 showing its legacy panel inside the new chrome, Style tab universal, validate green.
