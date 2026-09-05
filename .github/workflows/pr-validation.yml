@@ -86,9 +86,13 @@ jobs:
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup
 
-      # Type-aware ESLint holds a ~4.5GB TS program per worker; 2 workers fit the 16GB runner.
+      # Type-aware ESLint holds a ~4.5GB TS program; 5120MB leaves headroom.
+      # No --concurrency: ESLint's worker threads don't inherit NODE_OPTIONS
+      # (each gets Node's own default heap ceiling), so a worker touching this
+      # program would hit an unraised limit and get OOM-killed — see
+      # tests/ci.eslintConcurrencyMemory.test.ts.
       - if: matrix.check == 'lint-app'
-        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app --concurrency=2
+        run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
       - if: matrix.check == 'lint-functions'
         run: pnpm run lint:functions
       - if: matrix.check == 'format'
