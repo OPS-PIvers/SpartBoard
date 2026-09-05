@@ -19,6 +19,12 @@ if (isMainThread) {
     process.stdout.write(JSON.stringify(limits));
     process.exit(0);
   });
+  // Without this, a worker crash before it posts a message leaves the parent
+  // hanging forever instead of failing fast.
+  worker.once('error', (err) => {
+    process.stderr.write(String(err));
+    process.exit(1);
+  });
 } else {
   parentPort.postMessage(resourceLimits);
 }

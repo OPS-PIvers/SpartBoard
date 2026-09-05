@@ -52,7 +52,7 @@ describe('Node worker_threads do not inherit the parent --max-old-space-size (em
     const output = execFileSync(
       process.execPath,
       [`--max-old-space-size=${bigHeapMb}`, probe],
-      { encoding: 'utf-8' }
+      { encoding: 'utf-8', timeout: 10_000 }
     );
     const parsed = JSON.parse(output) as { maxOldGenerationSizeMb: unknown };
     const workerMaxOldGenMb = Number(parsed.maxOldGenerationSizeMb);
