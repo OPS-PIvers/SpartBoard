@@ -67,7 +67,7 @@ skills-lock.json
 .claude/skills/*
 !.claude/skills/admin-widget-config/
 !.claude/skills/new-widget/
-!.claude/skills/guided-learning-author/
+!.claude/skills/gl-author/
 
 # Playwright MCP scratch
 .playwright-mcp/
