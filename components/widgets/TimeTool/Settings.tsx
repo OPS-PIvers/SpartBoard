@@ -41,9 +41,10 @@ const clampAdjustStep = (n: number) =>
 
 const SOUNDS = TIME_TOOL_SOUNDS;
 
-// Option lists for the "Timer End Action" radiogroups — order matches the
-// rendered button order (None first) so roving-tabindex arrow-key nav lines
-// up with the DOM.
+// Option lists for the "Timer End Action" radiogroups — each list is the
+// single source of truth for both render order (via .map() below) and the
+// roving-tabindex arrow-key nav order handleRadioGroupKeyDown walks, so the
+// two can't drift apart the way a hand-duplicated JSX button list could.
 const VOICE_LEVEL_OPTIONS: readonly (number | null)[] = [null, 0, 1, 2, 3, 4];
 const TRAFFIC_COLOR_OPTIONS: readonly ('red' | 'yellow' | 'green' | null)[] = [
   null,
@@ -51,6 +52,19 @@ const TRAFFIC_COLOR_OPTIONS: readonly ('red' | 'yellow' | 'green' | null)[] = [
   'yellow',
   'green',
 ];
+
+const trafficColorStyle = (color: 'red' | 'yellow' | 'green' | null) => {
+  switch (color) {
+    case 'red':
+      return 'bg-red-500 border-red-500 text-white';
+    case 'yellow':
+      return 'bg-yellow-300 border-yellow-300 text-yellow-900';
+    case 'green':
+      return 'bg-green-500 border-green-500 text-white';
+    default:
+      return 'bg-brand-gray-darkest border-brand-gray-darkest text-white';
+  }
+};
 
 // Maps each canonical clock style to its existing i18n label key
 // (note `modern` uses the `default` key), so the appearance picker derives
@@ -328,37 +342,31 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                 )
               }
             >
-              <button
-                type="button"
-                onClick={() => selectVoiceLevel(null)}
-                role="radio"
-                aria-checked={timerEndVoiceLevel == null}
-                tabIndex={timerEndVoiceLevel == null ? 0 : -1}
-                className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                  timerEndVoiceLevel == null
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-slate-200 text-slate-600'
-                }`}
-              >
-                {t('sidebar.widgets.none')}
-              </button>
-              {[0, 1, 2, 3, 4].map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => selectVoiceLevel(level)}
-                  role="radio"
-                  aria-checked={timerEndVoiceLevel === level}
-                  tabIndex={timerEndVoiceLevel === level ? 0 : -1}
-                  className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                    timerEndVoiceLevel === level
-                      ? 'bg-blue-600 border-blue-600 text-white'
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
-                >
-                  {t('widgets.timeTool.level')} {level}
-                </button>
-              ))}
+              {VOICE_LEVEL_OPTIONS.map((level) => {
+                const selected =
+                  level === null
+                    ? timerEndVoiceLevel == null
+                    : timerEndVoiceLevel === level;
+                return (
+                  <button
+                    key={String(level)}
+                    type="button"
+                    onClick={() => selectVoiceLevel(level)}
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={selected ? 0 : -1}
+                    className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
+                      selected
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-white border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {level === null
+                      ? t('sidebar.widgets.none')
+                      : `${t('widgets.timeTool.level')} ${level}`}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -390,65 +398,37 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                 )
               }
             >
-              <button
-                type="button"
-                onClick={() => selectTrafficColor(null)}
-                role="radio"
-                aria-checked={timerEndTrafficColor == null}
-                tabIndex={timerEndTrafficColor == null ? 0 : -1}
-                className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                  timerEndTrafficColor == null
-                    ? 'bg-brand-gray-darkest border-brand-gray-darkest text-white'
-                    : 'bg-white border-slate-200 text-slate-600'
-                }`}
-              >
-                {t('sidebar.widgets.none')}
-              </button>
-              {/* Red */}
-              <button
-                type="button"
-                onClick={() => selectTrafficColor('red')}
-                role="radio"
-                aria-checked={timerEndTrafficColor === 'red'}
-                tabIndex={timerEndTrafficColor === 'red' ? 0 : -1}
-                className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                  timerEndTrafficColor === 'red'
-                    ? 'bg-red-500 border-red-500 text-white'
-                    : 'bg-white border-slate-200 text-slate-600'
-                }`}
-              >
-                {t('widgets.timeTool.stop')}
-              </button>
-              {/* Yellow */}
-              <button
-                type="button"
-                onClick={() => selectTrafficColor('yellow')}
-                role="radio"
-                aria-checked={timerEndTrafficColor === 'yellow'}
-                tabIndex={timerEndTrafficColor === 'yellow' ? 0 : -1}
-                className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                  timerEndTrafficColor === 'yellow'
-                    ? 'bg-yellow-300 border-yellow-300 text-yellow-900'
-                    : 'bg-white border-slate-200 text-slate-600'
-                }`}
-              >
-                {t('widgets.timeTool.slow')}
-              </button>
-              {/* Green */}
-              <button
-                type="button"
-                onClick={() => selectTrafficColor('green')}
-                role="radio"
-                aria-checked={timerEndTrafficColor === 'green'}
-                tabIndex={timerEndTrafficColor === 'green' ? 0 : -1}
-                className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
-                  timerEndTrafficColor === 'green'
-                    ? 'bg-green-500 border-green-500 text-white'
-                    : 'bg-white border-slate-200 text-slate-600'
-                }`}
-              >
-                {t('widgets.timeTool.go')}
-              </button>
+              {TRAFFIC_COLOR_OPTIONS.map((color) => {
+                const selected =
+                  color === null
+                    ? timerEndTrafficColor == null
+                    : timerEndTrafficColor === color;
+                const label =
+                  color === null
+                    ? t('sidebar.widgets.none')
+                    : color === 'red'
+                      ? t('widgets.timeTool.stop')
+                      : color === 'yellow'
+                        ? t('widgets.timeTool.slow')
+                        : t('widgets.timeTool.go');
+                return (
+                  <button
+                    key={String(color)}
+                    type="button"
+                    onClick={() => selectTrafficColor(color)}
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={selected ? 0 : -1}
+                    className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
+                      selected
+                        ? trafficColorStyle(color)
+                        : 'bg-white border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
