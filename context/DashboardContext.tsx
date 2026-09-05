@@ -298,6 +298,12 @@ const stableStringify = (value: unknown): string => {
 const widgetMirrorSignature = (widgets: WidgetData[]): string =>
   stableStringify(scrubWidgetsPII(widgets).map(stripDerivedPixels));
 
+// The only DASHBOARD_FIELDS with no dedicated targeted-write path (pinBoard, moveBoardToCollection, reorderDashboards, Drive-sync and share-linking all bypass the debounced autosave entirely) — everything else already gets its own updateDoc, so folding them into this signature too would double-write on every pin/move/reorder/export.
+const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
+  'globalStyle',
+  'sharedGroups',
+];
+
 // Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
 const serializeDashboard = (d: Dashboard): string =>
   stableStringify({
@@ -313,6 +319,10 @@ const serializeDashboard = (d: Dashboard): string =>
     name: d.name,
     libraryOrder: d.libraryOrder,
     settings: d.settings,
+    // These need a change signal too, or a style/sharedGroups-only edit never triggers autosave.
+    untargetedDashboardFields: UNTARGETED_DASHBOARD_FIELDS.map(
+      (f) => d[f] ?? null
+    ),
     // Ink-only edits must mark the board dirty so autosave picks them up.
     annotationOverlay: serializeAnnotationOverlay(d),
   });
@@ -364,7 +374,7 @@ const getDashboardSaveState = (d: Dashboard) => ({
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
     settings: JSON.stringify(d.settings ?? {}),
     annotationOverlay: serializeAnnotationOverlay(d),
-    // Only the save merge reads these; the snapshot merge uses the five above.
+    // The remaining DASHBOARD_FIELDS, keyed by field name for both the save merge and the snapshot merge.
     dashboardFields: Object.fromEntries(
       DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(d[f])])
     ) as Record<MergedDashboardField, string>,
@@ -2074,6 +2084,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 serializeAnnotationOverlay(currentActive) !==
                 lastSavedFieldsRef.current.annotationOverlay;
 
+              // UNTARGETED_DASHBOARD_FIELDS need the same keep-local-until-confirmed treatment as background/name — the rest already have their own dedicated write path, so leave their existing (pre-this-fix) server-wins merge behavior alone.
+              const untargetedDashboardFieldOverrides: Partial<Dashboard> = {};
+              // Baseline pinned per kept-local field, mirroring annotationOverlay's priorInkBaseline below.
+              const untargetedDashboardFieldPriorBaselines: Partial<
+                Record<MergedDashboardField, string>
+              > = {};
+              for (const field of UNTARGETED_DASHBOARD_FIELDS) {
+                const base = lastSavedFieldsRef.current.dashboardFields[field];
+                const unchangedSinceBaseline =
+                  base !== undefined &&
+                  serializeDashboardField(currentActive[field]) === base;
+                if (!unchangedSinceBaseline) {
+                  (
+                    untargetedDashboardFieldOverrides as Record<string, unknown>
+                  )[field] = currentActive[field];
+                  untargetedDashboardFieldPriorBaselines[field] = base;
+                }
+              }
+
               // Per-widget merge: only keep a widget's local config when THAT
               // specific widget changed locally (e.g. running timer). Accept the
               // server config for widgets untouched locally so remote controls
@@ -2277,6 +2306,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   nextDashboardFields.annotationOverlay = priorInkBaseline;
                 }
               }
+              // Same treatment for every other kept-local DASHBOARD_FIELDS entry, or the baseline drifts to this snapshot's value and a later save can silently discard the still-unsaved local edit.
+              for (const field of Object.keys(
+                untargetedDashboardFieldPriorBaselines
+              ) as MergedDashboardField[]) {
+                const prior = untargetedDashboardFieldPriorBaselines[field];
+                if (prior === undefined) {
+                  delete nextDashboardFields[field];
+                } else {
+                  nextDashboardFields[field] = prior;
+                }
+              }
               lastSavedFieldsRef.current.dashboardFields = nextDashboardFields;
 
               // For widgets, construct the array of what we would have saved if we had
@@ -2334,6 +2374,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
               return {
                 ...db,
+                ...untargetedDashboardFieldOverrides,
                 widgets: [...mergedWidgets, ...localOnlyWidgets],
                 background: backgroundChangedLocally
                   ? currentActive.background
