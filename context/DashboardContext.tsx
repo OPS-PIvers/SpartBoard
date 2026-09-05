@@ -368,7 +368,7 @@ const getDashboardSaveState = (d: Dashboard) => ({
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
     settings: JSON.stringify(d.settings ?? {}),
     annotationOverlay: serializeAnnotationOverlay(d),
-    // Only the save merge reads these; the snapshot merge uses the five above.
+    // The remaining DASHBOARD_FIELDS, keyed by field name for both the save merge and the snapshot merge.
     dashboardFields: Object.fromEntries(
       DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(d[f])])
     ) as Record<MergedDashboardField, string>,
