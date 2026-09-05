@@ -313,6 +313,16 @@ const serializeDashboard = (d: Dashboard): string =>
     name: d.name,
     libraryOrder: d.libraryOrder,
     settings: d.settings,
+    // DASHBOARD_FIELDS (globalStyle, sharedGroups, ...) have no dedicated
+    // change-detection signal of their own — setGlobalStyle/updateDashboard
+    // only call setDashboards, the same as a widget edit. Without them here,
+    // a style-only or sharedGroups-only change never differs from
+    // lastSavedDataRef.current, so the autosave effect returns early and the
+    // edit is silently never written. annotationOverlay is excluded: it is
+    // already the dedicated key below with its own ink-only debounce cadence.
+    dashboardFields: DASHBOARD_FIELDS.filter(
+      (f) => f !== 'annotationOverlay'
+    ).map((f) => d[f] ?? null),
     // Ink-only edits must mark the board dirty so autosave picks them up.
     annotationOverlay: serializeAnnotationOverlay(d),
   });
@@ -2074,6 +2084,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 serializeAnnotationOverlay(currentActive) !==
                 lastSavedFieldsRef.current.annotationOverlay;
 
+              // The remaining DASHBOARD_FIELDS (globalStyle, sharedGroups,
+              // isPinned, order, collectionId, ...) go through this same
+              // debounced full-document autosave, not always a targeted
+              // updateDoc — so an in-flight edit (e.g. setGlobalStyle) needs
+              // the same keep-local-until-baseline-confirms treatment as
+              // background/name, or a snapshot landing before the next
+              // autosave flush silently discards it. annotationOverlay has
+              // its own per-object merge above and is excluded here.
+              const otherDashboardFieldOverrides: Partial<Dashboard> = {};
+              for (const field of DASHBOARD_FIELDS) {
+                if (field === 'annotationOverlay') continue;
+                const base = lastSavedFieldsRef.current.dashboardFields[field];
+                const unchangedSinceBaseline =
+                  base !== undefined &&
+                  serializeDashboardField(currentActive[field]) === base;
+                if (!unchangedSinceBaseline) {
+                  (otherDashboardFieldOverrides as Record<string, unknown>)[
+                    field
+                  ] = currentActive[field];
+                }
+              }
+
               // Per-widget merge: only keep a widget's local config when THAT
               // specific widget changed locally (e.g. running timer). Accept the
               // server config for widgets untouched locally so remote controls
@@ -2334,6 +2366,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
               return {
                 ...db,
+                ...otherDashboardFieldOverrides,
                 widgets: [...mergedWidgets, ...localOnlyWidgets],
                 background: backgroundChangedLocally
                   ? currentActive.background
