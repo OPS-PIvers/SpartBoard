@@ -10,6 +10,7 @@ import {
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Toggle } from '@/components/common/Toggle';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import {
   Bell,
   Sun,
@@ -25,6 +26,9 @@ import {
   TIME_TOOL_VISUAL_TYPES,
   TIME_TOOL_SOUNDS,
   TIME_TOOL_CLOCK_STYLES,
+  type TimeToolMode,
+  type TimeToolVisualType,
+  type TimeToolSound,
   type TimeToolClockStyle,
 } from '@/config/timeTool';
 
@@ -36,6 +40,17 @@ const clampAdjustStep = (n: number) =>
   Math.max(ADJUST_STEP_MIN, Math.min(ADJUST_STEP_MAX, n));
 
 const SOUNDS = TIME_TOOL_SOUNDS;
+
+// Option lists for the "Timer End Action" radiogroups — order matches the
+// rendered button order (None first) so roving-tabindex arrow-key nav lines
+// up with the DOM.
+const VOICE_LEVEL_OPTIONS: readonly (number | null)[] = [null, 0, 1, 2, 3, 4];
+const TRAFFIC_COLOR_OPTIONS: readonly ('red' | 'yellow' | 'green' | null)[] = [
+  null,
+  'red',
+  'yellow',
+  'green',
+];
 
 // Maps each canonical clock style to its existing i18n label key
 // (note `modern` uses the `default` key), so the appearance picker derives
@@ -91,6 +106,49 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
     (w) => w.type === 'stations'
   );
 
+  // Shared select handlers — reused by both onClick and the radiogroup
+  // roving-tabindex keydown handler (handleRadioGroupKeyDown) below.
+  const selectMode = (m: TimeToolMode) => {
+    if (m === 'timer') {
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          mode: 'timer',
+          duration: 600,
+          elapsedTime: 600,
+          isRunning: false,
+          startTime: null,
+        },
+      });
+    } else {
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          mode: 'stopwatch',
+          elapsedTime: 0,
+          isRunning: false,
+          startTime: null,
+        },
+      });
+    }
+  };
+
+  const selectVisualType = (v: TimeToolVisualType) =>
+    updateWidget(widget.id, { config: { ...config, visualType: v } });
+
+  const selectSound = (s: TimeToolSound) =>
+    updateWidget(widget.id, { config: { ...config, selectedSound: s } });
+
+  const selectVoiceLevel = (level: number | null) =>
+    updateWidget(widget.id, {
+      config: { ...config, timerEndVoiceLevel: level },
+    });
+
+  const selectTrafficColor = (color: 'red' | 'yellow' | 'green' | null) =>
+    updateWidget(widget.id, {
+      config: { ...config, timerEndTrafficColor: color },
+    });
+
   return (
     <div className="space-y-6 p-1">
       {/* Mode Selection */}
@@ -102,37 +160,18 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           className="grid grid-cols-2 gap-2"
           role="radiogroup"
           aria-labelledby={modeLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, TIME_TOOL_MODES, selectMode)
+          }
         >
           {TIME_TOOL_MODES.map((m) => (
             <button
               key={m}
               type="button"
-              onClick={() => {
-                if (m === 'timer') {
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      mode: 'timer',
-                      duration: 600,
-                      elapsedTime: 600,
-                      isRunning: false,
-                      startTime: null,
-                    },
-                  });
-                } else {
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      mode: 'stopwatch',
-                      elapsedTime: 0,
-                      isRunning: false,
-                      startTime: null,
-                    },
-                  });
-                }
-              }}
+              onClick={() => selectMode(m)}
               role="radio"
               aria-checked={config.mode === m}
+              tabIndex={config.mode === m ? 0 : -1}
               className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 flex items-center justify-center gap-2 ${
                 config.mode === m
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -161,18 +200,18 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           className="grid grid-cols-2 gap-2"
           role="radiogroup"
           aria-labelledby={displayStyleLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, TIME_TOOL_VISUAL_TYPES, selectVisualType)
+          }
         >
           {TIME_TOOL_VISUAL_TYPES.map((v) => (
             <button
               key={v}
               type="button"
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, visualType: v },
-                })
-              }
+              onClick={() => selectVisualType(v)}
               role="radio"
               aria-checked={config.visualType === v}
+              tabIndex={config.visualType === v ? 0 : -1}
               className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                 config.visualType === v
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -196,18 +235,16 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           className="grid grid-cols-4 gap-2"
           role="radiogroup"
           aria-labelledby={alertSoundLabelId}
+          onKeyDown={(e) => handleRadioGroupKeyDown(e, SOUNDS, selectSound)}
         >
           {SOUNDS.map((s) => (
             <button
               key={s}
               type="button"
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, selectedSound: s },
-                })
-              }
+              onClick={() => selectSound(s)}
               role="radio"
               aria-checked={config.selectedSound === s}
+              tabIndex={config.selectedSound === s ? 0 : -1}
               className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                 config.selectedSound === s
                   ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -283,16 +320,20 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               className="grid grid-cols-3 gap-2"
               role="radiogroup"
               aria-labelledby={voiceLevelLabelId}
+              onKeyDown={(e) =>
+                handleRadioGroupKeyDown(
+                  e,
+                  VOICE_LEVEL_OPTIONS,
+                  selectVoiceLevel
+                )
+              }
             >
               <button
                 type="button"
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, timerEndVoiceLevel: null },
-                  })
-                }
+                onClick={() => selectVoiceLevel(null)}
                 role="radio"
                 aria-checked={timerEndVoiceLevel == null}
+                tabIndex={timerEndVoiceLevel == null ? 0 : -1}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndVoiceLevel == null
                     ? 'bg-blue-600 border-blue-600 text-white'
@@ -305,13 +346,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                 <button
                   key={level}
                   type="button"
-                  onClick={() =>
-                    updateWidget(widget.id, {
-                      config: { ...config, timerEndVoiceLevel: level },
-                    })
-                  }
+                  onClick={() => selectVoiceLevel(level)}
                   role="radio"
                   aria-checked={timerEndVoiceLevel === level}
+                  tabIndex={timerEndVoiceLevel === level ? 0 : -1}
                   className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                     timerEndVoiceLevel === level
                       ? 'bg-blue-600 border-blue-600 text-white'
@@ -344,16 +382,20 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               className="grid grid-cols-4 gap-2"
               role="radiogroup"
               aria-labelledby={trafficLightLabelId}
+              onKeyDown={(e) =>
+                handleRadioGroupKeyDown(
+                  e,
+                  TRAFFIC_COLOR_OPTIONS,
+                  selectTrafficColor
+                )
+              }
             >
               <button
                 type="button"
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, timerEndTrafficColor: null },
-                  })
-                }
+                onClick={() => selectTrafficColor(null)}
                 role="radio"
                 aria-checked={timerEndTrafficColor == null}
+                tabIndex={timerEndTrafficColor == null ? 0 : -1}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor == null
                     ? 'bg-brand-gray-darkest border-brand-gray-darkest text-white'
@@ -365,13 +407,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               {/* Red */}
               <button
                 type="button"
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, timerEndTrafficColor: 'red' },
-                  })
-                }
+                onClick={() => selectTrafficColor('red')}
                 role="radio"
                 aria-checked={timerEndTrafficColor === 'red'}
+                tabIndex={timerEndTrafficColor === 'red' ? 0 : -1}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor === 'red'
                     ? 'bg-red-500 border-red-500 text-white'
@@ -383,13 +422,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               {/* Yellow */}
               <button
                 type="button"
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, timerEndTrafficColor: 'yellow' },
-                  })
-                }
+                onClick={() => selectTrafficColor('yellow')}
                 role="radio"
                 aria-checked={timerEndTrafficColor === 'yellow'}
+                tabIndex={timerEndTrafficColor === 'yellow' ? 0 : -1}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor === 'yellow'
                     ? 'bg-yellow-300 border-yellow-300 text-yellow-900'
@@ -401,13 +437,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               {/* Green */}
               <button
                 type="button"
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, timerEndTrafficColor: 'green' },
-                  })
-                }
+                onClick={() => selectTrafficColor('green')}
                 role="radio"
                 aria-checked={timerEndTrafficColor === 'green'}
+                tabIndex={timerEndTrafficColor === 'green' ? 0 : -1}
                 className={`p-2 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                   timerEndTrafficColor === 'green'
                     ? 'bg-green-500 border-green-500 text-white'
@@ -551,6 +584,12 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
   const colors = WIDGET_PALETTE;
 
+  const selectClockStyle = (s: { id: TimeToolClockStyle; label: string }) =>
+    updateWidget(widget.id, { config: { ...config, clockStyle: s.id } });
+
+  const selectThemeColor = (c: string) =>
+    updateWidget(widget.id, { config: { ...config, themeColor: c } });
+
   return (
     <div className="space-y-6 p-1">
       {/* Font Family — shared picker (TimeTool manages color via themeColor below) */}
@@ -571,18 +610,18 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
           className="flex bg-slate-100 p-1 rounded-xl"
           role="radiogroup"
           aria-labelledby={numberStyleLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, styles, selectClockStyle)
+          }
         >
           {styles.map((s) => (
             <button
               key={s.id}
               type="button"
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, clockStyle: s.id },
-                })
-              }
+              onClick={() => selectClockStyle(s)}
               role="radio"
               aria-checked={clockStyle === s.id}
+              tabIndex={clockStyle === s.id ? 0 : -1}
               className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-all ${clockStyle === s.id ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
             >
               {s.label}
@@ -601,19 +640,19 @@ export const TimeToolAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
             className="flex gap-1.5"
             role="radiogroup"
             aria-labelledby={colorPaletteLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, colors, selectThemeColor)
+            }
           >
             {colors.map((c) => (
               <button
                 key={c}
                 type="button"
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, themeColor: c },
-                  })
-                }
+                onClick={() => selectThemeColor(c)}
                 aria-label={`theme color ${COLOR_HEX_TO_NAME[c] ?? c}`}
                 role="radio"
                 aria-checked={themeColor === c}
+                tabIndex={themeColor === c ? 0 : -1}
                 className={`w-6 h-6 rounded-full border-2 transition-all ${themeColor === c ? 'border-slate-800 scale-125 shadow-md' : 'border-transparent hover:scale-110'}`}
                 style={{ backgroundColor: c }}
               />
