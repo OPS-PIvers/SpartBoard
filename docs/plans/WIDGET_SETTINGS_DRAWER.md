@@ -1,6 +1,6 @@
 # Widget Settings Drawer — Implementation Plan
 
-**Date**: 2026-09-05 · **Branch**: `claude/widget-settings-ux-hgbwcy` · **Status**: Revision 4 (2026-09-05) — decisions locked via design interview, hardened by adversarial code review, revised against the graded comparison in §10, re-scoped by the product owner (§11), then corrected against a third independent grading (§12: counts fixed, board-level `flipped` normalization, manual-pan detection, localized close button, custom-widget def migration) (not started)
+**Date**: 2026-09-05 · **Branch**: `claude/widget-settings-ux-hgbwcy` · **Status**: Revision 5 (2026-09-05) — decisions locked via design interview, hardened by adversarial code review, revised against the graded comparison in §10, re-scoped by the product owner (§11), corrected against a third independent grading (§12), then validated against a four-variant in-app UI prototype and amended per the product owner's pick (§13: find-a-setting filter, Window-tier dedupe, darker section labels, bottom-sheet viewport fixed) (not started)
 
 Replace the per-widget floating settings panel with a docked, schema-driven settings drawer so
 every widget's settings look and behave the same way while the live widget stays visible on the
@@ -45,7 +45,7 @@ waves, exactly as `.claude/workflows/optimize-pass.README.md` describes for its 
 | #   | Decision                        | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | --- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | D1  | **Primary pains**               | Inside-panel structure differs; same setting rendered with different controls. Placement is secondary.                                                                                                                                                                                                                                                                                                                                                                                        |
-| D2  | **Surface**                     | Docked **side drawer**, full viewport height, default right. Widget stays live on the board. The drawer docks on whichever side keeps the edited widget nearer and un-covered (§3 item 7); the choice is deterministic and announced.                                                                                                                                                                                                                                                         |
+| D2  | **Surface**                     | Docked **side drawer**, full viewport height, default right. Widget stays live on the board. The drawer docks on whichever side keeps the edited widget nearer and un-covered (§3 item 8); the choice is deterministic and announced.                                                                                                                                                                                                                                                         |
 | D3  | **Overlap handling**            | **Side selection first, then auto-pan.** Pick the side that needs no pan when one exists; otherwise pan the canvas so the widget is fully visible beside the drawer; restore camera on close. The edited widget gets a focus ring while the drawer is open. Widget `x/y` never change.                                                                                                                                                                                                        |
 | D4  | **Drawer sizing**               | **Resizable** via a drag handle on the board-facing edge (left when docked right, right when docked left), clamped 360–560px, default 400px, width persisted per user. Full viewport height. The current 380px × 80vh panel is judged cramped and overloaded by the product owner, so the larger, full-height, resizable surface is a goal of the series, not a cost of it. One widget at a time (D21).                                                                                       |
 | D5  | **Consistency depth**           | **Schema-driven fields.** Widgets declare a settings schema; a shared renderer draws it. Custom escape hatch for editors a field can't express.                                                                                                                                                                                                                                                                                                                                               |
@@ -57,10 +57,10 @@ waves, exactly as `.claude/workflows/optimize-pass.README.md` describes for its 
 | D11 | **Cruft cleanup in bounds**     | Remove dead/duplicate controls; rename/normalize config keys with a one-time migration; reorganize into the standard groups with i18n'd labels.                                                                                                                                                                                                                                                                                                                                               |
 | D12 | **Rollout**                     | **Flag first, delete last.** Drawer ships behind a new global permission `settings-drawer`. Wave 4 flips the default and deletes `SettingsPanel.tsx`; wave 10 deletes the legacy slot.                                                                                                                                                                                                                                                                                                        |
 | D13 | **Custom Widget Builder**       | `CustomWidgetSettingDef` becomes a subset of the new field schema so admin-built widgets render through the same drawer.                                                                                                                                                                                                                                                                                                                                                                      |
-| D14 | **Mobile remote**               | `/remote` (`components/remote/`) untouched this series. Tablets using the teacher app are in scope: below 900px viewport width the drawer becomes a bottom sheet (§3 item 9).                                                                                                                                                                                                                                                                                                                 |
+| D14 | **Mobile remote**               | `/remote` (`components/remote/`) untouched this series. Tablets using the teacher app are in scope: below 900px viewport width the drawer becomes a bottom sheet (§3 item 10).                                                                                                                                                                                                                                                                                                                |
 | D15 | **Delivery**                    | One PR per wave. Each wave must leave `pnpm run validate` green.                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | D16 | **Done bar per migrated panel** | Schema unit test + config-migration test + drawer E2E + i18n parity + axe pass (see §7).                                                                                                                                                                                                                                                                                                                                                                                                      |
-| D17 | **Accessibility**               | The drawer is a non-modal `role="dialog"` with managed focus, a keyboard-operable resize handle, and an automated axe check per migrated widget (§3 item 10).                                                                                                                                                                                                                                                                                                                                 |
+| D17 | **Accessibility**               | The drawer is a non-modal `role="dialog"` with managed focus, a keyboard-operable resize handle, and an automated axe check per migrated widget (§3 item 11).                                                                                                                                                                                                                                                                                                                                 |
 | D18 | **Style tab model**             | Two explicit tiers: **Window** (frame background, transparency, window font, window text size — `WidgetData` fields, every widget) and **Content** (declared `styleKeys` → `config`). No third path; the window-level fields are neither deleted nor duplicated.                                                                                                                                                                                                                              |
 | D19 | **z-index**                     | Drawer renders at a new `Z_INDEX.drawer = 9980` (above annotation chrome, below `modal`). Every existing modal and picker already stacks above it, so nothing opened from a drawer field needs re-layering.                                                                                                                                                                                                                                                                                   |
 | D20 | **Translation deferred**        | Every drawer label goes through `t()` with keys under `widgetSettings.*` in `locales/en.json` only. `de`/`es`/`fr` entries are **not** written in this series and no `tests/i18n/widgetSettings*Locales.test.ts` parity test is added. i18next falls back to English (`fallbackLng: 'en'`). Rationale: the locales exist for student-facing widget content used by world-language teachers; staff-facing settings chrome was never the target. A follow-up series owns the translations (§8). |
@@ -76,14 +76,28 @@ waves, exactly as `.claude/workflows/optimize-pass.README.md` describes for its 
    `data-testid="settings-drawer-close"`. `tests/e2e/nexus_qr_text.spec.ts` currently selects
    `getByLabel('Close settings')`; wave 1b switches it to the test id so no string is exempt
    from `t()`. Tab names and the empty-state text move to `widgetSettings.common.*` keys.
-2. Tab bar pinned under the header: **Settings** · **Style**. Same two tabs, always.
-3. Scrollable body. Settings tab renders schema groups in D8 order as titled sections. Style tab
-   renders the universal style fields the widget opts into, then window background, then
-   transparency (moved verbatim from the current panel).
-4. Board-facing-edge resize handle (D4). Keyboard: Esc closes; the existing `Alt+S` handler in
+2. **Find-a-setting filter** directly under the header, above the tab bar: a single text input
+   (`aria-label` and placeholder `t('widgetSettings.common.findSetting')`, with an inline Clear
+   button once non-empty). Typing filters by field label, case-insensitively, across **both**
+   tabs at once: the tab bar is hidden while a query is active and the body shows the matching
+   fields grouped under their section headings (Content / Behavior / Display / Style / Window).
+   Clearing the query restores the tab bar and the previously selected tab. No match renders
+   `t('widgetSettings.common.noMatches', { query })`. Fields rendered through the legacy slot
+   (§4.1) are not indexed; while a widget is still on the slot the no-match text appends
+   `t('widgetSettings.common.legacyNotIndexed')`. The filter reads the same `label` i18n keys the
+   renderer resolves, so migrating a widget indexes it for free. Rationale: the prototype (§13)
+   showed the filter is the single most useful affordance against 400–940-line panels.
+3. Tab bar pinned under the filter: **Settings** · **Style**. Same two tabs, always.
+4. Scrollable body. Settings tab renders schema groups in D8 order as titled sections. Style tab
+   renders the universal style fields the widget opts into (Content tier), then the Window tier.
+   **The Window tier renders exactly one background control**: `UniversalStyleSettings` already
+   contains the frame background picker, so `WidgetBackgroundSettings` is **not** rendered
+   alongside it (today's `SettingsPanel.tsx` shows both, which the prototype exposed as a
+   duplicated swatch row). Transparency follows, moved verbatim from the current panel.
+5. Board-facing-edge resize handle (D4). Keyboard: Esc closes; the existing `Alt+S` handler in
    `DraggableWindow.tsx` (`if (e.altKey)` → `case 's'` → toggles `flipped`) keeps working
    unchanged.
-5. **The drawer root must carry `data-widget-portal=""` and `data-widget-id={widget.id}`**,
+6. **The drawer root must carry `data-widget-portal=""` and `data-widget-id={widget.id}`**,
    mirroring `SettingsPanel.tsx`. Those attributes are load-bearing: `DashboardView.tsx`
    resolves the topmost widget via `'.widget, [data-widget-portal]'`, and `DraggableWindow.tsx`
    plus `GuidedLearning/ScreenCaptureModal.tsx` use them to tell "Escape from inside our portal"
@@ -91,26 +105,27 @@ waves, exactly as `.claude/workflows/optimize-pass.README.md` describes for its 
    `DashboardView.tsx` comment saying only `SettingsPanel` carries `data-widget-id` is stale:
    `DraggableWindow`, `DraggableSticker`, `Embed`, `NeedDoPutThen`, and `MiniApp` set it too.
    Carry both attributes regardless; do not rely on that comment.)
-6. Layering (D19): add `drawer: 9980` to `config/zIndex.ts` between `annotationChrome` (9970)
+7. Layering (D19): add `drawer: 9980` to `config/zIndex.ts` between `annotationChrome` (9970)
    and `announcementOverlay` (9985). Every modal (`modal` 10000 and up), popover (11000), tool
    menu, tooltip, toast, and dialog already stacks above it, so a Drive picker, library modal,
    or color popover opened from a drawer field needs no change. The drawer's own in-body
    dropdowns use `popover`. Wave 1b.8 adds a unit test asserting
    `Z_INDEX.drawer < Z_INDEX.modal` and `Z_INDEX.drawer < Z_INDEX.popover`.
-7. **Side selection** (D2/D3): on open, compute the widget's screen rect. If it fits entirely in
+8. **Side selection** (D2/D3): on open, compute the widget's screen rect. If it fits entirely in
    the band left of a right-docked drawer, dock right; else if it fits in the band right of a
    left-docked drawer, dock left; else dock right and auto-pan. The side is chosen once per open
    and does not flip while the drawer stays open (swapping widgets re-evaluates). The chosen
    side is announced through a visually-hidden live region (`widgetSettings.common.dockedLeft` /
    `dockedRight`). Maximized widgets always dock right.
-8. **Edited-widget focus ring**: while the drawer is open, the edited widget's `DraggableWindow`
+9. **Edited-widget focus ring**: while the drawer is open, the edited widget's `DraggableWindow`
    root carries `data-settings-target` and a 2px `ring-brand-blue-primary` outline, so on a
    projected 4K board the teacher can always find which widget the drawer controls.
-9. **Responsive** (D14): below 900px viewport width the same component renders as a bottom sheet
-   (full width, 50vh default, drag handle on top, 35–85vh range) and side selection / auto-pan
-   are skipped. One component, one prop (`placement: 'right' | 'left' | 'bottom'`) derived from
-   `useWindowSize`. The drawer E2E runs at 1280×800 and at 1024×768 (bottom sheet).
-10. **Accessibility** (D17):
+10. **Responsive** (D14): below 900px viewport width the same component renders as a bottom sheet
+    (full width, 50vh default, drag handle on top, 35–85vh range) and side selection / auto-pan
+    are skipped. One component, one prop (`placement: 'right' | 'left' | 'bottom'`) derived from
+    `useWindowSize`. The drawer E2E runs at 1280×800 (side drawer) and at 820×640 (bottom sheet).
+    1024×768 is **above** the 900px breakpoint and must not be used to test the sheet.
+11. **Accessibility** (D17):
     - Root: `role="dialog"`, `aria-modal="false"`, `aria-labelledby` → the header title id.
       Non-modal is deliberate: the board must stay operable while the drawer is open, so there
       is **no focus trap**.
@@ -119,20 +134,21 @@ waves, exactly as `.claude/workflows/optimize-pass.README.md` describes for its 
       the host; if that element is gone, focus the widget root.
     - Resize handle: `role="separator"`, `aria-orientation="vertical"`, `aria-valuemin/max/now`
       in px, keyboard-operable with ArrowLeft/ArrowRight (16px steps, Shift = 64px), and a
-      visible focus ring. The bottom-sheet handle (§3 item 9) is the same element with
+      visible focus ring. The bottom-sheet handle (§3 item 10) is the same element with
       `aria-orientation="horizontal"`, ArrowUp/ArrowDown, and `aria-valuemin/max/now` in vh.
     - Every field label is a real `<label for>` or `aria-labelledby`; `help` text is linked with
       `aria-describedby`. `SettingsLabel` keeps the `as="span"` + `role="group"` pattern for
       chip groups.
     - Open/close transitions respect `prefers-reduced-motion` (fade only, no slide).
-    - Contrast: drawer surfaces are light; muted text uses `text-slate-600` minimum (AA on
-      white). Tests: `tests/components/settings/SettingsDrawer.a11y.test.tsx` runs `axe-core`
+    - Contrast: drawer surfaces are light; section headings and muted text use `text-slate-700`
+      minimum (the prototype's `slate-600` headings passed AA on white but read faint on a
+      projected board; `slate-600` remains acceptable only for `help` lines). Tests: `tests/components/settings/SettingsDrawer.a11y.test.tsx` runs `axe-core`
       (add `vitest-axe` as a dev dependency in wave 1a) against the empty drawer and against
       every migrated schema (§7 item 7).
 
 **Board behavior**:
 
-- Opening pushes nothing; the drawer overlays the canvas. If side selection (§3 item 7) found
+- Opening pushes nothing; the drawer overlays the canvas. If side selection (§3 item 8) found
   a side that needs no pan, nothing else happens. Otherwise the canvas auto-pans so the widget's
   screen rect fits inside the free band beside the drawer (D3). If the widget is wider than that band at current zoom, pan to align its left edge and do
   not zoom out (zooming changes what the teacher is previewing). The requested offset must pass
@@ -175,7 +191,7 @@ components/settings/
 ├── SettingsDrawerHost.tsx        # mounted once in DashboardView; finds the flipped widget
 ├── useSettingsDrawerPlacement.ts # side selection + bottom-sheet breakpoint (§3 items 7, 9)
 ├── useSettingsDrawerCamera.ts    # auto-pan / restore logic against panOffset + zoom
-├── useSettingsDrawerFocus.ts     # focus move on open, focus return on close (§3 item 10)
+├── useSettingsDrawerFocus.ts     # focus move on open, focus return on close (§3 item 11)
 ├── schema/
 │   ├── types.ts                  # FieldSchema, GroupSchema, WidgetSettingsSchema
 │   ├── defineSettings.ts         # typed helper: defineSettings<Config>({...})
@@ -263,7 +279,8 @@ Rules:
   No field may write outside `config` except the **Window tier** of the Style tab (D18), which
   targets exactly four `WidgetData` fields: `backgroundColor`, `transparency`, `fontFamily`,
   `baseTextSize`. That tier is rendered by `schema/windowStyle.tsx` for every widget and is not
-  part of any schema. The Content tier (`styleKeys`) writes `config` only. A widget that consumes
+  part of any schema. It composes `UniversalStyleSettings` plus the transparency slider only;
+  `WidgetBackgroundSettings` is retired with `SettingsPanel.tsx` in wave 4 (§3 item 4). The Content tier (`styleKeys`) writes `config` only. A widget that consumes
   `config.fontFamily` still shows the window font control; the two are different scopes (whole
   frame vs. widget content) and both are labeled as such.
 - Labels are i18n keys under `widgetSettings.<widgetType>.*` in `locales/en.json`. Shared field
@@ -286,13 +303,13 @@ Reuse, don't rebuild, where a shared component exists:
 | AccentColor                          | `components/common/AccentColorSettings.tsx`                                                                                                                         |
 | Color (generic)                      | `components/common/ColorPresetPicker.tsx` (today reached only through the `SurfaceColor`/`AccentColor`/`Typography` wrappers; no settings file imports it directly) |
 | List                                 | `components/common/SortableList.tsx`                                                                                                                                |
-| ImageUpload                          | `components/common/DriveImagePicker.tsx` + `hooks/useStorage.ts` (mind §3 item 6 on z-index)                                                                        |
+| ImageUpload                          | `components/common/DriveImagePicker.tsx` + `hooks/useStorage.ts` (mind §3 item 7 on z-index)                                                                        |
 | RosterPicker                         | `components/common/AssignClassPicker.tsx` / `RosterModeControl.tsx`                                                                                                 |
 | Labels/sections                      | `components/common/SettingsLabel.tsx` (retained as the section-heading primitive)                                                                                   |
 | IconPicker, EmojiPicker, SoundPicker | New; extracted from the first migrated widget that needs each (`TimeTool` for sounds, `Checklist`/`Stations` for icons).                                            |
 
 Every field renders the same anatomy: label row (label + optional reset-to-default), control,
-optional help line, with the `<label for>` / `aria-describedby` wiring from §3 item 10 built into
+optional help line, with the `<label for>` / `aria-describedby` wiring from §3 item 11 built into
 `FieldRenderer` so no field author can omit it. Text sizes: `text-xs` body, `text-xxs` uppercase labels, matching
 `SettingsLabel`. Settings panels are not front-face content, so Tailwind sizes are fine here.
 
@@ -456,24 +473,24 @@ commits, pushes, opens a draft PR, and only then starts the next wave.
 | 1a.3 Field kit: color + typography  | `.../fields/{Color,FontFamily,TextSizePreset,AccentColor,SurfaceColor}.tsx`                             | Thin wrappers over existing shared components.                                                                                                                     |
 | 1a.4 Field kit: List + Custom       | `.../fields/{List,Custom}.tsx`                                                                          | `List` over `SortableList` with a per-row sub-schema rendered by `FieldRenderer`.                                                                                  |
 | 1a.5 SchemaRenderer + FieldRenderer | `components/settings/renderer/{SchemaRenderer,FieldRenderer}.tsx`                                       | Groups in D8 order; `visibleWhen`/`disabledWhen`; i18n resolution. Also label/description wiring per §4.3.                                                         |
-| 1a.7 a11y tooling + scaffold        | `package.json` (`vitest-axe`), `scripts/new-widget-settings.ts`, `.claude/skills/new-widget`            | §3 item 10 test harness; §4.1 scaffold; the skill calls the scaffold.                                                                                              |
+| 1a.7 a11y tooling + scaffold        | `package.json` (`vitest-axe`), `scripts/new-widget-settings.ts`, `.claude/skills/new-widget`            | §3 item 11 test harness; §4.1 scaffold; the skill calls the scaffold.                                                                                              |
 | 1a.6 Defaults backfill              | `config/widgetDefaults.ts` (orchestrator-owned), tests                                                  | Add the missing default keys for the ten §6 widgets per the 0.2 inventory. Waves 5–9 backfill their own widgets the same way, so done bar item 1 holds for all 59. |
 
 Exit: nothing user-visible; validate green.
 
 ### Wave 1b — Drawer, host, flag, camera (behind flag, no widget migrated)
 
-| Item                           | Files                                                                                                                                                                                                                                   | Deliverable                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1b.1 Drawer chrome + Style tab | `components/settings/SettingsDrawer.tsx`                                                                                                                                                                                                | Header/tabs/body/resize; `data-widget-portal` + `data-widget-id` on root; ports help, building toggle, transparency from `SettingsPanel.tsx`; Style tab from `schema/styleKeys.ts`.                                                                                                                                                                                                                                                                     |
-| 1b.2 Placement, camera, focus  | `components/settings/useSettingsDrawerPlacement.ts`, `useSettingsDrawerCamera.ts`, `useSettingsDrawerFocus.ts`, `context/dashboardCanvasStore.ts` (`registerPanSetter`), `DashboardView.tsx` (orchestrator-owned: registers the setter) | §3 items 7–10, §4.8.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| 1b.3 Host + legacy slot        | `components/settings/SettingsDrawerHost.tsx`, `components/settings/legacy/LegacySettingsSlot.tsx`                                                                                                                                       | Narrow canvas-store subscription; flipped tie-break per §3; memoized schema `import()` map.                                                                                                                                                                                                                                                                                                                                                             |
-| 1b.4 Flag + legacy E2E project | `types.ts` (orchestrator-owned), `config/featureDefaults.ts` + test, `components/admin/GlobalPermissionsManager.tsx`, `context/AuthContext.tsx` (bypass overrides), `playwright.config.ts`                                              | §4.5, including `VITE_AUTH_BYPASS_FEATURE_OVERRIDES` and the `legacy-settings` project.                                                                                                                                                                                                                                                                                                                                                                 |
-| 1b.5 Renderer/window wiring    | `components/widgets/WidgetRenderer.tsx`, `components/common/DraggableWindow.tsx` (`settings` optional)                                                                                                                                  | Flag branch; drawer host receives the widget.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 1b.6 Migration plumbing        | `utils/migration.ts`, `hooks/useFirestore.ts`, `hooks/useTemplateStore.ts`, `hooks/useStarterPacks.ts`, `utils/widgetConfigPersistence.ts`                                                                                              | `configVersion` on `WidgetData`, `WIDGET_CONFIG_MIGRATIONS`, all load paths per §4.4, `flipped` normalization.                                                                                                                                                                                                                                                                                                                                          |
-| 1b.7 Width persistence         | `types.ts` (orchestrator-owned), `context/AuthContext.tsx` write path                                                                                                                                                                   | §4.6.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 1b.8 z-index                   | `config/zIndex.ts`, `tailwind.config.js`                                                                                                                                                                                                | Add `drawer: 9980` per D19 plus the ordering test.                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 1b.9 Tests                     | `tests/components/settings/*`, `tests/e2e/settings-drawer.spec.ts`, `tests/e2e/nexus_qr_text.spec.ts`                                                                                                                                   | Port the nine `SettingsPanel.test.tsx` behaviours (portal attrs, click-outside after `onClose` identity change, dialog-click exclusion, `board-pan` re-measure, Escape-in-field, Escape propagation) to drawer tests; drawer E2E; fix the QR spec; the no-widget-movement test from §4.9. Plus: side-selection unit tests (fits-right, fits-left, needs-pan, maximized); bottom-sheet E2E at 1024×768; focus-return test; axe test on the empty drawer. |
+| Item                           | Files                                                                                                                                                                                                                                   | Deliverable                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1b.1 Drawer chrome + Style tab | `components/settings/SettingsDrawer.tsx`                                                                                                                                                                                                | Header/filter/tabs/body/resize; `data-widget-portal` + `data-widget-id` on root; ports help, building toggle, transparency from `SettingsPanel.tsx`; Style tab from `schema/styleKeys.ts` with the single-background Window tier (§3 item 4); find-a-setting filter per §3 item 2 with a unit test (matches across tabs, hides tab bar, restores tab, legacy not-indexed note).                                                                        |
+| 1b.2 Placement, camera, focus  | `components/settings/useSettingsDrawerPlacement.ts`, `useSettingsDrawerCamera.ts`, `useSettingsDrawerFocus.ts`, `context/dashboardCanvasStore.ts` (`registerPanSetter`), `DashboardView.tsx` (orchestrator-owned: registers the setter) | §3 items 7–10, §4.8.                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 1b.3 Host + legacy slot        | `components/settings/SettingsDrawerHost.tsx`, `components/settings/legacy/LegacySettingsSlot.tsx`                                                                                                                                       | Narrow canvas-store subscription; flipped tie-break per §3; memoized schema `import()` map.                                                                                                                                                                                                                                                                                                                                                            |
+| 1b.4 Flag + legacy E2E project | `types.ts` (orchestrator-owned), `config/featureDefaults.ts` + test, `components/admin/GlobalPermissionsManager.tsx`, `context/AuthContext.tsx` (bypass overrides), `playwright.config.ts`                                              | §4.5, including `VITE_AUTH_BYPASS_FEATURE_OVERRIDES` and the `legacy-settings` project.                                                                                                                                                                                                                                                                                                                                                                |
+| 1b.5 Renderer/window wiring    | `components/widgets/WidgetRenderer.tsx`, `components/common/DraggableWindow.tsx` (`settings` optional)                                                                                                                                  | Flag branch; drawer host receives the widget.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 1b.6 Migration plumbing        | `utils/migration.ts`, `hooks/useFirestore.ts`, `hooks/useTemplateStore.ts`, `hooks/useStarterPacks.ts`, `utils/widgetConfigPersistence.ts`                                                                                              | `configVersion` on `WidgetData`, `WIDGET_CONFIG_MIGRATIONS`, all load paths per §4.4, `flipped` normalization.                                                                                                                                                                                                                                                                                                                                         |
+| 1b.7 Width persistence         | `types.ts` (orchestrator-owned), `context/AuthContext.tsx` write path                                                                                                                                                                   | §4.6.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 1b.8 z-index                   | `config/zIndex.ts`, `tailwind.config.js`                                                                                                                                                                                                | Add `drawer: 9980` per D19 plus the ordering test.                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 1b.9 Tests                     | `tests/components/settings/*`, `tests/e2e/settings-drawer.spec.ts`, `tests/e2e/nexus_qr_text.spec.ts`                                                                                                                                   | Port the nine `SettingsPanel.test.tsx` behaviours (portal attrs, click-outside after `onClose` identity change, dialog-click exclusion, `board-pan` re-measure, Escape-in-field, Escape propagation) to drawer tests; drawer E2E; fix the QR spec; the no-widget-movement test from §4.9. Plus: side-selection unit tests (fits-right, fits-left, needs-pan, maximized); bottom-sheet E2E at 820×640; focus-return test; axe test on the empty drawer. |
 
 Exit: flag on for admins (on in the default E2E project, off in `legacy-settings`), every widget
 opens in the drawer showing its legacy panel inside the new chrome with the 0.4 snapshots still
@@ -578,7 +595,7 @@ rest; do not exceed 10 in this series.
    `axe-core` with zero violations; every field has an accessible name.
 8. Focus: the drawer E2E tabs from the header through every field of the Settings tab without
    leaving the drawer unexpectedly, and closing returns focus to the gear button.
-9. Bottom sheet: the schema renders inside the 1024×768 bottom sheet with no horizontal scroll.
+9. Bottom sheet: the schema renders inside the 820×640 bottom sheet with no horizontal scroll.
 10. The widget's 0.4 legacy snapshot is deleted and the burndown table row is marked done.
 
 ## 8. Open questions (raise, don't assume)
@@ -611,7 +628,7 @@ category. Every category below A was revised; this table records what changed an
 
 | Category                           | Was | Gap                                                                                   | Fix in this revision                                                                                    |
 | ---------------------------------- | --- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Panel placement                    | A-  | Right-only dock is predictable but not always near the widget.                        | Deterministic side selection, announced (D2, §3 item 7).                                                |
+| Panel placement                    | A-  | Right-only dock is predictable but not always near the widget.                        | Deterministic side selection, announced (D2, §3 item 8).                                                |
 | Widget stays visible while editing | B+  | Drawer could sit a full projector-width from a small widget; partial pan on big ones. | Side selection before pan; focus ring on the edited widget (§3 7–8).                                    |
 | Internal structure consistency     | A-  | 49 widgets would keep hand-rolled JSX indefinitely.                                   | All 59 migrate; legacy slot deleted (D9, waves 5–10).                                                   |
 | Same setting, same control         | A-  | Custom escape hatch could become permanent.                                           | Gap review per wave; `Record` type in wave 10.2 closes the door.                                        |
@@ -621,7 +638,7 @@ category. Every category below A was revised; this table records what changed an
 | Config hygiene and migrations      | B+  | Rerouting five load paths through `migrateWidget` was a wide, untested change.        | Characterization fixtures per path before reroute; idempotence test.                                    |
 | Keyboard and screen reader         | B   | Only Escape and Alt+S were specified.                                                 | Non-modal dialog, focus in/out, keyboard resize, axe per widget (D17).                                  |
 | Preserving tuned behaviors         | B+  | Nine tests ported, but legacy panels had no render guard inside the new chrome.       | 0.4 snapshots of every legacy panel, byte-identical through the slot.                                   |
-| Space on small screens             | B   | 360px minimum on a 1024px tablet; tablets unaddressed.                                | Bottom sheet below 900px; E2E at 1024×768 (§3 item 9).                                                  |
+| Space on small screens             | B   | 360px minimum on a 1024px tablet; tablets unaddressed.                                | Bottom sheet below 900px; E2E at 820×640 (§3 item 10, corrected in rev 5).                              |
 | Canvas interaction                 | B+  | New inbound global window event added coupling.                                       | Typed `registerPanSetter` on the canvas store, no event (§4.8).                                         |
 | Coverage of the primary pain (D1)  | C+  | Series fixed structure for 10 of 59 widgets.                                          | Waves 5–9 migrate the rest; wave 10 removes the second system.                                          |
 | Custom Widget Builder              | A-  | Admin builder stayed on four field types.                                             | Full v1 kit in 3.6.                                                                                     |
@@ -659,10 +676,10 @@ corrected below. This table records each factual correction and each sub-A gap w
 | Settings count           | `WIDGET_SETTINGS_COMPONENTS` has 59 entries, not 55; the 59 files and 59 entries are different sets.          | §1 corrected.                                                                      |
 | `flipped` normalization  | Described as living in `migrateWidget`, which is a per-widget mapper and cannot pick the highest-`z` sibling. | Board-level `normalizeFlipped` at both call sites (§3, §4.4).                      |
 | "Only bulk unflip"       | Minimize-all / restore-all in `DashboardContext.tsx` also unflip in bulk.                                     | §3 wording corrected; design unchanged.                                            |
-| `data-widget-id` comment | The `DashboardView.tsx` comment that only `SettingsPanel` carries it is stale (five other components do).     | §3 item 5 notes it; attributes still required.                                     |
+| `data-widget-id` comment | The `DashboardView.tsx` comment that only `SettingsPanel` carries it is stale (five other components do).     | §3 item 6 notes it; attributes still required.                                     |
 | i18n exemption           | `Close settings` was exempt from `t()` to keep an E2E selector stable.                                        | Localized; QR spec switches to `data-testid` (§3 item 1, §4.5, done bar 5).        |
 | Manual-pan detection     | `board-pan` fires for the drawer's own auto-pan, so "teacher panned manually" was undetectable.               | `pendingProgrammaticPan` ref, consumed once, with a unit test (§3 Board behavior). |
-| Bottom-sheet keyboard    | Only the vertical separator had keyboard operation specified.                                                 | Horizontal variant with ArrowUp/Down (§3 item 10).                                 |
+| Bottom-sheet keyboard    | Only the vertical separator had keyboard operation specified.                                                 | Horizontal variant with ArrowUp/Down (§3 item 11).                                 |
 | Custom-widget defs       | Widening `CustomWidgetSettingDef.type` changed stored `/custom_widgets` docs with no migration.               | `migrateCustomWidgetDefs` on the read path in 3.6 (§4.7).                          |
 | Defaults backfill scope  | Only the ten §6 widgets were backfilled, but done bar item 1 applies to all 59.                               | Waves 5–9 backfill their own widgets (1a.6).                                       |
 | 0.4 snapshot cost        | Snapshotting 84 lazy components under mocked providers was unbudgeted and "byte-identical" was over-broad.    | Shared `renderLegacySettings` harness as its own item; slot content only (0.4).    |
@@ -673,3 +690,34 @@ migrations are inherent to D9, the analytics ranking (wave 0.1) is still an exte
 and `pauls-skills:mass-plan-implementation` is not installed in every session. None of these
 change the design; they are accepted by the product owner as the price of removing the second
 settings system.
+
+## 13. Revision 5 — UI prototype and product-owner pick
+
+On 2026-09-05 the drawer chrome was prototyped in-app as four switchable variants on the `/`
+route (throwaway branch `proto/settings-drawer-variants`, file
+`components/settings/prototype/SettingsDrawerPrototype.tsx`, gated on `import.meta.env.DEV` and
+`?variant=`). The clock ran on a mock schema; the timer ran through the legacy slot. Screenshots
+were graded against hierarchy, consistency, accessibility, discoverability, and the design
+principles in `CLAUDE.md`.
+
+| Variant | Shape                                                                       | Grade | Why                                                                                                                                            |
+| ------- | --------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| A       | §3 as written: header, Settings/Style tabs, titled groups                   | B+    | Clearest hierarchy; faint `slate-600` headings; duplicated Background Color row; wide empty right half of each field row.                      |
+| B       | Icon rail on the board-facing edge, one group at a time in a card           | B-    | Best breathing room, but truncated rail labels, hidden group count, and close/help buried at the rail's foot.                                  |
+| C       | Dark glass inspector: no tabs, collapsible groups on one scroll, filter box | C+    | Filter is the best single feature; legacy content fails contrast outright, schema fields sit near 4:1, and it contradicts D17's light surface. |
+| D       | A + C's filter, Background Color deduped, headings `slate-700`              | A-    | **Picked by the product owner.** Folded into §3 items 2–4 and item 11 above.                                                                   |
+
+What the prototype confirmed without changes to the plan:
+
+- Side selection (§3 item 8) behaves as specified: a centred widget gets a right drawer; a widget
+  on the right edge gets a left drawer with no pan. The product owner reviewed the left/right
+  flip against the "always right, always pan" alternative and kept side selection, because a
+  camera pan moves everything on a projected board while a drawer changing sides moves nothing.
+- Live update holds in every variant; the edited-widget focus ring is enough to find the target.
+- The legacy slot renders real 900-line panels inside the drawer acceptably on a light surface.
+
+Not prototyped (still to be built to spec): auto-pan and camera restore (§3 Board behavior),
+keyboard-operable resize, focus return, width persistence, the live-region announcement.
+
+Corrections made in this revision: the bottom-sheet E2E viewport was 1024×768 in three places
+while D14 sets the breakpoint at 900px; it is now 820×640 everywhere.
