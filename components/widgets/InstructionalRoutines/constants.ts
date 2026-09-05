@@ -6,8 +6,20 @@ import {
   TrafficConfig,
   RandomConfig,
   PollConfig,
+  GradeLevel,
 } from '@/types';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
+
+// Sorts by canonical grade-band order, not string order (digits sort before 'K').
+export function formatGradeLevelsLabel(gradeLevels: GradeLevel[]): string {
+  if (gradeLevels.length === 0) return 'None';
+  if (gradeLevels.length >= ALL_GRADE_LEVELS.length) return 'Universal';
+  return [...gradeLevels]
+    .sort((a, b) => ALL_GRADE_LEVELS.indexOf(a) - ALL_GRADE_LEVELS.indexOf(b))
+    .map((l) => l.toUpperCase())
+    .join(', ');
+}
 
 export const QUICK_TOOLS: {
   label: string;

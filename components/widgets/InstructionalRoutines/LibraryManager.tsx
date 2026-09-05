@@ -17,6 +17,7 @@ import {
 import { IconPicker } from './IconPicker';
 import { ROUTINE_COLORS, ROUTINE_STEP_COLORS } from '@/config/colors';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
+import { formatGradeLevelsLabel } from './constants';
 import { TOOLS } from '@/config/tools';
 import { WidgetType } from '@/types';
 import { httpsCallable } from 'firebase/functions';
@@ -339,18 +340,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                         : [...current, level];
 
                       // Auto-update grades string for legacy support
-                      let gradesStr = 'Universal';
-                      if (
-                        next.length > 0 &&
-                        next.length < ALL_GRADE_LEVELS.length
-                      ) {
-                        gradesStr = next
-                          .map((l) => l.toUpperCase())
-                          .sort()
-                          .join(', ');
-                      } else if (next.length === 0) {
-                        gradesStr = 'None';
-                      }
+                      const gradesStr = formatGradeLevelsLabel(next);
 
                       onChange({
                         ...routine,
