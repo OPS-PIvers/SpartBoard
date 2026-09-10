@@ -516,6 +516,10 @@
       "showPerTeacher": {
         "title": "Détail par enseignant(e)",
         "description": "Affiche la moyenne de chaque enseignant(e) dans les résultats regroupés. Désactivé par défaut pour que l’équipe regarde d’abord les données combinées."
+      },
+      "learningTargets": {
+        "heading": "Objectifs d’apprentissage",
+        "description": "Objectifs avec lesquels la CAP étiquette les questions de quiz. Tous les membres voient la même liste."
       }
     },
     "overview": {
@@ -2359,5 +2363,46 @@
       "one-finger-long-press": "Appui long à 1 doigt sur un widget",
       "one-finger-long-pressDescription": "Prendre une capture d'écran (maintenir ~0,6 s)"
     }
+  },
+  "learningTargets": {
+    "personal": {
+      "title": "Mes objectifs d’apprentissage",
+      "button": "Objectifs",
+      "description": "Objectifs visibles par vous seul. Étiquetez vos questions de quiz pour suivre la maîtrise dans vos propres évaluations.",
+      "sourceName": "Mes objectifs d’apprentissage"
+    },
+    "loading": "Chargement des objectifs…",
+    "empty": "Aucun objectif pour le moment. Ajoutez-en un, collez une liste ou importez un CSV.",
+    "columns": {
+      "code": "Code",
+      "label": "Objectif",
+      "standards": "Normes"
+    },
+    "archive": "Archiver l’objectif",
+    "restore": "Restaurer l’objectif",
+    "archivedCount": "Archivés ({{count}})",
+    "addTarget": "Ajouter un objectif",
+    "pasteList": "Coller une liste",
+    "importCsv": "Importer un CSV",
+    "add": "Ajouter",
+    "codePlaceholder": "Code",
+    "labelPlaceholder": "Je peux…",
+    "searchStandards": "Rechercher des normes par code ou texte…",
+    "noStandardsMatch": "Aucune norme ne correspond.",
+    "pasteHint": "Un objectif par ligne. Code facultatif avant une barre verticale : LT1 | Je peux additionner des fractions.",
+    "parsedCount": "{{count}} objectifs trouvés",
+    "csvHint": "Ligne d’en-tête avec label (obligatoire), code et standards (facultatifs ; séparez les codes par ;).",
+    "csvLineError": "Ligne {{line}} : {{message}}",
+    "csvUnknownStandards": "Les codes de norme inconnus seront ignorés : {{codes}}",
+    "importCount": "Importer {{count}}",
+    "masteryCutoffs": {
+      "heading": "Seuils de maîtrise",
+      "description": "Pourcentage de bonnes réponses requis pour qu’un objectif soit considéré comme maîtrisé ou en voie de maîtrise.",
+      "proficient": "Maîtrisé",
+      "approaching": "En voie",
+      "save": "Enregistrer les seuils"
+    },
+    "saving": "Enregistrement…",
+    "saveFailed": "Échec de l’enregistrement"
   }
 }

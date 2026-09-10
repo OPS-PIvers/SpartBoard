@@ -17,6 +17,7 @@ import {
   Sparkles,
   X,
   Volume2,
+  BookOpenCheck,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -32,6 +33,7 @@ import { QuizReadAloudConfigurationPanel } from './QuizReadAloudConfigurationPan
 import { PresetSubEmailsManager } from './PresetSubEmailsManager';
 import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
+import { StandardsPanel } from './StandardsPanel';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -86,6 +88,12 @@ const TAB_GROUPS = [
         label: 'Help Center',
         icon: LifeBuoy,
         component: HelpCenterManager,
+      },
+      {
+        id: 'standards',
+        label: 'Standards',
+        icon: BookOpenCheck,
+        component: StandardsPanel,
       },
     ],
   },

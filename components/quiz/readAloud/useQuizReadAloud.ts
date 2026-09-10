@@ -117,7 +117,10 @@ export function questionPartKeys(q: QuizPublicQuestion): string[] {
   return keys;
 }
 
-const ITEM_FIELD: Record<ReadAloudItemKind, keyof QuizPublicQuestion> = {
+const ITEM_FIELD: Record<
+  ReadAloudItemKind,
+  'matchingLeft' | 'matchingRight' | 'orderingItems'
+> = {
   matchingLeft: 'matchingLeft',
   matchingRight: 'matchingRight',
   orderingItem: 'orderingItems',

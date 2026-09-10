@@ -121,6 +121,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
   showResultToStudent: false,
   showCorrectAnswerToStudent: false,
   showCorrectOnBoard: false,
+  showLearningTargets: false,
   speedBonusEnabled: false,
   streakBonusEnabled: false,
   showPodiumBetweenQuestions: false,

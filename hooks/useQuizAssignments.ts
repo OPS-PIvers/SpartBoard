@@ -711,9 +711,16 @@ export const useQuizAssignments = (
   // Recorded answers are a self-paced (student mode) feature: only there does a
   // per-student submit exist to satisfy the Tennessen notice's promise. Strip the
   // recording block for any other session mode, regardless of the media gate.
+  // Learning-target tags reach students only when the assignment opts in.
   const projectPublicQuestionForMode = useCallback(
-    (question: QuizQuestion, mode: QuizSessionMode): QuizPublicQuestion => {
-      const projected = toGatedPublicQuestion(question);
+    (
+      question: QuizQuestion,
+      mode: QuizSessionMode,
+      showLearningTargets?: boolean
+    ): QuizPublicQuestion => {
+      const gated = toGatedPublicQuestion(question);
+      const { targets: _targets, ...withoutTargets } = gated;
+      const projected = showLearningTargets ? gated : withoutTargets;
       if (mode === 'student' || !projected.recording) return projected;
       const { recording: _stripped, ...rest } = projected;
       return rest;
@@ -881,7 +888,7 @@ export const useQuizAssignments = (
               : 'waiting';
 
       const sessionPublicQuestions = sessionQuestions.map((q) =>
-        projectPublicQuestionForMode(q, mode)
+        projectPublicQuestionForMode(q, mode, opts.showLearningTargets)
       );
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
@@ -1933,7 +1940,12 @@ export const useQuizAssignments = (
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
       const publicQuestions = canonicalQuestions.map((q) =>
-        projectPublicQuestionForMode(q, sessionMode)
+        projectPublicQuestionForMode(
+          q,
+          sessionMode,
+          (behavior?.sessionOptions ?? assignment.sessionOptions)
+            ?.showLearningTargets
+        )
       );
       const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({

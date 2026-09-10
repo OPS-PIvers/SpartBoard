@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   QuizData,
+  QuestionTargetTag,
   QuizQuestion,
   QuizQuestionType,
   QuizStimulus,
@@ -51,6 +52,18 @@ export interface QuizEditorController {
   addQuestion: () => void;
   deleteQuestion: (id: string) => void;
   reorderQuestions: (next: QuizQuestion[]) => void;
+  // Multi-select (checkbox mode) for bulk actions
+  checkedIds: ReadonlySet<string>;
+  /** Toggle one row; with `range` (shift-click) selects from the last toggled row. */
+  toggleChecked: (id: string, range?: boolean) => void;
+  setAllChecked: (checked: boolean) => void;
+  deleteChecked: () => void;
+  /** Add tags to (or replace tags on) a set of questions. Dedupes by tag id. */
+  applyTargets: (
+    ids: readonly string[],
+    targets: QuestionTargetTag[],
+    mode: 'add' | 'replace'
+  ) => void;
   // Read-aloud language (BCP-47); '' = unset
   language: string;
   setLanguage: (next: string) => void;
@@ -229,7 +242,79 @@ export function useQuizEditorState({
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
 
+  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const lastToggledRef = useRef<string | null>(null);
+  const questionsRef = useRef(questions);
+  questionsRef.current = questions;
+
+  const toggleChecked = useCallback((id: string, range?: boolean) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      const order = questionsRef.current.map((q) => q.id);
+      const anchor = lastToggledRef.current;
+      if (range && anchor && order.includes(anchor)) {
+        const [from, to] = [order.indexOf(anchor), order.indexOf(id)].sort(
+          (x, y) => x - y
+        );
+        for (const qid of order.slice(from, to + 1)) next.add(qid);
+      } else if (next.has(id)) next.delete(id);
+      else next.add(id);
+      lastToggledRef.current = id;
+      return next;
+    });
+  }, []);
+
+  const setAllChecked = useCallback((checked: boolean) => {
+    setCheckedIds(
+      checked ? new Set(questionsRef.current.map((q) => q.id)) : new Set()
+    );
+  }, []);
+
+  const applyTargets = useCallback(
+    (
+      ids: readonly string[],
+      targets: QuestionTargetTag[],
+      mode: 'add' | 'replace'
+    ) => {
+      const idSet = new Set(ids);
+      setQuestions((prev) =>
+        prev.map((q) => {
+          if (!idSet.has(q.id)) return q;
+          const merged = mode === 'replace' ? [] : [...(q.targets ?? [])];
+          for (const t of targets) {
+            if (!merged.some((m) => m.id === t.id)) merged.push({ ...t });
+          }
+          if (merged.length === 0) {
+            const { targets: _cleared, ...rest } = q;
+            return rest;
+          }
+          return { ...q, targets: merged };
+        })
+      );
+    },
+    []
+  );
+
+  const deleteChecked = useCallback(() => {
+    setQuestions((prev) => {
+      const next = prev.filter((q) => !checkedIds.has(q.id));
+      if (selectedIdRef.current && checkedIds.has(selectedIdRef.current)) {
+        setSelectedId(next[0]?.id ?? null);
+      }
+      return next;
+    });
+    setCheckedIds(new Set());
+  }, [checkedIds]);
+
   const deleteQuestion = useCallback((id: string) => {
+    setCheckedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setQuestions((prev) => {
       const idx = prev.findIndex((q) => q.id === id);
       const next = prev.filter((q) => q.id !== id);
@@ -435,6 +520,11 @@ export function useQuizEditorState({
     addQuestion,
     deleteQuestion,
     reorderQuestions,
+    checkedIds,
+    toggleChecked,
+    setAllChecked,
+    deleteChecked,
+    applyTargets,
     language,
     setLanguage,
     stimuli,

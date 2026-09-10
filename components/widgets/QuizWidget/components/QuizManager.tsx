@@ -55,6 +55,7 @@ import {
   Users2,
   GraduationCap,
   Combine,
+  Target,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -120,6 +121,7 @@ import {
   type AssignDestination,
 } from './AssignDestinationModal';
 import { SchoologyAssignInstructions } from './SchoologyAssignInstructions';
+import { PersonalLearningTargetsModal } from './PersonalLearningTargetsModal';
 import {
   countItemsByFolder,
   filterByFolder,
@@ -828,6 +830,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Bulk selection (Step 8) ──────────────────────────────────────────────
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
+  const [targetsModalOpen, setTargetsModalOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   // Phase 5 follow-up — preview pane state. We store the id (not the
   // metadata object) so the pane always reflects the latest Firestore
@@ -1797,29 +1800,44 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         sortOptions={SORT_OPTIONS}
         rightSlot={
           userId ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (selectionMode) {
-                  selection.clear();
-                  setSelectionMode(false);
-                } else {
-                  setSelectionMode(true);
+            <>
+              <button
+                type="button"
+                onClick={() => setTargetsModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
+                title={t('learningTargets.personal.title', {
+                  defaultValue: 'My learning targets',
+                })}
+              >
+                <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('learningTargets.personal.button', {
+                  defaultValue: 'Targets',
+                })}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectionMode) {
+                    selection.clear();
+                    setSelectionMode(false);
+                  } else {
+                    setSelectionMode(true);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                  selectionMode
+                    ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+                    : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
+                }`}
+                aria-pressed={selectionMode}
+                title={
+                  selectionMode ? 'Exit selection mode' : 'Enter selection mode'
                 }
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
-                selectionMode
-                  ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
-                  : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
-              }`}
-              aria-pressed={selectionMode}
-              title={
-                selectionMode ? 'Exit selection mode' : 'Enter selection mode'
-              }
-            >
-              <CheckSquare className="h-3.5 w-3.5" />
-              {selectionMode ? 'Cancel' : 'Select'}
-            </button>
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                {selectionMode ? 'Cancel' : 'Select'}
+              </button>
+            </>
           ) : undefined
         }
       />
@@ -2130,6 +2148,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           error={viewOnlyShareError}
           onConfirm={() => void handleConfirmViewOnlyShare()}
           onClose={closeViewOnlyShareModal}
+        />
+      )}
+
+      {targetsModalOpen && (
+        <PersonalLearningTargetsModal
+          isOpen
+          onClose={() => setTargetsModalOpen(false)}
         />
       )}
     </>

@@ -15,10 +15,12 @@ import {
   MousePointerClick,
   Plus,
   Sparkles,
+  Tag,
   Trash2,
 } from 'lucide-react';
 import {
   LibraryFolder,
+  QuestionTargetTag,
   QuizQuestion,
   QuizQuestionType,
   Rubric,
@@ -42,6 +44,8 @@ import {
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
+import { TargetChips } from '@/components/quiz/targets/TargetChips';
+import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import type { QuizEditorController } from './useQuizEditorState';
 
@@ -120,6 +124,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.title === next.state.title &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedId === next.state.selectedId &&
+  prev.state.checkedIds === next.state.checkedIds &&
   prev.shuffleQuestionsEnabled === next.shuffleQuestionsEnabled &&
   prev.state.error === next.state.error;
 
@@ -142,9 +147,15 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
     addQuestion,
     deleteQuestion,
     reorderQuestions,
+    checkedIds,
+    toggleChecked,
+    setAllChecked,
+    deleteChecked,
+    applyTargets,
     error,
     setShowAiPrompt,
   } = state;
+  const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
@@ -187,6 +198,36 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
             Questions ({questions.length})
           </h4>
           <div className="flex items-center gap-2">
+            {checkedIds.size > 0 && (
+              <>
+                <span className="text-xs font-semibold text-slate-600">
+                  {checkedIds.size} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setBulkPickerOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                  Tag
+                </button>
+                <button
+                  type="button"
+                  onClick={deleteChecked}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 border border-slate-300 text-red-600 rounded-lg text-xs font-bold transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllChecked(false)}
+                  className="px-2 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                >
+                  Clear
+                </button>
+              </>
+            )}
             {aiEnabled && (
               <button
                 onClick={() => setShowAiPrompt(true)}
@@ -222,7 +263,9 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 question={q}
                 index={index}
                 isSelected={q.id === selectedId}
+                isChecked={checkedIds.has(q.id)}
                 onSelect={setSelectedId}
+                onToggleChecked={toggleChecked}
                 onDelete={deleteQuestion}
                 dragHandleAttributes={handle.attributes}
                 dragHandleListeners={handle.listeners}
@@ -232,6 +275,19 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
           />
         )}
       </div>
+      {bulkPickerOpen && (
+        <TargetPicker
+          open
+          initial={[]}
+          allowReplace
+          title={`Tag ${checkedIds.size} question${checkedIds.size === 1 ? '' : 's'}`}
+          onApply={(tags, mode) => {
+            applyTargets([...checkedIds], tags, mode);
+            setBulkPickerOpen(false);
+          }}
+          onClose={() => setBulkPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }, quizContextPanePropsEqual);
@@ -242,7 +298,9 @@ interface QuestionRowProps {
   question: QuizQuestion;
   index: number;
   isSelected: boolean;
+  isChecked: boolean;
   onSelect: (id: string) => void;
+  onToggleChecked: (id: string, range?: boolean) => void;
   onDelete: (id: string) => void;
   dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
   dragHandleListeners: Record<string, (event: Event) => void> | undefined;
@@ -263,14 +321,18 @@ const questionRowPropsEqual = (
   prev.question === next.question &&
   prev.index === next.index &&
   prev.isSelected === next.isSelected &&
+  prev.isChecked === next.isChecked &&
   prev.onSelect === next.onSelect &&
+  prev.onToggleChecked === next.onToggleChecked &&
   prev.onDelete === next.onDelete;
 
 const QuestionRow = React.memo(function QuestionRow({
   question,
   index,
   isSelected,
+  isChecked,
   onSelect,
+  onToggleChecked,
   onDelete,
   dragHandleAttributes,
   dragHandleListeners,
@@ -298,6 +360,21 @@ const QuestionRow = React.memo(function QuestionRow({
       >
         <GripVertical className="w-4 h-4" />
       </button>
+      <input
+        type="checkbox"
+        checked={isChecked}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) =>
+          onToggleChecked(
+            question.id,
+            (e.nativeEvent as MouseEvent).shiftKey === true
+          )
+        }
+        aria-label={`Select question ${index + 1}`}
+        className={`shrink-0 accent-brand-blue-primary transition-opacity ${
+          isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}
+      />
       <span className="text-slate-400 font-mono font-bold text-xs w-5 shrink-0 text-center">
         {index + 1}
       </span>
@@ -312,9 +389,14 @@ const QuestionRow = React.memo(function QuestionRow({
           </>
         )}
       </span>
-      <span className="flex-1 text-sm text-slate-700 truncate">
-        {question.text || (
-          <span className="italic text-slate-400">Untitled question</span>
+      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <span className="text-sm text-slate-700 truncate">
+          {question.text || (
+            <span className="italic text-slate-400">Untitled question</span>
+          )}
+        </span>
+        {question.targets && question.targets.length > 0 && (
+          <TargetChips targets={question.targets} compact max={3} />
         )}
       </span>
       <button
@@ -358,6 +440,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     addIncorrect,
     removeIncorrect,
   } = state;
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Stable per-selection callbacks so the memoized Matching/Ordering answer
   // editors don't re-render on every prompt keystroke (their `onChange` prop
@@ -486,6 +569,49 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             placeholder="e.g. What is the capital of France?"
             className={`${inputClass} resize-none`}
           />
+        </div>
+
+        {/* Learning targets */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className={labelClass}>Learning targets</label>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+            >
+              <Tag className="w-3.5 h-3.5" />
+              {q.targets?.length ? 'Edit' : 'Add'}
+            </button>
+          </div>
+          {q.targets?.length ? (
+            <TargetChips
+              targets={q.targets}
+              onRemove={(id) => {
+                const remaining = (q.targets ?? []).filter((t) => t.id !== id);
+                updateQuestion(q.id, {
+                  targets: remaining.length ? remaining : undefined,
+                });
+              }}
+            />
+          ) : (
+            <p className="text-xs text-slate-500">
+              No targets. Tag standards or PLC targets to track mastery.
+            </p>
+          )}
+          {pickerOpen && (
+            <TargetPicker
+              open
+              initial={q.targets ?? []}
+              onApply={(tags: QuestionTargetTag[]) => {
+                updateQuestion(q.id, {
+                  targets: tags.length ? tags : undefined,
+                });
+                setPickerOpen(false);
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
         </div>
 
         {/* Type / time / points row */}

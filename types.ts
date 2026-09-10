@@ -3428,6 +3428,75 @@ export interface QuizQuestion {
    * marker that the whole capture flow stays dormant.
    */
   recording?: RecordingConfig;
+  /**
+   * Learning-target tags (standards, PLC targets, personal targets). Frozen
+   * snapshots like `rubricSnapshot`: rollups key on `id`, display survives
+   * renames. Absent = untagged. See docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.1.
+   */
+  targets?: QuestionTargetTag[];
+}
+
+// --- LEARNING TARGETS AND STANDARDS ---
+
+export type StandardSubject = 'ela' | 'social-studies';
+
+/** One benchmark in the seeded `standards_catalog`. Doc id = `${set}:${code}`. */
+export interface StandardBenchmark {
+  id: string;
+  set: string;
+  subject: StandardSubject;
+  /** Official benchmark code, e.g. '6.4.2.2'. */
+  code: string;
+  /** 'K', '1' … '12', or a band like '11-12'. */
+  grade: string;
+  strand: string;
+  /** Parent (anchor) standard text. */
+  standard: string;
+  /** Benchmark text. */
+  text: string;
+  /** Lowercased code + text for client-side filtering. */
+  searchText: string;
+}
+
+export type LearningTargetKind = 'standard' | 'plc' | 'personal';
+
+/** A PLC- or teacher-authored target. Lives inside an owner's array doc. */
+export interface LearningTarget {
+  id: string;
+  code?: string;
+  label: string;
+  /** StandardBenchmark ids this target drills down from. */
+  standardIds?: string[];
+  archived?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Cap on `LearningTargetList.targets`. */
+export const LEARNING_TARGET_LIST_CAP = 1000;
+
+/**
+ * Array doc at `plcs/{plcId}/meta/learningTargets` and
+ * `users/{uid}/userProfile/learningTargets`.
+ */
+export interface LearningTargetList {
+  targets: LearningTarget[];
+  /** PLC doc only; defaults 80 / 60. */
+  masteryCutoffs?: { proficient: number; approaching: number };
+  updatedAt: number;
+}
+
+/** Snapshot of a target stored on a question. */
+export interface QuestionTargetTag {
+  /** StandardBenchmark.id or LearningTarget.id */
+  id: string;
+  kind: LearningTargetKind;
+  /** plcId for 'plc'; absent for 'standard' and 'personal'. */
+  ownerId?: string;
+  code?: string;
+  label: string;
+  /** Copied from LearningTarget.standardIds so standard rollups need no lookup. */
+  standardIds?: string[];
 }
 
 /** What happens when a recording question's prep countdown runs out. */
@@ -3578,6 +3647,11 @@ export interface BaseSessionOptions {
   showCorrectAnswerToStudent?: boolean;
   showCorrectOnBoard?: boolean;
   /**
+   * Group the student results screen by learning target and project question
+   * tags into the session. Default off: students never see tags otherwise.
+   */
+  showLearningTargets?: boolean;
+  /**
    * Randomize the order of questions per student per attempt. When on, every
    * student in the class sees questions in their own order, and each retake
    * by the same student gets a fresh order too. (Self-paced quiz only —
@@ -3676,6 +3750,11 @@ export interface QuizPublicQuestion {
    * session doc without a Drive fetch. Carries no answer key.
    */
   recording?: RecordingConfig;
+  /**
+   * Projected from {@link QuizQuestion.targets} only when the assignment's
+   * `showLearningTargets` is on; students otherwise never receive tags.
+   */
+  targets?: QuestionTargetTag[];
 }
 
 export interface QuizLeaderboardEntry {

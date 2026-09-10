@@ -1,0 +1,208 @@
+import { describe, it, expect } from 'vitest';
+import {
+  LEARNING_TARGET_LIST_CAP,
+  LearningTarget,
+  LearningTargetList,
+} from '@/types';
+import {
+  DEFAULT_MASTERY_CUTOFFS,
+  addTargets,
+  archiveTarget,
+  parseCsvRecords,
+  parsePastedTargets,
+  parseTargetsCsv,
+  setMasteryCutoffs,
+  tagFromBenchmark,
+  tagFromTarget,
+  unarchiveTarget,
+  upsertTarget,
+} from './learningTargets';
+
+const empty: LearningTargetList = { targets: [], updatedAt: 0 };
+const mk = (
+  id: string,
+  extra: Partial<LearningTarget> = {}
+): LearningTarget => ({
+  id,
+  label: `Target ${id}`,
+  createdAt: 1,
+  updatedAt: 1,
+  ...extra,
+});
+
+describe('parsePastedTargets', () => {
+  it('splits CODE | description lines and bare descriptions', () => {
+    expect(
+      parsePastedTargets(
+        'LT1 | I can add fractions\n\n  I can subtract  \r\n | only label\nCODE |'
+      )
+    ).toEqual([
+      { code: 'LT1', label: 'I can add fractions' },
+      { label: 'I can subtract' },
+      { label: 'only label' },
+      { label: 'CODE' },
+    ]);
+  });
+
+  it('returns [] for blank input', () => {
+    expect(parsePastedTargets('  \n\n')).toEqual([]);
+  });
+});
+
+describe('parseCsvRecords', () => {
+  it('handles quoted commas, newlines and escaped quotes', () => {
+    expect(parseCsvRecords('a,"b, c","say ""hi""\nthere"\r\n1,2,3')).toEqual([
+      ['a', 'b, c', 'say "hi"\nthere'],
+      ['1', '2', '3'],
+    ]);
+  });
+});
+
+describe('parseTargetsCsv', () => {
+  it('parses code/label/standards with a header row', () => {
+    const { rows, errors } = parseTargetsCsv(
+      'code,label,standards\nLT1,"Add, then simplify",6.1.1.1; 6.1.1.2\n,No code,\n\n'
+    );
+    expect(errors).toEqual([]);
+    expect(rows).toEqual([
+      {
+        code: 'LT1',
+        label: 'Add, then simplify',
+        standardCodes: ['6.1.1.1', '6.1.1.2'],
+      },
+      { label: 'No code', standardCodes: [] },
+    ]);
+  });
+
+  it('accepts "target" as the label header and is case-insensitive', () => {
+    const { rows } = parseTargetsCsv('Target\nOne');
+    expect(rows).toEqual([{ label: 'One', standardCodes: [] }]);
+  });
+
+  it('errors on a missing label column and on blank labels', () => {
+    expect(parseTargetsCsv('code,standards\nA,B').errors[0].message).toMatch(
+      /label/
+    );
+    const { rows, errors } = parseTargetsCsv('code,label\nA,\nB,Ok');
+    expect(errors).toEqual([{ line: 2, message: 'Missing label' }]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('errors on an empty file', () => {
+    expect(parseTargetsCsv('').errors).toHaveLength(1);
+  });
+});
+
+describe('list mutations', () => {
+  it('upsertTarget inserts then replaces by id', () => {
+    const a = upsertTarget(empty, mk('a'));
+    expect(a.targets).toHaveLength(1);
+    const b = upsertTarget(a, mk('a', { label: 'Renamed', updatedAt: 5 }));
+    expect(b.targets).toEqual([expect.objectContaining({ label: 'Renamed' })]);
+    expect(b.updatedAt).toBe(5);
+  });
+
+  it('archiveTarget / unarchiveTarget toggle the flag', () => {
+    const list = upsertTarget(empty, mk('a'));
+    const archived = archiveTarget(list, 'a', 9);
+    expect(archived.targets[0].archived).toBe(true);
+    expect(archived.updatedAt).toBe(9);
+    expect(archiveTarget(list, 'missing')).toBe(list);
+    const back = unarchiveTarget(archived, 'a', 10);
+    expect(back.targets[0]).not.toHaveProperty('archived');
+  });
+
+  it('addTargets appends cleaned drafts and drops blanks', () => {
+    const next = addTargets(
+      empty,
+      [
+        { code: ' C1 ', label: ' L1 ', standardIds: ['s1'] },
+        { label: '  ' },
+        { label: 'L2' },
+      ],
+      42
+    );
+    expect(next.targets).toHaveLength(2);
+    expect(next.targets[0]).toMatchObject({
+      code: 'C1',
+      label: 'L1',
+      standardIds: ['s1'],
+      createdAt: 42,
+    });
+    expect(next.targets[1]).not.toHaveProperty('code');
+    expect(next.targets[0].id).not.toBe(next.targets[1].id);
+    expect(addTargets(empty, [{ label: '' }])).toBe(empty);
+  });
+
+  it('enforces the cap', () => {
+    const full: LearningTargetList = {
+      targets: Array.from({ length: LEARNING_TARGET_LIST_CAP }, (_, i) =>
+        mk(String(i))
+      ),
+      updatedAt: 0,
+    };
+    expect(() => addTargets(full, [{ label: 'x' }])).toThrow(/1000/);
+    expect(() => upsertTarget(full, mk('new'))).toThrow(/1000/);
+    expect(() => upsertTarget(full, mk('0'))).not.toThrow();
+  });
+
+  it('setMasteryCutoffs validates and writes', () => {
+    expect(DEFAULT_MASTERY_CUTOFFS).toEqual({
+      proficient: 80,
+      approaching: 60,
+    });
+    expect(
+      setMasteryCutoffs(empty, { proficient: 90, approaching: 70 }, 3)
+        .masteryCutoffs
+    ).toEqual({ proficient: 90, approaching: 70 });
+    expect(() =>
+      setMasteryCutoffs(empty, { proficient: 50, approaching: 60 })
+    ).toThrow(/exceed/);
+    expect(() =>
+      setMasteryCutoffs(empty, { proficient: 101, approaching: 0 })
+    ).toThrow(/0 to 100/);
+    expect(() =>
+      setMasteryCutoffs(empty, { proficient: 80.5, approaching: 0 })
+    ).toThrow(/whole/);
+  });
+});
+
+describe('tags', () => {
+  it('tagFromTarget copies code/standardIds and sets ownerId for plc', () => {
+    const t = mk('a', { code: 'C', standardIds: ['s1'] });
+    expect(tagFromTarget(t, 'plc', 'plc1')).toEqual({
+      id: 'a',
+      kind: 'plc',
+      ownerId: 'plc1',
+      code: 'C',
+      label: 'Target a',
+      standardIds: ['s1'],
+    });
+    expect(tagFromTarget(mk('b'), 'personal', 'ignored')).toEqual({
+      id: 'b',
+      kind: 'personal',
+      label: 'Target b',
+    });
+  });
+
+  it('tagFromBenchmark uses the benchmark text as label', () => {
+    expect(
+      tagFromBenchmark({
+        id: 'mn:6.1.1.1',
+        set: 'mn',
+        subject: 'ela',
+        code: '6.1.1.1',
+        grade: '6',
+        strand: 'x',
+        standard: 'y',
+        text: 'Cite evidence',
+        searchText: '6.1.1.1 cite evidence',
+      })
+    ).toEqual({
+      id: 'mn:6.1.1.1',
+      kind: 'standard',
+      code: '6.1.1.1',
+      label: 'Cite evidence',
+    });
+  });
+});

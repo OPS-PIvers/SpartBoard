@@ -516,6 +516,10 @@
       "showPerTeacher": {
         "title": "Aufschlüsselung nach Lehrkraft",
         "description": "Zeigt den Durchschnitt jeder Lehrkraft in gebündelten Bewertungsergebnissen. Standardmäßig aus, damit das Team zuerst auf die Gesamtdaten schaut."
+      },
+      "learningTargets": {
+        "heading": "Lernziele",
+        "description": "Ziele, mit denen die PLG Quizfragen markiert. Alle Mitglieder sehen dieselbe Liste."
       }
     },
     "overview": {
@@ -2359,5 +2363,46 @@
       "one-finger-long-press": "1-Finger langes Drücken auf einem Widget",
       "one-finger-long-pressDescription": "Screenshot aufnehmen (ca. 0,6 s halten)"
     }
+  },
+  "learningTargets": {
+    "personal": {
+      "title": "Meine Lernziele",
+      "button": "Ziele",
+      "description": "Ziele, die nur du siehst. Markiere Quizfragen damit, um den Lernfortschritt über deine eigenen Tests zu verfolgen.",
+      "sourceName": "Meine Lernziele"
+    },
+    "loading": "Ziele werden geladen…",
+    "empty": "Noch keine Lernziele. Füge eines hinzu, füge eine Liste ein oder importiere eine CSV-Datei.",
+    "columns": {
+      "code": "Code",
+      "label": "Ziel",
+      "standards": "Standards"
+    },
+    "archive": "Ziel archivieren",
+    "restore": "Ziel wiederherstellen",
+    "archivedCount": "Archiviert ({{count}})",
+    "addTarget": "Ziel hinzufügen",
+    "pasteList": "Liste einfügen",
+    "importCsv": "CSV importieren",
+    "add": "Hinzufügen",
+    "codePlaceholder": "Code",
+    "labelPlaceholder": "Ich kann…",
+    "searchStandards": "Standards nach Code oder Text suchen…",
+    "noStandardsMatch": "Keine passenden Standards.",
+    "pasteHint": "Ein Ziel pro Zeile. Optionaler Code vor einem senkrechten Strich: LT1 | Ich kann Brüche addieren.",
+    "parsedCount": "{{count}} Ziele gefunden",
+    "csvHint": "Kopfzeile mit label (erforderlich), code und standards (optional, Codes mit ; trennen).",
+    "csvLineError": "Zeile {{line}}: {{message}}",
+    "csvUnknownStandards": "Unbekannte Standard-Codes werden übersprungen: {{codes}}",
+    "importCount": "{{count}} importieren",
+    "masteryCutoffs": {
+      "heading": "Schwellenwerte",
+      "description": "Prozent richtig, damit ein Ziel als sicher oder annähernd erreicht gilt.",
+      "proficient": "Sicher",
+      "approaching": "Annähernd",
+      "save": "Schwellenwerte speichern"
+    },
+    "saving": "Wird gespeichert…",
+    "saveFailed": "Speichern fehlgeschlagen"
   }
 }

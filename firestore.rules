@@ -662,6 +662,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Standards catalog (MN benchmarks) - seeded by the admin Standards panel from
+    // config/standards/*.json with deterministic ids; any authed user reads it.
+    match /standards_catalog/{benchmarkId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Global Video Activities - all authenticated users can read, only admins can write
     match /global_video_activities/{activityId} {
       allow read: if request.auth != null;
@@ -2351,6 +2358,41 @@ service cloud.firestore {
       }
 
       // PLC folders (PLC_ASSESSMENT_DATA §3.4): shared tree for the Assessments list.
+      // PLC learning targets: one array doc (`learningTargets`) per PLC, edited by
+      // any non-viewer member. Cap 1,000 targets; `masteryCutoffs` is PLC-only.
+      // Interior target maps are validated by the client; blast radius is one PLC.
+      match /meta/{metaId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+        allow create, update: if request.auth != null
+          && metaId == 'learningTargets'
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'targets', 'masteryCutoffs', 'updatedAt'
+             ])
+          && request.resource.data.targets is list
+          && request.resource.data.targets.size() <= 1000
+          && request.resource.data.updatedAt is int
+          && (
+               !('masteryCutoffs' in request.resource.data)
+               || (
+                    request.resource.data.masteryCutoffs.keys().hasOnly([
+                      'proficient', 'approaching'
+                    ])
+                    && request.resource.data.masteryCutoffs.proficient is int
+                    && request.resource.data.masteryCutoffs.approaching is int
+                    && request.resource.data.masteryCutoffs.proficient >= 0
+                    && request.resource.data.masteryCutoffs.proficient <= 100
+                    && request.resource.data.masteryCutoffs.approaching >= 0
+                    && request.resource.data.masteryCutoffs.approaching
+                         <= request.resource.data.masteryCutoffs.proficient
+                  )
+             );
+        allow delete: if false;
+      }
+
       match /folders/{folderId} {
         allow read: if request.auth != null
           && request.auth.uid in get(

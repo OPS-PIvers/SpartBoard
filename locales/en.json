@@ -516,6 +516,10 @@
       "showPerTeacher": {
         "title": "Per-teacher breakdown",
         "description": "Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first."
+      },
+      "learningTargets": {
+        "heading": "Learning targets",
+        "description": "Targets the PLC tags quiz questions with. Every member sees the same list."
       }
     },
     "overview": {
@@ -2547,5 +2551,46 @@
       "one-finger-long-press": "1-finger long press on a widget",
       "one-finger-long-pressDescription": "Take a screenshot (hold ~0.6s)"
     }
+  },
+  "learningTargets": {
+    "personal": {
+      "title": "My learning targets",
+      "button": "Targets",
+      "description": "Targets only you can see. Tag quiz questions with them to track mastery across your own assessments.",
+      "sourceName": "My learning targets"
+    },
+    "loading": "Loading targets…",
+    "empty": "No learning targets yet. Add one, paste a list, or import a CSV.",
+    "columns": {
+      "code": "Code",
+      "label": "Target",
+      "standards": "Standards"
+    },
+    "archive": "Archive target",
+    "restore": "Restore target",
+    "archivedCount": "Archived ({{count}})",
+    "addTarget": "Add target",
+    "pasteList": "Paste list",
+    "importCsv": "Import CSV",
+    "add": "Add",
+    "codePlaceholder": "Code",
+    "labelPlaceholder": "I can…",
+    "searchStandards": "Search standards by code or text…",
+    "noStandardsMatch": "No standards match.",
+    "pasteHint": "One target per line. Optional code before a pipe: LT1 | I can add fractions.",
+    "parsedCount": "{{count}} targets found",
+    "csvHint": "Header row with label (required), code and standards (optional, separate codes with ;).",
+    "csvLineError": "Line {{line}}: {{message}}",
+    "csvUnknownStandards": "Unknown standard codes will be skipped: {{codes}}",
+    "importCount": "Import {{count}}",
+    "masteryCutoffs": {
+      "heading": "Mastery cutoffs",
+      "description": "Percent correct needed for a target to count as proficient or approaching.",
+      "proficient": "Proficient",
+      "approaching": "Approaching",
+      "save": "Save cutoffs"
+    },
+    "saving": "Saving…",
+    "saveFailed": "Save failed"
   }
 }

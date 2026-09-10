@@ -516,6 +516,10 @@
       "showPerTeacher": {
         "title": "Desglose por docente",
         "description": "Muestra el promedio de cada docente en los resultados reunidos. Desactivado por defecto para que el equipo mire primero los datos combinados."
+      },
+      "learningTargets": {
+        "heading": "Objetivos de aprendizaje",
+        "description": "Objetivos con los que la comunidad etiqueta las preguntas de los cuestionarios. Todos los miembros ven la misma lista."
       }
     },
     "overview": {
@@ -2359,5 +2363,46 @@
       "one-finger-long-press": "Mantener pulsado con 1 dedo sobre un widget",
       "one-finger-long-pressDescription": "Hacer una captura de pantalla (mantén ~0,6 s)"
     }
+  },
+  "learningTargets": {
+    "personal": {
+      "title": "Mis objetivos de aprendizaje",
+      "button": "Objetivos",
+      "description": "Objetivos que solo tú puedes ver. Etiqueta preguntas con ellos para seguir el dominio en tus propias evaluaciones.",
+      "sourceName": "Mis objetivos de aprendizaje"
+    },
+    "loading": "Cargando objetivos…",
+    "empty": "Aún no hay objetivos. Añade uno, pega una lista o importa un CSV.",
+    "columns": {
+      "code": "Código",
+      "label": "Objetivo",
+      "standards": "Estándares"
+    },
+    "archive": "Archivar objetivo",
+    "restore": "Restaurar objetivo",
+    "archivedCount": "Archivados ({{count}})",
+    "addTarget": "Añadir objetivo",
+    "pasteList": "Pegar lista",
+    "importCsv": "Importar CSV",
+    "add": "Añadir",
+    "codePlaceholder": "Código",
+    "labelPlaceholder": "Puedo…",
+    "searchStandards": "Buscar estándares por código o texto…",
+    "noStandardsMatch": "Ningún estándar coincide.",
+    "pasteHint": "Un objetivo por línea. Código opcional antes de una barra vertical: LT1 | Puedo sumar fracciones.",
+    "parsedCount": "{{count}} objetivos encontrados",
+    "csvHint": "Fila de encabezado con label (obligatorio), code y standards (opcionales; separa los códigos con ;).",
+    "csvLineError": "Línea {{line}}: {{message}}",
+    "csvUnknownStandards": "Se omitirán los códigos de estándar desconocidos: {{codes}}",
+    "importCount": "Importar {{count}}",
+    "masteryCutoffs": {
+      "heading": "Umbrales de dominio",
+      "description": "Porcentaje de aciertos necesario para que un objetivo cuente como competente o en progreso.",
+      "proficient": "Competente",
+      "approaching": "En progreso",
+      "save": "Guardar umbrales"
+    },
+    "saving": "Guardando…",
+    "saveFailed": "Error al guardar"
   }
 }

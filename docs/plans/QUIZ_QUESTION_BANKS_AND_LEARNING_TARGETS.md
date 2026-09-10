@@ -320,17 +320,25 @@ no practical byte constraint but keep validators shared.
 - [x] Stripped output validated against the Rules API (same 3 pre-existing warnings).
 - [x] `tests/rules/` unchanged; they load the commented source.
 
-### PR 1 — standards catalog, learning targets, tagging
+### PR 1 — standards catalog, learning targets, tagging (done)
 
-- [ ] Types (§4.1), `standards_catalog` rules, PLC/personal target doc rules.
-- [ ] `config/standards/*.json` + `scripts/build-standards.ts`.
-- [ ] Admin Standards panel with seed action.
-- [ ] `useLearningTargets` (PLC + personal listeners, merged picker source).
-- [ ] TargetPicker, question detail tagging, multi-select + bulk tag in QuizEditor.
-- [ ] PLC settings target manager with paste + CSV import and mastery cutoffs.
-- [ ] Tags survive Drive save/load, synced quiz versions, import/export adapters.
-- [ ] Tests: target list reducer, CSV parser, picker filtering, rules.
-- [ ] Help center article, changelog.
+- [x] Types (§4.1), `standards_catalog` rules, `plcs/{plcId}/meta/learningTargets` rules
+      (personal doc uses the existing userProfile rule). `showLearningTargets` sits on
+      `QuizSessionOptions`; sessions project tags only when it is on (UI toggle lands in
+      PR 3 with the student results view).
+- [x] `config/standards/mn-ela-2020.json` built by `scripts/build-standards.mjs` from
+      `config/standards/MN_ELA_Standards.csv` (MDE export, February 2024 corrected).
+      Social Studies 2021 still needs its CSV.
+- [x] Admin Standards panel with seed action (`utils/standardsCatalog.ts`).
+- [x] `hooks/useLearningTargets.ts`, `hooks/useStandardsCatalog.ts`.
+- [x] `components/quiz/targets/TargetPicker.tsx` + `TargetChips.tsx`; question detail
+      tagging; checkbox multi-select with Tag / Delete / Clear in `QuizEditor`.
+- [x] `components/plc/settings/LearningTargetsManager.tsx` in PLC Settings and as
+      "Targets" in the Quiz library toolbar (personal).
+- [x] Tags ride `QuizQuestion` through Drive save/load and synced versions (whole-object
+      writes); Sheet/CSV/AI import adapters build questions field-by-field and carry none.
+- [x] Tests: target list helpers, CSV parser, picker filtering, catalog diff, rules (CI).
+- [x] Changelog. Help center article is Firestore-authored content, not code.
 
 ### PR 2 — question banks and per-attempt draws
 

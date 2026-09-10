@@ -342,6 +342,7 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     text: q.text,
     timeLimit: q.timeLimit,
   };
+  if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
   if (q.type === 'MC') {
     base.choices = fisherYatesShuffle([
       q.correctAnswer,

@@ -7,6 +7,7 @@ import {
   Mail,
   StickyNote,
   SquareSquare,
+  Target,
   Trash2,
   Users2,
 } from 'lucide-react';
@@ -19,6 +20,11 @@ import {
 import { usePlcs } from '@/hooks/usePlcs';
 import { useDashboard } from '@/context/useDashboard';
 import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
+import { LearningTargetsManager } from '@/components/plc/settings/LearningTargetsManager';
+import { useAuth } from '@/context/useAuth';
+import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
+import { useStandardsCatalog } from '@/hooks/useStandardsCatalog';
+import { getPlcRole } from '@/utils/plc';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -99,6 +105,11 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
   // any member can flip it. `digestOptIn` defaults to false (absent ⇒ off).
   const digestOptIn = plc.digestOptIn === true;
   const [digestBusy, setDigestBusy] = useState(false);
+  const { user } = useAuth();
+  const targetRole = user ? getPlcRole(plc, user.uid) : null;
+  const canEditTargets = targetRole !== null && targetRole !== 'viewer';
+  const learningTargets = usePlcLearningTargets(plc.id);
+  const { benchmarks } = useStandardsCatalog();
 
   const handleDigestToggle = async () => {
     if (digestBusy) return;
@@ -275,6 +286,31 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             />
           </div>
         </button>
+      </div>
+
+      {/* Learning targets — shared PLC list; any non-viewer member edits. */}
+      <div className="border-t border-slate-200 pt-4">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+          <Target className="w-4 h-4 text-slate-500" aria-hidden="true" />
+          {t('plcDashboard.settings.learningTargets.heading', {
+            defaultValue: 'Learning targets',
+          })}
+        </h3>
+        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+          {t('plcDashboard.settings.learningTargets.description', {
+            defaultValue:
+              'Targets the PLC tags quiz questions with. Every member sees the same list.',
+          })}
+        </p>
+        <div className="mt-3">
+          <LearningTargetsManager
+            list={learningTargets.list}
+            onSave={learningTargets.save}
+            canEdit={canEditTargets}
+            showMasteryCutoffs
+            standards={benchmarks}
+          />
+        </div>
       </div>
 
       {/* Trash (Decision §6.1) — collapsed by default; expanding mounts the

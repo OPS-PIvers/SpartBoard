@@ -1,6 +1,44 @@
 {
   "entries": [
     {
+      "version": "2026.09.10.4",
+      "date": "2026-09-10",
+      "title": "Learning targets and Minnesota standards",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Tag quiz questions with Minnesota ELA standards, PLC learning targets, or your own targets. Select several questions and tag them at once. Standards are seeded by an admin; PLC targets live in PLC settings."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Learning targets — every question in the quiz editor has a Learning targets field; a searchable picker lists seeded standards (filter by grade), each PLC’s targets, and your personal targets."
+        },
+        {
+          "type": "feature",
+          "text": "Bulk tagging — check questions in the list (shift-click for a range) and use Tag to add or replace targets on all of them, or Delete to remove them together."
+        },
+        {
+          "type": "feature",
+          "text": "PLC learning targets — PLC Settings gains a Learning targets section: add targets, link them to standards, paste a list or import a CSV, archive old ones, and set mastery cutoffs (default 80 / 60)."
+        },
+        {
+          "type": "feature",
+          "text": "My learning targets — the Quiz library toolbar has a Targets button for personal targets that work the same way."
+        },
+        {
+          "type": "improvement",
+          "text": "Admin — a Standards panel seeds the Minnesota ELA (2020) benchmarks into the shared catalog; re-seeding reports added / updated / unchanged and never deletes."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10.3",
       "date": "2026-09-10",
       "title": "Action items in PLC meeting notes",
