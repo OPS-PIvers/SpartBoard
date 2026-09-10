@@ -1945,7 +1945,13 @@
       "save": "Guardar",
       "saving": "Guardando…",
       "editSkipped": "No se pudieron guardar {{count}} estudiante(s) en esta tarea.",
-      "editSaveFailed": "No se pudieron guardar los cambios. Inténtalo de nuevo."
+      "editSaveFailed": "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+      "sharingWithPlc": "Compartiendo resultados con {{plc}}",
+      "sharePlc": "Compartir resultados con la comunidad…",
+      "stopSharingPlc": "Dejar de compartir",
+      "sharePlcDone": "Los resultados ahora se agrupan con {{plc}}.",
+      "stopSharingPlcDone": "Ya no se comparten resultados con {{plc}}.",
+      "plcActionFailed": "No se pudo actualizar el uso compartido. Inténtalo de nuevo."
     }
   },
   "quizResults": {

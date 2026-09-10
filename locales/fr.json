@@ -1945,7 +1945,13 @@
       "save": "Enregistrer",
       "saving": "Enregistrement…",
       "editSkipped": "{{count}} élève(s) n'ont pas pu être enregistrés pour ce devoir.",
-      "editSaveFailed": "Impossible d'enregistrer les modifications. Réessayez."
+      "editSaveFailed": "Impossible d'enregistrer les modifications. Réessayez.",
+      "sharingWithPlc": "Résultats partagés avec {{plc}}",
+      "sharePlc": "Partager les résultats avec la CAP…",
+      "stopSharingPlc": "Arrêter le partage",
+      "sharePlcDone": "Les résultats sont désormais regroupés avec {{plc}}.",
+      "stopSharingPlcDone": "Les résultats ne sont plus partagés avec {{plc}}.",
+      "plcActionFailed": "Impossible de mettre à jour le partage. Réessayez."
     }
   },
   "quizResults": {

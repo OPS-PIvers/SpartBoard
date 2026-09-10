@@ -1945,7 +1945,13 @@
       "save": "Speichern",
       "saving": "Wird gespeichert…",
       "editSkipped": "{{count}} Schüler konnten dieser Aufgabe nicht zugewiesen werden.",
-      "editSaveFailed": "Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen."
+      "editSaveFailed": "Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
+      "sharingWithPlc": "Ergebnisse werden mit {{plc}} geteilt",
+      "sharePlc": "Ergebnisse mit PLC teilen…",
+      "stopSharingPlc": "Teilen beenden",
+      "sharePlcDone": "Die Ergebnisse fließen jetzt in {{plc}} ein.",
+      "stopSharingPlcDone": "Ergebnisse werden nicht mehr mit {{plc}} geteilt.",
+      "plcActionFailed": "PLC-Freigabe konnte nicht aktualisiert werden. Bitte erneut versuchen."
     }
   },
   "quizResults": {
