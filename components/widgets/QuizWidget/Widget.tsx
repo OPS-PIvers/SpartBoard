@@ -1418,13 +1418,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               : undefined;
           let plcLinkage: PlcLinkage | undefined;
           if (plcOptions.plcMode && plcOptions.plcId && user) {
-            const { linkage } = await buildPlcLinkage({
-              plc: selectedPlc,
-              quizTitle: meta.title,
-              selfUid: user.uid,
-              googleAccessToken: null,
-            });
-            plcLinkage = linkage;
+            plcLinkage = buildPlcLinkage(selectedPlc);
             // Cold-load race: `plcs` snapshot hasn't hydrated yet, so the
             // PLC couldn't be resolved and the linkage was skipped. The
             // downstream non-member toast guard requires both plcId AND
