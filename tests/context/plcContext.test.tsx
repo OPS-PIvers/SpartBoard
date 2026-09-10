@@ -24,7 +24,7 @@ import {
   usePlcRootDoc,
   usePlcMembers,
   usePlcRole,
-  usePlcTodosData,
+  usePlcAssessmentsData,
   usePlcDocsData,
   usePlcPresence,
   usePlcActivity,
@@ -228,19 +228,19 @@ function wrapper(
 // ---------------------------------------------------------------------------
 
 describe('PlcProvider — listener dedup', () => {
-  it('opens exactly ONE todos listener for many consumers under one provider', () => {
+  it('opens exactly ONE assessments listener for many consumers under one provider', () => {
     const Consumer: React.FC = () => {
-      usePlcTodosData();
+      usePlcAssessmentsData();
       return null;
     };
     render(
-      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="todos">
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="assessments">
         <Consumer />
         <Consumer />
         <Consumer />
       </PlcProvider>
     );
-    expect(subscriptionCount('todos')).toBe(1);
+    expect(subscriptionCount('assessments')).toBe(1);
   });
 
   it('does NOT open a listener for a subcollection whose section is inactive', () => {
@@ -250,7 +250,7 @@ describe('PlcProvider — listener dedup', () => {
       </PlcProvider>
     );
     // Members section needs no heavy listener — root+members ride the prop.
-    expect(subscriptionCount('todos')).toBe(0);
+    expect(subscriptionCount('assessments')).toBe(0);
     expect(subscriptionCount('notes')).toBe(0);
     expect(subscriptionCount('docs')).toBe(0);
     expect(subscriptionCount('quizzes')).toBe(0);
@@ -263,10 +263,10 @@ describe('PlcProvider — listener dedup', () => {
 // ---------------------------------------------------------------------------
 
 describe('usePlc* selectors — Object.is bailout', () => {
-  it('re-renders a todos consumer on a todos update but NOT a docs consumer', () => {
-    const TodosProbe: React.FC = function TodosProbe() {
-      usePlcTodosData();
-      bumpRender('todos');
+  it('re-renders a docs consumer on a docs update but NOT an assessments consumer', () => {
+    const AssessmentsProbe: React.FC = function AssessmentsProbe() {
+      usePlcAssessmentsData();
+      bumpRender('assessments');
       return null;
     };
     const DocsProbe: React.FC = function DocsProbe() {
@@ -277,14 +277,14 @@ describe('usePlc* selectors — Object.is bailout', () => {
 
     render(
       <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="docs">
-        <TodosProbe />
+        <AssessmentsProbe />
         <DocsProbe />
       </PlcProvider>
     );
 
-    // 'docs' section gates both notes + docs ON, todos OFF. Both probes have
+    // 'docs' section gates docs (+ notes) ON, assessments OFF. Both probes have
     // rendered at least once; record the baseline then push a DOCS snapshot.
-    const todosBaseline = renderCount('todos');
+    const assessmentsBaseline = renderCount('assessments');
     const docsBaseline = renderCount('docs');
 
     emit('docs', [
@@ -301,10 +301,11 @@ describe('usePlc* selectors — Object.is bailout', () => {
       },
     ]);
 
-    // Docs probe re-rendered (its slice changed); todos probe did not (its
-    // slice — a settled empty slice — kept reference identity, Object.is bail).
+    // Docs probe re-rendered (its slice changed); assessments probe did not
+    // (its slice — a settled empty slice — kept reference identity, Object.is
+    // bail).
     expect(renderCount('docs')).toBeGreaterThan(docsBaseline);
-    expect(renderCount('todos')).toBe(todosBaseline);
+    expect(renderCount('assessments')).toBe(assessmentsBaseline);
   });
 
   it('usePlcRole derives the caller role off the root doc', () => {
@@ -431,7 +432,7 @@ describe('usePlcActions — mount-stable identity', () => {
     expect(typeof actions.setMemberRole).toBe('function');
     expect(typeof actions.transferLead).toBe('function');
     expect(typeof actions.createNote).toBe('function');
-    expect(typeof actions.createTodo).toBe('function');
+    expect(typeof actions.promoteMeetingActionItems).toBe('function');
     expect(typeof actions.createDoc).toBe('function');
   });
 

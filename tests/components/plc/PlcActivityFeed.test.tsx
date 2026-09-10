@@ -153,7 +153,18 @@ vi.mock('@/hooks/usePlcTodos', () => ({
     todos: [],
     loading: false,
     error: null,
-    toggleDone: vi.fn(() => Promise.resolve()),
+    archiveTodos: vi.fn(() => Promise.resolve()),
+  }),
+}));
+vi.mock('@/hooks/usePlcNotes', () => ({
+  usePlcNotes: () => ({
+    notes: [],
+    loading: false,
+    error: null,
+    createNote: vi.fn(() => Promise.resolve('n1')),
+    updateNote: vi.fn(() => Promise.resolve()),
+    deleteNote: vi.fn(() => Promise.resolve()),
+    restoreNote: vi.fn(() => Promise.resolve()),
   }),
 }));
 

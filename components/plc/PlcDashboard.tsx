@@ -12,7 +12,6 @@ import { PlcHome } from './home/PlcHome';
 import { NotesDocsBody } from './bodies/NotesDocsBody';
 import { PlcResourcesBody } from './resources/PlcResourcesBody';
 import { PlcAssessmentsBody } from './bodies/PlcAssessmentsBody';
-import { TodosBody } from './bodies/TodosBody';
 import { PlcSharedBoardsBody } from './bodies/PlcSharedBoardsBody';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { MembersBody } from './bodies/MembersBody';
@@ -139,8 +138,6 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
         // structured meeting notes (live default) with the Google-Doc embed one
         // tab away (Decisions 2.5, 6.5).
         return <NotesDocsBody plc={plc} />;
-      case 'todos':
-        return <TodosBody plc={plc} />;
       case 'sharedBoards':
         return <PlcSharedBoardsBody plc={plc} />;
       case 'members':

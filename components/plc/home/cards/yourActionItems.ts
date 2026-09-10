@@ -1,18 +1,20 @@
 /**
- * Pure selectors for the Home "Your action items" card (PRD §6.3, Decision 4.1).
+ * Pure selectors for the Home "Your action items" card (PRD §6.3, Decision
+ * 4.1; migrated to note action items in §7.4).
  *
- * Surfaces the to-dos assigned to the signed-in member, sorted so the most
- * urgent (overdue, then soonest-due, then undated) float to the top, with a
- * derived due-date bucket so the card can color overdue / today / soon.
+ * Surfaces the action items (across all live notes) assigned to the signed-in
+ * member, sorted so the most urgent (overdue, then soonest-due, then undated)
+ * float to the top, with a derived due-date bucket so the card can color
+ * overdue / today / soon.
  *
- * Soft-deleted and completed to-dos are excluded — the card is a "what's on my
- * plate" list, not a history. Kept separate from the component so the sorting +
- * bucketing is unit-tested without rendering React.
+ * Soft-deleted notes and completed items are excluded — the card is a "what's
+ * on my plate" list, not a history. Kept separate from the component so the
+ * sorting + bucketing is unit-tested without rendering React.
  */
 
-import type { PlcTodo } from '@/types';
+import type { PlcActionItem, PlcNote } from '@/types';
 
-/** Relative urgency bucket for a to-do's due date. */
+/** Relative urgency bucket for an action item's due date. */
 export type DueBucket =
   | 'overdue'
   | 'today'
@@ -47,16 +49,19 @@ export function dueBucket(
   return 'later';
 }
 
-/** An action item enriched with its derived due bucket, for rendering. */
+/** An action item enriched with its source note and derived due bucket. */
 export interface ActionItemView {
-  todo: PlcTodo;
+  note: PlcNote;
+  item: PlcActionItem;
   bucket: DueBucket;
 }
 
 /**
- * The signed-in member's open action items, urgency-sorted.
+ * The signed-in member's open action items across all live notes,
+ * urgency-sorted.
  *
- * Filters to: live (not soft-deleted), not done, and `assigneeUid === uid`.
+ * Filters to: live notes (not soft-deleted), not done, and
+ * `assigneeUid === uid`.
  * Sort order:
  *   1. Dated items before undated ones.
  *   2. Among dated items, soonest due first (overdue floats to the very top).
@@ -65,25 +70,32 @@ export interface ActionItemView {
  * Returns `[]` for a null uid (signed-out / unhydrated).
  */
 export function selectMyActionItems(
-  todos: readonly PlcTodo[],
+  notes: readonly PlcNote[],
   uid: string | null,
   now: number
 ): ActionItemView[] {
   if (!uid) return [];
-  const mine = todos.filter(
-    (todo) => todo.deletedAt == null && !todo.done && todo.assigneeUid === uid
-  );
+  const mine: ActionItemView[] = [];
+  for (const note of notes) {
+    if (note.deletedAt != null) continue;
+    for (const item of note.actionItems ?? []) {
+      if (item.done || item.assigneeUid !== uid) continue;
+      mine.push({ note, item, bucket: dueBucket(item.dueAt, now) });
+    }
+  }
 
   mine.sort((a, b) => {
-    const aHas = a.dueAt != null;
-    const bHas = b.dueAt != null;
+    const aHas = a.item.dueAt != null;
+    const bHas = b.item.dueAt != null;
     if (aHas && bHas) {
-      if (a.dueAt !== b.dueAt) return (a.dueAt as number) - (b.dueAt as number);
+      if (a.item.dueAt !== b.item.dueAt) {
+        return (a.item.dueAt as number) - (b.item.dueAt as number);
+      }
     } else if (aHas !== bHas) {
       return aHas ? -1 : 1; // dated before undated
     }
-    return a.createdAt - b.createdAt; // oldest first
+    return a.item.createdAt - b.item.createdAt; // oldest first
   });
 
-  return mine.map((todo) => ({ todo, bucket: dueBucket(todo.dueAt, now) }));
+  return mine;
 }

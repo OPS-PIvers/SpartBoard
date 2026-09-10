@@ -33,6 +33,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -40,6 +41,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
   type Query,
 } from 'firebase/firestore';
@@ -48,7 +50,6 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { parseNote, PlcNoteVersionConflictError } from '@/hooks/usePlcNotes';
-import { parseTodo } from '@/hooks/usePlcTodos';
 import { parseDoc } from '@/hooks/usePlcDocs';
 import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
@@ -57,11 +58,15 @@ import { parsePlcAggregate } from '@/hooks/usePlcAggregate';
 import {
   actionItemsNeedingTodos,
   applyTodoBackLinks,
-  buildTodoFromActionItem,
   captureAttendeeUids,
   parsePlcMeeting,
-  sanitizeActionItemsForWrite,
+  sanitizeActionItemsForWrite as sanitizeMeetingActionItemsForWrite,
 } from '@/hooks/usePlcMeetings';
+import {
+  actionItemFromMeetingItem,
+  mergeActionItems,
+  sanitizeActionItemsForWrite,
+} from '@/utils/plcActionItems';
 import { logError } from '@/utils/logError';
 import { getPlcMembers } from '@/utils/plc';
 import { parsePresence, type PlcPresenceEntry } from '@/hooks/usePlcPresence';
@@ -78,7 +83,6 @@ import type {
   PlcNote,
   PlcRole,
   PlcQuizEntry,
-  PlcTodo,
   PlcVideoActivityEntry,
 } from '@/types';
 import {
@@ -119,7 +123,6 @@ const SLICE_SECTIONS: Record<
   keyof Pick<
     PlcStoreState,
     | 'notes'
-    | 'todos'
     | 'docs'
     | 'quizzes'
     | 'videoActivities'
@@ -131,7 +134,6 @@ const SLICE_SECTIONS: Record<
 > = {
   // `docs` (native notes) is gated to the Docs section.
   notes: new Set<PlcSectionId>(['docs']),
-  todos: new Set<PlcSectionId>(['todos']),
   docs: new Set<PlcSectionId>(['docs']),
   // The quiz + video-activity surfaces both live under the unified
   // `assessments` section (Decision 4.5), so their heavy listeners mount when
@@ -236,8 +238,6 @@ function useSubcollection<T>(
 
 const orderByLastEdited = (ref: ReturnType<typeof collection>): Query =>
   query(ref, orderBy('lastEditedAt', 'desc'));
-const orderByCreatedAtAsc = (ref: ReturnType<typeof collection>): Query =>
-  query(ref, orderBy('createdAt', 'asc'));
 const orderByCreatedAtDesc = (ref: ReturnType<typeof collection>): Query =>
   query(ref, orderBy('createdAt', 'desc'));
 const orderByUpdatedAtDesc = (ref: ReturnType<typeof collection>): Query =>
@@ -255,15 +255,6 @@ const noOrder = (ref: ReturnType<typeof collection>): Query => query(ref);
  */
 function filterLive<T extends { deletedAt?: number | null }>(list: T[]): T[] {
   return list.filter((item) => item.deletedAt == null);
-}
-
-/** Incomplete-first sort matching the standalone `usePlcTodos` post-process,
- * applied AFTER soft-deleted to-dos are filtered out. */
-function sortTodos(list: PlcTodo[]): PlcTodo[] {
-  return filterLive(list).sort((a, b) => {
-    if (a.done === b.done) return 0;
-    return a.done ? 1 : -1;
-  });
 }
 
 /**
@@ -496,14 +487,6 @@ export function PlcProvider({
     parseNote,
     filterLive
   );
-  const todos = useSubcollection<PlcTodo>(
-    plcId,
-    'todos',
-    isSectionActive('todos'),
-    orderByCreatedAtAsc,
-    parseTodo,
-    sortTodos
-  );
   const docs = useSubcollection<PlcDoc>(
     plcId,
     'docs',
@@ -584,7 +567,6 @@ export function PlcProvider({
       root: plc,
       members,
       notes,
-      todos,
       docs,
       quizzes,
       videoActivities,
@@ -603,7 +585,6 @@ export function PlcProvider({
         root: plc,
         members,
         notes,
-        todos,
         docs,
         quizzes,
         videoActivities,
@@ -625,7 +606,6 @@ export function PlcProvider({
       root: plc,
       members,
       notes,
-      todos,
       docs,
       quizzes,
       videoActivities,
@@ -640,7 +620,6 @@ export function PlcProvider({
     plc,
     members,
     notes,
-    todos,
     docs,
     quizzes,
     videoActivities,
@@ -719,8 +698,8 @@ function useStableActions(
 ): PlcActions {
   const noteRef = (noteId: string) =>
     doc(db, PLCS_COLLECTION, latest.current.plcId, 'notes', noteId);
-  const todoRef = (todoId: string) =>
-    doc(db, PLCS_COLLECTION, latest.current.plcId, 'todos', todoId);
+  const notesRef = () =>
+    collection(db, PLCS_COLLECTION, latest.current.plcId, 'notes');
   const docRef = (docId: string) =>
     doc(db, PLCS_COLLECTION, latest.current.plcId, 'docs', docId);
   const assessmentRef = (assessmentId: string) =>
@@ -765,6 +744,7 @@ function useStableActions(
       body: string;
       kind?: 'freeform' | 'meeting';
       meetingId?: string | null;
+      actionItems?: PlcNote['actionItems'];
     }): Promise<string> => {
       const u = requireUser();
       const ref = doc(
@@ -786,6 +766,9 @@ function useStableActions(
       };
       if (input.kind) payload.kind = input.kind;
       if (input.meetingId !== undefined) payload.meetingId = input.meetingId;
+      if (input.actionItems !== undefined) {
+        payload.actionItems = sanitizeActionItemsForWrite(input.actionItems);
+      }
       await setDoc(ref, payload);
 
       // Activity log (Decision 2.2, §3.4) — native notes is Wave 2's headline
@@ -814,6 +797,7 @@ function useStableActions(
         body?: string;
         kind?: 'freeform' | 'meeting';
         meetingId?: string | null;
+        actionItems?: PlcNote['actionItems'];
         deletedAt?: number | null;
       },
       options?: { expectedVersion?: number }
@@ -838,6 +822,9 @@ function useStableActions(
       if (patch.body !== undefined) fields.body = patch.body;
       if (patch.kind !== undefined) fields.kind = patch.kind;
       if (patch.meetingId !== undefined) fields.meetingId = patch.meetingId;
+      if (patch.actionItems !== undefined) {
+        fields.actionItems = sanitizeActionItemsForWrite(patch.actionItems);
+      }
       if (patch.deletedAt !== undefined) fields.deletedAt = patch.deletedAt;
       // Rollout escape hatch: a legacy un-versioned note omits `expectedVersion`
       // and we must NOT introduce `version` (the rule rejects it),
@@ -881,67 +868,6 @@ function useStableActions(
       await updateNote(noteId, { deletedAt: null }, { expectedVersion });
     },
     [updateNote]
-  );
-
-  // --- To-dos ---
-  const createTodo = useCallback(
-    async (text: string): Promise<string> => {
-      const u = requireUser();
-      const trimmed = text.trim();
-      if (!trimmed) throw new Error('Todo text required');
-      const ref = doc(
-        collection(db, PLCS_COLLECTION, latest.current.plcId, 'todos')
-      );
-      // serverTimestamp() for createdAt (Decision 1.3); `parseTodo` resolves
-      // the Timestamp to millis on read via `tsToMillis`.
-      await setDoc(ref, {
-        id: ref.id,
-        text: trimmed,
-        done: false,
-        createdBy: u.uid,
-        createdAt: serverTimestamp(),
-      });
-      return ref.id;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest]
-  );
-  const toggleTodoDone = useCallback(
-    async (todoId: string, done: boolean): Promise<void> => {
-      requireUser();
-      await updateDoc(todoRef(todoId), { done });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest]
-  );
-  const updateTodoText = useCallback(
-    async (todoId: string, text: string): Promise<void> => {
-      requireUser();
-      const trimmed = text.trim();
-      if (!trimmed) throw new Error('Todo text required');
-      await updateDoc(todoRef(todoId), { text: trimmed });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest]
-  );
-  // Soft-delete / restore (Decision 3.1): write the `deletedAt` tombstone via a
-  // patch — identity/createdBy/createdAt stay untouched, the post-merge doc
-  // passes the widened `keys().hasOnly([...])` + `plcSubDeletedAtOk()`.
-  const deleteTodo = useCallback(
-    async (todoId: string): Promise<void> => {
-      requireUser();
-      await updateDoc(todoRef(todoId), { deletedAt: serverTimestamp() });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest]
-  );
-  const restoreTodo = useCallback(
-    async (todoId: string): Promise<void> => {
-      requireUser();
-      await updateDoc(todoRef(todoId), { deletedAt: null });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest]
   );
 
   // --- Docs ---
@@ -1131,7 +1057,9 @@ function useStableActions(
       if (patch.decisions !== undefined) fields.decisions = patch.decisions;
       if (patch.actionItems !== undefined) {
         // Strip `undefined` interior fields the SDK would reject.
-        fields.actionItems = sanitizeActionItemsForWrite(patch.actionItems);
+        fields.actionItems = sanitizeMeetingActionItemsForWrite(
+          patch.actionItems
+        );
       }
       if (patch.notesBody !== undefined) fields.notesBody = patch.notesBody;
       if (patch.status !== undefined) fields.status = patch.status;
@@ -1140,12 +1068,14 @@ function useStableActions(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
   );
-  // Spawn a PlcTodo for each action item lacking a `todoId` (Act step, §6.2 /
-  // §3.9) and back-link the new ids onto the meeting. Reads the meeting doc
-  // fresh so it operates on the latest action items (not a possibly-stale
-  // snapshot), then batches the to-do creates + the back-link patch atomically.
-  // Idempotent — already-promoted action items are skipped.
-  const spawnTodosForMeeting = useCallback(
+  // Promote each action item lacking a `todoId` (Act step, §6.2 / §7.4) onto
+  // the meeting's live note as a `PlcActionItem`, and back-link the promoted
+  // ids onto the meeting. Reads the meeting doc fresh (not a possibly-stale
+  // snapshot), finds (or creates) the live note for this meeting, merges the
+  // pending items in (idempotent — `mergeActionItems` skips ids already
+  // present), and writes both the note and the meeting back-link patch in one
+  // batch.
+  const promoteMeetingActionItems = useCallback(
     async (meetingId: string): Promise<string[]> => {
       const u = requireUser();
       const ref = meetingRef(meetingId);
@@ -1159,36 +1089,76 @@ function useStableActions(
       const pending = actionItemsNeedingTodos(meeting.actionItems);
       if (pending.length === 0) return [];
 
+      const now = Date.now();
       const batch = writeBatch(db);
-      const todoIdByActionItemId = new Map<string, string>();
-      const spawnedTodoIds: string[] = [];
-      for (const item of pending) {
-        const todoDocRef = doc(
-          collection(db, PLCS_COLLECTION, latest.current.plcId, 'todos')
-        );
-        const payload = buildTodoFromActionItem(
-          todoDocRef.id,
-          item,
-          meetingId,
-          u.uid
-        );
-        // serverTimestamp() for createdAt (Decision 1.3) — assigned here (not in
-        // the pure builder) so the projection stays testable without firebase.
-        payload.createdAt = serverTimestamp();
-        batch.set(todoDocRef, payload);
-        todoIdByActionItemId.set(item.id, todoDocRef.id);
-        spawnedTodoIds.push(todoDocRef.id);
+
+      // Find the live note documenting this meeting, if one exists.
+      const notesSnap = await getDocs(
+        query(notesRef(), where('meetingId', '==', meetingId))
+      );
+      let noteId: string | null = null;
+      let existingActionItems: PlcNote['actionItems'] = [];
+      let existingVersion: number | undefined;
+      for (const d of notesSnap.docs) {
+        const parsed = parseNote(d.id, d.data() as Record<string, unknown>);
+        if (parsed && parsed.deletedAt == null) {
+          noteId = parsed.id;
+          existingActionItems = parsed.actionItems ?? [];
+          existingVersion = parsed.version;
+          break;
+        }
       }
+
+      const incoming = pending.map((item) =>
+        actionItemFromMeetingItem(item, u.uid, now)
+      );
+      const mergedActionItems = sanitizeActionItemsForWrite(
+        mergeActionItems(existingActionItems, incoming)
+      );
+
+      let targetNoteId: string;
+      if (noteId) {
+        targetNoteId = noteId;
+        const fields: Record<string, unknown> = {
+          lastEditedBy: u.uid,
+          lastEditedAt: serverTimestamp(),
+          actionItems: mergedActionItems,
+        };
+        if (existingVersion !== undefined) {
+          fields.version = existingVersion + 1;
+        }
+        batch.update(noteRef(targetNoteId), fields);
+      } else {
+        const newNoteRef = doc(notesRef());
+        targetNoteId = newNoteRef.id;
+        batch.set(newNoteRef, {
+          id: newNoteRef.id,
+          title: 'Meeting notes',
+          body: '',
+          kind: 'meeting',
+          meetingId,
+          createdBy: u.uid,
+          createdAt: serverTimestamp(),
+          lastEditedBy: u.uid,
+          lastEditedAt: serverTimestamp(),
+          version: 0,
+          actionItems: mergedActionItems,
+        });
+      }
+
+      const todoIdByActionItemId = new Map<string, string>(
+        incoming.map((item) => [item.id, item.id])
+      );
       const nextActionItems = applyTodoBackLinks(
         meeting.actionItems,
         todoIdByActionItemId
       );
       batch.update(ref, {
-        actionItems: sanitizeActionItemsForWrite(nextActionItems),
+        actionItems: sanitizeMeetingActionItemsForWrite(nextActionItems),
         updatedAt: serverTimestamp(),
       });
       await batch.commit();
-      return spawnedTodoIds;
+      return incoming.map((item) => item.id);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -1239,7 +1209,9 @@ function useStableActions(
       if (input?.agenda !== undefined) fields.agenda = input.agenda;
       if (input?.decisions !== undefined) fields.decisions = input.decisions;
       if (input?.actionItems !== undefined) {
-        fields.actionItems = sanitizeActionItemsForWrite(input.actionItems);
+        fields.actionItems = sanitizeMeetingActionItemsForWrite(
+          input.actionItems
+        );
       }
       if (input?.notesBody !== undefined) fields.notesBody = input.notesBody;
       await updateDoc(ref, fields);
@@ -1257,10 +1229,10 @@ function useStableActions(
       // Spawn to-dos off the now-persisted action items (reads the doc fresh, so
       // it picks up the `actionItems` we just wrote when `input.actionItems` was
       // provided). Idempotent + atomic.
-      return spawnTodosForMeeting(meetingId);
+      return promoteMeetingActionItems(meetingId);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest, spawnTodosForMeeting]
+    [latest, promoteMeetingActionItems]
   );
   // Soft-delete / restore (Decision 3.1): tombstone via a patch + bump
   // updatedAt; identity stays untouched. `deletedAt` is a plain int (Date.now())
@@ -1299,11 +1271,6 @@ function useStableActions(
       updateNote,
       deleteNote,
       restoreNote,
-      createTodo,
-      toggleTodoDone,
-      updateTodoText,
-      deleteTodo,
-      restoreTodo,
       createDoc,
       updateDoc: updateDocAction,
       deleteDoc: deleteDocAction,
@@ -1316,7 +1283,7 @@ function useStableActions(
       saveMeeting,
       deleteMeeting,
       restoreMeeting,
-      spawnTodosForMeeting,
+      promoteMeetingActionItems,
     }),
     [
       setMemberRole,
@@ -1328,11 +1295,6 @@ function useStableActions(
       updateNote,
       deleteNote,
       restoreNote,
-      createTodo,
-      toggleTodoDone,
-      updateTodoText,
-      deleteTodo,
-      restoreTodo,
       createDoc,
       updateDocAction,
       deleteDocAction,
@@ -1345,7 +1307,7 @@ function useStableActions(
       saveMeeting,
       deleteMeeting,
       restoreMeeting,
-      spawnTodosForMeeting,
+      promoteMeetingActionItems,
     ]
   );
 }

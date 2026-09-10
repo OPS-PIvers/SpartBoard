@@ -43,13 +43,11 @@ import type {
   PlcNote,
   PlcQuizEntry,
   PlcRubricEntry,
-  PlcTodo,
   PlcVideoActivityEntry,
 } from '@/types';
 import { logError } from '@/utils/logError';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { parseNote } from '@/hooks/usePlcNotes';
-import { parseTodo } from '@/hooks/usePlcTodos';
 import { parseDoc } from '@/hooks/usePlcDocs';
 import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
@@ -66,7 +64,6 @@ const PLCS_COLLECTION = 'plcs';
  */
 export type PlcTrashItemType =
   | 'note'
-  | 'todo'
   | 'doc'
   | 'comment'
   | 'quiz'
@@ -99,7 +96,6 @@ interface UsePlcTrashResult {
 /** Map a trash item type to its Firestore subcollection path segment. */
 const SUBCOLLECTION_FOR: Record<PlcTrashItemType, string> = {
   note: 'notes',
-  todo: 'todos',
   doc: 'docs',
   comment: 'comments',
   quiz: 'quizzes',
@@ -138,7 +134,6 @@ function commentLabel(body: string): string {
 export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
   const { user } = useAuth();
   const [notes, setNotes] = useState<PlcNote[]>([]);
-  const [todos, setTodos] = useState<PlcTodo[]>([]);
   const [docs, setDocs] = useState<PlcDoc[]>([]);
   const [comments, setComments] = useState<PlcComment[]>([]);
   const [quizzes, setQuizzes] = useState<PlcQuizEntry[]>([]);
@@ -155,7 +150,6 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
   if (plcId !== prevPlcId) {
     setPrevPlcId(plcId);
     setNotes([]);
-    setTodos([]);
     setDocs([]);
     setComments([]);
     setQuizzes([]);
@@ -171,7 +165,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       return () => clearTimeout(tmr);
     }
     let settled = 0;
-    const total = 7;
+    const total = 6;
     const markSettled = () => {
       settled += 1;
       if (settled >= total) setLoading(false);
@@ -196,19 +190,6 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
         markSettled();
       },
       onErr('notes')
-    );
-    const unsubTodos = onSnapshot(
-      query(collection(db, PLCS_COLLECTION, plcId, 'todos')),
-      (snap) => {
-        const list: PlcTodo[] = [];
-        snap.forEach((d) => {
-          const parsed = parseTodo(d.id, d.data() as Record<string, unknown>);
-          if (parsed && parsed.deletedAt != null) list.push(parsed);
-        });
-        setTodos(list);
-        markSettled();
-      },
-      onErr('todos')
     );
     const unsubDocs = onSnapshot(
       query(collection(db, PLCS_COLLECTION, plcId, 'docs')),
@@ -290,7 +271,6 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
 
     return () => {
       unsubNotes();
-      unsubTodos();
       unsubDocs();
       unsubComments();
       unsubQuizzes();
@@ -307,14 +287,6 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
         type: 'note',
         title: n.title,
         deletedAt: n.deletedAt ?? 0,
-      });
-    }
-    for (const td of todos) {
-      merged.push({
-        id: td.id,
-        type: 'todo',
-        title: td.text,
-        deletedAt: td.deletedAt ?? 0,
       });
     }
     for (const d of docs) {
@@ -360,7 +332,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
     // Newest-deleted-first.
     merged.sort((a, b) => b.deletedAt - a.deletedAt);
     return merged;
-  }, [notes, todos, docs, comments, quizzes, videoActivities, rubrics]);
+  }, [notes, docs, comments, quizzes, videoActivities, rubrics]);
 
   const restore = useCallback(
     async (item: PlcTrashItem): Promise<void> => {
@@ -417,7 +389,6 @@ async function restorePlcItem(
       // Same write as `restoreRubricInPlc` (hooks/usePlcRubrics.ts).
       await updateDoc(ref, { deletedAt: null, updatedAt: Date.now() });
       return;
-    case 'todo':
     case 'comment':
       await updateDoc(ref, { deletedAt: null });
       return;

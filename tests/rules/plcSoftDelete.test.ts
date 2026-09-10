@@ -10,6 +10,7 @@
 //     `deletedAt` (version must bump +1 on a versioned note; both-absent rollout
 //     escape hatch still works).
 //   - Non-members can't soft-delete or restore.
+//   - Todos are legacy: `deletedAt` is the ONLY field an update may touch.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -236,7 +237,7 @@ describe('plcs/{plcId}/notes — soft-delete / restore', () => {
 // To-dos — soft-delete / restore
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/todos — soft-delete / restore', () => {
+describe('plcs/{plcId}/todos — soft-delete / restore (legacy: deletedAt is the ONLY writable field)', () => {
   it('member can soft-delete a to-do (set deletedAt)', async () => {
     await assertSucceeds(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
@@ -275,7 +276,7 @@ describe('plcs/{plcId}/todos — soft-delete / restore', () => {
     );
   });
 
-  it('rejects a soft-delete that also mutates createdBy (identity immutable)', async () => {
+  it('rejects a soft-delete that also mutates createdBy (deletedAt-only schema lock)', async () => {
     await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
         deletedAt: 1717000000000,
@@ -284,7 +285,7 @@ describe('plcs/{plcId}/todos — soft-delete / restore', () => {
     );
   });
 
-  it('rejects a soft-delete that also mutates createdAt (identity immutable)', async () => {
+  it('rejects a soft-delete that also mutates createdAt (deletedAt-only schema lock)', async () => {
     await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
         deletedAt: 1717000000000,
@@ -293,7 +294,7 @@ describe('plcs/{plcId}/todos — soft-delete / restore', () => {
     );
   });
 
-  it('rejects a soft-delete that also mutates id (identity immutable)', async () => {
+  it('rejects a soft-delete that also mutates id (deletedAt-only schema lock)', async () => {
     await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
         deletedAt: 1717000000000,

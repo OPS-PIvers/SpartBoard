@@ -370,7 +370,6 @@
       "videoActivities": "Actividades de Video",
       "assessments": "Evaluaciones",
       "notes": "Notas",
-      "todos": "Tareas",
       "sharedBoards": "Tableros",
       "settings": "Configuración",
       "home": "Inicio",
@@ -502,10 +501,6 @@
       "notes": {
         "title": "Notas",
         "description": "Un cuaderno compartido para la Comunidad."
-      },
-      "todos": {
-        "title": "Lista de Tareas",
-        "description": "Una lista de verificación compartida para que la Comunidad pueda hacer seguimiento de las acciones."
       },
       "sharedBoards": {
         "title": "Tableros Compartidos",
@@ -645,23 +640,32 @@
         "agenda": "Agenda",
         "decisions": "Decisiones",
         "actionItems": "Acciones"
+      },
+      "actionItems": {
+        "title": "Acciones",
+        "add": "Agregar acción",
+        "addPlaceholder": "¿Qué hay que hacer?",
+        "unassigned": "Sin asignar",
+        "dueDate": "Fecha límite",
+        "remove": "Eliminar acción",
+        "markDone": "Marcar como hecha",
+        "markOpen": "Marcar como pendiente",
+        "overdue": "Vencida",
+        "limitReached": "Se alcanzó el límite de acciones",
+        "openCount": "Acciones pendientes ({{count}})",
+        "noneOpen": "No hay acciones pendientes"
+      },
+      "importTodos": {
+        "banner": "Importar {{count}} tareas de la lista de tareas anterior a una nota",
+        "button": "Importar",
+        "success": "Se importaron {{count}} tareas",
+        "failed": "No se pudieron importar las tareas"
       }
     },
     "notesDocs": {
       "notesTab": "Notas de reunión",
       "docsTab": "Google Docs",
       "tablistLabel": "Notas y documentos"
-    },
-    "todos": {
-      "addPlaceholder": "Agregar una tarea para la Comunidad…",
-      "add": "Agregar",
-      "openHeading": "Por hacer",
-      "doneHeading": "Hecho",
-      "allDone": "Nada en la lista",
-      "toggle": "Marcar \"{{text}}\" como completado",
-      "deleteTodo": "Eliminar tarea",
-      "confirmDelete": "¿Eliminar esta tarea?",
-      "confirmDeleteTitle": "Eliminar tarea"
     },
     "quizLibrary": {
       "heading": "Cuestionarios Compartidos",
@@ -1000,7 +1004,6 @@
       "readOnly": "Solo lectura",
       "assessmentsNote": "Los espectadores pueden explorar las evaluaciones compartidas, pero no compartirlas, editarlas ni asignarlas.",
       "notesNote": "Los espectadores pueden leer notas y documentos, pero no agregarlos ni modificarlos.",
-      "todosNote": "Los espectadores pueden leer la lista de tareas, pero no agregar ni cambiar elementos.",
       "meetingNote": "Los espectadores pueden seguir la reunión, pero no editarla ni guardarla.",
       "homeNote": "Los espectadores pueden leer todo aquí, pero no crear contenido nuevo.",
       "rubricsNote": "Los espectadores pueden explorar y copiar las rúbricas compartidas, pero no pueden compartirlas ni dejar de compartirlas."

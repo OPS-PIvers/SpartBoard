@@ -362,11 +362,27 @@ Deviations from the sections above, decided while building:
 
 ### PR 4: action items
 
-- [ ] `PlcNote.actionItems` + rules key lock
-- [ ] Action items block in meeting notes; rollup header
-- [ ] Import banner and migration; todos soft-deleted
-- [ ] `todos` alias, rail removal, feature flag removal, dead code deleted
-- [ ] Tests: OCC on action item edits, import idempotence
+- [x] `PlcNote.actionItems` + rules key lock
+- [x] Action items block in meeting notes; rollup header
+- [x] Import banner and migration; todos soft-deleted
+- [x] `todos` alias, rail removal, feature flag removal, dead code deleted
+- [x] Tests: OCC on action item edits, import idempotence
+
+### 8.4 PR 4 implementation notes (2026-09-10)
+
+- Action items render on every note kind, not only meeting notes: the imported
+  to-do list lands on a freeform note titled "Imported to-dos", and the block is the
+  same component either way (`components/plc/notes/NoteActionItems.tsx`).
+- Edits go through the existing debounced patch + OCC path; a stale writer gets the
+  same conflict toast as a body edit.
+- The meeting Act step no longer spawns `todos`. `promoteMeetingActionItems` merges
+  the meeting's items onto its linked meeting note (by id, so re-running is a no-op)
+  and keeps the `todoId` back-link pointing at the note item.
+- `usePlcTodos` survives as a read-only legacy reader plus `archiveTodos`, which the
+  import banner uses to tombstone the old docs. Rules deny todo creates and allow only
+  the `deletedAt` tombstone on update. Trash no longer lists todos.
+- `todos` remains a section alias for `docs` so old links resolve; the feature flag
+  is gone from Settings and `PlcFeatureSettings.todos` is optional/deprecated.
 
 ## 9. Verification
 

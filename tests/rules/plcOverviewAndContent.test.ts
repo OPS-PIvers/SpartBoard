@@ -4,8 +4,9 @@
 //   - `users/{uid}/plc_layouts/{plcId}` is owner-only with a closed schema
 //     so a malicious extension can't smuggle extra fields.
 //   - `plcs/{plcId}/notes` and `plcs/{plcId}/todos` are membership-gated
-//     for both reads and writes — non-members must not be able to peek
-//     into a community's shared documents.
+//     for reads — non-members must not be able to peek into a community's
+//     shared documents. `todos` is legacy: create is denied and update
+//     accepts only the `deletedAt` tombstone.
 //   - Notes' `createdBy` / `createdAt` / `id` are immutable on update so
 //     a later editor can't rewrite authorship.
 //   - On every note update the caller must stamp themselves into
@@ -375,7 +376,7 @@ describe('plcs/{plcId}/notes — write', () => {
 // plcs/{plcId}/todos
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/todos — write', () => {
+describe('plcs/{plcId}/todos — write (legacy: create denied, update deletedAt-only)', () => {
   const validTodo = (overrides: Record<string, unknown> = {}) => ({
     id: TODO_ID,
     text: 'Do the thing',
@@ -385,14 +386,14 @@ describe('plcs/{plcId}/todos — write', () => {
     ...overrides,
   });
 
-  it('any current member can create a todo', async () => {
-    await assertSucceeds(
+  it('denies creating a todo, even for a current member', async () => {
+    await assertFails(
       setDoc(doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`), validTodo())
     );
   });
 
-  it('accepts a serverTimestamp() createdAt (dual-accept, Decision 1.3)', async () => {
-    await assertSucceeds(
+  it('denies creation with a serverTimestamp() createdAt', async () => {
+    await assertFails(
       setDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
         validTodo({ createdAt: serverTimestamp() })
@@ -400,7 +401,7 @@ describe('plcs/{plcId}/todos — write', () => {
     );
   });
 
-  it('rejects a non-int / non-timestamp createdAt', async () => {
+  it('rejects a non-int / non-timestamp createdAt (create denied regardless)', async () => {
     await assertFails(
       setDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
@@ -418,7 +419,7 @@ describe('plcs/{plcId}/todos — write', () => {
     );
   });
 
-  it('rejects extra unknown fields (schema lock-down)', async () => {
+  it('rejects extra unknown fields (create denied anyway)', async () => {
     await assertFails(
       setDoc(doc(asMemberA(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
         ...validTodo(),
@@ -437,10 +438,18 @@ describe('plcs/{plcId}/todos — write', () => {
       });
     });
 
-    it("a different member can mark a teammate's todo done", async () => {
-      await assertSucceeds(
+    it("rejects a different member marking a teammate's todo done (not deletedAt-only)", async () => {
+      await assertFails(
         updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
           done: true,
+        })
+      );
+    });
+
+    it('a member can archive (soft-delete) an existing todo via deletedAt only', async () => {
+      await assertSucceeds(
+        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
+          deletedAt: Date.now(),
         })
       );
     });
@@ -457,6 +466,14 @@ describe('plcs/{plcId}/todos — write', () => {
       await assertFails(
         updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
           done: true,
+        })
+      );
+    });
+
+    it('a non-member cannot archive (soft-delete)', async () => {
+      await assertFails(
+        updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
+          deletedAt: Date.now(),
         })
       );
     });

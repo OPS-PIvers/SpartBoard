@@ -330,8 +330,8 @@ export interface PlcFeatureSettings {
   videoActivities: boolean;
   /** PLC Notes tab (Phase 5). */
   notes: boolean;
-  /** PLC To-Do list tab (Phase 5). */
-  todos: boolean;
+  /** @deprecated legacy PLC To-Do list tab; action items now live on notes. */
+  todos?: boolean;
   /** PLC Shared Boards tab (Phase 6). */
   sharedBoards: boolean;
   /** Per-teacher rows on pooled assessment results (plan D3); off by default. */
@@ -342,7 +342,6 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   quizzes: true,
   videoActivities: true,
   notes: true,
-  todos: true,
   sharedBoards: true,
   showPerTeacher: false,
 };
@@ -642,6 +641,23 @@ export interface PlcVideoActivityEntry {
 }
 
 /**
+ * One action item on a meeting note (Decision 3.5/7.4). Replaces the legacy
+ * `PlcTodo` subcollection as the source of truth going forward.
+ */
+export interface PlcActionItem {
+  id: string;
+  text: string;
+  done: boolean;
+  /** uid of the member assigned. `null`/absent means unassigned. */
+  assigneeUid?: string | null;
+  /** Optional due date (ms since epoch). `null`/absent means no due date. */
+  dueAt?: number | null;
+  createdBy: string;
+  createdAt: number;
+  doneAt?: number | null;
+}
+
+/**
  * One shared note in a PLC notebook. Members CRUD freely; LWW on edits,
  * upgraded with an optimistic-concurrency `version` precondition (Decision 2.4)
  * to surface edit conflicts instead of silently last-write-wins.
@@ -662,6 +678,8 @@ export interface PlcNote {
    * only on `kind === 'meeting'` notes; `null`/absent otherwise.
    */
   meetingId?: string | null;
+  /** Action items captured on this note (Decision 3.5/7.4). */
+  actionItems?: PlcActionItem[];
   createdBy: string;
   createdAt: number;
   lastEditedBy: string;
@@ -683,8 +701,8 @@ export interface PlcNote {
 }
 
 /**
- * One PLC to-do. Stored as one doc per todo (not an array on a parent doc)
- * so concurrent edits don't serialize against the whole list.
+ * @deprecated Legacy. One PLC to-do. Read-only going forward; imported into
+ * note action items (Decision 7.4). No new to-dos are created.
  */
 export interface PlcTodo {
   id: string;
@@ -1028,7 +1046,7 @@ export interface PlcMeeting {
     assigneeUid?: string;
     /** Optional due date (ms since epoch). `null`/absent means no due date. */
     dueAt?: number | null;
-    /** Id of the spawned `PlcTodo`, if the action item was promoted to one. */
+    /** Id of the action item written to the meeting note when promoted. */
     todoId?: string;
   }>;
   /** Optional free-text notes body (links to a `PlcNote` via `PlcNote.meetingId`). */

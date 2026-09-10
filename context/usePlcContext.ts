@@ -10,7 +10,7 @@
  *   never re-render.
  * - A `useSyncExternalStore`-backed **state slice** read through cheap
  *   selectors with `Object.is` bailout (`usePlcRootDoc`, `usePlcMembers`,
- *   `usePlcRole`, `usePlcNotesData`, `usePlcTodosData`, `usePlcDocsData`,
+ *   `usePlcRole`, `usePlcNotesData`, `usePlcDocsData`,
  *   plus the Wave-2 collaboration selectors
  *   `usePlcPresence` / `usePlcWhoIsHere` / `usePlcActivity`).
  *
@@ -57,7 +57,6 @@ import type {
   PlcPresence,
   PlcQuizEntry,
   PlcRole,
-  PlcTodo,
   PlcVideoActivityEntry,
 } from '@/types';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
@@ -122,7 +121,6 @@ export interface PlcStoreState {
   /** Active members derived from the root doc (T1 `getPlcMembers`). */
   members: PlcMember[];
   notes: PlcSlice<PlcNote[]>;
-  todos: PlcSlice<PlcTodo[]>;
   docs: PlcSlice<PlcDoc[]>;
   quizzes: PlcSlice<PlcQuizEntry[]>;
   videoActivities: PlcSlice<PlcVideoActivityEntry[]>;
@@ -183,6 +181,7 @@ export interface PlcActions {
     body: string;
     kind?: 'freeform' | 'meeting';
     meetingId?: string | null;
+    actionItems?: PlcNote['actionItems'];
   }) => Promise<string>;
   // Patch shape mirrors `UpdateNotePatch` in `hooks/usePlcNotes.ts` (kept
   // inline to avoid a context↔hook import cycle). Enforces the optimistic
@@ -198,6 +197,7 @@ export interface PlcActions {
       body?: string;
       kind?: 'freeform' | 'meeting';
       meetingId?: string | null;
+      actionItems?: PlcNote['actionItems'];
       deletedAt?: number | null;
     },
     options?: { expectedVersion?: number }
@@ -212,14 +212,6 @@ export interface PlcActions {
   deleteNote: (noteId: string, expectedVersion?: number) => Promise<void>;
   /** Restore a soft-deleted note by clearing its `deletedAt` tombstone. */
   restoreNote: (noteId: string, expectedVersion?: number) => Promise<void>;
-  // --- To-dos ---
-  createTodo: (text: string) => Promise<string>;
-  toggleTodoDone: (todoId: string, done: boolean) => Promise<void>;
-  updateTodoText: (todoId: string, text: string) => Promise<void>;
-  /** Soft-delete a to-do (Decision 3.1). Restore with `restoreTodo`. */
-  deleteTodo: (todoId: string) => Promise<void>;
-  /** Restore a soft-deleted to-do by clearing its `deletedAt` tombstone. */
-  restoreTodo: (todoId: string) => Promise<void>;
   // --- Docs ---
   createDoc: (input: { title: string; url: string }) => Promise<string>;
   updateDoc: (
@@ -287,9 +279,9 @@ export interface PlcActions {
    * current presence list (auto from presence, editable before save via the
    * optional `attendeeUids` override per §11), marks `status: 'completed'`,
    * persists any passed working fields, and fires a `meeting_held` activity
-   * event. Then spawns a `PlcTodo` for every action item lacking a `todoId`
-   * (assignee/due/`meetingId` provenance) and back-links the new `todoId` onto
-   * the meeting record (§3.9). Returns the spawned to-do ids.
+   * event. Then promotes every action item lacking a `todoId` onto the
+   * meeting's note (assignee/due provenance) and back-links the new id onto
+   * the meeting record (§7.4). Returns the promoted item ids.
    */
   saveMeeting: (
     meetingId: string,
@@ -307,13 +299,14 @@ export interface PlcActions {
   /** Restore a soft-deleted meeting by clearing its `deletedAt` tombstone. */
   restoreMeeting: (meetingId: string) => Promise<void>;
   /**
-   * Spawn a `PlcTodo` for each of a meeting's action items lacking a `todoId`
-   * (Act step, §6.2 / §3.9) and back-link the new `todoId` onto the meeting.
-   * Idempotent — already-promoted action items are skipped. Returns the spawned
-   * to-do ids. (`saveMeeting` calls this; exposed standalone so Meeting Mode can
-   * promote action items to to-dos mid-meeting.)
+   * Promote each of a meeting's action items lacking a `todoId` (Act step,
+   * §6.2 / §7.4) onto the meeting's linked note as `PlcActionItem`s, and
+   * back-link the promoted ids onto the meeting. Idempotent — already-
+   * promoted action items are skipped. Returns the promoted item ids.
+   * (`saveMeeting` calls this; exposed standalone so Meeting Mode can promote
+   * action items mid-meeting.)
    */
-  spawnTodosForMeeting: (meetingId: string) => Promise<string[]>;
+  promoteMeetingActionItems: (meetingId: string) => Promise<string[]>;
 }
 
 /**
@@ -478,11 +471,6 @@ export function useCanEditPlcContent(): boolean {
 /** Notes slice (data/loading/error). */
 export function usePlcNotesData(): PlcSlice<PlcNote[]> {
   return usePlcSelector((s) => s.notes) ?? EMPTY_NOTES_SLICE;
-}
-
-/** To-dos slice (data/loading/error). */
-export function usePlcTodosData(): PlcSlice<PlcTodo[]> {
-  return usePlcSelector((s) => s.todos) ?? EMPTY_TODOS_SLICE;
 }
 
 /** Docs slice (data/loading/error). */
@@ -750,12 +738,6 @@ const EMPTY_MEMBERS: PlcMember[] = [];
 const EMPTY_PRESENCE: PlcPresenceEntry[] = [];
 const EMPTY_ACTIVITY: PlcActivityEntry[] = [];
 const EMPTY_NOTES_SLICE: PlcSlice<PlcNote[]> = {
-  data: [],
-  loading: false,
-  error: null,
-  enabled: false,
-};
-const EMPTY_TODOS_SLICE: PlcSlice<PlcTodo[]> = {
   data: [],
   loading: false,
   error: null,

@@ -34,7 +34,6 @@ const REQUIRED_TOP_LEVEL_SECTIONS = [
   'settings',
   'overview',
   'notes',
-  'todos',
   'quizLibrary',
   'rubricLibrary',
 ] as const;
@@ -46,7 +45,6 @@ const REQUIRED_TABS_KEYS = [
   'videoActivities',
   'assessments',
   'notes',
-  'todos',
   'sharedBoards',
   'settings',
   'home',
@@ -165,6 +163,22 @@ const REQUIRED_NOTES_KEYS = [
   'meeting.agenda',
   'meeting.decisions',
   'meeting.actionItems',
+  'actionItems.title',
+  'actionItems.add',
+  'actionItems.addPlaceholder',
+  'actionItems.unassigned',
+  'actionItems.dueDate',
+  'actionItems.remove',
+  'actionItems.markDone',
+  'actionItems.markOpen',
+  'actionItems.overdue',
+  'actionItems.limitReached',
+  'actionItems.openCount',
+  'actionItems.noneOpen',
+  'importTodos.banner',
+  'importTodos.button',
+  'importTodos.success',
+  'importTodos.failed',
 ] as const;
 
 /** Keys within plcDashboard.notesDocs (Wave-2 T4 combined surface). */
@@ -172,19 +186,6 @@ const REQUIRED_NOTES_DOCS_KEYS = [
   'notesTab',
   'docsTab',
   'tablistLabel',
-] as const;
-
-/** Keys within plcDashboard.todos */
-const REQUIRED_TODOS_KEYS = [
-  'addPlaceholder',
-  'add',
-  'openHeading',
-  'doneHeading',
-  'allDone',
-  'toggle',
-  'deleteTodo',
-  'confirmDelete',
-  'confirmDeleteTitle',
 ] as const;
 
 /** Keys within plcDashboard.settings */
@@ -630,7 +631,6 @@ const REQUIRED_VIEWER_KEYS = [
   'readOnly',
   'assessmentsNote',
   'notesNote',
-  'todosNote',
   'meetingNote',
   'homeNote',
   'rubricsNote',
@@ -769,15 +769,6 @@ describe('EN locale — plcDashboard baseline', () => {
     }
   });
 
-  it('has all required plcDashboard.todos keys', () => {
-    for (const key of REQUIRED_TODOS_KEYS) {
-      expect(
-        en.plcDashboard.todos,
-        `en.plcDashboard.todos.${key} is missing from EN`
-      ).toHaveProperty(key);
-    }
-  });
-
   it('has all required plcDashboard.members keys', () => {
     const members = (en.plcDashboard as Record<string, unknown>).members as
       | Record<string, unknown>
@@ -906,19 +897,6 @@ describe.each([
       expect(
         notesDocs,
         `${code}.plcDashboard.notesDocs.${key} is missing`
-      ).toHaveProperty(key);
-    }
-  });
-
-  it(`${code}: has all required plcDashboard.todos keys`, () => {
-    const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
-    const todos = plc?.todos as Record<string, unknown> | undefined;
-    for (const key of REQUIRED_TODOS_KEYS) {
-      expect(
-        todos,
-        `${code}.plcDashboard.todos.${key} is missing`
       ).toHaveProperty(key);
     }
   });

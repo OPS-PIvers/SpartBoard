@@ -370,7 +370,6 @@
       "videoActivities": "Video Activities",
       "assessments": "Assessments",
       "notes": "Notes",
-      "todos": "To-Dos",
       "sharedBoards": "Boards",
       "settings": "Settings",
       "home": "Home",
@@ -502,10 +501,6 @@
       "notes": {
         "title": "Notes",
         "description": "A shared notebook for the PLC."
-      },
-      "todos": {
-        "title": "To-Do List",
-        "description": "A shared checklist so the PLC can track action items."
       },
       "sharedBoards": {
         "title": "Shared Boards",
@@ -645,23 +640,32 @@
         "agenda": "Agenda",
         "decisions": "Decisions",
         "actionItems": "Action items"
+      },
+      "actionItems": {
+        "title": "Action items",
+        "add": "Add action item",
+        "addPlaceholder": "What needs to happen?",
+        "unassigned": "Unassigned",
+        "dueDate": "Due date",
+        "remove": "Remove action item",
+        "markDone": "Mark done",
+        "markOpen": "Mark open",
+        "overdue": "Overdue",
+        "limitReached": "Action item limit reached",
+        "openCount": "Open action items ({{count}})",
+        "noneOpen": "No open action items"
+      },
+      "importTodos": {
+        "banner": "Import {{count}} to-dos from the old to-do list into a note",
+        "button": "Import",
+        "success": "Imported {{count}} to-dos",
+        "failed": "Could not import the to-dos"
       }
     },
     "notesDocs": {
       "notesTab": "Meeting Notes",
       "docsTab": "Google Docs",
       "tablistLabel": "Notes and docs"
-    },
-    "todos": {
-      "addPlaceholder": "Add a to-do for the PLC…",
-      "add": "Add",
-      "openHeading": "To do",
-      "doneHeading": "Done",
-      "allDone": "Nothing on the list",
-      "toggle": "Mark \"{{text}}\" complete",
-      "deleteTodo": "Delete to-do",
-      "confirmDelete": "Delete this to-do?",
-      "confirmDeleteTitle": "Delete to-do"
     },
     "quizLibrary": {
       "heading": "Shared Quizzes",
@@ -1000,7 +1004,6 @@
       "readOnly": "Read only",
       "assessmentsNote": "Viewers can browse shared assessments but can’t share, edit, or assign them.",
       "notesNote": "Viewers can read notes and docs but can’t add or change them.",
-      "todosNote": "Viewers can read the to-do list but can’t add or change items.",
       "meetingNote": "Viewers can follow the meeting but can’t edit or save it.",
       "homeNote": "Viewers can read everything here but can’t create new content.",
       "rubricsNote": "Viewers can browse and copy shared rubrics but can’t share or unshare them."

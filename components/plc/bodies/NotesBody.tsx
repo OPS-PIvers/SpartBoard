@@ -15,19 +15,24 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react';
-import { Plc, PlcNote } from '@/types';
+import { Plc, PlcActionItem, PlcNote } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { PlcNoteVersionConflictError, usePlcNotes } from '@/hooks/usePlcNotes';
 import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
+import { getPlcMembers } from '@/utils/plc';
 import { NotesMarkdown } from './notesMarkdown';
 import { buildMeetingNoteTemplate } from './notesTemplate';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
+import { NoteActionItems } from '@/components/plc/notes/NoteActionItems';
 
 interface NotesBodyProps {
   plc: Plc;
+  /** Externally-driven note selection (e.g. from the rollup panel). */
+  selectNoteId?: string | null;
 }
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -61,20 +66,24 @@ function formatDate(ms: number): string {
  * template; the body supports lightweight markdown previewed via the eye/pencil
  * toggle.
  */
-export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
+export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
+  const { user } = useAuth();
+  const currentUid = user?.uid ?? '';
   // Viewers can read notes but can't create / edit / delete (Decision 3.2).
   // Rules hard-deny viewer writes; this gates the UI to match.
   const canEdit = useCanEditPlcContent();
   const { notes, loading, createNote, updateNote, deleteNote, restoreNote } =
     usePlcNotes(plc.id);
   const { softDelete } = usePlcSoftDelete(plc.id);
+  const members = useMemo(() => getPlcMembers(plc), [plc]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
+  const [draftActionItems, setDraftActionItems] = useState<PlcActionItem[]>([]);
   // Body view mode — 'edit' shows the raw markdown textarea; 'preview' renders
   // it. New selections default to edit.
   const [bodyMode, setBodyMode] = useState<'edit' | 'preview'>('edit');
@@ -82,7 +91,11 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
   // Accumulates patches from rapid edits across fields so a same-window
   // title→body sequence doesn't drop the title patch. Reset on flush /
   // cancel.
-  const pendingPatchRef = useRef<{ title?: string; body?: string }>({});
+  const pendingPatchRef = useRef<{
+    title?: string;
+    body?: string;
+    actionItems?: PlcActionItem[];
+  }>({});
   const pendingNoteIdRef = useRef<string | null>(null);
   // The optimistic-concurrency base (Decision 2.4) for the pending write — the
   // canonical `version` the draft was loaded from. Captured at scheduleSave time
@@ -102,6 +115,27 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
       setSelectedId(first.id);
       setDraftTitle(first.title);
       setDraftBody(first.body);
+      setDraftActionItems(first.actionItems ?? []);
+    }
+  }
+
+  // External selection (e.g. clicking a note title in the rollup panel).
+  const [appliedSelectNoteId, setAppliedSelectNoteId] = useState<string | null>(
+    null
+  );
+  if (
+    selectNoteId != null &&
+    selectNoteId !== appliedSelectNoteId &&
+    notes.some((n) => n.id === selectNoteId)
+  ) {
+    setAppliedSelectNoteId(selectNoteId);
+    const note = notes.find((n) => n.id === selectNoteId);
+    if (note) {
+      setSelectedId(note.id);
+      setDraftTitle(note.title);
+      setDraftBody(note.body);
+      setDraftActionItems(note.actionItems ?? []);
+      setBodyMode('edit');
     }
   }
 
@@ -130,6 +164,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
     });
     setDraftTitle(selectedNote.title);
     setDraftBody(selectedNote.body);
+    setDraftActionItems(selectedNote.actionItems ?? []);
   } else if (
     selectedNote &&
     syncedSnapshot &&
@@ -143,6 +178,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
     });
     setDraftTitle(selectedNote.title);
     setDraftBody(selectedNote.body);
+    setDraftActionItems(selectedNote.actionItems ?? []);
   }
 
   // Reload the canonical note into the draft, discarding the failed local
@@ -156,6 +192,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
       setSelectedId(noteId);
       setDraftTitle(canonical.title);
       setDraftBody(canonical.body);
+      setDraftActionItems(canonical.actionItems ?? []);
       setSyncedSnapshot({
         id: noteId,
         lastEditedAt: canonical.lastEditedAt,
@@ -183,7 +220,12 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
     pendingNoteIdRef.current = null;
     pendingVersionRef.current = undefined;
     setPendingNoteId(null);
-    if (!id || (toSave.title === undefined && toSave.body === undefined)) {
+    if (
+      !id ||
+      (toSave.title === undefined &&
+        toSave.body === undefined &&
+        toSave.actionItems === undefined)
+    ) {
       return;
     }
     void updateNote(id, toSave, { expectedVersion }).catch((err: unknown) => {
@@ -232,7 +274,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
   const scheduleSave = useCallback(
     (
       id: string,
-      patch: { title?: string; body?: string },
+      patch: { title?: string; body?: string; actionItems?: PlcActionItem[] },
       expectedVersion: number | undefined
     ) => {
       if (pendingNoteIdRef.current && pendingNoteIdRef.current !== id) {
@@ -281,6 +323,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
       setSelectedId(id);
       setDraftTitle(title);
       setDraftBody(body);
+      setDraftActionItems([]);
       setSyncedSnapshot(null);
       // Meeting notes open in preview so the structured template is legible at
       // a glance; freeform notes open in edit to start typing immediately.
@@ -340,6 +383,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
         setSelectedId(null);
         setDraftTitle('');
         setDraftBody('');
+        setDraftActionItems([]);
       }
     } catch (err) {
       logError('NotesBody.deleteNote', err, {
@@ -356,6 +400,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
     setSelectedId(id);
     setDraftTitle(note.title);
     setDraftBody(note.body);
+    setDraftActionItems(note.actionItems ?? []);
     setSyncedSnapshot({
       id,
       lastEditedAt: note.lastEditedAt,
@@ -585,6 +630,20 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc }) => {
                 )}
               </div>
             )}
+            <NoteActionItems
+              items={draftActionItems}
+              members={members}
+              canEdit={canEdit}
+              currentUid={currentUid}
+              onChange={(next) => {
+                setDraftActionItems(next);
+                scheduleSave(
+                  selectedNote.id,
+                  { actionItems: next },
+                  syncedSnapshot?.version
+                );
+              }}
+            />
             <div className="px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
               {t('plcDashboard.notes.lastEdited', {
                 defaultValue: 'Last edited {{when}}',

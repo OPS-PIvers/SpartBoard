@@ -72,7 +72,6 @@ describe('parsePlcPath', () => {
   it.each<[PlcSectionId]>([
     ['assessments'],
     ['docs'],
-    ['todos'],
     ['sharedBoards'],
     ['members'],
     ['resources'],
@@ -95,6 +94,17 @@ describe('parsePlcPath', () => {
       });
     }
   );
+
+  // The shared To-Do list merged into note action items (§7.4). Old
+  // `/plc/:id/todos` deep links must resolve to `docs` (alias rewrite).
+  it('rewrites the legacy todos alias to the docs section', () => {
+    expect(parsePlcPath('/plc/plc-123/todos')).toEqual({
+      plcId: 'plc-123',
+      section: 'docs',
+      meetingId: null,
+      assessmentId: null,
+    });
+  });
 
   it('coerces an unknown section to home', () => {
     expect(parsePlcPath('/plc/plc-123/not-a-section')).toEqual({
@@ -212,7 +222,7 @@ describe('buildPlcPath', () => {
   it('round-trips through parsePlcPath for representative inputs', () => {
     const cases: Array<[string, PlcSectionId, string | null]> = [
       ['plc-1', 'home', null],
-      ['plc-1', 'todos', null],
+      ['plc-1', 'docs', null],
       ['plc-1', 'meeting', null],
       ['plc-1', 'meeting', 'mtg-7'],
     ];

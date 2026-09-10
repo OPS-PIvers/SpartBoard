@@ -90,7 +90,7 @@ vi.mock('@/components/plc/docs/PlcAddDocModal', () => ({
   PlcAddDocModal: () => <div data-testid="add-doc-modal" />,
 }));
 // The common-assessment banner + your-action-items card read standalone hooks
-// (meetings + todos) that hit Firebase without a provider; stub them inert.
+// (meetings + notes) that hit Firebase without a provider; stub them inert.
 vi.mock('@/hooks/usePlcMeetings', () => ({
   usePlcMeetings: () => ({
     meetings: [],
@@ -99,12 +99,15 @@ vi.mock('@/hooks/usePlcMeetings', () => ({
     error: null,
   }),
 }));
-vi.mock('@/hooks/usePlcTodos', () => ({
-  usePlcTodos: () => ({
-    todos: [],
+vi.mock('@/hooks/usePlcNotes', () => ({
+  usePlcNotes: () => ({
+    notes: [],
     loading: false,
     error: null,
-    toggleDone: vi.fn(() => Promise.resolve()),
+    createNote: vi.fn(() => Promise.resolve('n1')),
+    updateNote: vi.fn(() => Promise.resolve()),
+    deleteNote: vi.fn(() => Promise.resolve()),
+    restoreNote: vi.fn(() => Promise.resolve()),
   }),
 }));
 

@@ -15,8 +15,9 @@
  * shims (`PlcQuizLibraryTab`, `PlcVideoActivitiesTab`, `PlcNotesTab`,
  * `PlcTodosTab`, `PlcSharedBoardsTab`) — the dashboard now routes
  * straight to the bodies (`PlcAssessmentsBody`, `NotesDocsBody`,
- * `TodosBody`, `PlcSharedBoardsBody`). This test now asserts the live
- * bodies are exported function components.
+ * `PlcSharedBoardsBody`). This test now asserts the live bodies are
+ * exported function components. The legacy `TodosBody` was removed in
+ * §7.4 — the to-do list merged into note action items.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -24,7 +25,6 @@ import { describe, it, expect } from 'vitest';
 import { PlcQuizLibraryBody } from '@/components/plc/bodies/PlcQuizLibraryBody';
 import { PlcAssessmentsBody } from '@/components/plc/bodies/PlcAssessmentsBody';
 import { NotesBody } from '@/components/plc/bodies/NotesBody';
-import { TodosBody } from '@/components/plc/bodies/TodosBody';
 import { PlcSharedBoardsBody } from '@/components/plc/bodies/PlcSharedBoardsBody';
 import { MembersBody } from '@/components/plc/bodies/MembersBody';
 
@@ -39,7 +39,6 @@ describe('plc bodies — module shape', () => {
 
   it('the bodies the dashboard now mounts directly are exported (no shim layer)', () => {
     expect(typeof NotesBody).toBe('function');
-    expect(typeof TodosBody).toBe('function');
     expect(typeof PlcSharedBoardsBody).toBe('function');
     expect(typeof MembersBody).toBe('function');
   });
