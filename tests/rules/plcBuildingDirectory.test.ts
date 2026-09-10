@@ -55,9 +55,14 @@ let testEnv: RulesTestEnvironment;
 
 const asMember = () =>
   testEnv.authenticatedContext(MEMBER_UID, { email: MEMBER_EMAIL }).firestore();
+// email_verified: true — the plcIndex org-peer read relies on isOrgMember(),
+// which now requires it (see firestore.rules).
 const asOrgPeer = () =>
   testEnv
-    .authenticatedContext(ORG_PEER_UID, { email: ORG_PEER_EMAIL })
+    .authenticatedContext(ORG_PEER_UID, {
+      email: ORG_PEER_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 const asOutsider = () =>
   testEnv

@@ -94,9 +94,11 @@ service cloud.firestore {
     // .superAdmins[], OR an operator-org member doc with roleId == 'super_admin'.
     // Mirrors OrganizationPanel.resolveActorRole. roleId is read from the operator
     // org (`orono`) by fixed path - CEL cannot resolve the caller's org dynamically.
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isSuperAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              (isLegacySuperAdmin() || isMemberSuperAdmin());
     }
 
@@ -184,21 +186,27 @@ service cloud.firestore {
                .get('perms', {}).get(capId, 'none') == access;
     }
 
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isDomainAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              memberRole(orgId, request.auth.token.email.lower()) == 'domain_admin';
     }
 
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isBuildingAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              memberRole(orgId, request.auth.token.email.lower()) == 'building_admin';
     }
 
     // True when the caller has a member doc under the given org (any role,
     // any status). Phase 1 intentionally does not filter on status:'active';
     // Phase 3 will add a status check once invited/inactive states are wired.
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isOrgMember(orgId) {
       return request.auth != null && request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.token.email.lower()));
     }
 
@@ -346,10 +354,13 @@ service cloud.firestore {
         // Members can always see their own membership (to bootstrap useAuth);
         // other org members can see the member directory. Self-probe comes
         // first so a non-member checking their own (absent) doc never triggers
-        // the super-admin lookup.
+        // the super-admin lookup. `resource == null` is allowed unconditionally
+        // (nothing to leak); email_verified is required once the doc exists.
         allow read: if (request.auth != null &&
                        request.auth.token.email != null &&
-                       request.auth.token.email.lower() == emailLower) ||
+                       request.auth.token.email.lower() == emailLower &&
+                       (resource == null ||
+                        request.auth.token.get('email_verified', false) == true)) ||
                     isOrgMember(orgId) ||
                     isSuperAdmin();
         // Domain+ admins manage members via a field whitelist so identity fields (email,
@@ -396,6 +407,7 @@ service cloud.firestore {
           // user. Powers the admin panel's "Last active" column without a CF.
           (request.auth != null &&
            request.auth.token.email != null &&
+           request.auth.token.get('email_verified', false) == true &&
            request.auth.token.email.lower() == emailLower &&
            request.resource.data.email == resource.data.email &&
            request.resource.data.orgId == resource.data.orgId &&
@@ -447,11 +459,14 @@ service cloud.firestore {
 
     // Admins collection
     match /admins/{email} {
-      // Users can read their own admin record to check status
-      // We use lower() to ensure case-insensitive matching
-      allow read: if request.auth != null && 
-                  request.auth.token.email != null && 
-                  request.auth.token.email.lower() == email.lower();
+      // Users can read their own admin record to check status (lower() for
+      // case-insensitive matching). `resource == null` allowed unconditionally
+      // (nothing to leak); email_verified required once the doc exists.
+      allow read: if request.auth != null &&
+                  request.auth.token.email != null &&
+                  request.auth.token.email.lower() == email.lower() &&
+                  (resource == null ||
+                   request.auth.token.get('email_verified', false) == true);
       allow write: if false; // Only create via Firebase Console or Admin SDK
     }
 

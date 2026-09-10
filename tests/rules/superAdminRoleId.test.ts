@@ -37,14 +37,22 @@ const RULES_PATH = fileURLToPath(
 
 let testEnv: RulesTestEnvironment;
 
+// email_verified: true — a real member always has it via Google Sign-In;
+// isSuperAdmin() now requires it (see firestore.rules).
 const asRoleSuper = () =>
   testEnv
-    .authenticatedContext('role-super-uid', { email: ROLE_SUPER_EMAIL })
+    .authenticatedContext('role-super-uid', {
+      email: ROLE_SUPER_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 const asTeacher = () =>
   testEnv
-    .authenticatedContext('teacher-uid', { email: TEACHER_EMAIL })
+    .authenticatedContext('teacher-uid', {
+      email: TEACHER_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 const orgFields = (id: string) => ({

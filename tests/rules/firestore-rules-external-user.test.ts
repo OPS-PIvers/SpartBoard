@@ -187,8 +187,14 @@ const asExternal = () =>
   testEnv
     .authenticatedContext(EXTERNAL_UID, { email: EXTERNAL_EMAIL })
     .firestore();
+// email_verified: true — isOrgMember() now requires it (see firestore.rules).
 const asMember = () =>
-  testEnv.authenticatedContext(MEMBER_UID, { email: MEMBER_EMAIL }).firestore();
+  testEnv
+    .authenticatedContext(MEMBER_UID, {
+      email: MEMBER_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 
 // Path to the external user's own user-scoped subtree.
 const ownDoc = (db: ReturnType<typeof asExternal>, subpath: string) =>

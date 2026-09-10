@@ -201,24 +201,41 @@ beforeEach(async () => {
   });
 });
 
+// email_verified: true on every legitimate actor below — a real Google
+// Sign-In always sets it; only an unverified/self-reported claim is denied
+// (see isDomainAdmin()/isBuildingAdmin()/isOrgMember()/isSuperAdmin() fixes).
 const asDomainAdmin = () =>
   testEnv
-    .authenticatedContext('member-uid', { email: DOMAIN_ADMIN_EMAIL })
+    .authenticatedContext('member-uid', {
+      email: DOMAIN_ADMIN_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 const asBuildingAdmin = () =>
   testEnv
-    .authenticatedContext('bldg-uid', { email: BUILDING_ADMIN_EMAIL })
+    .authenticatedContext('bldg-uid', {
+      email: BUILDING_ADMIN_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 const asTeacher = () =>
   testEnv
-    .authenticatedContext('teacher-uid', { email: TEACHER_EMAIL })
+    .authenticatedContext('teacher-uid', {
+      email: TEACHER_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 const asOutsider = () =>
   testEnv
     .authenticatedContext('outsider-uid', { email: OUTSIDER_EMAIL })
     .firestore();
 const asSuper = () =>
-  testEnv.authenticatedContext('super-uid', { email: SUPER_EMAIL }).firestore();
+  testEnv
+    .authenticatedContext('super-uid', {
+      email: SUPER_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 const asAnon = () => testEnv.unauthenticatedContext().firestore();
 
 describe('organizations — reads (Phase 1)', () => {
@@ -566,15 +583,24 @@ describe('organizations/buildings — building-admin ID canonicalization (F6)', 
 
   const asCanonAdmin = () =>
     testEnv
-      .authenticatedContext('canon-uid', { email: CANON_MEMBER_EMAIL })
+      .authenticatedContext('canon-uid', {
+        email: CANON_MEMBER_EMAIL,
+        email_verified: true,
+      })
       .firestore();
   const asLegacyAdmin = () =>
     testEnv
-      .authenticatedContext('legacy-uid', { email: LEGACY_MEMBER_EMAIL })
+      .authenticatedContext('legacy-uid', {
+        email: LEGACY_MEMBER_EMAIL,
+        email_verified: true,
+      })
       .firestore();
   const asNonMemberAdmin = () =>
     testEnv
-      .authenticatedContext('nonmember-uid', { email: NONMEMBER_ADMIN_EMAIL })
+      .authenticatedContext('nonmember-uid', {
+        email: NONMEMBER_ADMIN_EMAIL,
+        email_verified: true,
+      })
       .firestore();
 
   beforeEach(async () => {
@@ -1545,6 +1571,7 @@ describe('organizations/members — email case normalization (F15)', () => {
     testEnv
       .authenticatedContext('mixedcase-uid', {
         email: 'New.Teacher@Orono.K12.MN.US',
+        email_verified: true,
       })
       .firestore();
 
