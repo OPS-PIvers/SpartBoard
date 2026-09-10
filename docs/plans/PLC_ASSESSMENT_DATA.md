@@ -341,11 +341,24 @@ Deviations from the sections above, decided while building:
 
 ### PR 3: PLC folders
 
-- [ ] `plcs/{plcId}/folders` rules + tests
-- [ ] `usePlcFolders(plcId)`; `PlcQuizEntry.folderId`; `assessments.folderId`
-- [ ] Sidebar in the Assessments list; move actions; drag and drop
-- [ ] `unitLabel` suggestions on first folder creation
-- [ ] Tests for filtering and inheritance via `syncGroupId`
+- [x] `plcs/{plcId}/folders` rules + tests
+- [x] `usePlcFolders(plcId)`; `PlcQuizEntry.folderId`; `assessments.folderId`
+- [x] Sidebar in the Assessments list; move actions; drag and drop
+- [x] `unitLabel` suggestions on first folder creation
+- [x] Tests for filtering and inheritance via `syncGroupId`
+
+### 8.3 PR 3 implementation notes (2026-09-10)
+
+- `useFolders` is now a thin wrapper over a path-parameterized `useFolderTree`
+  (`hooks/useFolderTree.ts`); `usePlcFolders(plcId)` binds it to
+  `plcs/{plcId}/folders` with `quizzes` and `assessments` as the item collections.
+  The personal-library widget union stays closed.
+- A row's folder is `assessment.folderId ?? libraryEntry.folderId` (via `syncGroupId`);
+  `moveEntry` writes both docs in one batch so the two never drift.
+- The `unitLabel` field stays as data. Suggested folder chips appear only while the PLC
+  has no folders; there is no unit dropdown.
+- Viewers see the folder tree read-only; only `plcCanEditContent` members create, move
+  or delete.
 
 ### PR 4: action items
 

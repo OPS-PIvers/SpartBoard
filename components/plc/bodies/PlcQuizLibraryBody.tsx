@@ -106,6 +106,8 @@ interface PlcQuizLibraryBodyProps {
    * dashboard staying open behind it.
    */
   onCloseDashboard: () => void;
+  /** When set, only show library entries in this PLC folder (`null` = root). */
+  folderId?: string | null;
 }
 
 interface ImportTarget {
@@ -142,6 +144,7 @@ function formatDate(ms: number): string {
 export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   plc,
   onCloseDashboard,
+  folderId,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -222,11 +225,16 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     [plc, user]
   );
 
-  // The unified, deduped, assignable row list.
-  const assignableRows = useMemo(
-    () => unifyAssignableQuizzes(plcQuizzes, templates),
-    [plcQuizzes, templates]
-  );
+  // The unified, deduped, assignable row list. When a folder filter is
+  // active (folderId !== undefined), only quiz-sourced rows carry a folder —
+  // template rows have no folder concept and stay visible either way.
+  const assignableRows = useMemo(() => {
+    const rows = unifyAssignableQuizzes(plcQuizzes, templates);
+    if (folderId === undefined || folderId === null) return rows;
+    return rows.filter(
+      (row) => row.source !== 'quiz' || (row.quiz.folderId ?? null) === folderId
+    );
+  }, [plcQuizzes, templates, folderId]);
 
   const personalBySyncGroup = useMemo(() => {
     const map = new Map<string, QuizMetadata>();

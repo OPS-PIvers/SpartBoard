@@ -7,9 +7,12 @@ import { describe, it, expect } from 'vitest';
 import {
   aggregateStatus,
   buildAssessmentRows,
+  countRowsByFolder,
   filterAssessmentRows,
+  filterRowsByFolder,
   hasTeamAverage,
   sortWorstFirst,
+  suggestedFolderNames,
 } from '@/components/plc/assessments/assessmentListSelectors';
 import type {
   PlcAssessmentAggregate,
@@ -269,6 +272,87 @@ describe('filterAssessmentRows', () => {
       filterAssessmentRows(rows, 'all', '  RATIO').map((r) => r.id)
     ).toEqual(['library:g-lib']);
     expect(filterAssessmentRows(rows, 'scored', 'decimals')).toHaveLength(0);
+  });
+});
+
+describe('folder inheritance', () => {
+  it('assessment without a folderId inherits its library entry folder via syncGroupId', () => {
+    const rows = buildAssessmentRows({
+      assessments: [makeAssessment()],
+      aggregates: [],
+      libraryEntries: [
+        makeEntry({ syncGroupId: 'g1', folderId: 'lib-folder' }),
+      ],
+      memberCount: 1,
+    });
+    expect(rows[0].folderId).toBe('lib-folder');
+    expect(rows[0].plcQuizId).toBe('e1');
+  });
+
+  it('the assessment’s own folderId wins over the library entry’s', () => {
+    const rows = buildAssessmentRows({
+      assessments: [makeAssessment({ folderId: 'own-folder' })],
+      aggregates: [],
+      libraryEntries: [
+        makeEntry({ syncGroupId: 'g1', folderId: 'lib-folder' }),
+      ],
+      memberCount: 1,
+    });
+    expect(rows[0].folderId).toBe('own-folder');
+  });
+
+  it('library-only rows carry their own folderId', () => {
+    const rows = buildAssessmentRows({
+      assessments: [],
+      aggregates: [],
+      libraryEntries: [makeEntry({ folderId: 'lib-folder' })],
+      memberCount: 1,
+    });
+    expect(rows[0].folderId).toBe('lib-folder');
+  });
+
+  it('filterRowsByFolder keeps only matching rows; null keeps all', () => {
+    const rows = buildAssessmentRows({
+      assessments: [
+        makeAssessment({ id: 'a', folderId: 'f1', syncGroupId: 'g-a' }),
+      ],
+      aggregates: [],
+      libraryEntries: [makeEntry({ syncGroupId: 'g-lib', folderId: null })],
+      memberCount: 1,
+    });
+    expect(filterRowsByFolder(rows, 'f1').map((r) => r.id)).toEqual(['a']);
+    expect(filterRowsByFolder(rows, null)).toHaveLength(2);
+  });
+
+  it('countRowsByFolder buckets by folderId with root for unfoldered rows', () => {
+    const rows = buildAssessmentRows({
+      assessments: [
+        makeAssessment({ id: 'a', folderId: 'f1', syncGroupId: 'g-a' }),
+      ],
+      aggregates: [],
+      libraryEntries: [makeEntry({ syncGroupId: 'g-lib' })],
+      memberCount: 1,
+    });
+    expect(countRowsByFolder(rows)).toEqual({ f1: 1, root: 1 });
+  });
+});
+
+describe('suggestedFolderNames', () => {
+  it('dedupes, trims and sorts unitLabel values from non-deleted quiz assessments', () => {
+    const names = suggestedFolderNames([
+      makeAssessment({ id: 'a', unitLabel: '  Unit 4  ' }),
+      makeAssessment({ id: 'b', unitLabel: 'Unit 2' }),
+      makeAssessment({ id: 'c', unitLabel: 'Unit 4' }),
+      makeAssessment({ id: 'd', unitLabel: '   ' }),
+      makeAssessment({ id: 'e', unitLabel: undefined }),
+      makeAssessment({ id: 'f', unitLabel: 'Unit 9', deletedAt: 5 }),
+      makeAssessment({
+        id: 'g',
+        unitLabel: 'Unit 1',
+        kind: 'video-activity',
+      }),
+    ]);
+    expect(names).toEqual(['Unit 2', 'Unit 4']);
   });
 });
 

@@ -331,6 +331,24 @@ describe('plcs/{plcId}/quizzes — update', () => {
       })
     );
   });
+
+  it('allows setting folderId (PLC_ASSESSMENT_DATA §3.4)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        folderId: 'f1',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a non-string, non-null folderId', async () => {
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        folderId: 42,
+        updatedAt: 2000,
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

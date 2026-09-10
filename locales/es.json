@@ -1110,7 +1110,19 @@
       "loadError": "No se pudieron cargar las evaluaciones.",
       "emptyTitle": "Aún no hay evaluaciones",
       "emptySubtitle": "Asigna un cuestionario y comparte sus resultados con esta Comunidad para reunir aquí los datos del equipo.",
-      "noMatches": "Ninguna evaluación coincide con este filtro."
+      "noMatches": "Ninguna evaluación coincide con este filtro.",
+      "folders": {
+        "sidebarLabel": "Carpetas",
+        "moveToFolder": "Mover a carpeta…",
+        "noFolder": "Sin carpeta",
+        "dragHandle": "Arrastrar para mover",
+        "movedToast": "Movido a “{{folder}}”",
+        "movedToRootToast": "Sacado de las carpetas",
+        "moveFailed": "No se pudo mover ese elemento. Inténtalo de nuevo.",
+        "suggestedTitle": "Sugerencias según tus etiquetas de unidad",
+        "suggestedCreated": "Se creó “{{folder}}” a partir de tus etiquetas de unidad.",
+        "emptyFolder": "Todavía no hay nada en esta carpeta."
+      }
     },
     "assessmentDetail": {
       "back": "Todas las evaluaciones",

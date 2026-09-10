@@ -79,6 +79,22 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
   usePlcQuizzes: () => ({ quizzes: mockLibrary, loading: false, error: null }),
 }));
 
+const mockMoveEntry = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/hooks/usePlcFolders', () => ({
+  usePlcFolders: () => ({
+    folders: [],
+    loading: false,
+    error: null,
+    createFolder: vi.fn().mockResolvedValue('f1'),
+    renameFolder: vi.fn(),
+    moveFolder: vi.fn(),
+    deleteFolder: vi.fn(),
+    reorderSiblings: vi.fn(),
+    moveItem: vi.fn(),
+    moveEntry: mockMoveEntry,
+  }),
+}));
+
 let mockPersonalQuizzes: Array<{ id: string }> = [{ id: 'mine' }];
 vi.mock('@/hooks/useQuiz', () => ({
   useQuiz: () => ({ quizzes: mockPersonalQuizzes, isDriveConnected: true }),
@@ -269,7 +285,9 @@ describe('PlcAssessmentList', () => {
   it('navigates to the detail route when an assessment row is clicked', () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     fireEvent.click(
-      within(rowByTitle('Fractions CFA')).getAllByRole('button')[0]
+      within(rowByTitle('Fractions CFA')).getAllByRole('button', {
+        name: /Fractions CFA/,
+      })[0]
     );
     expect(spaNavigate).toHaveBeenCalledWith('/plc/plc-1/assessments/a-scored');
   });

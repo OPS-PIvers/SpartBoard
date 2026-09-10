@@ -589,6 +589,8 @@ export interface PlcQuizEntry {
    * GC hard-deletes it after 30 days).
    */
   deletedAt?: number | null;
+  /** Folder in `plcs/{plcId}/folders`; null/absent = root. */
+  folderId?: string | null;
 }
 
 /**
@@ -903,6 +905,8 @@ export interface PlcCommonAssessment {
   sourceQuizId?: string;
   /** ms set by `markPlcAssessmentDirty`, cleared by the recompute. Server-owned. */
   dirtyAt?: number | null;
+  /** Folder in `plcs/{plcId}/folders`; null/absent = root, derived from the library entry via syncGroupId when absent. */
+  folderId?: string | null;
 }
 
 /** One answer-choice row of a pooled MC distribution. Labels are option text, never student text. */

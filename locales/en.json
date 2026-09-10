@@ -1110,7 +1110,19 @@
       "loadError": "Couldn’t load assessments.",
       "emptyTitle": "No assessments yet",
       "emptySubtitle": "Assign a quiz and share its results with this PLC to pool the team’s data here.",
-      "noMatches": "No assessments match this filter."
+      "noMatches": "No assessments match this filter.",
+      "folders": {
+        "sidebarLabel": "Folders",
+        "moveToFolder": "Move to folder…",
+        "noFolder": "No folder",
+        "dragHandle": "Drag to move",
+        "movedToast": "Moved to “{{folder}}”",
+        "movedToRootToast": "Moved out of folders",
+        "moveFailed": "Couldn’t move that item. Try again.",
+        "suggestedTitle": "Suggested from your unit labels",
+        "suggestedCreated": "Created “{{folder}}” from your unit labels.",
+        "emptyFolder": "Nothing in this folder yet."
+      }
     },
     "assessmentDetail": {
       "back": "All assessments",

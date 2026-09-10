@@ -1110,7 +1110,19 @@
       "loadError": "Impossible de charger les évaluations.",
       "emptyTitle": "Aucune évaluation pour l’instant",
       "emptySubtitle": "Attribuez un quiz et partagez ses résultats avec cette CAP pour regrouper ici les données de l’équipe.",
-      "noMatches": "Aucune évaluation ne correspond à ce filtre."
+      "noMatches": "Aucune évaluation ne correspond à ce filtre.",
+      "folders": {
+        "sidebarLabel": "Dossiers",
+        "moveToFolder": "Déplacer vers un dossier…",
+        "noFolder": "Aucun dossier",
+        "dragHandle": "Glisser pour déplacer",
+        "movedToast": "Déplacé vers « {{folder}} »",
+        "movedToRootToast": "Retiré des dossiers",
+        "moveFailed": "Impossible de déplacer cet élément. Réessayez.",
+        "suggestedTitle": "Suggestions basées sur vos libellés d’unité",
+        "suggestedCreated": "« {{folder}} » créé à partir de vos libellés d’unité.",
+        "emptyFolder": "Ce dossier est encore vide."
+      }
     },
     "assessmentDetail": {
       "back": "Toutes les évaluations",

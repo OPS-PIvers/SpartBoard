@@ -610,6 +610,20 @@ const REQUIRED_SEARCH_KEYS = [
  * Decision 3.2). The calm "Viewer — read only" affordance shown where content
  * create/edit/delete affordances would otherwise render.
  */
+/** Keys within plcDashboard.assessmentList.folders (PLC folders sidebar). */
+const REQUIRED_ASSESSMENT_LIST_FOLDERS_KEYS = [
+  'sidebarLabel',
+  'moveToFolder',
+  'noFolder',
+  'dragHandle',
+  'movedToast',
+  'movedToRootToast',
+  'moveFailed',
+  'suggestedTitle',
+  'suggestedCreated',
+  'emptyFolder',
+] as const;
+
 const REQUIRED_VIEWER_KEYS = [
   'badge',
   'badgeTooltip',
@@ -693,6 +707,10 @@ const WAVE3_KEY_GROUPS: ReadonlyArray<{
   {
     path: 'plcDashboard.assessmentsTypes',
     keys: REQUIRED_ASSESSMENTS_TYPES_KEYS,
+  },
+  {
+    path: 'plcDashboard.assessmentList.folders',
+    keys: REQUIRED_ASSESSMENT_LIST_FOLDERS_KEYS,
   },
 ];
 

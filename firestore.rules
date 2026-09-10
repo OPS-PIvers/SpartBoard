@@ -2108,7 +2108,7 @@ service cloud.firestore {
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
                'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
-               'sourceQuizId', 'dirtyAt'
+               'sourceQuizId', 'dirtyAt', 'folderId'
              ])
           && request.resource.data.id == assessmentId
           && request.resource.data.createdBy == request.auth.uid
@@ -2137,6 +2137,11 @@ service cloud.firestore {
                !('sourceQuizId' in request.resource.data)
                || request.resource.data.sourceQuizId is string
              )
+          && (
+               !('folderId' in request.resource.data)
+               || request.resource.data.folderId == null
+               || request.resource.data.folderId is string
+             )
           && request.resource.data.get('dirtyAt', null) == null;
 
         // Update: non-viewer member mutates working fields (title/unitLabel/
@@ -2148,7 +2153,7 @@ service cloud.firestore {
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
                'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
-               'sourceQuizId', 'dirtyAt'
+               'sourceQuizId', 'dirtyAt', 'folderId'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
@@ -2167,6 +2172,11 @@ service cloud.firestore {
           && plcSubNullableTimeFieldOk('dueAt')
           && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('updatedAt')
+          && (
+               !('folderId' in request.resource.data)
+               || request.resource.data.folderId == null
+               || request.resource.data.folderId is string
+             )
           // Server-written dirtyAt and the sourceQuizId pointer must round-trip
           // unchanged: clients can neither forge nor clear them.
           && request.resource.data.get('sourceQuizId', null)
@@ -2280,7 +2290,8 @@ service cloud.firestore {
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt',
-               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId'
+               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId',
+               'folderId'
              ])
           && plcQuizRunSettingsOk()
           && plcQuizId == request.resource.data.id
@@ -2295,6 +2306,11 @@ service cloud.firestore {
           && request.resource.data.sharedByName is string
           && request.resource.data.sharedAt is int
           && request.resource.data.updatedAt is int
+          && (
+               !('folderId' in request.resource.data)
+               || request.resource.data.folderId == null
+               || request.resource.data.folderId is string
+             )
           && plcSubDeletedAtOk();
 
         // Update: non-viewer member mirrors title/questionCount/run-settings/
@@ -2306,7 +2322,8 @@ service cloud.firestore {
                'id', 'title', 'questionCount', 'syncGroupId',
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt',
-               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId'
+               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId',
+               'folderId'
              ])
           && plcQuizRunSettingsOk()
           && request.resource.data.id == resource.data.id
@@ -2319,11 +2336,39 @@ service cloud.firestore {
           && request.resource.data.questionCount is int
           && request.resource.data.questionCount >= 0
           && request.resource.data.updatedAt is int
+          && (
+               !('folderId' in request.resource.data)
+               || request.resource.data.folderId == null
+               || request.resource.data.folderId is string
+             )
           && plcSubDeletedAtOk();
 
         // Non-viewer member can unshare (PLC-owned model); viewers denied.
         allow delete: if request.auth != null
           && plcCanEditContent(plcId);
+      }
+
+      // PLC folders (PLC_ASSESSMENT_DATA §3.4): shared tree for the Assessments list.
+      match /folders/{folderId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+        allow create, update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'name', 'parentId', 'order', 'createdAt', 'updatedAt'
+             ])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && (
+               request.resource.data.parentId == null
+               || request.resource.data.parentId is string
+             )
+          && request.resource.data.order is int
+          && request.resource.data.createdAt is int
+          && request.resource.data.updatedAt is int;
+        allow delete: if request.auth != null && plcCanEditContent(plcId);
       }
 
       // PLC Video Activity Library (Phase 4). Mirrors the quiz library —
