@@ -338,9 +338,14 @@ export const SettingsDrawerHost: React.FC = () => {
     }
     dispatchSchema({ type: widgetType, schema: undefined });
     let cancelled = false;
-    void loader().then((loaded) => {
-      if (!cancelled) dispatchSchema({ type: widgetType, schema: loaded });
-    });
+    void loader()
+      .then((loaded) => {
+        if (!cancelled) dispatchSchema({ type: widgetType, schema: loaded });
+      })
+      .catch(() => {
+        // A rejected chunk load falls back to legacy content, not a stuck skeleton.
+        if (!cancelled) dispatchSchema({ type: widgetType, schema: null });
+      });
     return () => {
       cancelled = true;
     };
