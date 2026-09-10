@@ -704,6 +704,8 @@ function useStableActions(
     doc(db, PLCS_COLLECTION, latest.current.plcId, 'docs', docId);
   const assessmentRef = (assessmentId: string) =>
     doc(db, PLCS_COLLECTION, latest.current.plcId, 'assessments', assessmentId);
+  const quizRef = (plcQuizId: string) =>
+    doc(db, PLCS_COLLECTION, latest.current.plcId, 'quizzes', plcQuizId);
   const meetingRef = (meetingId: string) =>
     doc(db, PLCS_COLLECTION, latest.current.plcId, 'meetings', meetingId);
 
@@ -986,6 +988,57 @@ function useStableActions(
         deletedAt: null,
         updatedAt: serverTimestamp(),
       });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [latest]
+  );
+  // Archive a unified Assessments row (drops Unshare): flips `archived` on the
+  // quiz entry and/or `status` on the assessment in one batch, covering rows
+  // that have never been assigned (no assessment doc).
+  const archiveQuiz = useCallback(
+    async (target: {
+      plcQuizId: string | null;
+      assessmentId: string | null;
+    }): Promise<void> => {
+      requireUser();
+      const batch = writeBatch(db);
+      if (target.plcQuizId) {
+        batch.update(quizRef(target.plcQuizId), {
+          archived: true,
+          updatedAt: Date.now(),
+        });
+      }
+      if (target.assessmentId) {
+        batch.update(assessmentRef(target.assessmentId), {
+          status: 'closed',
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [latest]
+  );
+  const restoreQuiz = useCallback(
+    async (target: {
+      plcQuizId: string | null;
+      assessmentId: string | null;
+    }): Promise<void> => {
+      requireUser();
+      const batch = writeBatch(db);
+      if (target.plcQuizId) {
+        batch.update(quizRef(target.plcQuizId), {
+          archived: false,
+          updatedAt: Date.now(),
+        });
+      }
+      if (target.assessmentId) {
+        batch.update(assessmentRef(target.assessmentId), {
+          status: 'active',
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -1278,6 +1331,8 @@ function useStableActions(
       updateAssessment,
       deleteAssessment,
       restoreAssessment,
+      archiveQuiz,
+      restoreQuiz,
       createMeeting,
       updateMeeting,
       saveMeeting,
@@ -1302,6 +1357,8 @@ function useStableActions(
       updateAssessment,
       deleteAssessment,
       restoreAssessment,
+      archiveQuiz,
+      restoreQuiz,
       createMeeting,
       updateMeeting,
       saveMeeting,

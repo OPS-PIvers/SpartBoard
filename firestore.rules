@@ -2291,9 +2291,10 @@ service cloud.firestore {
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt',
                'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId',
-               'folderId'
+               'folderId', 'archived'
              ])
           && plcQuizRunSettingsOk()
+          && (!('archived' in request.resource.data) || request.resource.data.archived is bool)
           && plcQuizId == request.resource.data.id
           && request.resource.data.sharedBy == request.auth.uid
           && request.resource.data.title is string
@@ -2323,9 +2324,10 @@ service cloud.firestore {
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt',
                'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId',
-               'folderId'
+               'folderId', 'archived'
              ])
           && plcQuizRunSettingsOk()
+          && (!('archived' in request.resource.data) || request.resource.data.archived is bool)
           && request.resource.data.id == resource.data.id
           && request.resource.data.syncGroupId == resource.data.syncGroupId
           && request.resource.data.sharedBy == resource.data.sharedBy

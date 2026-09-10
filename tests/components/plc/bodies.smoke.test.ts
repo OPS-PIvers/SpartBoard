@@ -1,7 +1,6 @@
 /**
- * Block A smoke test — the Phase 2B body extraction (`PlcQuizLibraryBody`)
- * and the shared section bodies should all be importable React function
- * components.
+ * Block A smoke test — the shared section bodies should all be importable
+ * React function components.
  *
  * This is intentionally a static-shape test, not a render test. The
  * bodies pull in real Firestore / Drive collaborators through their
@@ -22,17 +21,12 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { PlcQuizLibraryBody } from '@/components/plc/bodies/PlcQuizLibraryBody';
 import { PlcAssessmentsBody } from '@/components/plc/bodies/PlcAssessmentsBody';
 import { NotesBody } from '@/components/plc/bodies/NotesBody';
 import { PlcSharedBoardsBody } from '@/components/plc/bodies/PlcSharedBoardsBody';
 import { MembersBody } from '@/components/plc/bodies/MembersBody';
 
 describe('plc bodies — module shape', () => {
-  it('Phase 2B bodies are function components', () => {
-    expect(typeof PlcQuizLibraryBody).toBe('function');
-  });
-
   it('the unified Assessments host body (Wave-4) is a function component', () => {
     expect(typeof PlcAssessmentsBody).toBe('function');
   });

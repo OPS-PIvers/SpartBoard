@@ -243,6 +243,20 @@ export interface PlcActions {
   deleteAssessment: (assessmentId: string) => Promise<void>;
   /** Restore a soft-deleted assessment by clearing its `deletedAt` tombstone. */
   restoreAssessment: (assessmentId: string) => Promise<void>;
+  /**
+   * Archive a unified Assessments-list row. Writes `archived: true` on the
+   * quiz entry (if `plcQuizId`) and/or `status: 'closed'` on the assessment
+   * (if `assessmentId`) in one batch — covers rows with no assessment doc yet.
+   */
+  archiveQuiz: (target: {
+    plcQuizId: string | null;
+    assessmentId: string | null;
+  }) => Promise<void>;
+  /** Restore an archived row by clearing `archived` / reopening the assessment. */
+  restoreQuiz: (target: {
+    plcQuizId: string | null;
+    assessmentId: string | null;
+  }) => Promise<void>;
   // --- Meeting records (Decisions 4.0 / 4.0b, §3.7) ---
   /**
    * Create an `in-progress` meeting record (Pick step, §6.2) with

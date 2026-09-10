@@ -668,22 +668,11 @@
       "tablistLabel": "Notas y documentos"
     },
     "quizLibrary": {
-      "heading": "Cuestionarios Compartidos",
-      "count_one": "{{count}} cuestionario",
-      "count_other": "{{count}} cuestionarios",
-      "emptyTitle": "Aún no hay cuestionarios compartidos",
-      "emptySubtitle": "Abre el widget de Cuestionario en tu tablero, haz clic en el menú de cualquier cuestionario y elige \"Compartir con la Comunidad\" para agregarlo aquí.",
-      "bySharer": "compartido por {{name}}",
-      "unknownSharer": "un compañero",
-      "questionCount_one": "{{count}} pregunta",
-      "questionCount_other": "{{count}} preguntas",
       "addToMyLibrary": "Agregar a mi biblioteca",
       "reimport": "Reimportar",
       "inLibrary": "En tu biblioteca",
       "alreadySynced": "\"{{title}}\" ya está sincronizado con tu biblioteca.",
       "unshareAction": "Dejar de compartir",
-      "unshareYours": "Dejar de compartir en la Comunidad",
-      "unshareTeammate": "Dejar de compartir en la Comunidad (cualquier miembro puede eliminar)",
       "unshareTitle": "Dejar de compartir cuestionario",
       "unshareConfirm": "¿Eliminar \"{{title}}\" de esta Comunidad? Los demás compañeros perderán acceso a la entrada de biblioteca compartida. Las copias personales (si las hay) seguirán funcionando.",
       "unshared": "\"{{title}}\" eliminado de esta Comunidad.",
@@ -692,15 +681,16 @@
       "importedCopy": "\"{{title}}\" copiado a tu biblioteca.",
       "importFailed": "No se pudo importar el cuestionario.",
       "editAction": "Editar",
-      "editTooltip": "Editar en colaboración (los cambios se sincronizan con los compañeros)",
-      "editTooltipAutoImport": "Editar en colaboración — se agrega a tu biblioteca en la primera edición",
       "editAutoImported": "\"{{title}}\" agregado a tu biblioteca — abriendo editor.",
       "editSaved": "Cuestionario guardado — los compañeros se sincronizarán automáticamente.",
       "editConflict": "Otro profesor publicó una actualización de este cuestionario. Incorporamos sus cambios; tus ediciones no guardadas no se guardaron. Vuelve a abrir el cuestionario para volver a aplicarlas.",
       "editFailed": "No se pudo abrir el editor.",
       "driveRequired": "Conecta Google Drive en tu cuenta para importar cuestionarios de la Comunidad.",
       "driveRequiredForEdit": "Conecta Google Drive en tu cuenta para editar cuestionarios de la Comunidad.",
-      "driveDisconnected": "Conecta Google Drive para importar cuestionarios de la Comunidad a tu biblioteca personal."
+      "shareCta": {
+        "driveDisconnected": "Conecta Google Drive para compartir un cuestionario.",
+        "tooltip": "Elige un cuestionario de tu biblioteca personal para compartirlo con esta Comunidad."
+      }
     },
     "rubricLibrary": {
       "heading": "Rúbricas Compartidas",
@@ -1080,14 +1070,14 @@
       "filters": {
         "label": "Filtrar evaluaciones",
         "all": "Todas",
+        "notStarted": "Sin iniciar",
         "inProgress": "En progreso",
         "scored": "Calificadas",
-        "libraryOnly": "Solo biblioteca"
+        "archived": "Archivadas"
       },
       "status": {
         "scored": "Calificada",
         "inProgress": "En progreso",
-        "libraryOnly": "Solo biblioteca",
         "notStarted": "Sin iniciar"
       },
       "untitled": "Evaluación sin título",
@@ -1099,21 +1089,25 @@
       "archived": "Archivada",
       "noResultsYet": "Aún sin resultados",
       "assign": "Asignar a mis clases",
+      "shareQuiz": "Compartir un cuestionario",
       "moreActions": "Más acciones para {{title}}",
       "rename": "Renombrar",
       "archive": "Archivar",
+      "restore": "Restaurar",
       "renamePrompt": "Nuevo nombre para esta evaluación",
       "renameFailed": "No se pudo renombrar la evaluación. Inténtalo de nuevo.",
       "archivedToast": "«{{title}}» archivada.",
       "archiveFailed": "No se pudo archivar la evaluación. Inténtalo de nuevo.",
+      "restoredToast": "«{{title}}» restaurada.",
+      "restoreFailed": "No se pudo restaurar esa evaluación. Inténtalo de nuevo.",
       "searchLabel": "Buscar evaluaciones",
       "searchPlaceholder": "Buscar…",
-      "manageLibrary": "Gestionar cuestionarios compartidos",
       "loading": "Cargando evaluaciones…",
       "loadError": "No se pudieron cargar las evaluaciones.",
       "emptyTitle": "Aún no hay evaluaciones",
-      "emptySubtitle": "Asigna un cuestionario y comparte sus resultados con esta Comunidad para reunir aquí los datos del equipo.",
+      "emptySubtitle": "Comparte un cuestionario con esta Comunidad y luego asígnalo para reunir aquí los resultados del equipo.",
       "noMatches": "Ninguna evaluación coincide con este filtro.",
+      "noArchived": "No hay cuestionarios archivados.",
       "folders": {
         "sidebarLabel": "Carpetas",
         "moveToFolder": "Mover a carpeta…",

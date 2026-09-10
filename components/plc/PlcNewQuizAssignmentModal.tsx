@@ -256,7 +256,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       const plcPoolSyncGroupId = resolvePlcPoolSyncGroupId({
         quizSyncGroupId: pickedQuiz.sync?.groupId,
         quizTitle: pickedQuiz.title,
-        libraryEntries: plcLibrary,
+        libraryEntries: plcLibrary.filter((entry) => !entry.archived),
       });
 
       const { id: assignmentId } = await createAssignment(

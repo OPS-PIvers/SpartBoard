@@ -56,22 +56,11 @@ const REQUIRED_TABS_KEYS = [
 
 /** Keys within plcDashboard.quizLibrary */
 const REQUIRED_QUIZ_LIBRARY_KEYS = [
-  'heading',
-  'count_one',
-  'count_other',
-  'emptyTitle',
-  'emptySubtitle',
-  'bySharer',
-  'unknownSharer',
-  'questionCount_one',
-  'questionCount_other',
   'addToMyLibrary',
   'reimport',
   'inLibrary',
   'alreadySynced',
   'unshareAction',
-  'unshareYours',
-  'unshareTeammate',
   'unshareTitle',
   'unshareConfirm',
   'unshared',
@@ -80,15 +69,13 @@ const REQUIRED_QUIZ_LIBRARY_KEYS = [
   'importedCopy',
   'importFailed',
   'editAction',
-  'editTooltip',
-  'editTooltipAutoImport',
   'editAutoImported',
   'editSaved',
   'editConflict',
   'editFailed',
   'driveRequired',
   'driveRequiredForEdit',
-  'driveDisconnected',
+  'shareCta',
 ] as const;
 
 /** Keys within plcDashboard.rubricLibrary (M12 Phase 3-I PLC rubric library). */

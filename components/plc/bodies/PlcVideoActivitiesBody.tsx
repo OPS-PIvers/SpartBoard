@@ -1,8 +1,7 @@
 /**
  * PlcVideoActivitiesBody — Phase 4 body for the PLC Video Activity Library.
  *
- * Mirrors `PlcQuizLibraryBody` in shape and lifecycle. Owns the row list,
- * the import modal, and the inline editor for the canonical activity.
+ * Owns the row list, the import modal, and the inline editor for the canonical activity.
  *
  *   - "Add to my library" — opens `PlcVideoActivityImportModal` (sync-or-
  *     copy picker). On Sync we pull canonical content from
@@ -365,7 +364,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           plcVideoActivityId: target.plcVideoActivityId,
           mode,
         });
-        // Rollback path mirrors PlcQuizLibraryBody: if we joined the
+        // Rollback: if we joined the
         // synced group before the failure, leave it so we don't pollute
         // the participants map with a non-member. Likewise, if we saved
         // a local copy before the failure, delete it. Both rollback
@@ -607,9 +606,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
    * content, mint a synced group if one doesn't exist yet, attach sync
    * linkage, then write the PLC subcoll header.
    *
-   * Failure modes mirror `PlcQuizLibraryBody.handleShareFromPicker`
-   * exactly — see that handler's docstring for the full enumeration. In
-   * particular: if `writePlcVideoActivityEntry` fails after group +
+   * Failure modes: if `writePlcVideoActivityEntry` fails after group +
    * linkage succeeded, the local activity keeps a self-only sync linkage
    * and is tagged as
    * `shareFromPicker.orphanedGroup` in monitoring.

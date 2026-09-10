@@ -1,7 +1,4 @@
-/**
- * PlcAssessmentList — status badges, the filter chip, search, row navigation,
- * editor-only actions, and the shared-library disclosure.
- */
+// PlcAssessmentList — badges, filters, row actions, archive/restore and the share CTA.
 
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
@@ -33,13 +30,6 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    user: { uid: 'uid-alice' },
-    getAssignmentMode: () => 'submissions',
-  }),
-}));
-
 const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast }),
@@ -52,6 +42,8 @@ vi.mock('@/context/useDialog', () => ({
 }));
 
 const updateAssessment = vi.fn(() => Promise.resolve());
+const archiveQuiz = vi.fn(() => Promise.resolve());
+const restoreQuiz = vi.fn(() => Promise.resolve());
 let mockCanEdit = true;
 let mockAggregatesSlice: {
   data: PlcAssessmentAggregate[];
@@ -68,7 +60,7 @@ let mockAssessmentsSlice: {
 let mockMembers: PlcMember[] = [];
 vi.mock('@/context/usePlcContext', () => ({
   useCanEditPlcContent: () => mockCanEdit,
-  usePlcActions: () => ({ updateAssessment }),
+  usePlcActions: () => ({ updateAssessment, archiveQuiz, restoreQuiz }),
   usePlcAggregatesData: () => mockAggregatesSlice,
   usePlcAssessmentsData: () => mockAssessmentsSlice,
   usePlcMembers: () => mockMembers,
@@ -95,9 +87,27 @@ vi.mock('@/hooks/usePlcFolders', () => ({
   }),
 }));
 
-let mockPersonalQuizzes: Array<{ id: string }> = [{ id: 'mine' }];
-vi.mock('@/hooks/useQuiz', () => ({
-  useQuiz: () => ({ quizzes: mockPersonalQuizzes, isDriveConnected: true }),
+const importQuiz = vi.fn();
+const assignQuiz = vi.fn();
+const editQuiz = vi.fn();
+const openVersionHistory = vi.fn();
+const openSharePicker = vi.fn();
+let mockInLibraryGroups: string[] = [];
+let mockDriveConnected = true;
+vi.mock('@/hooks/usePlcQuizActions', () => ({
+  usePlcQuizActions: () => ({
+    importQuiz,
+    reimportQuiz: importQuiz,
+    assignQuiz,
+    editQuiz,
+    openVersionHistory,
+    openSharePicker,
+    busyRowId: null,
+    busy: false,
+    isDriveConnected: mockDriveConnected,
+    isInLibrary: (groupId: string) => mockInLibraryGroups.includes(groupId),
+    modals: <div data-testid="quiz-action-modals" />,
+  }),
 }));
 
 const spaNavigate = vi.fn<(path: string) => void>();
@@ -110,13 +120,6 @@ vi.mock('@/utils/plcPath', async (importActual) => {
     },
   };
 });
-
-vi.mock('@/components/plc/bodies/PlcQuizLibraryBody', () => ({
-  PlcQuizLibraryBody: () => <div data-testid="quiz-library-body" />,
-}));
-vi.mock('@/components/plc/PlcNewQuizAssignmentModal', () => ({
-  PlcNewQuizAssignmentModal: () => <div data-testid="assign-modal" />,
-}));
 
 import { PlcAssessmentList } from '@/components/plc/assessments/PlcAssessmentList';
 
@@ -178,23 +181,30 @@ function makeAssessment(
   };
 }
 
+function makeEntry(overrides: Partial<PlcQuizEntry> = {}): PlcQuizEntry {
+  return {
+    id: 'lib-1',
+    title: 'Ratios warm-up',
+    questionCount: 6,
+    syncGroupId: 'g-lib',
+    sharedBy: 'uid-bob',
+    sharedByEmail: 'bob@school.edu',
+    sharedByName: 'Bob',
+    sharedAt: 900,
+    updatedAt: 900,
+    ...overrides,
+  };
+}
+
 function setDefaults() {
   mockCanEdit = true;
   promptResult = 'Renamed CFA';
   mockMembers = members;
-  mockPersonalQuizzes = [{ id: 'mine' }];
+  mockInLibraryGroups = [];
+  mockDriveConnected = true;
   mockLibrary = [
-    {
-      id: 'lib-1',
-      title: 'Ratios warm-up',
-      questionCount: 6,
-      syncGroupId: 'g-lib',
-      sharedBy: 'uid-bob',
-      sharedByEmail: 'bob@school.edu',
-      sharedByName: 'Bob',
-      sharedAt: 900,
-      updatedAt: 900,
-    },
+    makeEntry(),
+    makeEntry({ id: 'lib-2', syncGroupId: 'g-scored' }),
   ];
   mockAssessmentsSlice = {
     data: [
@@ -230,8 +240,15 @@ function setDefaults() {
   };
   addToast.mockReset();
   updateAssessment.mockClear();
+  archiveQuiz.mockClear();
+  restoreQuiz.mockClear();
   spaNavigate.mockReset();
   showPrompt.mockClear();
+  importQuiz.mockClear();
+  assignQuiz.mockClear();
+  editQuiz.mockClear();
+  openVersionHistory.mockClear();
+  openSharePicker.mockClear();
 }
 
 function rowByTitle(title: string): HTMLElement {
@@ -240,6 +257,12 @@ function rowByTitle(title: string): HTMLElement {
     .find((r) => r.textContent?.includes(title));
   if (!row) throw new Error(`row ${title} not found`);
   return row;
+}
+
+function openKebab(row: HTMLElement) {
+  fireEvent.click(
+    within(row).getByRole('button', { name: /More actions for/ })
+  );
 }
 
 describe('PlcAssessmentList', () => {
@@ -255,13 +278,21 @@ describe('PlcAssessmentList', () => {
     expect(badge('Fractions CFA')).toBe('scored');
     expect(badge('Decimals quiz')).toBe('inProgress');
     expect(badge('Percents exit ticket')).toBe('notStarted');
-    expect(badge('Ratios warm-up')).toBe('libraryOnly');
+    expect(badge('Ratios warm-up')).toBe('notStarted');
     expect(rowByTitle('Fractions CFA')).toHaveTextContent('2 of 3 teachers');
-    expect(rowByTitle('Fractions CFA')).toHaveTextContent('40 students');
     expect(rowByTitle('Ratios warm-up')).toHaveTextContent('No results yet');
   });
 
-  it('filters with the status chip and the search box', () => {
+  it('shows the "In your library" badge only for imported sync groups', () => {
+    mockInLibraryGroups = ['g-lib'];
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    expect(rowByTitle('Ratios warm-up')).toHaveTextContent('In your library');
+    expect(rowByTitle('Decimals quiz')).not.toHaveTextContent(
+      'In your library'
+    );
+  });
+
+  it('filters with the status chips and the search box', () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Scored' }));
     expect(screen.getAllByTestId('assessment-row')).toHaveLength(1);
@@ -272,7 +303,6 @@ describe('PlcAssessmentList', () => {
       target: { value: 'DECIMALS' },
     });
     expect(screen.getAllByTestId('assessment-row')).toHaveLength(1);
-    expect(screen.getByText('Decimals quiz')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Search assessments'), {
       target: { value: 'zzz' },
@@ -280,6 +310,24 @@ describe('PlcAssessmentList', () => {
     expect(
       screen.getByText('No assessments match this filter.')
     ).toBeInTheDocument();
+  });
+
+  it('shows archived rows only under the Archived chip', () => {
+    mockAssessmentsSlice.data = [
+      makeAssessment({ id: 'a-old', title: 'Old CFA', status: 'closed' }),
+      makeAssessment(),
+    ];
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    expect(screen.queryByText('Old CFA')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    expect(screen.getAllByTestId('assessment-row')).toHaveLength(1);
+    expect(screen.getByText('Old CFA')).toBeInTheDocument();
+  });
+
+  it('shows the archived empty state when nothing is archived', () => {
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    expect(screen.getByText('No archived quizzes.')).toBeInTheDocument();
   });
 
   it('navigates to the detail route when an assessment row is clicked', () => {
@@ -292,53 +340,106 @@ describe('PlcAssessmentList', () => {
     expect(spaNavigate).toHaveBeenCalledWith('/plc/plc-1/assessments/a-scored');
   });
 
-  it('renames through the prompt and archives via the kebab (editors only)', async () => {
+  it('offers the library actions in the kebab of a library-only row', () => {
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    const row = rowByTitle('Ratios warm-up');
+    openKebab(row);
+    fireEvent.click(
+      within(row).getByRole('menuitem', { name: 'Add to my library' })
+    );
+    expect(importQuiz).toHaveBeenCalledWith(
+      expect.objectContaining({ plcQuizId: 'lib-1', syncGroupId: 'g-lib' })
+    );
+
+    openKebab(row);
+    fireEvent.click(within(row).getByRole('menuitem', { name: 'Edit' }));
+    expect(editQuiz).toHaveBeenCalled();
+
+    openKebab(row);
+    fireEvent.click(
+      within(row).getByRole('menuitem', { name: 'Version history' })
+    );
+    expect(openVersionHistory).toHaveBeenCalled();
+
+    // No live assessment yet, so there is nothing to rename.
+    openKebab(row);
+    expect(within(row).queryByRole('menuitem', { name: 'Rename' })).toBeNull();
+  });
+
+  it('assigns a row through the quiz actions hook', () => {
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    fireEvent.click(
+      within(rowByTitle('Ratios warm-up')).getByRole('button', {
+        name: 'Assign to my classes',
+      })
+    );
+    expect(assignQuiz).toHaveBeenCalledWith(
+      expect.objectContaining({ plcQuizId: 'lib-1' })
+    );
+  });
+
+  it('renames through the prompt', async () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     const row = rowByTitle('Fractions CFA');
-    fireEvent.click(
-      within(row).getByRole('button', { name: /More actions for/ })
-    );
+    openKebab(row);
     fireEvent.click(within(row).getByRole('menuitem', { name: 'Rename' }));
     await vi.waitFor(() =>
       expect(updateAssessment).toHaveBeenCalledWith('a-scored', {
         title: 'Renamed CFA',
       })
     );
+  });
 
-    fireEvent.click(
-      within(row).getByRole('button', { name: /More actions for/ })
-    );
+  it('archives with both ids and restores an archived row', async () => {
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    const row = rowByTitle('Fractions CFA');
+    openKebab(row);
     fireEvent.click(within(row).getByRole('menuitem', { name: 'Archive' }));
     await vi.waitFor(() =>
-      expect(updateAssessment).toHaveBeenCalledWith('a-scored', {
-        status: 'closed',
+      expect(archiveQuiz).toHaveBeenCalledWith({
+        plcQuizId: 'lib-2',
+        assessmentId: 'a-scored',
       })
     );
   });
 
-  it('hides assign, rename and archive for viewers', () => {
+  it('offers only Restore on an archived row', async () => {
+    mockAssessmentsSlice.data = [
+      makeAssessment({ id: 'a-old', title: 'Old CFA', status: 'closed' }),
+    ];
+    mockAggregatesSlice.data = [];
+    mockLibrary = [];
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+    const row = rowByTitle('Old CFA');
+    expect(
+      within(row).queryByRole('button', { name: 'Assign to my classes' })
+    ).toBeNull();
+    openKebab(row);
+    expect(within(row).queryByRole('menuitem', { name: 'Archive' })).toBeNull();
+    fireEvent.click(within(row).getByRole('menuitem', { name: 'Restore' }));
+    await vi.waitFor(() =>
+      expect(restoreQuiz).toHaveBeenCalledWith({
+        plcQuizId: null,
+        assessmentId: 'a-old',
+      })
+    );
+  });
+
+  it('opens the share picker from the primary button', () => {
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Share a quiz' }));
+    expect(openSharePicker).toHaveBeenCalled();
+  });
+
+  it('hides every editor action for viewers', () => {
     mockCanEdit = false;
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     expect(screen.queryByText('Assign to my classes')).toBeNull();
     expect(
       screen.queryByRole('button', { name: /More actions for/ })
     ).toBeNull();
-    expect(screen.queryByText('Assign Quiz')).toBeNull();
-  });
-
-  it('opens the assign modal from the header CTA and a row action', () => {
-    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Assign Quiz' }));
-    expect(screen.getByTestId('assign-modal')).toBeInTheDocument();
-  });
-
-  it('toggles the shared-quiz library disclosure', () => {
-    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
-    expect(screen.queryByTestId('quiz-library-body')).toBeNull();
-    fireEvent.click(
-      screen.getByRole('button', { name: /Manage shared quizzes/ })
-    );
-    expect(screen.getByTestId('quiz-library-body')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Share a quiz' })).toBeNull();
   });
 
   it('shows the empty state when there are no assessments or shared quizzes', () => {
