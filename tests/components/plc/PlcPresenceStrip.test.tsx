@@ -191,7 +191,7 @@ describe('PlcPresenceStrip', () => {
       {
         uid: 'uid-self',
         displayName: 'Alice',
-        section: 'sharedData',
+        section: 'assessments',
         lastActiveAt: now,
       },
     ];
@@ -200,7 +200,7 @@ describe('PlcPresenceStrip', () => {
 
     expect(screen.getByText(/just you here/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('listitem', { name: /You · in Data/i })
+      screen.getByRole('listitem', { name: /You · in Assessments/i })
     ).toBeInTheDocument();
   });
 

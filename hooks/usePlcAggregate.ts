@@ -29,7 +29,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import type { PlcAssessmentAggregate } from '@/types';
+import type { PlcAggregateChoiceRow, PlcAssessmentAggregate } from '@/types';
 import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import { usePlcSubcollection } from '@/context/usePlcContext';
@@ -69,12 +69,48 @@ function parsePerQuestion(
   ) {
     return null;
   }
+  const choiceDistribution = parseChoiceDistribution(rec.choiceDistribution);
   return {
     questionId: rec.questionId,
     text: rec.text,
     correctPercent: rec.correctPercent,
     points: rec.points,
+    ...optionalNumber('incorrectPercent', rec.incorrectPercent),
+    ...optionalNumber('answered', rec.answered),
+    ...optionalNumber('graded', rec.graded),
+    ...optionalNumber('correct', rec.correct),
+    ...(choiceDistribution ? { choiceDistribution } : {}),
   };
+}
+
+/** Spread helper: `{ [key]: value }` when `value` is a finite number, else `{}`. */
+function optionalNumber<K extends string>(
+  key: K,
+  value: unknown
+): Partial<Record<K, number>> {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? ({ [key]: value } as Record<K, number>)
+    : {};
+}
+
+/** Tolerant parse of the schema 2 `choiceDistribution` rows; malformed rows are skipped. */
+function parseChoiceDistribution(
+  raw: unknown
+): PlcAssessmentAggregate['perQuestion'][number]['choiceDistribution'] {
+  if (!Array.isArray(raw)) return undefined;
+  const rows: PlcAggregateChoiceRow[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue;
+    const rec = r as Record<string, unknown>;
+    if (typeof rec.label !== 'string' || typeof rec.count !== 'number')
+      continue;
+    rows.push({
+      label: rec.label,
+      count: rec.count,
+      isCorrect: rec.isCorrect === true,
+    });
+  }
+  return rows;
 }
 
 /**
@@ -120,6 +156,7 @@ export function parsePlcAggregate(
 ): PlcAssessmentAggregate | null {
   if (
     typeof data.schemaVersion !== 'number' ||
+    data.schemaVersion < 1 ||
     typeof data.teacherCount !== 'number' ||
     typeof data.studentCount !== 'number' ||
     typeof data.teamAveragePercent !== 'number' ||
@@ -151,6 +188,27 @@ export function parsePlcAggregate(
     perQuestion,
     perTeacher,
     ranAt: tsToMillis(data.ranAt),
+    // Schema 2 extras (server recompute); absent on legacy schema 1 docs.
+    ...(typeof data.title === 'string' && data.title
+      ? { title: data.title }
+      : {}),
+    ...(data.kind === 'quiz' || data.kind === 'video-activity'
+      ? { kind: data.kind }
+      : {}),
+    ...optionalNumber('sessionCount', data.sessionCount),
+    ...(Array.isArray(data.computedFromSessionIds)
+      ? {
+          computedFromSessionIds: data.computedFromSessionIds.filter(
+            (id): id is string => typeof id === 'string'
+          ),
+        }
+      : {}),
+    ...(data.alignment === 'byId' || data.alignment === 'positional'
+      ? { alignment: data.alignment }
+      : {}),
+    ...(typeof data.alignmentWarning === 'string' && data.alignmentWarning
+      ? { alignmentWarning: data.alignmentWarning }
+      : {}),
   };
 }
 
@@ -172,7 +230,7 @@ function indexAggregates(
 
 /**
  * Live subscription to a single PLC's anonymized assessment aggregates. Pass
- * `null` for `plcId` to disable the listener. Mirrors `usePlcContributions` —
+ * `null` for `plcId` to disable the listener. Mirrors `usePlcAssessments` —
  * same parser-drops-malformed defense, same render-time `prevPlcId` reset, and
  * the same provider back-compat bridge. The aggregates collection is read-only
  * for clients; no mutators are returned.

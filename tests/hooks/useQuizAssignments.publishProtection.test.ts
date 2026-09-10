@@ -68,10 +68,6 @@ vi.mock('@/hooks/usePlcAssignments', () => ({
   writePlcAssignmentTemplate: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/utils/plcContributions', () => ({
-  deletePlcContribution: vi.fn().mockResolvedValue(undefined),
-}));
-
 const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;

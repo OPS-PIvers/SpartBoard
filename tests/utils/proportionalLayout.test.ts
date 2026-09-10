@@ -7,6 +7,7 @@ import {
   propToPixel,
   fitAspectInside,
   applyMinSize,
+  applyMinSizePreserveAspect,
   computeWidgetPixelRect,
   getSafeViewport,
 } from '@/utils/proportionalLayout';
@@ -197,6 +198,52 @@ describe('computeWidgetPixelRect', () => {
     );
     expect(rect.w).toBeGreaterThanOrEqual(MIN_PIXEL_W);
     expect(rect.h).toBeGreaterThanOrEqual(MIN_PIXEL_H);
+  });
+
+  it('keeps the locked aspect ratio when a tiny aspect-fitted rect hits the min-size floor', () => {
+    // A 3:1 widget whose fitted size on this viewport is below both floors.
+    const aspectRatio = 3;
+    const rect = computeWidgetPixelRect(
+      { xProp: 0, yProp: 0, wProp: 0.02, hProp: 0.02, aspectRatio },
+      1920,
+      1080,
+      'preserve-aspect'
+    );
+    expect(rect.w).toBeGreaterThanOrEqual(MIN_PIXEL_W);
+    expect(rect.h).toBeGreaterThanOrEqual(MIN_PIXEL_H);
+    expect(rect.w / rect.h).toBeCloseTo(aspectRatio, 1);
+  });
+});
+
+describe('applyMinSizePreserveAspect', () => {
+  it('scales both dimensions together to hit the tighter floor', () => {
+    const rect = applyMinSizePreserveAspect({ x: 10, y: 10, w: 40, h: 20 });
+    expect(rect.w / rect.h).toBeCloseTo(2, 5);
+    expect(rect.w).toBeGreaterThanOrEqual(MIN_PIXEL_W);
+    expect(rect.h).toBeGreaterThanOrEqual(MIN_PIXEL_H);
+  });
+
+  it('leaves rects above both floors unchanged', () => {
+    const rect = applyMinSizePreserveAspect({ x: 5, y: 5, w: 200, h: 150 });
+    expect(rect).toEqual({ x: 5, y: 5, w: 200, h: 150 });
+  });
+
+  it('stays centered on the original rect', () => {
+    const rect = applyMinSizePreserveAspect({ x: 100, y: 100, w: 10, h: 10 });
+    expect(rect.x + rect.w / 2).toBeCloseTo(105, 5);
+    expect(rect.y + rect.h / 2).toBeCloseTo(105, 5);
+  });
+
+  it('floors a zero-width rect to minW/minH instead of producing NaN', () => {
+    const rect = applyMinSizePreserveAspect({ x: 0, y: 0, w: 0, h: 20 });
+    expect(rect.w).toBe(MIN_PIXEL_W);
+    expect(rect.h).toBe(MIN_PIXEL_H);
+  });
+
+  it('floors a zero-height rect to minW/minH instead of producing NaN', () => {
+    const rect = applyMinSizePreserveAspect({ x: 0, y: 0, w: 20, h: 0 });
+    expect(rect.w).toBe(MIN_PIXEL_W);
+    expect(rect.h).toBe(MIN_PIXEL_H);
   });
 });
 

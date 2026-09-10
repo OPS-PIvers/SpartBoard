@@ -3083,7 +3083,9 @@ describe('index barrel — deployed export set', () => {
     'plcWeeklyDigest',
     'prepareQuizReadAloudV1',
     // PLC analytics rollup + migration + discovery mirror
-    'aggregatePlcAssessment',
+    'markPlcAssessmentDirtyOnSession',
+    'markPlcAssessmentDirtyOnResponse',
+    'recomputePlcAssessments',
     'migratePlcs',
     'mirrorPlcIndex',
     // Guided Learning Storage slide GC

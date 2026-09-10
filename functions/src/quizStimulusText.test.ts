@@ -47,6 +47,7 @@ import {
   assertFetchableUrl,
   chargeOcrQuota,
   extractStimulusReadAloudText,
+  fetchPublicUrl,
   hasUsableTextLayer,
   MAX_SOURCE_BYTES,
   MAX_STORED_CHARS,
@@ -296,6 +297,7 @@ describe('extractStimulusReadAloudText', () => {
       source: 'needs-manual',
     });
     expect(deps.ocr).not.toHaveBeenCalled();
+    expect(deps.chargeOcr).not.toHaveBeenCalled();
   });
 
   it('returns needs-manual when OCR outruns the deadline', async () => {
@@ -351,6 +353,83 @@ describe('extractStimulusReadAloudText', () => {
       extractStimulusReadAloudText(imgReq, teacher, deps)
     ).rejects.toMatchObject({ code: 'resource-exhausted' });
     expect(deps.ocr).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchPublicUrl', () => {
+  const redirectTo = (location: string) =>
+    new Response(null, { status: 302, headers: { location } });
+
+  it('re-validates every redirect hop against the public-host rules', async () => {
+    const doFetch = vi.fn((input: string) =>
+      Promise.resolve(
+        input === 'https://example.com/a.png'
+          ? redirectTo('https://169.254.169.254/latest/meta-data')
+          : new Response('secret')
+      )
+    ) as unknown as typeof fetch;
+    await expect(
+      fetchPublicUrl('https://example.com/a.png', doFetch)
+    ).rejects.toThrow(/cannot be fetched/);
+    expect(doFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('follows a public redirect and returns the body', async () => {
+    const doFetch = vi.fn((input: string) =>
+      Promise.resolve(
+        input === 'https://example.com/a.png'
+          ? redirectTo('/final.png')
+          : new Response('ok bytes')
+      )
+    ) as unknown as typeof fetch;
+    const bytes = await fetchPublicUrl('https://example.com/a.png', doFetch);
+    expect(bytes.toString()).toBe('ok bytes');
+    expect(doFetch).toHaveBeenLastCalledWith('https://example.com/final.png', {
+      redirect: 'manual',
+    });
+  });
+
+  it('gives up after too many redirects', async () => {
+    const doFetch = vi.fn(() =>
+      Promise.resolve(redirectTo('https://example.com/next'))
+    ) as unknown as typeof fetch;
+    await expect(
+      fetchPublicUrl('https://example.com/a.png', doFetch)
+    ).rejects.toThrow(/Too many redirects/);
+  });
+
+  it('stops streaming past the cap when content-length lies or is absent', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_SOURCE_BYTES + 1));
+        controller.close();
+      },
+    });
+    const doFetch = vi.fn(() =>
+      Promise.resolve(new Response(stream))
+    ) as unknown as typeof fetch;
+    await expect(
+      fetchPublicUrl('https://example.com/a.png', doFetch)
+    ).rejects.toThrow(/too large/i);
+  });
+
+  it('rejects an oversized declared content-length and non-ok responses', async () => {
+    const big = vi.fn(() =>
+      Promise.resolve(
+        new Response('x', {
+          headers: { 'content-length': String(MAX_SOURCE_BYTES + 1) },
+        })
+      )
+    ) as unknown as typeof fetch;
+    await expect(
+      fetchPublicUrl('https://example.com/a.png', big)
+    ).rejects.toThrow(/too large/i);
+    const missing = vi.fn(() =>
+      Promise.resolve(new Response('nope', { status: 404 }))
+    ) as unknown as typeof fetch;
+    await expect(
+      fetchPublicUrl('https://example.com/a.png', missing)
+    ).rejects.toThrow(/404/);
   });
 });
 

@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 //        `admin.initializeApp()`. Both are mocked via (1) and (3) above, but
 //        the `setGlobalOptions` import also needs a firebase-functions/v2 stub.
 //
-// This mirrors the approach used by `aggregatePlcAssessment.test.ts` and
+// This mirrors the approach used by `gcPlcOrphans.test.ts` and
 // `detachPlcSyncLinkage.test.ts`, which test sibling modules with the same
 // module-level bootstrap pattern.
 

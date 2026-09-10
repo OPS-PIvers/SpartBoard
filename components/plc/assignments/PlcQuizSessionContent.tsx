@@ -307,8 +307,6 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       onUnlockResultsForStudent={unlockResultsForStudent}
       initialExportUrl={assignment.exportUrl ?? null}
       plcSheetUrl={assignment.plc?.sheetUrl ?? null}
-      plcId={assignment.plc?.id ?? null}
-      syncGroupId={assignment.sync?.groupId ?? null}
       initialExportedResponseIds={assignment.exportedResponseIds ?? null}
       onExportUrlSaved={(url) => setAssignmentExportUrl(assignment.id, url)}
       onExportedResponseIdsSaved={(ids) =>

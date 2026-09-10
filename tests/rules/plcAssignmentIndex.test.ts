@@ -6,8 +6,9 @@
 //   - author-only writes
 //   - schema lock-down (`keys().hasOnly([...])`) so future readers don't
 //     have to defensively parse unexpected payloads
-//   - `sheetUrl` pinned to the trusted Google Sheets domain (anti-phish);
-//     per-assignment sheets mean we can't pin to one canonical PLC URL
+//   - `sheetUrl` optional ('' when the assignment has no sheet), otherwise
+//     pinned to the trusted Google Sheets domain (anti-phish); per-assignment
+//     sheets mean we can't pin to one canonical PLC URL
 //   - update rule blocks owner takeover by a different PLC member
 //   - immutability of `id`, `ownerUid`, `createdAt` on update
 //
@@ -167,6 +168,25 @@ describe('plcs/{plcId}/assignment_index — create', () => {
       setDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
         validEntry()
+      )
+    );
+  });
+
+  it("accepts sheetUrl: '' (sheet export is optional since PLC_ASSESSMENT_DATA PR 1)", async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
+        validEntry({ sheetUrl: '' })
+      )
+    );
+  });
+
+  it('rejects a missing sheetUrl (the key must still be present)', async () => {
+    const { sheetUrl: _s, ...noSheet } = validEntry();
+    await assertFails(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
+        noSheet
       )
     );
   });
@@ -404,6 +424,15 @@ describe('plcs/{plcId}/assignment_index — update', () => {
       updateDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
         { unexpected: 'extra-field' }
+      )
+    );
+  });
+
+  it("owner can clear sheetUrl to '' on update", async () => {
+    await assertSucceeds(
+      updateDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
+        { sheetUrl: '' }
       )
     );
   });

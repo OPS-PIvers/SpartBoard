@@ -10,9 +10,11 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { QuizReadAloudManifest } from '@/types';
 import { useTranslation } from 'react-i18next';
-import { Users, Lock } from 'lucide-react';
+import { Users, Lock, Users2 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { usePlcs } from '@/hooks/usePlcs';
+import { SharePlcResultsModal } from '@/components/widgets/QuizWidget/components/SharePlcResultsModal';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
 import {
@@ -27,7 +29,10 @@ import {
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import { AssignmentStatusChip } from './AssignmentStatusChip';
-import type { UnifiedAssignmentRow } from './useUnifiedAssignments';
+import type {
+  QuizPlcActions,
+  UnifiedAssignmentRow,
+} from './useUnifiedAssignments';
 
 const SCHOOLOGY_PREFIX = 'schoology:';
 
@@ -69,13 +74,44 @@ const RosterRow: React.FC<{ row: AssignmentRosterRow }> = ({ row }) => {
   );
 };
 
-export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
-  row,
-}) => {
+export const AssignmentDetailPane: React.FC<{
+  row: UnifiedAssignmentRow;
+  /** Quiz-only PLC results actions (D12); absent hides the controls. */
+  quizPlcActions?: QuizPlcActions;
+}> = ({ row, quizPlcActions }) => {
   const { t } = useTranslation();
   const { user, orgId, canAccessFeature } = useAuth();
-  const { rosters } = useDashboard();
+  const { rosters, addToast } = useDashboard();
   const { saveEdit, closeNow } = useAssignmentDetailActions();
+  const { plcs } = usePlcs();
+  const [sharePlcOpen, setSharePlcOpen] = useState(false);
+  const [plcBusy, setPlcBusy] = useState(false);
+  const canSharePlc =
+    row.kind === 'quiz' && !!quizPlcActions && plcs.length > 0;
+
+  const handleStopSharingPlc = async () => {
+    if (!quizPlcActions || !row.plc) return;
+    setPlcBusy(true);
+    try {
+      await quizPlcActions.stopSharing(row.id);
+      addToast(
+        t('assignmentsHub.detail.stopSharingPlcDone', {
+          defaultValue: 'No longer sharing results with {{plc}}.',
+          plc: row.plc.name,
+        }),
+        'success'
+      );
+    } catch {
+      addToast(
+        t('assignmentsHub.detail.plcActionFailed', {
+          defaultValue: 'Could not update PLC sharing. Try again.',
+        }),
+        'error'
+      );
+    } finally {
+      setPlcBusy(false);
+    }
+  };
 
   // Edit-in-place (M17 §5 D3). "Adjusting state while rendering" (CLAUDE.md)
   // resets the draft + closes the editor whenever the selected assignment
@@ -332,6 +368,69 @@ export const AssignmentDetailPane: React.FC<{ row: UnifiedAssignmentRow }> = ({
             </div>
           )}
         </div>
+        {row.kind === 'quiz' && (!!row.plc || canSharePlc) && (
+          <div className="mt-1.5 flex items-center gap-2 text-xs">
+            <Users2
+              className="w-3.5 h-3.5 shrink-0 text-brand-blue-primary"
+              aria-hidden="true"
+            />
+            {row.plc ? (
+              <>
+                <span className="text-slate-600 truncate">
+                  {t('assignmentsHub.detail.sharingWithPlc', {
+                    defaultValue: 'Sharing results with {{plc}}',
+                    plc: row.plc.name,
+                  })}
+                </span>
+                {quizPlcActions && (
+                  <button
+                    type="button"
+                    onClick={() => void handleStopSharingPlc()}
+                    disabled={plcBusy}
+                    className="shrink-0 font-semibold text-slate-500 hover:text-brand-red-primary transition-colors disabled:opacity-40"
+                  >
+                    {t('assignmentsHub.detail.stopSharingPlc', {
+                      defaultValue: 'Stop sharing',
+                    })}
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSharePlcOpen(true)}
+                className="font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+              >
+                {t('assignmentsHub.detail.sharePlc', {
+                  defaultValue: 'Share results with PLC…',
+                })}
+              </button>
+            )}
+          </div>
+        )}
+        {sharePlcOpen && quizPlcActions && (
+          <SharePlcResultsModal
+            plcs={plcs}
+            assignment={{
+              id: row.id,
+              quizId: row.quizId ?? '',
+              quizTitle: row.title,
+              syncGroupId: row.syncGroupId,
+            }}
+            onClose={() => setSharePlcOpen(false)}
+            onConfirm={async (plc, poolSyncGroupId) => {
+              await quizPlcActions.share(row.id, { plc, poolSyncGroupId });
+              addToast(
+                t('assignmentsHub.detail.sharePlcDone', {
+                  defaultValue: 'Results now pool with {{plc}}.',
+                  plc: plc.name,
+                }),
+                'success'
+              );
+              setSharePlcOpen(false);
+            }}
+          />
+        )}
         {sections.length > 0 && (
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
             {sections.map((s) => (

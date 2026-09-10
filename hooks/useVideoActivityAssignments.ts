@@ -415,7 +415,7 @@ export const useVideoActivityAssignments = (
           ownerName,
           ownerEmail,
           title: activity.title,
-          sheetUrl: settings.plc.sheetUrl,
+          sheetUrl: settings.plc.sheetUrl ?? '',
           status: vaStatusToIndexStatus(initialStatus),
           createdAt: now,
         });
@@ -1035,8 +1035,7 @@ export const useVideoActivityAssignments = (
         // `activityData.questions`; without this guard each duplicated
         // unanswered question inflates pointsMax and deflates the
         // published score. Mirrors the identical fix in
-        // `computeVideoActivityScorePct` (videoActivityGrading.ts) and
-        // `buildContributionDoc` (plcContributions.ts).
+        // `computeVideoActivityScorePct` (videoActivityGrading.ts).
         const answeredQuestionIds = new Set<string>();
         for (const a of answers) answeredQuestionIds.add(a.questionId);
         for (const [qId, q] of questionsById) {

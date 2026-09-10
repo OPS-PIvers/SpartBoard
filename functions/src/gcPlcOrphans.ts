@@ -252,6 +252,7 @@ interface CategoryCounts {
   presence: number;
   tombstones: number;
   versionOverflow: number;
+  orphanAggregates: number;
 }
 
 type Firestore = admin.firestore.Firestore;
@@ -437,21 +438,33 @@ async function sweepPlc(
 
   // (d) Expired soft-delete tombstones across every soft-deletable subcollection.
   const expiredTombstones: admin.firestore.DocumentReference[] = [];
+  const liveAssessmentIds = new Set<string>();
   for (const sub of SOFT_DELETE_SUBCOLLECTIONS) {
     const subDocs = await fetchCategoryPaginated(plcRef.collection(sub));
     for (const d of subDocs) {
       if (isExpiredTombstone(d.data().deletedAt, now)) {
         expiredTombstones.push(d.ref);
+      } else if (sub === 'assessments' && d.data().deletedAt == null) {
+        liveAssessmentIds.add(d.id);
       }
     }
   }
 
-  const [activity, presence, tombstones] = await Promise.all([
+  // (f) Aggregates whose assessment is tombstoned or gone (server-only docs, safe to drop).
+  const aggregateDocs = await fetchCategoryPaginated(
+    plcRef.collection('aggregates')
+  );
+  const orphanAggregates = aggregateDocs
+    .filter((d: QueryDocSnap) => !liveAssessmentIds.has(d.id))
+    .map((d: QueryDocSnap) => d.ref);
+
+  const [activity, presence, tombstones, aggregates] = await Promise.all([
     deleteRefs(db, staleActivity),
     deleteRefs(db, stalePresence),
     deleteRefs(db, expiredTombstones),
+    deleteRefs(db, orphanAggregates),
   ]);
-  return { activity, presence, tombstones };
+  return { activity, presence, tombstones, orphanAggregates: aggregates };
 }
 
 /**
@@ -469,6 +482,7 @@ export async function runGcPlcOrphans(
     presence: 0,
     tombstones: 0,
     versionOverflow: 0,
+    orphanAggregates: 0,
   };
 
   // (a) + (e) operate on the canonical synced-group collections (PLC-independent).
@@ -527,6 +541,7 @@ export async function runGcPlcOrphans(
       counts.activity += perPlc.activity;
       counts.presence += perPlc.presence;
       counts.tombstones += perPlc.tombstones;
+      counts.orphanAggregates += perPlc.orphanAggregates;
     }
 
     lastPlcDoc = page.docs[page.docs.length - 1];
@@ -562,7 +577,8 @@ export const gcPlcOrphans = onSchedule(
         `${counts.activity} stale activity events, ` +
         `${counts.presence} stale presence docs, ` +
         `${counts.tombstones} expired tombstones, ` +
-        `${counts.versionOverflow} overflow version snapshots`
+        `${counts.versionOverflow} overflow version snapshots, ` +
+        `${counts.orphanAggregates} orphan aggregates`
     );
   }
 );

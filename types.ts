@@ -334,6 +334,8 @@ export interface PlcFeatureSettings {
   todos: boolean;
   /** PLC Shared Boards tab (Phase 6). */
   sharedBoards: boolean;
+  /** Per-teacher rows on pooled assessment results (plan D3); off by default. */
+  showPerTeacher: boolean;
 }
 
 export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
@@ -342,6 +344,7 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   notes: true,
   todos: true,
   sharedBoards: true,
+  showPerTeacher: false,
 };
 
 /**
@@ -896,15 +899,25 @@ export interface PlcCommonAssessment {
    * GC hard-deletes it after 30 days).
    */
   deletedAt?: number | null;
+  /** Local quiz id of the first assignment that created this record. */
+  sourceQuizId?: string;
+  /** ms set by `markPlcAssessmentDirty`, cleared by the recompute. Server-owned. */
+  dirtyAt?: number | null;
+}
+
+/** One answer-choice row of a pooled MC distribution. Labels are option text, never student text. */
+export interface PlcAggregateChoiceRow {
+  label: string;
+  count: number;
+  isCorrect: boolean;
 }
 
 /**
- * The anonymized, member-readable rollup for one common assessment (Decisions
- * 6.0 + 3.3), stored at `plcs/{plcId}/aggregates/{assessmentId}` and written
- * **server-side only** by the `aggregatePlcAssessment` Cloud Function (clients
- * may read but never write). This is the PII fix and the Meeting-Mode data
- * spine in one: members read this small aggregate instead of every teacher's
- * raw `PlcContribution` (which carries student names and is owner-read-only).
+ * The anonymized, member-readable rollup for one common assessment, stored at
+ * `plcs/{plcId}/aggregates/{assessmentId}` and written **server-side only** by
+ * `recomputePlcAssessments` from the linked `quiz_sessions` (clients may read
+ * but never write). `schemaVersion` 1 docs came from the retired contribution
+ * pipeline and lack the optional fields below.
  *
  * Crucially, `perTeacher` rows carry `studentCount` but **no student names and
  * no per-student rows** — the FERPA boundary is enforced here and in rules.
@@ -914,12 +927,28 @@ export interface PlcAssessmentAggregate {
   assessmentId: string;
   /** Aggregate schema version, for forward-compatible recomputes. */
   schemaVersion: number;
+  /** Assessment title snapshot (schema 2+). */
+  title?: string;
+  kind?: 'quiz' | 'video-activity';
   /** Number of teachers who have contributed results. */
   teacherCount: number;
   /** Total students across all contributing teachers' classes. */
   studentCount: number;
   /** Team-wide average score (0-100) across all teachers' students. */
   teamAveragePercent: number;
+  /** Completed responses that carried a numeric score (schema 2+). */
+  scoredStudentCount?: number;
+  /** Linked sessions with at least one completed response (schema 2+). */
+  sessionCount?: number;
+  /** Every linked session, including ones with no completed responses (schema 2+). */
+  linkedSessionCount?: number;
+  /** Linked sessions whose scores are published (schema 2+). */
+  publishedSessionCount?: number;
+  computedFromSessionIds?: string[];
+  /** How session questions were matched to the pooled question list (schema 2+). */
+  alignment?: 'byId' | 'positional';
+  /** Set when a positionally aligned session had a different question count. */
+  alignmentWarning?: string;
   /** Per-question correctness rollup, sorted/owned by the function. */
   perQuestion: Array<{
     questionId: string;
@@ -929,6 +958,15 @@ export interface PlcAssessmentAggregate {
     correctPercent: number;
     /** Point value of the question. */
     points: number;
+    /** Percent incorrect (0-100) among graded answers; null until scores publish (schema 2+). */
+    incorrectPercent?: number | null;
+    /** Completed responses that answered this question (schema 2+). */
+    answered?: number;
+    /** Answers carrying a published `isCorrect` flag (schema 2+). */
+    graded?: number;
+    correct?: number;
+    /** MC only; empty for other types (schema 2+). */
+    choiceDistribution?: PlcAggregateChoiceRow[];
   }>;
   /**
    * Per-teacher rollup — **anonymized**: a count of that teacher's students,
@@ -3638,6 +3676,12 @@ export interface QuizSession {
   quizId: string;
   quizTitle: string;
   teacherUid: string;
+  /** PLC that pools this session's results (docs/plans/PLC_ASSESSMENT_DATA.md §3.1). */
+  plcId?: string;
+  /** Pooling key across teachers: synced group id, or the quiz id when un-synced. */
+  syncGroupId?: string;
+  /** ms when the PLC link was written (assign time or a retroactive link). */
+  plcLinkedAt?: number;
   status: QuizSessionStatus;
   sessionMode: QuizSessionMode;
   /** -1 = lobby/waiting room, 0+ = currently displayed question index */
@@ -4648,8 +4692,8 @@ export interface PlcLinkage {
    * the importer can't read the live `/plcs/{plcId}` doc (rules block it).
    */
   name: string;
-  /** URL of the shared Google Sheet that PLC results export to. */
-  sheetUrl: string;
+  /** Optional Google Sheet export target; pooled results never depend on it. */
+  sheetUrl?: string;
   /** Snapshot of the PLC member emails at create time. */
   memberEmails: string[];
   /**

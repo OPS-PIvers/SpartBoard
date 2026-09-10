@@ -40,7 +40,6 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
-  where,
   writeBatch,
   type Query,
 } from 'firebase/firestore';
@@ -51,7 +50,6 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { parseNote, PlcNoteVersionConflictError } from '@/hooks/usePlcNotes';
 import { parseTodo } from '@/hooks/usePlcTodos';
 import { parseDoc } from '@/hooks/usePlcDocs';
-import { parseContribution } from '@/hooks/usePlcContributions';
 import { parsePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { parsePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
 import { parsePlcAssessment } from '@/hooks/usePlcAssessments';
@@ -74,7 +72,6 @@ import type {
   PlcActivityEvent,
   PlcAssessmentAggregate,
   PlcCommonAssessment,
-  PlcContribution,
   PlcDoc,
   PlcMeeting,
   PlcMember,
@@ -124,7 +121,6 @@ const SLICE_SECTIONS: Record<
     | 'notes'
     | 'todos'
     | 'docs'
-    | 'contributions'
     | 'quizzes'
     | 'videoActivities'
     | 'assessments'
@@ -137,20 +133,18 @@ const SLICE_SECTIONS: Record<
   notes: new Set<PlcSectionId>(['docs']),
   todos: new Set<PlcSectionId>(['todos']),
   docs: new Set<PlcSectionId>(['docs']),
-  // Contributions feed Shared Data analytics.
-  contributions: new Set<PlcSectionId>(['sharedData']),
-  // The quiz + video-activity surfaces now both live under the unified
+  // The quiz + video-activity surfaces both live under the unified
   // `assessments` section (Decision 4.5), so their heavy listeners mount when
-  // Assessments is open (plus Shared Data, which reads them for analytics).
-  quizzes: new Set<PlcSectionId>(['assessments', 'sharedData']),
-  videoActivities: new Set<PlcSectionId>(['assessments', 'sharedData']),
+  // Assessments is open.
+  quizzes: new Set<PlcSectionId>(['assessments']),
+  videoActivities: new Set<PlcSectionId>(['assessments']),
   // Common assessments surface on Home (assessment cards / meeting CTA), in
-  // Meeting Mode (which assessments are reviewed), and in Shared Data (the
-  // designated-assessment picker). (§3.6)
-  assessments: new Set<PlcSectionId>(['home', 'meeting', 'sharedData']),
-  // Anonymized aggregates are the Meeting-Mode + Shared-Data data spine, and
+  // Meeting Mode (which assessments are reviewed), and as the Assessments
+  // list rows. (§3.6)
+  assessments: new Set<PlcSectionId>(['home', 'meeting', 'assessments']),
+  // Anonymized aggregates are the Meeting-Mode + Assessments data spine, and
   // Home's "results ready" digest reads them too. (Decisions 6.0 + 3.3)
-  aggregates: new Set<PlcSectionId>(['sharedData', 'meeting', 'home']),
+  aggregates: new Set<PlcSectionId>(['assessments', 'meeting', 'home']),
   // Meeting records surface only in Meeting Mode (the archive list + resume a
   // specific record). (§3.7)
   meetings: new Set<PlcSectionId>(['meeting']),
@@ -251,23 +245,6 @@ const orderByUpdatedAtDesc = (ref: ReturnType<typeof collection>): Query =>
 const orderByHeldAtDesc = (ref: ReturnType<typeof collection>): Query =>
   query(ref, orderBy('heldAt', 'desc'));
 const noOrder = (ref: ReturnType<typeof collection>): Query => query(ref);
-
-/**
- * Owner-scoped contributions query (Wave 3 — FERPA boundary, PRD §3.6/§9).
- * The `contributions` read rule is owner-only
- * (`request.auth.uid == resource.data.teacherUid`). Firestore evaluates a
- * listener against the QUERY CONSTRAINTS holistically, not per document — an
- * unconstrained listen over a collection that contains other teachers' docs is
- * rejected wholesale with permission-denied, even for the owning teacher (her
- * unfiltered query still *matches* teammates' docs). So every client read of
- * this collection MUST pin `teacherUid == self`. This residual read only backs
- * the owner's own "updating…" lag flag and her self-roster — cross-teacher
- * rollups go through the PII-free `/aggregates` sibling.
- */
-const ownContributionsOnly = (
-  ref: ReturnType<typeof collection>,
-  uid: string
-): Query => query(ref, where('teacherUid', '==', uid));
 
 /**
  * Drop soft-deleted docs (Decision 3.1) from a live subcollection slice. The
@@ -535,13 +512,6 @@ export function PlcProvider({
     parseDoc,
     filterLive
   );
-  const contributions = useSubcollection<PlcContribution>(
-    plcId,
-    'contributions',
-    isSectionActive('contributions'),
-    ownContributionsOnly,
-    parseContribution
-  );
   const quizzes = useSubcollection<PlcQuizEntry>(
     plcId,
     'quizzes',
@@ -616,7 +586,6 @@ export function PlcProvider({
       notes,
       todos,
       docs,
-      contributions,
       quizzes,
       videoActivities,
       assessments,
@@ -636,7 +605,6 @@ export function PlcProvider({
         notes,
         todos,
         docs,
-        contributions,
         quizzes,
         videoActivities,
         assessments,
@@ -659,7 +627,6 @@ export function PlcProvider({
       notes,
       todos,
       docs,
-      contributions,
       quizzes,
       videoActivities,
       assessments,
@@ -675,7 +642,6 @@ export function PlcProvider({
     notes,
     todos,
     docs,
-    contributions,
     quizzes,
     videoActivities,
     assessments,
@@ -1043,59 +1009,6 @@ function useStableActions(
   );
 
   // --- Common assessments (Decision 4.0c, §3.6) ---
-  const createAssessment = useCallback(
-    async (input: {
-      title: string;
-      kind: 'quiz' | 'video-activity';
-      syncGroupId: string;
-      unitLabel?: string;
-      opensAt?: number | null;
-      dueAt?: number | null;
-      status?: PlcCommonAssessment['status'];
-    }): Promise<string> => {
-      const u = requireUser();
-      const ref = doc(
-        collection(db, PLCS_COLLECTION, latest.current.plcId, 'assessments')
-      );
-      // serverTimestamp() for the time fields (Decision 1.3); `parsePlcAssessment`
-      // resolves the Timestamp to millis on read via `tsToMillis`. The optional
-      // fields are written only when provided (and `null` for the nullable dates
-      // is meaningful) so the schema-locked `keys().hasOnly([...])` rule accepts
-      // the minimal doc. `status` defaults to `'planning'` (designated, not yet
-      // open) per §3.6.
-      const payload: Record<string, unknown> = {
-        id: ref.id,
-        title: input.title,
-        kind: input.kind,
-        syncGroupId: input.syncGroupId,
-        status: input.status ?? 'planning',
-        createdBy: u.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      if (input.unitLabel !== undefined) payload.unitLabel = input.unitLabel;
-      if (input.opensAt !== undefined) payload.opensAt = input.opensAt;
-      if (input.dueAt !== undefined) payload.dueAt = input.dueAt;
-      await setDoc(ref, payload);
-
-      // Activity log (Decision 2.2, §3.4) — designating a common assessment is a
-      // headline team event, so it must surface in the "since you were here"
-      // digest + unread badge. Fire-and-forget (mirrors `createNote`): never
-      // blocks or fails the assessment write.
-      const actorName = resolveActorName(u);
-      void writePlcActivityEvent(latest.current.plcId, {
-        type: 'assessment_created',
-        actorUid: u.uid,
-        actorName,
-        targetType: 'assessment',
-        targetId: ref.id,
-        ...(input.title.trim() ? { targetTitle: input.title.trim() } : {}),
-      });
-      return ref.id;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [latest]
-  );
   const updateAssessment = useCallback(
     async (
       assessmentId: string,
@@ -1151,11 +1064,6 @@ function useStableActions(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
   );
-  // `designateAssessment` is the intention-revealing alias for `createAssessment`
-  // ("designate THIS synced group as the team's common assessment"). Same write
-  // + activity event; aliasing the stable callback keeps a single identity.
-  const designateAssessment = createAssessment;
-
   // --- Meeting records (Decisions 4.0 / 4.0b, §3.7) ---
   const createMeeting = useCallback(
     async (input?: {
@@ -1400,11 +1308,9 @@ function useStableActions(
       updateDoc: updateDocAction,
       deleteDoc: deleteDocAction,
       restoreDoc: restoreDocAction,
-      createAssessment,
       updateAssessment,
       deleteAssessment,
       restoreAssessment,
-      designateAssessment,
       createMeeting,
       updateMeeting,
       saveMeeting,
@@ -1431,11 +1337,9 @@ function useStableActions(
       updateDocAction,
       deleteDocAction,
       restoreDocAction,
-      createAssessment,
       updateAssessment,
       deleteAssessment,
       restoreAssessment,
-      designateAssessment,
       createMeeting,
       updateMeeting,
       saveMeeting,

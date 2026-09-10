@@ -1,6 +1,82 @@
 {
   "entries": [
     {
+      "version": "2026.09.10.1",
+      "date": "2026-09-10",
+      "title": "One Assessments tab for PLC quizzes and their pooled results",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "The PLC Data tab is folded into Assessments: one list shows every shared quiz with a status badge, and clicking a scored one opens the pooled results with the most-missed questions first."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Assessments tab — shared quizzes and their pooled results live in one list. Badges show Not started, In progress, Scored, or Library only, and a filter chip plus search narrow the list. Old Data links open the same tab."
+        },
+        {
+          "type": "improvement",
+          "text": "Pooled results — team average, students counted, teachers contributing, and a per-question chart sorted by how many students missed each question. Click a question to see how answers were split. Results show \"Not scored yet\" until a teacher publishes scores."
+        },
+        {
+          "type": "improvement",
+          "text": "Per-teacher breakdown — a new PLC setting, off by default, adds each teacher's average under the pooled numbers."
+        },
+        {
+          "type": "improvement",
+          "text": "Quiz widget — \"Share with PLC\" is now \"Share results with <PLC>\" and no longer creates a Google Sheet or asks for your name. The Sheet export in Results is unchanged."
+        },
+        {
+          "type": "improvement",
+          "text": "Share after the fact — an existing assignment's menu (Quiz widget and Assignments Hub) can share its results with a PLC or stop sharing, so a copy assigned outside the PLC page still counts toward the team's pool."
+        },
+        {
+          "type": "fix",
+          "text": "Pooling — assigning your own copy of a PLC quiz now pools with the team's existing results when the titles match instead of starting a separate pool per teacher."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.10",
+      "date": "2026-09-10",
+      "title": "PLC quiz results pool on their own",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Quizzes assigned through a PLC now share their results with the team automatically, with or without a Google Sheet, and the Data tab shows the quiz title instead of \"Untitled assessment\"."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "PLC results — a PLC quiz no longer needs a shared Google Sheet to count. Results are pooled on the server within a few minutes of students finishing or scores being published, even if nobody opens the Results screen."
+        },
+        {
+          "type": "improvement",
+          "text": "Assign from a PLC — the Google Sheet step is gone from the PLC assign flow. The Sheet export in Results still works when a sheet is linked."
+        },
+        {
+          "type": "improvement",
+          "text": "Data tab — assessment cards are created for you with the quiz title; no more \"designate\" step. Pooled numbers now include how many sessions and teachers contributed."
+        },
+        {
+          "type": "improvement",
+          "text": "Quiz widget — the PLC results tab inside Results is retired; the PLC page's Data tab is the one place for pooled results."
+        }
+      ]
+    },
+    {
       "version": "2026.09.04",
       "date": "2026-09-04",
       "title": "myViewBoard lessons import too",

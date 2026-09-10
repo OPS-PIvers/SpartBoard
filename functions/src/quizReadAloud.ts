@@ -585,6 +585,7 @@ export async function loadSettings(
   return normalizeSettings(snap.exists ? snap.data() : undefined);
 }
 
+/** Soft tier switch: read outside a transaction, so parallel parts can overshoot the cap by their in-flight chars. */
 async function neural2Exhausted(
   db: Firestore,
   settings: QuizReadAloudSettings,

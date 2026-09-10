@@ -54,12 +54,6 @@ vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
   formatStudentName: () => '',
 }));
 vi.mock('@/hooks/useClickOutside', () => ({ useClickOutside: vi.fn() }));
-vi.mock('@/components/common/library/PlcTab', () => ({
-  PlcTab: () => <div data-testid="plc-tab-stub" />,
-}));
-vi.mock('@/utils/plcContributions', () => ({
-  publishPlcContribution: vi.fn().mockResolvedValue(undefined),
-}));
 
 const mockExportResultsToSheet = vi.fn();
 vi.mock('@/utils/quizDriveService', async (importOriginal) => {
@@ -137,8 +131,6 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
         responses={[makeResponse('01')]}
         config={soloConfig()}
         onBack={vi.fn()}
-        plcId={null}
-        syncGroupId={null}
         initialExportUrl={null}
       />
     );
@@ -158,8 +150,6 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
         responses={[makeResponse('01')]}
         config={soloConfig()}
         onBack={vi.fn()}
-        plcId={null}
-        syncGroupId={null}
         initialExportUrl="https://docs.google.com/spreadsheets/d/OLD/edit"
       />
     );
@@ -190,8 +180,6 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
         responses={[makeResponse('01')]}
         config={soloConfig()}
         onBack={vi.fn()}
-        plcId={null}
-        syncGroupId={null}
         initialExportUrl={exportUrl}
       />
     );
@@ -222,8 +210,6 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
         responses={[makeResponse('01')]}
         config={soloConfig()}
         onBack={vi.fn()}
-        plcId={null}
-        syncGroupId={null}
         initialExportUrl="https://docs.google.com/spreadsheets/d/OLD/edit"
         onExportUrlSaved={onExportUrlSaved}
         onExportedResponseIdsSaved={onExportedResponseIdsSaved}
@@ -279,8 +265,6 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
         responses={[makeResponse('01')]}
         config={soloConfig()}
         onBack={vi.fn()}
-        plcId={null}
-        syncGroupId={null}
         initialExportUrl={null}
         onExportUrlSaved={onExportUrlSaved}
       />
@@ -318,8 +302,6 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
         responses={[makeResponse('01')]}
         config={soloConfig()}
         onBack={vi.fn()}
-        plcId={null}
-        syncGroupId={null}
         initialExportUrl="https://docs.google.com/spreadsheets/d/OLD/edit"
         onExportUrlSaved={onExportUrlSaved}
       />

@@ -94,9 +94,11 @@ service cloud.firestore {
     // .superAdmins[], OR an operator-org member doc with roleId == 'super_admin'.
     // Mirrors OrganizationPanel.resolveActorRole. roleId is read from the operator
     // org (`orono`) by fixed path - CEL cannot resolve the caller's org dynamically.
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isSuperAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              (isLegacySuperAdmin() || isMemberSuperAdmin());
     }
 
@@ -184,21 +186,27 @@ service cloud.firestore {
                .get('perms', {}).get(capId, 'none') == access;
     }
 
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isDomainAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              memberRole(orgId, request.auth.token.email.lower()) == 'domain_admin';
     }
 
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isBuildingAdmin(orgId) {
       return request.auth != null && request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              memberRole(orgId, request.auth.token.email.lower()) == 'building_admin';
     }
 
     // True when the caller has a member doc under the given org (any role,
     // any status). Phase 1 intentionally does not filter on status:'active';
     // Phase 3 will add a status check once invited/inactive states are wired.
+    // email_verified is REQUIRED, same reason as isAdmin() above.
     function isOrgMember(orgId) {
       return request.auth != null && request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.token.email.lower()));
     }
 
@@ -346,10 +354,13 @@ service cloud.firestore {
         // Members can always see their own membership (to bootstrap useAuth);
         // other org members can see the member directory. Self-probe comes
         // first so a non-member checking their own (absent) doc never triggers
-        // the super-admin lookup.
+        // the super-admin lookup. `resource == null` is allowed unconditionally
+        // (nothing to leak); email_verified is required once the doc exists.
         allow read: if (request.auth != null &&
                        request.auth.token.email != null &&
-                       request.auth.token.email.lower() == emailLower) ||
+                       request.auth.token.email.lower() == emailLower &&
+                       (resource == null ||
+                        request.auth.token.get('email_verified', false) == true)) ||
                     isOrgMember(orgId) ||
                     isSuperAdmin();
         // Domain+ admins manage members via a field whitelist so identity fields (email,
@@ -396,6 +407,7 @@ service cloud.firestore {
           // user. Powers the admin panel's "Last active" column without a CF.
           (request.auth != null &&
            request.auth.token.email != null &&
+           request.auth.token.get('email_verified', false) == true &&
            request.auth.token.email.lower() == emailLower &&
            request.resource.data.email == resource.data.email &&
            request.resource.data.orgId == resource.data.orgId &&
@@ -447,11 +459,14 @@ service cloud.firestore {
 
     // Admins collection
     match /admins/{email} {
-      // Users can read their own admin record to check status
-      // We use lower() to ensure case-insensitive matching
-      allow read: if request.auth != null && 
-                  request.auth.token.email != null && 
-                  request.auth.token.email.lower() == email.lower();
+      // Users can read their own admin record to check status (lower() for
+      // case-insensitive matching). `resource == null` allowed unconditionally
+      // (nothing to leak); email_verified required once the doc exists.
+      allow read: if request.auth != null &&
+                  request.auth.token.email != null &&
+                  request.auth.token.email.lower() == email.lower() &&
+                  (resource == null ||
+                   request.auth.token.get('email_verified', false) == true);
       allow write: if false; // Only create via Firebase Console or Admin SDK
     }
 
@@ -2005,8 +2020,9 @@ service cloud.firestore {
 
         // Author-only writes; doc id pinned to the source assignment id for join-back.
         // Author must be a current PLC member. hasOnly([...]) locks the shape. sheetUrl is
-        // pinned to the trusted Google Sheets host/path (rendered as a clickable link, so
-        // an arbitrary string is a phishing vector). create/update are split so update can
+        // optional ('' when the assignment has no sheet); when set it is pinned to the
+        // trusted Google Sheets host/path (rendered as a clickable link, so an arbitrary
+        // string is a phishing vector). create/update are split so update can
         // check the *existing* ownerUid and pin id/ownerUid/createdAt.
         allow create: if request.auth != null
           && request.auth.uid == request.resource.data.ownerUid
@@ -2020,7 +2036,10 @@ service cloud.firestore {
              ])
           && request.resource.data.kind in ['quiz', 'video-activity']
           && request.resource.data.status in ['active', 'paused', 'inactive']
-          && request.resource.data.sheetUrl.matches('^https://docs[.]google[.]com/spreadsheets/.*$');
+          && (
+               request.resource.data.sheetUrl == ''
+               || request.resource.data.sheetUrl.matches('^https://docs[.]google[.]com/spreadsheets/.*$')
+             );
 
         allow update: if request.auth != null
           // Caller must be the *existing* owner — prevents takeover by a
@@ -2041,81 +2060,15 @@ service cloud.firestore {
              ])
           && request.resource.data.kind in ['quiz', 'video-activity']
           && request.resource.data.status in ['active', 'paused', 'inactive']
-          && request.resource.data.sheetUrl.matches('^https://docs[.]google[.]com/spreadsheets/.*$');
+          && (
+               request.resource.data.sheetUrl == ''
+               || request.resource.data.sheetUrl.matches('^https://docs[.]google[.]com/spreadsheets/.*$')
+             );
 
         // Authors clean up their own entries. No lead-override — leads ask the
         // owner to sweep stale entries.
         allow delete: if request.auth != null
           && request.auth.uid == resource.data.ownerUid;
-      }
-
-      // PLC cross-teacher results aggregate (replaces the Sheet-backed
-      // readPlcSheet). One contribution doc per (quiz, teacher), auto-published by
-      // QuizResults. Doc id `{quizId}_{teacherUid}` uses the publisher's *local*
-      // quizId; cross-teacher grouping is via syncGroupId, not the key. Shape
-      // locked via hasOnly([...]).
-      match /contributions/{contribId} {
-        function isPlcMember() {
-          return request.auth != null
-            && request.auth.uid in get(
-                 /databases/$(database)/documents/plcs/$(plcId)
-               ).data.memberUids;
-        }
-
-        // OWNER-ONLY READ (FERPA boundary — PRD §3.6/§9). responses[] embed raw
-        // studentDisplayName PII, so only the owning teacher reads her own raw
-        // contribution; every member-facing reader uses the PII-free /aggregates
-        // sibling. Tightened from isPlcMember() once readers migrated (Wave 3).
-        allow read: if isPlcMember()
-          && request.auth.uid == resource.data.teacherUid;
-
-        // Only the contributing teacher writes her own doc; id pinned to
-        // `{quizId}_{teacherUid}` so a member can't masquerade as another.
-        allow create: if isPlcMember()
-          && request.auth.uid == request.resource.data.teacherUid
-          && contribId == request.resource.data.quizId + '_' + request.auth.uid
-          && request.resource.data.keys().hasOnly([
-               'id', 'schemaVersion', 'quizId', 'syncGroupId',
-               'teacherUid', 'teacherName', 'questionsSnapshot',
-               'responses', 'updatedAt'
-             ])
-          && request.resource.data.schemaVersion == 1
-          && request.resource.data.id == contribId
-          && request.resource.data.quizId is string
-          && (request.resource.data.syncGroupId == null
-              || request.resource.data.syncGroupId is string)
-          && request.resource.data.teacherName is string
-          && request.resource.data.questionsSnapshot is list
-          && request.resource.data.responses is list
-          && request.resource.data.updatedAt is number;
-
-        // Identity immutable post-create: quizId/syncGroupId/teacherUid are the
-        // aggregate's grouping keys (retargeting would corrupt every viewer's
-        // rollup). Mutable: questionsSnapshot, responses, teacherName, updatedAt.
-        allow update: if isPlcMember()
-          && request.auth.uid == resource.data.teacherUid
-          && request.auth.uid == request.resource.data.teacherUid
-          && request.resource.data.id == resource.data.id
-          && request.resource.data.quizId == resource.data.quizId
-          && request.resource.data.syncGroupId == resource.data.syncGroupId
-          && request.resource.data.schemaVersion == resource.data.schemaVersion
-          && request.resource.data.keys().hasOnly([
-               'id', 'schemaVersion', 'quizId', 'syncGroupId',
-               'teacherUid', 'teacherName', 'questionsSnapshot',
-               'responses', 'updatedAt'
-             ])
-          && request.resource.data.teacherName is string
-          && request.resource.data.questionsSnapshot is list
-          && request.resource.data.responses is list
-          && request.resource.data.updatedAt is number;
-
-        // A teacher withdraws her own contribution, membership-gated (consistent
-        // with read/create/update). The id pin (`{quizId}_{teacherUid}`) is
-        // defense-in-depth so a non-canonical doc (migration/admin write) can't be
-        // deleted by a teacher whose uid happens to be in teacherUid.
-        allow delete: if isPlcMember()
-          && request.auth.uid == resource.data.teacherUid
-          && contribId == resource.data.quizId + '_' + resource.data.teacherUid;
       }
 
       // Anonymized per-assessment aggregates (Decisions 6.0+3.3) — member-readable,
@@ -2154,7 +2107,8 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
-               'createdBy', 'createdAt', 'updatedAt', 'deletedAt'
+               'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
+               'sourceQuizId', 'dirtyAt'
              ])
           && request.resource.data.id == assessmentId
           && request.resource.data.createdBy == request.auth.uid
@@ -2175,7 +2129,15 @@ service cloud.firestore {
           && plcSubNullableTimeFieldOk('dueAt')
           && plcSubDeletedAtOk()
           && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
+          && plcSubTimeFieldOk('updatedAt')
+          // sourceQuizId: first quiz that auto-created this assessment. dirtyAt is
+          // owned by the markPlcAssessmentDirty function (Admin SDK); clients may
+          // only write it as null/absent.
+          && (
+               !('sourceQuizId' in request.resource.data)
+               || request.resource.data.sourceQuizId is string
+             )
+          && request.resource.data.get('dirtyAt', null) == null;
 
         // Update: non-viewer member mutates working fields (title/unitLabel/
         // opensAt/dueAt/status/updatedAt) or soft-deletes via deletedAt. Identity,
@@ -2185,7 +2147,8 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
                'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
                'opensAt', 'dueAt', 'status',
-               'createdBy', 'createdAt', 'updatedAt', 'deletedAt'
+               'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
+               'sourceQuizId', 'dirtyAt'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
@@ -2203,7 +2166,13 @@ service cloud.firestore {
           && plcSubNullableTimeFieldOk('opensAt')
           && plcSubNullableTimeFieldOk('dueAt')
           && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('updatedAt');
+          && plcSubTimeFieldOk('updatedAt')
+          // Server-written dirtyAt and the sourceQuizId pointer must round-trip
+          // unchanged: clients can neither forge nor clear them.
+          && request.resource.data.get('sourceQuizId', null)
+               == resource.data.get('sourceQuizId', null)
+          && request.resource.data.get('dirtyAt', null)
+               == resource.data.get('dirtyAt', null);
 
         // Non-viewer member can hard-delete (PLC-owned model). Soft-delete via
         // deletedAt is typical; the orphaned aggregates/{assessmentId} doc is
@@ -3068,9 +3037,28 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
+      // PLC pooling link (docs/plans/PLC_ASSESSMENT_DATA.md §4): a session may
+      // carry plcId + syncGroupId only for a PLC the caller belongs to. Writes are
+      // already owner-only, so set/clear of plcId stays teacher-only. `.get()`
+      // everywhere so a missing field denies instead of throwing.
+      function plcLinkOk(d) {
+        return d.get('plcId', '') is string && d.get('plcId', '').size() > 0
+          && d.get('syncGroupId', '') is string && d.get('syncGroupId', '').size() > 0
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(d.plcId)
+             ).data.memberUids;
+      }
       allow create: if request.auth != null &&
-        request.resource.data.teacherUid == request.auth.uid;
-      allow update, delete: if request.auth != null &&
+        request.resource.data.teacherUid == request.auth.uid &&
+        (!('plcId' in request.resource.data) || plcLinkOk(request.resource.data));
+      // Update: an unchanged or cleared plcId needs no PLC read; a new/changed
+      // non-null plcId re-runs the membership gate.
+      allow update: if request.auth != null &&
+        resource.data.teacherUid == request.auth.uid &&
+        (request.resource.data.get('plcId', null) == resource.data.get('plcId', null) ||
+         request.resource.data.get('plcId', null) == null ||
+         plcLinkOk(request.resource.data));
+      allow delete: if request.auth != null &&
         resource.data.teacherUid == request.auth.uid;
 
       match /responses/{responseKey} {

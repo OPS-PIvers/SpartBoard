@@ -129,9 +129,13 @@ export { gcPlcOrphans } from './gcPlcOrphans';
 // Decision 2.3. ─────────────────────────────────────────────────────────────
 export { plcWeeklyDigest } from './plcWeeklyDigest';
 
-// ── PII-safe anonymized PLC analytics rollup (onWrite of a contribution
-// recomputes /aggregates/{assessmentId}). PRD §5 / §6.0 / §3.6 / §3.3. ──────
-export { aggregatePlcAssessment } from './aggregatePlcAssessment';
+// ── PII-safe PLC results pipeline: session/response writes mark assessments
+// dirty; the 5-minute schedule recomputes /aggregates/{assessmentId}. ───────
+export {
+  markPlcAssessmentDirtyOnSession,
+  markPlcAssessmentDirtyOnResponse,
+} from './markPlcAssessmentDirty';
+export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never

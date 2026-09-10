@@ -80,13 +80,9 @@ interface ResultsProps {
   responses: VideoActivityResponse[];
   onBack: () => void;
   /**
-   * PLC linkage for this assignment, if any. Currently unused at render
-   * time — kept on the props shape so callers don't have to drop the
-   * prop, and so the VA-side auto-publish work can pick this up directly
-   * when it lands. The PLC tab is intentionally hidden in VA Results
-   * until the VA-side publish path exists (otherwise PlcTab would
-   * cross-contaminate VA's view with Quiz contributions from the same
-   * PLC). See the tab-strip and panel comments below.
+   * PLC linkage for this assignment, if any. Unused at render time — kept
+   * on the props shape so callers don't have to drop the prop. VA session
+   * pooling is out of scope for PR 1 of docs/plans/PLC_ASSESSMENT_DATA.md.
    */
   plc?: PlcLinkage;
 }
@@ -548,12 +544,7 @@ export const Results: React.FC<ResultsProps> = ({
               icon: Users,
               count: responses.length,
             },
-            // PLC tab intentionally hidden for Video Activity until the
-            // VA-side auto-publish path lands. The Quiz path writes its
-            // contributions to `/plcs/{plcId}/contributions/`; if we
-            // rendered PlcTab here it would aggregate quiz responses
-            // under VA question labels (cross-contamination). Re-enable
-            // alongside the VA `publishPlcContribution` wiring.
+            // No PLC tab: pooled PLC results live on the PLC dashboard.
           ]}
         />
       </div>

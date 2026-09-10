@@ -367,89 +367,92 @@ describe('QuizAssignmentSettingsModal — unified class picker (rosterIds)', () 
   });
 });
 
-describe('QuizAssignmentSettingsModal — Auto-Generated PLC Sheet toggle', () => {
+describe('QuizAssignmentSettingsModal — PLC results sharing (D12)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('starts ON (URL input hidden) when the assignment has no plc.sheetUrl', () => {
+  it('shows the linked PLC and a Stop sharing button when assignment.plc exists', () => {
+    const onStopSharing = vi.fn();
     render(
       <QuizAssignmentSettingsModal
         assignment={makePlcAssignment()}
-        rosters={[] as ClassRoster[]}
+        rosters={[]}
         onSave={vi.fn()}
         onClose={vi.fn()}
+        canShareWithPlc
+        onStopSharing={onStopSharing}
+        onShareResults={vi.fn()}
       />
     );
-    // The Auto-Generated row is visible; the URL input is not rendered.
-    expect(screen.getByText('Auto-Generated PLC Sheet')).toBeInTheDocument();
     expect(
-      screen.queryByPlaceholderText(/docs\.google\.com\/spreadsheets/i)
+      screen.getByText('Sharing results with Test PLC')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop sharing' }));
+    expect(onStopSharing).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole('button', { name: /Share results with PLC/ })
     ).not.toBeInTheDocument();
   });
 
-  it('starts OFF (URL input pre-filled) when the assignment already has a plc.sheetUrl (legacy)', () => {
+  it('offers "Share results with PLC…" on an unlinked assignment when the teacher is in a PLC', () => {
+    const onShareResults = vi.fn();
     render(
       <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment({
-          plc: {
-            id: 'plc-1',
-            name: 'Test PLC',
-            sheetUrl: 'https://docs.google.com/spreadsheets/d/legacy-sheet-id',
-            memberEmails: [],
-          },
-        })}
-        rosters={[] as ClassRoster[]}
+        assignment={makePlcAssignment({ plc: undefined })}
+        rosters={[]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        canShareWithPlc
+        onShareResults={onShareResults}
+        onStopSharing={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Share results with PLC…' })
+    );
+    expect(onShareResults).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole('button', { name: 'Stop sharing' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides both actions when the teacher belongs to no PLC', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({ plc: undefined })}
+        rosters={[]}
         onSave={vi.fn()}
         onClose={vi.fn()}
       />
     );
-    // Field is rendered with the legacy URL pre-populated.
-    expect(screen.getByDisplayValue(/legacy-sheet-id/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Share results with PLC/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Stop sharing' })
+    ).not.toBeInTheDocument();
   });
 
-  it('toggling Auto-Generated back ON preserves the existing plc.sheetUrl (cancel, not clear)', async () => {
+  it('never writes plc, teacherName or a sheet URL in the save patch', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment({
-          plc: {
-            id: 'plc-1',
-            name: 'Test PLC',
-            sheetUrl: 'https://docs.google.com/spreadsheets/d/legacy-sheet-id',
-            memberEmails: ['a@example.com'],
-          },
-        })}
-        rosters={[] as ClassRoster[]}
+        assignment={makePlcAssignment()}
+        rosters={[]}
         onSave={onSave}
         onClose={vi.fn()}
+        canShareWithPlc
+        onStopSharing={vi.fn()}
+        onShareResults={vi.fn()}
       />
     );
-    // Legacy assignment: toggle starts OFF, URL pre-filled. Click the
-    // toggle to turn Auto-Generated back ON — this clears the form input
-    // but should NOT clear the saved plc.sheetUrl (the no-op branch in
-    // handleAssign preserves the existing linkage when plcSheetUrl saves
-    // as ''). Without that branch, saving '' would be dropped by the
-    // read-side validator on next snapshot, silently losing PLC mode.
-    // Anchor on the label text and walk up to its sibling switch — the
-    // ToggleRow renders <span>{label}</span> + <Toggle/> as direct
-    // children of the same flex row, so finding the row from the label
-    // and querying for [role=switch] inside it gives us the right one
-    // even when other toggles (Share with PLC) live in nearby rows.
-    const labelEl = screen.getByText('Auto-Generated PLC Sheet');
-    const row = labelEl.parentElement; // the flex row
-    const autoGenSwitch = row?.querySelector('[role="switch"]');
-    expect(autoGenSwitch).not.toBeNull();
-    fireEvent.click(autoGenSwitch as HTMLElement);
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls[0][0]).toMatchObject({
-      plc: {
-        id: 'plc-1',
-        name: 'Test PLC',
-        sheetUrl: 'https://docs.google.com/spreadsheets/d/legacy-sheet-id',
-        memberEmails: ['a@example.com'],
-      },
-    });
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch).not.toHaveProperty('plc');
+    expect(patch).not.toHaveProperty('teacherName');
+    expect(patch).not.toHaveProperty('plcSheetUrl');
+    expect(screen.queryByText('Auto-Generated PLC Sheet')).toBeNull();
   });
 });

@@ -147,8 +147,7 @@ export function isGamificationActive(session?: QuizScoringSession): boolean {
  * `maxPoints` inflates while `earned` stays correct, deflating the score (e.g.
  * a student who answered the only real question correctly scores 50% instead of
  * 100% when that question appears twice). Mirrors the identical guard in
- * `buildContributionDoc` (plcContributions.ts) and `buildResultsSheetData`
- * (assignmentExportShared.ts).
+ * `buildResultsSheetData` (assignmentExportShared.ts).
  */
 export function getResponseScore(
   r: QuizResponse,

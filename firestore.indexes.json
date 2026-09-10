@@ -529,6 +529,25 @@
         }
       ],
       "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "quiz_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "plcId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "syncGroupId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
     }
   ],
   "fieldOverrides": [
@@ -594,6 +613,16 @@
     {
       "collectionGroup": "submissions",
       "fieldPath": "storageCleanupPending",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "fieldPath": "dirtyAt",
       "indexes": [
         {
           "order": "ASCENDING",

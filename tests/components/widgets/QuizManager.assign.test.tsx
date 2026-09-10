@@ -56,6 +56,10 @@ vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [] }),
 }));
 
+vi.mock('@/hooks/usePlcQuizzes', () => ({
+  usePlcQuizzes: () => ({ quizzes: [], loading: false, error: null }),
+}));
+
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
     folders: [],

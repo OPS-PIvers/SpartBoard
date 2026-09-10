@@ -26,12 +26,12 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
   usePlcAssignmentIndex: vi.fn(),
 }));
-vi.mock('@/hooks/usePlcContributions', () => ({
-  usePlcContributions: vi.fn(),
+vi.mock('@/context/usePlcContext', () => ({
+  usePlcAggregatesData: vi.fn(),
 }));
 
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
-import { usePlcContributions } from '@/hooks/usePlcContributions';
+import { usePlcAggregatesData } from '@/context/usePlcContext';
 
 const fakePlc: Plc = {
   id: 'plc-1',
@@ -51,10 +51,11 @@ describe('AttentionCard', () => {
       loading: false,
       error: null,
     });
-    vi.mocked(usePlcContributions).mockReturnValue({
-      contributions: [],
+    vi.mocked(usePlcAggregatesData).mockReturnValue({
+      data: [],
       loading: false,
       error: null,
+      enabled: true,
     });
   });
 
@@ -76,11 +77,12 @@ describe('AttentionCard', () => {
     expect(screen.queryByText(/no active assignments/i)).toBeNull();
   });
 
-  it('shows an error indicator when the contributions hook errors', () => {
-    vi.mocked(usePlcContributions).mockReturnValue({
-      contributions: [],
+  it('shows an error indicator when the aggregates slice errors', () => {
+    vi.mocked(usePlcAggregatesData).mockReturnValue({
+      data: [],
       loading: false,
       error: new Error('snapshot failed'),
+      enabled: true,
     });
     render(<AttentionCard plc={fakePlc} onNavigate={vi.fn()} />);
     expect(screen.getByText(/couldn't load assignments/i)).toBeInTheDocument();

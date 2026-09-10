@@ -13,6 +13,7 @@ export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 export const MIN_CHARS_PER_PAGE = 40;
 export const OCR_PAGE_CAP = 4;
 export const OCR_DEADLINE_MS = 60_000;
+export const MAX_FETCH_REDIRECTS = 5;
 export const OCR_FEATURE_ID = 'ocr';
 export const DEFAULT_OCR_DAILY_LIMIT = 20;
 
@@ -213,9 +214,10 @@ export async function extractStimulusReadAloudText(
     mimeType = sniffImageMime(bytes);
   }
 
-  await deps.chargeOcr(caller.uid, caller.email);
+  // Quota is charged only once OCR can actually run within the deadline.
   const remaining = OCR_DEADLINE_MS - (deps.now() - startedAt);
   if (remaining <= 0) return { text: '', source: 'needs-manual' };
+  await deps.chargeOcr(caller.uid, caller.email);
   let outcome: Awaited<ReturnType<typeof withDeadline<string>>>;
   try {
     outcome = await withDeadline(deps.ocr(ocrBytes, mimeType), remaining);
@@ -235,13 +237,50 @@ const OCR_PROMPT =
   'Keep paragraphs separated by a blank line. Output only the transcribed text with no commentary. ' +
   'If there is no readable text, output nothing.';
 
-async function fetchPublicUrl(url: string): Promise<Buffer> {
-  assertFetchableUrl(url);
-  const res = await fetch(url, { redirect: 'follow' });
-  if (!res.ok) throw new Error(`Fetch responded ${res.status}`);
-  const declared = Number(res.headers.get('content-length') ?? 0);
-  if (declared > MAX_SOURCE_BYTES) throw new Error('Source too large');
-  return Buffer.from(await res.arrayBuffer());
+/** Streams the body so a missing or understated content-length can't buffer past the cap. */
+async function readCappedBody(res: Response): Promise<Buffer> {
+  if (!res.body) return Buffer.alloc(0);
+  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+  const parts: Buffer[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      total += value.byteLength;
+      if (total > MAX_SOURCE_BYTES) throw new Error('Source too large');
+      parts.push(Buffer.from(value));
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return Buffer.concat(parts, total);
+}
+
+/** Redirects are followed by hand so every hop is re-checked against the public-host rules (no SSRF via 302). */
+export async function fetchPublicUrl(
+  url: string,
+  doFetch: typeof fetch = fetch
+): Promise<Buffer> {
+  let target = url;
+  for (let hop = 0; hop <= MAX_FETCH_REDIRECTS; hop += 1) {
+    assertFetchableUrl(target);
+    const res = await doFetch(target, { redirect: 'manual' });
+    const location =
+      res.status >= 300 && res.status < 400
+        ? res.headers.get('location')
+        : null;
+    if (location) {
+      await res.body?.cancel().catch(() => undefined);
+      target = new URL(location, target).toString();
+      continue;
+    }
+    if (!res.ok) throw new Error(`Fetch responded ${res.status}`);
+    const declared = Number(res.headers.get('content-length') ?? 0);
+    if (declared > MAX_SOURCE_BYTES) throw new Error('Source too large');
+    return readCappedBody(res);
+  }
+  throw new Error('Too many redirects');
 }
 
 async function pdfTextLayer(

@@ -201,6 +201,27 @@ describe('plcs/{plcId}/assessments — create', () => {
     await assertSucceeds(setDoc(assessmentRef(asMember()), minimal));
   });
 
+  it('accepts sourceQuizId (string) and dirtyAt: null on create', async () => {
+    await assertSucceeds(
+      setDoc(
+        assessmentRef(asMember()),
+        validAssessment({ sourceQuizId: 'quiz-1', dirtyAt: null })
+      )
+    );
+  });
+
+  it('rejects a non-string sourceQuizId', async () => {
+    await assertFails(
+      setDoc(assessmentRef(asMember()), validAssessment({ sourceQuizId: 7 }))
+    );
+  });
+
+  it('rejects create with a real dirtyAt (server-owned; clients may only write null)', async () => {
+    await assertFails(
+      setDoc(assessmentRef(asMember()), validAssessment({ dirtyAt: 123 }))
+    );
+  });
+
   it('non-member cannot create an assessment', async () => {
     await assertFails(
       setDoc(
@@ -376,6 +397,16 @@ describe('plcs/{plcId}/assessments — update', () => {
     );
   });
 
+  it('rejects update that mutates sourceQuizId (pointer immutability)', async () => {
+    await seedAssessment({ sourceQuizId: 'quiz-1' });
+    await assertFails(
+      updateDoc(assessmentRef(asMember()), {
+        sourceQuizId: 'quiz-2',
+        updatedAt: 2000,
+      })
+    );
+  });
+
   it('rejects update adding an extra unknown field (schema lock-down)', async () => {
     await assertFails(
       setDoc(assessmentRef(asMember()), {
@@ -383,6 +414,59 @@ describe('plcs/{plcId}/assessments — update', () => {
         rogue: true,
         updatedAt: 2000,
       })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Update — server-written dirtyAt must round-trip unchanged
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId}/assessments — update with a server-written dirtyAt', () => {
+  beforeEach(() => seedAssessment({ dirtyAt: 123 }));
+
+  it('a title patch that leaves dirtyAt alone succeeds', async () => {
+    await assertSucceeds(
+      updateDoc(assessmentRef(asMember()), {
+        title: 'Renamed while dirty',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('a full setDoc that keeps dirtyAt: 123 succeeds', async () => {
+    await assertSucceeds(
+      setDoc(assessmentRef(asMember()), {
+        ...validAssessment({ dirtyAt: 123 }),
+        title: 'Renamed while dirty',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects an update that clears dirtyAt to null (only the function clears it)', async () => {
+    await assertFails(
+      updateDoc(assessmentRef(asMember()), {
+        title: 'Renamed while dirty',
+        dirtyAt: null,
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a full setDoc that drops dirtyAt', async () => {
+    await assertFails(
+      setDoc(assessmentRef(asMember()), {
+        ...validAssessment(),
+        title: 'Renamed while dirty',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects an update that forges a different dirtyAt', async () => {
+    await assertFails(
+      updateDoc(assessmentRef(asMember()), { dirtyAt: 456, updatedAt: 2000 })
     );
   });
 });

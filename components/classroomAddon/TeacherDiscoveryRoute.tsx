@@ -159,8 +159,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken, ensureGoogleScope } =
-    useAuth();
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { createAssignment, setAssignmentTargetSkippedCount } =
     useQuizAssignments(user?.uid);
@@ -427,57 +426,32 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   );
 
   // Build the PLC linkage when the teacher opted into "Share with PLC" and
-  // picked a PLC — same shared builder the normal flow uses, so the linkage
-  // shape (auto-created sheet + name + member snapshot) is identical. A failed
-  // sheet auto-create falls through to no linkage and is logged. Shared by both
-  // the quiz and video-activity attach paths; `sheetTitle` only names the
-  // auto-created sheet (the builder is widget-agnostic), so either a quiz or a
-  // VA title is fine.
-  const resolvePlcLinkageForAttach = useCallback(
-    async (sheetTitle: string): Promise<PlcLinkage | undefined> => {
-      let plcLinkage: PlcLinkage | undefined;
-      if (plcShareEnabled && !selectedPlcId) {
-        append(
-          'PLC sharing was on but no PLC was picked — attaching without it.'
-        );
+  // picked a PLC — the same builder the board and the PLC page use. Shared by
+  // the quiz and video-activity attach paths; results pool server-side (D2).
+  const resolvePlcLinkageForAttach = useCallback((): PlcLinkage | undefined => {
+    let plcLinkage: PlcLinkage | undefined;
+    if (plcShareEnabled && !selectedPlcId) {
+      append(
+        'PLC sharing was on but no PLC was picked — attaching without it.'
+      );
+    }
+    // Cache the selected PLC up front. `plcs` can repopulate on a cold load
+    // (usePlcs streams in after first render), so a picked-then-vanished id
+    // must not silently attach with an undefined `plc`.
+    const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
+    if (plcShareEnabled && selectedPlcId && !selectedPlc) {
+      append(
+        'Selected PLC is no longer available — attaching without PLC sharing.'
+      );
+    }
+    if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
+      plcLinkage = buildPlcLinkage(selectedPlc);
+      if (plcLinkage) {
+        append(`Results will pool with the "${plcLinkage.name}" PLC.`);
       }
-      // Cache the selected PLC up front. `plcs` can repopulate on a cold load
-      // (usePlcs streams in after first render), so a picked-then-vanished id
-      // must not silently attach with an undefined `plc`.
-      const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
-      if (plcShareEnabled && selectedPlcId && !selectedPlc) {
-        append(
-          'Selected PLC is no longer available — attaching without PLC sharing.'
-        );
-      }
-      if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
-        append('Setting up the shared PLC results sheet…');
-        // Path B: acquire the Sheets scope on demand before the builder may
-        // create a sheet (silent for already-granted users, one-time consent
-        // for never-granted — user gesture). Null → skip creation as before.
-        const sheetsToken = await ensureGoogleScope('spreadsheets', {
-          interactive: true,
-        });
-        const { linkage, error: plcSheetError } = await buildPlcLinkage({
-          plc: selectedPlc,
-          quizTitle: sheetTitle,
-          selfUid: user.uid,
-          googleAccessToken: sheetsToken,
-        });
-        plcLinkage = linkage;
-        if (plcSheetError) {
-          append(
-            `Note: couldn't create the shared PLC sheet (${plcSheetError.message}). ` +
-              'Attaching without PLC sharing.'
-          );
-        } else if (linkage) {
-          append(`Results will export to the "${linkage.name}" PLC sheet.`);
-        }
-      }
-      return plcLinkage;
-    },
-    [plcShareEnabled, selectedPlcId, plcs, user, ensureGoogleScope, append]
-  );
+    }
+    return plcLinkage;
+  }, [plcShareEnabled, selectedPlcId, plcs, user, append]);
 
   const attachQuiz = useCallback(async () => {
     if (!selectedQuiz) {
@@ -533,9 +507,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
     // Build the PLC linkage when the teacher opted into "Share with PLC" and
     // picked a PLC — same shared builder the normal flow uses, so the linkage
-    // shape (auto-created sheet + name + member snapshot) is identical. A
-    // failed sheet auto-create falls through to no linkage and is logged.
-    const plcLinkage = await resolvePlcLinkageForAttach(selectedQuiz.title);
+    // shape (optional sheet + name + member snapshot) is identical. A
+    // failed sheet auto-create keeps the link without a sheet and is logged.
+    const plcLinkage = resolvePlcLinkageForAttach();
 
     // `sessionMode` + `sessionOptions` + `attemptLimit` now come from the
     // quiz's configured behavior. `periodNames` rides on the settings object
@@ -732,9 +706,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
     // Build the PLC linkage when the teacher opted into "Share with PLC" and
     // picked a PLC — same shared builder the quiz path uses, so the linkage
-    // shape (auto-created sheet + name + member snapshot) is identical. A
-    // failed sheet auto-create falls through to no linkage and is logged.
-    const plcLinkage = await resolvePlcLinkageForAttach(selectedActivity.title);
+    // shape (optional sheet + name + member snapshot) is identical. A
+    // failed sheet auto-create keeps the link without a sheet and is logged.
+    const plcLinkage = resolvePlcLinkageForAttach();
 
     // VA has no join code — the assignment is identified by its sessionId
     // (== assignment id). `createAssignment`'s args are POSITIONAL:

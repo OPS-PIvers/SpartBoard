@@ -93,8 +93,17 @@ beforeEach(async () => {
   });
 });
 
+// email_verified: true — the where(orgId==orono) list query's permission
+// proof depends on isOrgMember(orgId), which now requires it (see
+// firestore.rules); a query the rules engine can't prove safe is denied
+// outright, even when zero documents would match.
 const asMember = () =>
-  testEnv.authenticatedContext(MEMBER_UID, { email: MEMBER_EMAIL }).firestore();
+  testEnv
+    .authenticatedContext(MEMBER_UID, {
+      email: MEMBER_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 
 describe('announcements list-query tenant isolation', () => {
   it('sanity: a direct getDoc on the foreign-org doc is correctly denied by the rule', async () => {

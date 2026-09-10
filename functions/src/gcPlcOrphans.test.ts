@@ -2,7 +2,7 @@
 // PRD §5.3 / §3.4 / §3.1 / §3.3, Decisions 5.3 / 3.4 / 3.1 / 2.1).
 //
 // Two layers, mirroring the established functions-test posture
-// (`aggregatePlcAssessment.test.ts` / `detachPlcSyncLinkage.test.ts`):
+// (`mirrorPlcIndex.test.ts` / `detachPlcSyncLinkage.test.ts`):
 //
 //   1. PURE DECISION HELPERS — `isStalePresence` (>5min), `isExpiredTombstone`
 //      (>30d, null-safe), `isEmptyGroup`, `isStaleActivity`, and the tolerant
@@ -670,6 +670,7 @@ describe('runGcPlcOrphans — full sweep summary', () => {
       presence: 0,
       tombstones: 0,
       versionOverflow: 0,
+      orphanAggregates: 0,
     });
 
     // A second run on the now-clean DB still deletes nothing.
@@ -834,5 +835,38 @@ describe('gcPlcOrphans — scheduled wrapper', () => {
     // The mocked onSchedule returns the handler; importing must not throw.
     const mod = await import('./gcPlcOrphans');
     expect(typeof mod.gcPlcOrphans).toBe('function');
+  });
+});
+
+describe('runGcPlcOrphans — orphan aggregates (category f)', () => {
+  it('drops aggregates whose assessment is tombstoned or missing, keeps live ones', async () => {
+    const { db, root } = makeStubDb({
+      plcs: [
+        {
+          id: 'plc-1',
+          data: {},
+          sub: {
+            assessments: [
+              { id: 'live', data: { deletedAt: null } },
+              { id: 'trashed', data: { deletedAt: NOW - 5 * day } },
+            ],
+            aggregates: [
+              { id: 'live', data: { assessmentId: 'live' } },
+              { id: 'trashed', data: { assessmentId: 'trashed' } },
+              { id: 'gone', data: { assessmentId: 'gone' } },
+            ],
+          },
+        },
+      ],
+    });
+
+    const counts = await runGcPlcOrphans(db, NOW);
+
+    expect(counts.orphanAggregates).toBe(2);
+    expect(root.plcs[0].sub!.aggregates.map((d) => d.id)).toEqual(['live']);
+    expect(root.plcs[0].sub!.assessments.map((d) => d.id).sort()).toEqual([
+      'live',
+      'trashed',
+    ]);
   });
 });

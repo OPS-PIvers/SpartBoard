@@ -13,6 +13,17 @@ import {
 import { Trash2 } from 'lucide-react';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 
+// Keeps a node's box fully inside the 0-100% container so it can never drift out of view.
+const clampNodePosition = (
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) => ({
+  x: Math.max(0, Math.min(100 - width, x)),
+  y: Math.max(0, Math.min(100 - height, y)),
+});
+
 export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
@@ -156,8 +167,15 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     const movementXPct = (e.movementX / rect.width) * 100;
     const movementYPct = (e.movementY / rect.height) * 100;
 
-    pos.x += movementXPct;
-    pos.y += movementYPct;
+    const draggedNode = nodes.find((n) => n.id === activeNodeId);
+    const clamped = clampNodePosition(
+      pos.x + movementXPct,
+      pos.y + movementYPct,
+      draggedNode?.width ?? DEFAULT_WIDTH,
+      draggedNode?.height ?? DEFAULT_HEIGHT
+    );
+    pos.x = clamped.x;
+    pos.y = clamped.y;
 
     if (dragRafRef.current !== null) return;
     dragRafRef.current = requestAnimationFrame(() => {
@@ -184,7 +202,13 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       dragRafRef.current = null;
     }
 
-    const finalPos = { ...dragPosRef.current };
+    const draggedNode = nodes.find((n) => n.id === activeNodeId);
+    const finalPos = clampNodePosition(
+      dragPosRef.current.x,
+      dragPosRef.current.y,
+      draggedNode?.width ?? DEFAULT_WIDTH,
+      draggedNode?.height ?? DEFAULT_HEIGHT
+    );
     dragPosRef.current = null;
     dragPointerIdRef.current = null;
 
@@ -233,8 +257,22 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     const movementXPct = (e.movementX / rect.width) * 100;
     const movementYPct = (e.movementY / rect.height) * 100;
 
-    dim.w = Math.max(5, dim.w + movementXPct);
-    dim.h = Math.max(5, dim.h + movementYPct);
+    const resizedNode = nodes.find((n) => n.id === resizingNodeId);
+    // Heal x/y the same way displayNodes does — a legacy out-of-bounds
+    // raw x/y would otherwise yield a negative maxW/maxH that collapses
+    // the node to the size floor on touch.
+    const healedPos = resizedNode
+      ? clampNodePosition(
+          resizedNode.x,
+          resizedNode.y,
+          resizedNode.width ?? DEFAULT_WIDTH,
+          resizedNode.height ?? DEFAULT_HEIGHT
+        )
+      : { x: 0, y: 0 };
+    const maxW = 100 - healedPos.x;
+    const maxH = 100 - healedPos.y;
+    dim.w = Math.max(5, Math.min(maxW, dim.w + movementXPct));
+    dim.h = Math.max(5, Math.min(maxH, dim.h + movementYPct));
 
     if (resizeRafRef.current !== null) return;
     resizeRafRef.current = requestAnimationFrame(() => {
@@ -364,9 +402,21 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       if (n.id === resizingNodeId && resizingNodeDim) {
         node = { ...node, width: resizingNodeDim.w, height: resizingNodeDim.h };
       }
-      return node;
+      // Heal a node persisted out of bounds before the drag/resize clamp existed.
+      const width = Math.min(node.width ?? DEFAULT_WIDTH, 100);
+      const height = Math.min(node.height ?? DEFAULT_HEIGHT, 100);
+      const { x, y } = clampNodePosition(node.x, node.y, width, height);
+      return { ...node, x, y, width, height };
     });
-  }, [nodes, activeNodeId, activeNodePos, resizingNodeId, resizingNodeDim]);
+  }, [
+    nodes,
+    activeNodeId,
+    activeNodePos,
+    resizingNodeId,
+    resizingNodeDim,
+    DEFAULT_WIDTH,
+    DEFAULT_HEIGHT,
+  ]);
 
   const sourceDrawNode = useMemo(() => {
     if (!drawingFromId) return null;

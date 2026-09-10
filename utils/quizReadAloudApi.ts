@@ -107,12 +107,54 @@ export const STIMULUS_CHUNK_BYTES = 4500;
 const utf8 = new TextEncoder();
 const byteLength = (s: string) => utf8.encode(s).length;
 
+const UNIT_WORDS: Record<string, string> = {
+  mm: 'millimeters',
+  cm: 'centimeters',
+  km: 'kilometers',
+  kg: 'kilograms',
+  mg: 'milligrams',
+  ml: 'milliliters',
+  mL: 'milliliters',
+  '°C': 'degrees Celsius',
+  '°F': 'degrees Fahrenheit',
+};
+
+/** Client mirror of the server's R11 normalizer (functions/src/quizReadAloud.ts); both sides must chunk the same input. */
+export function normalizeReadAloudText(raw: string): string {
+  let s = raw;
+  s = s.replace(/<[^>]+>/g, ' ');
+  s = s.replace(/_{3,}/g, ' blank ');
+  s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+  s = s.replace(/(\*\*|__)(.+?)\1/g, '$2');
+  s = s.replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|$|[.,;:!?])/g, '$1$2');
+  s = s.replace(/`([^`]*)`/g, '$1');
+  s = s.replace(/^\s{0,3}#{1,6}\s+/gm, '');
+  s = s.replace(/^\s{0,3}>\s?/gm, '');
+  s = s.replace(/(\d+)\s*\^\s*2\b/g, '$1 squared');
+  s = s.replace(/(\d+)\s*\^\s*3\b/g, '$1 cubed');
+  s = s.replace(
+    /([A-Za-z0-9)]+)\s*\^\s*\(?(-?\d+)\)?/g,
+    '$1 to the power of $2'
+  );
+  s = s.replace(/\b(\d+)\s*\/\s*(\d+)\b/g, '$1 over $2');
+  s = s.replace(/(\d)\s*%/g, '$1 percent');
+  s = s.replace(
+    /(\d)\s*(mm|cm|km|kg|mg|mL|ml|°C|°F)\b/g,
+    (_m, n: string, u: string) => `${n} ${UNIT_WORDS[u] ?? u}`
+  );
+  s = s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+  return s
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
+}
+
 /** Client mirror of the server's R4 chunker so the text pane can highlight the chunk being read. */
 export function chunkReadAloudText(
   text: string,
   maxBytes = STIMULUS_CHUNK_BYTES
 ): string[] {
-  const clean = text.trim();
+  const clean = normalizeReadAloudText(text);
   if (!clean) return [];
   const sentences = clean.split(/(?<=[.!?])\s+|\n{2,}/).filter(Boolean);
   const chunks: string[] = [];

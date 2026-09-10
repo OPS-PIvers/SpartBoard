@@ -1,6 +1,13 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { act, cleanup, fireEvent, screen } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  waitForElementToBeRemoved,
+} from '@testing-library/react';
 import { SettingsDrawerHost } from '@/components/settings/SettingsDrawerHost';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import {
@@ -8,6 +15,7 @@ import {
   wasSettingsJustClosed,
 } from '@/components/settings/settingsCloseSignal';
 import { registerPanSetter } from '@/components/settings/panSetterRegistry';
+import { WIDGET_SETTINGS_SCHEMAS } from '@/components/widgets/WidgetRegistry';
 import { makeBoard, makeWidget, renderWithCanvas } from './settingsHostHarness';
 
 vi.mock('@/hooks/useHelpResources', () => ({
@@ -286,6 +294,31 @@ describe('SettingsDrawerHost maximized widgets', () => {
       flipped: false,
     });
     expect(drawer()).toBeNull();
+  });
+});
+
+describe('SettingsDrawerHost schema chunk load failure', () => {
+  it('falls back to the legacy content instead of a permanent skeleton', async () => {
+    const originalLoader = WIDGET_SETTINGS_SCHEMAS.clock;
+    WIDGET_SETTINGS_SCHEMAS.clock = () =>
+      Promise.reject(new Error('chunk load failed'));
+    try {
+      const w = makeWidget({ flipped: true });
+      renderWithCanvas(<SettingsDrawerHost />, makeBoard([w]));
+
+      expect(
+        screen.getByTestId('settings-drawer-skeleton')
+      ).toBeInTheDocument();
+
+      await waitForElementToBeRemoved(() =>
+        screen.queryByTestId('settings-drawer-skeleton')
+      );
+      await waitFor(() =>
+        expect(screen.getByTestId('legacy-slot')).toBeInTheDocument()
+      );
+    } finally {
+      WIDGET_SETTINGS_SCHEMAS.clock = originalLoader;
+    }
   });
 });
 

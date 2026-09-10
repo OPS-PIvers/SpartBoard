@@ -58,10 +58,6 @@ const SECTION_LABELS: Record<
     key: 'plcDashboard.tabs.assessments',
     defaultValue: 'Assessments',
   },
-  sharedData: {
-    key: 'plcDashboard.tabs.sharedData',
-    defaultValue: 'Data',
-  },
   docs: { key: 'plcDashboard.tabs.docs', defaultValue: 'Notes & Docs' },
   todos: { key: 'plcDashboard.tabs.todos', defaultValue: 'To-Dos' },
   sharedBoards: {

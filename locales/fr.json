@@ -375,7 +375,6 @@
       "settings": "Paramètres",
       "home": "Accueil",
       "members": "Membres",
-      "sharedData": "Données",
       "meeting": "Mode Réunion",
       "docs": "Notes et documents",
       "resources": "Ressources"
@@ -518,6 +517,10 @@
         "title": "Résumé hebdomadaire par e-mail",
         "optInDescription": "Envoie à chaque membre un e-mail hebdomadaire résumant ce qui s'est passé dans la Communauté. Désactivé par défaut ; tout membre peut le modifier.",
         "saveFailed": "Échec de la mise à jour du paramètre de résumé"
+      },
+      "showPerTeacher": {
+        "title": "Détail par enseignant(e)",
+        "description": "Affiche la moyenne de chaque enseignant(e) dans les résultats regroupés. Désactivé par défaut pour que l’équipe regarde d’abord les données combinées."
       }
     },
     "overview": {
@@ -796,63 +799,6 @@
       "mentionNoMatch": "Aucun coéquipier correspondant",
       "mentionListLabel": "Mentionner un coéquipier"
     },
-    "sharedData": {
-      "loading": "Chargement des données partagées…",
-      "loadError": "Impossible de charger les données partagées",
-      "emptyTitle": "Aucune donnée partagée pour l'instant",
-      "emptySubtitle": "Lorsque des membres réalisent une évaluation commune en mode CAP, des résultats anonymisés apparaissent ici.",
-      "noResults": "Aucun résultat ne correspond à vos filtres",
-      "untitledQuiz": "Évaluation sans titre",
-      "untitledQuestion": "Question sans titre",
-      "kindQuiz": "Quiz",
-      "kindVA": "Activité vidéo",
-      "common": "Commune",
-      "avg": "moy.",
-      "teacher": "enseignant",
-      "teachers": "enseignants",
-      "students": "élèves",
-      "studentsShort": "él.",
-      "classCount": "{{count}} cl.",
-      "ranOf": "{{ran}} sur {{total}} l'ont réalisée",
-      "teamAverage": "moyenne de l'équipe",
-      "weakestQuestions": "Questions les plus faibles",
-      "byClass": "Par enseignant / classe",
-      "you": "(vous)",
-      "whoRanIt": "Qui l'a réalisée",
-      "hasRun": "l'a réalisée",
-      "notRun": "ne l'a pas encore réalisée",
-      "updating": "mise à jour…",
-      "updatingHint": "Les nouveaux résultats sont encore en cours d'agrégation — les chiffres seront actualisés sous peu.",
-      "designateTitle": "En faire l'évaluation commune de l'équipe",
-      "designateSubtitle": "La désigner lui donne un titre, une unité et un statut partagés que toute l'équipe suit.",
-      "designateAction": "Désigner",
-      "designatePrompt": "Nommez cette évaluation commune pour que toute l'équipe la reconnaisse.",
-      "designatePromptTitle": "Désigner l'évaluation commune",
-      "designatePlaceholder": "ex. Unité 4 CFA",
-      "designated": "« {{title}} » est désormais l'évaluation commune de l'équipe.",
-      "designateFailed": "Impossible de désigner cette évaluation. Réessayez.",
-      "status": {
-        "planning": "Planification",
-        "active": "Active",
-        "reviewing": "En révision",
-        "closed": "Clôturée"
-      },
-      "filters": {
-        "label": "Filtrer les données partagées",
-        "search": "Rechercher des évaluations",
-        "searchPlaceholder": "Rechercher…",
-        "type": "Type",
-        "typeAll": "Tous les types",
-        "typeQuiz": "Quiz",
-        "typeVA": "Activités vidéo",
-        "teacher": "Enseignant",
-        "teacherAll": "Tous les enseignants",
-        "unit": "Unité",
-        "unitAll": "Toutes les unités",
-        "status": "Statut",
-        "statusAll": "Tous les statuts"
-      }
-    },
     "meeting": {
       "loading": "Chargement des données de la réunion…",
       "loadError": "Impossible de charger les données de la réunion",
@@ -880,11 +826,6 @@
       "reviewCardLabel": "Résultats agrégés pour {{title}}",
       "discussAssessment": "En discuter",
       "discussQuestion": "Discuter de cette question dans une décision",
-      "designatePrompt": "Nommez cette évaluation commune pour que toute l’équipe la reconnaisse.",
-      "designatePromptTitle": "Désigner une évaluation commune",
-      "designatePlaceholder": "ex. Unité 4 CFA",
-      "designated": "« {{title}} » est désormais l’évaluation commune de l’équipe.",
-      "designateFailed": "Impossible de désigner cette évaluation. Réessayez.",
       "back": "Retour",
       "next": "Suivant",
       "saveMeeting": "Enregistrer la réunion",
@@ -905,8 +846,7 @@
         "subtitle": "Choisissez la ou les évaluations communes que cette réunion examine.",
         "emptyTitle": "Aucune donnée d’évaluation pour l’instant",
         "emptySubtitle": "Lorsque l’équipe fait passer une évaluation commune en mode CAP, les résultats anonymisés apparaissent ici, prêts à être examinés ensemble.",
-        "cardMeta": "{{avg}}% moy. équipe · {{teachers}} enseignants · {{students}} élèves",
-        "designate": "Désigner"
+        "cardMeta": "{{avg}}% moy. équipe · {{teachers}} enseignants · {{students}} élèves"
       },
       "review": {
         "heading": "Que disent les données ?",
@@ -1051,7 +991,6 @@
       "noResults": "Aucun résultat pour « {{query}} »",
       "untitled": "Sans titre",
       "groupAssessments": "Évaluations",
-      "groupData": "Données",
       "groupDocs": "Notes et documents",
       "groupBoards": "Tableaux"
     },
@@ -1133,6 +1072,73 @@
       "using": "Ajout en cours…",
       "open": "Ouvrir",
       "use": "Utiliser"
+    },
+    "assessmentList": {
+      "filters": {
+        "label": "Filtrer les évaluations",
+        "all": "Toutes",
+        "inProgress": "En cours",
+        "scored": "Notées",
+        "libraryOnly": "Bibliothèque seule"
+      },
+      "status": {
+        "scored": "Notée",
+        "inProgress": "En cours",
+        "libraryOnly": "Bibliothèque seule",
+        "notStarted": "Non commencée"
+      },
+      "untitled": "Évaluation sans titre",
+      "teachersOf": "{{count}} enseignant(e)s sur {{total}}",
+      "students": "{{count}} élèves",
+      "updatedAt": "Mis à jour le {{date}}",
+      "questionCount": "{{count}} questions",
+      "sharedBy": "Partagé par {{name}}",
+      "archived": "Archivée",
+      "noResultsYet": "Pas encore de résultats",
+      "assign": "Attribuer à mes classes",
+      "moreActions": "Plus d’actions pour {{title}}",
+      "rename": "Renommer",
+      "archive": "Archiver",
+      "renamePrompt": "Nouveau nom pour cette évaluation",
+      "renameFailed": "Impossible de renommer cette évaluation. Réessayez.",
+      "archivedToast": "« {{title}} » archivée.",
+      "archiveFailed": "Impossible d’archiver cette évaluation. Réessayez.",
+      "searchLabel": "Rechercher des évaluations",
+      "searchPlaceholder": "Rechercher…",
+      "manageLibrary": "Gérer les quiz partagés",
+      "loading": "Chargement des évaluations…",
+      "loadError": "Impossible de charger les évaluations.",
+      "emptyTitle": "Aucune évaluation pour l’instant",
+      "emptySubtitle": "Attribuez un quiz et partagez ses résultats avec cette CAP pour regrouper ici les données de l’équipe.",
+      "noMatches": "Aucune évaluation ne correspond à ce filtre."
+    },
+    "assessmentDetail": {
+      "back": "Toutes les évaluations",
+      "notFoundTitle": "Évaluation introuvable",
+      "notFoundSubtitle": "Elle a peut-être été retirée de cette CAP.",
+      "untitled": "Évaluation sans titre",
+      "untitledQuestion": "Question sans titre",
+      "teamAverage": "Moyenne de l’équipe",
+      "notScoredYet": "Pas encore notée",
+      "students": "Élèves comptés",
+      "studentsHint": "Les élèves sont comptés par enseignant(e) ; un élève présent dans les classes de deux enseignant(e)s compte deux fois.",
+      "teachers": "Enseignant(e)s",
+      "teachersOf": "{{count}} sur {{total}}",
+      "lastComputed": "Dernier calcul",
+      "neverComputed": "Pas encore",
+      "questionsHeading": "Questions, les plus ratées d’abord",
+      "noQuestions": "Pas encore de résultats. Dès qu’un(e) enseignant(e) fait passer cette évaluation et publie les notes, les questions regroupées apparaissent ici.",
+      "incorrectPercent": "{{percent}} % d’erreurs",
+      "notScored": "Non notée",
+      "gradedOfAnswered": "{{graded}} notées · {{answered}} répondues",
+      "choiceDistribution": "Répartition des réponses",
+      "choiceCount": "{{count}} · {{percent}} %",
+      "perTeacherHeading": "Par enseignant(e)",
+      "teacher": "Enseignant(e)",
+      "classes": "Classes",
+      "studentsColumn": "Élèves",
+      "average": "Moyenne",
+      "unknownTeacher": "Enseignant(e)"
     }
   },
   "widgetWindow": {
@@ -1939,7 +1945,13 @@
       "save": "Enregistrer",
       "saving": "Enregistrement…",
       "editSkipped": "{{count}} élève(s) n'ont pas pu être enregistrés pour ce devoir.",
-      "editSaveFailed": "Impossible d'enregistrer les modifications. Réessayez."
+      "editSaveFailed": "Impossible d'enregistrer les modifications. Réessayez.",
+      "sharingWithPlc": "Résultats partagés avec {{plc}}",
+      "sharePlc": "Partager les résultats avec la CAP…",
+      "stopSharingPlc": "Arrêter le partage",
+      "sharePlcDone": "Les résultats sont désormais regroupés avec {{plc}}.",
+      "stopSharingPlcDone": "Les résultats ne sont plus partagés avec {{plc}}.",
+      "plcActionFailed": "Impossible de mettre à jour le partage. Réessayez."
     }
   },
   "quizResults": {

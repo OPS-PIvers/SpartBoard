@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-09_
+_Last audited: 2026-09-10_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-10: Full audit (Thursday daily). `pnpm type-check` (`tsc --noEmit`, full root run) exit 0 — 0 TypeScript errors. `pnpm run lint`: the combined `pnpm run lint` failed at the `lint:app` (`eslint . --max-warnings 0`) step with a bare `ELIFECYCLE Command failed` and no rule output before the 290s cap, same class of recurring environment limit as prior cycles (e.g. 2026-08-23, 2026-08-22). Fell back to the established 5-sweep methodology: `context/ hooks/ utils/ config/` exit 0; `components/widgets` exit 0; the remaining 30 `components/*` subdirs (activityWall, admin, announcements, assignmentsHub, auth, backgroundsModal, boardsModal, classes, classroomAddon, common, converter, dev, guidedLearning, help, landing, layout, legal, lti, miniApp, plc, poll, quickAccessModal, quiz, remote, settings, settingsModal, share, spotify, student, subs, videoActivity) exit 0; `App.tsx index.tsx types.ts i18n/ tests/ types/` exit 0; `functions/`'s own `pnpm run lint` exit 0. All 5 sweeps exit 0 — 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both. HEAD (`c27dd695`) is a Thursday css-scaling audit commit (docs-only); `git status` clean, no source changes made. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs). 0 new issues found._
 
 _2026-09-09: Full audit (Wednesday daily). `pnpm run type-check` (`tsc --noEmit`, full root run) exit 0 — 0 TypeScript errors, no fallback needed. `pnpm run lint`: the combined `pnpm run lint` was killed again (exit 143, 280s cap), same recurring environment limit. Fell back to the established 5-sweep methodology: `context/ hooks/ utils/ config/` exit 0; `components/widgets` exit 0; the remaining 30 `components/*` subdirs exit 0; `App.tsx index.tsx types.ts i18n/ tests/ types/` exit 0; `functions/`'s own `pnpm run lint` **first run failed** (exit 1, 48 errors) with `@typescript-eslint/no-unsafe-*` errors across `functions/src/quizReadAloud.ts` and `functions/src/quizStimulusText.ts`, all on call chains through `@google-cloud/text-to-speech` and `pdf-lib`/`pdf-parse`. Root-caused before filing: `functions/package.json` declares `@google-cloud/text-to-speech@^7.1.0` and `pdf-lib@^1.17.1` (added by today's read-aloud PR1/PR2 series, `1c36df1b`/`f02fa90c`) but neither was present in this audit environment's `functions/node_modules` — same recurring class as the 2026-08-27 `pdfjs-dist`, 2026-09-02 `fluent-ffmpeg`, 2026-09-03 `react-leaflet`, and 2026-09-07/09-08 `jest-axe` post-rebase stale-install false positives, not a real lint error. Ran `pnpm install` inside `functions/` (installed `@google-cloud/text-to-speech@7.1.0`, `pdf-lib@1.17.1`, `pdf-parse@2.4.5`; `git status` clean after — no lockfile/tracked-file changes), then re-ran `functions/`'s `pnpm run lint` and `pnpm run type-check` — both exit 0 clean. All 5 sweeps now exit 0 — 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both, once the environment's dependency state was brought current. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs). 0 new issues found._
 

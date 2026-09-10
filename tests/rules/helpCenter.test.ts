@@ -52,9 +52,14 @@ const asOrgAdmin = () =>
       email_verified: true,
     })
     .firestore();
+// email_verified: true — isOrgMember() (helpReaderOk()'s org-scoped branch)
+// now requires it (see firestore.rules).
 const asTeacher = () =>
   testEnv
-    .authenticatedContext(TEACHER_UID, { email: TEACHER_EMAIL })
+    .authenticatedContext(TEACHER_UID, {
+      email: TEACHER_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 const asTeacherB = () =>
   testEnv

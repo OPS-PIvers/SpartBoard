@@ -66,6 +66,7 @@ import {
   StudentTargetRef,
   SyncedQuizGroup,
   QuizBehaviorSettings,
+  Plc,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -74,6 +75,8 @@ import {
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
 import { usePlcs } from '@/hooks/usePlcs';
+import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
+import { findPoolGroupByTitle } from '@/utils/plcPooling';
 import {
   mapLegacyClassIdsToRosterIds,
   resolveAssignmentTargets,
@@ -85,7 +88,6 @@ import {
   LibraryItemCard,
   LibraryPreviewPane,
   AssignModal,
-  ToggleRow,
   ViewOnlyShareModal,
   AssignmentArchiveCard,
   ViewCountBadge,
@@ -141,17 +143,10 @@ export interface PlcOptions {
   /** @deprecated Use periodNames instead. */
   periodName?: string;
   periodNames?: string[];
-  plcSheetUrl?: string;
-  /**
-   * Selected PLC whose shared sheet should receive this assignment's
-   * results. When set and `plcMode === true`, the caller (QuizWidget)
-   * resolves `plcSheetUrl` by either reading `plcs/{plcId}.sharedSheetUrl`
-   * or auto-creating a new sheet and caching it back onto the PLC doc.
-   * `undefined` means the teacher is opting into the legacy
-   * manual-paste-URL flow (e.g. they aren't a member of any PLC or
-   * auto-create failed).
-   */
+  /** PLC whose assessments pool this assignment's results (when `plcMode`). */
   plcId?: string;
+  /** PLC library group with the same title, so runs of one quiz share a pool. */
+  plcPoolSyncGroupId?: string;
 }
 
 /* ─── Assign-modal options shape (internal) ───────────────────────────────── */
@@ -163,12 +158,9 @@ export interface PlcOptions {
  */
 interface QuizAssignOptions {
   plcMode: boolean;
+  /** Kept for the assignment record (sheet export's Teacher column); no input. */
   teacherName: string;
-  plcSheetUrl: string;
-  /**
-   * Selected PLC id when the teacher is a member of one or more PLCs.
-   * Empty string = no PLC selected (manual-URL fallback).
-   */
+  /** Selected PLC id; empty string = none chosen yet. */
   plcId: string;
   /** Unified roster picker state. */
   picker: AssignClassPickerValue;
@@ -187,11 +179,34 @@ function resolveEffectivePeriodNames(
   return resolveAssignmentTargets(picker, rosters).periodNames;
 }
 
+/**
+ * Pre-check "Share results" when the quiz came from one of the teacher's
+ * PLCs (its synced group carries that PLC's id). Falls back to the widget's
+ * remembered `plcMode` when no sync info is known.
+ */
+function resolveDefaultPlcSelection(
+  quiz: QuizMetadata | null,
+  config: QuizConfig,
+  plcs: readonly Plc[],
+  syncedGroups: Map<string, SyncedQuizGroup> | undefined
+): { plcMode: boolean; plcId: string } {
+  const groupId = quiz?.sync?.groupId;
+  const groupPlcId = groupId ? syncedGroups?.get(groupId)?.plcId : undefined;
+  if (groupPlcId && plcs.some((p) => p.id === groupPlcId)) {
+    return { plcMode: true, plcId: groupPlcId };
+  }
+  return { plcMode: config.plcMode ?? false, plcId: '' };
+}
+
 function buildDefaultAssignOptions(
   config: QuizConfig,
   quizId: string | undefined,
   rosters: ClassRoster[],
-  defaultTeacherName?: string
+  defaultTeacherName?: string,
+  plcDefault: { plcMode: boolean; plcId: string } = {
+    plcMode: config.plcMode ?? false,
+    plcId: '',
+  }
 ): QuizAssignOptions {
   // Prefer the unified `lastRosterIdsByQuizId` memory. Fall back to legacy
   // ClassLink-sourcedId maps (`lastClassIdsByQuizId` / `lastClassIdByQuizId`)
@@ -208,19 +223,9 @@ function buildDefaultAssignOptions(
     rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
   }
   return {
-    plcMode: config.plcMode ?? false,
-    // Auto-fill from the signed-in teacher's display name when neither the
-    // widget config nor a prior assignment carried a saved name. Falls back
-    // to '' so empty Google profiles still render the placeholder cleanly.
+    plcMode: plcDefault.plcMode,
     teacherName: config.teacherName ?? defaultTeacherName ?? '',
-    // Intentionally NOT seeded from `config.plcSheetUrl`. Per-assignment
-    // auto-create is the new default; pre-populating the field from a prior
-    // assignment's URL was the bug teachers reported (every new assignment
-    // appearing to be linked to the same sheet). Manual paste still works
-    // — the user opens the dialog, toggles "Auto-Generated PLC Sheet" off,
-    // and pastes a URL.
-    plcSheetUrl: '',
-    plcId: '',
+    plcId: plcDefault.plcId,
     picker:
       rememberedRosters.length > 0
         ? { rosterIds: rememberedRosters }
@@ -367,6 +372,12 @@ interface QuizManagerProps {
   onArchiveResults?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveEditSettings?: (assignment: QuizAssignment) => void;
   onArchiveShare?: (assignment: QuizAssignment) => void | Promise<void>;
+  /** Open the retroactive "Share results with PLC…" picker (D12). */
+  onArchiveSharePlcResults?: (assignment: QuizAssignment) => void;
+  /** Clear an assignment's PLC results link. */
+  onArchiveStopSharingPlc?: (
+    assignment: QuizAssignment
+  ) => void | Promise<void>;
   /**
    * Open the "Assign to Google Classroom" flow for an assignment. Only provided
    * (and the kebab action only rendered) when CLASSROOM_ASSIGN_ENABLED is on, so
@@ -397,12 +408,7 @@ interface QuizManagerProps {
   /** Reopen an ended assignment back to a paused state. */
   onArchiveReopen?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
-  /**
-   * Signed-in teacher's display name. Used as the auto-fill default for the
-   * "Your Name" / `teacherName` field in the assign modal when neither the
-   * widget config nor a prior assignment carried a saved name. Threaded
-   * through from Widget.tsx → useAuth().user.displayName.
-   */
+  /** Signed-in teacher's display name; default `teacherName` on new assignments. */
   defaultTeacherName?: string;
   /**
    * Live snapshot of `/synced_quizzes/{groupId}` docs the local user
@@ -575,6 +581,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveResults,
   onArchiveEditSettings,
   onArchiveShare,
+  onArchiveSharePlcResults,
+  onArchiveStopSharingPlc,
   onArchiveAssignToClassroom,
   canAssignToClassroom = false,
   onArchivePublishScores,
@@ -767,7 +775,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           config,
           assignTarget.id,
           rosters,
-          defaultTeacherName
+          defaultTeacherName,
+          resolveDefaultPlcSelection(assignTarget, config, plcs, syncedGroups)
         )
       );
     }
@@ -1116,6 +1125,29 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   };
 
   // ─── Build archive-card actions ───────────────────────────────────────────
+  // D12: retroactive PLC results link, offered on any owned assignment.
+  const pushPlcResultsActions = (
+    a: QuizAssignment,
+    secondaries: LibraryMenuAction[]
+  ): void => {
+    if (a.plc) {
+      if (!onArchiveStopSharingPlc) return;
+      secondaries.push({
+        id: 'stop-sharing-plc',
+        label: `Stop sharing with ${a.plc.name}`,
+        icon: Users2,
+        onClick: () => void onArchiveStopSharingPlc(a),
+      });
+    } else if (onArchiveSharePlcResults && plcs.length > 0) {
+      secondaries.push({
+        id: 'share-plc-results',
+        label: 'Share results with PLC…',
+        icon: Users2,
+        onClick: () => onArchiveSharePlcResults(a),
+      });
+    }
+  };
+
   const buildArchiveActions = (
     a: QuizAssignment,
     mode: 'active' | 'archive'
@@ -1365,6 +1397,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           if (ok) await (onArchiveDelete ?? noop)(a);
         },
       });
+      pushPlcResultsActions(a, secondaries);
       // Filter any item matching the primary label to avoid duplication.
       return {
         primary,
@@ -1454,18 +1487,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         if (ok) await (onArchiveDelete ?? noop)(a);
       },
     });
+    pushPlcResultsActions(a, secondaries);
     return {
       primary,
       secondaries: secondaries.filter((m) => m.label !== primary.label),
     };
   };
 
-  // ─── PLC sheet URL validation ─────────────────────────────────────────────
-  const plcSheetUrlInvalid =
-    !!assignOptions.plcSheetUrl &&
-    !assignOptions.plcSheetUrl.startsWith(
-      'https://docs.google.com/spreadsheets/'
-    );
+  // ─── PLC pooling (title-aware) ────────────────────────────────────────────
+  // Explicit choice wins; otherwise the sole PLC. Shared with the slot below.
+  const assignExplicitPlc = plcs.find((p) => p.id === assignOptions.plcId);
+  const assignEffectivePlcId =
+    assignExplicitPlc?.id ?? (plcs.length === 1 ? plcs[0].id : '');
+  // Library listener only lives while the dialog is open with a PLC chosen.
+  const { quizzes: assignPlcLibrary } = usePlcQuizzes(
+    assignTarget && assignOptions.plcMode && assignEffectivePlcId
+      ? assignEffectivePlcId
+      : null
+  );
+  const assignPoolGroup = assignTarget
+    ? findPoolGroupByTitle(assignPlcLibrary, assignTarget.title)
+    : undefined;
 
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
@@ -1501,21 +1543,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       { rosterIds: validRosterIds },
       rosters
     );
-    // Mirror AssignPlcSlot's effective-id derivation: an explicit choice
-    // wins; otherwise auto-select when there's exactly one PLC. Computed
-    // inline here so a teacher who never touched the dropdown (because
-    // there's only one PLC) still gets that PLC piped through.
-    const explicitPlc = plcs.find((p) => p.id === assignOptions.plcId);
-    const effectivePlcId =
-      explicitPlc?.id ?? (plcs.length === 1 ? plcs[0].id : '');
     const plcOptions: PlcOptions = {
       plcMode: assignOptions.plcMode,
       teacherName: assignOptions.teacherName || undefined,
       periodName: effectivePeriodNames[0] || undefined,
       periodNames:
         effectivePeriodNames.length > 0 ? effectivePeriodNames : undefined,
-      plcSheetUrl: assignOptions.plcSheetUrl || undefined,
-      plcId: effectivePlcId || undefined,
+      plcId: assignEffectivePlcId || undefined,
+      ...(assignOptions.plcMode && assignPoolGroup
+        ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
+        : {}),
     };
     onAssign(
       assignTarget,
@@ -2051,7 +2088,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               options={assignOptions}
               onChange={setAssignOptions}
               plcs={plcs}
-              plcSheetUrlInvalid={plcSheetUrlInvalid}
               effectivePeriodCount={
                 resolveEffectivePeriodNames(assignOptions.picker, rosters)
                   .length
@@ -2654,64 +2690,37 @@ const AssignDueDateField: React.FC<{
 const AssignPlcSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
-  /**
-   * Teacher's PLC memberships, threaded down from the parent so the
-   * parent can also derive the effective PLC selection at
-   * handleAssignConfirm time without re-subscribing to the same hook.
-   */
-  plcs: import('@/types').Plc[];
-  plcSheetUrlInvalid: boolean;
-  /**
-   * Number of class periods the picker is contributing (ClassLink class
-   * labels or local roster names). Drives the "students will see a picker"
-   * hint without this slot needing to recompute the derivation itself.
-   */
+  /** Teacher's PLC memberships (parent derives the effective id the same way). */
+  plcs: readonly Plc[];
+  /** Class periods the picker contributes; drives the period-picker hint. */
   effectivePeriodCount: number;
-}> = ({
-  options,
-  onChange,
-  plcs,
-  plcSheetUrlInvalid,
-  effectivePeriodCount,
-}) => {
+}> = ({ options, onChange, plcs, effectivePeriodCount }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
   ) => onChange({ ...options, [key]: value });
 
-  // Compute the effective selection on the fly instead of syncing with
-  // an effect. Two cases:
-  //   1. User has explicitly picked a still-existing PLC → use it
-  //   2. Otherwise → auto-select the sole PLC when there's exactly one,
-  //      else show no selection
-  // A stale options.plcId (PLC was deleted while the modal was open)
-  // collapses to ''; the assign-flow in Widget.tsx already tolerates an
-  // empty plcId, so no separate cleanup is required. Computing this
-  // derived value inline avoids the "calling a parent setter during
-  // render" / "useEffect to sync state across components" antipatterns.
-  const explicitlyChosen = plcs.find((p) => p.id === options.plcId) ?? null;
-  const effectivePlcId =
-    explicitlyChosen?.id ?? (plcs.length === 1 ? plcs[0].id : '');
-  const selectedPlc = explicitlyChosen ?? (plcs.length === 1 ? plcs[0] : null);
-  const hasCachedSheet = Boolean(selectedPlc?.sharedSheetUrl);
-  const hasPlcs = plcs.length > 0;
+  if (plcs.length === 0) return null;
 
-  // "Auto-Generated PLC Sheet" toggle — ON by default. When OFF, the
-  // teacher can paste a URL of an existing sheet to point this assignment
-  // at it instead of letting Widget.tsx auto-create one. Initial state
-  // tracks whether a URL is already attached (legacy / pre-populated),
-  // mirroring the previous disclosure semantics.
-  const [useAutoGenerated, setUseAutoGenerated] = useState(
-    !options.plcSheetUrl
-  );
+  // Explicit choice wins; a sole PLC auto-selects; a stale id collapses to ''.
+  const explicitlyChosen = plcs.find((p) => p.id === options.plcId) ?? null;
+  const selectedPlc = explicitlyChosen ?? (plcs.length === 1 ? plcs[0] : null);
+  const effectivePlcId = selectedPlc?.id ?? '';
+  const label =
+    plcs.length === 1
+      ? `Share results with ${plcs[0].name}`
+      : 'Share results with a PLC';
 
   return (
     <>
-      <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Share2 className="w-4 h-4 text-brand-blue-primary" />
-          <span className="text-sm font-bold text-brand-blue-dark">
-            Share with PLC
+      <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Share2
+            className="w-4 h-4 shrink-0 text-brand-blue-primary"
+            aria-hidden="true"
+          />
+          <span className="text-sm font-bold text-brand-blue-dark truncate">
+            {label}
           </span>
         </div>
         <Toggle
@@ -2722,7 +2731,8 @@ const AssignPlcSlot: React.FC<{
         />
       </div>
       <p className="text-xxs text-slate-500 -mt-1">
-        Export results to a shared Google Sheet for your PLC team.{' '}
+        Completed, scored results pool with your team on the PLC page. No
+        student names are shared.{' '}
         {effectivePeriodCount > 1 ? (
           <>Students will see a class-period picker after entering their PIN.</>
         ) : (
@@ -2733,104 +2743,31 @@ const AssignPlcSlot: React.FC<{
         )}
       </p>
 
-      {options.plcMode && (
-        <div className="space-y-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
-          {hasPlcs && (
-            <div>
-              <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                PLC
-              </label>
-              <select
-                value={effectivePlcId}
-                onChange={(e) => update('plcId', e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {/*
-                 * Only render the empty placeholder when there are 2+ PLCs.
-                 * With exactly one PLC, `effectivePlcId` always derives to
-                 * that PLC's id, so picking "Select a PLC…" would snap right
-                 * back to the auto-selection — the option was unreachable
-                 * UI debt. Teachers in a one-PLC org opt out by toggling
-                 * Share-with-PLC off entirely.
-                 */}
-                {plcs.length > 1 && <option value="">Select a PLC…</option>}
-                {plcs.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              {selectedPlc && (
-                <p className="text-xxs text-slate-400 mt-0.5">
-                  {hasCachedSheet
-                    ? 'Using your PLC’s existing Google Sheet — teammates already have access.'
-                    : 'A Google Sheet will be created in your Drive and shared with every teammate automatically.'}
-                </p>
-              )}
-              {!selectedPlc && (
-                <p className="text-xxs text-slate-400 mt-0.5">
-                  Pick a PLC so results land in its shared Google Sheet.
-                </p>
-              )}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-              Your Name
-            </label>
-            <input
-              type="text"
-              value={options.teacherName}
-              onChange={(e) => update('teacherName', e.target.value)}
-              placeholder="e.g. Ms. Smith"
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <p className="text-xxs text-slate-400 mt-0.5">
-              Appears in the &quot;Teacher&quot; column of the shared sheet
+      {options.plcMode && plcs.length > 1 && (
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+          <label
+            htmlFor="assign-plc-select"
+            className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
+          >
+            PLC
+          </label>
+          <select
+            id="assign-plc-select"
+            value={effectivePlcId}
+            onChange={(e) => update('plcId', e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Select a PLC…</option>
+            {plcs.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          {!selectedPlc && (
+            <p className="text-xxs text-slate-500 mt-0.5">
+              Pick a PLC so results pool with the right team.
             </p>
-          </div>
-
-          {/*
-           * Auto-Generated PLC Sheet toggle. ON ⇒ Widget.tsx auto-creates a
-           * fresh sheet at assignment-create time and shares it with every
-           * PLC teammate. OFF ⇒ the teacher pastes a URL of an existing
-           * sheet and Widget.tsx skips auto-create (the manual URL wins).
-           */}
-          <ToggleRow
-            label="Auto-Generated PLC Sheet"
-            checked={useAutoGenerated}
-            onChange={(v) => {
-              setUseAutoGenerated(v);
-              if (v) update('plcSheetUrl', '');
-            }}
-            hint={
-              useAutoGenerated
-                ? 'SpartBoard creates a fresh Google Sheet for this assignment and shares it with your PLC.'
-                : 'Paste a Google Sheet URL — useful for pointing this assignment at a sheet you already have.'
-            }
-          />
-          {!useAutoGenerated && (
-            <div>
-              <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                Shared Google Sheet URL
-              </label>
-              <input
-                type="text"
-                value={options.plcSheetUrl}
-                onChange={(e) => update('plcSheetUrl', e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              {plcSheetUrlInvalid && (
-                <div className="flex items-center gap-1 mt-1 text-amber-600">
-                  <AlertTriangle className="w-3 h-3" />
-                  <span className="text-xxs">
-                    This doesn&apos;t look like a Google Sheets URL
-                  </span>
-                </div>
-              )}
-            </div>
           )}
         </div>
       )}

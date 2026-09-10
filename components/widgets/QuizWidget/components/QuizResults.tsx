@@ -46,7 +46,6 @@ import {
   QuizDriveService,
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
-import { publishPlcContribution } from '@/utils/plcContributions';
 import { logError } from '@/utils/logError';
 import { getResponseDocKey, type ResponseDocKey } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
@@ -68,7 +67,6 @@ import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
-import { PlcTab } from '@/components/common/library/PlcTab';
 import {
   SessionBadge,
   ScorePill,
@@ -205,22 +203,6 @@ interface QuizResultsProps {
    */
   plcSheetUrl?: string | null;
   /**
-   * Active assignment's PLC linkage id (`assignment.plc.id`). Drives both
-   * the PLC tab visibility and the auto-publish of this teacher's quiz
-   * contributions to `/plcs/{plcId}/contributions/*`. Passing `null`
-   * disables both — the tab is hidden and no contribution is published.
-   */
-  plcId?: string | null;
-  /**
-   * `assignment.sync?.groupId` — persisted on the published contribution
-   * for forward compatibility. PlcTab today groups contributions by exact
-   * question-id sequence, which works for synced quizzes because
-   * `pullSyncedQuiz` keeps question ids identical across members. The
-   * `syncGroupId` field is the hook for a future "logical quiz id" grouping
-   * if id parity ever stops being a safe assumption.
-   */
-  syncGroupId?: string | null;
-  /**
    * Persist a fresh export URL back to the assignment doc so it survives
    * QuizResults remounts (the parent remounts it on Results re-entry to
    * recompute aggregate stats) and full tab reloads.
@@ -264,8 +246,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   onPlcSheetUrlReplaced,
   initialExportUrl,
   plcSheetUrl: assignmentPlcSheetUrl,
-  plcId,
-  syncGroupId,
   onExportUrlSaved,
   initialExportedResponseIds,
   onExportedResponseIdsSaved,
@@ -331,9 +311,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [showGrader, setShowGrader] = useState(false);
   // In-widget screen navigation, mirroring the live monitor's calm-default
   // shell: a summary home face with drill-down screens instead of tabs.
-  const [screen, setScreen] = useState<
-    'home' | 'questions' | 'students' | 'plc'
-  >('home');
+  const [screen, setScreen] = useState<'home' | 'questions' | 'students'>(
+    'home'
+  );
   const [showScoreboardPrompt, setShowScoreboardPrompt] = useState(false);
   const scoreboardPromptRef = useRef<HTMLDivElement>(null);
 
@@ -528,83 +508,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     },
     [session?.id]
   );
-
-  // Auto-publish this teacher's contribution to the PLC results aggregate.
-  // Replaces the old "everyone must export to a shared Google Sheet" dance:
-  // as soon as the teacher views her results, her contribution is written
-  // to /plcs/{plcId}/contributions/{quizId}_{teacherUid} and every teammate's
-  // PlcTab snapshots-update in real time. Debounced so we don't write on
-  // every keystroke of an in-flight responses stream — the publish coalesces
-  // ~1.5s after the responses array settles.
-  //
-  // Intentionally re-runs on response changes (new submissions, edits,
-  // deletions) so the aggregate stays fresh while the teacher is sitting
-  // on the Results screen. The setDoc overwrites the same doc id, so
-  // there's no history pile-up.
-  //
-  // Permission-denied is silently ignored (expected when the teacher has
-  // been removed from the PLC mid-session). Every other failure mode —
-  // quota-exceeded on large response arrays, schema rejection from a
-  // future rules-vs-client version skew, transient network failure —
-  // toasts ONCE per failure streak so the teacher knows her contribution
-  // isn't reaching teammates' aggregates. The toast doesn't repeat on
-  // subsequent failed retries (would be spammy) but a clean recovery
-  // resets the flag so the next failure can toast again.
-  const autoPublishErrorToastedRef = useRef(false);
-  useEffect(() => {
-    if (!plcId || !user || !config.teacherName) return;
-    if (responses.length === 0) return;
-    const handle = setTimeout(() => {
-      void (async () => {
-        try {
-          await publishPlcContribution({
-            plcId,
-            teacherUid: user.uid,
-            teacherName: config.teacherName ?? '',
-            quiz,
-            responses,
-            syncGroupId: syncGroupId ?? null,
-            pinToName: exportPinToName,
-            byStudentUid,
-          });
-          autoPublishErrorToastedRef.current = false;
-        } catch (err) {
-          logError('QuizResults.autoPublishPlcContribution', err, {
-            plcId,
-            quizId: quiz.id,
-            teacherUid: user.uid,
-          });
-          const code =
-            typeof err === 'object' && err !== null && 'code' in err
-              ? (err as { code?: unknown }).code
-              : undefined;
-          const isPermissionDenied = code === 'permission-denied';
-          if (!isPermissionDenied && !autoPublishErrorToastedRef.current) {
-            autoPublishErrorToastedRef.current = true;
-            const msg =
-              err instanceof Error
-                ? err.message
-                : 'Unknown error publishing PLC contribution.';
-            addToast(
-              `Your results aren't reaching the PLC view: ${msg}`,
-              'error'
-            );
-          }
-        }
-      })();
-    }, 1500);
-    return () => clearTimeout(handle);
-  }, [
-    plcId,
-    syncGroupId,
-    user,
-    config.teacherName,
-    quiz,
-    responses,
-    exportPinToName,
-    byStudentUid,
-    addToast,
-  ]);
 
   // Per-period filtering — uses classPeriod set on each response at join time.
   const [periodFilter, setPeriodFilter] = useState<string>('all');
@@ -1654,13 +1557,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                   detail={`${filteredResponses.length} student${filteredResponses.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('students')}
                 />
-                {plcId && (
-                  <DrillRow
-                    label="PLC results"
-                    detail="Shared across your PLC"
-                    onClick={() => setScreen('plc')}
-                  />
-                )}
               </div>
             </div>
           )}
@@ -1686,7 +1582,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               addToast={addToast}
             />
           )}
-          {screen === 'plc' && plcId && <PlcTab plcId={plcId} />}
         </div>
       )}
 
