@@ -364,12 +364,12 @@ no practical byte constraint but keep validators shared.
       manager Banks tab (3), share validator (8), rules (CI-only).
 - [x] Changelog 2026.09.10.5. Help center article still to author in Firestore.
 
-### PR 3 — teacher Results by target
+### PR 3 — teacher Results by target (done 2026-09-10)
 
-- [ ] `computeTargetStats` + tests.
-- [ ] Targets tab (class view, grid, CSV, standard rollup, low-sample marker).
-- [ ] `showLearningTargets` assignment setting + student results grouping.
-- [ ] Changelog.
+- [x] `computeTargetStats` + tests.
+- [x] Targets tab (class view, grid, CSV, standard rollup, low-sample marker).
+- [x] `showLearningTargets` assignment setting + student results grouping.
+- [x] Changelog 2026.09.10.6.
 
 ### PR 4 — PLC per-target aggregate
 

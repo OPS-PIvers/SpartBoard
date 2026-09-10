@@ -33,6 +33,7 @@ export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = deepFreeze({
     showResultToStudent: false,
     showCorrectAnswerToStudent: false,
     showCorrectOnBoard: false,
+    showLearningTargets: false,
     shuffleQuestions: false,
     shuffleAnswerOptions: true,
     speedBonusEnabled: false,

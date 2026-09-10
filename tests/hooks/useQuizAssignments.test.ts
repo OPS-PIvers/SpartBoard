@@ -2026,6 +2026,76 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findSessionSet()).toMatchObject({ blockCopyPaste: false });
   });
 
+  it('mirrors showLearningTargets and only projects tags when it is enabled', async () => {
+    const taggedQuiz = {
+      ...QUIZ,
+      questions: [
+        {
+          id: 'q-target',
+          type: 'MC' as const,
+          text: 'Targeted question',
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'personal' as const,
+              label: 'Use evidence',
+            },
+          ],
+        },
+      ],
+    };
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(taggedQuiz, {
+        sessionMode: 'student',
+        sessionOptions: { showLearningTargets: true },
+      });
+    });
+    const session = findSessionSet();
+    expect(session.showLearningTargets).toBe(true);
+    expect(
+      (session.publicQuestions as Array<{ targets?: unknown[] }>)[0].targets
+    ).toHaveLength(1);
+  });
+
+  it('keeps learning-target tags out of the student payload by default', async () => {
+    const taggedQuiz = {
+      ...QUIZ,
+      questions: [
+        {
+          id: 'q-target',
+          type: 'MC' as const,
+          text: 'Targeted question',
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'personal' as const,
+              label: 'Use evidence',
+            },
+          ],
+        },
+      ],
+    };
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(taggedQuiz, {
+        sessionMode: 'student',
+        sessionOptions: {},
+      });
+    });
+    const session = findSessionSet();
+    expect(session.showLearningTargets).toBe(false);
+    expect(
+      (session.publicQuestions as Array<{ targets?: unknown[] }>)[0].targets
+    ).toBeUndefined();
+  });
+
   it('opts every new session into the server-side completeness model (completenessModel: 1)', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {

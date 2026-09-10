@@ -3991,6 +3991,8 @@ export interface QuizSession {
   showCorrectAnswerToStudent?: boolean;
   /** Show the correct answer on the teacher's projected board (default false) */
   showCorrectOnBoard?: boolean;
+  /** Group published answer feedback by the projected learning-target tags. */
+  showLearningTargets?: boolean;
   /**
    * Teacher-written map of questionId → correct answer text.
    * Students read from this after submitting; only populated when the

@@ -137,6 +137,7 @@ import {
 } from '@/utils/quizOverrideServing';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
+import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
 import {
   countAnsweredQuestions,
   listOpenQuestions,
@@ -4194,6 +4195,19 @@ export const PublishedScoreReview: React.FC<{
   const publicQuestions = drawIds
     ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
     : serveQuestionSubset(session.publicQuestions ?? [], override?.questionIds);
+  const publicQuestionIndex = new Map(
+    publicQuestions.map((question, index) => [question.id, index])
+  );
+  const reviewGroups =
+    session.showLearningTargets === true
+      ? groupQuestionsByTargets(publicQuestions)
+      : [
+          {
+            key: 'all',
+            targets: [],
+            questions: publicQuestions,
+          },
+        ];
   const autoGradedQuestionIds = new Set(
     publicQuestions.filter((q) => !isFreeResponseType(q.type)).map((q) => q.id)
   );
@@ -4440,149 +4454,195 @@ export const PublishedScoreReview: React.FC<{
               Your Answers
             </h2>
             <div className="flex flex-col gap-3">
-              {publicQuestions.map((q, idx) => {
-                const ans = answerById.get(q.id);
-                const studentAnswer = ans?.answer ?? '';
-                const isWritten = isFreeResponseType(q.type);
-                const writtenGrade = isWritten
-                  ? myResponse.grading?.[q.id]
-                  : undefined;
-                const slotGrade = myResponse.grading?.[q.id];
-                // Written-response questions don't have a binary
-                // right/wrong outcome — a 7/10 essay is partial credit,
-                // not "incorrect". Suppress the red-X / red-border
-                // treatment entirely for written types. A full-credit
-                // essay still shows the ✓ as a positive ack, but never
-                // a red mark for anything below 100%.
-                const writtenMaxPoints = q.points ?? 1;
-                const writtenIsCorrect =
-                  writtenGrade != null &&
-                  writtenMaxPoints > 0 &&
-                  writtenGrade.pointsAwarded === writtenMaxPoints;
-                const isCorrect = isWritten
-                  ? writtenIsCorrect
-                  : ans?.isCorrect === true;
-                const isIncorrect = isWritten
-                  ? false
-                  : ans?.isCorrect === false;
-                const correctAnswer = session.revealedAnswers?.[q.id];
-                // A recorded answer IS the response; "no response" would lie.
-                const hasRecordedTake =
-                  mediaEnabled &&
-                  !!responseKey &&
-                  selectPlaybackTake(
-                    myResponse.answers,
-                    q.id,
-                    'primary',
-                    undefined,
-                    myResponse.artifactArchive
-                  ) !== null;
-                return (
-                  <article
-                    key={q.id}
-                    className={`rounded-xl border p-4 ${answerCardBase} ${
-                      isCorrect
-                        ? correctBorder
-                        : isIncorrect
-                          ? incorrectBorder
-                          : neutralBorder
-                    }`}
-                  >
-                    <header className="mb-2 flex items-start gap-2">
-                      <span
-                        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold ${numBadgeCls}`}
-                      >
-                        {idx + 1}
-                      </span>
-                      <p
-                        className={`flex-1 min-w-0 break-words text-sm font-semibold ${qTextCls}`}
-                      >
-                        {q.text}
-                      </p>
-                      {isCorrect && (
-                        <Check className={`h-5 w-5 shrink-0 ${checkIconCls}`} />
-                      )}
-                      {isIncorrect && (
-                        <XIcon className={`h-5 w-5 shrink-0 ${xIconCls}`} />
-                      )}
-                    </header>
-                    {(q.stimulusIds?.length ?? 0) > 0 && (
-                      <div className="ml-7 mb-2">
-                        <CollapsibleStimuli
-                          stimuli={resolveStimuli(
-                            q.stimulusIds,
-                            session.stimuli
-                          )}
-                          light={light}
-                        />
-                      </div>
-                    )}
-                    <div className="ml-7 space-y-1.5">
-                      {isWritten ? (
-                        <WrittenAnswerReview
-                          studentAnswer={studentAnswer}
-                          grade={writtenGrade}
-                          showResponse={showResponses}
-                          maxPoints={q.points ?? 1}
-                          rubricSnapshot={q.rubricSnapshot}
-                          light={light}
-                          hideEmptyResponse={hasRecordedTake}
-                        />
+              {reviewGroups.map((group) => (
+                <div key={group.key} className="flex flex-col gap-3">
+                  {session.showLearningTargets === true && (
+                    <div
+                      className={`flex flex-wrap items-center gap-1.5 rounded-xl border px-3 py-2 ${
+                        light
+                          ? 'border-sky-200 bg-sky-50 text-sky-900'
+                          : 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+                      }`}
+                    >
+                      <ListChecks className="h-4 w-4 shrink-0" aria-hidden />
+                      {group.targets.length > 0 ? (
+                        group.targets.map((target) => (
+                          <span
+                            key={target.id}
+                            title={
+                              target.code
+                                ? `${target.code} — ${target.label}`
+                                : target.label
+                            }
+                            className={`max-w-full truncate rounded-full border px-2 py-0.5 text-xs font-bold ${
+                              light
+                                ? 'border-sky-200 bg-white'
+                                : 'border-sky-400/30 bg-slate-900/30'
+                            }`}
+                          >
+                            {target.code
+                              ? `${target.code} · ${target.label}`
+                              : target.label}
+                          </span>
+                        ))
                       ) : (
-                        <>
-                          {(studentAnswer || !hasRecordedTake) && (
-                            <p className={`text-xs ${subtleText}`}>
-                              Your answer:{' '}
-                              <span
-                                className={`font-mono ${
-                                  isCorrect
-                                    ? answerCorrectText
-                                    : isIncorrect
-                                      ? answerIncorrectText
-                                      : answerNeutralText
-                                }`}
-                              >
-                                {studentAnswer
-                                  ? formatAnswerForDisplay(
-                                      studentAnswer,
-                                      q.type
-                                    )
-                                  : '— no response'}
-                              </span>
-                            </p>
-                          )}
-                          {showAnswers && correctAnswer && (
-                            <p className={`text-xs ${subtleText}`}>
-                              Correct answer:{' '}
-                              <span
-                                className={`font-mono ${answerCorrectText}`}
-                              >
-                                {formatAnswerForDisplay(correctAnswer, q.type)}
-                              </span>
-                            </p>
-                          )}
-                        </>
-                      )}
-                      {mediaEnabled && responseKey && (
-                        <ResponsePlaybackCard
-                          sessionId={session.id}
-                          responseKey={responseKey}
-                          questionId={q.id}
-                          answers={myResponse.answers}
-                          artifactArchive={myResponse.artifactArchive}
-                          gradedTakeIndex={slotGrade?.gradedTakeIndex}
-                          annotations={
-                            slotGrade?.annotationUnit === 'ms'
-                              ? slotGrade.annotations
-                              : undefined
-                          }
-                          light={light}
-                        />
+                        <span className="text-xs font-bold">
+                          Other questions
+                        </span>
                       )}
                     </div>
-                  </article>
-                );
-              })}
+                  )}
+                  {group.questions.map((q) => {
+                    const idx = publicQuestionIndex.get(q.id) ?? 0;
+                    const ans = answerById.get(q.id);
+                    const studentAnswer = ans?.answer ?? '';
+                    const isWritten = isFreeResponseType(q.type);
+                    const writtenGrade = isWritten
+                      ? myResponse.grading?.[q.id]
+                      : undefined;
+                    const slotGrade = myResponse.grading?.[q.id];
+                    // Written-response questions don't have a binary
+                    // right/wrong outcome — a 7/10 essay is partial credit,
+                    // not "incorrect". Suppress the red-X / red-border
+                    // treatment entirely for written types. A full-credit
+                    // essay still shows the ✓ as a positive ack, but never
+                    // a red mark for anything below 100%.
+                    const writtenMaxPoints = q.points ?? 1;
+                    const writtenIsCorrect =
+                      writtenGrade != null &&
+                      writtenMaxPoints > 0 &&
+                      writtenGrade.pointsAwarded === writtenMaxPoints;
+                    const isCorrect = isWritten
+                      ? writtenIsCorrect
+                      : ans?.isCorrect === true;
+                    const isIncorrect = isWritten
+                      ? false
+                      : ans?.isCorrect === false;
+                    const correctAnswer = session.revealedAnswers?.[q.id];
+                    // A recorded answer IS the response; "no response" would lie.
+                    const hasRecordedTake =
+                      mediaEnabled &&
+                      !!responseKey &&
+                      selectPlaybackTake(
+                        myResponse.answers,
+                        q.id,
+                        'primary',
+                        undefined,
+                        myResponse.artifactArchive
+                      ) !== null;
+                    return (
+                      <article
+                        key={q.id}
+                        className={`rounded-xl border p-4 ${answerCardBase} ${
+                          isCorrect
+                            ? correctBorder
+                            : isIncorrect
+                              ? incorrectBorder
+                              : neutralBorder
+                        }`}
+                      >
+                        <header className="mb-2 flex items-start gap-2">
+                          <span
+                            className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold ${numBadgeCls}`}
+                          >
+                            {idx + 1}
+                          </span>
+                          <p
+                            className={`flex-1 min-w-0 break-words text-sm font-semibold ${qTextCls}`}
+                          >
+                            {q.text}
+                          </p>
+                          {isCorrect && (
+                            <Check
+                              className={`h-5 w-5 shrink-0 ${checkIconCls}`}
+                            />
+                          )}
+                          {isIncorrect && (
+                            <XIcon className={`h-5 w-5 shrink-0 ${xIconCls}`} />
+                          )}
+                        </header>
+                        {(q.stimulusIds?.length ?? 0) > 0 && (
+                          <div className="ml-7 mb-2">
+                            <CollapsibleStimuli
+                              stimuli={resolveStimuli(
+                                q.stimulusIds,
+                                session.stimuli
+                              )}
+                              light={light}
+                            />
+                          </div>
+                        )}
+                        <div className="ml-7 space-y-1.5">
+                          {isWritten ? (
+                            <WrittenAnswerReview
+                              studentAnswer={studentAnswer}
+                              grade={writtenGrade}
+                              showResponse={showResponses}
+                              maxPoints={q.points ?? 1}
+                              rubricSnapshot={q.rubricSnapshot}
+                              light={light}
+                              hideEmptyResponse={hasRecordedTake}
+                            />
+                          ) : (
+                            <>
+                              {(studentAnswer || !hasRecordedTake) && (
+                                <p className={`text-xs ${subtleText}`}>
+                                  Your answer:{' '}
+                                  <span
+                                    className={`font-mono ${
+                                      isCorrect
+                                        ? answerCorrectText
+                                        : isIncorrect
+                                          ? answerIncorrectText
+                                          : answerNeutralText
+                                    }`}
+                                  >
+                                    {studentAnswer
+                                      ? formatAnswerForDisplay(
+                                          studentAnswer,
+                                          q.type
+                                        )
+                                      : '— no response'}
+                                  </span>
+                                </p>
+                              )}
+                              {showAnswers && correctAnswer && (
+                                <p className={`text-xs ${subtleText}`}>
+                                  Correct answer:{' '}
+                                  <span
+                                    className={`font-mono ${answerCorrectText}`}
+                                  >
+                                    {formatAnswerForDisplay(
+                                      correctAnswer,
+                                      q.type
+                                    )}
+                                  </span>
+                                </p>
+                              )}
+                            </>
+                          )}
+                          {mediaEnabled && responseKey && (
+                            <ResponsePlaybackCard
+                              sessionId={session.id}
+                              responseKey={responseKey}
+                              questionId={q.id}
+                              answers={myResponse.answers}
+                              artifactArchive={myResponse.artifactArchive}
+                              gradedTakeIndex={slotGrade?.gradedTakeIndex}
+                              annotations={
+                                slotGrade?.annotationUnit === 'ms'
+                                  ? slotGrade.annotations
+                                  : undefined
+                              }
+                              light={light}
+                            />
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </section>
         )}

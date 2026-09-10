@@ -111,6 +111,9 @@ import {
 } from '@/hooks/useQuizSession';
 import { Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { DEFAULT_MASTERY_CUTOFFS } from '@/utils/learningTargets';
+import { computeTargetStats } from '@/utils/quizTargetStats';
+import { QuizTargetResults } from './QuizTargetResults';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -311,9 +314,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [showGrader, setShowGrader] = useState(false);
   // In-widget screen navigation, mirroring the live monitor's calm-default
   // shell: a summary home face with drill-down screens instead of tabs.
-  const [screen, setScreen] = useState<'home' | 'questions' | 'students'>(
-    'home'
-  );
+  const [screen, setScreen] = useState<
+    'home' | 'questions' | 'targets' | 'students'
+  >('home');
   const [showScoreboardPrompt, setShowScoreboardPrompt] = useState(false);
   const scoreboardPromptRef = useRef<HTMLDivElement>(null);
 
@@ -553,6 +556,26 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     () =>
       filteredScoreable.some((r) => isResponseAwaitingGrade(r, quiz.questions)),
     [filteredScoreable, quiz.questions]
+  );
+  const targetStats = useMemo(
+    () =>
+      computeTargetStats(
+        quiz.questions,
+        filteredResponses,
+        DEFAULT_MASTERY_CUTOFFS
+      ),
+    [quiz.questions, filteredResponses]
+  );
+  // A quiz can contain tagged pool questions that no attempt happened to
+  // draw. Keep the drill-down hidden until at least one tagged question was
+  // genuinely served in the current period filter.
+  const hasTargetResults = targetStats.targets.some(
+    (row) => row.servedCount > 0
+  );
+  const resolveTargetStudentName = useCallback(
+    (response: QuizResponse) =>
+      resolveResponseDisplayName(response, pinToName, byStudentUid),
+    [pinToName, byStudentUid]
   );
 
   const handleSendToScoreboard = useCallback(
@@ -1346,15 +1369,20 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // With zero responses the body shows the empty state, so the shell behaves
   // as home (title + back-out semantics) even if a drill-down was open when
   // the last response was deleted.
-  const effectiveScreen = responses.length === 0 ? 'home' : screen;
+  const effectiveScreen =
+    responses.length === 0 || (screen === 'targets' && !hasTargetResults)
+      ? 'home'
+      : screen;
   const headerTitle =
     effectiveScreen === 'home'
       ? quiz.title
       : effectiveScreen === 'questions'
         ? 'Question results'
-        : effectiveScreen === 'students'
-          ? 'Students'
-          : 'PLC results';
+        : effectiveScreen === 'targets'
+          ? 'Targets'
+          : effectiveScreen === 'students'
+            ? 'Students'
+            : 'PLC results';
 
   return (
     <div className="flex flex-col h-full font-sans bg-white text-brand-gray-dark relative">
@@ -1459,7 +1487,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           className="flex-1 overflow-y-auto custom-scrollbar"
           style={{ padding: 'min(12px, 3cqmin)' }}
         >
-          {screen === 'home' && (
+          {effectiveScreen === 'home' && (
             <div
               className="flex flex-col"
               style={{ gap: 'min(10px, 2.5cqmin)' }}
@@ -1552,6 +1580,18 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                   detail={`${quiz.questions.length} question${quiz.questions.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('questions')}
                 />
+                {hasTargetResults && (
+                  <DrillRow
+                    label="Targets"
+                    detail={`${targetStats.targets.filter((row) => row.servedCount > 0).length} target${
+                      targetStats.targets.filter((row) => row.servedCount > 0)
+                        .length === 1
+                        ? ''
+                        : 's'
+                    }`}
+                    onClick={() => setScreen('targets')}
+                  />
+                )}
                 <DrillRow
                   label="Students"
                   detail={`${filteredResponses.length} student${filteredResponses.length === 1 ? '' : 's'}`}
@@ -1560,13 +1600,21 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               </div>
             </div>
           )}
-          {screen === 'questions' && (
+          {effectiveScreen === 'questions' && (
             <QuestionsScreen
               questions={quiz.questions}
               responses={filteredResponses}
             />
           )}
-          {screen === 'students' && (
+          {effectiveScreen === 'targets' && hasTargetResults && (
+            <QuizTargetResults
+              quizTitle={quiz.title}
+              responses={filteredResponses}
+              stats={targetStats}
+              resolveName={resolveTargetStudentName}
+            />
+          )}
+          {effectiveScreen === 'students' && (
             <StudentsScreen
               responses={filteredResponses}
               questions={quiz.questions}

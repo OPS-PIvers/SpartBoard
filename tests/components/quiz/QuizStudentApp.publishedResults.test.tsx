@@ -209,6 +209,70 @@ describe('QuizStudentApp — published results on an active (self-paced) session
     expect(screen.queryByText(/no response/)).not.toBeInTheDocument();
   });
 
+  it('groups published answer feedback under projected learning targets', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      showLearningTargets: true,
+      publicQuestions: [
+        {
+          ...QUESTIONS[0],
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'plc',
+              ownerId: 'plc-1',
+              code: 'LT 1',
+              label: 'I can explain my reasoning.',
+            },
+          ],
+        },
+      ],
+    });
+    hookState.myResponse = buildResponse({
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '4',
+          answeredAt: 3,
+          isCorrect: true,
+        },
+      ],
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(
+      screen.getByText('LT 1 · I can explain my reasoning.')
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('2 + 2?')).toHaveLength(1);
+  });
+
+  it('keeps learning-target headings hidden when the assignment toggle is off', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      showLearningTargets: false,
+      publicQuestions: [
+        {
+          ...QUESTIONS[0],
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'personal',
+              label: 'Hidden target',
+            },
+          ],
+        },
+      ],
+    });
+    hookState.myResponse = buildResponse();
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.queryByText('Hidden target')).not.toBeInTheDocument();
+  });
+
   it('keeps a completed student on the submitted-wait screen until scores are published', async () => {
     // scoreVisibility absent (defaults to 'none') → not yet published.
     hookState.session = buildSession();

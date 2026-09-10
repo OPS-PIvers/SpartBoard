@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.10.6",
+      "date": "2026-09-10",
+      "title": "Quiz mastery by learning target",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Quiz Results now includes a Targets view with class mastery, expandable contributing questions, a sortable student-by-target grid, and CSV export. Standards roll up direct tags and linked learning targets without double-counting questions."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Targets — see served and scored counts, mastery bands, low-sample notices, and the exact questions contributing to every target or standard."
+        },
+        {
+          "type": "feature",
+          "text": "Student × target — sort students by name or mastery for any target, then export the current class-period view as CSV."
+        },
+        {
+          "type": "feature",
+          "text": "Student feedback — a new assignment setting can group published answer feedback under the learning-target tags projected with the assignment."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10.5",
       "date": "2026-09-10",
       "title": "Question banks with random draws",
