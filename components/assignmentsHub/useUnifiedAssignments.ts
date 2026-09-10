@@ -1,7 +1,10 @@
 // useUnifiedAssignments — normalizes the four per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
 
 import { useMemo } from 'react';
-import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import {
+  useQuizAssignments,
+  type UseQuizAssignmentsResult,
+} from '@/hooks/useQuizAssignments';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
@@ -42,6 +45,18 @@ export interface UnifiedAssignmentRow {
   /** Individually-targeted refs removed via the hub (M17 §5 D3) — kept so a
    *  removed-but-submitted student's row still renders, marked "removed". */
   removedStudentRefs?: StudentTargetRef[];
+  /** Quiz rows only: PLC whose assessments pool this assignment's results. */
+  plc?: { id: string; name: string };
+  /** Quiz rows only: source quiz id (D12 pool matching). */
+  quizId?: string;
+  /** Quiz rows only: the assignment's synced group id, when synced. */
+  syncGroupId?: string;
+}
+
+/** Retroactive PLC results actions, forwarded from `useQuizAssignments`. */
+export interface QuizPlcActions {
+  share: UseQuizAssignmentsResult['shareAssignmentWithPlc'];
+  stopSharing: UseQuizAssignmentsResult['stopSharingAssignmentWithPlc'];
 }
 
 function resolveClassName(
@@ -62,7 +77,11 @@ function resolveClassName(
 export const useUnifiedAssignments = (
   userId: string | undefined,
   rosters: ClassRoster[]
-): { rows: UnifiedAssignmentRow[]; loading: boolean } => {
+): {
+  rows: UnifiedAssignmentRow[];
+  loading: boolean;
+  quizPlcActions: QuizPlcActions;
+} => {
   const quiz = useQuizAssignments(userId);
   const va = useVideoActivityAssignments(userId);
   const gl = useGuidedLearningAssignments(userId);
@@ -94,6 +113,9 @@ export const useUnifiedAssignments = (
       targetStudents: a.targetStudents,
       overridesBySourcedId: a.overridesBySourcedId,
       removedStudentRefs: a.removedStudentRefs,
+      ...(a.plc ? { plc: { id: a.plc.id, name: a.plc.name } } : {}),
+      quizId: a.quizId,
+      syncGroupId: a.sync?.groupId,
     }));
 
     const vaRows: UnifiedAssignmentRow[] = va.assignments.map((a) => ({
@@ -173,5 +195,9 @@ export const useUnifiedAssignments = (
   return {
     rows,
     loading: quiz.loading || va.loading || gl.loading || miniApp.loading,
+    quizPlcActions: {
+      share: quiz.shareAssignmentWithPlc,
+      stopSharing: quiz.stopSharingAssignmentWithPlc,
+    },
   };
 };

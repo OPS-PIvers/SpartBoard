@@ -2127,7 +2127,13 @@
       "save": "Save",
       "saving": "Saving…",
       "editSkipped": "{{count}} student(s) could not be saved to this assignment.",
-      "editSaveFailed": "Could not save changes. Try again."
+      "editSaveFailed": "Could not save changes. Try again.",
+      "sharingWithPlc": "Sharing results with {{plc}}",
+      "sharePlc": "Share results with PLC…",
+      "stopSharingPlc": "Stop sharing",
+      "sharePlcDone": "Results now pool with {{plc}}.",
+      "stopSharingPlcDone": "No longer sharing results with {{plc}}.",
+      "plcActionFailed": "Could not update PLC sharing. Try again."
     }
   },
   "quizResults": {

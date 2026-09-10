@@ -46,6 +46,8 @@ import {
   createSyncedQuizGroup,
 } from '@/hooks/useSyncedQuizGroups';
 import { getPlcMemberEmails } from '@/utils/plc';
+import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
+import { resolvePlcPoolSyncGroupId } from '@/utils/plcPooling';
 import {
   splitDueAtToInputs,
   dueInputsToEpoch,
@@ -106,6 +108,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
   const { quizzes, loadQuizData, attachSyncLinkage, isDriveConnected } =
     useQuiz(user?.uid);
   const { createAssignment } = useQuizAssignments(user?.uid);
+  // PLC library, used to pool this run with an existing group of the same title.
+  const { quizzes: plcLibrary } = usePlcQuizzes(plc.id);
 
   const [step, setStep] = useState<'pick' | 'configure'>('pick');
   const [pickedQuiz, setPickedQuiz] = useState<QuizMetadata | null>(null);
@@ -247,6 +251,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
       const behavior = getQuizBehavior(pickedQuiz);
       const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
+      // Title-aware pooling (§8.1): prefer the PLC library group so every
+      // teacher's run of one quiz lands in a single assessment.
+      const plcPoolSyncGroupId = resolvePlcPoolSyncGroupId({
+        quizSyncGroupId: pickedQuiz.sync?.groupId,
+        quizTitle: pickedQuiz.title,
+        libraryEntries: plcLibrary,
+      });
+
       const { id: assignmentId } = await createAssignment(
         {
           id: pickedQuiz.id,
@@ -273,6 +285,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           classPeriodByClassId: derived.classPeriodByClassId,
           mode: assignmentMode,
           ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
+          ...(plcPoolSyncGroupId ? { plcPoolSyncGroupId } : {}),
         }
       );
 
@@ -336,6 +349,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
     rosters,
     t,
     user,
+    plcLibrary,
   ]);
 
   // ─── Step 1: pick from personal library ──────────────────────────────────
