@@ -136,6 +136,8 @@ describe('plcs/{plcId}/notes — actionItems', () => {
     await assertSucceeds(
       updateDoc(doc(asEditor(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
         lastEditedBy: EDITOR_UID,
+        lastEditedAt: 2,
+        version: 1,
         actionItems: [actionItem()],
       })
     );
