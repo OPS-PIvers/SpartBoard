@@ -1,6 +1,10 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   ScoreboardGlobalConfig,
@@ -30,12 +34,16 @@ export const ScoreboardConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const currentBuildingConfig: BuildingScoreboardDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
-    buildingId: selectedBuildingId,
+    buildingId: canonicalId,
     teams: DEFAULT_TEAMS,
   };
 
@@ -49,7 +57,7 @@ export const ScoreboardConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },
