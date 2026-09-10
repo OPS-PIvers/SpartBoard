@@ -334,6 +334,8 @@ export interface PlcFeatureSettings {
   todos: boolean;
   /** PLC Shared Boards tab (Phase 6). */
   sharedBoards: boolean;
+  /** Per-teacher rows on pooled assessment results (plan D3); off by default. */
+  showPerTeacher: boolean;
 }
 
 export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
@@ -342,6 +344,7 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   notes: true,
   todos: true,
   sharedBoards: true,
+  showPerTeacher: false,
 };
 
 /**
@@ -933,8 +936,14 @@ export interface PlcAssessmentAggregate {
   studentCount: number;
   /** Team-wide average score (0-100) across all teachers' students. */
   teamAveragePercent: number;
+  /** Completed responses that carried a numeric score (schema 2+). */
+  scoredStudentCount?: number;
   /** Linked sessions with at least one completed response (schema 2+). */
   sessionCount?: number;
+  /** Every linked session, including ones with no completed responses (schema 2+). */
+  linkedSessionCount?: number;
+  /** Linked sessions whose scores are published (schema 2+). */
+  publishedSessionCount?: number;
   computedFromSessionIds?: string[];
   /** How session questions were matched to the pooled question list (schema 2+). */
   alignment?: 'byId' | 'positional';

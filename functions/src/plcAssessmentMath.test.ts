@@ -56,7 +56,8 @@ function session(
   id: string,
   teacherUid: string,
   responses: CompletedResponse[],
-  questions: unknown[] = publicQuestions
+  questions: unknown[] = publicQuestions,
+  scorePublishedAt: number | null = null
 ): SessionInput {
   return {
     id,
@@ -64,6 +65,7 @@ function session(
     teacherName: `Teacher ${teacherUid}`,
     publicQuestions: questions,
     responses,
+    scorePublishedAt,
   };
 }
 
@@ -387,6 +389,26 @@ describe('computeAssessmentAggregate', () => {
     ]);
     expect(agg.perQuestion[0]).toMatchObject({ answered: 1, correct: 1 });
     expect(agg.perQuestion[1].answered).toBe(0);
+  });
+
+  it('counts linked, published and scored totals separately', () => {
+    const agg = compute([
+      session(
+        's-a',
+        'teacherA',
+        [response([], { score: 80 })],
+        publicQuestions,
+        5
+      ),
+      session('s-b', 'teacherB', [response([]), response([], { score: 40 })]),
+      session('s-c', 'teacherC', []),
+    ]);
+    expect(agg.linkedSessionCount).toBe(3);
+    expect(agg.publishedSessionCount).toBe(1);
+    expect(agg.sessionCount).toBe(2);
+    expect(agg.studentCount).toBe(3);
+    expect(agg.scoredStudentCount).toBe(2);
+    expect(agg.teamAveragePercent).toBe(60);
   });
 
   it('returns a zeroed payload with question rows when nothing has run', () => {
