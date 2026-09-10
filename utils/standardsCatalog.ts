@@ -28,6 +28,14 @@ export const STANDARD_SETS: StandardSetEntry[] = [
       (await import('@/config/standards/mn-ela-2020.json'))
         .default as StandardsFile,
   },
+  {
+    set: 'mn-ss-2021',
+    subject: 'social-studies',
+    label: 'Minnesota Social Studies (2021)',
+    load: async () =>
+      (await import('@/config/standards/mn-ss-2021.json'))
+        .default as StandardsFile,
+  },
 ];
 
 export const toBenchmarkDoc = (row: StandardsFileRow): StandardBenchmark => ({

@@ -28,6 +28,40 @@ describe('build-standards', () => {
     expect(normalizeGrade('3')).toBe('3');
   });
 
+  it('skips title rows, accepts the Standard header alias, remaps grades', () => {
+    const rows = [
+      [
+        'Social Studies Standards and Benchmarks by Grade Level',
+        '',
+        '',
+        '',
+        '',
+      ],
+      ['Grade', 'Strand', 'Standard', 'Code', 'Benchmark'],
+      [
+        '9',
+        '4. History',
+        '15. Historical Thinking',
+        '9.4.15.1',
+        'Analyze — sources.',
+      ],
+    ];
+    expect(
+      buildBenchmarks(rows, 'mn-ss-2021', 'social-studies', { '9': '9-12' })
+    ).toEqual([
+      {
+        id: 'mn-ss-2021:9.4.15.1',
+        set: 'mn-ss-2021',
+        subject: 'social-studies',
+        code: '9.4.15.1',
+        grade: '9-12',
+        strand: '4. History',
+        standard: '15. Historical Thinking',
+        text: 'Analyze - sources.',
+      },
+    ]);
+  });
+
   it('builds ids from set and code, drops trailer rows, rejects duplicates', () => {
     const rows = [
       ['Grade', 'Strand', 'Anchor Standard', 'Code', 'Benchmark'],
