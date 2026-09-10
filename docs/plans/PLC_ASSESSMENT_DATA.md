@@ -332,6 +332,10 @@ Deviations from the sections above, decided while building:
   Assessments list through a "Manage shared quizzes" disclosure rather than a sub-tab.
 - Rename and Archive are the only editor actions on a row; Move to folder arrives in
   PR 3.
+- `buildPlcLinkage` no longer creates a sheet; the Classroom add-on, LTI picker, PLC
+  page pickup and PLC assignment config modal all stop prompting for the Sheets scope
+  at assign time. The video-activity PLC wizard keeps its opt-in sheet step (no
+  server-side VA pooling yet).
 - The Help Center article is authored in the admin Help Center UI (Firestore
   `help_resources`), not in the repo; the draft text is in the PR description.
 
