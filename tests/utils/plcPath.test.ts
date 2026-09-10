@@ -9,7 +9,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parsePlcPath, buildPlcPath, isPlcRoute } from '@/utils/plcPath';
+import {
+  parsePlcPath,
+  buildPlcPath,
+  buildPlcAssessmentPath,
+  isPlcRoute,
+} from '@/utils/plcPath';
 import type { PlcSectionId } from '@/components/plc/sections';
 
 describe('isPlcRoute', () => {
@@ -33,6 +38,7 @@ describe('parsePlcPath', () => {
       plcId: null,
       section: 'home',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
@@ -41,6 +47,7 @@ describe('parsePlcPath', () => {
       plcId: null,
       section: 'home',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
@@ -49,14 +56,16 @@ describe('parsePlcPath', () => {
       plcId: 'plc-123',
       section: 'home',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
   it('deep-links a known section', () => {
     expect(parsePlcPath('/plc/plc-123/sharedData')).toEqual({
       plcId: 'plc-123',
-      section: 'sharedData',
+      section: 'assessments',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
@@ -82,6 +91,7 @@ describe('parsePlcPath', () => {
         plcId: 'plc-123',
         section: 'assessments',
         meetingId: null,
+        assessmentId: null,
       });
     }
   );
@@ -91,6 +101,7 @@ describe('parsePlcPath', () => {
       plcId: 'plc-123',
       section: 'home',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
@@ -99,6 +110,7 @@ describe('parsePlcPath', () => {
       plcId: 'plc-123',
       section: 'meeting',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
@@ -107,6 +119,7 @@ describe('parsePlcPath', () => {
       plcId: 'plc-123',
       section: 'meeting',
       meetingId: 'mtg-9',
+      assessmentId: null,
     });
   });
 
@@ -114,8 +127,9 @@ describe('parsePlcPath', () => {
     // `/plc/:id/data/extra` — the extra segment is not a meeting id.
     expect(parsePlcPath('/plc/plc-123/sharedData/extra')).toEqual({
       plcId: 'plc-123',
-      section: 'sharedData',
+      section: 'assessments',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
@@ -124,6 +138,7 @@ describe('parsePlcPath', () => {
       plcId: 'plc-123',
       section: 'members',
       meetingId: null,
+      assessmentId: null,
     });
   });
 
@@ -132,6 +147,7 @@ describe('parsePlcPath', () => {
       plcId: 'plc 123',
       section: 'meeting',
       meetingId: 'mtg/9',
+      assessmentId: null,
     });
   });
 
@@ -140,12 +156,32 @@ describe('parsePlcPath', () => {
       plcId: null,
       section: 'home',
       meetingId: null,
+      assessmentId: null,
     });
     expect(parsePlcPath('/plc-invite/abc')).toEqual({
       plcId: null,
       section: 'home',
       meetingId: null,
+      assessmentId: null,
     });
+  });
+});
+
+describe('buildPlcAssessmentPath', () => {
+  it('builds the pooled-results detail path and round-trips', () => {
+    expect(buildPlcAssessmentPath('plc-123', 'assess/9')).toBe(
+      '/plc/plc-123/assessments/assess%2F9'
+    );
+    expect(parsePlcPath('/plc/plc-123/assessments/assess%2F9')).toEqual({
+      plcId: 'plc-123',
+      section: 'assessments',
+      meetingId: null,
+      assessmentId: 'assess/9',
+    });
+  });
+
+  it('ignores an id after the legacy sharedData alias', () => {
+    expect(parsePlcPath('/plc/plc-123/sharedData/abc').assessmentId).toBeNull();
   });
 });
 
@@ -156,9 +192,7 @@ describe('buildPlcPath', () => {
   });
 
   it('builds a section path', () => {
-    expect(buildPlcPath('plc-123', 'sharedData')).toBe(
-      '/plc/plc-123/sharedData'
-    );
+    expect(buildPlcPath('plc-123', 'docs')).toBe('/plc/plc-123/docs');
   });
 
   it('builds the meeting and meeting/:id forms', () => {

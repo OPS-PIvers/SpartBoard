@@ -3,7 +3,7 @@
  *
  * A guided, projector-legible flow at `/plc/:id/meeting`:
  *
- *   1. Pick   — choose / designate the common assessment(s) to review.
+ *   1. Pick   — choose the common assessment(s) to review.
  *   2. Review — large-type pooled data from the anonymized aggregates (team
  *               average, weakest questions, per-class compare, who-ran-it). Each
  *               data card is commentable (shared PlcCommentsThread).
@@ -60,13 +60,11 @@ import {
   usePlcWhoIsHere,
 } from '@/context/usePlcContext';
 import { usePlcMeetings } from '@/hooks/usePlcMeetings';
-import { usePlcContributions } from '@/hooks/usePlcContributions';
 import { canEditPlcContent } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import {
   buildAssessmentCards,
-  latestContributionByAggregateId,
   type AssessmentDataCard,
   type SharedDataTeamMember,
 } from '@/components/plc/sharedData/sharedDataSelectors';
@@ -120,9 +118,8 @@ const PlcMeetingLiveFlow: React.FC<{
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const { showPrompt, showConfirm } = useDialog();
-  const { designateAssessment, createMeeting, updateMeeting, saveMeeting } =
-    usePlcActions();
+  const { showConfirm } = useDialog();
+  const { createMeeting, updateMeeting, saveMeeting } = usePlcActions();
 
   const {
     data: aggregates,
@@ -137,10 +134,6 @@ const PlcMeetingLiveFlow: React.FC<{
   const members = usePlcMembers();
   const whoIsHere = usePlcWhoIsHere();
   const { meetings } = usePlcMeetings(plc.id);
-  // The signed-in member's OWN contribution read — only to flag a card
-  // "updating…" when their just-published result outruns the rollup. No other
-  // teacher's PII is read here.
-  const { contributions: ownContributions } = usePlcContributions(plc.id);
 
   const canEdit = useMemo(
     () => (user ? canEditPlcContent(plc, user.uid) : false),
@@ -152,21 +145,15 @@ const PlcMeetingLiveFlow: React.FC<{
     [members]
   );
 
-  const latestContribByAggId = useMemo(
-    () => latestContributionByAggregateId(ownContributions, assessments),
-    [ownContributions, assessments]
-  );
-
   const cards = useMemo(
     () =>
       buildAssessmentCards(
         aggregates,
         assessments,
         teamMembers,
-        user?.uid ?? null,
-        latestContribByAggId
+        user?.uid ?? null
       ),
-    [aggregates, assessments, teamMembers, user?.uid, latestContribByAggId]
+    [aggregates, assessments, teamMembers, user?.uid]
   );
   const cardById = useMemo(() => {
     const map = new Map<string, AssessmentDataCard>();
@@ -228,58 +215,6 @@ const PlcMeetingLiveFlow: React.FC<{
       return next;
     });
   }, []);
-
-  const handleDesignate = useCallback(
-    async (card: AssessmentDataCard) => {
-      const title = await showPrompt(
-        t('plcDashboard.meeting.designatePrompt', {
-          defaultValue:
-            'Name this common assessment so the whole team recognizes it.',
-        }),
-        {
-          title: t('plcDashboard.meeting.designatePromptTitle', {
-            defaultValue: 'Designate common assessment',
-          }),
-          placeholder: t('plcDashboard.meeting.designatePlaceholder', {
-            defaultValue: 'e.g. Unit 4 CFA',
-          }),
-          defaultValue: card.title,
-          confirmLabel: t('plcDashboard.meeting.pick.designate', {
-            defaultValue: 'Designate',
-          }),
-        }
-      );
-      if (title == null) return;
-      const trimmed = title.trim();
-      if (!trimmed) return;
-      try {
-        await designateAssessment({
-          title: trimmed,
-          kind: card.kind,
-          syncGroupId: card.syncGroupId,
-        });
-        addToast(
-          t('plcDashboard.meeting.designated', {
-            defaultValue: '“{{title}}” is now the team’s common assessment.',
-            title: trimmed,
-          }),
-          'success'
-        );
-      } catch (err) {
-        logError('PlcMeetingMode.designateAssessment', err, {
-          plcId: plc.id,
-          assessmentId: card.assessmentId,
-        });
-        addToast(
-          t('plcDashboard.meeting.designateFailed', {
-            defaultValue: 'Couldn’t designate that assessment. Try again.',
-          }),
-          'error'
-        );
-      }
-    },
-    [showPrompt, designateAssessment, addToast, plc.id, t]
-  );
 
   const goToStep = useCallback((next: MeetingStep) => {
     setStep(next);
@@ -503,8 +438,6 @@ const PlcMeetingLiveFlow: React.FC<{
               cards={cards}
               selectedIds={selectedIds}
               onToggle={toggleSelected}
-              canEdit={canEdit}
-              onDesignate={handleDesignate}
             />
           )}
 

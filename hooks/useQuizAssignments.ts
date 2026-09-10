@@ -31,10 +31,7 @@ import {
 import { auth, db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
-import {
-  mirrorPlcAssignmentStatus,
-  writePlcAssignmentIndexEntry,
-} from './usePlcAssignmentIndex';
+import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
 import { writePlcAssignmentTemplate } from './usePlcAssignments';
 import type {
   AssignmentMode,
@@ -1021,17 +1018,6 @@ export const useQuizAssignments = (
         const current = auth.currentUser;
         const ownerName = current?.displayName ?? '';
         const ownerEmail = (current?.email ?? '').toLowerCase();
-        void writePlcAssignmentIndexEntry(settings.plc.id, {
-          id: assignmentId,
-          kind: 'quiz',
-          ownerUid: userId,
-          ownerName,
-          ownerEmail,
-          title: quiz.title,
-          sheetUrl: settings.plc.sheetUrl ?? '',
-          status: initialStatus,
-          createdAt: now,
-        });
 
         // Template write — only if the source quiz already participates
         // in a synced group (either via the user's library `sync.groupId`

@@ -3,7 +3,7 @@
  *
  * Owns the entire shared-quiz-library editor (rows, import modal,
  * collaborative editor). Mounted as the "Library" sub-tab of
- * `PlcQuizzesBody`, which supplies the surrounding tab chrome.
+ * `PlcAssessmentList`, which supplies the surrounding chrome.
  *
  * Behavior:
  *

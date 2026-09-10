@@ -2,14 +2,13 @@
  * Contract tests for the PLC data-layer (Decision 1.4):
  *   - context/PlcContext.tsx (PlcProvider — single-listener-per-subcollection)
  *   - context/usePlcContext.ts (selector hooks with Object.is bailout)
- *   - hooks/usePlcContributions.ts (error-contract change: string → Error)
  *
  * Pins the three guarantees this task ships:
  *   1. Listener dedup — N consumers of the SAME subcollection produce exactly
  *      ONE onSnapshot subscription under one provider.
  *   2. Selector bailout — a consumer re-renders only when ITS selected slice
  *      changes; an unrelated subcollection update leaves it untouched.
- *   3. Contributions error contract is `Error | null` (not `string`).
+ *   3. Standalone hooks keep an `Error | null` error contract.
  *
  * Firestore is mocked: onSnapshot captures one callback per collection PATH so
  * a test can drive snapshots + count subscriptions per subcollection.
@@ -31,7 +30,6 @@ import {
   usePlcActivity,
   usePlcActions,
 } from '@/context/usePlcContext';
-import { usePlcContributions } from '@/hooks/usePlcContributions';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import type { Plc } from '@/types';
 import type { PlcSectionId } from '@/components/plc/sections';
@@ -255,25 +253,8 @@ describe('PlcProvider — listener dedup', () => {
     expect(subscriptionCount('todos')).toBe(0);
     expect(subscriptionCount('notes')).toBe(0);
     expect(subscriptionCount('docs')).toBe(0);
-    expect(subscriptionCount('contributions')).toBe(0);
     expect(subscriptionCount('quizzes')).toBe(0);
     expect(subscriptionCount('video_activities')).toBe(0);
-  });
-
-  it('gates contributions on the sharedData section', () => {
-    const { rerender } = render(
-      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
-        <div />
-      </PlcProvider>
-    );
-    expect(subscriptionCount('contributions')).toBe(0);
-
-    rerender(
-      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="sharedData">
-        <div />
-      </PlcProvider>
-    );
-    expect(subscriptionCount('contributions')).toBe(1);
   });
 });
 
@@ -467,58 +448,15 @@ describe('usePlcActions — mount-stable identity', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. Standalone hook reads through the provider (dedup at the call site)
-// ---------------------------------------------------------------------------
-
-describe('usePlcContributions via the provider', () => {
-  it('reads the provider slice without opening a second listener', () => {
-    const Wrapper = wrapper(makePlc(), 'sharedData');
-    const captured: ReturnType<typeof usePlcContributions>[] = [];
-    const Probe: React.FC = () => {
-      captured.push(usePlcContributions(PLC_ID));
-      return null;
-    };
-    render(
-      <Wrapper>
-        <Probe />
-      </Wrapper>
-    );
-    // Provider opened exactly one contributions listener; the standalone hook
-    // did not add a second.
-    expect(subscriptionCount('contributions')).toBe(1);
-
-    emit('contributions', [
-      {
-        id: 'quiz-a_u-self',
-        data: {
-          schemaVersion: 1,
-          quizId: 'quiz-a',
-          syncGroupId: 'g1',
-          teacherUid: 'u-self',
-          teacherName: 'Self',
-          updatedAt: 5,
-          questionsSnapshot: [],
-          responses: [],
-        },
-      },
-    ]);
-    const result = captured[captured.length - 1];
-    expect(result?.contributions).toHaveLength(1);
-    expect(result?.error).toBeNull();
-    expect(subscriptionCount('contributions')).toBe(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // 5b. Gated-off slices fall through to the standalone listener (Home cards)
 // ---------------------------------------------------------------------------
 
 describe('standalone hooks read through their own listener on gated-off sections', () => {
   // The provider is mounted on the Home section (PlcRouteHost → PlcProvider →
-  // PlcHome), where `docs` and `contributions` are gated OFF (SLICE_SECTIONS).
+  // PlcHome), where `docs` is gated OFF (SLICE_SECTIONS).
   // The back-compat bridge must hand those cards `null` so they open their own
   // onSnapshot — otherwise RecentDocsCard / AttentionCard render an empty state
-  // even when docs/contributions exist (Wave-1 exit criterion regression).
+  // even when docs exist (Wave-1 exit criterion regression).
 
   it('usePlcDocs opens its own docs listener and emits real data when docs are gated off', () => {
     const Wrapper = wrapper(makePlc(), 'home');
@@ -557,60 +495,22 @@ describe('standalone hooks read through their own listener on gated-off sections
     expect(result?.loading).toBe(false);
     expect(result?.error).toBeNull();
   });
-
-  it('usePlcContributions opens its own listener and emits real data when contributions are gated off', () => {
-    const Wrapper = wrapper(makePlc(), 'home');
-    const captured: ReturnType<typeof usePlcContributions>[] = [];
-    const Probe: React.FC = () => {
-      captured.push(usePlcContributions(PLC_ID));
-      return null;
-    };
-    render(
-      <Wrapper>
-        <Probe />
-      </Wrapper>
-    );
-
-    // Home gates contributions off — the standalone hook owns the only listener.
-    expect(subscriptionCount('contributions')).toBe(1);
-
-    emit('contributions', [
-      {
-        id: 'quiz-a_u-self',
-        data: {
-          schemaVersion: 1,
-          quizId: 'quiz-a',
-          syncGroupId: 'g1',
-          teacherUid: 'u-self',
-          teacherName: 'Self',
-          updatedAt: 5,
-          questionsSnapshot: [],
-          responses: [],
-        },
-      },
-    ]);
-
-    const result = captured[captured.length - 1];
-    expect(result?.contributions).toHaveLength(1);
-    expect(result?.loading).toBe(false);
-    expect(result?.error).toBeNull();
-  });
 });
 
 // ---------------------------------------------------------------------------
-// 6. Contributions error contract — Error | null (standalone, no provider)
+// 6. Docs error contract — Error | null (standalone, no provider)
 // ---------------------------------------------------------------------------
 
-describe('usePlcContributions — error contract is Error | null', () => {
+describe('usePlcDocs — error contract is Error | null', () => {
   it('surfaces the snapshot error as an Error instance (not a string)', () => {
-    const captured: ReturnType<typeof usePlcContributions>[] = [];
+    const captured: ReturnType<typeof usePlcDocs>[] = [];
     const Probe: React.FC = () => {
-      captured.push(usePlcContributions(PLC_ID));
+      captured.push(usePlcDocs(PLC_ID));
       return null;
     };
     // No provider mounted → standalone subscription.
     render(<Probe />);
-    const listener = listeners.find((l) => l.path.endsWith('/contributions'));
+    const listener = listeners.find((l) => l.path.endsWith('/docs'));
     expect(listener).toBeDefined();
     if (!listener) return;
 
@@ -624,13 +524,13 @@ describe('usePlcContributions — error contract is Error | null', () => {
   });
 
   it('clears the error to null on a subsequent successful snapshot', () => {
-    const captured: ReturnType<typeof usePlcContributions>[] = [];
+    const captured: ReturnType<typeof usePlcDocs>[] = [];
     const Probe: React.FC = () => {
-      captured.push(usePlcContributions(PLC_ID));
+      captured.push(usePlcDocs(PLC_ID));
       return null;
     };
     render(<Probe />);
-    const listener = listeners.find((l) => l.path.endsWith('/contributions'));
+    const listener = listeners.find((l) => l.path.endsWith('/docs'));
     expect(listener).toBeDefined();
     if (!listener) return;
 

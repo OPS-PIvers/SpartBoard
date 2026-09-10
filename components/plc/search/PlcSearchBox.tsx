@@ -74,7 +74,6 @@ const SECTION_HEADINGS: Record<
     key: 'plcDashboard.search.groupAssessments',
     defaultValue: 'Assessments',
   },
-  sharedData: { key: 'plcDashboard.search.groupData', defaultValue: 'Data' },
   docs: { key: 'plcDashboard.search.groupDocs', defaultValue: 'Notes & Docs' },
   sharedBoards: {
     key: 'plcDashboard.search.groupBoards',

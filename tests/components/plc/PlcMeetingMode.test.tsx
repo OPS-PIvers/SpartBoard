@@ -5,7 +5,7 @@
  * Data uses) and drives the guided Pick → Review → Decide → Act → Save flow. A
  * saved record (the `/plc/:id/meeting/:meetingId` route) renders read-only.
  *
- * The provider selectors + meeting/contribution hooks are mocked so the
+ * The provider selectors + meeting hooks are mocked so the
  * component renders without Firebase. We assert:
  *   - the live flow opens on Pick with the step rail,
  *   - picking + advancing surfaces the Review card with large-type aggregate
@@ -23,7 +23,6 @@ import type {
   Plc,
   PlcAssessmentAggregate,
   PlcCommonAssessment,
-  PlcContribution,
   PlcMeeting,
   PlcMember,
 } from '@/types';
@@ -70,7 +69,6 @@ vi.mock('@/context/useDialog', () => ({
 const createMeeting = vi.fn(() => Promise.resolve('meeting-1'));
 const updateMeeting = vi.fn(() => Promise.resolve());
 const saveMeeting = vi.fn(() => Promise.resolve(['todo-1']));
-const designateAssessment = vi.fn(() => Promise.resolve('assessment-1'));
 
 let mockAggregatesSlice: {
   data: PlcAssessmentAggregate[];
@@ -96,7 +94,6 @@ vi.mock('@/context/usePlcContext', () => ({
     createMeeting,
     updateMeeting,
     saveMeeting,
-    designateAssessment,
   }),
 }));
 
@@ -112,15 +109,6 @@ vi.mock('@/hooks/usePlcMeetings', () => ({
       error: null,
     };
   },
-}));
-
-let mockOwnContributions: PlcContribution[] = [];
-vi.mock('@/hooks/usePlcContributions', () => ({
-  usePlcContributions: () => ({
-    contributions: mockOwnContributions,
-    loading: false,
-    error: null,
-  }),
 }));
 
 vi.mock('@/components/plc/comments/PlcCommentsThread', () => ({
@@ -243,7 +231,6 @@ function setDefaults(): void {
   mockUserUid = 'uid-alice';
   mockMembers = members;
   mockWhoIsHere = [{ uid: 'uid-alice', displayName: 'Alice' }];
-  mockOwnContributions = [];
   mockMeetings = [];
   mockAggregatesSlice = {
     data: [makeAggregate()],

@@ -9,6 +9,7 @@ import {
   StickyNote,
   SquareSquare,
   Trash2,
+  Users2,
 } from 'lucide-react';
 import {
   DEFAULT_PLC_FEATURE_SETTINGS,
@@ -75,6 +76,15 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     titleDefault: 'Shared Boards',
     descriptionKey: 'plcDashboard.settings.sharedBoards.description',
     descriptionDefault: 'Surface dashboards shared with the PLC.',
+  },
+  {
+    key: 'showPerTeacher',
+    icon: Users2,
+    titleKey: 'plcDashboard.settings.showPerTeacher.title',
+    titleDefault: 'Per-teacher breakdown',
+    descriptionKey: 'plcDashboard.settings.showPerTeacher.description',
+    descriptionDefault:
+      'Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first.',
   },
 ] as const;
 

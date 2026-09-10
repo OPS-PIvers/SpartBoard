@@ -188,7 +188,13 @@ const fakePlc: Plc = {
 };
 
 function parsed(over: Partial<ParsedPlcPath> = {}): ParsedPlcPath {
-  return { plcId: 'plc-42', section: 'home', meetingId: null, ...over };
+  return {
+    plcId: 'plc-42',
+    section: 'home',
+    meetingId: null,
+    assessmentId: null,
+    ...over,
+  };
 }
 
 function setUser(uid: string | null) {
