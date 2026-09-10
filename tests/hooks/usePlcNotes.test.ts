@@ -359,6 +359,46 @@ describe('usePlcNotes — version-aware updateNote', () => {
     expect(fields.lastEditedAt).toBe(SERVER_TS);
   });
 
+  it('sanitizes and writes actionItems, bumping version from the loaded base', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const captured = captureUpdate();
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await result.current.updateNote(
+        'note-1',
+        {
+          actionItems: [
+            {
+              id: 'ai1',
+              text: '  Reteach fractions  ',
+              done: false,
+              createdBy: USER_UID,
+              createdAt: 1,
+            },
+          ],
+        },
+        { expectedVersion: 4 }
+      );
+    });
+
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const fields = captured.fields ?? {};
+    expect(fields.version).toBe(5);
+    expect(fields.actionItems).toEqual([
+      {
+        id: 'ai1',
+        text: 'Reteach fractions',
+        done: false,
+        assigneeUid: null,
+        dueAt: null,
+        createdBy: USER_UID,
+        createdAt: 1,
+        doneAt: null,
+      },
+    ]);
+  });
+
   it('does NOT introduce version when expectedVersion is omitted (legacy rollout escape hatch)', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
     const captured = captureUpdate();

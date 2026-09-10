@@ -341,19 +341,48 @@ Deviations from the sections above, decided while building:
 
 ### PR 3: PLC folders
 
-- [ ] `plcs/{plcId}/folders` rules + tests
-- [ ] `usePlcFolders(plcId)`; `PlcQuizEntry.folderId`; `assessments.folderId`
-- [ ] Sidebar in the Assessments list; move actions; drag and drop
-- [ ] `unitLabel` suggestions on first folder creation
-- [ ] Tests for filtering and inheritance via `syncGroupId`
+- [x] `plcs/{plcId}/folders` rules + tests
+- [x] `usePlcFolders(plcId)`; `PlcQuizEntry.folderId`; `assessments.folderId`
+- [x] Sidebar in the Assessments list; move actions; drag and drop
+- [x] `unitLabel` suggestions on first folder creation
+- [x] Tests for filtering and inheritance via `syncGroupId`
+
+### 8.3 PR 3 implementation notes (2026-09-10)
+
+- `useFolders` is now a thin wrapper over a path-parameterized `useFolderTree`
+  (`hooks/useFolderTree.ts`); `usePlcFolders(plcId)` binds it to
+  `plcs/{plcId}/folders` with `quizzes` and `assessments` as the item collections.
+  The personal-library widget union stays closed.
+- A row's folder is `assessment.folderId ?? libraryEntry.folderId` (via `syncGroupId`);
+  `moveEntry` writes both docs in one batch so the two never drift.
+- The `unitLabel` field stays as data. Suggested folder chips appear only while the PLC
+  has no folders; there is no unit dropdown.
+- Viewers see the folder tree read-only; only `plcCanEditContent` members create, move
+  or delete.
 
 ### PR 4: action items
 
-- [ ] `PlcNote.actionItems` + rules key lock
-- [ ] Action items block in meeting notes; rollup header
-- [ ] Import banner and migration; todos soft-deleted
-- [ ] `todos` alias, rail removal, feature flag removal, dead code deleted
-- [ ] Tests: OCC on action item edits, import idempotence
+- [x] `PlcNote.actionItems` + rules key lock
+- [x] Action items block in meeting notes; rollup header
+- [x] Import banner and migration; todos soft-deleted
+- [x] `todos` alias, rail removal, feature flag removal, dead code deleted
+- [x] Tests: OCC on action item edits, import idempotence
+
+### 8.4 PR 4 implementation notes (2026-09-10)
+
+- Action items render on every note kind, not only meeting notes: the imported
+  to-do list lands on a freeform note titled "Imported to-dos", and the block is the
+  same component either way (`components/plc/notes/NoteActionItems.tsx`).
+- Edits go through the existing debounced patch + OCC path; a stale writer gets the
+  same conflict toast as a body edit.
+- The meeting Act step no longer spawns `todos`. `promoteMeetingActionItems` merges
+  the meeting's items onto its linked meeting note (by id, so re-running is a no-op)
+  and keeps the `todoId` back-link pointing at the note item.
+- `usePlcTodos` survives as a read-only legacy reader plus `archiveTodos`, which the
+  import banner uses to tombstone the old docs. Rules deny todo creates and allow only
+  the `deletedAt` tombstone on update. Trash no longer lists todos.
+- `todos` remains a section alias for `docs` so old links resolve; the feature flag
+  is gone from Settings and `PlcFeatureSettings.todos` is optional/deprecated.
 
 ## 9. Verification
 

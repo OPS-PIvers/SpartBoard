@@ -1,19 +1,18 @@
-/**
- * PlcAssessmentList — the merged Assessments list (plan D5/D13): one row per
- * quiz assessment with a status badge, a filter chip, search, and the
- * assign / rename / archive actions. The shared-quiz library stays reachable
- * through an inline disclosure so sharing and version management still work.
- */
+// One row per quiz shared with this PLC: status badge, row actions, folders and search.
 
-import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Archive,
+  ArchiveRestore,
   BookOpen,
-  ChevronDown,
   ChevronRight,
   ClipboardList,
-  Library,
+  Cloud,
+  Download,
+  FolderInput,
+  GripVertical,
+  History,
   Loader2,
   MoreVertical,
   Pencil,
@@ -21,8 +20,8 @@ import {
   Search,
   Users,
 } from 'lucide-react';
+import { useDraggable } from '@dnd-kit/core';
 import type { Plc } from '@/types';
-import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import {
@@ -33,16 +32,23 @@ import {
   usePlcMembers,
 } from '@/context/usePlcContext';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
-import { useQuiz } from '@/hooks/useQuiz';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { usePlcFolders } from '@/hooks/usePlcFolders';
+import {
+  usePlcQuizActions,
+  type PlcQuizActionTarget,
+} from '@/hooks/usePlcQuizActions';
 import { logError } from '@/utils/logError';
 import { buildPlcAssessmentPath, spaNavigate } from '@/utils/plcPath';
-import { PlcQuizLibraryBody } from '@/components/plc/bodies/PlcQuizLibraryBody';
-import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignmentModal';
+import { FolderSidebar } from '@/components/common/library/FolderSidebar';
+import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import {
   buildAssessmentRows,
+  countRowsByFolder,
   filterAssessmentRows,
+  filterRowsByFolder,
   formatShortDate,
+  suggestedFolderNames,
   type AssessmentListFilter,
   type AssessmentListRow,
   type AssessmentRowStatus,
@@ -50,8 +56,10 @@ import {
 
 interface PlcAssessmentListProps {
   plc: Plc;
-  /** Forwarded to the shared-quiz library for its post-assign hand-off. */
+  /** Forwarded to the quiz actions for their post-assign hand-off. */
   onCloseDashboard: () => void;
+  /** Rendered above the folder tree in the left rail (the section type nav). */
+  rail?: React.ReactNode;
 }
 
 const FILTERS: readonly {
@@ -65,6 +73,11 @@ const FILTERS: readonly {
     labelDefault: 'All',
   },
   {
+    id: 'notStarted',
+    labelKey: 'plcDashboard.assessmentList.filters.notStarted',
+    labelDefault: 'Not started',
+  },
+  {
     id: 'inProgress',
     labelKey: 'plcDashboard.assessmentList.filters.inProgress',
     labelDefault: 'In progress',
@@ -75,25 +88,28 @@ const FILTERS: readonly {
     labelDefault: 'Scored',
   },
   {
-    id: 'libraryOnly',
-    labelKey: 'plcDashboard.assessmentList.filters.libraryOnly',
-    labelDefault: 'Library only',
+    id: 'archived',
+    labelKey: 'plcDashboard.assessmentList.filters.archived',
+    labelDefault: 'Archived',
   },
 ];
 
 /** Shared status badge — slate for idle states, amber running, emerald done. */
 export const AssessmentStatusBadge: React.FC<{
   status: AssessmentRowStatus;
-}> = ({ status }) => {
+  archived?: boolean;
+}> = ({ status, archived = false }) => {
   const { t } = useTranslation();
-  const tone =
-    status === 'scored'
+  const tone = archived
+    ? 'bg-slate-100 text-slate-600 border-slate-200'
+    : status === 'scored'
       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
       : status === 'inProgress'
         ? 'bg-amber-50 text-amber-700 border-amber-200'
         : 'bg-slate-100 text-slate-600 border-slate-200';
-  const label =
-    status === 'scored'
+  const label = archived
+    ? t('plcDashboard.assessmentList.archived', { defaultValue: 'Archived' })
+    : status === 'scored'
       ? t('plcDashboard.assessmentList.status.scored', {
           defaultValue: 'Scored',
         })
@@ -101,17 +117,13 @@ export const AssessmentStatusBadge: React.FC<{
         ? t('plcDashboard.assessmentList.status.inProgress', {
             defaultValue: 'In progress',
           })
-        : status === 'libraryOnly'
-          ? t('plcDashboard.assessmentList.status.libraryOnly', {
-              defaultValue: 'Library only',
-            })
-          : t('plcDashboard.assessmentList.status.notStarted', {
-              defaultValue: 'Not started',
-            });
+        : t('plcDashboard.assessmentList.status.notStarted', {
+            defaultValue: 'Not started',
+          });
   return (
     <span
       data-testid="assessment-status"
-      data-status={status}
+      data-status={archived ? 'archived' : status}
       className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xxs font-bold uppercase tracking-wider ${tone}`}
     >
       {label}
@@ -123,36 +135,68 @@ export const AssessmentStatusBadge: React.FC<{
 // Row
 // ---------------------------------------------------------------------------
 
+interface RowFolder {
+  id: string;
+  name: string;
+}
+
 interface RowProps {
   row: AssessmentListRow;
   canEdit: boolean;
+  folders: RowFolder[];
+  inLibrary: boolean;
+  busy: boolean;
   onOpen: (assessmentId: string) => void;
-  onAssign: () => void;
+  onAssign: (row: AssessmentListRow) => void;
+  onImport: (row: AssessmentListRow) => void;
+  onEdit: (row: AssessmentListRow) => void;
+  onVersionHistory: (row: AssessmentListRow) => void;
   onRename: (row: AssessmentListRow) => void;
   onArchive: (row: AssessmentListRow) => void;
+  onRestore: (row: AssessmentListRow) => void;
+  onMoveToFolder: (row: AssessmentListRow, folderId: string | null) => void;
 }
+
+const menuItemClass =
+  'flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50';
 
 const AssessmentRow: React.FC<RowProps> = ({
   row,
   canEdit,
+  folders,
+  inLibrary,
+  busy,
   onOpen,
   onAssign,
+  onImport,
+  onEdit,
+  onVersionHistory,
   onRename,
   onArchive,
+  onRestore,
+  onMoveToFolder,
 }) => {
   const { t, i18n } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moveSubmenuOpen, setMoveSubmenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, () => setMenuOpen(false));
+  useClickOutside(menuRef, () => {
+    setMenuOpen(false);
+    setMoveSubmenuOpen(false);
+  });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: row.id,
+    disabled: !canEdit || row.archived,
+  });
 
   const title =
     row.title ||
     t('plcDashboard.assessmentList.untitled', {
       defaultValue: 'Untitled assessment',
     });
-  const isLibraryOnly = row.status === 'libraryOnly';
+  const hasResults = row.assessmentId !== null;
   const meta: string[] = [];
-  if (!isLibraryOnly) {
+  if (hasResults) {
     meta.push(
       t('plcDashboard.assessmentList.teachersOf', {
         defaultValue: '{{count}} of {{total}} teachers',
@@ -175,6 +219,11 @@ const AssessmentRow: React.FC<RowProps> = ({
       );
     }
   } else {
+    meta.push(
+      t('plcDashboard.assessmentList.noResultsYet', {
+        defaultValue: 'No results yet',
+      })
+    );
     if (row.questionCount != null) {
       meta.push(
         t('plcDashboard.assessmentList.questionCount', {
@@ -206,34 +255,44 @@ const AssessmentRow: React.FC<RowProps> = ({
           <span className="text-sm font-bold text-slate-800 truncate">
             {title}
           </span>
-          <AssessmentStatusBadge status={row.status} />
-          {row.archived && (
-            <span className="text-xxs font-semibold uppercase tracking-wider text-slate-500">
-              {t('plcDashboard.assessmentList.archived', {
-                defaultValue: 'Archived',
+          <AssessmentStatusBadge status={row.status} archived={row.archived} />
+          {inLibrary && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700">
+              <Cloud className="w-3 h-3" aria-hidden="true" />
+              {t('plcDashboard.quizLibrary.inLibrary', {
+                defaultValue: 'In your library',
               })}
             </span>
           )}
         </span>
         <span className="block text-xs text-slate-500 mt-0.5 truncate">
-          {isLibraryOnly
-            ? [
-                t('plcDashboard.assessmentList.noResultsYet', {
-                  defaultValue: 'No results yet',
-                }),
-                ...meta,
-              ].join(' · ')
-            : meta.join(' · ')}
+          {meta.join(' · ')}
         </span>
       </span>
     </>
   );
 
+  const canUseLibraryActions = canEdit && row.plcQuizId !== null;
+
   return (
     <li
+      ref={setNodeRef}
       data-testid="assessment-row"
-      className="bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-3"
+      className={`bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-3 ${isDragging ? 'opacity-40' : ''}`}
     >
+      {canEdit && !row.archived && (
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={t('plcDashboard.assessmentList.folders.dragHandle', {
+            defaultValue: 'Drag to move',
+          })}
+          className="shrink-0 p-1 -ml-1 rounded text-slate-400 hover:text-slate-600 cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+        >
+          <GripVertical className="w-4 h-4" aria-hidden="true" />
+        </button>
+      )}
       {row.assessmentId ? (
         <button
           type="button"
@@ -250,11 +309,12 @@ const AssessmentRow: React.FC<RowProps> = ({
         <div className="flex items-center gap-3 flex-1 min-w-0">{body}</div>
       )}
 
-      {canEdit && (
+      {canEdit && !row.archived && row.plcQuizId && (
         <button
           type="button"
-          onClick={onAssign}
-          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          onClick={() => onAssign(row)}
+          disabled={busy}
+          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/5 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           <Users className="w-3.5 h-3.5" aria-hidden="true" />
           {t('plcDashboard.assessmentList.assign', {
@@ -263,7 +323,7 @@ const AssessmentRow: React.FC<RowProps> = ({
         </button>
       )}
 
-      {canEdit && row.assessmentId && (
+      {canEdit && (
         <div ref={menuRef} className="relative shrink-0">
           <button
             type="button"
@@ -283,35 +343,161 @@ const AssessmentRow: React.FC<RowProps> = ({
               role="menu"
               className="absolute right-0 top-full mt-1 z-10 min-w-[10rem] bg-white border border-slate-200 rounded-xl shadow-lg py-1"
             >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onRename(row);
-                }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-              >
-                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                {t('plcDashboard.assessmentList.rename', {
-                  defaultValue: 'Rename',
-                })}
-              </button>
-              {!row.archived && (
+              {row.archived ? (
                 <button
                   type="button"
                   role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
-                    onArchive(row);
+                    onRestore(row);
                   }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  className={menuItemClass}
                 >
-                  <Archive className="w-3.5 h-3.5" aria-hidden="true" />
-                  {t('plcDashboard.assessmentList.archive', {
-                    defaultValue: 'Archive',
+                  <ArchiveRestore className="w-3.5 h-3.5" aria-hidden="true" />
+                  {t('plcDashboard.assessmentList.restore', {
+                    defaultValue: 'Restore',
                   })}
                 </button>
+              ) : (
+                <>
+                  {canUseLibraryActions && (
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onImport(row);
+                        }}
+                        className={menuItemClass}
+                      >
+                        <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                        {inLibrary
+                          ? t('plcDashboard.quizLibrary.reimport', {
+                              defaultValue: 'Re-import',
+                            })
+                          : t('plcDashboard.quizLibrary.addToMyLibrary', {
+                              defaultValue: 'Add to my library',
+                            })}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onEdit(row);
+                        }}
+                        className={menuItemClass}
+                      >
+                        <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                        {t('plcDashboard.quizLibrary.editAction', {
+                          defaultValue: 'Edit',
+                        })}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onVersionHistory(row);
+                        }}
+                        className={menuItemClass}
+                      >
+                        <History className="w-3.5 h-3.5" aria-hidden="true" />
+                        {t('plcDashboard.versions.open', {
+                          defaultValue: 'Version history',
+                        })}
+                      </button>
+                    </>
+                  )}
+                  {row.assessmentId && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onRename(row);
+                      }}
+                      className={menuItemClass}
+                    >
+                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                      {t('plcDashboard.assessmentList.rename', {
+                        defaultValue: 'Rename',
+                      })}
+                    </button>
+                  )}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-haspopup="menu"
+                      aria-expanded={moveSubmenuOpen}
+                      onClick={() => setMoveSubmenuOpen((v) => !v)}
+                      className={menuItemClass}
+                    >
+                      <FolderInput className="w-3.5 h-3.5" aria-hidden="true" />
+                      {t('plcDashboard.assessmentList.folders.moveToFolder', {
+                        defaultValue: 'Move to folder…',
+                      })}
+                    </button>
+                    {moveSubmenuOpen && (
+                      <div
+                        role="menu"
+                        className="absolute left-full top-0 ml-1 z-20 min-w-[10rem] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1"
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setMoveSubmenuOpen(false);
+                            onMoveToFolder(row, null);
+                          }}
+                          className="flex items-center justify-between gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          {t('plcDashboard.assessmentList.folders.noFolder', {
+                            defaultValue: 'No folder',
+                          })}
+                          {row.folderId === null && (
+                            <span aria-hidden="true">✓</span>
+                          )}
+                        </button>
+                        {folders.map((folder) => (
+                          <button
+                            key={folder.id}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              setMoveSubmenuOpen(false);
+                              onMoveToFolder(row, folder.id);
+                            }}
+                            className="flex items-center justify-between gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                          >
+                            <span className="truncate">{folder.name}</span>
+                            {row.folderId === folder.id && (
+                              <span aria-hidden="true">✓</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onArchive(row);
+                    }}
+                    className={menuItemClass}
+                  >
+                    <Archive className="w-3.5 h-3.5" aria-hidden="true" />
+                    {t('plcDashboard.assessmentList.archive', {
+                      defaultValue: 'Archive',
+                    })}
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -325,15 +511,25 @@ const AssessmentRow: React.FC<RowProps> = ({
 // List
 // ---------------------------------------------------------------------------
 
+function toActionTarget(row: AssessmentListRow): PlcQuizActionTarget | null {
+  if (!row.plcQuizId) return null;
+  return {
+    plcQuizId: row.plcQuizId,
+    syncGroupId: row.syncGroupId,
+    title: row.title,
+    sharedByName: row.sharedByName,
+  };
+}
+
 export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   plc,
   onCloseDashboard,
+  rail,
 }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode } = useAuth();
   const { addToast } = useDashboard();
   const { showPrompt } = useDialog();
-  const { updateAssessment } = usePlcActions();
+  const { updateAssessment, archiveQuiz, restoreQuiz } = usePlcActions();
   const canEdit = useCanEditPlcContent();
   const {
     data: assessments,
@@ -351,14 +547,12 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     loading: libraryLoading,
     error: libraryError,
   } = usePlcQuizzes(plc.id);
-  const { quizzes: personalQuizzes, isDriveConnected } = useQuiz(user?.uid);
+  const folderState = usePlcFolders(plc.id);
+  const quizActions = usePlcQuizActions(plc, onCloseDashboard);
 
   const [filter, setFilter] = useState<AssessmentListFilter>('all');
   const [search, setSearch] = useState('');
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [assignOpen, setAssignOpen] = useState(false);
-  const ctaReasonId = useId();
-  const libraryPanelId = useId();
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
   const rows = useMemo(
     () =>
@@ -370,34 +564,50 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       }),
     [assessments, aggregates, libraryEntries, members.length]
   );
-  const visibleRows = useMemo(
-    () => filterAssessmentRows(rows, filter, search),
-    [rows, filter, search]
+  const folderFilteredRows = useMemo(
+    () => filterRowsByFolder(rows, selectedFolderId),
+    [rows, selectedFolderId]
   );
+  const visibleRows = useMemo(
+    () => filterAssessmentRows(folderFilteredRows, filter, search),
+    [folderFilteredRows, filter, search]
+  );
+  const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
+  const rowIds = useMemo(() => visibleRows.map((r) => r.id), [visibleRows]);
+  const suggestions = useMemo(
+    () => suggestedFolderNames(assessments),
+    [assessments]
+  );
+  const showSuggestions =
+    canEdit &&
+    !folderState.loading &&
+    folderState.folders.length === 0 &&
+    suggestions.length > 0;
 
   const loading =
     (assessmentsLoading || aggregatesLoading || libraryLoading) &&
     rows.length === 0;
   const error = assessmentsError ?? aggregatesError ?? libraryError;
 
-  const ctaDisabledReason: string | undefined = !isDriveConnected
-    ? t('plcDashboard.newAssignment.quiz.ctaDisabledDrive', {
-        defaultValue: 'Connect Google Drive to assign a quiz.',
-      })
-    : personalQuizzes.length === 0
-      ? t('plcDashboard.newAssignment.quiz.ctaDisabledEmpty', {
-          defaultValue:
-            'You have no quizzes in your personal library yet. Create one in the Quiz widget first.',
-        })
-      : undefined;
+  const { isDriveConnected, assignQuiz, importQuiz, editQuiz } = quizActions;
 
-  const openAssign = useCallback(() => {
-    if (ctaDisabledReason !== undefined) {
-      addToast(ctaDisabledReason, 'error');
-      return;
-    }
-    setAssignOpen(true);
-  }, [ctaDisabledReason, addToast]);
+  const handleAssign = useCallback(
+    (row: AssessmentListRow) => {
+      const target = toActionTarget(row);
+      if (!target) return;
+      if (!isDriveConnected) {
+        addToast(
+          t('plcDashboard.newAssignment.quiz.ctaDisabledDrive', {
+            defaultValue: 'Connect Google Drive to assign a quiz.',
+          }),
+          'error'
+        );
+        return;
+      }
+      assignQuiz(target);
+    },
+    [assignQuiz, isDriveConnected, addToast, t]
+  );
 
   const handleOpen = useCallback(
     (assessmentId: string) => {
@@ -445,9 +655,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
 
   const handleArchive = useCallback(
     async (row: AssessmentListRow) => {
-      if (!row.assessmentId) return;
       try {
-        await updateAssessment(row.assessmentId, { status: 'closed' });
+        await archiveQuiz({
+          plcQuizId: row.plcQuizId,
+          assessmentId: row.assessmentId,
+        });
         addToast(
           t('plcDashboard.assessmentList.archivedToast', {
             defaultValue: '“{{title}}” archived.',
@@ -458,7 +670,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       } catch (err) {
         logError('PlcAssessmentList.archive', err, {
           plcId: plc.id,
-          assessmentId: row.assessmentId,
+          rowId: row.id,
         });
         addToast(
           t('plcDashboard.assessmentList.archiveFailed', {
@@ -468,16 +680,175 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         );
       }
     },
-    [updateAssessment, addToast, plc.id, t]
+    [archiveQuiz, addToast, plc.id, t]
+  );
+
+  const handleRestore = useCallback(
+    async (row: AssessmentListRow) => {
+      try {
+        await restoreQuiz({
+          plcQuizId: row.plcQuizId,
+          assessmentId: row.assessmentId,
+        });
+        addToast(
+          t('plcDashboard.assessmentList.restoredToast', {
+            defaultValue: '“{{title}}” restored.',
+            title: row.title,
+          }),
+          'success'
+        );
+      } catch (err) {
+        logError('PlcAssessmentList.restore', err, {
+          plcId: plc.id,
+          rowId: row.id,
+        });
+        addToast(
+          t('plcDashboard.assessmentList.restoreFailed', {
+            defaultValue: 'Couldn’t restore that assessment. Try again.',
+          }),
+          'error'
+        );
+      }
+    },
+    [restoreQuiz, addToast, plc.id, t]
+  );
+
+  const { moveEntry } = folderState;
+  const moveRow = useCallback(
+    async (row: AssessmentListRow, folderId: string | null) => {
+      try {
+        await moveEntry(
+          { plcQuizId: row.plcQuizId, assessmentId: row.assessmentId },
+          folderId
+        );
+        const folder =
+          folderId !== null
+            ? folderState.folders.find((f) => f.id === folderId)
+            : undefined;
+        addToast(
+          folder
+            ? t('plcDashboard.assessmentList.folders.movedToast', {
+                defaultValue: 'Moved to “{{folder}}”',
+                folder: folder.name,
+              })
+            : t('plcDashboard.assessmentList.folders.movedToRootToast', {
+                defaultValue: 'Moved out of folders',
+              }),
+          'success'
+        );
+      } catch (err) {
+        logError('PlcAssessmentList.moveToFolder', err, {
+          plcId: plc.id,
+          rowId: row.id,
+          folderId,
+        });
+        addToast(
+          t('plcDashboard.assessmentList.folders.moveFailed', {
+            defaultValue: 'Couldn’t move that item. Try again.',
+          }),
+          'error'
+        );
+      }
+    },
+    [moveEntry, folderState.folders, addToast, plc.id, t]
+  );
+
+  const handleDropOnFolder = useCallback(
+    (rowId: string, folderId: string | null) => {
+      const row = visibleRows.find((r) => r.id === rowId);
+      if (!row) return;
+      void moveRow(row, folderId);
+    },
+    [visibleRows, moveRow]
+  );
+
+  const handleCreateSuggestedFolder = useCallback(
+    async (name: string) => {
+      try {
+        const folderId = await folderState.createFolder(name, null);
+        const targets = rows.filter((r) => {
+          const assessment = assessments.find((a) => a.id === r.assessmentId);
+          return assessment?.unitLabel?.trim() === name;
+        });
+        await Promise.all(
+          targets.map((row) =>
+            moveEntry(
+              { plcQuizId: row.plcQuizId, assessmentId: row.assessmentId },
+              folderId
+            )
+          )
+        );
+        addToast(
+          t('plcDashboard.assessmentList.folders.suggestedCreated', {
+            defaultValue: 'Created “{{folder}}” from your unit labels.',
+            folder: name,
+          }),
+          'success'
+        );
+      } catch (err) {
+        logError('PlcAssessmentList.createSuggestedFolder', err, {
+          plcId: plc.id,
+          name,
+        });
+        addToast(
+          t('plcDashboard.assessmentList.folders.moveFailed', {
+            defaultValue: 'Couldn’t move that item. Try again.',
+          }),
+          'error'
+        );
+      }
+    },
+    [folderState, rows, assessments, moveEntry, addToast, plc.id, t]
+  );
+
+  const renderDragOverlay = useCallback(
+    (activeId: string): React.ReactNode => {
+      const row = visibleRows.find((r) => r.id === activeId);
+      if (!row) return null;
+      return (
+        <div className="bg-white border border-brand-blue-primary/40 rounded-xl px-3 py-2 shadow-lg text-sm font-bold text-slate-800 max-w-xs truncate">
+          {row.title ||
+            t('plcDashboard.assessmentList.untitled', {
+              defaultValue: 'Untitled assessment',
+            })}
+        </div>
+      );
+    },
+    [visibleRows, t]
   );
 
   const isEmpty = !loading && !error && rows.length === 0;
+  const isFolderEmpty =
+    !isEmpty && selectedFolderId !== null && folderFilteredRows.length === 0;
 
-  return (
-    <div className="flex flex-col gap-4 h-full">
-      {/* Toolbar */}
+  const shareButton = canEdit ? (
+    <button
+      type="button"
+      onClick={quizActions.openSharePicker}
+      disabled={!isDriveConnected}
+      title={
+        !isDriveConnected
+          ? t('plcDashboard.quizLibrary.shareCta.driveDisconnected', {
+              defaultValue: 'Connect Google Drive to share a quiz.',
+            })
+          : t('plcDashboard.quizLibrary.shareCta.tooltip', {
+              defaultValue:
+                'Pick a quiz from your personal library to share with this PLC.',
+            })
+      }
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+      {t('plcDashboard.assessmentList.shareQuiz', {
+        defaultValue: 'Share a quiz',
+      })}
+    </button>
+  ) : null;
+
+  const mainContent = (
+    <div className="flex flex-col gap-4 h-full min-w-0 flex-1">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <div
             role="group"
             aria-label={t('plcDashboard.assessmentList.filters.label', {
@@ -523,71 +894,10 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
             />
           </label>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setLibraryOpen((v) => !v)}
-            aria-expanded={libraryOpen}
-            aria-controls={libraryPanelId}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-          >
-            <Library className="w-3.5 h-3.5" aria-hidden="true" />
-            {t('plcDashboard.assessmentList.manageLibrary', {
-              defaultValue: 'Manage shared quizzes',
-            })}
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform ${libraryOpen ? 'rotate-180' : ''}`}
-              aria-hidden="true"
-            />
-          </button>
-          {canEdit && (
-            <>
-              <button
-                type="button"
-                onClick={
-                  ctaDisabledReason !== undefined ? undefined : openAssign
-                }
-                aria-disabled={ctaDisabledReason !== undefined}
-                aria-describedby={
-                  ctaDisabledReason !== undefined ? ctaReasonId : undefined
-                }
-                title={
-                  ctaDisabledReason ??
-                  t('plcDashboard.newAssignment.quiz.ctaTooltip', {
-                    defaultValue:
-                      'Create a PLC quiz assignment from your personal library.',
-                  })
-                }
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors aria-disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-brand-blue-primary"
-              >
-                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                {t('plcDashboard.newAssignment.quiz.ctaLabel', {
-                  defaultValue: 'Assign Quiz',
-                })}
-              </button>
-              {ctaDisabledReason !== undefined && (
-                <span id={ctaReasonId} className="sr-only">
-                  {ctaDisabledReason}
-                </span>
-              )}
-            </>
-          )}
-        </div>
+        {shareButton}
       </div>
 
-      {/* Shared-quiz library disclosure */}
-      {libraryOpen && (
-        <div
-          id={libraryPanelId}
-          className="border border-slate-200 rounded-2xl bg-slate-50/60 p-4"
-        >
-          <PlcQuizLibraryBody plc={plc} onCloseDashboard={onCloseDashboard} />
-        </div>
-      )}
-
-      {/* Rows */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 mt-4">
         {loading ? (
           <div className="flex items-center justify-center py-12 text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
@@ -619,27 +929,24 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
             <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
               {t('plcDashboard.assessmentList.emptySubtitle', {
                 defaultValue:
-                  'Assign a quiz and share its results with this PLC to pool the team’s data here.',
+                  'Share a quiz with this PLC, then assign it to pool the team’s results here.',
               })}
             </p>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={openAssign}
-                className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                {t('plcDashboard.newAssignment.quiz.ctaLabel', {
-                  defaultValue: 'Assign Quiz',
-                })}
-              </button>
-            )}
+            <div className="mt-4 flex justify-center">{shareButton}</div>
           </div>
         ) : visibleRows.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-8">
-            {t('plcDashboard.assessmentList.noMatches', {
-              defaultValue: 'No assessments match this filter.',
-            })}
+            {isFolderEmpty
+              ? t('plcDashboard.assessmentList.folders.emptyFolder', {
+                  defaultValue: 'Nothing in this folder yet.',
+                })
+              : filter === 'archived'
+                ? t('plcDashboard.assessmentList.noArchived', {
+                    defaultValue: 'No archived quizzes.',
+                  })
+                : t('plcDashboard.assessmentList.noMatches', {
+                    defaultValue: 'No assessments match this filter.',
+                  })}
           </p>
         ) : (
           <ul className="space-y-2">
@@ -648,23 +955,94 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
                 key={row.id}
                 row={row}
                 canEdit={canEdit}
+                folders={folderState.folders}
+                inLibrary={quizActions.isInLibrary(row.syncGroupId)}
+                busy={quizActions.busy}
                 onOpen={handleOpen}
-                onAssign={openAssign}
+                onAssign={(r) => void handleAssign(r)}
+                onImport={(r) => {
+                  const target = toActionTarget(r);
+                  if (target) importQuiz(target);
+                }}
+                onEdit={(r) => {
+                  const target = toActionTarget(r);
+                  if (target) editQuiz(target);
+                }}
+                onVersionHistory={(r) => {
+                  const target = toActionTarget(r);
+                  if (target) quizActions.openVersionHistory(target);
+                }}
                 onRename={(r) => void handleRename(r)}
                 onArchive={(r) => void handleArchive(r)}
+                onRestore={(r) => void handleRestore(r)}
+                onMoveToFolder={(r, folderId) => void moveRow(r, folderId)}
               />
             ))}
           </ul>
         )}
       </div>
 
-      {assignOpen && (
-        <PlcNewQuizAssignmentModal
-          plc={plc}
-          assignmentMode={getAssignmentMode('quiz')}
-          onClose={() => setAssignOpen(false)}
-        />
+      {quizActions.modals}
+    </div>
+  );
+
+  const sidebar = (
+    <div className="w-full md:w-56 md:shrink-0 flex flex-col gap-3">
+      {rail}
+      <FolderSidebar
+        widget="quiz"
+        folders={folderState.folders}
+        loading={folderState.loading}
+        error={folderState.error}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={setSelectedFolderId}
+        itemCounts={folderItemCounts}
+        onCreateFolder={canEdit ? folderState.createFolder : undefined}
+        onRenameFolder={canEdit ? folderState.renameFolder : undefined}
+        onMoveFolder={canEdit ? folderState.moveFolder : undefined}
+        onDeleteFolder={canEdit ? folderState.deleteFolder : undefined}
+        enableDrop={canEdit}
+      />
+      {showSuggestions && (
+        <div className="border border-slate-200 rounded-xl bg-slate-50/60 p-3">
+          <p className="text-xxs font-bold uppercase tracking-wider text-slate-500 mb-2">
+            {t('plcDashboard.assessmentList.folders.suggestedTitle', {
+              defaultValue: 'Suggested from your unit labels',
+            })}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => void handleCreateSuggestedFolder(name)}
+                className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:border-brand-blue-light hover:text-brand-blue-primary transition-colors"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
+    </div>
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label={t('plcDashboard.assessmentList.folders.sidebarLabel', {
+        defaultValue: 'Folders',
+      })}
+      className="flex flex-col md:flex-row gap-6 h-full min-h-0"
+    >
+      <LibraryDndContext
+        itemIds={rowIds}
+        onDropOnFolder={handleDropOnFolder}
+        renderOverlay={renderDragOverlay}
+      >
+        {sidebar}
+        {mainContent}
+      </LibraryDndContext>
     </div>
   );
 };

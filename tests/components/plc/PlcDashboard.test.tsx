@@ -138,9 +138,8 @@ vi.mock('@/components/plc/bodies/PlcAssessmentsBody', () => ({
 // The no-value `PlcTodosTab` / `PlcSharedBoardsTab` shims were removed in
 // Wave-4 cleanup (§6.5 / Decision 4.4); the dashboard now renders the shared
 // bodies directly. Mock the bodies the same way the shims used to be mocked.
-vi.mock('@/components/plc/bodies/TodosBody', () => ({
-  TodosBody: () => <div data-testid="section-todos">To-dos body</div>,
-}));
+// `TodosBody` itself was removed in §7.4 — the to-do list merged into note
+// action items; `/plc/:id/todos` now aliases to the `docs` section.
 vi.mock('@/components/plc/bodies/PlcSharedBoardsBody', () => ({
   PlcSharedBoardsBody: () => (
     <div data-testid="section-sharedBoards">Shared boards body</div>
@@ -304,7 +303,6 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
       'meeting',
       'assessments',
       'docs',
-      'todos',
       'sharedBoards',
       'members',
       'resources',

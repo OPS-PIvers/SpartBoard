@@ -34,7 +34,6 @@ const REQUIRED_TOP_LEVEL_SECTIONS = [
   'settings',
   'overview',
   'notes',
-  'todos',
   'quizLibrary',
   'rubricLibrary',
 ] as const;
@@ -46,7 +45,6 @@ const REQUIRED_TABS_KEYS = [
   'videoActivities',
   'assessments',
   'notes',
-  'todos',
   'sharedBoards',
   'settings',
   'home',
@@ -58,22 +56,11 @@ const REQUIRED_TABS_KEYS = [
 
 /** Keys within plcDashboard.quizLibrary */
 const REQUIRED_QUIZ_LIBRARY_KEYS = [
-  'heading',
-  'count_one',
-  'count_other',
-  'emptyTitle',
-  'emptySubtitle',
-  'bySharer',
-  'unknownSharer',
-  'questionCount_one',
-  'questionCount_other',
   'addToMyLibrary',
   'reimport',
   'inLibrary',
   'alreadySynced',
   'unshareAction',
-  'unshareYours',
-  'unshareTeammate',
   'unshareTitle',
   'unshareConfirm',
   'unshared',
@@ -82,15 +69,13 @@ const REQUIRED_QUIZ_LIBRARY_KEYS = [
   'importedCopy',
   'importFailed',
   'editAction',
-  'editTooltip',
-  'editTooltipAutoImport',
   'editAutoImported',
   'editSaved',
   'editConflict',
   'editFailed',
   'driveRequired',
   'driveRequiredForEdit',
-  'driveDisconnected',
+  'shareCta',
 ] as const;
 
 /** Keys within plcDashboard.rubricLibrary (M12 Phase 3-I PLC rubric library). */
@@ -165,6 +150,22 @@ const REQUIRED_NOTES_KEYS = [
   'meeting.agenda',
   'meeting.decisions',
   'meeting.actionItems',
+  'actionItems.title',
+  'actionItems.add',
+  'actionItems.addPlaceholder',
+  'actionItems.unassigned',
+  'actionItems.dueDate',
+  'actionItems.remove',
+  'actionItems.markDone',
+  'actionItems.markOpen',
+  'actionItems.overdue',
+  'actionItems.limitReached',
+  'actionItems.openCount',
+  'actionItems.noneOpen',
+  'importTodos.banner',
+  'importTodos.button',
+  'importTodos.success',
+  'importTodos.failed',
 ] as const;
 
 /** Keys within plcDashboard.notesDocs (Wave-2 T4 combined surface). */
@@ -172,19 +173,6 @@ const REQUIRED_NOTES_DOCS_KEYS = [
   'notesTab',
   'docsTab',
   'tablistLabel',
-] as const;
-
-/** Keys within plcDashboard.todos */
-const REQUIRED_TODOS_KEYS = [
-  'addPlaceholder',
-  'add',
-  'openHeading',
-  'doneHeading',
-  'allDone',
-  'toggle',
-  'deleteTodo',
-  'confirmDelete',
-  'confirmDeleteTitle',
 ] as const;
 
 /** Keys within plcDashboard.settings */
@@ -610,13 +598,26 @@ const REQUIRED_SEARCH_KEYS = [
  * Decision 3.2). The calm "Viewer — read only" affordance shown where content
  * create/edit/delete affordances would otherwise render.
  */
+/** Keys within plcDashboard.assessmentList.folders (PLC folders sidebar). */
+const REQUIRED_ASSESSMENT_LIST_FOLDERS_KEYS = [
+  'sidebarLabel',
+  'moveToFolder',
+  'noFolder',
+  'dragHandle',
+  'movedToast',
+  'movedToRootToast',
+  'moveFailed',
+  'suggestedTitle',
+  'suggestedCreated',
+  'emptyFolder',
+] as const;
+
 const REQUIRED_VIEWER_KEYS = [
   'badge',
   'badgeTooltip',
   'readOnly',
   'assessmentsNote',
   'notesNote',
-  'todosNote',
   'meetingNote',
   'homeNote',
   'rubricsNote',
@@ -694,6 +695,10 @@ const WAVE3_KEY_GROUPS: ReadonlyArray<{
     path: 'plcDashboard.assessmentsTypes',
     keys: REQUIRED_ASSESSMENTS_TYPES_KEYS,
   },
+  {
+    path: 'plcDashboard.assessmentList.folders',
+    keys: REQUIRED_ASSESSMENT_LIST_FOLDERS_KEYS,
+  },
 ];
 
 // ─── EN baseline ────────────────────────────────────────────────────────────
@@ -747,15 +752,6 @@ describe('EN locale — plcDashboard baseline', () => {
       expect(
         notesDocs,
         `en.plcDashboard.notesDocs.${key} is missing from EN`
-      ).toHaveProperty(key);
-    }
-  });
-
-  it('has all required plcDashboard.todos keys', () => {
-    for (const key of REQUIRED_TODOS_KEYS) {
-      expect(
-        en.plcDashboard.todos,
-        `en.plcDashboard.todos.${key} is missing from EN`
       ).toHaveProperty(key);
     }
   });
@@ -888,19 +884,6 @@ describe.each([
       expect(
         notesDocs,
         `${code}.plcDashboard.notesDocs.${key} is missing`
-      ).toHaveProperty(key);
-    }
-  });
-
-  it(`${code}: has all required plcDashboard.todos keys`, () => {
-    const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
-    const todos = plc?.todos as Record<string, unknown> | undefined;
-    for (const key of REQUIRED_TODOS_KEYS) {
-      expect(
-        todos,
-        `${code}.plcDashboard.todos.${key} is missing`
       ).toHaveProperty(key);
     }
   });

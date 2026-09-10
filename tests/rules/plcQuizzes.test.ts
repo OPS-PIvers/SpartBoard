@@ -331,6 +331,42 @@ describe('plcs/{plcId}/quizzes — update', () => {
       })
     );
   });
+
+  it('allows setting folderId (PLC_ASSESSMENT_DATA §3.4)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        folderId: 'f1',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a non-string, non-null folderId', async () => {
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        folderId: 42,
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('an editor can set archived: true via update', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        archived: true,
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a non-bool archived', async () => {
+    await assertFails(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        archived: 'yes',
+        updatedAt: 2000,
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -356,7 +392,7 @@ describe('plcs/{plcId}/quizzes — delete', () => {
   it('any teammate (not just the sharer) can unshare (PLC-owned model)', async () => {
     // Phase 2 spec: quizzes shared with the PLC belong to the PLC, not
     // the original sharer. If this flips to assertFails, the unshare
-    // affordance must hide for non-sharer rows in PlcQuizLibraryBody.
+    // affordance must hide for non-sharer rows on the Assessments list.
     await assertSucceeds(
       deleteDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`))
     );

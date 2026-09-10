@@ -4,7 +4,6 @@ import {
   BookOpen,
   ChevronDown,
   Film,
-  ListChecks,
   Mail,
   StickyNote,
   SquareSquare,
@@ -60,14 +59,6 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     titleDefault: 'Notes',
     descriptionKey: 'plcDashboard.settings.notes.description',
     descriptionDefault: 'A shared notebook for the PLC.',
-  },
-  {
-    key: 'todos',
-    icon: ListChecks,
-    titleKey: 'plcDashboard.settings.todos.title',
-    titleDefault: 'To-Do List',
-    descriptionKey: 'plcDashboard.settings.todos.description',
-    descriptionDefault: 'A shared checklist so the PLC can track action items.',
   },
   {
     key: 'sharedBoards',

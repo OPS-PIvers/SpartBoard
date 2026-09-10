@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   ClipboardList,
   FileText,
-  ListChecks,
   SquareSquare,
   Users2,
   Sparkles,
@@ -32,7 +31,6 @@ export type PlcSectionId =
   // video-activity surfaces under one section with a type filter.
   | 'assessments'
   | 'docs'
-  | 'todos'
   | 'sharedBoards'
   | 'members'
   | 'resources'
@@ -43,7 +41,12 @@ export type PlcSectionId =
  * 404) but which are no longer rail items. Each maps to its canonical
  * replacement via {@link PLC_SECTION_ALIASES}.
  */
-export type PlcSectionAlias = 'quizzes' | 'videoActivities' | 'sharedData';
+export type PlcSectionAlias =
+  | 'quizzes'
+  | 'videoActivities'
+  | 'sharedData'
+  // To-Dos merged into Notes & Docs action items (§7.4).
+  | 'todos';
 
 /** Any section token the router may see in a path (canonical id OR alias). */
 export type PlcRouteSection = PlcSectionId | PlcSectionAlias;
@@ -61,6 +64,8 @@ export const PLC_SECTION_ALIASES: Readonly<
   videoActivities: 'assessments',
   // The former Data section merged into Assessments (plan D5).
   sharedData: 'assessments',
+  // To-Dos merged into Notes & Docs action items (§7.4).
+  todos: 'docs',
 };
 
 /**
@@ -147,13 +152,6 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     labelKey: 'plcDashboard.tabs.docs',
     labelDefault: 'Notes & Docs',
     isEnabled: (features) => features.notes,
-  },
-  {
-    id: 'todos',
-    icon: ListChecks,
-    labelKey: 'plcDashboard.tabs.todos',
-    labelDefault: 'To-Dos',
-    isEnabled: (features) => features.todos,
   },
   {
     id: 'sharedBoards',

@@ -1,6 +1,70 @@
 {
   "entries": [
     {
+      "version": "2026.09.10.3",
+      "date": "2026-09-10",
+      "title": "Action items in PLC meeting notes",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Every note can now carry its own checklist of action items — assign a teammate, set a due date, and check them off without leaving the note. The old shared To-Do tab is gone; import what's left of it into a note with one click."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Action items — any note (meeting or freeform) gets an action-item list under the body: add, assign, set a due date, and mark done inline. Overdue items are called out in amber."
+        },
+        {
+          "type": "improvement",
+          "text": "Open action items rollup — the Notes & Docs header shows an open-count toggle that lists every note with open items, grouped by note, for a one-click jump."
+        },
+        {
+          "type": "improvement",
+          "text": "Import from the old To-Do list — a banner offers to move any remaining shared to-dos into a note as action items, then archives the old list."
+        },
+        {
+          "type": "improvement",
+          "text": "Home's “Your action items” card now reflects items assigned to you across all notes."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.10.2",
+      "date": "2026-09-10",
+      "title": "Folders for PLC assessments",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "The Assessments tab gets a folder tree the whole PLC shares. Sort shared quizzes and their pooled results into units, drag rows between folders, and start from your existing unit labels."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Folders — a sidebar on the Assessments list holds folders every member sees. Selecting one narrows both the assessment rows and the shared-quiz library; editors create, rename, nest and delete folders in place."
+        },
+        {
+          "type": "improvement",
+          "text": "Move to folder — drag a row by its handle onto a folder, or pick “Move to folder…” from the row menu. The shared quiz and its pooled results move together."
+        },
+        {
+          "type": "improvement",
+          "text": "Unit labels — a PLC with no folders yet is offered its existing unit labels as one-click folder suggestions."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10.1",
       "date": "2026-09-10",
       "title": "One Assessments tab for PLC quizzes and their pooled results",

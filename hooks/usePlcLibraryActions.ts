@@ -3,9 +3,8 @@
  * from PLC" row actions across the Quiz Library and Video Activities
  * tiles.
  *
- * The PLC library bodies (`PlcQuizLibraryBody`, `PlcVideoActivitiesBody`)
- * already own their full unshare flow inline because their handlers
- * coexist with the heavier import/edit flows. The Overview bento tiles
+ * `PlcVideoActivitiesBody` still owns its unshare flow inline because its
+ * handlers coexist with the heavier import/edit flows. The Overview bento tiles
  * want the same unshare UX (i18n'd confirm + toast + busy spinner) but
  * without dragging the editor handlers in. That's what this hook is for —
  * a deliberately small surface so the tile doesn't have to re-derive the

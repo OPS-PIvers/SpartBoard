@@ -370,7 +370,6 @@
       "videoActivities": "Activités vidéo",
       "assessments": "Évaluations",
       "notes": "Notes",
-      "todos": "Tâches",
       "sharedBoards": "Tableaux",
       "settings": "Paramètres",
       "home": "Accueil",
@@ -502,10 +501,6 @@
       "notes": {
         "title": "Notes",
         "description": "Un carnet de notes partagé pour la Communauté."
-      },
-      "todos": {
-        "title": "Liste de tâches",
-        "description": "Une liste de contrôle partagée pour que la Communauté puisse suivre les actions à mener."
       },
       "sharedBoards": {
         "title": "Tableaux partagés",
@@ -645,6 +640,26 @@
         "agenda": "Ordre du jour",
         "decisions": "Décisions",
         "actionItems": "Actions"
+      },
+      "actionItems": {
+        "title": "Actions",
+        "add": "Ajouter une action",
+        "addPlaceholder": "Que faut-il faire ?",
+        "unassigned": "Non assignée",
+        "dueDate": "Date d’échéance",
+        "remove": "Supprimer l’action",
+        "markDone": "Marquer comme terminée",
+        "markOpen": "Marquer comme ouverte",
+        "overdue": "En retard",
+        "limitReached": "Limite d’actions atteinte",
+        "openCount": "Actions ouvertes ({{count}})",
+        "noneOpen": "Aucune action ouverte"
+      },
+      "importTodos": {
+        "banner": "Importer {{count}} tâches de l’ancienne liste dans une note",
+        "button": "Importer",
+        "success": "{{count}} tâches importées",
+        "failed": "Impossible d’importer les tâches"
       }
     },
     "notesDocs": {
@@ -652,34 +667,12 @@
       "docsTab": "Google Docs",
       "tablistLabel": "Notes et documents"
     },
-    "todos": {
-      "addPlaceholder": "Ajouter une tâche pour la Communauté…",
-      "add": "Ajouter",
-      "openHeading": "À faire",
-      "doneHeading": "Terminé",
-      "allDone": "Rien sur la liste",
-      "toggle": "Marquer « {{text}} » comme terminé",
-      "deleteTodo": "Supprimer la tâche",
-      "confirmDelete": "Supprimer cette tâche ?",
-      "confirmDeleteTitle": "Supprimer la tâche"
-    },
     "quizLibrary": {
-      "heading": "Quiz partagés",
-      "count_one": "{{count}} quiz",
-      "count_other": "{{count}} quiz",
-      "emptyTitle": "Aucun quiz partagé pour l'instant",
-      "emptySubtitle": "Ouvrez le widget Quiz dans votre tableau, cliquez sur le menu d'un quiz et choisissez « Partager avec la Communauté » pour l'ajouter ici.",
-      "bySharer": "partagé par {{name}}",
-      "unknownSharer": "un collègue",
-      "questionCount_one": "{{count}} question",
-      "questionCount_other": "{{count}} questions",
       "addToMyLibrary": "Ajouter à ma bibliothèque",
       "reimport": "Réimporter",
       "inLibrary": "Dans votre bibliothèque",
       "alreadySynced": "« {{title}} » est déjà synchronisé avec votre bibliothèque.",
       "unshareAction": "Ne plus partager",
-      "unshareYours": "Ne plus partager dans la Communauté",
-      "unshareTeammate": "Ne plus partager dans la Communauté (tout membre peut supprimer)",
       "unshareTitle": "Ne plus partager le quiz",
       "unshareConfirm": "Retirer « {{title}} » de cette Communauté ? Les autres collègues perdront l'accès à l'entrée de bibliothèque partagée. Leurs copies personnelles (le cas échéant) continueront de fonctionner.",
       "unshared": "« {{title}} » retiré de cette Communauté.",
@@ -688,15 +681,16 @@
       "importedCopy": "« {{title}} » copié dans votre bibliothèque.",
       "importFailed": "Impossible d'importer le quiz.",
       "editAction": "Modifier",
-      "editTooltip": "Modifier en collaboration (les modifications se synchronisent avec les collègues)",
-      "editTooltipAutoImport": "Modifier en collaboration — s'ajoute à votre bibliothèque à la première modification",
       "editAutoImported": "« {{title}} » ajouté à votre bibliothèque — ouverture de l'éditeur.",
       "editSaved": "Quiz enregistré — les collègues se synchroniseront automatiquement.",
       "editConflict": "Un autre enseignant a publié une mise à jour de ce quiz. Nous avons récupéré ses modifications ; vos modifications non enregistrées n'ont pas été sauvegardées. Rouvrez le quiz pour les appliquer à nouveau.",
       "editFailed": "Impossible d'ouvrir l'éditeur.",
       "driveRequired": "Connectez Google Drive dans votre compte pour importer les quiz de la Communauté.",
       "driveRequiredForEdit": "Connectez Google Drive dans votre compte pour modifier les quiz de la Communauté.",
-      "driveDisconnected": "Connectez Google Drive pour importer les quiz de la Communauté dans votre bibliothèque personnelle."
+      "shareCta": {
+        "driveDisconnected": "Connectez Google Drive pour partager un quiz.",
+        "tooltip": "Choisissez un quiz dans votre bibliothèque personnelle pour le partager avec cette CAP."
+      }
     },
     "rubricLibrary": {
       "heading": "Grilles d'évaluation partagées",
@@ -1000,7 +994,6 @@
       "readOnly": "Lecture seule",
       "assessmentsNote": "Les observateurs peuvent parcourir les évaluations partagées, mais ne peuvent pas les partager, les modifier ni les attribuer.",
       "notesNote": "Les observateurs peuvent lire les notes et documents, mais ne peuvent pas les ajouter ni les modifier.",
-      "todosNote": "Les observateurs peuvent lire la liste des tâches, mais ne peuvent pas ajouter ni modifier d’éléments.",
       "meetingNote": "Les observateurs peuvent suivre la réunion, mais ne peuvent pas la modifier ni l’enregistrer.",
       "homeNote": "Les observateurs peuvent tout lire ici, mais ne peuvent pas créer de nouveau contenu.",
       "rubricsNote": "Les observateurs peuvent consulter et copier les grilles partagées, mais ne peuvent ni les partager ni arrêter leur partage."
@@ -1077,14 +1070,14 @@
       "filters": {
         "label": "Filtrer les évaluations",
         "all": "Toutes",
+        "notStarted": "Non commencées",
         "inProgress": "En cours",
         "scored": "Notées",
-        "libraryOnly": "Bibliothèque seule"
+        "archived": "Archivées"
       },
       "status": {
         "scored": "Notée",
         "inProgress": "En cours",
-        "libraryOnly": "Bibliothèque seule",
         "notStarted": "Non commencée"
       },
       "untitled": "Évaluation sans titre",
@@ -1096,21 +1089,37 @@
       "archived": "Archivée",
       "noResultsYet": "Pas encore de résultats",
       "assign": "Attribuer à mes classes",
+      "shareQuiz": "Partager un quiz",
       "moreActions": "Plus d’actions pour {{title}}",
       "rename": "Renommer",
       "archive": "Archiver",
+      "restore": "Restaurer",
       "renamePrompt": "Nouveau nom pour cette évaluation",
       "renameFailed": "Impossible de renommer cette évaluation. Réessayez.",
       "archivedToast": "« {{title}} » archivée.",
       "archiveFailed": "Impossible d’archiver cette évaluation. Réessayez.",
+      "restoredToast": "« {{title}} » restaurée.",
+      "restoreFailed": "Impossible de restaurer cette évaluation. Réessayez.",
       "searchLabel": "Rechercher des évaluations",
       "searchPlaceholder": "Rechercher…",
-      "manageLibrary": "Gérer les quiz partagés",
       "loading": "Chargement des évaluations…",
       "loadError": "Impossible de charger les évaluations.",
       "emptyTitle": "Aucune évaluation pour l’instant",
-      "emptySubtitle": "Attribuez un quiz et partagez ses résultats avec cette CAP pour regrouper ici les données de l’équipe.",
-      "noMatches": "Aucune évaluation ne correspond à ce filtre."
+      "emptySubtitle": "Partagez un quiz avec cette CAP, puis attribuez-le pour regrouper ici les résultats de l’équipe.",
+      "noMatches": "Aucune évaluation ne correspond à ce filtre.",
+      "noArchived": "Aucun quiz archivé.",
+      "folders": {
+        "sidebarLabel": "Dossiers",
+        "moveToFolder": "Déplacer vers un dossier…",
+        "noFolder": "Aucun dossier",
+        "dragHandle": "Glisser pour déplacer",
+        "movedToast": "Déplacé vers « {{folder}} »",
+        "movedToRootToast": "Retiré des dossiers",
+        "moveFailed": "Impossible de déplacer cet élément. Réessayez.",
+        "suggestedTitle": "Suggestions basées sur vos libellés d’unité",
+        "suggestedCreated": "« {{folder}} » créé à partir de vos libellés d’unité.",
+        "emptyFolder": "Ce dossier est encore vide."
+      }
     },
     "assessmentDetail": {
       "back": "Toutes les évaluations",

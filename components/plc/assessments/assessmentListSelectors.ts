@@ -8,18 +8,20 @@ import type {
   PlcCommonAssessment,
   PlcQuizEntry,
 } from '@/types';
+import {
+  countItemsByFolder,
+  filterByFolder,
+  type HasFolderId,
+} from '@/components/common/library/folderFilters';
 
-export type AssessmentRowStatus =
-  | 'libraryOnly'
-  | 'notStarted'
-  | 'inProgress'
-  | 'scored';
+export type AssessmentRowStatus = 'notStarted' | 'inProgress' | 'scored';
 
 export type AssessmentListFilter =
   | 'all'
+  | 'notStarted'
   | 'inProgress'
   | 'scored'
-  | 'libraryOnly';
+  | 'archived';
 
 export interface AssessmentListRow {
   /** Assessment id, or `library:<syncGroupId>` for a library-only row. */
@@ -44,12 +46,16 @@ export interface AssessmentListRow {
   sharedAt: number | null;
   /** Newest edit on the assessment record (ms); 0 for library-only rows. */
   updatedAt: number;
+  /** PLC folder id (`plcs/{plcId}/folders`); `null` = root/no folder. */
+  folderId: string | null;
+  /** Id of the matched PLC library entry, or `null` when there isn't one. */
+  plcQuizId: string | null;
 }
 
 /** Schema-2 aggregates carry publish counts; schema-1 only knows students. */
 export function aggregateStatus(
   aggregate: PlcAssessmentAggregate | null | undefined
-): Exclude<AssessmentRowStatus, 'libraryOnly'> {
+): AssessmentRowStatus {
   if (!aggregate) return 'notStarted';
   const linked = aggregate.linkedSessionCount;
   const published = aggregate.publishedSessionCount;
@@ -84,7 +90,6 @@ const STATUS_ORDER: Record<AssessmentRowStatus, number> = {
   inProgress: 0,
   scored: 1,
   notStarted: 2,
-  libraryOnly: 3,
 };
 
 function sortRows(rows: AssessmentListRow[]): AssessmentListRow[] {
@@ -93,9 +98,9 @@ function sortRows(rows: AssessmentListRow[]): AssessmentListRow[] {
     const order = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     if (order !== 0) return order;
     const aTime =
-      a.status === 'libraryOnly' ? (a.sharedAt ?? 0) : (a.ranAt ?? a.updatedAt);
+      a.assessmentId === null ? (a.sharedAt ?? 0) : (a.ranAt ?? a.updatedAt);
     const bTime =
-      b.status === 'libraryOnly' ? (b.sharedAt ?? 0) : (b.ranAt ?? b.updatedAt);
+      b.assessmentId === null ? (b.sharedAt ?? 0) : (b.ranAt ?? b.updatedAt);
     if (aTime !== bTime) return bTime - aTime;
     return a.title.localeCompare(b.title);
   });
@@ -136,7 +141,7 @@ export function buildAssessmentRows(
       title,
       kind: 'quiz',
       status: aggregateStatus(aggregate),
-      archived: assessment.status === 'closed',
+      archived: assessment.status === 'closed' || library?.archived === true,
       questionCount: library?.questionCount ?? null,
       teacherCount: aggregate?.teacherCount ?? 0,
       memberCount: input.memberCount,
@@ -147,6 +152,8 @@ export function buildAssessmentRows(
       sharedByName: library?.sharedByName ?? null,
       sharedAt: library?.sharedAt ?? null,
       updatedAt: assessment.updatedAt,
+      folderId: assessment.folderId ?? library?.folderId ?? null,
+      plcQuizId: library?.id ?? null,
     });
   }
 
@@ -157,8 +164,8 @@ export function buildAssessmentRows(
       assessmentId: null,
       title: entry.title,
       kind: 'quiz',
-      status: 'libraryOnly',
-      archived: false,
+      status: 'notStarted',
+      archived: entry.archived === true,
       questionCount: entry.questionCount,
       teacherCount: 0,
       memberCount: input.memberCount,
@@ -169,6 +176,8 @@ export function buildAssessmentRows(
       sharedByName: entry.sharedByName,
       sharedAt: entry.sharedAt,
       updatedAt: 0,
+      folderId: entry.folderId ?? null,
+      plcQuizId: entry.id,
     });
   }
 
@@ -183,12 +192,48 @@ export function filterAssessmentRows(
 ): AssessmentListRow[] {
   const needle = search.trim().toLowerCase();
   return rows.filter((row) => {
-    if (filter !== 'all' && row.status !== filter) return false;
+    if (filter === 'archived') {
+      if (!row.archived) return false;
+    } else {
+      if (row.archived) return false;
+      if (filter !== 'all' && row.status !== filter) return false;
+    }
     if (needle.length > 0 && !row.title.toLowerCase().includes(needle)) {
       return false;
     }
     return true;
   });
+}
+
+/** Keep only rows in `selectedFolderId` (`null` = every row). */
+export function filterRowsByFolder(
+  rows: AssessmentListRow[],
+  selectedFolderId: string | null
+): AssessmentListRow[] {
+  return filterByFolder(
+    rows as (AssessmentListRow & HasFolderId)[],
+    selectedFolderId
+  );
+}
+
+/** Per-folder row counts (+ `root`) for the sidebar badges. */
+export function countRowsByFolder(
+  rows: AssessmentListRow[]
+): Record<string, number> {
+  return countItemsByFolder(rows as (AssessmentListRow & HasFolderId)[]);
+}
+
+/** Distinct, trimmed, non-empty `unitLabel` values from live quiz assessments, sorted. */
+export function suggestedFolderNames(
+  assessments: PlcCommonAssessment[]
+): string[] {
+  const names = new Set<string>();
+  for (const a of assessments) {
+    if (a.deletedAt != null || a.kind !== 'quiz') continue;
+    const trimmed = a.unitLabel?.trim();
+    if (trimmed) names.add(trimmed);
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
 export function firstNonEmpty(

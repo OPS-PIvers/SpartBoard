@@ -133,7 +133,7 @@ describe('PlcPresenceStrip', () => {
       {
         uid: 'uid-c',
         displayName: 'Cara',
-        section: 'todos',
+        section: 'members',
         lastActiveAt: now - PRESENCE_FRESH_WINDOW_MS - 5_000,
       },
     ];

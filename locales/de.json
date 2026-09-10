@@ -370,7 +370,6 @@
       "videoActivities": "Videoaktivitäten",
       "assessments": "Bewertungen",
       "notes": "Notizen",
-      "todos": "Aufgaben",
       "sharedBoards": "Tafeln",
       "settings": "Einstellungen",
       "home": "Startseite",
@@ -502,10 +501,6 @@
       "notes": {
         "title": "Notizen",
         "description": "Ein geteiltes Notizbuch für die PLG."
-      },
-      "todos": {
-        "title": "Aufgabenliste",
-        "description": "Eine geteilte Checkliste, damit die PLG Aufgaben verfolgen kann."
       },
       "sharedBoards": {
         "title": "Geteilte Tafeln",
@@ -645,6 +640,26 @@
         "agenda": "Tagesordnung",
         "decisions": "Entscheidungen",
         "actionItems": "Maßnahmen"
+      },
+      "actionItems": {
+        "title": "Maßnahmen",
+        "add": "Maßnahme hinzufügen",
+        "addPlaceholder": "Was muss passieren?",
+        "unassigned": "Nicht zugewiesen",
+        "dueDate": "Fälligkeitsdatum",
+        "remove": "Maßnahme entfernen",
+        "markDone": "Als erledigt markieren",
+        "markOpen": "Als offen markieren",
+        "overdue": "Überfällig",
+        "limitReached": "Maximale Anzahl an Maßnahmen erreicht",
+        "openCount": "Offene Maßnahmen ({{count}})",
+        "noneOpen": "Keine offenen Maßnahmen"
+      },
+      "importTodos": {
+        "banner": "{{count}} Aufgaben aus der alten Aufgabenliste in eine Notiz importieren",
+        "button": "Importieren",
+        "success": "{{count}} Aufgaben importiert",
+        "failed": "Die Aufgaben konnten nicht importiert werden"
       }
     },
     "notesDocs": {
@@ -652,34 +667,12 @@
       "docsTab": "Google Docs",
       "tablistLabel": "Notizen und Dokumente"
     },
-    "todos": {
-      "addPlaceholder": "Aufgabe für die PLG hinzufügen…",
-      "add": "Hinzufügen",
-      "openHeading": "Zu erledigen",
-      "doneHeading": "Erledigt",
-      "allDone": "Nichts auf der Liste",
-      "toggle": "„{{text}}“ als erledigt markieren",
-      "deleteTodo": "Aufgabe löschen",
-      "confirmDelete": "Diese Aufgabe löschen?",
-      "confirmDeleteTitle": "Aufgabe löschen"
-    },
     "quizLibrary": {
-      "heading": "Geteilte Quizze",
-      "count_one": "{{count}} Quiz",
-      "count_other": "{{count}} Quizze",
-      "emptyTitle": "Noch keine geteilten Quizze",
-      "emptySubtitle": "Öffne das Quiz-Widget in deinem Dashboard, klicke auf das Menü bei einem Quiz und wähle „Mit PLG teilen“.",
-      "bySharer": "geteilt von {{name}}",
-      "unknownSharer": "einem Teammitglied",
-      "questionCount_one": "{{count}} Frage",
-      "questionCount_other": "{{count}} Fragen",
       "addToMyLibrary": "Zu meiner Bibliothek hinzufügen",
       "reimport": "Erneut importieren",
       "inLibrary": "In deiner Bibliothek",
       "alreadySynced": "„{{title}}“ ist bereits mit deiner Bibliothek synchronisiert.",
       "unshareAction": "Freigabe aufheben",
-      "unshareYours": "Freigabe aus PLG aufheben",
-      "unshareTeammate": "Freigabe aus PLG aufheben (jedes Mitglied kann entfernen)",
       "unshareTitle": "Quiz-Freigabe aufheben",
       "unshareConfirm": "„{{title}}“ aus dieser PLG entfernen? Andere Teammitglieder verlieren den Zugriff auf den geteilten Bibliothekseintrag. Persönliche Kopien (falls vorhanden) bleiben funktionsfähig.",
       "unshared": "„{{title}}“ aus dieser PLG entfernt.",
@@ -688,15 +681,16 @@
       "importedCopy": "„{{title}}“ in deine Bibliothek kopiert.",
       "importFailed": "Quiz konnte nicht importiert werden.",
       "editAction": "Bearbeiten",
-      "editTooltip": "Gemeinsam bearbeiten (Änderungen werden mit Teammitgliedern synchronisiert)",
-      "editTooltipAutoImport": "Gemeinsam bearbeiten – wird beim ersten Bearbeiten zu deiner Bibliothek hinzugefügt",
       "editAutoImported": "„{{title}}“ zu deiner Bibliothek hinzugefügt – Editor wird geöffnet.",
       "editSaved": "Quiz gespeichert – Teammitglieder synchronisieren automatisch.",
       "editConflict": "Ein anderer Lehrer hat ein Update für dieses Quiz veröffentlicht. Wir haben seine Änderungen übernommen; deine nicht gespeicherten Änderungen wurden nicht gespeichert. Öffne das Quiz erneut, um sie neu anzuwenden.",
       "editFailed": "Editor konnte nicht geöffnet werden.",
       "driveRequired": "Verbinde Google Drive in deinem Konto, um PLG-Quizze zu importieren.",
       "driveRequiredForEdit": "Verbinde Google Drive in deinem Konto, um PLG-Quizze zu bearbeiten.",
-      "driveDisconnected": "Verbinde Google Drive, um PLG-Quizze in deine persönliche Bibliothek zu importieren."
+      "shareCta": {
+        "driveDisconnected": "Verbinde Google Drive, um ein Quiz zu teilen.",
+        "tooltip": "Wähle ein Quiz aus deiner persönlichen Bibliothek, um es mit dieser PLG zu teilen."
+      }
     },
     "rubricLibrary": {
       "heading": "Geteilte Bewertungsraster",
@@ -1000,7 +994,6 @@
       "readOnly": "Nur Lesen",
       "assessmentsNote": "Betrachter können geteilte Beurteilungen ansehen, aber nicht teilen, bearbeiten oder zuweisen.",
       "notesNote": "Betrachter können Notizen und Dokumente lesen, aber nicht hinzufügen oder ändern.",
-      "todosNote": "Betrachter können die Aufgabenliste lesen, aber keine Einträge hinzufügen oder ändern.",
       "meetingNote": "Betrachter können dem Meeting folgen, es aber nicht bearbeiten oder speichern.",
       "homeNote": "Betrachter können hier alles lesen, aber keine neuen Inhalte erstellen.",
       "rubricsNote": "Betrachter können geteilte Bewertungsraster ansehen und kopieren, aber nicht teilen oder deren Freigabe aufheben."
@@ -1077,14 +1070,14 @@
       "filters": {
         "label": "Bewertungen filtern",
         "all": "Alle",
+        "notStarted": "Nicht gestartet",
         "inProgress": "Laufend",
         "scored": "Bewertet",
-        "libraryOnly": "Nur Bibliothek"
+        "archived": "Archiviert"
       },
       "status": {
         "scored": "Bewertet",
         "inProgress": "Laufend",
-        "libraryOnly": "Nur Bibliothek",
         "notStarted": "Nicht gestartet"
       },
       "untitled": "Unbenannte Bewertung",
@@ -1096,21 +1089,37 @@
       "archived": "Archiviert",
       "noResultsYet": "Noch keine Ergebnisse",
       "assign": "Meinen Klassen zuweisen",
+      "shareQuiz": "Quiz teilen",
       "moreActions": "Weitere Aktionen für {{title}}",
       "rename": "Umbenennen",
       "archive": "Archivieren",
+      "restore": "Wiederherstellen",
       "renamePrompt": "Neuer Name für diese Bewertung",
       "renameFailed": "Die Bewertung konnte nicht umbenannt werden. Bitte erneut versuchen.",
       "archivedToast": "„{{title}}“ archiviert.",
       "archiveFailed": "Die Bewertung konnte nicht archiviert werden. Bitte erneut versuchen.",
+      "restoredToast": "„{{title}}“ wiederhergestellt.",
+      "restoreFailed": "Diese Bewertung konnte nicht wiederhergestellt werden. Bitte erneut versuchen.",
       "searchLabel": "Bewertungen durchsuchen",
       "searchPlaceholder": "Suchen…",
-      "manageLibrary": "Geteilte Quizze verwalten",
       "loading": "Bewertungen werden geladen…",
       "loadError": "Bewertungen konnten nicht geladen werden.",
       "emptyTitle": "Noch keine Bewertungen",
-      "emptySubtitle": "Weise ein Quiz zu und teile die Ergebnisse mit dieser PLG, um die Daten des Teams hier zu bündeln.",
-      "noMatches": "Keine Bewertungen passen zu diesem Filter."
+      "emptySubtitle": "Teile ein Quiz mit dieser PLG und weise es dann zu, um die Ergebnisse des Teams hier zu bündeln.",
+      "noMatches": "Keine Bewertungen passen zu diesem Filter.",
+      "noArchived": "Keine archivierten Quiz.",
+      "folders": {
+        "sidebarLabel": "Ordner",
+        "moveToFolder": "In Ordner verschieben…",
+        "noFolder": "Kein Ordner",
+        "dragHandle": "Zum Verschieben ziehen",
+        "movedToast": "Nach „{{folder}}“ verschoben",
+        "movedToRootToast": "Aus Ordnern entfernt",
+        "moveFailed": "Element konnte nicht verschoben werden. Bitte erneut versuchen.",
+        "suggestedTitle": "Vorschläge aus deinen Themenbezeichnungen",
+        "suggestedCreated": "„{{folder}}“ aus deinen Themenbezeichnungen erstellt.",
+        "emptyFolder": "Dieser Ordner ist noch leer."
+      }
     },
     "assessmentDetail": {
       "back": "Alle Bewertungen",

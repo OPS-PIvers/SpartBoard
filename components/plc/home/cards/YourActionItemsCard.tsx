@@ -1,15 +1,13 @@
 /**
- * YourActionItemsCard — Home card listing the to-dos assigned to the signed-in
- * member, with due dates (PRD §6.3, Decision 4.1).
+ * YourActionItemsCard — Home card listing the note action items assigned to
+ * the signed-in member, with due dates (PRD §6.3, Decision 4.1; migrated to
+ * note action items in §7.4).
  *
- * Reads the PLC's shared to-do list (`usePlcTodos` — a standalone hook here
- * because the todos listener is NOT gated to the `home` section) and filters to
- * the member's own OPEN items, urgency-sorted (overdue → soonest → undated).
- * Each row shows a relative due-date chip and a checkbox to mark it done inline.
- *
- * Action items spawned from meetings (`meetingId` provenance) surface here just
- * like list-created ones — that's the point of Decision 3.9: the meeting's "Act"
- * step lands work on each teacher's Home.
+ * Reads the PLC's shared notes (`usePlcNotes` — a standalone hook here
+ * because the notes listener is NOT gated to the `home` section) and filters
+ * to the member's own OPEN action items, urgency-sorted (overdue → soonest →
+ * undated). Each row shows a relative due-date chip and a checkbox to mark it
+ * done inline.
  *
  * Light-surface modal chrome (Home page) — normal Tailwind sizing, no cqmin.
  */
@@ -29,7 +27,7 @@ import {
 import type { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { usePlcTodos } from '@/hooks/usePlcTodos';
+import { usePlcNotes } from '@/hooks/usePlcNotes';
 import { logError } from '@/utils/logError';
 import type { PlcSectionId } from '@/components/plc/sections';
 import {
@@ -61,7 +59,7 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const { todos, loading, error, toggleDone } = usePlcTodos(plc.id);
+  const { notes, loading, error, updateNote } = usePlcNotes(plc.id);
 
   // Capture "now" once at mount via a lazy state initializer (the repo pattern
   // for keeping `Date.now()` out of the render body). The card doesn't need
@@ -69,8 +67,8 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
   // would churn renders for no UX gain.
   const [now] = useState(() => Date.now());
   const items = useMemo(
-    () => selectMyActionItems(todos, user?.uid ?? null, now),
-    [todos, user?.uid, now]
+    () => selectMyActionItems(notes, user?.uid ?? null, now),
+    [notes, user?.uid, now]
   );
   const preview = items.slice(0, PREVIEW_LIMIT);
 
@@ -138,15 +136,25 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
           <ul className="space-y-1">
             {preview.map((item) => (
               <ActionItemRow
-                key={item.todo.id}
+                key={item.item.id}
                 item={item}
                 onToggle={async () => {
                   try {
-                    await toggleDone(item.todo.id, true);
+                    const next = (item.note.actionItems ?? []).map((ai) =>
+                      ai.id === item.item.id
+                        ? { ...ai, done: true, doneAt: Date.now() }
+                        : ai
+                    );
+                    await updateNote(
+                      item.note.id,
+                      { actionItems: next },
+                      { expectedVersion: item.note.version }
+                    );
                   } catch (err) {
                     logError('YourActionItemsCard.toggleDone', err, {
                       plcId: plc.id,
-                      todoId: item.todo.id,
+                      noteId: item.note.id,
+                      itemId: item.item.id,
                     });
                     addToast(
                       t('plcDashboard.home.actionItems.toggleFailed', {
@@ -165,11 +173,11 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
       {/* Footer CTA — jump to the full To-Do list */}
       <button
         type="button"
-        onClick={() => onNavigate('todos')}
+        onClick={() => onNavigate('docs')}
         className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-5 py-3 text-xs font-bold uppercase tracking-wider text-brand-blue-primary transition-colors hover:bg-brand-blue-lighter/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
         {t('plcDashboard.home.actionItems.openAll', {
-          defaultValue: 'Open To-Do list',
+          defaultValue: 'Open action items',
         })}
         <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
       </button>
@@ -183,7 +191,7 @@ const ActionItemRow: React.FC<{
 }> = ({ item, onToggle }) => {
   const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
-  const { todo, bucket } = item;
+  const { item: actionItem, bucket } = item;
 
   const handleToggle = async () => {
     if (busy) return;
@@ -195,7 +203,12 @@ const ActionItemRow: React.FC<{
     }
   };
 
-  const dueLabel = formatDueLabel(t, todo.dueAt ?? null, bucket, i18n.language);
+  const dueLabel = formatDueLabel(
+    t,
+    actionItem.dueAt ?? null,
+    bucket,
+    i18n.language
+  );
 
   return (
     <li className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-slate-50">
@@ -215,7 +228,7 @@ const ActionItemRow: React.FC<{
         )}
       </button>
       <span className="flex-1 min-w-0 truncate text-sm text-slate-700">
-        {todo.text}
+        {actionItem.text}
       </span>
       {dueLabel && (
         <span

@@ -13,11 +13,11 @@ import {
 import {
   actionItemsNeedingTodos,
   applyTodoBackLinks,
-  buildTodoFromActionItem,
   captureAttendeeUids,
   MEETING_PRESENCE_FRESH_WINDOW_MS,
   sanitizeActionItemsForWrite,
 } from '@/hooks/usePlcMeetings';
+import { actionItemFromMeetingItem } from '@/utils/plcActionItems';
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -168,44 +168,31 @@ describe('actionItemsNeedingTodos', () => {
   });
 });
 
-describe('buildTodoFromActionItem', () => {
-  it('projects text/assignee/due + meetingId provenance, trims text', () => {
+describe('actionItemFromMeetingItem', () => {
+  it('projects text/assignee/due into a PlcActionItem', () => {
     const item: PlcMeeting['actionItems'][number] = {
       id: 'ai4',
-      text: '  Build exit ticket  ',
+      text: 'Build exit ticket',
       assigneeUid: 'teach2',
       dueAt: 1_700_500_000_000,
     };
-    const payload = buildTodoFromActionItem('todo-1', item, 'm1', 'lead');
-    expect(payload).toEqual({
-      id: 'todo-1',
+    const result = actionItemFromMeetingItem(item, 'lead', 1_700_000_000_000);
+    expect(result).toEqual({
+      id: 'ai4',
       text: 'Build exit ticket',
       done: false,
       createdBy: 'lead',
-      meetingId: 'm1',
+      createdAt: 1_700_000_000_000,
       assigneeUid: 'teach2',
       dueAt: 1_700_500_000_000,
     });
-    // createdAt is stamped by the writer, never by the pure builder.
-    expect(payload).not.toHaveProperty('createdAt');
   });
 
-  it('omits assignee/due when absent (schema-lock friendly)', () => {
+  it('omits assignee/due when absent', () => {
     const item: PlcMeeting['actionItems'][number] = { id: 'ai1', text: 'x' };
-    const payload = buildTodoFromActionItem('todo-2', item, 'm1', 'lead');
-    expect(payload).not.toHaveProperty('assigneeUid');
-    expect(payload).not.toHaveProperty('dueAt');
-    expect(payload.meetingId).toBe('m1');
-  });
-
-  it('preserves an explicit null dueAt', () => {
-    const item: PlcMeeting['actionItems'][number] = {
-      id: 'ai1',
-      text: 'x',
-      dueAt: null,
-    };
-    const payload = buildTodoFromActionItem('todo-3', item, 'm1', 'lead');
-    expect(payload.dueAt).toBeNull();
+    const result = actionItemFromMeetingItem(item, 'lead', 1);
+    expect(result).not.toHaveProperty('assigneeUid');
+    expect(result).not.toHaveProperty('dueAt');
   });
 });
 

@@ -1,25 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   doc,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcTodo } from '@/types';
 import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
-import { usePlcSubcollection } from '@/context/usePlcContext';
 
 const PLCS_COLLECTION = 'plcs';
 const TODOS_SUBCOLLECTION = 'todos';
 
+/** Max ids per `writeBatch` — Firestore's hard batch-write limit is 500. */
+const ARCHIVE_BATCH_SIZE = 400;
+
 interface UsePlcTodosResult {
+  /** Live (non-soft-deleted) legacy to-dos, oldest first. */
   todos: PlcTodo[];
   loading: boolean;
   /**
@@ -27,18 +28,12 @@ interface UsePlcTodosResult {
    * is "couldn't load," not "no items yet."
    */
   error: Error | null;
-  createTodo: (text: string) => Promise<string>;
-  toggleDone: (todoId: string, done: boolean) => Promise<void>;
-  updateText: (todoId: string, text: string) => Promise<void>;
   /**
-   * Soft-delete a to-do (Decision 3.1): writes a `deletedAt` tombstone rather
-   * than hard-deleting, so the item drops out of the live list (the snapshot
-   * filters `deletedAt != null`) but stays restorable from Trash. Restore with
-   * `restoreTodo`.
+   * Soft-delete (archive) the given legacy to-dos (Decision 3.1): writes a
+   * `deletedAt` tombstone to each in batches of `ARCHIVE_BATCH_SIZE`. Legacy
+   * to-dos are read-only otherwise (§7.4) — imported into note action items.
    */
-  deleteTodo: (todoId: string) => Promise<void>;
-  /** Restore a soft-deleted to-do by clearing its `deletedAt` tombstone. */
-  restoreTodo: (todoId: string) => Promise<void>;
+  archiveTodos: (ids: string[]) => Promise<void>;
 }
 
 export function parseTodo(
@@ -90,16 +85,13 @@ export function parseTodo(
 }
 
 /**
- * Live subscription to a PLC's shared to-do list. Server-orders by
- * `createdAt` ascending; the UI sorts incomplete-first locally because
- * Firestore can't compose multiple orderBy clauses without a composite
- * index for boolean+number, and a single index pin doesn't justify the
- * Firestore deploy cost for a feature this small.
+ * @deprecated Legacy. Read-only live subscription to a PLC's legacy to-do
+ * list (§7.4) — the source of truth for open action items is now note
+ * `actionItems`; see `utils/plcActionItems.ts`. Exposes `archiveTodos` to
+ * soft-delete legacy to-dos once they've been imported into a note.
  */
 export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
   const { user } = useAuth();
-  // Back-compat (Decision 1.4): read from a mounted PlcProvider when present.
-  const fromProvider = usePlcSubcollection(plcId, (s) => s.todos);
   const [todos, setTodos] = useState<PlcTodo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -113,7 +105,6 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
   }
 
   useEffect(() => {
-    if (fromProvider) return;
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
         setTodos([]);
@@ -128,17 +119,7 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
         const list: PlcTodo[] = [];
         snap.forEach((d) => {
           const parsed = parseTodo(d.id, d.data() as Record<string, unknown>);
-          // Soft-deleted to-dos (Decision 3.1) drop out of the live list — they
-          // live in Trash until restored or GC'd. A pending serverTimestamp
-          // resolves to 0 (still != null), so a just-deleted item disappears
-          // immediately rather than lingering until the timestamp round-trips.
           if (parsed && parsed.deletedAt == null) list.push(parsed);
-        });
-        // Incomplete first, then completed — within each group preserve
-        // server order (insertion order).
-        list.sort((a, b) => {
-          if (a.done === b.done) return 0;
-          return a.done ? 1 : -1;
         });
         setTodos(list);
         setLoading(false);
@@ -151,111 +132,25 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
       }
     );
     return () => unsub();
-  }, [plcId, user, fromProvider]);
+  }, [plcId, user]);
 
-  const createTodo = useCallback(
-    async (text: string): Promise<string> => {
+  const archiveTodos = useCallback(
+    async (ids: string[]): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      const trimmed = text.trim();
-      if (!trimmed) throw new Error('Todo text required');
-      const ref = doc(
-        collection(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION)
-      );
-      // serverTimestamp() for createdAt (Decision 1.3); the typed
-      // `PlcTodo.createdAt: number` is the read-side shape after `parseTodo`
-      // resolves the Timestamp. The write payload can't be the typed `PlcTodo`.
-      await setDoc(ref, {
-        id: ref.id,
-        text: trimmed,
-        done: false,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-      });
-      return ref.id;
-    },
-    [plcId, user]
-  );
-
-  // Patch-only updates so a teammate's concurrent edit on a different
-  // field isn't reverted by a stale local copy of the todo. The rule's
-  // `keys.hasOnly([...])` check applies to the post-merge doc, so a
-  // partial `updateDoc` patch passes — id/createdBy/createdAt remain
-  // immutable because they're untouched.
-  const toggleDone = useCallback(
-    async (todoId: string, done: boolean): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
-        { done }
-      );
-    },
-    [plcId, user]
-  );
-
-  const updateText = useCallback(
-    async (todoId: string, text: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      const trimmed = text.trim();
-      if (!trimmed) throw new Error('Todo text required');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
-        { text: trimmed }
-      );
-    },
-    [plcId, user]
-  );
-
-  // Soft-delete (Decision 3.1): write a `deletedAt` tombstone instead of
-  // hard-deleting. The post-merge doc still passes the rule's
-  // `keys().hasOnly([...])` (deletedAt is in the widened key set) and
-  // `plcSubDeletedAtOk()`; identity/createdBy/createdAt stay untouched.
-  const deleteTodo = useCallback(
-    async (todoId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
-        { deletedAt: serverTimestamp() }
-      );
-    },
-    [plcId, user]
-  );
-
-  const restoreTodo = useCallback(
-    async (todoId: string): Promise<void> => {
-      if (!plcId || !user) throw new Error('Not signed in');
-      await updateDoc(
-        doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
-        { deletedAt: null }
-      );
-    },
-    [plcId, user]
-  );
-
-  return useMemo(() => {
-    const resolved = fromProvider
-      ? {
-          todos: fromProvider.data,
-          loading: fromProvider.loading,
-          error: fromProvider.error,
+      for (let i = 0; i < ids.length; i += ARCHIVE_BATCH_SIZE) {
+        const chunk = ids.slice(i, i + ARCHIVE_BATCH_SIZE);
+        const batch = writeBatch(db);
+        for (const id of chunk) {
+          batch.update(
+            doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, id),
+            { deletedAt: Date.now() }
+          );
         }
-      : { todos, loading, error };
-    return {
-      ...resolved,
-      createTodo,
-      toggleDone,
-      updateText,
-      deleteTodo,
-      restoreTodo,
-    };
-  }, [
-    fromProvider,
-    todos,
-    loading,
-    error,
-    createTodo,
-    toggleDone,
-    updateText,
-    deleteTodo,
-    restoreTodo,
-  ]);
+        await batch.commit();
+      }
+    },
+    [plcId, user]
+  );
+
+  return { todos, loading, error, archiveTodos };
 };
