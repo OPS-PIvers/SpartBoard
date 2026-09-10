@@ -230,7 +230,7 @@ function indexAggregates(
 
 /**
  * Live subscription to a single PLC's anonymized assessment aggregates. Pass
- * `null` for `plcId` to disable the listener. Mirrors `usePlcContributions` —
+ * `null` for `plcId` to disable the listener. Mirrors `usePlcAssessments` —
  * same parser-drops-malformed defense, same render-time `prevPlcId` reset, and
  * the same provider back-compat bridge. The aggregates collection is read-only
  * for clients; no mutators are returned.

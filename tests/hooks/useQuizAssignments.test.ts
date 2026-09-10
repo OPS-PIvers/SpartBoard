@@ -2181,66 +2181,14 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findSessionSet().mediaResponseEnabled).toBeUndefined();
   });
 
-  it('writes an index entry to the PLC subcollection when settings.plc is set', async () => {
-    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
-    let returnedId = '';
-    await act(async () => {
-      const created = await result.current.createAssignment(
-        QUIZ,
-        plcSettings()
-      );
-      returnedId = created.id;
-    });
-
-    // Exactly one index write per assignment-create.
-    expect(writePlcAssignmentIndexEntryMock).toHaveBeenCalledTimes(1);
-    const [plcId, entry] = writePlcAssignmentIndexEntryMock.mock.calls[0];
-
-    // Targets the PLC the assignment is linked to.
-    expect(plcId).toBe('plc-42');
-
-    // Pins the canonical payload shape. Each field matters:
-    //   - `id` matches the source assignment so the dashboard can
-    //     join back if it ever needs to.
-    //   - `kind: 'quiz'` is the discriminator slot for future video-
-    //     activity entries.
-    //   - `ownerUid` matches the teacher running the assignment.
-    //   - `ownerEmail` is lowercased so it matches across surfaces.
-    //   - `sheetUrl` mirrors `settings.plc.sheetUrl` so the firestore
-    //     rule's docs.google.com/spreadsheets domain check holds.
-    //   - `createdAt` is a number (the same `now` the assignment doc
-    //     uses).
-    expect(entry).toMatchObject({
-      id: returnedId,
-      kind: 'quiz',
-      ownerUid: TEACHER_UID,
-      ownerName: 'Alice Owner',
-      ownerEmail: 'alice@example.com',
-      title: 'Fractions Quick Check',
-      sheetUrl: 'https://docs.google.com/spreadsheets/d/plc-42-sheet',
-      // Phase 3: status is stamped on create so the In-progress sub-tab
-      // shows the entry immediately. Defaults to 'active' for a fresh
-      // assignment; later pause/deactivate/reopen calls mirror the new
-      // status fire-and-forget.
-      status: 'active',
-    });
-    expect(typeof entry.createdAt).toBe('number');
-  });
-
-  it('Phase 3: mirrors initialStatus into the index entry status field', async () => {
+  it('never writes a quiz assignment_index entry, even when settings.plc is set', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
-      await result.current.createAssignment(QUIZ, plcSettings(), {
-        initialStatus: 'paused',
-      });
+      await result.current.createAssignment(QUIZ, plcSettings());
     });
-    const [, entry] = writePlcAssignmentIndexEntryMock.mock.calls[0];
-    // A teacher who creates a paused assignment should see it land in
-    // the In-progress sub-tab pre-paused, not flicker through 'active'
-    // on the way in. Stamping `initialStatus` on the index entry keeps
-    // the dashboard consistent with the source assignment's status from
-    // the very first snapshot.
-    expect(entry.status).toBe('paused');
+    // Quiz pooling now rides `plcId` on the session doc (plan D1/D9); the
+    // per-assignment index is video-activity only.
+    expect(writePlcAssignmentIndexEntryMock).not.toHaveBeenCalled();
   });
 
   it('does NOT write an index entry when settings.plc is absent (solo assignment)', async () => {
@@ -2305,10 +2253,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     // contract that prevents the Library list from doubling on every
     // teammate import.
     expect(writePlcAssignmentTemplateMock).not.toHaveBeenCalled();
-    // Index entry write still fires — every PLC-mode assignment, even
-    // one created by importing a template, surfaces in the In-progress
-    // / Completed sub-tabs.
-    expect(writePlcAssignmentIndexEntryMock).toHaveBeenCalledTimes(1);
+    expect(writePlcAssignmentIndexEntryMock).not.toHaveBeenCalled();
   });
 
   it('Phase 3: skips the template write when no syncGroupId is resolvable', async () => {
@@ -2323,23 +2268,6 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     });
 
     expect(writePlcAssignmentTemplateMock).not.toHaveBeenCalled();
-    // Index entry still fires — that doesn't depend on a synced group.
-    expect(writePlcAssignmentIndexEntryMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('falls back to empty strings when auth.currentUser has no displayName / email', async () => {
-    authMock.currentUser = { displayName: undefined, email: undefined };
-
-    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
-    await act(async () => {
-      await result.current.createAssignment(QUIZ, plcSettings());
-    });
-
-    const [, entry] = writePlcAssignmentIndexEntryMock.mock.calls[0];
-    // The Firestore schema lock requires both fields to be strings, so
-    // the snapshot must coerce missing identity to '' rather than
-    // omitting the keys (which would fail `keys().hasOnly([...])`).
-    expect(entry.ownerName).toBe('');
-    expect(entry.ownerEmail).toBe('');
+    expect(writePlcAssignmentIndexEntryMock).not.toHaveBeenCalled();
   });
 });

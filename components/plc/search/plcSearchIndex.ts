@@ -29,11 +29,7 @@
  * `PlcSectionId`) so this pure module has zero component-layer imports; the caller
  * narrows it back to `PlcSectionId` at the navigation boundary.
  */
-export type PlcSearchSection =
-  | 'assessments'
-  | 'docs'
-  | 'sharedBoards'
-  | 'sharedData';
+export type PlcSearchSection = 'assessments' | 'docs' | 'sharedBoards';
 
 /** The flavor of a searched record — drives the result icon + group label. */
 export type PlcSearchKind =
@@ -93,7 +89,6 @@ export enum MatchTier {
 /** Fixed render order for the result groups (matches the rail's top-down order). */
 export const PLC_SEARCH_SECTION_ORDER: readonly PlcSearchSection[] = [
   'assessments',
-  'sharedData',
   'docs',
   'sharedBoards',
 ] as const;

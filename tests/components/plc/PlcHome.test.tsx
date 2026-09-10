@@ -120,13 +120,10 @@ vi.mock('@/hooks/usePlcUnread', () => ({
   }),
 }));
 
-// All four hooks are mocked at the module level. Each test can override the
+// The data hooks are mocked at the module level. Each test can override the
 // returned value via the vi.mocked().mockReturnValue() pattern.
 vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
   usePlcAssignmentIndex: vi.fn(),
-}));
-vi.mock('@/hooks/usePlcContributions', () => ({
-  usePlcContributions: vi.fn(),
 }));
 vi.mock('@/hooks/usePlcDocs', () => ({
   usePlcDocs: vi.fn(),
@@ -136,7 +133,6 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
 }));
 
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
-import { usePlcContributions } from '@/hooks/usePlcContributions';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 
@@ -201,11 +197,6 @@ const fakeDoc: PlcDoc = {
 function setDefaultMocks() {
   vi.mocked(usePlcAssignmentIndex).mockReturnValue({
     entries: [activeEntry, pausedEntry, inactiveEntry],
-    loading: false,
-    error: null,
-  });
-  vi.mocked(usePlcContributions).mockReturnValue({
-    contributions: [],
     loading: false,
     error: null,
   });

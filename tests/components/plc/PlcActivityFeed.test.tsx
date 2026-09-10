@@ -110,13 +110,6 @@ vi.mock('@/hooks/usePlcUnread', () => ({
 vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
   usePlcAssignmentIndex: () => ({ entries: [], loading: false, error: null }),
 }));
-vi.mock('@/hooks/usePlcContributions', () => ({
-  usePlcContributions: () => ({
-    contributions: [],
-    loading: false,
-    error: null,
-  }),
-}));
 vi.mock('@/hooks/usePlcDocs', () => ({
   usePlcDocs: () => ({
     docs: [],

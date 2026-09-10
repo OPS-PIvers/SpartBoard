@@ -147,17 +147,12 @@ interface PickStepProps {
   cards: AssessmentDataCard[];
   selectedIds: Set<string>;
   onToggle: (assessmentId: string) => void;
-  /** Whether the signed-in member may designate/create assessments. */
-  canEdit: boolean;
-  onDesignate: (card: AssessmentDataCard) => void;
 }
 
 export const PlcMeetingPickStep: React.FC<PickStepProps> = ({
   cards,
   selectedIds,
   onToggle,
-  canEdit,
-  onDesignate,
 }) => {
   const { t } = useTranslation();
 
@@ -268,19 +263,6 @@ export const PlcMeetingPickStep: React.FC<PickStepProps> = ({
                     </span>
                   </span>
                 </button>
-
-                {!card.isDesignated && canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => onDesignate(card)}
-                    className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark px-2.5 py-1.5 rounded-lg hover:bg-brand-blue-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-                    {t('plcDashboard.meeting.pick.designate', {
-                      defaultValue: 'Designate',
-                    })}
-                  </button>
-                )}
               </div>
             );
           })}
