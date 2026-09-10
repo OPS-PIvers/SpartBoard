@@ -11,7 +11,7 @@
 import React, { useMemo, useState } from 'react';
 import { Loader2, Plus, Users2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import type { Plc, PlcCommonAssessment, QuizAssignment } from '@/types';
+import type { Plc, PlcCommonAssessment } from '@/types';
 import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { getPlcMembers } from '@/utils/plc';
 import { rankPoolCandidates } from '@/utils/plcPooling';
@@ -19,7 +19,13 @@ import { rankPoolCandidates } from '@/utils/plcPooling';
 interface SharePlcResultsModalProps {
   /** PLCs the teacher belongs to; the caller only opens this with ≥ 1. */
   plcs: Plc[];
-  assignment: Pick<QuizAssignment, 'id' | 'quizId' | 'quizTitle' | 'sync'>;
+  assignment: {
+    id: string;
+    quizId: string;
+    quizTitle: string;
+    /** The assignment's own synced group; seeds the "Create new pool" key. */
+    syncGroupId?: string;
+  };
   onConfirm: (plc: Plc, poolSyncGroupId: string) => Promise<void>;
   onClose: () => void;
 }
@@ -56,7 +62,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
     [assessments, assignment.quizId, assignment.quizTitle]
   );
 
-  const newPoolKey = assignment.sync?.groupId ?? assignment.quizId;
+  const newPoolKey = assignment.syncGroupId ?? assignment.quizId;
   // A pool that already exists under the new-pool key is the same choice.
   const existingForNewKey = ranked.find((a) => a.syncGroupId === newPoolKey);
 

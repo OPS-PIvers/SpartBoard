@@ -11,6 +11,10 @@ import type { ClassRoster } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
+vi.mock('@/hooks/usePlcs', () => ({ usePlcs: () => ({ plcs: [] }) }));
+vi.mock('@/hooks/usePlcAssessments', () => ({
+  usePlcAssessments: () => ({ assessments: [], loading: false, error: null }),
+}));
 vi.mock('@/hooks/useAssignmentPseudonyms', async () => {
   const actual = await vi.importActual<
     typeof import('@/hooks/useAssignmentPseudonyms')
@@ -271,5 +275,89 @@ describe('AssignmentDetailPane — Schoology section resolution', () => {
     expect(screen.getByText('Alex Doe')).toBeInTheDocument();
     expect(screen.queryByText('Not linked')).not.toBeInTheDocument();
     expect(screen.queryByText('Biology B2')).not.toBeInTheDocument();
+  });
+});
+
+describe('AssignmentDetailPane — PLC results sharing (D12)', () => {
+  const mockAddToast = vi.fn();
+  const share = vi.fn().mockResolvedValue(undefined);
+  const stopSharing = vi.fn().mockResolvedValue(undefined);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { uid: 'teacher-1' },
+      orgId: 'org-1',
+      canAccessFeature: () => false,
+    });
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      rosters: [roster],
+      addToast: mockAddToast,
+    });
+    (
+      useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      byStudentUid: new Map(),
+      byAssignmentPseudonym: new Map(),
+      targetRefKeyByStudentUid: new Map(),
+      targetRefKeyByAssignmentPseudonym: new Map(),
+    });
+    (
+      useAssignmentRosterStatus as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      statusByUid: new Map(),
+      totalQuestions: 5,
+      loading: false,
+    });
+    (
+      useAssignmentDetailActions as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      saveEdit: mockSaveEdit,
+      closeNow: mockCloseNow,
+      toTargetingValue: vi.fn(),
+    });
+  });
+
+  it('shows the linked PLC and stops sharing through the quiz actions', async () => {
+    render(
+      <AssignmentDetailPane
+        row={makeRow({ plc: { id: 'plc-1', name: 'Math PLC' } })}
+        quizPlcActions={{ share, stopSharing }}
+      />
+    );
+    expect(
+      screen.getByText('Sharing results with Math PLC')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop sharing' }));
+    await waitFor(() => expect(stopSharing).toHaveBeenCalledWith('assign-1'));
+    expect(mockAddToast).toHaveBeenCalledWith(
+      expect.stringContaining('Math PLC'),
+      'success'
+    );
+  });
+
+  it('hides the share entry point when the teacher belongs to no PLC', () => {
+    render(
+      <AssignmentDetailPane
+        row={makeRow()}
+        quizPlcActions={{ share, stopSharing }}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Share results with PLC/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it('never renders PLC controls on non-quiz rows', () => {
+    render(
+      <AssignmentDetailPane
+        row={makeRow({
+          kind: 'video-activity',
+          plc: { id: 'plc-1', name: 'Math PLC' },
+        })}
+        quizPlcActions={{ share, stopSharing }}
+      />
+    );
+    expect(screen.queryByText(/Sharing results with/)).not.toBeInTheDocument();
   });
 });

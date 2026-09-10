@@ -2597,7 +2597,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {sharePlcResultsTarget && (
         <SharePlcResultsModal
           plcs={plcs}
-          assignment={sharePlcResultsTarget}
+          assignment={{
+            id: sharePlcResultsTarget.id,
+            quizId: sharePlcResultsTarget.quizId,
+            quizTitle: sharePlcResultsTarget.quizTitle,
+            syncGroupId: sharePlcResultsTarget.sync?.groupId,
+          }}
           onClose={() => setSharePlcResultsTarget(null)}
           onConfirm={async (plc, poolSyncGroupId) => {
             await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
