@@ -43,6 +43,8 @@ export interface SessionInput {
   publicQuestions: unknown[];
   /** Only `status === 'completed'` responses belong here. */
   responses: CompletedResponse[];
+  /** ms when the teacher published scores; null while unpublished. */
+  scorePublishedAt: number | null;
 }
 
 export interface ComputeInput {
@@ -88,7 +90,13 @@ export interface AggregatePayload {
   teacherCount: number;
   studentCount: number;
   teamAveragePercent: number;
+  /** Completed responses that carried a numeric score. */
+  scoredStudentCount: number;
   sessionCount: number;
+  /** Every linked session, including ones with no completed responses. */
+  linkedSessionCount: number;
+  /** Linked sessions whose scores are published. */
+  publishedSessionCount: number;
   computedFromSessionIds: string[];
   alignment: 'byId' | 'positional';
   alignmentWarning?: string;
@@ -285,6 +293,11 @@ export function computeAssessmentAggregate(
   let anyPositional = false;
   let anyMismatch = false;
 
+  const linkedSessionCount = input.sessions.length;
+  const publishedSessionCount = input.sessions.filter(
+    (s) => s.scorePublishedAt != null
+  ).length;
+
   for (const session of input.sessions) {
     const completed = session.responses;
     if (completed.length === 0) continue;
@@ -386,7 +399,10 @@ export function computeAssessmentAggregate(
     teacherCount: teachers.size,
     studentCount,
     teamAveragePercent: scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0,
+    scoredStudentCount: scoreCount,
     sessionCount: sessionIds.length,
+    linkedSessionCount,
+    publishedSessionCount,
     computedFromSessionIds: sessionIds,
     alignment: anyPositional ? 'positional' : 'byId',
     perQuestion,

@@ -1,6 +1,48 @@
 {
   "entries": [
     {
+      "version": "2026.09.10.1",
+      "date": "2026-09-10",
+      "title": "One Assessments tab for PLC quizzes and their pooled results",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "The PLC Data tab is folded into Assessments: one list shows every shared quiz with a status badge, and clicking a scored one opens the pooled results with the most-missed questions first."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Assessments tab — shared quizzes and their pooled results live in one list. Badges show Not started, In progress, Scored, or Library only, and a filter chip plus search narrow the list. Old Data links open the same tab."
+        },
+        {
+          "type": "improvement",
+          "text": "Pooled results — team average, students counted, teachers contributing, and a per-question chart sorted by how many students missed each question. Click a question to see how answers were split. Results show \"Not scored yet\" until a teacher publishes scores."
+        },
+        {
+          "type": "improvement",
+          "text": "Per-teacher breakdown — a new PLC setting, off by default, adds each teacher's average under the pooled numbers."
+        },
+        {
+          "type": "improvement",
+          "text": "Quiz widget — \"Share with PLC\" is now \"Share results with <PLC>\" and no longer creates a Google Sheet or asks for your name. The Sheet export in Results is unchanged."
+        },
+        {
+          "type": "improvement",
+          "text": "Share after the fact — an existing assignment's menu (Quiz widget and Assignments Hub) can share its results with a PLC or stop sharing, so a copy assigned outside the PLC page still counts toward the team's pool."
+        },
+        {
+          "type": "fix",
+          "text": "Pooling — assigning your own copy of a PLC quiz now pools with the team's existing results when the titles match instead of starting a separate pool per teacher."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10",
       "date": "2026-09-10",
       "title": "PLC quiz results pool on their own",

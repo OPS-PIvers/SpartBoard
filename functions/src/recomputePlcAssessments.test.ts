@@ -81,6 +81,7 @@ function seedPipeline(overrides: Record<string, StubData> = {}) {
       status: 'ended',
       plcId: 'plc-1',
       syncGroupId: 'grp-1',
+      scorePublishedAt: NOW - 500,
       publicQuestions,
     },
     'quiz_sessions/sess-a/responses/r1': {
@@ -198,7 +199,10 @@ describe('recomputeOnePlcAssessment', () => {
       teacherCount: 2,
       studentCount: 2,
       teamAveragePercent: 50,
+      scoredStudentCount: 2,
       sessionCount: 2,
+      linkedSessionCount: 2,
+      publishedSessionCount: 1,
       computedFromSessionIds: ['sess-a', 'sess-b'],
       alignment: 'byId',
       ranAt: 'SERVER_TS',
@@ -294,6 +298,9 @@ describe('recomputeOnePlcAssessment', () => {
       studentCount: 0,
       teacherCount: 0,
       sessionCount: 0,
+      linkedSessionCount: 0,
+      publishedSessionCount: 0,
+      scoredStudentCount: 0,
       perTeacher: [],
     });
   });

@@ -2,7 +2,7 @@
  * Render / smoke test for PlcDashboard (Wave 1 — T4, pathname-driven).
  *
  * PlcDashboard is the left-rail shell that mounts every PLC section body
- * (PlcHome, PlcSharedDataBody, PlcDocsBody, PlcResourcesBody, the four tabs,
+ * (PlcHome, PlcDocsBody, PlcResourcesBody, the four tabs,
  * MembersBody, PlcSettingsTab). It is now CONTROLLED by an `activeSection`
  * prop (derived from the pathname by `PlcRouteHost`); section changes push
  * history via `spaNavigate`. Each section body pulls Firestore hooks, so to
@@ -116,11 +116,6 @@ vi.mock('@/components/plc/PlcDashboardRail', () => ({
 // active section can be asserted without booting any Firestore hooks.
 vi.mock('@/components/plc/home/PlcHome', () => ({
   PlcHome: () => <div data-testid="section-home">Home body</div>,
-}));
-vi.mock('@/components/plc/sharedData/PlcSharedDataBody', () => ({
-  PlcSharedDataBody: () => (
-    <div data-testid="section-sharedData">Shared data body</div>
-  ),
 }));
 // The Docs section now renders the combined Notes & Docs surface (T4).
 vi.mock('@/components/plc/bodies/NotesDocsBody', () => ({
@@ -308,7 +303,6 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
       'home',
       'meeting',
       'assessments',
-      'sharedData',
       'docs',
       'todos',
       'sharedBoards',

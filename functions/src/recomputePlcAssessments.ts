@@ -136,6 +136,8 @@ export async function recomputeOnePlcAssessment(
       responses: responsesSnap.docs.map((d) =>
         parseCompletedResponse(d.data())
       ),
+      scorePublishedAt:
+        typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
     });
   }
 

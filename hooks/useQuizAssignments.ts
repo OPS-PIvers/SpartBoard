@@ -31,13 +31,11 @@ import {
 import { auth, db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
-import {
-  mirrorPlcAssignmentStatus,
-  writePlcAssignmentIndexEntry,
-} from './usePlcAssignmentIndex';
+import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
 import { writePlcAssignmentTemplate } from './usePlcAssignments';
 import type {
   AssignmentMode,
+  Plc,
   PlcLinkage,
   QuizAssignment,
   QuizAssignmentSettings,
@@ -85,6 +83,7 @@ import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
+import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
 
 /** Import-mode picker result for shared-assignment paste flows. */
@@ -148,6 +147,12 @@ export interface CreateAssignmentOptions {
    * `handleShareWithPlc` path, which has Drive content already loaded).
    */
   plcTemplateSyncGroupId?: string;
+  /**
+   * Pooling key written to the session as `syncGroupId` when it should differ
+   * from the template group: the PLC library group whose title matches, so a
+   * teacher's own copy pools with the team instead of starting a new pool.
+   */
+  plcPoolSyncGroupId?: string;
   /**
    * M17 individual-assignment targeting (spec §5 B3). `targetMode: 'students'`
    * marks the assignment doc so the CF's `individualTargeting` session flag
@@ -422,6 +427,18 @@ export interface UseQuizAssignmentsResult {
    * them.
    */
   unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
+  /**
+   * Retroactively pool an existing assignment's results with a PLC (D12).
+   * Stamps `plcId` / `syncGroupId` / `plcLinkedAt` on the session doc and
+   * `plc` on the assignment doc in one batch; the server picks the change
+   * up and creates or dirties the assessment keyed on `poolSyncGroupId`.
+   */
+  shareAssignmentWithPlc: (
+    assignmentId: string,
+    opts: { plc: Plc; poolSyncGroupId: string }
+  ) => Promise<void>;
+  /** Reverse of `shareAssignmentWithPlc`: clears the link on both docs. */
+  stopSharingAssignmentWithPlc: (assignmentId: string) => Promise<void>;
 }
 
 /**
@@ -765,6 +782,7 @@ export const useQuizAssignments = (
         mode: assignmentMode = 'submissions',
         skipPlcTemplateWrite = false,
         plcTemplateSyncGroupId,
+        plcPoolSyncGroupId,
         targetMode,
         targetGroupIds,
         overridesBySourcedId,
@@ -951,7 +969,10 @@ export const useQuizAssignments = (
           ? {
               plcId: settings.plc.id,
               syncGroupId:
-                plcTemplateSyncGroupId ?? syncedFrom?.groupId ?? quiz.id,
+                plcPoolSyncGroupId ??
+                plcTemplateSyncGroupId ??
+                syncedFrom?.groupId ??
+                quiz.id,
               plcLinkedAt: now,
             }
           : {}),
@@ -997,17 +1018,6 @@ export const useQuizAssignments = (
         const current = auth.currentUser;
         const ownerName = current?.displayName ?? '';
         const ownerEmail = (current?.email ?? '').toLowerCase();
-        void writePlcAssignmentIndexEntry(settings.plc.id, {
-          id: assignmentId,
-          kind: 'quiz',
-          ownerUid: userId,
-          ownerName,
-          ownerEmail,
-          title: quiz.title,
-          sheetUrl: settings.plc.sheetUrl ?? '',
-          status: initialStatus,
-          createdAt: now,
-        });
 
         // Template write — only if the source quiz already participates
         // in a synced group (either via the user's library `sync.groupId`
@@ -2461,6 +2471,53 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const shareAssignmentWithPlc = useCallback<
+    UseQuizAssignmentsResult['shareAssignmentWithPlc']
+  >(
+    async (assignmentId, { plc, poolSyncGroupId }) => {
+      if (!userId) throw new Error('Not authenticated');
+      if (!poolSyncGroupId) throw new Error('A pool key is required');
+      const now = Date.now();
+      const linkage: PlcLinkage = {
+        id: plc.id,
+        name: plc.name,
+        memberEmails: getPlcMemberEmails(plc),
+      };
+      const batch = writeBatch(db);
+      batch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
+        plcId: plc.id,
+        syncGroupId: poolSyncGroupId,
+        plcLinkedAt: now,
+      });
+      batch.update(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        { plc: linkage, updatedAt: now }
+      );
+      await batch.commit();
+    },
+    [userId]
+  );
+
+  const stopSharingAssignmentWithPlc = useCallback<
+    UseQuizAssignmentsResult['stopSharingAssignmentWithPlc']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const batch = writeBatch(db);
+      batch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
+        plcId: deleteField(),
+        syncGroupId: deleteField(),
+        plcLinkedAt: deleteField(),
+      });
+      batch.update(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        { plc: deleteField(), updatedAt: Date.now() }
+      );
+      await batch.commit();
+    },
+    [userId]
+  );
+
   return {
     assignments,
     loading,
@@ -2482,5 +2539,7 @@ export const useQuizAssignments = (
     syncAssignmentToLatest,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    shareAssignmentWithPlc,
+    stopSharingAssignmentWithPlc,
   };
 };

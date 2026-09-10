@@ -26,7 +26,6 @@ import { PlcAssessmentsBody } from '@/components/plc/bodies/PlcAssessmentsBody';
 import { NotesBody } from '@/components/plc/bodies/NotesBody';
 import { TodosBody } from '@/components/plc/bodies/TodosBody';
 import { PlcSharedBoardsBody } from '@/components/plc/bodies/PlcSharedBoardsBody';
-import { PlcAnalyticsBody } from '@/components/plc/bodies/PlcAnalyticsBody';
 import { MembersBody } from '@/components/plc/bodies/MembersBody';
 
 describe('plc bodies — module shape', () => {
@@ -42,7 +41,6 @@ describe('plc bodies — module shape', () => {
     expect(typeof NotesBody).toBe('function');
     expect(typeof TodosBody).toBe('function');
     expect(typeof PlcSharedBoardsBody).toBe('function');
-    expect(typeof PlcAnalyticsBody).toBe('function');
     expect(typeof MembersBody).toBe('function');
   });
 });

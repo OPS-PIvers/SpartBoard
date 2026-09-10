@@ -83,7 +83,6 @@ vi.mock('@/context/useDialog', () => ({
 // Provider action spies — the contract Meeting Mode must honor.
 const createMeeting = vi.fn(() => Promise.resolve('meeting-1'));
 const updateMeeting = vi.fn(() => Promise.resolve());
-const designateAssessment = vi.fn(() => Promise.resolve('designated-id'));
 let savedActionItems: PlcMeeting['actionItems'] = [];
 const saveMeeting = vi.fn(
   (
@@ -127,7 +126,6 @@ vi.mock('@/context/usePlcContext', async (importActual) => {
     usePlcMembers: () => mockMembers,
     usePlcWhoIsHere: () => mockWhoIsHere,
     usePlcActions: () => ({
-      designateAssessment,
       createMeeting,
       updateMeeting,
       saveMeeting,
@@ -139,14 +137,6 @@ vi.mock('@/hooks/usePlcMeetings', () => ({
   usePlcMeetings: () => ({
     meetings: [],
     meetingsById: {},
-    loading: false,
-    error: null,
-  }),
-}));
-
-vi.mock('@/hooks/usePlcContributions', () => ({
-  usePlcContributions: () => ({
-    contributions: [],
     loading: false,
     error: null,
   }),

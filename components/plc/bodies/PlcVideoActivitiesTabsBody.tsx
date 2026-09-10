@@ -2,7 +2,7 @@
  * PlcVideoActivitiesTabsBody — Phase 3a video-activity section tab shell.
  *
  * Wraps the video-activity library surface in a three-sub-tab pill bar that
- * mirrors `PlcQuizzesBody` (Library / In-progress / Completed). The
+ * keeps the Library / In-progress / Completed sub-tabs. The
  * In-progress and Completed sub-tabs reuse the shared
  * `PlcAssignmentsInProgress/CompletedSubTab` components, scoped to
  * `kind === 'video-activity'` so quiz rows never leak into the Video

@@ -12,6 +12,10 @@ import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
 
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
+vi.mock('@/hooks/usePlcs', () => ({ usePlcs: () => ({ plcs: [] }) }));
+vi.mock('@/hooks/usePlcAssessments', () => ({
+  usePlcAssessments: () => ({ assessments: [], loading: false, error: null }),
+}));
 vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: vi.fn(),
 }));

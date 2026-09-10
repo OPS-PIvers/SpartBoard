@@ -9,7 +9,6 @@ import { buildPlcPath, spaNavigate, spaReplace } from '@/utils/plcPath';
 import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
 import { getVisiblePlcSections, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
-import { PlcSharedDataBody } from './sharedData/PlcSharedDataBody';
 import { NotesDocsBody } from './bodies/NotesDocsBody';
 import { PlcResourcesBody } from './resources/PlcResourcesBody';
 import { PlcAssessmentsBody } from './bodies/PlcAssessmentsBody';
@@ -37,6 +36,8 @@ interface PlcDashboardProps {
    * `meeting` section it opens the live guided flow.
    */
   meetingId?: string | null;
+  /** A pooled-results detail id, present only on `/plc/:id/assessments/:assessmentId`. */
+  assessmentId?: string | null;
   /** Navigate out of the PLC (back to the prior history entry / the board). */
   onClose: () => void;
 }
@@ -51,6 +52,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   plc,
   activeSection: requestedSection,
   meetingId = null,
+  assessmentId = null,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -125,9 +127,13 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
       // `/plc/:id/quizzes` and `/plc/:id/videoActivities` deep links resolve to
       // `assessments` in `parsePlcPath` (alias rewrite), so they land here.
       case 'assessments':
-        return <PlcAssessmentsBody plc={plc} onCloseDashboard={onClose} />;
-      case 'sharedData':
-        return <PlcSharedDataBody plc={plc} />;
+        return (
+          <PlcAssessmentsBody
+            plc={plc}
+            assessmentId={assessmentId}
+            onCloseDashboard={onClose}
+          />
+        );
       case 'docs':
         // The Docs section now hosts the combined Notes & Docs surface: native
         // structured meeting notes (live default) with the Google-Doc embed one

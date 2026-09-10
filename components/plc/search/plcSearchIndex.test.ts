@@ -170,13 +170,12 @@ describe('searchPlcRecords — grouping', () => {
         id: 's1',
         title: 'shared assessment',
         kind: 'assessment',
-        section: 'sharedData',
+        section: 'assessments',
       }),
     ];
     const groups = searchPlcRecords(records, 'shared');
     expect(groups.map((g) => g.section)).toEqual([
       'assessments',
-      'sharedData',
       'docs',
       'sharedBoards',
     ]);
@@ -215,12 +214,7 @@ describe('searchPlcRecords — grouping', () => {
   it('caps the total number of results across all groups', () => {
     // Spread well beyond the total cap across all four sections, each filled
     // past its per-section limit, so the global cap is what bites.
-    const sections = [
-      'assessments',
-      'sharedData',
-      'docs',
-      'sharedBoards',
-    ] as const;
+    const sections = ['assessments', 'docs', 'sharedBoards'] as const;
     const records: PlcSearchRecord[] = [];
     for (const section of sections) {
       for (let i = 0; i < PLC_SEARCH_PER_SECTION_LIMIT; i++) {

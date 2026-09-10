@@ -1,10 +1,10 @@
 /**
  * AttentionCard — surfaces active + paused PLC assignments ("needs
- * attention") and a count of recent results contributions.
+ * attention") and a count of assessments with pooled results.
  *
  * Data sources:
  *   usePlcAssignmentIndex → entries filtered to status==='active'||'paused'
- *   usePlcContributions   → count of contributions (recent results)
+ *   usePlcAggregatesData  → aggregates with students counted (results ready)
  */
 
 import React, { useMemo } from 'react';
@@ -20,7 +20,7 @@ import {
 
 import type { Plc, PlcAssignmentIndexEntry } from '@/types';
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
-import { usePlcContributions } from '@/hooks/usePlcContributions';
+import { usePlcAggregatesData } from '@/context/usePlcContext';
 import type { PlcSectionId } from '@/components/plc/sections';
 
 interface AttentionCardProps {
@@ -49,18 +49,20 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
     loading,
     error: entriesError,
   } = usePlcAssignmentIndex(plc.id);
-  const { contributions, error: contribsError } = usePlcContributions(plc.id);
+  const { data: aggregates, error: aggregatesError } = usePlcAggregatesData();
 
   const active = useMemo(
     () => entries.filter((e) => e.status === 'active' || e.status === 'paused'),
     [entries]
   );
   const preview = active.slice(0, PREVIEW_LIMIT);
-  const recentResultsCount = contributions.length;
+  const recentResultsCount = aggregates.filter(
+    (a) => a.studentCount > 0
+  ).length;
   // Surface load failures instead of the misleading "No active assignments"
   // empty state — an empty `entries` array on error doesn't mean there are no
   // assignments, just that we couldn't read them.
-  const hasError = entriesError !== null || contribsError !== null;
+  const hasError = entriesError !== null || aggregatesError !== null;
 
   return (
     <div className="flex flex-col bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
@@ -90,7 +92,7 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
       {recentResultsCount > 0 && (
         <button
           type="button"
-          onClick={() => onNavigate('sharedData')}
+          onClick={() => onNavigate('assessments')}
           className="mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors text-left"
         >
           <BarChart3 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />

@@ -3,7 +3,7 @@
  *
  * Owns the entire shared-quiz-library editor (rows, import modal,
  * collaborative editor). Mounted as the "Library" sub-tab of
- * `PlcQuizzesBody`, which supplies the surrounding tab chrome.
+ * `PlcAssessmentList`, which supplies the surrounding chrome.
  *
  * Behavior:
  *
@@ -144,7 +144,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   onCloseDashboard,
 }) => {
   const { t } = useTranslation();
-  const { user, ensureGoogleScope } = useAuth();
+  const { user } = useAuth();
   const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
   const { showConfirm } = useDialog();
   const {
@@ -556,31 +556,8 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           });
         }
 
-        // Same PLC linkage the board's assign flow creates; the optional
-        // sheet is best-effort and a failed create keeps the link.
-        const sheetsToken = await ensureGoogleScope('spreadsheets', {
-          interactive: true,
-        });
-        const { linkage: plcLinkage, error: sheetError } =
-          await buildPlcLinkage({
-            plc,
-            quizTitle: canonical.title,
-            selfUid: user.uid,
-            googleAccessToken: sheetsToken,
-          });
-        if (sheetError) {
-          logError('PlcQuizLibraryBody.assign.sheetAutoCreate', sheetError, {
-            plcId: plc.id,
-            sourceId: target.sourceId,
-          });
-          addToast(
-            t('plcDashboard.assignmentsLibrary.sheetAutoCreateFailed', {
-              defaultValue:
-                'Could not create the shared PLC results sheet. The quiz was added to your board and is still shared with the PLC.',
-            }),
-            'warning'
-          );
-        }
+        // Same PLC linkage the board's assign flow creates; no sheet (D2).
+        const plcLinkage = buildPlcLinkage(plc);
 
         // Create the paused personal assignment with the row's session
         // settings. `skipPlcTemplateWrite: true` so assigning an existing
@@ -684,7 +661,6 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       busyRowId,
       createAssignment,
       deleteQuiz,
-      ensureGoogleScope,
       isDriveConnected,
       plc,
       saveQuiz,

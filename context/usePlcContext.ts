@@ -11,14 +11,14 @@
  * - A `useSyncExternalStore`-backed **state slice** read through cheap
  *   selectors with `Object.is` bailout (`usePlcRootDoc`, `usePlcMembers`,
  *   `usePlcRole`, `usePlcNotesData`, `usePlcTodosData`, `usePlcDocsData`,
- *   `usePlcContributionsData`, plus the Wave-2 collaboration selectors
+ *   plus the Wave-2 collaboration selectors
  *   `usePlcPresence` / `usePlcWhoIsHere` / `usePlcActivity`).
  *
  * The provider DEDUPES the per-component `onSnapshot` listeners that today fire
  * once per surface, and standardizes every subcollection's error contract on
  * `Error | null`.
  *
- * Back-compat: the existing `usePlc{Notes,Todos,Docs,Contributions,Quizzes,
+ * Back-compat: the existing `usePlc{Notes,Todos,Docs,Quizzes,
  * VideoActivities}` hooks read from the provider when one is mounted (via
  * `usePlcSubcollection`), and keep their standalone `onSnapshot` behavior when
  * no provider is present — so call sites that render a section body outside the
@@ -50,7 +50,6 @@ import type {
   PlcActivityType,
   PlcAssessmentAggregate,
   PlcCommonAssessment,
-  PlcContribution,
   PlcDoc,
   PlcMeeting,
   PlcMember,
@@ -125,13 +124,12 @@ export interface PlcStoreState {
   notes: PlcSlice<PlcNote[]>;
   todos: PlcSlice<PlcTodo[]>;
   docs: PlcSlice<PlcDoc[]>;
-  contributions: PlcSlice<PlcContribution[]>;
   quizzes: PlcSlice<PlcQuizEntry[]>;
   videoActivities: PlcSlice<PlcVideoActivityEntry[]>;
   /**
    * The team's designated common assessments (Decision 4.0c, §3.6). Mirrored
    * from the provider's `plcs/{id}/assessments` listener, gated to the sections
-   * that surface them (home / meeting / sharedData). Soft-deleted entries are
+   * that surface them (home / meeting / assessments). Soft-deleted entries are
    * filtered out; ordered newest-edit-first by `updatedAt`.
    */
   assessments: PlcSlice<PlcCommonAssessment[]>;
@@ -139,7 +137,7 @@ export interface PlcStoreState {
    * Anonymized, member-readable assessment aggregates (Decisions 6.0 + 3.3,
    * §3.6) — the FERPA-safe Meeting-Mode data spine. Mirrored from the provider's
    * `plcs/{id}/aggregates` listener (server-written; clients read-only), gated
-   * to the sections that read them (sharedData / meeting / home). Ordered by
+   * to the sections that read them (assessments / meeting / home). Ordered by
    * `assessmentId` for a stable render order.
    */
   aggregates: PlcSlice<PlcAssessmentAggregate[]>;
@@ -234,22 +232,6 @@ export interface PlcActions {
   restoreDoc: (docId: string) => Promise<void>;
   // --- Common assessments (Decision 4.0c, §3.6) ---
   /**
-   * Designate a new common assessment for the team (writes a
-   * `PlcCommonAssessment` with `serverTimestamp()` time fields and fires an
-   * `assessment_created` activity event). `status` defaults to `'planning'`.
-   * Returns the new assessment id. Prefer `designateAssessment` — the
-   * intention-revealing alias — at call sites.
-   */
-  createAssessment: (input: {
-    title: string;
-    kind: 'quiz' | 'video-activity';
-    syncGroupId: string;
-    unitLabel?: string;
-    opensAt?: number | null;
-    dueAt?: number | null;
-    status?: PlcCommonAssessment['status'];
-  }) => Promise<string>;
-  /**
    * Patch a common assessment's working fields (`title` / `unitLabel` /
    * `opensAt` / `dueAt` / `status`). Identity fields (`id` / `createdBy` /
    * `createdAt` / `kind` / `syncGroupId`) are immutable in rules and never
@@ -269,20 +251,6 @@ export interface PlcActions {
   deleteAssessment: (assessmentId: string) => Promise<void>;
   /** Restore a soft-deleted assessment by clearing its `deletedAt` tombstone. */
   restoreAssessment: (assessmentId: string) => Promise<void>;
-  /**
-   * Intention-revealing alias for `createAssessment` — "designate THIS synced
-   * group as the team's common assessment." Same write + activity event;
-   * identical return.
-   */
-  designateAssessment: (input: {
-    title: string;
-    kind: 'quiz' | 'video-activity';
-    syncGroupId: string;
-    unitLabel?: string;
-    opensAt?: number | null;
-    dueAt?: number | null;
-    status?: PlcCommonAssessment['status'];
-  }) => Promise<string>;
   // --- Meeting records (Decisions 4.0 / 4.0b, §3.7) ---
   /**
    * Create an `in-progress` meeting record (Pick step, §6.2) with
@@ -441,8 +409,8 @@ export function usePlcSelector<T>(
  * mounted AND it covers `plcId` AND that slice's listener is gated ON for the
  * active section (`slice.enabled`); otherwise returns `null` so the caller keeps
  * its standalone `onSnapshot`. This is what lets Home cards (RecentDocsCard via
- * `usePlcDocs`, AttentionCard via `usePlcContributions`) keep showing real data:
- * the Home section gates `docs`/`contributions` OFF, so the provider seeds a
+ * `usePlcDocs`) keep showing real data:
+ * the Home section gates `docs` OFF, so the provider seeds a
  * settled-but-DISABLED empty slice, the bridge returns `null`, and the
  * standalone hook opens its own listener. Always called (hook order); the
  * `plcId`/`enabled` guard happens after the subscription, not by skipping the
@@ -520,11 +488,6 @@ export function usePlcTodosData(): PlcSlice<PlcTodo[]> {
 /** Docs slice (data/loading/error). */
 export function usePlcDocsData(): PlcSlice<PlcDoc[]> {
   return usePlcSelector((s) => s.docs) ?? EMPTY_DOCS_SLICE;
-}
-
-/** Contributions slice (data/loading/error). */
-export function usePlcContributionsData(): PlcSlice<PlcContribution[]> {
-  return usePlcSelector((s) => s.contributions) ?? EMPTY_CONTRIBUTIONS_SLICE;
 }
 
 /** Common-assessments slice (data/loading/error) — Decision 4.0c, §3.6. */
@@ -623,12 +586,12 @@ function buildPlcSearchRecords(input: {
 }): PlcSearchRecord[] {
   const records: PlcSearchRecord[] = [];
 
-  // Common assessments → Shared Data section (where they're designated/reviewed).
+  // Common assessments → Assessments section (pooled results live there).
   for (const a of input.assessments) {
     records.push({
       id: a.id,
       kind: 'assessment',
-      section: 'sharedData',
+      section: 'assessments',
       title: a.title,
       ...(a.unitLabel ? { snippet: a.unitLabel } : {}),
     });
@@ -799,12 +762,6 @@ const EMPTY_TODOS_SLICE: PlcSlice<PlcTodo[]> = {
   enabled: false,
 };
 const EMPTY_DOCS_SLICE: PlcSlice<PlcDoc[]> = {
-  data: [],
-  loading: false,
-  error: null,
-  enabled: false,
-};
-const EMPTY_CONTRIBUTIONS_SLICE: PlcSlice<PlcContribution[]> = {
   data: [],
   loading: false,
   error: null,

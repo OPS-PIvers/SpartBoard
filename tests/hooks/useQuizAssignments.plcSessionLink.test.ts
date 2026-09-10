@@ -132,6 +132,21 @@ describe('useQuizAssignments — createAssignment PLC session linkage', () => {
     expect(session.plcLinkedAt as number).toBeGreaterThanOrEqual(before);
   });
 
+  it('pools by plcPoolSyncGroupId ahead of the template group id', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(
+        QUIZ,
+        { sessionMode: 'teacher', sessionOptions: {}, plc: PLC },
+        {
+          plcTemplateSyncGroupId: 'sync-group-abc',
+          plcPoolSyncGroupId: 'library-group-xyz',
+        }
+      );
+    });
+    expect(findSessionSet().syncGroupId).toBe('library-group-xyz');
+  });
+
   it('prefers a syncedFrom group id when no template group id is given', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {

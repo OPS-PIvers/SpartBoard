@@ -51,7 +51,6 @@ const REQUIRED_TABS_KEYS = [
   'settings',
   'home',
   'members',
-  'sharedData',
   'meeting',
   'docs',
   'resources',
@@ -376,11 +375,6 @@ const REQUIRED_MEETING_KEYS = [
   'reviewCardLabel',
   'discussAssessment',
   'discussQuestion',
-  'designatePrompt',
-  'designatePromptTitle',
-  'designatePlaceholder',
-  'designated',
-  'designateFailed',
   'back',
   'next',
   'saveMeeting',
@@ -407,7 +401,6 @@ const REQUIRED_MEETING_PICK_KEYS = [
   'emptyTitle',
   'emptySubtitle',
   'cardMeta',
-  'designate',
 ] as const;
 
 /** plcDashboard.meeting.review */
@@ -489,72 +482,6 @@ const REQUIRED_MEETING_RECORD_KEYS = [
   'actions',
   'noActions',
   'notes',
-] as const;
-
-/**
- * Keys within plcDashboard.sharedData (Wave-3 anonymized aggregate cards —
- * PlcSharedDataBody / PlcSharedDataFilters, PRD §3.6 / §6.0).
- */
-const REQUIRED_SHARED_DATA_KEYS = [
-  'loading',
-  'loadError',
-  'emptyTitle',
-  'emptySubtitle',
-  'noResults',
-  'untitledQuiz',
-  'untitledQuestion',
-  'kindQuiz',
-  'kindVA',
-  'common',
-  'avg',
-  'teacher',
-  'teachers',
-  'students',
-  'studentsShort',
-  'classCount',
-  'ranOf',
-  'teamAverage',
-  'weakestQuestions',
-  'byClass',
-  'you',
-  'whoRanIt',
-  'hasRun',
-  'notRun',
-  'updating',
-  'updatingHint',
-  'designateTitle',
-  'designateSubtitle',
-  'designateAction',
-  'designatePrompt',
-  'designatePromptTitle',
-  'designatePlaceholder',
-  'designated',
-  'designateFailed',
-] as const;
-
-/** plcDashboard.sharedData.status — common-assessment lifecycle enum. */
-const REQUIRED_SHARED_DATA_STATUS_KEYS = [
-  'planning',
-  'active',
-  'reviewing',
-  'closed',
-] as const;
-
-/** plcDashboard.sharedData.filters */
-const REQUIRED_SHARED_DATA_FILTERS_KEYS = [
-  'label',
-  'search',
-  'searchPlaceholder',
-  'type',
-  'typeAll',
-  'typeQuiz',
-  'typeVA',
-  'teacher',
-  'teacherAll',
-  'unit',
-  'unitAll',
-  'status',
-  'statusAll',
 ] as const;
 
 /**
@@ -674,7 +601,6 @@ const REQUIRED_SEARCH_KEYS = [
   'noResults',
   'untitled',
   'groupAssessments',
-  'groupData',
   'groupDocs',
   'groupBoards',
 ] as const;
@@ -727,15 +653,6 @@ const WAVE3_KEY_GROUPS: ReadonlyArray<{
   { path: 'plcDashboard.meeting.save', keys: REQUIRED_MEETING_SAVE_KEYS },
   { path: 'plcDashboard.meeting.export', keys: REQUIRED_MEETING_EXPORT_KEYS },
   { path: 'plcDashboard.meeting.record', keys: REQUIRED_MEETING_RECORD_KEYS },
-  { path: 'plcDashboard.sharedData', keys: REQUIRED_SHARED_DATA_KEYS },
-  {
-    path: 'plcDashboard.sharedData.status',
-    keys: REQUIRED_SHARED_DATA_STATUS_KEYS,
-  },
-  {
-    path: 'plcDashboard.sharedData.filters',
-    keys: REQUIRED_SHARED_DATA_FILTERS_KEYS,
-  },
   {
     path: 'plcDashboard.home.commonAssessment',
     keys: REQUIRED_HOME_COMMON_ASSESSMENT_KEYS,

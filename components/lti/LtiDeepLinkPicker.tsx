@@ -293,8 +293,7 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken, ensureGoogleScope } =
-    useAuth();
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
   // First-party Google session required (uid + Drive token) — NOT just any
   // Firebase session. A leftover studentRole custom-token session restored in
   // the partitioned iframe has a uid but no google.com provider/Drive token;
@@ -501,47 +500,22 @@ const LtiDeepLinkFlow: React.FC = () => {
   }, [signInWithGoogle]);
 
   // Build the PLC linkage when the teacher opted into "Share with PLC" and
-  // picked a PLC — same shared builder the normal flow + the Classroom add-on
-  // use, so the linkage shape (auto-created sheet + name + member snapshot) is
-  // identical. A failed sheet auto-create falls through to no linkage and is
-  // surfaced as a non-fatal note. Shared by both the quiz and VA paths;
-  // `sheetTitle` only names the auto-created sheet (the builder is widget-
-  // agnostic), so either a quiz or a VA title is fine.
-  const resolvePlcLinkage = useCallback(
-    async (sheetTitle: string): Promise<PlcLinkage | undefined> => {
-      if (!plcShareEnabled) return undefined;
-      // Cache the selected PLC up front. `plcs` can repopulate on a cold load
-      // (usePlcs streams in after first render), so a picked-then-vanished id
-      // must not silently attach with an undefined `plc`.
-      const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
-      if (!selectedPlcId || !selectedPlc || !user) {
-        setErrorMsg(
-          'PLC sharing was on but no PLC was available — adding without it.'
-        );
-        return undefined;
-      }
-      // Path B: acquire the Sheets scope on demand before the builder may
-      // create a sheet (silent for already-granted users, one-time consent
-      // for never-granted — user gesture). Null → skip creation as before.
-      const sheetsToken = await ensureGoogleScope('spreadsheets', {
-        interactive: true,
-      });
-      const { linkage, error: plcSheetError } = await buildPlcLinkage({
-        plc: selectedPlc,
-        quizTitle: sheetTitle,
-        selfUid: user.uid,
-        googleAccessToken: sheetsToken,
-      });
-      if (plcSheetError) {
-        setErrorMsg(
-          `Note: couldn't create the shared PLC sheet (${plcSheetError.message}). ` +
-            'Results still pool on the PLC dashboard.'
-        );
-      }
-      return linkage;
-    },
-    [plcShareEnabled, selectedPlcId, plcs, user, ensureGoogleScope]
-  );
+  // picked a PLC — the same builder the board and the add-on use. Shared by
+  // the quiz and VA paths; results pool server-side, no sheet (D2).
+  const resolvePlcLinkage = useCallback((): PlcLinkage | undefined => {
+    if (!plcShareEnabled) return undefined;
+    // Cache the selected PLC up front. `plcs` can repopulate on a cold load
+    // (usePlcs streams in after first render), so a picked-then-vanished id
+    // must not silently attach with an undefined `plc`.
+    const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
+    if (!selectedPlcId || !selectedPlc || !user) {
+      setErrorMsg(
+        'PLC sharing was on but no PLC was available — adding without it.'
+      );
+      return undefined;
+    }
+    return buildPlcLinkage(selectedPlc);
+  }, [plcShareEnabled, selectedPlcId, plcs, user]);
 
   // Sign the deep-link response for an already-created assignment/session and
   // POST it back to Schoology. Shared tail of both the quiz and VA paths — the
@@ -641,7 +615,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           getQuizBehavior(selectedQuiz);
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
-        const plcLinkage = await resolvePlcLinkage(selectedQuiz.title);
+        const plcLinkage = resolvePlcLinkage();
 
         // Class-targeted session (join code) the student runner joins by —
         // classIds scope it to this Schoology course so a studentRole token
@@ -793,7 +767,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         };
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
-        const plcLinkage = await resolvePlcLinkage(selectedActivity.title);
+        const plcLinkage = resolvePlcLinkage();
 
         // VA has no join code — the assignment is identified by its sessionId
         // (== assignment id). Connect the Schoology section at creation:

@@ -375,7 +375,6 @@
       "settings": "Settings",
       "home": "Home",
       "members": "Members",
-      "sharedData": "Data",
       "meeting": "Meeting Mode",
       "docs": "Notes & Docs",
       "resources": "Resources"
@@ -518,6 +517,10 @@
         "title": "Weekly email digest",
         "optInDescription": "Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.",
         "saveFailed": "Failed to update digest setting"
+      },
+      "showPerTeacher": {
+        "title": "Per-teacher breakdown",
+        "description": "Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first."
       }
     },
     "overview": {
@@ -796,63 +799,6 @@
       "mentionNoMatch": "No teammates match",
       "mentionListLabel": "Mention a teammate"
     },
-    "sharedData": {
-      "loading": "Loading shared data…",
-      "loadError": "Couldn't load shared data",
-      "emptyTitle": "No shared data yet",
-      "emptySubtitle": "When members run a common assessment with PLC mode, anonymized results appear here.",
-      "noResults": "No results match your filters",
-      "untitledQuiz": "Untitled assessment",
-      "untitledQuestion": "Untitled question",
-      "kindQuiz": "Quiz",
-      "kindVA": "Video Activity",
-      "common": "Common",
-      "avg": "avg",
-      "teacher": "teacher",
-      "teachers": "teachers",
-      "students": "students",
-      "studentsShort": "stu",
-      "classCount": "{{count}} cls",
-      "ranOf": "{{ran}} of {{total}} ran it",
-      "teamAverage": "team average",
-      "weakestQuestions": "Weakest questions",
-      "byClass": "By teacher / class",
-      "you": "(you)",
-      "whoRanIt": "Who has run it",
-      "hasRun": "has run it",
-      "notRun": "has not run it yet",
-      "updating": "updating…",
-      "updatingHint": "New results are still being rolled up — numbers will refresh shortly.",
-      "designateTitle": "Make this the team's common assessment",
-      "designateSubtitle": "Designating gives it a shared title, unit, and status the whole team tracks.",
-      "designateAction": "Designate",
-      "designatePrompt": "Name this common assessment so the whole team recognizes it.",
-      "designatePromptTitle": "Designate common assessment",
-      "designatePlaceholder": "e.g. Unit 4 CFA",
-      "designated": "“{{title}}” is now the team's common assessment.",
-      "designateFailed": "Couldn't designate that assessment. Try again.",
-      "status": {
-        "planning": "Planning",
-        "active": "Active",
-        "reviewing": "Reviewing",
-        "closed": "Closed"
-      },
-      "filters": {
-        "label": "Filter shared data",
-        "search": "Search assessments",
-        "searchPlaceholder": "Search…",
-        "type": "Type",
-        "typeAll": "All types",
-        "typeQuiz": "Quizzes",
-        "typeVA": "Video Activities",
-        "teacher": "Teacher",
-        "teacherAll": "All teachers",
-        "unit": "Unit",
-        "unitAll": "All units",
-        "status": "Status",
-        "statusAll": "All statuses"
-      }
-    },
     "meeting": {
       "loading": "Loading meeting data…",
       "loadError": "Couldn’t load meeting data",
@@ -880,11 +826,6 @@
       "reviewCardLabel": "Pooled results for {{title}}",
       "discussAssessment": "Discuss this",
       "discussQuestion": "Discuss this question in a decision",
-      "designatePrompt": "Name this common assessment so the whole team recognizes it.",
-      "designatePromptTitle": "Designate common assessment",
-      "designatePlaceholder": "e.g. Unit 4 CFA",
-      "designated": "“{{title}}” is now the team’s common assessment.",
-      "designateFailed": "Couldn’t designate that assessment. Try again.",
       "back": "Back",
       "next": "Next",
       "saveMeeting": "Save meeting",
@@ -905,8 +846,7 @@
         "subtitle": "Choose the common assessment (or assessments) this meeting reviews.",
         "emptyTitle": "No assessment data yet",
         "emptySubtitle": "When the team runs a common assessment in PLC mode, the anonymized results appear here, ready to review together.",
-        "cardMeta": "{{avg}}% team avg · {{teachers}} teachers · {{students}} students",
-        "designate": "Designate"
+        "cardMeta": "{{avg}}% team avg · {{teachers}} teachers · {{students}} students"
       },
       "review": {
         "heading": "What does the data say?",
@@ -1051,7 +991,6 @@
       "noResults": "No matches for “{{query}}”",
       "untitled": "Untitled",
       "groupAssessments": "Assessments",
-      "groupData": "Data",
       "groupDocs": "Notes & Docs",
       "groupBoards": "Boards"
     },
@@ -1133,6 +1072,73 @@
       "using": "Adding…",
       "open": "Open",
       "use": "Use"
+    },
+    "assessmentList": {
+      "filters": {
+        "label": "Filter assessments",
+        "all": "All",
+        "inProgress": "In progress",
+        "scored": "Scored",
+        "libraryOnly": "Library only"
+      },
+      "status": {
+        "scored": "Scored",
+        "inProgress": "In progress",
+        "libraryOnly": "Library only",
+        "notStarted": "Not started"
+      },
+      "untitled": "Untitled assessment",
+      "teachersOf": "{{count}} of {{total}} teachers",
+      "students": "{{count}} students",
+      "updatedAt": "Updated {{date}}",
+      "questionCount": "{{count}} questions",
+      "sharedBy": "Shared by {{name}}",
+      "archived": "Archived",
+      "noResultsYet": "No results yet",
+      "assign": "Assign to my classes",
+      "moreActions": "More actions for {{title}}",
+      "rename": "Rename",
+      "archive": "Archive",
+      "renamePrompt": "New name for this assessment",
+      "renameFailed": "Couldn’t rename that assessment. Try again.",
+      "archivedToast": "“{{title}}” archived.",
+      "archiveFailed": "Couldn’t archive that assessment. Try again.",
+      "searchLabel": "Search assessments",
+      "searchPlaceholder": "Search…",
+      "manageLibrary": "Manage shared quizzes",
+      "loading": "Loading assessments…",
+      "loadError": "Couldn’t load assessments.",
+      "emptyTitle": "No assessments yet",
+      "emptySubtitle": "Assign a quiz and share its results with this PLC to pool the team’s data here.",
+      "noMatches": "No assessments match this filter."
+    },
+    "assessmentDetail": {
+      "back": "All assessments",
+      "notFoundTitle": "Assessment not found",
+      "notFoundSubtitle": "It may have been removed from this PLC.",
+      "untitled": "Untitled assessment",
+      "untitledQuestion": "Untitled question",
+      "teamAverage": "Team average",
+      "notScoredYet": "Not scored yet",
+      "students": "Students counted",
+      "studentsHint": "Students are counted per teacher; a student in two teachers’ classes counts twice.",
+      "teachers": "Teachers",
+      "teachersOf": "{{count}} of {{total}}",
+      "lastComputed": "Last computed",
+      "neverComputed": "Not yet",
+      "questionsHeading": "Questions, most missed first",
+      "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
+      "incorrectPercent": "{{percent}}% incorrect",
+      "notScored": "Not scored",
+      "gradedOfAnswered": "{{graded}} graded · {{answered}} answered",
+      "choiceDistribution": "Answer distribution",
+      "choiceCount": "{{count}} · {{percent}}%",
+      "perTeacherHeading": "By teacher",
+      "teacher": "Teacher",
+      "classes": "Classes",
+      "studentsColumn": "Students",
+      "average": "Average",
+      "unknownTeacher": "Teacher"
     }
   },
   "widgetSettings": {
@@ -2127,7 +2133,13 @@
       "save": "Save",
       "saving": "Saving…",
       "editSkipped": "{{count}} student(s) could not be saved to this assignment.",
-      "editSaveFailed": "Could not save changes. Try again."
+      "editSaveFailed": "Could not save changes. Try again.",
+      "sharingWithPlc": "Sharing results with {{plc}}",
+      "sharePlc": "Share results with PLC…",
+      "stopSharingPlc": "Stop sharing",
+      "sharePlcDone": "Results now pool with {{plc}}.",
+      "stopSharingPlcDone": "No longer sharing results with {{plc}}.",
+      "plcActionFailed": "Could not update PLC sharing. Try again."
     }
   },
   "quizResults": {

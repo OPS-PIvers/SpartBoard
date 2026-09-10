@@ -187,7 +187,10 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { rosters } = useDashboard();
-  const { rows, loading } = useUnifiedAssignments(user?.uid, rosters);
+  const { rows, loading, quizPlcActions } = useUnifiedAssignments(
+    user?.uid,
+    rosters
+  );
 
   const [search, setSearch] = useState('');
   // Empty arrays mean "no filter" for the two multi-selects.
@@ -499,7 +502,10 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
           {/* Right: detail pane — per-student status roster (M17 §5 D2). */}
           <div className="hidden md:flex flex-1 min-w-0 bg-slate-50/60">
             {selectedRow ? (
-              <AssignmentDetailPane row={selectedRow} />
+              <AssignmentDetailPane
+                row={selectedRow}
+                quizPlcActions={quizPlcActions}
+              />
             ) : (
               <div className="flex flex-1 items-center justify-center p-8">
                 <p className="text-sm text-slate-400">

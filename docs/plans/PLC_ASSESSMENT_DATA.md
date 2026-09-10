@@ -1,6 +1,6 @@
 # PLC Assessment Data: reliable pooled results, merged Assessments tab, folders, action items
 
-**Status:** approved design; PR 1 built 2026-09-10 (see §8.1), PRs 2-4 not started
+**Status:** approved design; PR 1 built 2026-09-10 (see §8.1); PR 2 built 2026-09-10 (see §8.2); PRs 3-4 not started
 **Decided:** 2026-09-09 (grilling session with Paul; lead-teacher transcript as input)
 **Target:** PRs 1 and 2 live before the 2026-09-28 PD day; PRs 3 and 4 in the same window if they fit
 **Branch flow:** four sequential PRs into `dev-paul`, then `dev-paul` → `main`
@@ -317,6 +317,27 @@ Deviations from the sections above, decided while building:
 - [ ] Component tests: statuses, detail from a fixture aggregate, per-teacher gating,
       retroactive link writes
 - [ ] Help center article for My PLC
+
+### 8.2 PR 2 implementation notes (2026-09-10)
+
+- `assignment_index` and its rules block **stay** for video activities (their
+  In-progress / Completed sub-tabs still read it). Only the quiz-side index write and
+  the quiz sub-tabs are removed. Full removal waits until video activities pool
+  server-side.
+- The list's status badge reads two new aggregate fields, `linkedSessionCount` and
+  `publishedSessionCount`, plus `scoredStudentCount` for the "Not scored yet" state.
+  Schema-1 aggregates (until the nightly gc) show as In progress when they have
+  students.
+- The shared-quiz library (share, unshare, edit, versions) is reachable from the
+  Assessments list through a "Manage shared quizzes" disclosure rather than a sub-tab.
+- Rename and Archive are the only editor actions on a row; Move to folder arrives in
+  PR 3.
+- `buildPlcLinkage` no longer creates a sheet; the Classroom add-on, LTI picker, PLC
+  page pickup and PLC assignment config modal all stop prompting for the Sheets scope
+  at assign time. The video-activity PLC wizard keeps its opt-in sheet step (no
+  server-side VA pooling yet).
+- The Help Center article is authored in the admin Help Center UI (Firestore
+  `help_resources`), not in the repo; the draft text is in the PR description.
 
 ### PR 3: PLC folders
 
