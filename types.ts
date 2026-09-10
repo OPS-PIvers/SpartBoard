@@ -590,6 +590,8 @@ export interface PlcQuizEntry {
   deletedAt?: number | null;
   /** Folder in `plcs/{plcId}/folders`; null/absent = root. */
   folderId?: string | null;
+  /** Set by Archive on the Assessments list. */
+  archived?: boolean;
 }
 
 /**

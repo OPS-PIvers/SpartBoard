@@ -17,7 +17,7 @@
 import React, { useEffect } from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, writeBatch } from 'firebase/firestore';
 
 import { PlcProvider } from '@/context/PlcContext';
 import {
@@ -56,6 +56,7 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn().mockResolvedValue(undefined),
   updateDoc: vi.fn().mockResolvedValue(undefined),
   deleteDoc: vi.fn().mockResolvedValue(undefined),
+  writeBatch: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -445,6 +446,82 @@ describe('usePlcActions — mount-stable identity', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(() => render(<Probe />)).toThrow(/PlcProvider/);
     spy.mockRestore();
+  });
+
+  it('archiveQuiz batches quiz.archived and assessment.status when both ids are given', async () => {
+    const update = vi.fn();
+    const commit = vi.fn().mockResolvedValue(undefined);
+    (writeBatch as unknown as Mock).mockReturnValue({ update, commit });
+    const captured: ReturnType<typeof usePlcActions>[] = [];
+    const Probe: React.FC = () => {
+      captured.push(usePlcActions());
+      return null;
+    };
+    render(
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
+        <Probe />
+      </PlcProvider>
+    );
+    await act(async () => {
+      await captured[captured.length - 1]?.archiveQuiz({
+        plcQuizId: 'q1',
+        assessmentId: 'a1',
+      });
+    });
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls[0][1]).toMatchObject({ archived: true });
+    expect(update.mock.calls[1][1]).toMatchObject({ status: 'closed' });
+    expect(commit).toHaveBeenCalled();
+  });
+
+  it('archiveQuiz writes only the quiz doc when assessmentId is null (never-assigned quiz)', async () => {
+    const update = vi.fn();
+    const commit = vi.fn().mockResolvedValue(undefined);
+    (writeBatch as unknown as Mock).mockReturnValue({ update, commit });
+    const captured: ReturnType<typeof usePlcActions>[] = [];
+    const Probe: React.FC = () => {
+      captured.push(usePlcActions());
+      return null;
+    };
+    render(
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
+        <Probe />
+      </PlcProvider>
+    );
+    await act(async () => {
+      await captured[captured.length - 1]?.archiveQuiz({
+        plcQuizId: 'q1',
+        assessmentId: null,
+      });
+    });
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0][1]).toMatchObject({ archived: true });
+    expect(commit).toHaveBeenCalled();
+  });
+
+  it('restoreQuiz clears archived and reopens the assessment', async () => {
+    const update = vi.fn();
+    const commit = vi.fn().mockResolvedValue(undefined);
+    (writeBatch as unknown as Mock).mockReturnValue({ update, commit });
+    const captured: ReturnType<typeof usePlcActions>[] = [];
+    const Probe: React.FC = () => {
+      captured.push(usePlcActions());
+      return null;
+    };
+    render(
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
+        <Probe />
+      </PlcProvider>
+    );
+    await act(async () => {
+      await captured[captured.length - 1]?.restoreQuiz({
+        plcQuizId: 'q1',
+        assessmentId: 'a1',
+      });
+    });
+    expect(update.mock.calls[0][1]).toMatchObject({ archived: false });
+    expect(update.mock.calls[1][1]).toMatchObject({ status: 'active' });
+    expect(commit).toHaveBeenCalled();
   });
 });
 

@@ -160,7 +160,8 @@ describe('buildAssessmentRows', () => {
       libraryEntries: [makeEntry()],
       memberCount: 2,
     });
-    const libraryRow = rows.find((r) => r.status === 'libraryOnly');
+    const libraryRow = rows.find((r) => r.assessmentId === null);
+    expect(libraryRow?.status).toBe('notStarted');
     expect(libraryRow).toMatchObject({
       id: 'library:g-lib',
       assessmentId: null,
@@ -262,7 +263,7 @@ describe('filterAssessmentRows', () => {
       filterAssessmentRows(rows, 'inProgress', '').map((r) => r.id)
     ).toEqual(['b']);
     expect(
-      filterAssessmentRows(rows, 'libraryOnly', '').map((r) => r.id)
+      filterAssessmentRows(rows, 'notStarted', '').map((r) => r.id)
     ).toEqual(['library:g-lib']);
     expect(filterAssessmentRows(rows, 'all', '')).toHaveLength(3);
   });

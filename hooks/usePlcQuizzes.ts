@@ -245,6 +245,9 @@ export function parsePlcQuizEntry(
   } else if (data.deletedAt === null) {
     entry.deletedAt = null;
   }
+  if (typeof data.archived === 'boolean') {
+    entry.archived = data.archived;
+  }
   return entry;
 }
 

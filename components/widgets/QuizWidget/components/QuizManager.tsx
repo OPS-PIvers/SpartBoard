@@ -1506,7 +1506,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       : null
   );
   const assignPoolGroup = assignTarget
-    ? findPoolGroupByTitle(assignPlcLibrary, assignTarget.title)
+    ? findPoolGroupByTitle(
+        assignPlcLibrary.filter((entry) => !entry.archived),
+        assignTarget.title
+      )
     : undefined;
 
   // ─── Assign confirm handler ───────────────────────────────────────────────
