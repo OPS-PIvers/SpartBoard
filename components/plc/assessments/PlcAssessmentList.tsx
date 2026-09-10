@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  FolderInput,
+  GripVertical,
   Library,
   Loader2,
   MoreVertical,
@@ -21,6 +23,7 @@ import {
   Search,
   Users,
 } from 'lucide-react';
+import { useDraggable } from '@dnd-kit/core';
 import type { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -35,14 +38,20 @@ import {
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { usePlcFolders } from '@/hooks/usePlcFolders';
 import { logError } from '@/utils/logError';
 import { buildPlcAssessmentPath, spaNavigate } from '@/utils/plcPath';
 import { PlcQuizLibraryBody } from '@/components/plc/bodies/PlcQuizLibraryBody';
 import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignmentModal';
+import { FolderSidebar } from '@/components/common/library/FolderSidebar';
+import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import {
   buildAssessmentRows,
+  countRowsByFolder,
   filterAssessmentRows,
+  filterRowsByFolder,
   formatShortDate,
+  suggestedFolderNames,
   type AssessmentListFilter,
   type AssessmentListRow,
   type AssessmentRowStatus,
@@ -123,27 +132,44 @@ export const AssessmentStatusBadge: React.FC<{
 // Row
 // ---------------------------------------------------------------------------
 
+interface RowFolder {
+  id: string;
+  name: string;
+}
+
 interface RowProps {
   row: AssessmentListRow;
   canEdit: boolean;
+  folders: RowFolder[];
   onOpen: (assessmentId: string) => void;
   onAssign: () => void;
   onRename: (row: AssessmentListRow) => void;
   onArchive: (row: AssessmentListRow) => void;
+  onMoveToFolder: (row: AssessmentListRow, folderId: string | null) => void;
 }
 
 const AssessmentRow: React.FC<RowProps> = ({
   row,
   canEdit,
+  folders,
   onOpen,
   onAssign,
   onRename,
   onArchive,
+  onMoveToFolder,
 }) => {
   const { t, i18n } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moveSubmenuOpen, setMoveSubmenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, () => setMenuOpen(false));
+  useClickOutside(menuRef, () => {
+    setMenuOpen(false);
+    setMoveSubmenuOpen(false);
+  });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: row.id,
+    disabled: !canEdit,
+  });
 
   const title =
     row.title ||
@@ -231,9 +257,23 @@ const AssessmentRow: React.FC<RowProps> = ({
 
   return (
     <li
+      ref={setNodeRef}
       data-testid="assessment-row"
-      className="bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-3"
+      className={`bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-3 ${isDragging ? 'opacity-40' : ''}`}
     >
+      {canEdit && (
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={t('plcDashboard.assessmentList.folders.dragHandle', {
+            defaultValue: 'Drag to move',
+          })}
+          className="shrink-0 p-1 -ml-1 rounded text-slate-300 hover:text-slate-500 cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+        >
+          <GripVertical className="w-4 h-4" aria-hidden="true" />
+        </button>
+      )}
       {row.assessmentId ? (
         <button
           type="button"
@@ -297,6 +337,63 @@ const AssessmentRow: React.FC<RowProps> = ({
                   defaultValue: 'Rename',
                 })}
               </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-haspopup="menu"
+                  aria-expanded={moveSubmenuOpen}
+                  onClick={() => setMoveSubmenuOpen((v) => !v)}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <FolderInput className="w-3.5 h-3.5" aria-hidden="true" />
+                  {t('plcDashboard.assessmentList.folders.moveToFolder', {
+                    defaultValue: 'Move to folder…',
+                  })}
+                </button>
+                {moveSubmenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute left-full top-0 ml-1 z-20 min-w-[10rem] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setMoveSubmenuOpen(false);
+                        onMoveToFolder(row, null);
+                      }}
+                      className="flex items-center justify-between gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      {t('plcDashboard.assessmentList.folders.noFolder', {
+                        defaultValue: 'No folder',
+                      })}
+                      {row.folderId === null && (
+                        <span aria-hidden="true">✓</span>
+                      )}
+                    </button>
+                    {folders.map((folder) => (
+                      <button
+                        key={folder.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setMoveSubmenuOpen(false);
+                          onMoveToFolder(row, folder.id);
+                        }}
+                        className="flex items-center justify-between gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <span className="truncate">{folder.name}</span>
+                        {row.folderId === folder.id && (
+                          <span aria-hidden="true">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {!row.archived && (
                 <button
                   type="button"
@@ -352,11 +449,13 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     error: libraryError,
   } = usePlcQuizzes(plc.id);
   const { quizzes: personalQuizzes, isDriveConnected } = useQuiz(user?.uid);
+  const folderState = usePlcFolders(plc.id);
 
   const [filter, setFilter] = useState<AssessmentListFilter>('all');
   const [search, setSearch] = useState('');
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const ctaReasonId = useId();
   const libraryPanelId = useId();
 
@@ -370,10 +469,25 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       }),
     [assessments, aggregates, libraryEntries, members.length]
   );
-  const visibleRows = useMemo(
-    () => filterAssessmentRows(rows, filter, search),
-    [rows, filter, search]
+  const folderFilteredRows = useMemo(
+    () => filterRowsByFolder(rows, selectedFolderId),
+    [rows, selectedFolderId]
   );
+  const visibleRows = useMemo(
+    () => filterAssessmentRows(folderFilteredRows, filter, search),
+    [folderFilteredRows, filter, search]
+  );
+  const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
+  const rowIds = useMemo(() => visibleRows.map((r) => r.id), [visibleRows]);
+  const suggestions = useMemo(
+    () => suggestedFolderNames(assessments),
+    [assessments]
+  );
+  const showSuggestions =
+    canEdit &&
+    !folderState.loading &&
+    folderState.folders.length === 0 &&
+    suggestions.length > 0;
 
   const loading =
     (assessmentsLoading || aggregatesLoading || libraryLoading) &&
@@ -471,10 +585,116 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     [updateAssessment, addToast, plc.id, t]
   );
 
-  const isEmpty = !loading && !error && rows.length === 0;
+  const { moveEntry } = folderState;
+  const moveRow = useCallback(
+    async (row: AssessmentListRow, folderId: string | null) => {
+      try {
+        await moveEntry(
+          { plcQuizId: row.plcQuizId, assessmentId: row.assessmentId },
+          folderId
+        );
+        const folder =
+          folderId !== null
+            ? folderState.folders.find((f) => f.id === folderId)
+            : undefined;
+        addToast(
+          folder
+            ? t('plcDashboard.assessmentList.folders.movedToast', {
+                defaultValue: 'Moved to “{{folder}}”',
+                folder: folder.name,
+              })
+            : t('plcDashboard.assessmentList.folders.movedToRootToast', {
+                defaultValue: 'Moved out of folders',
+              }),
+          'success'
+        );
+      } catch (err) {
+        logError('PlcAssessmentList.moveToFolder', err, {
+          plcId: plc.id,
+          rowId: row.id,
+          folderId,
+        });
+        addToast(
+          t('plcDashboard.assessmentList.folders.moveFailed', {
+            defaultValue: 'Couldn’t move that item. Try again.',
+          }),
+          'error'
+        );
+      }
+    },
+    [moveEntry, folderState.folders, addToast, plc.id, t]
+  );
 
-  return (
-    <div className="flex flex-col gap-4 h-full">
+  const handleDropOnFolder = useCallback(
+    (rowId: string, folderId: string | null) => {
+      const row = visibleRows.find((r) => r.id === rowId);
+      if (!row) return;
+      void moveRow(row, folderId);
+    },
+    [visibleRows, moveRow]
+  );
+
+  const handleCreateSuggestedFolder = useCallback(
+    async (name: string) => {
+      try {
+        const folderId = await folderState.createFolder(name, null);
+        const targets = rows.filter((r) => {
+          const assessment = assessments.find((a) => a.id === r.assessmentId);
+          return assessment?.unitLabel?.trim() === name;
+        });
+        await Promise.all(
+          targets.map((row) =>
+            moveEntry(
+              { plcQuizId: row.plcQuizId, assessmentId: row.assessmentId },
+              folderId
+            )
+          )
+        );
+        addToast(
+          t('plcDashboard.assessmentList.folders.suggestedCreated', {
+            defaultValue: 'Created “{{folder}}” from your unit labels.',
+            folder: name,
+          }),
+          'success'
+        );
+      } catch (err) {
+        logError('PlcAssessmentList.createSuggestedFolder', err, {
+          plcId: plc.id,
+          name,
+        });
+        addToast(
+          t('plcDashboard.assessmentList.folders.moveFailed', {
+            defaultValue: 'Couldn’t move that item. Try again.',
+          }),
+          'error'
+        );
+      }
+    },
+    [folderState, rows, assessments, moveEntry, addToast, plc.id, t]
+  );
+
+  const renderDragOverlay = useCallback(
+    (activeId: string): React.ReactNode => {
+      const row = visibleRows.find((r) => r.id === activeId);
+      if (!row) return null;
+      return (
+        <div className="bg-white border border-brand-blue-primary/40 rounded-xl px-3 py-2 shadow-lg text-sm font-bold text-slate-800 max-w-xs truncate">
+          {row.title ||
+            t('plcDashboard.assessmentList.untitled', {
+              defaultValue: 'Untitled assessment',
+            })}
+        </div>
+      );
+    },
+    [visibleRows, t]
+  );
+
+  const isEmpty = !loading && !error && rows.length === 0;
+  const isFolderEmpty =
+    !isEmpty && selectedFolderId !== null && folderFilteredRows.length === 0;
+
+  const mainContent = (
+    <div className="flex flex-col gap-4 h-full min-w-0 flex-1">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
@@ -582,7 +802,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
           id={libraryPanelId}
           className="border border-slate-200 rounded-2xl bg-slate-50/60 p-4"
         >
-          <PlcQuizLibraryBody plc={plc} onCloseDashboard={onCloseDashboard} />
+          <PlcQuizLibraryBody
+            plc={plc}
+            onCloseDashboard={onCloseDashboard}
+            folderId={selectedFolderId}
+          />
         </div>
       )}
 
@@ -637,9 +861,13 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
           </div>
         ) : visibleRows.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-8">
-            {t('plcDashboard.assessmentList.noMatches', {
-              defaultValue: 'No assessments match this filter.',
-            })}
+            {isFolderEmpty
+              ? t('plcDashboard.assessmentList.folders.emptyFolder', {
+                  defaultValue: 'Nothing in this folder yet.',
+                })
+              : t('plcDashboard.assessmentList.noMatches', {
+                  defaultValue: 'No assessments match this filter.',
+                })}
           </p>
         ) : (
           <ul className="space-y-2">
@@ -648,10 +876,12 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
                 key={row.id}
                 row={row}
                 canEdit={canEdit}
+                folders={folderState.folders}
                 onOpen={handleOpen}
                 onAssign={openAssign}
                 onRename={(r) => void handleRename(r)}
                 onArchive={(r) => void handleArchive(r)}
+                onMoveToFolder={(r, folderId) => void moveRow(r, folderId)}
               />
             ))}
           </ul>
@@ -665,6 +895,67 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
           onClose={() => setAssignOpen(false)}
         />
       )}
+    </div>
+  );
+
+  const sidebar = (
+    <div className="w-full md:w-56 md:shrink-0 flex flex-col gap-3">
+      <FolderSidebar
+        widget="quiz"
+        folders={folderState.folders}
+        loading={folderState.loading}
+        error={folderState.error}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={setSelectedFolderId}
+        itemCounts={folderItemCounts}
+        onCreateFolder={canEdit ? folderState.createFolder : undefined}
+        onRenameFolder={canEdit ? folderState.renameFolder : undefined}
+        onMoveFolder={canEdit ? folderState.moveFolder : undefined}
+        onDeleteFolder={canEdit ? folderState.deleteFolder : undefined}
+        enableDrop={canEdit}
+      />
+      {showSuggestions && (
+        <div className="border border-slate-200 rounded-xl bg-slate-50/60 p-3">
+          <p className="text-xxs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            {t('plcDashboard.assessmentList.folders.suggestedTitle', {
+              defaultValue: 'Suggested from your unit labels',
+            })}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => void handleCreateSuggestedFolder(name)}
+                className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:border-brand-blue-light hover:text-brand-blue-primary transition-colors"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4 h-full">
+      <div
+        role="group"
+        aria-label={t('plcDashboard.assessmentList.folders.sidebarLabel', {
+          defaultValue: 'Folders',
+        })}
+        className="flex flex-col md:flex-row gap-4 h-full min-h-0"
+      >
+        <LibraryDndContext
+          itemIds={rowIds}
+          onDropOnFolder={handleDropOnFolder}
+          renderOverlay={renderDragOverlay}
+        >
+          {sidebar}
+          {mainContent}
+        </LibraryDndContext>
+      </div>
     </div>
   );
 };

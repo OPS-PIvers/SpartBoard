@@ -1110,7 +1110,19 @@
       "loadError": "Bewertungen konnten nicht geladen werden.",
       "emptyTitle": "Noch keine Bewertungen",
       "emptySubtitle": "Weise ein Quiz zu und teile die Ergebnisse mit dieser PLG, um die Daten des Teams hier zu bündeln.",
-      "noMatches": "Keine Bewertungen passen zu diesem Filter."
+      "noMatches": "Keine Bewertungen passen zu diesem Filter.",
+      "folders": {
+        "sidebarLabel": "Ordner",
+        "moveToFolder": "In Ordner verschieben…",
+        "noFolder": "Kein Ordner",
+        "dragHandle": "Zum Verschieben ziehen",
+        "movedToast": "Nach „{{folder}}“ verschoben",
+        "movedToRootToast": "Aus Ordnern entfernt",
+        "moveFailed": "Element konnte nicht verschoben werden. Bitte erneut versuchen.",
+        "suggestedTitle": "Vorschläge aus deinen Themenbezeichnungen",
+        "suggestedCreated": "„{{folder}}“ aus deinen Themenbezeichnungen erstellt.",
+        "emptyFolder": "Dieser Ordner ist noch leer."
+      }
     },
     "assessmentDetail": {
       "back": "Alle Bewertungen",

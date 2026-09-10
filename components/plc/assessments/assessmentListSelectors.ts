@@ -8,6 +8,11 @@ import type {
   PlcCommonAssessment,
   PlcQuizEntry,
 } from '@/types';
+import {
+  countItemsByFolder,
+  filterByFolder,
+  type HasFolderId,
+} from '@/components/common/library/folderFilters';
 
 export type AssessmentRowStatus =
   | 'libraryOnly'
@@ -44,6 +49,10 @@ export interface AssessmentListRow {
   sharedAt: number | null;
   /** Newest edit on the assessment record (ms); 0 for library-only rows. */
   updatedAt: number;
+  /** PLC folder id (`plcs/{plcId}/folders`); `null` = root/no folder. */
+  folderId: string | null;
+  /** Id of the matched PLC library entry, or `null` when there isn't one. */
+  plcQuizId: string | null;
 }
 
 /** Schema-2 aggregates carry publish counts; schema-1 only knows students. */
@@ -147,6 +156,8 @@ export function buildAssessmentRows(
       sharedByName: library?.sharedByName ?? null,
       sharedAt: library?.sharedAt ?? null,
       updatedAt: assessment.updatedAt,
+      folderId: assessment.folderId ?? library?.folderId ?? null,
+      plcQuizId: library?.id ?? null,
     });
   }
 
@@ -169,6 +180,8 @@ export function buildAssessmentRows(
       sharedByName: entry.sharedByName,
       sharedAt: entry.sharedAt,
       updatedAt: 0,
+      folderId: entry.folderId ?? null,
+      plcQuizId: entry.id,
     });
   }
 
@@ -189,6 +202,37 @@ export function filterAssessmentRows(
     }
     return true;
   });
+}
+
+/** Keep only rows in `selectedFolderId` (`null` = every row). */
+export function filterRowsByFolder(
+  rows: AssessmentListRow[],
+  selectedFolderId: string | null
+): AssessmentListRow[] {
+  return filterByFolder(
+    rows as (AssessmentListRow & HasFolderId)[],
+    selectedFolderId
+  );
+}
+
+/** Per-folder row counts (+ `root`) for the sidebar badges. */
+export function countRowsByFolder(
+  rows: AssessmentListRow[]
+): Record<string, number> {
+  return countItemsByFolder(rows as (AssessmentListRow & HasFolderId)[]);
+}
+
+/** Distinct, trimmed, non-empty `unitLabel` values from live quiz assessments, sorted. */
+export function suggestedFolderNames(
+  assessments: PlcCommonAssessment[]
+): string[] {
+  const names = new Set<string>();
+  for (const a of assessments) {
+    if (a.deletedAt != null || a.kind !== 'quiz') continue;
+    const trimmed = a.unitLabel?.trim();
+    if (trimmed) names.add(trimmed);
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
 export function firstNonEmpty(

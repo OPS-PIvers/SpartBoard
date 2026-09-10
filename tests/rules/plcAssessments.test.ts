@@ -416,6 +416,24 @@ describe('plcs/{plcId}/assessments — update', () => {
       })
     );
   });
+
+  it('allows setting folderId (PLC_ASSESSMENT_DATA §3.4)', async () => {
+    await assertSucceeds(
+      updateDoc(assessmentRef(asMember()), {
+        folderId: 'f1',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects a non-string, non-null folderId', async () => {
+    await assertFails(
+      updateDoc(assessmentRef(asMember()), {
+        folderId: 42,
+        updatedAt: 2000,
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

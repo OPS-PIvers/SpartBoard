@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.10.2",
+      "date": "2026-09-10",
+      "title": "Folders for PLC assessments",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "The Assessments tab gets a folder tree the whole PLC shares. Sort shared quizzes and their pooled results into units, drag rows between folders, and start from your existing unit labels."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Folders — a sidebar on the Assessments list holds folders every member sees. Selecting one narrows both the assessment rows and the shared-quiz library; editors create, rename, nest and delete folders in place."
+        },
+        {
+          "type": "improvement",
+          "text": "Move to folder — drag a row by its handle onto a folder, or pick “Move to folder…” from the row menu. The shared quiz and its pooled results move together."
+        },
+        {
+          "type": "improvement",
+          "text": "Unit labels — a PLC with no folders yet is offered its existing unit labels as one-click folder suggestions."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10.1",
       "date": "2026-09-10",
       "title": "One Assessments tab for PLC quizzes and their pooled results",
