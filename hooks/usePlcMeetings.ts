@@ -3,7 +3,7 @@
  * (Decisions 4.0 / 4.0b, §3.7). A `PlcMeeting` is the exportable record Meeting
  * Mode writes when a team holds a data meeting: which common assessments were
  * reviewed, who attended (captured from presence), the decisions made, and the
- * action items spun up — each of which can become a `PlcTodo` (§3.9) carrying a
+ * action items spun up — each promotable to a note action item (§7.4) carrying a
  * `meetingId` provenance link back to the record.
  *
  * Mirrors the other `usePlc*` subcollection hooks (`usePlcAssessments`,
@@ -19,10 +19,10 @@
  *   - Pass `null` for `plcId` to disable the listener cleanly.
  *
  * The write path (`createMeeting` / `updateMeeting` / `saveMeeting` /
- * `deleteMeeting` / `spawnTodosForMeeting`) lives on the `PlcProvider` actions
+ * `deleteMeeting` / `promoteMeetingActionItems`) lives on the `PlcProvider` actions
  * surface (`usePlcActions`); this hook is read-only, matching the contributions
  * /aggregates hooks. The pure helpers it exports (`captureAttendeeUids`,
- * `actionItemsNeedingTodos`, `buildTodoFromActionItem`,
+ * `actionItemsNeedingTodos`,
  * `applyTodoBackLinks`) own the meeting-specific logic so they unit-test without
  * a Firestore round-trip.
  */
@@ -235,36 +235,6 @@ export function actionItemsNeedingTodos(
   return actionItems.filter(
     (item) => item.text.trim().length > 0 && !item.todoId
   );
-}
-
-/**
- * Build the `PlcTodo`-doc field map for a spawned to-do from a meeting action
- * item (§3.9). Carries the action item's text, `assigneeUid`, and `dueAt`, plus
- * the `meetingId` provenance link. `createdAt` is intentionally NOT set here —
- * the writer stamps it with `serverTimestamp()` (Decision 1.3) — so this stays
- * a pure, testable projection. Optional fields are written only when present so
- * the schema-locked `keys().hasOnly([...])` rule accepts the doc. Pure.
- */
-export function buildTodoFromActionItem(
-  todoId: string,
-  actionItem: PlcMeeting['actionItems'][number],
-  meetingId: string,
-  createdBy: string
-): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    id: todoId,
-    text: actionItem.text.trim(),
-    done: false,
-    createdBy,
-    meetingId,
-  };
-  if (actionItem.assigneeUid !== undefined) {
-    payload.assigneeUid = actionItem.assigneeUid;
-  }
-  if (actionItem.dueAt !== undefined) {
-    payload.dueAt = actionItem.dueAt;
-  }
-  return payload;
 }
 
 /**

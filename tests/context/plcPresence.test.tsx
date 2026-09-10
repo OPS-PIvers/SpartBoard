@@ -200,13 +200,13 @@ describe('parsePresence', () => {
     const parsed = parsePresence('u-x', {
       uid: 'u-x',
       displayName: 'Xavier',
-      section: 'todos',
+      section: 'members',
       lastActiveAt: 1234,
     });
     expect(parsed).toEqual<PlcPresenceEntry>({
       uid: 'u-x',
       displayName: 'Xavier',
-      section: 'todos',
+      section: 'members',
       lastActiveAt: 1234,
     });
   });
@@ -386,7 +386,7 @@ describe('PlcProvider presence heartbeat', () => {
 
   it('writes the caller own presence doc on mount with the active section', () => {
     render(
-      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="todos">
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="members">
         <div />
       </PlcProvider>
     );
@@ -395,7 +395,7 @@ describe('PlcProvider presence heartbeat', () => {
     const payload = writes[writes.length - 1][1];
     expect(payload.uid).toBe('u-self');
     expect(payload.displayName).toBe('Self');
-    expect(payload.section).toBe('todos');
+    expect(payload.section).toBe('members');
     // serverTimestamp() sentinel from the mock.
     expect(payload.lastActiveAt).toEqual({ __serverTimestamp: true });
   });

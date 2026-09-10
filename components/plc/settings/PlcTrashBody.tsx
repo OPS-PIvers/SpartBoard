@@ -4,7 +4,6 @@ import {
   BookOpen,
   ClipboardCheck,
   Film,
-  ListChecks,
   Loader2,
   MessageSquare,
   RotateCcw,
@@ -34,11 +33,6 @@ const TYPE_META: Record<
     icon: StickyNote,
     labelKey: 'plcDashboard.trash.type.note',
     labelDefault: 'Note',
-  },
-  todo: {
-    icon: ListChecks,
-    labelKey: 'plcDashboard.trash.type.todo',
-    labelDefault: 'To-do',
   },
   doc: {
     icon: BookOpen,

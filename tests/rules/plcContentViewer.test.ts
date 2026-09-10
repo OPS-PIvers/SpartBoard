@@ -6,13 +6,17 @@
 //
 // This suite pins, for EACH content subcollection
 // (assessments · meetings · quizzes · video_activities · assignments · notes ·
-//  todos · docs · comments):
+//  docs · comments):
 //
 //   - a viewer CAN read,
 //   - a viewer is DENIED create / update / delete,
 //   - a non-viewer member CAN create / update / delete,
 //   - a coLead and the lead CAN create (spot-checked — they share the same
 //     `plcCanEditContent` edit gate).
+//
+// `todos` is legacy (create always denied, update accepts ONLY the
+// `deletedAt` tombstone) and gets its own bespoke describe block below
+// instead of the generic matrix.
 //
 // Plus the viewer-writable carve-outs the task preserves:
 //   - a viewer CAN write their OWN presence doc,
@@ -277,18 +281,10 @@ const cases: ContentCase[] = [
     }),
     patch: () => ({ title: 'Doc (edited)', updatedAt: 2000 }),
   },
-  {
-    name: 'todos',
-    path: (id) => `plcs/${PLC_ID}/todos/${id}`,
-    doc: (id, creator) => ({
-      id,
-      text: 'Todo',
-      done: false,
-      createdBy: creator,
-      createdAt: 1000,
-    }),
-    patch: () => ({ done: true }),
-  },
+  // `todos` is legacy (create denied, update accepts ONLY `deletedAt`) and is
+  // exercised separately below rather than through this generic read/write
+  // matrix, since the matrix assumes create succeeds and patch() is a normal
+  // field update.
   {
     name: 'comments',
     path: (id) => `plcs/${PLC_ID}/comments/${id}`,
@@ -378,6 +374,77 @@ for (const c of cases) {
     });
   });
 }
+
+// ===========================================================================
+// plcs/{plcId}/todos — legacy collection (create denied, update deletedAt-only)
+// ===========================================================================
+
+describe('plcs/{plcId}/todos — viewer write-gate (legacy)', () => {
+  const todoDoc = (id: string, creator: string) => ({
+    id,
+    text: 'Todo',
+    done: false,
+    createdBy: creator,
+    createdAt: 1000,
+  });
+  const path = (id: string) => `plcs/${PLC_ID}/todos/${id}`;
+  const ref = (db: Db, id = DOC_ID) => doc(db, path(id));
+
+  describe('read stays open to the viewer', () => {
+    beforeEach(() => seed(path(DOC_ID), todoDoc(DOC_ID, MEMBER_UID)));
+
+    it('a viewer CAN read', async () => {
+      await assertSucceeds(getDoc(ref(asViewer())));
+    });
+
+    it('a non-member CANNOT read (membership gate intact)', async () => {
+      await assertFails(getDoc(ref(asNonMember())));
+    });
+  });
+
+  it('nobody can create, including the lead/coLead/member', async () => {
+    await assertFails(
+      setDoc(ref(asViewer(), 'viewer-doc'), todoDoc('viewer-doc', VIEWER_UID))
+    );
+    await assertFails(
+      setDoc(ref(asMember(), 'member-doc'), todoDoc('member-doc', MEMBER_UID))
+    );
+    await assertFails(
+      setDoc(ref(asCoLead(), 'colead-doc'), todoDoc('colead-doc', COLEAD_UID))
+    );
+    await assertFails(
+      setDoc(ref(asLead(), 'lead-doc'), todoDoc('lead-doc', LEAD_UID))
+    );
+  });
+
+  describe('update — only the deletedAt tombstone is allowed', () => {
+    beforeEach(() => seed(path(DOC_ID), todoDoc(DOC_ID, MEMBER_UID)));
+
+    it('a viewer CANNOT archive (soft-delete)', async () => {
+      await assertFails(updateDoc(ref(asViewer()), { deletedAt: 2000 }));
+    });
+
+    it('a plain member CAN archive (soft-delete) via deletedAt only', async () => {
+      await assertSucceeds(updateDoc(ref(asMember()), { deletedAt: 2000 }));
+    });
+
+    it('a plain member CANNOT update any other field', async () => {
+      await assertFails(updateDoc(ref(asMember()), { done: true }));
+    });
+  });
+
+  describe('delete', () => {
+    beforeEach(() => seed(path(DOC_ID), todoDoc(DOC_ID, MEMBER_UID)));
+
+    it('a viewer CANNOT delete', async () => {
+      await assertFails(deleteDoc(ref(asViewer())));
+    });
+
+    it('a plain member CAN delete', async () => {
+      await assertSucceeds(deleteDoc(ref(asMember())));
+    });
+  });
+});
 
 // ===========================================================================
 // Viewer-writable carve-outs (task: do NOT gate these)

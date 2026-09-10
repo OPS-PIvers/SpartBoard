@@ -246,7 +246,7 @@ describe('usePlcSoftDelete', () => {
     const { result, runDelete, runRestore } = setup();
     await act(async () => {
       await result.current.softDelete({
-        type: 'todo',
+        type: 'note',
         id: 'td1',
         title: 'Run CFA',
         runDelete,
@@ -271,7 +271,7 @@ describe('usePlcSoftDelete', () => {
       'plc-1',
       expect.objectContaining({
         type: 'item_restored',
-        targetType: 'todo',
+        targetType: 'note',
         targetId: 'td1',
         targetTitle: 'Run CFA',
       })

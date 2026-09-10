@@ -3,8 +3,8 @@
 //   - notes accept the new optional `kind` / `meetingId` / `version` /
 //     `deletedAt` fields; the `version` precondition enforces +1 on update
 //     (with a both-absent rollout escape hatch).
-//   - todos accept the new optional `assigneeUid` / `dueAt` / `meetingId` /
-//     `deletedAt` fields.
+//   - todos are legacy: create is denied, and update accepts only the
+//     `deletedAt` tombstone.
 //   - Soft-delete (`deletedAt`) round-trips for both.
 //   - Bad shapes (wrong kind, wrong types, version skip) are rejected.
 //
@@ -225,7 +225,7 @@ describe('plcs/{plcId}/notes — Wave-2 fields', () => {
 // Todos — new fields + soft-delete
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/todos — Wave-2 fields', () => {
+describe('plcs/{plcId}/todos — Wave-2 fields (now legacy: create denied)', () => {
   const actionItem = (overrides: Record<string, unknown> = {}) => ({
     id: TODO_ID,
     text: 'Reteach Q3 to period 2',
@@ -239,14 +239,14 @@ describe('plcs/{plcId}/todos — Wave-2 fields', () => {
     ...overrides,
   });
 
-  it('member can create a todo with assignee/due/meetingId', async () => {
-    await assertSucceeds(
+  it('denies creating a todo with assignee/due/meetingId', async () => {
+    await assertFails(
       setDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), actionItem())
     );
   });
 
-  it('member can create a todo with null assignee/due (unassigned)', async () => {
-    await assertSucceeds(
+  it('denies creating a todo with null assignee/due (unassigned)', async () => {
+    await assertFails(
       setDoc(
         doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
         actionItem({ assigneeUid: null, dueAt: null, meetingId: null })
@@ -254,7 +254,7 @@ describe('plcs/{plcId}/todos — Wave-2 fields', () => {
     );
   });
 
-  it('rejects a non-int dueAt', async () => {
+  it('rejects a non-int dueAt (create denied regardless)', async () => {
     await assertFails(
       setDoc(
         doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
@@ -263,7 +263,22 @@ describe('plcs/{plcId}/todos — Wave-2 fields', () => {
     );
   });
 
-  it('member can reassign + soft-delete a todo', async () => {
+  it('denies reassigning a todo (only deletedAt may be updated)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
+        actionItem()
+      );
+    });
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
+        assigneeUid: MEMBER_UID,
+        deletedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it('member can soft-delete (archive) an existing todo via deletedAt only', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
@@ -272,13 +287,12 @@ describe('plcs/{plcId}/todos — Wave-2 fields', () => {
     });
     await assertSucceeds(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        assigneeUid: MEMBER_UID,
         deletedAt: serverTimestamp(),
       })
     );
   });
 
-  it('rejects an extra unknown field (schema lock-down)', async () => {
+  it('rejects an extra unknown field (schema lock-down; create denied anyway)', async () => {
     await assertFails(
       setDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
         ...actionItem(),

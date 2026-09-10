@@ -1,19 +1,33 @@
 import { describe, it, expect } from 'vitest';
-import type { PlcTodo } from '@/types';
+import type { PlcActionItem, PlcNote } from '@/types';
 import { dueBucket, selectMyActionItems, startOfDay } from './yourActionItems';
 
 const DAY = 24 * 60 * 60 * 1000;
 // A fixed "now" at local noon so day-boundary math is unambiguous in tests.
 const NOW = new Date(2026, 5, 18, 12, 0, 0).getTime();
 
-function todo(over: Partial<PlcTodo> = {}): PlcTodo {
+function item(over: Partial<PlcActionItem> = {}): PlcActionItem {
   return {
-    id: 't1',
+    id: 'i1',
     text: 'Do the thing',
     done: false,
     createdBy: 'u1',
     createdAt: 1000,
     assigneeUid: 'me',
+    ...over,
+  };
+}
+
+function note(items: PlcActionItem[], over: Partial<PlcNote> = {}): PlcNote {
+  return {
+    id: over.id ?? 'n1',
+    title: 'Note',
+    body: '',
+    createdBy: 'u1',
+    createdAt: 0,
+    lastEditedBy: 'u1',
+    lastEditedAt: 0,
+    actionItems: items,
     ...over,
   };
 }
@@ -52,64 +66,67 @@ describe('dueBucket', () => {
 
 describe('selectMyActionItems', () => {
   it('returns [] for a null uid', () => {
-    expect(selectMyActionItems([todo()], null, NOW)).toEqual([]);
+    expect(selectMyActionItems([note([item()])], null, NOW)).toEqual([]);
   });
 
-  it('includes only the signed-in member’s open, live items', () => {
+  it('includes only the signed-in member’s open items on live notes', () => {
     const result = selectMyActionItems(
       [
-        todo({ id: 'mine', assigneeUid: 'me' }),
-        todo({ id: 'theirs', assigneeUid: 'other' }),
-        todo({ id: 'done', assigneeUid: 'me', done: true }),
-        todo({ id: 'deleted', assigneeUid: 'me', deletedAt: 999 }),
-        todo({ id: 'unassigned', assigneeUid: null }),
+        note([item({ id: 'mine', assigneeUid: 'me' })]),
+        note([item({ id: 'theirs', assigneeUid: 'other' })]),
+        note([item({ id: 'done', assigneeUid: 'me', done: true })]),
+        note([item({ id: 'deleted-note', assigneeUid: 'me' })], {
+          id: 'n-deleted',
+          deletedAt: 999,
+        }),
+        note([item({ id: 'unassigned', assigneeUid: null })]),
       ],
       'me',
       NOW
     );
-    expect(result.map((r) => r.todo.id)).toEqual(['mine']);
+    expect(result.map((r) => r.item.id)).toEqual(['mine']);
   });
 
   it('sorts dated items before undated ones', () => {
     const result = selectMyActionItems(
       [
-        todo({ id: 'undated', dueAt: null, createdAt: 1 }),
-        todo({ id: 'dated', dueAt: NOW + DAY, createdAt: 2 }),
+        note([item({ id: 'undated', dueAt: null, createdAt: 1 })]),
+        note([item({ id: 'dated', dueAt: NOW + DAY, createdAt: 2 })]),
       ],
       'me',
       NOW
     );
-    expect(result.map((r) => r.todo.id)).toEqual(['dated', 'undated']);
+    expect(result.map((r) => r.item.id)).toEqual(['dated', 'undated']);
   });
 
   it('sorts dated items soonest-due first (overdue floats to the top)', () => {
     const result = selectMyActionItems(
       [
-        todo({ id: 'future', dueAt: NOW + 10 * DAY }),
-        todo({ id: 'overdue', dueAt: NOW - 3 * DAY }),
-        todo({ id: 'soon', dueAt: NOW + 1 * DAY }),
+        note([item({ id: 'future', dueAt: NOW + 10 * DAY })]),
+        note([item({ id: 'overdue', dueAt: NOW - 3 * DAY })]),
+        note([item({ id: 'soon', dueAt: NOW + 1 * DAY })]),
       ],
       'me',
       NOW
     );
-    expect(result.map((r) => r.todo.id)).toEqual(['overdue', 'soon', 'future']);
+    expect(result.map((r) => r.item.id)).toEqual(['overdue', 'soon', 'future']);
   });
 
   it('breaks undated ties by creation time (oldest first)', () => {
     const result = selectMyActionItems(
       [
-        todo({ id: 'newer', dueAt: null, createdAt: 200 }),
-        todo({ id: 'older', dueAt: null, createdAt: 100 }),
+        note([item({ id: 'newer', dueAt: null, createdAt: 200 })]),
+        note([item({ id: 'older', dueAt: null, createdAt: 100 })]),
       ],
       'me',
       NOW
     );
-    expect(result.map((r) => r.todo.id)).toEqual(['older', 'newer']);
+    expect(result.map((r) => r.item.id)).toEqual(['older', 'newer']);
   });
 
   it('attaches the derived due bucket to each row', () => {
     const result = selectMyActionItems(
-      [todo({ id: 'overdue', dueAt: NOW - DAY })],
+      [note([item({ id: 'overdue', dueAt: NOW - DAY })])],
       'me',
       NOW
     );

@@ -370,7 +370,6 @@
       "videoActivities": "Videoaktivitäten",
       "assessments": "Bewertungen",
       "notes": "Notizen",
-      "todos": "Aufgaben",
       "sharedBoards": "Tafeln",
       "settings": "Einstellungen",
       "home": "Startseite",
@@ -502,10 +501,6 @@
       "notes": {
         "title": "Notizen",
         "description": "Ein geteiltes Notizbuch für die PLG."
-      },
-      "todos": {
-        "title": "Aufgabenliste",
-        "description": "Eine geteilte Checkliste, damit die PLG Aufgaben verfolgen kann."
       },
       "sharedBoards": {
         "title": "Geteilte Tafeln",
@@ -645,23 +640,32 @@
         "agenda": "Tagesordnung",
         "decisions": "Entscheidungen",
         "actionItems": "Maßnahmen"
+      },
+      "actionItems": {
+        "title": "Maßnahmen",
+        "add": "Maßnahme hinzufügen",
+        "addPlaceholder": "Was muss passieren?",
+        "unassigned": "Nicht zugewiesen",
+        "dueDate": "Fälligkeitsdatum",
+        "remove": "Maßnahme entfernen",
+        "markDone": "Als erledigt markieren",
+        "markOpen": "Als offen markieren",
+        "overdue": "Überfällig",
+        "limitReached": "Maximale Anzahl an Maßnahmen erreicht",
+        "openCount": "Offene Maßnahmen ({{count}})",
+        "noneOpen": "Keine offenen Maßnahmen"
+      },
+      "importTodos": {
+        "banner": "{{count}} Aufgaben aus der alten Aufgabenliste in eine Notiz importieren",
+        "button": "Importieren",
+        "success": "{{count}} Aufgaben importiert",
+        "failed": "Die Aufgaben konnten nicht importiert werden"
       }
     },
     "notesDocs": {
       "notesTab": "Meeting-Notizen",
       "docsTab": "Google Docs",
       "tablistLabel": "Notizen und Dokumente"
-    },
-    "todos": {
-      "addPlaceholder": "Aufgabe für die PLG hinzufügen…",
-      "add": "Hinzufügen",
-      "openHeading": "Zu erledigen",
-      "doneHeading": "Erledigt",
-      "allDone": "Nichts auf der Liste",
-      "toggle": "„{{text}}“ als erledigt markieren",
-      "deleteTodo": "Aufgabe löschen",
-      "confirmDelete": "Diese Aufgabe löschen?",
-      "confirmDeleteTitle": "Aufgabe löschen"
     },
     "quizLibrary": {
       "heading": "Geteilte Quizze",
@@ -1000,7 +1004,6 @@
       "readOnly": "Nur Lesen",
       "assessmentsNote": "Betrachter können geteilte Beurteilungen ansehen, aber nicht teilen, bearbeiten oder zuweisen.",
       "notesNote": "Betrachter können Notizen und Dokumente lesen, aber nicht hinzufügen oder ändern.",
-      "todosNote": "Betrachter können die Aufgabenliste lesen, aber keine Einträge hinzufügen oder ändern.",
       "meetingNote": "Betrachter können dem Meeting folgen, es aber nicht bearbeiten oder speichern.",
       "homeNote": "Betrachter können hier alles lesen, aber keine neuen Inhalte erstellen.",
       "rubricsNote": "Betrachter können geteilte Bewertungsraster ansehen und kopieren, aber nicht teilen oder deren Freigabe aufheben."

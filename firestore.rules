@@ -2574,7 +2574,7 @@ service cloud.firestore {
         allow create: if request.auth != null
           && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
-               'id', 'title', 'body', 'kind', 'meetingId',
+               'id', 'title', 'body', 'kind', 'meetingId', 'actionItems',
                'createdBy', 'createdAt',
                'lastEditedBy', 'lastEditedAt',
                'version', 'deletedAt'
@@ -2592,6 +2592,11 @@ service cloud.firestore {
                !('meetingId' in request.resource.data)
                || request.resource.data.meetingId == null
                || request.resource.data.meetingId is string
+             )
+          && (
+               !('actionItems' in request.resource.data)
+               || (request.resource.data.actionItems is list
+                    && request.resource.data.actionItems.size() <= 200)
              )
           // A fresh note may omit `version` (legacy/no-version) or start it at
           // an int (clients seed 0/1). The update branch enforces the +1 bump.
@@ -2611,7 +2616,7 @@ service cloud.firestore {
         allow update: if request.auth != null
           && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
-               'id', 'title', 'body', 'kind', 'meetingId',
+               'id', 'title', 'body', 'kind', 'meetingId', 'actionItems',
                'createdBy', 'createdAt',
                'lastEditedBy', 'lastEditedAt',
                'version', 'deletedAt'
@@ -2631,6 +2636,11 @@ service cloud.firestore {
                !('meetingId' in request.resource.data)
                || request.resource.data.meetingId == null
                || request.resource.data.meetingId is string
+             )
+          && (
+               !('actionItems' in request.resource.data)
+               || (request.resource.data.actionItems is list
+                    && request.resource.data.actionItems.size() <= 200)
              )
           && plcSubDeletedAtOk()
           // Version precondition: new == old + 1, OR both absent (rollout).
@@ -2707,66 +2717,14 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids;
 
-        // Create: non-viewer member (plcCanEditContent). Optional: assigneeUid,
-        // dueAt, meetingId (Decision 3.9), deletedAt tombstone — all OPTIONAL so
-        // legacy to-dos validate; hasOnly([...]) closes the shape.
-        allow create: if request.auth != null
-          && plcCanEditContent(plcId)
-          && request.resource.data.keys().hasOnly([
-               'id', 'text', 'done', 'createdBy', 'createdAt',
-               'assigneeUid', 'dueAt', 'meetingId', 'deletedAt'
-             ])
-          && request.resource.data.id == todoId
-          && request.resource.data.createdBy == request.auth.uid
-          && request.resource.data.text is string
-          && request.resource.data.done is bool
-          && (
-               !('assigneeUid' in request.resource.data)
-               || request.resource.data.assigneeUid == null
-               || request.resource.data.assigneeUid is string
-             )
-          && (
-               !('dueAt' in request.resource.data)
-               || request.resource.data.dueAt == null
-               || request.resource.data.dueAt is int
-             )
-          && (
-               !('meetingId' in request.resource.data)
-               || request.resource.data.meetingId == null
-               || request.resource.data.meetingId is string
-             )
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('createdAt');
+        // Legacy; imported into note action items (§7.4) — no new to-dos.
+        allow create: if false;
 
-        // Update: id/createdBy/createdAt immutable; done/text/assigneeUid/dueAt/
-        // meetingId/deletedAt mutable (any non-viewer can complete, edit, assign,
-        // schedule, link, or soft-delete). Viewers denied.
+        // Legacy; only the soft-delete tombstone may still be written (§7.4) —
+        // used to archive a to-do once it's been imported into a note.
         allow update: if request.auth != null
           && plcCanEditContent(plcId)
-          && request.resource.data.keys().hasOnly([
-               'id', 'text', 'done', 'createdBy', 'createdAt',
-               'assigneeUid', 'dueAt', 'meetingId', 'deletedAt'
-             ])
-          && request.resource.data.id == resource.data.id
-          && request.resource.data.createdBy == resource.data.createdBy
-          && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.text is string
-          && request.resource.data.done is bool
-          && (
-               !('assigneeUid' in request.resource.data)
-               || request.resource.data.assigneeUid == null
-               || request.resource.data.assigneeUid is string
-             )
-          && (
-               !('dueAt' in request.resource.data)
-               || request.resource.data.dueAt == null
-               || request.resource.data.dueAt is int
-             )
-          && (
-               !('meetingId' in request.resource.data)
-               || request.resource.data.meetingId == null
-               || request.resource.data.meetingId is string
-             )
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt'])
           && plcSubDeletedAtOk();
 
         // A viewer (Decision 3.2) is denied via plcCanEditContent.
