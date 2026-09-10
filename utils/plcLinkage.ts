@@ -1,13 +1,12 @@
 /**
  * Shared builder for the `PlcLinkage` sub-object attached to a quiz
- * assignment when the teacher opts into "Share with PLC".
+ * assignment when the teacher opts into "Share results with <PLC>".
  *
  * Used by the QuizWidget assign flow, the Classroom add-on, the LTI picker
  * and the PLC library pickup so every call site builds the same shape. The
- * linkage exists whenever a PLC is chosen; the per-assignment Google Sheet
- * is an optional export destination layered on top. A failed sheet
- * auto-create is reported via `error` (for the caller's toast) but no
- * longer drops the PLC link.
+ * linkage exists whenever a PLC is chosen; pooled results never depend on a
+ * sheet (D2). Callers that still want a per-assignment Google Sheet pass a
+ * token; the widget no longer does, so `googleAccessToken` is optional.
  */
 
 import type { Plc, PlcLinkage } from '@/types';
@@ -25,10 +24,10 @@ export interface BuildPlcLinkageArgs {
   /** Owning teacher's Firebase uid — used to skip self when granting access. */
   selfUid: string;
   /**
-   * Drive/Sheets access token. Required to auto-create the shared sheet;
+   * Drive/Sheets access token. Only needed to auto-create a shared sheet;
    * when absent (and no manual URL is supplied) the linkage has no sheet.
    */
-  googleAccessToken: string | null | undefined;
+  googleAccessToken?: string | null;
   /**
    * Teacher-pasted sheet URL, if any. When present we skip auto-create and
    * use it verbatim (the legacy manual-paste flow).

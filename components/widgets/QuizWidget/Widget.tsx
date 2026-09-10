@@ -48,6 +48,7 @@ import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
+import { SharePlcResultsModal } from './components/SharePlcResultsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
@@ -238,6 +239,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     publishAssignmentScores,
     unpublishAssignmentScores,
     syncAssignmentToLatest,
+    shareAssignmentWithPlc,
+    stopSharingAssignmentWithPlc,
   } = useQuizAssignments(user?.uid);
 
   // M17 individual-assignment targeting (spec §5 B3). Skipped refs from the
@@ -282,6 +285,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { groups: syncedGroups } = useSyncedQuizGroupsByIds(syncGroupIds);
 
   // Ephemeral modal state for per-assignment settings editing.
+  // D12: assignment whose results are being retroactively pooled with a PLC.
+  const [sharePlcResultsTarget, setSharePlcResultsTarget] =
+    useState<QuizAssignment | null>(null);
   const [editingAssignment, setEditingAssignment] =
     useState<QuizAssignment | null>(null);
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
@@ -526,6 +532,32 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       });
     },
     [attachSyncLinkage, loadQuizData, plcs, user]
+  );
+
+  // D12: clear the PLC results link on an assignment (confirm first).
+  const handleStopSharingPlc = useCallback(
+    async (a: QuizAssignment): Promise<void> => {
+      const plcName = a.plc?.name ?? 'your PLC';
+      const ok = await showConfirm(
+        `Stop sharing "${a.quizTitle}" results with ${plcName}? Its responses leave the team's pooled view.`,
+        {
+          title: 'Stop sharing results',
+          variant: 'warning',
+          confirmLabel: 'Stop sharing',
+        }
+      );
+      if (!ok) return;
+      try {
+        await stopSharingAssignmentWithPlc(a.id);
+        addToast(`No longer sharing results with ${plcName}.`, 'success');
+      } catch (err) {
+        addToast(
+          err instanceof Error ? err.message : 'Could not stop sharing.',
+          'error'
+        );
+      }
+    },
+    [addToast, showConfirm, stopSharingAssignmentWithPlc]
   );
 
   /**
@@ -1378,42 +1410,21 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           );
           const derived = deriveSessionTargetsFromRosters(selectedRosters);
 
-          // Assemble the PlcLinkage via the shared builder. The optional
-          // per-assignment sheet is auto-created when possible; a failed
-          // create surfaces on `error` (toasted) but keeps the PLC link.
+          // PLC link only (D2): results pool server-side, no sheet is
+          // created here. Sheet export stays opt-in on the Results screen.
           const selectedPlc =
             plcOptions.plcMode && plcOptions.plcId
               ? plcs.find((p) => p.id === plcOptions.plcId)
               : undefined;
           let plcLinkage: PlcLinkage | undefined;
           if (plcOptions.plcMode && plcOptions.plcId && user) {
-            // Path B: the builder may auto-create a Google Sheet, so acquire
-            // the Sheets scope on demand (silent for already-granted users,
-            // one-time consent for never-granted — this is a user gesture).
-            // A null token means no Sheets access; the builder then links
-            // the PLC without a sheet.
-            const sheetsToken = await ensureGoogleScope('spreadsheets', {
-              interactive: true,
-            });
-            const { linkage, error: plcSheetError } = await buildPlcLinkage({
+            const { linkage } = await buildPlcLinkage({
               plc: selectedPlc,
               quizTitle: meta.title,
               selfUid: user.uid,
-              googleAccessToken: sheetsToken,
-              manualSheetUrl: plcOptions.plcSheetUrl,
+              googleAccessToken: null,
             });
             plcLinkage = linkage;
-            if (plcSheetError) {
-              console.error(
-                '[QuizWidget] PLC sheet auto-create failed:',
-                plcSheetError
-              );
-              addToast(
-                plcSheetError.message ||
-                  'Could not create the shared PLC sheet — the assignment is still shared with your PLC.',
-                'error'
-              );
-            }
             // Cold-load race: `plcs` snapshot hasn't hydrated yet, so the
             // PLC couldn't be resolved and the linkage was skipped. The
             // downstream non-member toast guard requires both plcId AND
@@ -1529,6 +1540,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 classPeriodByClassId: derived.classPeriodByClassId,
                 mode: quizAssignmentMode,
                 ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
+                ...(plcLinkage && plcOptions.plcPoolSyncGroupId
+                  ? { plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId }
+                  : {}),
                 // M17 individual-assignment targeting (spec §5 B3). Only the
                 // fields the client owns — `targetMode` and `targetStudents`
                 // are written by `setAssignmentTargetsV1` below, never here
@@ -2024,6 +2038,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onArchiveEditSettings={(a) => {
           setEditingAssignment(a);
         }}
+        onArchiveSharePlcResults={(a) => setSharePlcResultsTarget(a)}
+        onArchiveStopSharingPlc={handleStopSharingPlc}
         canAssignToClassroom={canAssignToClassroom}
         onArchiveAssignToClassroom={
           canAssignToClassroom
@@ -2316,9 +2332,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       )}
       {editingAssignment && (
         <QuizAssignmentSettingsModal
-          assignment={editingAssignment}
-          defaultTeacherName={user?.displayName ?? undefined}
+          assignment={
+            assignments.find((a) => a.id === editingAssignment.id) ??
+            editingAssignment
+          }
           rosters={rosters}
+          canShareWithPlc={plcs.length > 0}
+          onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
+          onStopSharing={() => handleStopSharingPlc(editingAssignment)}
           onClose={() => setEditingAssignment(null)}
           onSave={async (patch) => {
             try {
@@ -2573,6 +2594,21 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             />
           );
         })()}
+      {sharePlcResultsTarget && (
+        <SharePlcResultsModal
+          plcs={plcs}
+          assignment={sharePlcResultsTarget}
+          onClose={() => setSharePlcResultsTarget(null)}
+          onConfirm={async (plc, poolSyncGroupId) => {
+            await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
+              plc,
+              poolSyncGroupId,
+            });
+            addToast(`Results now pool with ${plc.name}.`, 'success');
+            setSharePlcResultsTarget(null);
+          }}
+        />
+      )}
       {shareWithPlcTargets.length > 0 && (
         <PlcShareTargetModal
           plcs={plcs}
