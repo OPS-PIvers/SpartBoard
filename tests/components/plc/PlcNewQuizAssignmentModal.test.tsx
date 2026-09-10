@@ -91,6 +91,15 @@ vi.mock('@/hooks/useQuizAssignments', () => ({
   })),
 }));
 
+const mockPlcLibrary: { title: string; syncGroupId: string }[] = [];
+vi.mock('@/hooks/usePlcQuizzes', () => ({
+  usePlcQuizzes: vi.fn(() => ({
+    quizzes: mockPlcLibrary,
+    loading: false,
+    error: null,
+  })),
+}));
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: {
@@ -336,6 +345,50 @@ describe('PlcNewQuizAssignmentModal (Task 10 — slimmed configure step)', () =>
     expect((settings.plc as Record<string, unknown>).id).toBe(fakePlc.id);
     expect((settings.plc as Record<string, unknown>).name).toBe(fakePlc.name);
     expect(settings.plc).not.toHaveProperty('sheetUrl');
+  });
+
+  it('pools by the PLC library group whose title matches the picked quiz', async () => {
+    mockPlcLibrary.splice(0, mockPlcLibrary.length, {
+      title: '  cell   DIVISION ',
+      syncGroupId: 'library-group-1',
+    });
+    try {
+      await renderAndPickQuiz();
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /create assignment/i })
+        );
+      });
+      await waitFor(() => {
+        expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+      });
+      const [, , opts] = mockCreateAssignment.mock.calls[0] as [
+        unknown,
+        unknown,
+        Record<string, unknown>,
+      ];
+      expect(opts.plcPoolSyncGroupId).toBe('library-group-1');
+    } finally {
+      mockPlcLibrary.length = 0;
+    }
+  });
+
+  it('leaves plcPoolSyncGroupId unset when no library title matches', async () => {
+    await renderAndPickQuiz();
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+    await waitFor(() => {
+      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    });
+    const [, , opts] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      unknown,
+      Record<string, unknown>,
+    ];
+    expect(opts).not.toHaveProperty('plcPoolSyncGroupId');
   });
 
   it('forwards dueAt into settings when a date is entered', async () => {
