@@ -149,6 +149,12 @@ export interface CreateAssignmentOptions {
    */
   plcTemplateSyncGroupId?: string;
   /**
+   * Pooling key written to the session as `syncGroupId` when it should differ
+   * from the template group: the PLC library group whose title matches, so a
+   * teacher's own copy pools with the team instead of starting a new pool.
+   */
+  plcPoolSyncGroupId?: string;
+  /**
    * M17 individual-assignment targeting (spec §5 B3). `targetMode: 'students'`
    * marks the assignment doc so the CF's `individualTargeting` session flag
    * makes sense downstream; `targetStudents` itself is NOT written here —
@@ -765,6 +771,7 @@ export const useQuizAssignments = (
         mode: assignmentMode = 'submissions',
         skipPlcTemplateWrite = false,
         plcTemplateSyncGroupId,
+        plcPoolSyncGroupId,
         targetMode,
         targetGroupIds,
         overridesBySourcedId,
@@ -951,7 +958,10 @@ export const useQuizAssignments = (
           ? {
               plcId: settings.plc.id,
               syncGroupId:
-                plcTemplateSyncGroupId ?? syncedFrom?.groupId ?? quiz.id,
+                plcPoolSyncGroupId ??
+                plcTemplateSyncGroupId ??
+                syncedFrom?.groupId ??
+                quiz.id,
               plcLinkedAt: now,
             }
           : {}),
