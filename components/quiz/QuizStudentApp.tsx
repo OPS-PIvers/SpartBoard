@@ -135,6 +135,8 @@ import {
   applyHiddenOptions,
   applyTimeMultiplier,
 } from '@/utils/quizOverrideServing';
+import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
+import { chooseServedDraw } from '@/utils/quizBankDraw';
 import {
   countAnsweredQuestions,
   listOpenQuestions,
@@ -387,6 +389,7 @@ const QuizJoinFlow: React.FC<{
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
+    persistServedDraw,
     warningCount,
   } = useQuizSessionStudent();
 
@@ -574,7 +577,61 @@ const QuizJoinFlow: React.FC<{
   // snapshot, surviving a later override removal). Ref write — render-safe.
   // Gated on pointer resolution: while the subscription is still loading
   // (`undefined`) a submit must not clear an existing snapshot.
-  if (myPointer !== undefined) {
+  // Bank-draw sessions serve one persisted draw per attempt, not the M17 subset.
+  const bankSlots =
+    session?.bankSlots && session.bankSlots.length > 0
+      ? session.bankSlots
+      : undefined;
+  const publicQuestionIds = useMemo(
+    () => (session?.publicQuestions ?? []).map((q) => q.id),
+    [session?.publicQuestions]
+  );
+  const drawKey =
+    bankSlots && myResponse
+      ? `${myResponse.studentUid}:${myResponse.completedAttempts ?? 0}`
+      : null;
+  // One local roll per attempt, held in state so a re-render never re-rolls.
+  const [localDraw, setLocalDraw] = useState<{
+    key: string;
+    ids: string[];
+  } | null>(null);
+  let drawIds: string[] | undefined;
+  if (bankSlots && myResponse && drawKey) {
+    const persisted = myResponse.servedQuestionIds;
+    if (persisted && isValidDraw(publicQuestionIds, bankSlots, persisted)) {
+      drawIds = persisted;
+    } else if (localDraw?.key === drawKey) {
+      drawIds = localDraw.ids;
+    } else {
+      const chosen = chooseServedDraw(persisted, publicQuestionIds, bankSlots);
+      setLocalDraw({ key: drawKey, ids: chosen.ids });
+      drawIds = chosen.ids;
+    }
+  }
+  const drawNeedsPersist =
+    !!drawIds &&
+    myResponse?.status !== 'completed' &&
+    !(
+      myResponse?.servedQuestionIds &&
+      isValidDraw(
+        publicQuestionIds,
+        bankSlots ?? [],
+        myResponse.servedQuestionIds
+      )
+    );
+  const persistedDrawKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drawNeedsPersist || !drawIds || !drawKey) return;
+    if (persistedDrawKeyRef.current === drawKey) return;
+    persistedDrawKeyRef.current = drawKey;
+    persistServedDraw(drawIds).catch((err: unknown) => {
+      persistedDrawKeyRef.current = null;
+      console.warn('[QuizStudentApp] Failed to persist bank draw:', err);
+    });
+  }, [drawNeedsPersist, drawIds, drawKey, persistServedDraw]);
+  if (bankSlots) {
+    if (drawIds) setServedQuestionIds(drawIds);
+  } else if (myPointer !== undefined) {
     setServedQuestionIds(myOverride?.questionIds ?? null);
   }
   // Served subset of `session.publicQuestions` for this student (§3a-F).
@@ -582,15 +639,18 @@ const QuizJoinFlow: React.FC<{
   // `session.totalQuestions`/`session.publicQuestions.length` directly.
   const servedPublicQuestions = useMemo(
     () =>
-      serveQuestionSubset(
-        session?.publicQuestions ?? [],
-        myOverride?.questionIds
-      ),
-    [session?.publicQuestions, myOverride?.questionIds]
+      drawIds
+        ? orderServedQuestions(session?.publicQuestions ?? [], drawIds)
+        : serveQuestionSubset(
+            session?.publicQuestions ?? [],
+            myOverride?.questionIds
+          ),
+    [session?.publicQuestions, myOverride?.questionIds, drawIds]
   );
-  const servedTotalQuestions = myOverride?.questionIds
-    ? servedPublicQuestions.length
-    : (session?.totalQuestions ?? 0);
+  const servedTotalQuestions =
+    drawIds || myOverride?.questionIds
+      ? servedPublicQuestions.length
+      : (session?.totalQuestions ?? 0);
   const servedQuestionIdList = useMemo(
     () => servedPublicQuestions.map((q) => q.id),
     [servedPublicQuestions]
@@ -1103,6 +1163,7 @@ const QuizJoinFlow: React.FC<{
           embedded={embedded}
           watermarkNameOverride={watermarkNameOverride}
           override={myOverride}
+          drawIds={drawIds}
         />
       );
     }
@@ -1200,6 +1261,7 @@ const QuizJoinFlow: React.FC<{
         onReportStimulusError={reportStimulusError}
         pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
         override={myOverride}
+        drawIds={drawIds}
         effectiveCloseAt={myEffectiveWindow.closeAt}
         readAloudRequested={
           isStudentRole &&
@@ -1221,6 +1283,7 @@ const QuizJoinFlow: React.FC<{
       embedded={embedded}
       watermarkNameOverride={watermarkNameOverride}
       override={myOverride}
+      drawIds={drawIds}
     />
   );
 };
@@ -1323,6 +1386,8 @@ const ActiveQuiz: React.FC<{
   pointerTabWarningThreshold?: number | 'off';
   /** This student's pointer override (M17 C3) — question subset, hidden options, extended time. */
   override?: StudentOverride;
+  /** This attempt's bank draw (serving order); wins over `override.questionIds` when set. */
+  drawIds?: string[];
   /** Effective close (M17 F2): pointer top-level `closeAt` when present, else the session's. */
   effectiveCloseAt?: number;
   /** SSO student flagged for read-aloud (override or `readAloudAll`); the light shell decides the rest. */
@@ -1348,6 +1413,7 @@ const ActiveQuiz: React.FC<{
   onReportStimulusError,
   pointerTabWarningThreshold,
   override,
+  drawIds,
   effectiveCloseAt,
   readAloudRequested,
 }) => {
@@ -1644,13 +1710,16 @@ const ActiveQuiz: React.FC<{
   // are always self-paced; a teacher-paced `currentQuestionIndex` is shared
   // across the whole class and can't diverge per student).
   const servedPublicQuestions = useMemo(
-    () => serveQuestionSubset(session.publicQuestions, override?.questionIds),
-    [session.publicQuestions, override?.questionIds]
+    () =>
+      drawIds
+        ? orderServedQuestions(session.publicQuestions, drawIds)
+        : serveQuestionSubset(session.publicQuestions, override?.questionIds),
+    [session.publicQuestions, override?.questionIds, drawIds]
   );
   // Every student-facing denominator in this component derives from this,
   // never from `session.totalQuestions` (M17 spec §3a-F).
   const effectiveTotalQuestions =
-    isStudentPaced && override?.questionIds
+    isStudentPaced && (drawIds || override?.questionIds)
       ? servedPublicQuestions.length
       : session.totalQuestions;
 
@@ -3942,6 +4011,8 @@ const ResultsScreen: React.FC<{
   watermarkNameOverride?: string;
   /** This student's pointer override (M17 C3) — served-subset denominators. */
   override?: StudentOverride;
+  /** This attempt's bank draw; wins over `override.questionIds` when set. */
+  drawIds?: string[];
 }> = ({
   session,
   myResponse,
@@ -3952,6 +4023,7 @@ const ResultsScreen: React.FC<{
   embedded = false,
   watermarkNameOverride,
   override,
+  drawIds,
 }) => {
   const visibility = session.scoreVisibility ?? 'none';
   const showReview = visibility !== 'none' && !!myResponse;
@@ -3966,6 +4038,7 @@ const ResultsScreen: React.FC<{
         embedded={embedded}
         watermarkNameOverride={watermarkNameOverride}
         override={override}
+        drawIds={drawIds}
       />
     );
   }
@@ -4054,6 +4127,8 @@ export const PublishedScoreReview: React.FC<{
   watermarkNameOverride?: string;
   /** This student's pointer override (M17 C3) — served-subset denominators. */
   override?: StudentOverride;
+  /** This attempt's bank draw; wins over `override.questionIds` when set. */
+  drawIds?: string[];
 }> = ({
   session,
   myResponse,
@@ -4062,6 +4137,7 @@ export const PublishedScoreReview: React.FC<{
   embedded = false,
   watermarkNameOverride,
   override,
+  drawIds,
 }) => {
   const { t } = useTranslation();
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
@@ -4115,10 +4191,9 @@ export const PublishedScoreReview: React.FC<{
   // entirely when the quiz has no auto-graded questions at all. Restricted
   // to the served subset (M17 §3a-F) — an unmodified question the student
   // was never served must not count toward this denominator.
-  const publicQuestions = serveQuestionSubset(
-    session.publicQuestions ?? [],
-    override?.questionIds
-  );
+  const publicQuestions = drawIds
+    ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
+    : serveQuestionSubset(session.publicQuestions ?? [], override?.questionIds);
   const autoGradedQuestionIds = new Set(
     publicQuestions.filter((q) => !isFreeResponseType(q.type)).map((q) => q.id)
   );

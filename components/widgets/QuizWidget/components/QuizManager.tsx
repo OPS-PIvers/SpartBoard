@@ -68,7 +68,10 @@ import {
   SyncedQuizGroup,
   QuizBehaviorSettings,
   Plc,
+  QuestionBankMetadata,
 } from '@/types';
+import type { BankSource } from '@/hooks/useBankSources';
+import { QuizBanksTab } from './QuizBanksTab';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
@@ -237,6 +240,8 @@ function buildDefaultAssignOptions(
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
+export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
+
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
   userId?: string;
@@ -363,8 +368,25 @@ interface QuizManagerProps {
   rosters: ClassRoster[];
   config: QuizConfig;
 
-  managerTab?: 'library' | 'active' | 'archive';
-  onTabChange?: (tab: 'library' | 'active' | 'archive') => void;
+  managerTab?: QuizManagerTab;
+  onTabChange?: (tab: QuizManagerTab) => void;
+  /** Question banks; the Banks tab renders only when this is provided. */
+  banks?: QuestionBankMetadata[];
+  banksLoading?: boolean;
+  /** Teammates' PLC-shared banks (kind 'plc'). */
+  sharedBankSources?: BankSource[];
+  onNewBank?: () => void;
+  onEditBank?: (meta: QuestionBankMetadata) => void;
+  onDuplicateBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
+  onDeleteBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
+  onReorderBanks?: (orderedIds: string[]) => Promise<void> | void;
+  /** Opens the widget's PLC picker for a bank. */
+  onShareBankWithPlc?: (meta: QuestionBankMetadata) => void;
+  onUnshareBankFromPlc?: (
+    meta: QuestionBankMetadata,
+    plcId: string
+  ) => void | Promise<void>;
+  onPreviewSharedBank?: (source: BankSource) => void;
   assignments?: QuizAssignment[];
   assignmentsLoading?: boolean;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
@@ -575,6 +597,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   config,
   managerTab = 'library',
   onTabChange,
+  banks,
+  banksLoading = false,
+  sharedBankSources,
+  onNewBank,
+  onEditBank,
+  onDuplicateBank,
+  onDeleteBank,
+  onReorderBanks,
+  onShareBankWithPlc,
+  onUnshareBankFromPlc,
+  onPreviewSharedBank,
   assignments = [],
   assignmentsLoading = false,
   onArchiveCopyUrl,
@@ -1843,6 +1876,42 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       />
     ) : undefined;
 
+  // ─── Shared tab chrome ────────────────────────────────────────────────────
+  const tabCounts = {
+    library: quizzes.length,
+    ...(banks ? { banks: banks.length } : {}),
+    active: activeAssignments.length,
+    archive: inactiveAssignments.length,
+  };
+  const tabLabels = isViewOnly ? { active: 'Shared' } : undefined;
+
+  if (managerTab === 'banks' && banks && onNewBank && onEditBank) {
+    return (
+      <QuizBanksTab
+        userId={userId}
+        banks={banks}
+        loading={banksLoading}
+        sharedBankSources={sharedBankSources ?? []}
+        plcs={plcs}
+        shell={{
+          widgetLabel: 'Quiz',
+          tab: managerTab,
+          onTabChange: (t) => onTabChange?.(t),
+          counts: tabCounts,
+          tabLabels,
+        }}
+        onNewBank={onNewBank}
+        onEditBank={onEditBank}
+        onDuplicateBank={onDuplicateBank ?? noop}
+        onDeleteBank={onDeleteBank ?? noop}
+        onReorderBanks={onReorderBanks}
+        onShareBankWithPlc={onShareBankWithPlc}
+        onUnshareBankFromPlc={onUnshareBankFromPlc}
+        onPreviewSharedBank={onPreviewSharedBank}
+      />
+    );
+  }
+
   // ─── Loading/error shell content ──────────────────────────────────────────
   if (loading && managerTab === 'library') {
     return (
@@ -1850,11 +1919,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         widgetLabel="Quiz"
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
-        counts={{
-          library: quizzes.length,
-          active: activeAssignments.length,
-          archive: inactiveAssignments.length,
-        }}
+        counts={tabCounts}
+        tabLabels={tabLabels}
         primaryAction={primaryAction}
         secondaryActions={secondaryActions}
         toolbarSlot={toolbar}
@@ -1898,12 +1964,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       widgetLabel="Quiz"
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
-      counts={{
-        library: quizzes.length,
-        active: activeAssignments.length,
-        archive: inactiveAssignments.length,
-      }}
-      tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
+      counts={tabCounts}
+      tabLabels={tabLabels}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
       toolbarSlot={toolbar}

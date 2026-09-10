@@ -1200,6 +1200,115 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     expect(updateDocMock.mock.calls[0][1]).toEqual({ classPeriod: 'Period 2' });
   });
 
+  it('clears the persisted bank draw when a completed response starts a new attempt', async () => {
+    const BANK_DELETE = Symbol('deleteField');
+    (
+      firestore.deleteField as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValueOnce(BANK_DELETE);
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        buildSessionDoc('s1', {
+          status: 'active',
+          attemptLimit: null,
+          bankSlots: [
+            {
+              id: 'slot',
+              count: 1,
+              points: 1,
+              poolQuestionIds: ['p1', 'p2'],
+              position: 0,
+            },
+          ],
+        }),
+      ],
+    });
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        status: 'completed',
+        completedAttempts: 1,
+        servedQuestionIds: ['p1'],
+      }),
+    });
+    const updateDocMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateDocMock.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', '1234');
+    });
+    expect(updateDocMock).toHaveBeenCalledTimes(1);
+    expect(updateDocMock.mock.calls[0][1]).toMatchObject({
+      status: 'joined',
+      servedQuestionIds: BANK_DELETE,
+    });
+  });
+
+  it('does not touch servedQuestionIds on a retake without bank slots', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active', attemptLimit: null })],
+    });
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ status: 'completed', completedAttempts: 1 }),
+    });
+    const updateDocMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateDocMock.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', '1234');
+    });
+    expect(updateDocMock.mock.calls[0][1]).not.toHaveProperty(
+      'servedQuestionIds'
+    );
+  });
+
+  it('persistServedDraw writes the draw and refreshes lastWriteAt on the joined response', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ exists: () => false });
+    (
+      firestore.setDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce(undefined);
+    const updateDocMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateDocMock.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', '1234');
+      await result.current.persistServedDraw(['f1', 'p2']);
+    });
+    const draw = updateDocMock.mock.calls.find(
+      (c) => (c[1] as { servedQuestionIds?: unknown }).servedQuestionIds
+    );
+    expect(draw?.[1]).toMatchObject({ servedQuestionIds: ['f1', 'p2'] });
+    expect(draw?.[1]).toHaveProperty('lastWriteAt');
+    expect(firestore.serverTimestamp).toHaveBeenCalled();
+  });
+
   // Regression: PR #1441. Same shape as the legacy-key permission-denied
   // case below, but for the FIRST getDoc — the deterministic pin-based
   // probe. A doc may already exist at `pin-{period}-{pin}` written by a

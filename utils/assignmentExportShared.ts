@@ -64,6 +64,8 @@ export interface ExportableResponse {
       excused?: boolean;
     };
   };
+  /** Served-subset snapshot (Quiz); questions outside it leave this row's denominator. */
+  servedQuestionIds?: string[];
 }
 
 /** Minimum question shape the export reads. */
@@ -147,11 +149,16 @@ export function buildResultsSheetData<
   };
 
   // Per-row, because an excused question leaves only that student's total.
-  const rowMaxPoints = (r: R): number =>
-    questions.reduce(
-      (sum, q) => (r.grading?.[q.id]?.excused ? sum : sum + (q.points ?? 1)),
-      0
-    );
+  const rowMaxPoints = (r: R): number => {
+    const served =
+      r.servedQuestionIds && r.servedQuestionIds.length > 0
+        ? new Set(r.servedQuestionIds)
+        : null;
+    return questions.reduce((sum, q) => {
+      if (served && !served.has(q.id)) return sum;
+      return r.grading?.[q.id]?.excused ? sum : sum + (q.points ?? 1);
+    }, 0);
+  };
 
   // Gated on the quiz definition alone: any question carrying a snapshot
   // always emits its criterion columns, ungraded responses render empty

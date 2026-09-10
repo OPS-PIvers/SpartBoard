@@ -1656,6 +1656,8 @@ export interface UseQuizSessionStudentResult {
    * later override removal. Safe to call every render — it's a ref write.
    */
   setServedQuestionIds: (ids: string[] | null) => void;
+  /** Persist this attempt's bank draw on the response doc (rules require `ids.length === session.totalQuestions`). */
+  persistServedDraw: (ids: string[]) => Promise<void>;
   warningCount: number;
 }
 
@@ -1707,6 +1709,26 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const setServedQuestionIds = useCallback((ids: string[] | null) => {
     servedQuestionIdsRef.current = ids && ids.length > 0 ? ids : null;
   }, []);
+
+  const persistServedDraw = useCallback(
+    async (ids: string[]): Promise<void> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey || ids.length === 0) return;
+      servedQuestionIdsRef.current = ids;
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        { servedQuestionIds: ids, lastWriteAt: serverTimestamp() }
+      );
+    },
+    []
+  );
 
   // Optimistic local counter state to ensure UI updates immediately.
   // warningCountRef mirrors the state so reportTabSwitch can return the
@@ -2191,6 +2213,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               throw new AttemptLimitReachedError();
             }
             // Under the cap (or unlimited): reset for a new attempt.
+            if (
+              Array.isArray(sessionData.bankSlots) &&
+              sessionData.bankSlots.length > 0
+            ) {
+              servedQuestionIdsRef.current = undefined;
+            }
             // `preSyncVersion: 0` resets the "pre-sync" stamp so the new
             // attempt is treated as fresh — without this, a response
             // tagged on the prior attempt (e.g. `preSyncVersion: 4`)
@@ -2206,6 +2234,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               score: null,
               submittedAt: null,
               preSyncVersion: 0,
+              // A bank-draw session rolls a fresh draw for the next attempt.
+              ...(Array.isArray(sessionData.bankSlots) &&
+              sessionData.bankSlots.length > 0
+                ? { servedQuestionIds: deleteField() }
+                : {}),
               // Refresh so the idle auto-submit cron doesn't destroy
               // the fresh attempt — without this, a rejoin >90 min
               // after the prior submit gets finalized on the next
@@ -3300,6 +3333,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
+    persistServedDraw,
     warningCount,
   };
 };

@@ -11,6 +11,7 @@ import {
   QuizMetadata,
   QuizData,
   QuizQuestion,
+  QuizSessionBankSlot,
   ScoreboardTeam,
   QuizBehaviorSettings,
 } from '@/types';
@@ -19,6 +20,19 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
+import { useBankSources } from '@/hooks/useBankSources';
+import { useQuestionBanks } from '@/hooks/useQuestionBanks';
+import {
+  BankSlotResolutionError,
+  quizHasBankSlots,
+  resolveQuizAssignment,
+} from '@/utils/questionBanks';
+import {
+  reconcileBankSlotsForPlcShare,
+  unsharedBanksMessage,
+} from '@/utils/questionBankShare';
+import { BankEditorModal } from './components/BankEditorModal';
+import type { QuestionBankData, QuestionBankMetadata } from '@/types';
 import { logError } from '@/utils/logError';
 import {
   useQuizSessionTeacher,
@@ -185,6 +199,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     error: quizzesError,
     saveQuiz,
     loadQuizData,
+    saveDriveSnapshot,
     deleteQuiz,
     duplicateQuiz,
     importFromSheet,
@@ -196,6 +211,44 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     attachSyncLinkage,
     isDriveConnected,
   } = useQuiz(user?.uid);
+  const {
+    sources: bankSources,
+    loadBankContent,
+    loadBankContentsForQuiz,
+  } = useBankSources(user?.uid);
+  const {
+    banks,
+    loading: banksLoading,
+    saveBank,
+    loadBankData,
+    deleteBank,
+    duplicateBank,
+    reorderBanks,
+    shareBankWithPlc,
+    unshareBankFromPlc,
+    appendQuestionsToBank,
+  } = useQuestionBanks(user?.uid);
+  const sharedBankSources = useMemo(
+    () => bankSources.filter((s) => s.kind === 'plc'),
+    [bankSources]
+  );
+  const bankApi = useMemo(
+    () => ({ sources: bankSources, loadBankContent, appendQuestionsToBank }),
+    [bankSources, loadBankContent, appendQuestionsToBank]
+  );
+  const bankAiAllowed =
+    canAccessFeature('question-bank-ai') &&
+    canAccessFeature('gemini-functions');
+  const { folders: bankFolders, moveItem: moveBankItem } = useFolders(
+    user?.uid,
+    'question_bank'
+  );
+  // Bank editor state — ephemeral, mirrors the quiz editor pair below.
+  const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
+  const [editingBankMeta, setEditingBankMeta] =
+    useState<QuestionBankMetadata | null>(null);
+  const [shareBankTarget, setShareBankTarget] =
+    useState<QuestionBankMetadata | null>(null);
 
   const {
     session: liveSession,
@@ -430,6 +483,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [loadQuizData, addToast]
   );
 
+  // Bank-draw assignments grade against their frozen Drive copy, not the library quiz.
+  const answerKeyMeta = useCallback(
+    (
+      meta: QuizMetadata,
+      assignment: Pick<QuizAssignment, 'resolvedDriveFileId'> | undefined
+    ): QuizMetadata =>
+      assignment?.resolvedDriveFileId
+        ? { ...meta, driveFileId: assignment.resolvedDriveFileId }
+        : meta,
+    []
+  );
+
   // Quiet fetch for the assign modal's lazy question load — must not touch
   // loadingQuizData (the full-pane spinner would unmount QuizManager and the
   // open assign modal with it) or loadedQuizData (which could swap the view).
@@ -477,7 +542,23 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       if (!plc) {
         throw new Error('That PLC is no longer available.');
       }
-      const data = await loadQuizData(quizMeta.driveFileId);
+      let data = await loadQuizData(quizMeta.driveFileId);
+      // Decision 24: every bank slot must draw from a bank shared with this PLC.
+      if (quizHasBankSlots(data)) {
+        const check = reconcileBankSlotsForPlcShare(
+          data,
+          banks,
+          plcId,
+          sharedBankSources
+        );
+        if (check.unsharedBankTitles.length > 0) {
+          throw new Error(unsharedBanksMessage(check.unsharedBankTitles));
+        }
+        if (check.changed) {
+          data = { ...data, bankSlots: check.bankSlots };
+          await saveQuiz(data, quizMeta.driveFileId);
+        }
+      }
 
       let syncGroupId: string;
       if (quizMeta.sync) {
@@ -532,7 +613,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         quizId: quizMeta.id,
       });
     },
-    [attachSyncLinkage, loadQuizData, plcs, user]
+    [
+      attachSyncLinkage,
+      loadQuizData,
+      plcs,
+      user,
+      banks,
+      sharedBankSources,
+      saveQuiz,
+    ]
   );
 
   // D12: clear the PLC results link on an assignment (confirm first).
@@ -684,7 +773,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // Prioritize the quiz from the live session document itself
       const meta = quizzes.find((q) => q.id === liveSession.quizId);
       if (meta) {
-        void loadQuiz(meta);
+        void loadQuiz(
+          answerKeyMeta(
+            meta,
+            assignments.find((a) => a.id === liveSession.assignmentId)
+          )
+        );
       } else if (quizzesLoading === false) {
         // If the session exists but the quiz is not in our library (deleted),
         // we should auto-end the session to avoid being stuck.
@@ -698,6 +792,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     loadedQuizData,
     loadingQuizData,
     quizzes,
+    assignments,
+    answerKeyMeta,
     loadQuiz,
     quizzesLoading,
     endQuizSession,
@@ -1385,6 +1481,66 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // plus any per-assignment overrides the teacher made there.
           const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;
 
+          // Bank slots freeze into a Drive snapshot so grading sees the pool.
+          let assignQuestions = data.questions;
+          let assignStimuli = data.stimuli;
+          let assignDriveFileId = meta.driveFileId;
+          let resolvedDriveFileId: string | undefined;
+          let sessionBankSlots: QuizSessionBankSlot[] | undefined;
+          if (quizHasBankSlots(data)) {
+            if (mode !== 'student') {
+              addToast(
+                'Random bank draws need a self-paced session. Switch the session mode to self-paced and try again.',
+                'error'
+              );
+              return;
+            }
+            let resolved: ReturnType<typeof resolveQuizAssignment>;
+            try {
+              const contents = await loadBankContentsForQuiz(data);
+              resolved = resolveQuizAssignment(data, contents);
+            } catch (err) {
+              if (err instanceof BankSlotResolutionError) {
+                for (const problem of err.problems) {
+                  addToast(problem.message, 'error');
+                }
+              } else {
+                logError('QuizWidget.assignment.resolveBanks', err, {
+                  quizId: meta.id,
+                });
+                addToast(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not load the question banks for this quiz.',
+                  'error'
+                );
+              }
+              return;
+            }
+            try {
+              resolvedDriveFileId = await saveDriveSnapshot({
+                ...data,
+                questions: resolved.questions,
+                stimuli: resolved.stimuli,
+                bankSlots: undefined,
+                order: undefined,
+              });
+            } catch (err) {
+              logError('QuizWidget.assignment.saveDriveSnapshot', err, {
+                quizId: meta.id,
+              });
+              addToast(
+                'Could not save the assignment copy to Google Drive. Check your Drive connection and try again.',
+                'error'
+              );
+              return;
+            }
+            assignQuestions = resolved.questions;
+            assignStimuli = resolved.stimuli;
+            assignDriveFileId = resolvedDriveFileId;
+            sessionBankSlots = resolved.sessionSlots;
+          }
+
           // M17 C3 F1 — the B2 editor's structured option ids
           // (`{questionId}-correct` / `-incorrect-N`) must never reach a
           // student-readable pointer doc. Resolve them to option TEXT here,
@@ -1511,9 +1667,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               {
                 id: meta.id,
                 title: meta.title,
-                driveFileId: meta.driveFileId,
-                questions: data.questions,
-                ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+                driveFileId: assignDriveFileId,
+                questions: assignQuestions,
+                ...(assignStimuli ? { stimuli: assignStimuli } : {}),
                 ...(data.language ? { language: data.language } : {}),
               },
               {
@@ -1527,9 +1683,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName,
                 periodNames: plcOptions.periodNames,
                 plc: plcLinkage,
+                ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
               },
               {
                 initialStatus: 'paused',
+                ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
                 classIds: derived.classIds,
                 rosterIds: derived.rosterIds,
                 classPeriodByClassId: derived.classPeriodByClassId,
@@ -1733,13 +1891,22 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (!data) {
             throw new Error('Failed to load quiz data');
           }
+          // View-only browsing shows the whole frozen pool; nothing is drawn.
+          let viewQuestions = data.questions;
+          let viewStimuli = data.stimuli;
+          if (quizHasBankSlots(data)) {
+            const contents = await loadBankContentsForQuiz(data);
+            const resolved = resolveQuizAssignment(data, contents);
+            viewQuestions = resolved.questions;
+            viewStimuli = resolved.stimuli;
+          }
           const { code } = await createAssignment(
             {
               id: meta.id,
               title: meta.title,
               driveFileId: meta.driveFileId,
-              questions: data.questions,
-              ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+              questions: viewQuestions,
+              ...(viewStimuli ? { stimuli: viewStimuli } : {}),
               ...(data.language ? { language: data.language } : {}),
             },
             {
@@ -1915,6 +2082,72 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
+        // ─── Banks tab ───────────────────────────────────────────────────────
+        banks={banks}
+        banksLoading={banksLoading}
+        sharedBankSources={sharedBankSources}
+        onNewBank={() => {
+          const now = Date.now();
+          setEditingBankMeta(null);
+          setEditingBank({
+            id: crypto.randomUUID(),
+            title: '',
+            questions: [],
+            createdAt: now,
+            updatedAt: now,
+          });
+        }}
+        onEditBank={async (meta) => {
+          try {
+            const data = await loadBankData(meta.driveFileId);
+            setEditingBank(data);
+            setEditingBankMeta(meta);
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to load bank',
+              'error'
+            );
+          }
+        }}
+        onDuplicateBank={async (meta) => {
+          try {
+            const copy = await duplicateBank(meta);
+            addToast(`Duplicated as "${copy.title}".`, 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to duplicate bank',
+              'error'
+            );
+          }
+        }}
+        onDeleteBank={async (meta) => {
+          try {
+            await deleteBank(meta);
+            addToast(`Deleted "${meta.title}".`, 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to delete bank',
+              'error'
+            );
+          }
+        }}
+        onReorderBanks={user?.uid ? reorderBanks : undefined}
+        onShareBankWithPlc={(meta) => setShareBankTarget(meta)}
+        onUnshareBankFromPlc={async (meta, plcId) => {
+          const plcName = plcs.find((p) => p.id === plcId)?.name ?? 'the PLC';
+          try {
+            await unshareBankFromPlc(meta, plcId);
+            addToast(
+              `No longer sharing "${meta.title}" with ${plcName}.`,
+              'success'
+            );
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to stop sharing',
+              'error'
+            );
+          }
+        }}
         assignments={assignments}
         assignmentsLoading={assignmentsLoading}
         activeAssignmentLockedCount={activeAssignmentLockedCount}
@@ -1941,7 +2174,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             return;
           }
-          const data = await loadQuiz(meta);
+          const data = await loadQuiz(answerKeyMeta(meta, a));
           if (!data) return;
           updateWidget(widget.id, {
             config: {
@@ -1979,7 +2212,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             return;
           }
-          const data = await loadQuiz(meta);
+          const data = await loadQuiz(answerKeyMeta(meta, a));
           if (!data) return;
           try {
             await resumeAssignment(a.id);
@@ -2015,7 +2248,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             return;
           }
-          const data = await loadQuiz(meta);
+          const data = await loadQuiz(answerKeyMeta(meta, a));
           if (!data) return;
           updateWidget(widget.id, {
             config: {
@@ -2228,6 +2461,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <QuizEditorModal
         isOpen={!!editingQuiz}
         quiz={editingQuiz}
+        bankApi={bankApi}
         behavior={editingMeta ? getQuizBehavior(editingMeta) : undefined}
         folders={editingMeta ? quizFolders : undefined}
         folderId={
@@ -2455,7 +2689,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 );
                 return;
               }
-              const data = await loadQuiz(meta);
+              const data = await loadQuiz(answerKeyMeta(meta, target));
               if (!data) return;
               const result = await publishAssignmentScores(
                 target.id,
@@ -2657,6 +2891,72 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           onClose={() => setShareWithPlcTargets([])}
         />
       )}
+      {shareBankTarget && (
+        <PlcShareTargetModal
+          plcs={plcs}
+          quizTitle={shareBankTarget.title}
+          onConfirm={async (plcId) => {
+            const plcName =
+              plcs.find((p) => p.id === plcId)?.name ?? 'your PLC';
+            try {
+              await shareBankWithPlc(shareBankTarget, plcId);
+            } catch (err) {
+              logError('QuizWidget.shareBankWithPlc', err, {
+                plcId,
+                bankId: shareBankTarget.id,
+              });
+              throw err instanceof Error
+                ? err
+                : new Error('Failed to share bank. Try again.');
+            }
+            addToast(
+              `Shared "${shareBankTarget.title}" with ${plcName}.`,
+              'success'
+            );
+            setShareBankTarget(null);
+          }}
+          onClose={() => setShareBankTarget(null)}
+        />
+      )}
+      <BankEditorModal
+        isOpen={!!editingBank}
+        bank={editingBank}
+        aiAllowed={bankAiAllowed}
+        folders={editingBankMeta ? bankFolders : undefined}
+        folderId={
+          editingBankMeta
+            ? (banks.find((b) => b.id === editingBankMeta.id)?.folderId ?? null)
+            : null
+        }
+        onFolderChange={
+          editingBankMeta
+            ? async (folderId) => {
+                try {
+                  await moveBankItem(editingBankMeta.id, folderId);
+                  addToast('Folder updated.', 'success');
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : 'Failed to update folder',
+                    'error'
+                  );
+                }
+              }
+            : undefined
+        }
+        onClose={() => {
+          setEditingBank(null);
+          setEditingBankMeta(null);
+        }}
+        onSave={async (bank) => {
+          await saveBank(bank, editingBankMeta?.driveFileId);
+          addToast(
+            editingBankMeta ? 'Bank saved.' : 'Bank created.',
+            'success'
+          );
+        }}
+      />
     </>
   );
 };

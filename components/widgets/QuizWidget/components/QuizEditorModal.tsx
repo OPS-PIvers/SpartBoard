@@ -11,16 +11,23 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { AlertTriangle, Plus, Sparkles, Target } from 'lucide-react';
 import {
   LibraryFolder,
+  QUESTION_BANK_SIZE_WARN,
+  QuestionTargetTag,
+  QuizBankSlot,
   QuizBehaviorSettings,
   QuizData,
+  QuizOrderEntry,
   QuizQuestion,
   QuizStimulus,
   Rubric,
   isFreeResponseType,
 } from '@/types';
+import type { BankSource } from '@/hooks/useBankSources';
+import type { UseQuestionBanksResult } from '@/hooks/useQuestionBanks';
+import type { BankContent } from '@/utils/questionBanks';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
 import { QuizBehaviorSettingsPanel } from '@/components/common/library/QuizBehaviorSettingsPanel';
@@ -34,10 +41,22 @@ import { useQuizEditorState } from './useQuizEditorState';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { QuizLanguageField } from './QuizLanguageField';
 import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
+import { quizOrder } from '@/utils/questionBanks';
+import { TargetChips } from '@/components/quiz/targets/TargetChips';
+import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
+
+/** Bank access the editor needs for the picker, slot rows and "Save to bank". */
+export interface QuizEditorBankApi {
+  sources: BankSource[];
+  loadBankContent(source: BankSource): Promise<BankContent>;
+  appendQuestionsToBank: UseQuestionBanksResult['appendQuestionsToBank'];
+}
 
 interface QuizEditorModalProps {
   isOpen: boolean;
   quiz: QuizData | null;
+  /** Omit to hide every question-bank affordance. */
+  bankApi?: QuizEditorBankApi;
   onClose: () => void;
   onSave: (
     updatedQuiz: QuizData,
@@ -54,6 +73,15 @@ interface QuizEditorModalProps {
    * `DEFAULT_QUIZ_BEHAVIOR`).
    */
   behavior?: QuizBehaviorSettings;
+  /** 'bank' hides run settings and edits a question bank's shared content. */
+  mode?: 'quiz' | 'bank';
+  /** Bank mode: tags inherited by every question in the bank. */
+  bankTargets?: QuestionTargetTag[];
+  onBankTargetsChange?: (tags: QuestionTargetTag[]) => void;
+  /** Bank mode: the owner tracks target edits; folds into isDirty. */
+  bankTargetsDirty?: boolean;
+  /** Overrides the AI feature gate (bank mode uses 'question-bank-ai'). */
+  aiAllowed?: boolean;
 }
 
 const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
@@ -156,6 +184,30 @@ const shallowRecordEqual = <T extends object>(
   return true;
 };
 
+const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const sa = a[i];
+    const sb = b[i];
+    if (
+      sa.id !== sb.id ||
+      sa.bankId !== sb.bankId ||
+      (sa.syncGroupId ?? '') !== (sb.syncGroupId ?? '') ||
+      sa.mode !== sb.mode ||
+      (sa.count ?? 0) !== (sb.count ?? 0) ||
+      (sa.points ?? 1) !== (sb.points ?? 1) ||
+      (sa.targetFilter ?? []).join('|') !== (sb.targetFilter ?? []).join('|')
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const orderEqual = (a: QuizOrderEntry[], b: QuizOrderEntry[]): boolean =>
+  a.length === b.length &&
+  a.every((e, i) => e.kind === b[i].kind && e.id === b[i].id);
+
 /** Field-by-field QuizBehaviorSettings compare for the isDirty check. */
 const quizBehaviorSettingsEqual = (
   a: QuizBehaviorSettings,
@@ -169,18 +221,29 @@ const quizBehaviorSettingsEqual = (
 export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   isOpen,
   quiz,
+  bankApi,
   onClose,
   onSave,
   folders,
   folderId,
   onFolderChange,
   behavior: behaviorSeed,
+  mode = 'quiz',
+  bankTargets,
+  onBankTargetsChange,
+  bankTargetsDirty = false,
+  aiAllowed,
 }) => {
   const { canAccessFeature } = useAuth();
-  const aiEnabled = canAccessFeature('gemini-functions');
+  const isBank = mode === 'bank';
+  const aiEnabled = aiAllowed ?? canAccessFeature('gemini-functions');
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
+  const [targetPickerOpen, setTargetPickerOpen] = useState(false);
 
-  const editorState = useQuizEditorState({ quiz });
+  const editorState = useQuizEditorState({
+    quiz,
+    inheritedTargets: isBank ? bankTargets : undefined,
+  });
 
   const {
     title,
@@ -197,6 +260,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     originalQuestions,
     originalStimuli,
     originalLanguage,
+    bankSlots,
+    order,
+    originalBankSlots,
+    originalOrder,
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
@@ -235,8 +302,15 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       !(
         stimuli === originalStimuli || stimuliEqual(stimuli, originalStimuli)
       ) ||
+      !(
+        bankSlots === originalBankSlots ||
+        bankSlotsEqual(bankSlots, originalBankSlots)
+      ) ||
+      !(order === originalOrder || orderEqual(order, originalOrder)) ||
+      bankTargetsDirty ||
       !quizBehaviorSettingsEqual(behavior, originalBehavior),
     [
+      bankTargetsDirty,
       title,
       originalTitle,
       language,
@@ -245,6 +319,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       originalQuestions,
       stimuli,
       originalStimuli,
+      bankSlots,
+      originalBankSlots,
+      order,
+      originalOrder,
       behavior,
       originalBehavior,
     ]
@@ -264,8 +342,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const handleSave = async () => {
     if (!quiz) return;
     const errors: string[] = [];
-    if (!title.trim()) errors.push('Quiz title is required');
-    if (questions.length === 0) errors.push('Add at least one question');
+    if (!title.trim())
+      errors.push(isBank ? 'Bank title is required' : 'Quiz title is required');
+    if (questions.length === 0 && bankSlots.length === 0)
+      errors.push('Add at least one question');
+    bankSlots.forEach((s) => {
+      if (s.mode === 'random' && (s.count ?? 0) < 1)
+        errors.push(
+          `"${s.bankTitle}" draws 0 questions. Set how many to draw or remove the slot.`
+        );
+    });
     questions.forEach((q, i) => {
       if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
       // Free-response questions have no correct answer — they
@@ -284,6 +370,12 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
       // live, but a save must never persist a dangling pointer.
       const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);
+      // `order` only carries information when a slot sits between questions.
+      const cleanOrder = quizOrder({
+        questions: cleanQuestions,
+        bankSlots,
+        order,
+      });
       await onSave(
         {
           ...quiz,
@@ -291,9 +383,12 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           questions: cleanQuestions,
           ...(stimuli.length > 0 ? { stimuli } : { stimuli: undefined }),
           ...(language ? { language } : { language: undefined }),
+          ...(bankSlots.length > 0
+            ? { bankSlots, order: cleanOrder }
+            : { bankSlots: undefined, order: undefined }),
           updatedAt: Date.now(),
         },
-        behavior
+        isBank ? DEFAULT_QUIZ_BEHAVIOR : behavior
       );
       onClose();
     } catch (err) {
@@ -305,13 +400,25 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   // Stable chrome elements so the shell's memoized header/footer don't
   // re-render on question-content keystrokes.
+  const oversized = isBank && questions.length > QUESTION_BANK_SIZE_WARN;
   const subtitle = useMemo(
     () => (
-      <span>
-        {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+      <span className="inline-flex items-center gap-2">
+        <span>
+          {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+        </span>
+        {oversized && (
+          <span
+            role="status"
+            className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800"
+          >
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            Over {QUESTION_BANK_SIZE_WARN} — consider splitting this bank
+          </span>
+        )}
       </span>
     ),
-    [questions.length]
+    [questions.length, oversized]
   );
   const footerExtras = useMemo(
     () =>
@@ -328,44 +435,93 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     [aiEnabled, setShowAiPrompt]
   );
 
+  const bankTargetsStrip = isBank ? (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1 text-xxs font-bold uppercase tracking-wider text-slate-500">
+          <Target className="h-3 w-3" aria-hidden="true" />
+          Bank targets
+        </span>
+        {bankTargets && bankTargets.length > 0 && (
+          <TargetChips
+            targets={bankTargets}
+            onRemove={
+              onBankTargetsChange
+                ? (id) =>
+                    onBankTargetsChange(bankTargets.filter((t) => t.id !== id))
+                : undefined
+            }
+          />
+        )}
+        {onBankTargetsChange && (
+          <button
+            type="button"
+            onClick={() => setTargetPickerOpen(true)}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            <Plus className="h-3 w-3" aria-hidden="true" />
+            Add
+          </button>
+        )}
+      </div>
+      <p className="text-xxs text-slate-500">
+        Every question in this bank inherits these targets.
+      </p>
+    </div>
+  ) : undefined;
+
   if (!quiz) return null;
+
+  const activeTab = isBank ? 'questions' : editorTab;
 
   return (
     <EditorWorkspace
       key={quiz.id}
       isOpen={isOpen}
-      title={title.trim() || (originalTitle ? 'Edit Quiz' : 'New Quiz')}
+      title={
+        title.trim() ||
+        (isBank
+          ? originalTitle
+            ? 'Edit Bank'
+            : 'New Bank'
+          : originalTitle
+            ? 'Edit Quiz'
+            : 'New Quiz')
+      }
       subtitle={subtitle}
       isDirty={isDirty}
       isSaving={saving}
       onSave={handleSave}
       onClose={onClose}
-      saveLabel="Save Quiz"
+      saveLabel={isBank ? 'Save Bank' : 'Save Quiz'}
       footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
-          {/* Questions / Settings segmented tab toggle */}
-          <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-            {(['questions', 'stimuli', 'settings'] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setEditorTab(tab)}
-                className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                  editorTab === tab
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+          {/* Questions / Settings segmented tab toggle (quiz mode only) */}
+          {!isBank && (
+            <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
+              {(['questions', 'stimuli', 'settings'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setEditorTab(tab)}
+                  className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                    editorTab === tab
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {editorTab === 'questions' ? (
+          {activeTab === 'questions' ? (
             <QuizEditorContextPane
               state={editorState}
               aiEnabled={aiEnabled}
+              bankApi={isBank ? undefined : bankApi}
               folders={folders}
               folderId={folderId}
               onFolderChange={onFolderChange}
@@ -373,8 +529,11 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                 behavior.sessionMode === 'student' &&
                 behavior.sessionOptions.shuffleQuestions === true
               }
+              titleSlot={bankTargetsStrip}
+              titlePlaceholder={isBank ? 'Bank title' : undefined}
+              inheritedTargets={isBank ? bankTargets : undefined}
             />
-          ) : editorTab === 'stimuli' ? (
+          ) : activeTab === 'stimuli' ? (
             <StimulusManagerPanel
               state={editorState}
               readAloudAvailable={readAloudAvailable}
@@ -394,9 +553,13 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         </div>
       }
       detailPane={
-        editorTab === 'questions' ? (
-          <QuizEditorDetailPane state={editorState} aiEnabled={aiEnabled} />
-        ) : editorTab === 'stimuli' ? (
+        activeTab === 'questions' ? (
+          <QuizEditorDetailPane
+            state={editorState}
+            aiEnabled={aiEnabled}
+            bankApi={isBank ? undefined : bankApi}
+          />
+        ) : activeTab === 'stimuli' ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
             <p>
               Stimuli save with the quiz. Students see them beside the questions
@@ -414,7 +577,27 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           </div>
         )
       }
-      overlay={<QuizAiOverlay state={editorState} />}
+      overlay={
+        <>
+          <QuizAiOverlay state={editorState} />
+          {targetPickerOpen && onBankTargetsChange && (
+            <TargetPicker
+              open
+              initial={bankTargets ?? []}
+              title="Bank targets"
+              onApply={(tags) => {
+                const seen = new Set((bankTargets ?? []).map((t) => t.id));
+                onBankTargetsChange([
+                  ...(bankTargets ?? []),
+                  ...tags.filter((t) => !seen.has(t.id)),
+                ]);
+                setTargetPickerOpen(false);
+              }}
+              onClose={() => setTargetPickerOpen(false)}
+            />
+          )}
+        </>
+      }
     />
   );
 };

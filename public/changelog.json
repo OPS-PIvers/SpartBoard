@@ -1,6 +1,48 @@
 {
   "entries": [
     {
+      "version": "2026.09.10.5",
+      "date": "2026-09-10",
+      "title": "Question banks with random draws",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Build question banks in the new Banks tab, then add a random draw to any quiz: every student gets their own subset from the bank, with the same number of questions and the same maximum score. Share a bank with your PLC so teammates can draw from it too."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Banks tab — a fourth tab in the Quiz manager with the same grid, folders and search as the library. Bank-level learning targets are inherited by every question when it is copied into a quiz or drawn at assign time."
+        },
+        {
+          "type": "feature",
+          "text": "Add → From question bank… — pick questions to copy into the quiz, or add a random slot that draws N questions per attempt, optionally limited to a learning target, with one point value for every drawn question."
+        },
+        {
+          "type": "feature",
+          "text": "Save to bank — check questions in the quiz editor and send copies to an existing or new bank."
+        },
+        {
+          "type": "feature",
+          "text": "Per-attempt draws — the pool is frozen when you assign, each attempt (including retakes) draws fresh, and a refresh mid-attempt keeps the same questions. Assign is blocked with a fix-it message when a slot has fewer eligible questions than it draws, and pools are capped at 150 questions."
+        },
+        {
+          "type": "feature",
+          "text": "PLC sharing — share a bank with a PLC from its menu; teammates see it read-only in the bank picker. Sharing a quiz that draws from a bank requires the bank to be shared first."
+        },
+        {
+          "type": "feature",
+          "text": "Draft with AI in the bank editor is admin-gated under Global Permissions → Question bank AI drafting, and also requires Gemini Functions."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10.4",
       "date": "2026-09-10",
       "title": "Learning targets and Minnesota standards",

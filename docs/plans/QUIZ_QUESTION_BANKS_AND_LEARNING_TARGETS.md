@@ -340,20 +340,29 @@ no practical byte constraint but keep validators shared.
 - [x] Tests: target list helpers, CSV parser, picker filtering, catalog diff, rules (CI).
 - [x] Changelog. Help center article is Firestore-authored content, not code.
 
-### PR 2 — question banks and per-attempt draws
+### PR 2 — question banks and per-attempt draws (done 2026-09-10)
 
-- [ ] Types (§4.2-4.4), bank rules, synced bank rules, `question-bank-ai` permission.
-- [ ] `useQuestionBanks`, `bankDriveService`, Banks tab, folders, share toggle.
-- [ ] BankEditorModal incl. bank tags and gated AI.
-- [ ] "Save to bank" from quiz multi-select.
-- [ ] Add split button + bank picker; slot rows; slot editing.
-- [ ] Assign-time resolution, validation, resolved Drive snapshot, session pool.
-- [ ] Student draw + `servedQuestionIds` persistence + refresh safety.
-- [ ] Grading reads the resolved snapshot.
-- [ ] Share-to-PLC bank validation.
-- [ ] Tests: draw determinism after persist, uniform points, pool cap, short-pool block,
-      resolution with synced group ids, stats with partial served sets.
-- [ ] Help center article, changelog.
+- [x] Types (§4.2-4.4), bank rules, synced bank rules, `question-bank-ai` permission.
+      Synced banks are owner-write / member-read (`synced_question_banks`, no join
+      function; decision 1). Student `servedQuestionIds` on a bank-slot session is
+      size-checked against `totalQuestions` (a client may pick pool questions but never
+      shrink the denominator).
+- [x] `useQuestionBanks`, `bankDriveService`, `useBankSources`, Banks tab
+      (`QuizBanksTab`), folders (`question_bank_folders`), share toggle.
+- [x] BankEditorModal (`QuizEditorModal mode='bank'`) incl. bank tags and gated AI.
+- [x] "Save to bank" from quiz multi-select (`SaveToBankModal`).
+- [x] Add split button + bank picker (`BankPickerModal`); slot rows; slot editing.
+- [x] Assign-time resolution (`resolveQuizAssignment`), validation, resolved Drive
+      snapshot (`saveDriveSnapshot`; `quizDriveFileId` points at it), session pool.
+      Sync-to-latest is refused for bank assignments; view-only shares inline the pool.
+- [x] Student draw (`chooseServedDraw`) + `servedQuestionIds` persisted at draw time +
+      refresh safety; a retake join clears the field for a fresh draw.
+- [x] Grading reads the resolved snapshot; results/monitor/export denominators now
+      honour `servedQuestionIds` (`questionPointsFor`, `rowMaxPoints`).
+- [x] Share-to-PLC bank validation (`reconcileBankSlotsForPlcShare`).
+- [x] Tests: engine (17), records/drive (12), draw helpers, editor state (9), picker,
+      manager Banks tab (3), share validator (8), rules (CI-only).
+- [x] Changelog 2026.09.10.5. Help center article still to author in Firestore.
 
 ### PR 3 — teacher Results by target
 

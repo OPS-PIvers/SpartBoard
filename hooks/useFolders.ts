@@ -27,6 +27,8 @@ export const folderCollectionName = (widget: LibraryFolderWidget): string => {
   switch (widget) {
     case 'quiz':
       return 'quiz_folders';
+    case 'question_bank':
+      return 'question_bank_folders';
     case 'video_activity':
       return 'video_activity_folders';
     case 'guided_learning':
@@ -45,6 +47,8 @@ const itemCollectionName = (widget: LibraryFolderWidget): string => {
   switch (widget) {
     case 'quiz':
       return 'quizzes';
+    case 'question_bank':
+      return 'question_banks';
     case 'video_activity':
       return 'video_activities';
     case 'guided_learning':

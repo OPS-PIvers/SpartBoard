@@ -567,6 +567,12 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
+    // Question-bank metadata (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.2).
+    // Content is Drive JSON like quizzes; PLC shares publish to /synced_question_banks.
+    match /users/{userId}/question_banks/{bankId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+    }
+
     // Activity Wall library - per-user reusable activity definitions.
     // Activities used to live inline on the Activity Wall widget's config;
     // moving them here lets teachers reuse the same activity across widgets
@@ -1443,6 +1449,60 @@ service cloud.firestore {
         // Identity-immutable: snapshots are append-only from clients.
         allow update, delete: if false;
       }
+    }
+
+    // ---- Synced QUESTION BANKS (plan §4.2, decision 1) ----
+    // Read-only PLC share of a personal bank: only the owner writes (the bank
+    // editor republishes on every save); any authed user may get by id (ids are
+    // unguessable uuids, handed out via plcs/{plcId}/question_banks headers).
+    // No participants/join function - members never co-edit.
+    match /synced_question_banks/{groupId} {
+      allow get: if request.auth != null;
+      allow list: if false;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+             'id', 'ownerUid', 'plcIds', 'version', 'title', 'questions',
+             'stimuli', 'targets', 'language', 'questionCount', 'targetIds',
+             'targetCounts', 'createdAt', 'updatedAt'
+           ])
+        && request.resource.data.id == groupId
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.version == 1
+        && request.resource.data.plcIds is list
+        && request.resource.data.questions is list
+        && request.resource.data.questionCount is int
+        && request.resource.data.targetIds is list
+        && request.resource.data.targetCounts is map
+        && request.resource.data.createdAt is int
+        && request.resource.data.updatedAt is int
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
+        && (!('targets' in request.resource.data) || request.resource.data.targets is list);
+
+      // Owner-only; version climbs by exactly one so stale pulls are detectable.
+      allow update: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+             'id', 'ownerUid', 'plcIds', 'version', 'title', 'questions',
+             'stimuli', 'targets', 'language', 'questionCount', 'targetIds',
+             'targetCounts', 'createdAt', 'updatedAt'
+           ])
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.plcIds is list
+        && request.resource.data.questions is list
+        && request.resource.data.questionCount is int
+        && request.resource.data.targetIds is list
+        && request.resource.data.targetCounts is map
+        && request.resource.data.updatedAt is int
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
+        && (!('targets' in request.resource.data) || request.resource.data.targets is list);
+
+      // Unshare from the last PLC removes the copy; a slot pointing here then
+      // fails assign-time resolution with a fix-it message.
+      allow delete: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
     }
 
     // ---- Shared / Synced VIDEO ACTIVITY parallel collections (PR3) ----
@@ -2393,6 +2453,71 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // PLC question-bank headers (plan §5): pointer at /synced_question_banks/{groupId}.
+      // Any non-viewer member shares; only the sharer or a lead/co-lead changes or
+      // removes the row. Identity + attribution immutable post-create.
+      match /question_banks/{entryId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && plcCanEditContent(plcId)
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'questionCount', 'syncGroupId', 'targetIds',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt', 'deletedAt'
+             ])
+          && entryId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.questionCount >= 0
+          && request.resource.data.syncGroupId is string
+          && request.resource.data.syncGroupId.size() > 0
+          && request.resource.data.targetIds is list
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        allow update: if request.auth != null
+          && plcCanEditContent(plcId)
+          && (
+               resource.data.sharedBy == request.auth.uid
+               || isPlcMembershipManager(
+                    get(/databases/$(database)/documents/plcs/$(plcId)).data
+                  )
+             )
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'questionCount', 'syncGroupId', 'targetIds',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt', 'deletedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.title is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.targetIds is list
+          && request.resource.data.updatedAt is int
+          && plcSubDeletedAtOk();
+
+        allow delete: if request.auth != null
+          && plcCanEditContent(plcId)
+          && (
+               resource.data.sharedBy == request.auth.uid
+               || isPlcMembershipManager(
+                    get(/databases/$(database)/documents/plcs/$(plcId)).data
+                  )
+             );
+      }
+
       match /folders/{folderId} {
         allow read: if request.auth != null
           && request.auth.uid in get(
@@ -3261,8 +3386,15 @@ service cloud.firestore {
            // anything else would let a hostile client shrink the scoring
            // denominator. Clearing the field (mid-attempt override removal)
            // is always allowed.
+           // Bank-slot sessions (plan §4.4): the student app draws its own subset,
+           // so the doc only pins the size to totalQuestions (fixed + every slot
+           // count) - a client can pick which pool questions it sees but never
+           // shrink the scoring denominator.
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['servedQuestionIds']) ||
             request.resource.data.get('servedQuestionIds', null) == null ||
+            (sessionData().get('bankSlots', null) != null &&
+             request.resource.data.servedQuestionIds is list &&
+             request.resource.data.servedQuestionIds.size() == sessionData().totalQuestions) ||
             (sessionData().get('assignmentId', '') != '' &&
              exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionData().assignmentId)) &&
              request.resource.data.servedQuestionIds ==
@@ -4563,6 +4695,9 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/quiz_folders/{folderId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+    }
+    match /users/{userId}/question_bank_folders/{folderId} {
       allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
     match /users/{userId}/video_activity_folders/{folderId} {

@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  QuizBankSlot,
   QuizData,
+  QuizOrderEntry,
   QuestionTargetTag,
   QuizQuestion,
   QuizQuestionType,
@@ -13,6 +15,28 @@ import {
   type QuizGenType,
   type QuizTypeCounts,
 } from '@/utils/ai';
+import {
+  mergeTargets,
+  quizOrder,
+  randomBankSlots,
+} from '@/utils/questionBanks';
+
+/** Rows of `order` minus the given ids, for deletes. */
+const dropFromOrder = (
+  order: QuizOrderEntry[],
+  ids: ReadonlySet<string>
+): QuizOrderEntry[] => order.filter((e) => !ids.has(e.id));
+
+/** Id of the row to select after removing `id` from `order` (same index, or the new tail). */
+const nextSelectionAfterRemove = (
+  order: QuizOrderEntry[],
+  id: string
+): string | null => {
+  const idx = order.findIndex((e) => e.id === id);
+  const next = order.filter((e) => e.id !== id);
+  if (next.length === 0) return null;
+  return next[Math.min(Math.max(idx, 0), next.length - 1)]?.id ?? null;
+};
 
 const DEFAULT_AI_TYPE_COUNTS: Record<QuizGenType, number> = {
   MC: 5,
@@ -32,6 +56,8 @@ const blankQuestion = (): QuizQuestion => ({
 
 interface UseQuizEditorStateProps {
   quiz: QuizData | null;
+  /** Bank-level tags stamped onto AI-drafted questions (bank editor only). */
+  inheritedTargets?: QuestionTargetTag[];
 }
 
 export interface QuizEditorController {
@@ -52,6 +78,19 @@ export interface QuizEditorController {
   addQuestion: () => void;
   deleteQuestion: (id: string) => void;
   reorderQuestions: (next: QuizQuestion[]) => void;
+  // Bank slots + interleaved row order
+  bankSlots: QuizBankSlot[];
+  /** Rows of the question list: fixed questions and random bank slots, interleaved. */
+  order: QuizOrderEntry[];
+  /** `selectedId` may point at a slot row instead of a question. */
+  selectedSlot: QuizBankSlot | null;
+  addBankSlot: (slot: QuizBankSlot) => void;
+  updateBankSlot: (id: string, patch: Partial<QuizBankSlot>) => void;
+  removeBankSlot: (id: string) => void;
+  /** Reorder all rows (questions and slots) from the sortable list. */
+  reorderEntries: (next: QuizOrderEntry[]) => void;
+  /** Append copies from the bank picker; stimuli merge by id. */
+  insertQuestions: (questions: QuizQuestion[], stimuli: QuizStimulus[]) => void;
   // Multi-select (checkbox mode) for bulk actions
   checkedIds: ReadonlySet<string>;
   /** Toggle one row; with `range` (shift-click) selects from the last toggled row. */
@@ -104,10 +143,13 @@ export interface QuizEditorController {
   originalQuestions: QuizQuestion[];
   originalStimuli: QuizStimulus[];
   originalLanguage: string;
+  originalBankSlots: QuizBankSlot[];
+  originalOrder: QuizOrderEntry[];
 }
 
 export function useQuizEditorState({
   quiz,
+  inheritedTargets,
 }: UseQuizEditorStateProps): QuizEditorController {
   const originalQuestions = useMemo(
     () => (quiz ? quiz.questions.map((q) => ({ ...q })) : []),
@@ -124,11 +166,18 @@ export function useQuizEditorState({
   );
 
   const originalLanguage = quiz?.language ?? '';
+  const originalBankSlots = useMemo(
+    () => (quiz ? randomBankSlots(quiz).map((s) => ({ ...s })) : []),
+    [quiz]
+  );
+  const originalOrder = useMemo(() => (quiz ? quizOrder(quiz) : []), [quiz]);
 
   const [title, setTitle] = useState<string>(originalTitle);
   const [language, setLanguage] = useState<string>(originalLanguage);
   const [questions, setQuestions] = useState<QuizQuestion[]>(originalQuestions);
   const [stimuli, setStimuli] = useState<QuizStimulus[]>(originalStimuli);
+  const [bankSlots, setBankSlots] = useState<QuizBankSlot[]>(originalBankSlots);
+  const [order, setOrder] = useState<QuizOrderEntry[]>(originalOrder);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -154,6 +203,8 @@ export function useQuizEditorState({
     setLanguage(originalLanguage);
     setQuestions(originalQuestions);
     setStimuli(originalStimuli);
+    setBankSlots(originalBankSlots);
+    setOrder(originalOrder);
     setError(null);
     setSaving(false);
     setSelectedId(originalQuestions[0]?.id ?? null);
@@ -175,6 +226,11 @@ export function useQuizEditorState({
   const selectedIndex = useMemo(
     () => (selectedId ? questions.findIndex((q) => q.id === selectedId) : -1),
     [questions, selectedId]
+  );
+
+  const selectedSlot = useMemo(
+    () => bankSlots.find((s) => s.id === selectedId) ?? null,
+    [bankSlots, selectedId]
   );
 
   // An explicit `undefined` deletes the key rather than persisting it as a
@@ -233,6 +289,7 @@ export function useQuizEditorState({
   const addQuestion = useCallback(() => {
     const q = blankQuestion();
     setQuestions((prev) => [...prev, q]);
+    setOrder((prev) => [...prev, { kind: 'question', id: q.id }]);
     setSelectedId(q.id);
   }, []);
 
@@ -248,17 +305,22 @@ export function useQuizEditorState({
   const lastToggledRef = useRef<string | null>(null);
   const questionsRef = useRef(questions);
   questionsRef.current = questions;
+  const orderRef = useRef(order);
+  orderRef.current = order;
 
+  // Shift-range follows the visible row order; slot rows are never checkable.
   const toggleChecked = useCallback((id: string, range?: boolean) => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
-      const order = questionsRef.current.map((q) => q.id);
+      const rows = orderRef.current
+        .filter((e) => e.kind === 'question')
+        .map((e) => e.id);
       const anchor = lastToggledRef.current;
-      if (range && anchor && order.includes(anchor)) {
-        const [from, to] = [order.indexOf(anchor), order.indexOf(id)].sort(
+      if (range && anchor && rows.includes(anchor)) {
+        const [from, to] = [rows.indexOf(anchor), rows.indexOf(id)].sort(
           (x, y) => x - y
         );
-        for (const qid of order.slice(from, to + 1)) next.add(qid);
+        for (const qid of rows.slice(from, to + 1)) next.add(qid);
       } else if (next.has(id)) next.delete(id);
       else next.add(id);
       lastToggledRef.current = id;
@@ -298,13 +360,12 @@ export function useQuizEditorState({
   );
 
   const deleteChecked = useCallback(() => {
-    setQuestions((prev) => {
-      const next = prev.filter((q) => !checkedIds.has(q.id));
-      if (selectedIdRef.current && checkedIds.has(selectedIdRef.current)) {
-        setSelectedId(next[0]?.id ?? null);
-      }
-      return next;
-    });
+    setQuestions((prev) => prev.filter((q) => !checkedIds.has(q.id)));
+    const nextOrder = dropFromOrder(orderRef.current, checkedIds);
+    setOrder(nextOrder);
+    if (selectedIdRef.current && checkedIds.has(selectedIdRef.current)) {
+      setSelectedId(nextOrder[0]?.id ?? null);
+    }
     setCheckedIds(new Set());
   }, [checkedIds]);
 
@@ -315,27 +376,89 @@ export function useQuizEditorState({
       next.delete(id);
       return next;
     });
-    setQuestions((prev) => {
-      const idx = prev.findIndex((q) => q.id === id);
-      const next = prev.filter((q) => q.id !== id);
-      // If the user just deleted the selected question, advance the
-      // selection to the next item (or the new last item, if we deleted
-      // the tail). This avoids the right-pane going blank and forcing
-      // the user to click another question to continue editing.
-      if (selectedIdRef.current === id) {
-        if (next.length === 0) {
-          setSelectedId(null);
-        } else {
-          const targetIdx = Math.min(idx, next.length - 1);
-          setSelectedId(next[targetIdx]?.id ?? null);
-        }
-      }
-      return next;
+    setQuestions((prev) => prev.filter((q) => q.id !== id));
+    // Advance the selection to the neighbouring row so the detail pane never goes blank.
+    if (selectedIdRef.current === id) {
+      setSelectedId(nextSelectionAfterRemove(orderRef.current, id));
+    }
+    setOrder((prev) => dropFromOrder(prev, new Set([id])));
+  }, []);
+
+  // Questions move among themselves; slot rows keep their positions.
+  const reorderQuestions = useCallback((next: QuizQuestion[]) => {
+    setQuestions(next);
+    setOrder((prev) => {
+      let i = 0;
+      return prev.map((e) =>
+        e.kind === 'question'
+          ? { kind: 'question' as const, id: next[i++].id }
+          : e
+      );
     });
   }, []);
 
-  const reorderQuestions = useCallback((next: QuizQuestion[]) => {
-    setQuestions(next);
+  // `questions` follows the row order so consumers that ignore `order` still see it.
+  const reorderEntries = useCallback((next: QuizOrderEntry[]) => {
+    setOrder(next);
+    setQuestions((prev) => {
+      const byId = new Map(prev.map((q) => [q.id, q]));
+      const sorted: QuizQuestion[] = [];
+      for (const e of next) {
+        const q = e.kind === 'question' ? byId.get(e.id) : undefined;
+        if (q) sorted.push(q);
+      }
+      return sorted.length === prev.length ? sorted : prev;
+    });
+  }, []);
+
+  const insertQuestions = useCallback(
+    (inserted: QuizQuestion[], insertedStimuli: QuizStimulus[]) => {
+      if (inserted.length === 0) return;
+      setQuestions((prev) => [...prev, ...inserted]);
+      setOrder((prev) => [
+        ...prev,
+        ...inserted.map((q) => ({ kind: 'question' as const, id: q.id })),
+      ]);
+      if (insertedStimuli.length > 0) {
+        setStimuli((prev) => {
+          const have = new Set(prev.map((s) => s.id));
+          const fresh = insertedStimuli.filter((s) => !have.has(s.id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+      }
+      setSelectedId(inserted[0].id);
+    },
+    []
+  );
+
+  const addBankSlot = useCallback((slot: QuizBankSlot) => {
+    setBankSlots((prev) => [...prev, slot]);
+    setOrder((prev) => [...prev, { kind: 'slot', id: slot.id }]);
+    setSelectedId(slot.id);
+  }, []);
+
+  const updateBankSlot = useCallback(
+    (id: string, patch: Partial<QuizBankSlot>) => {
+      setBankSlots((prev) =>
+        prev.map((s) => {
+          if (s.id !== id) return s;
+          const next = { ...s, ...patch } as Record<string, unknown>;
+          for (const [key, value] of Object.entries(patch)) {
+            if (value === undefined) delete next[key];
+          }
+          return next as unknown as QuizBankSlot;
+        })
+      );
+    },
+    []
+  );
+
+  const removeBankSlot = useCallback((id: string) => {
+    setBankSlots((prev) => prev.filter((s) => s.id !== id));
+    if (selectedIdRef.current === id) {
+      setSelectedId(nextSelectionAfterRemove(orderRef.current, id));
+    }
+    setOrder((prev) => dropFromOrder(prev, new Set([id])));
   }, []);
 
   // ─── Stimuli ───────────────────────────────────────────────────────────────
@@ -477,6 +600,7 @@ export function useQuizEditorState({
           const type = validTypes.includes((q.type ?? 'MC') as QuizQuestionType)
             ? ((q.type as QuizQuestionType) ?? 'MC')
             : 'MC';
+          const targets = mergeTargets(undefined, inheritedTargets);
           return {
             id: crypto.randomUUID(),
             text: q.text,
@@ -484,11 +608,16 @@ export function useQuizEditorState({
             type,
             correctAnswer: q.correctAnswer ?? '',
             incorrectAnswers: type === 'MC' ? (q.incorrectAnswers ?? []) : [],
+            ...(targets ? { targets } : {}),
           };
         }
       );
       if (!title.trim() && result.title) setTitle(result.title);
       setQuestions((prev) => [...prev, ...generated]);
+      setOrder((prev) => [
+        ...prev,
+        ...generated.map((q) => ({ kind: 'question' as const, id: q.id })),
+      ]);
       if (generated[0]) setSelectedId(generated[0].id);
       setShowAiPrompt(false);
       setAiPrompt('');
@@ -503,7 +632,15 @@ export function useQuizEditorState({
     } finally {
       setAiGenerating(false);
     }
-  }, [aiPrompt, aiFileContext, aiFileName, aiTypeCounts, aiTotalCount, title]);
+  }, [
+    aiPrompt,
+    aiFileContext,
+    aiFileName,
+    aiTypeCounts,
+    aiTotalCount,
+    title,
+    inheritedTargets,
+  ]);
 
   return {
     title,
@@ -520,6 +657,14 @@ export function useQuizEditorState({
     addQuestion,
     deleteQuestion,
     reorderQuestions,
+    bankSlots,
+    order,
+    selectedSlot,
+    addBankSlot,
+    updateBankSlot,
+    removeBankSlot,
+    reorderEntries,
+    insertQuestions,
     checkedIds,
     toggleChecked,
     setAllChecked,
@@ -556,5 +701,7 @@ export function useQuizEditorState({
     originalQuestions,
     originalStimuli,
     originalLanguage,
+    originalBankSlots,
+    originalOrder,
   };
 }

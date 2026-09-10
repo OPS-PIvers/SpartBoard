@@ -49,6 +49,7 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuizSessionBankSlot,
   QuizSessionMode,
   QuizSessionOptions,
   QuizStimulus,
@@ -56,6 +57,7 @@ import type {
   SharedQuizAssignment,
   StudentOverride,
 } from '@/types';
+import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { isFreeResponseType } from '@/types';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import {
@@ -168,6 +170,8 @@ export interface CreateAssignmentOptions {
   /** Open/close window (epoch ms), mirrored onto both assignment + session docs. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Frozen bank pools; the session's `totalQuestions` becomes fixed + Σ count. */
+  bankSlots?: QuizSessionBankSlot[];
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -795,8 +799,13 @@ export const useQuizAssignments = (
         overridesBySourcedId,
         openAt,
         closeAt,
+        bankSlots,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
+      const hasBankSlots = !!bankSlots && bankSlots.length > 0;
+      if (hasBankSlots && settings.sessionMode !== 'student') {
+        throw new Error('Random bank draws need a self-paced session');
+      }
       // Defensive sanitization at the hook boundary: drop empty/non-string
       // entries so this stays robust against future call sites that may
       // not pre-sanitize via `deriveSessionTargetsFromRosters`. Mirrors
@@ -864,6 +873,9 @@ export const useQuizAssignments = (
           : {}),
         ...(openAt != null ? { openAt } : {}),
         ...(closeAt != null ? { closeAt } : {}),
+        ...(settings.resolvedDriveFileId
+          ? { resolvedDriveFileId: settings.resolvedDriveFileId }
+          : {}),
       };
 
       const mode = settings.sessionMode;
@@ -906,8 +918,14 @@ export const useQuizAssignments = (
         startedAt: mode === 'student' ? now : null,
         endedAt: null,
         code,
-        totalQuestions: sessionQuestions.length,
+        totalQuestions: hasBankSlots
+          ? sessionTotalQuestions(
+              sessionQuestions.map((q) => q.id),
+              bankSlots
+            )
+          : sessionQuestions.length,
         publicQuestions: sessionPublicQuestions,
+        ...(hasBankSlots ? { bankSlots } : {}),
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
@@ -1905,6 +1923,12 @@ export const useQuizAssignments = (
         // (rather than throwing) lets callers wire the action without
         // having to gate on `assignment.sync` ahead of every call.
         return { updated: false, version: 0, taggedResponseCount: 0 };
+      }
+      // `resolvedDriveFileId` is written iff the session carries `bankSlots`.
+      if (assignment.resolvedDriveFileId) {
+        throw new Error(
+          'This assignment was built from question-bank draws; re-assign the quiz to pick up bank changes'
+        );
       }
 
       const canonical = await pullSyncedQuizContent(assignment.sync.groupId);

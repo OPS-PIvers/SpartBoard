@@ -3499,6 +3499,128 @@ export interface QuestionTargetTag {
   standardIds?: string[];
 }
 
+// --- QUESTION BANKS ---
+
+/** Soft cap on questions in one bank (the editor warns past it). */
+export const QUESTION_BANK_SIZE_WARN = 200;
+/** Hard cap on fixed + pool questions in one assignment (assign is blocked past it). */
+export const QUIZ_ASSIGNMENT_POOL_CAP = 150;
+
+/** Drive JSON for a question bank: the QuizData shape plus bank-level tags. */
+export interface QuestionBankData {
+  id: string;
+  title: string;
+  questions: QuizQuestion[];
+  stimuli?: QuizStimulus[];
+  /** Inherited by every question when it is copied into a quiz or frozen into a pool. */
+  targets?: QuestionTargetTag[];
+  language?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** PLC share linkage on a bank; the owner republishes on every save. */
+export interface QuestionBankSyncLinkage {
+  /** Doc id under `/synced_question_banks/{groupId}`. */
+  groupId: string;
+  /** PLCs that carry a `plcs/{plcId}/question_banks` header for this bank. */
+  plcIds: string[];
+}
+
+/** Firestore metadata at `users/{uid}/question_banks/{bankId}`. */
+export interface QuestionBankMetadata {
+  id: string;
+  title: string;
+  driveFileId: string;
+  questionCount: number;
+  folderId?: string | null;
+  order?: number;
+  searchText?: string;
+  /** Union of bank tags and every question's tags. */
+  targetIds: string[];
+  /** targetId → questions eligible for that tag (bank tags count every question). */
+  targetCounts: Record<string, number>;
+  sync?: QuestionBankSyncLinkage;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Read-only canonical copy of a PLC-shared bank at
+ * `/synced_question_banks/{groupId}`. Only `ownerUid` writes; members read.
+ */
+export interface SyncedQuestionBank {
+  id: string;
+  ownerUid: string;
+  plcIds: string[];
+  /** Bumped by one on every owner publish. */
+  version: number;
+  title: string;
+  questions: QuizQuestion[];
+  stimuli?: QuizStimulus[];
+  targets?: QuestionTargetTag[];
+  language?: string;
+  questionCount: number;
+  targetIds: string[];
+  targetCounts: Record<string, number>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Header at `plcs/{plcId}/question_banks/{entryId}` pointing at the synced doc. */
+export interface PlcQuestionBankEntry {
+  id: string;
+  title: string;
+  questionCount: number;
+  syncGroupId: string;
+  targetIds: string[];
+  sharedBy: string;
+  sharedByEmail: string;
+  sharedByName: string;
+  sharedAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+/**
+ * A bank reference on a quiz. `selected` slots are resolved into fixed
+ * copies at add time, so at rest only `random` slots survive in
+ * `QuizData.bankSlots`.
+ */
+export interface QuizBankSlot {
+  id: string;
+  /** Owner's bank id (informational when `syncGroupId` is set). */
+  bankId: string;
+  /** Resolve from `/synced_question_banks/{syncGroupId}` when set. */
+  syncGroupId?: string;
+  bankTitle: string;
+  mode: 'selected' | 'random';
+  /** selected mode */
+  questionIds?: string[];
+  /** random mode: questions drawn per attempt */
+  count?: number;
+  /** random mode: any-of match on tag ids; absent = whole bank */
+  targetFilter?: string[];
+  /** random mode: points applied to every drawn question (default 1) */
+  points?: number;
+}
+
+/** Position of fixed questions and slots in the quiz editor list. */
+export interface QuizOrderEntry {
+  kind: 'question' | 'slot';
+  id: string;
+}
+
+/** Frozen slot on a session; the student draws `count` ids from `poolQuestionIds`. */
+export interface QuizSessionBankSlot {
+  id: string;
+  count: number;
+  points: number;
+  poolQuestionIds: string[];
+  /** Number of fixed questions that precede the slot. */
+  position: number;
+}
+
 /** What happens when a recording question's prep countdown runs out. */
 export type RecordingPrepExpiry =
   | 'auto-start'
@@ -3566,6 +3688,10 @@ export interface QuizData {
   stimuli?: QuizStimulus[];
   /** BCP-47 tag that picks the read-aloud voice. Absent = 'en-US'. */
   language?: string;
+  /** Random bank slots; see `QuizBankSlot`. Absent = no banks referenced. */
+  bankSlots?: QuizBankSlot[];
+  /** Interleaving of questions and slots; absent = questions in order, slots last. */
+  order?: QuizOrderEntry[];
   createdAt: number;
   updatedAt: number;
 }
@@ -3827,6 +3953,12 @@ export interface QuizSession {
   readAloudTextByStimulusId?: Record<string, string>;
   /** Written by `prepareQuizReadAloudV1`; absent on pre-feature sessions (plan §3). */
   readAloud?: QuizReadAloudManifest;
+  /**
+   * Frozen bank slots (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.4).
+   * `publicQuestions` then holds fixed questions plus every pool question and
+   * `totalQuestions` counts fixed + Σ count. Absent on quizzes without banks.
+   */
+  bankSlots?: QuizSessionBankSlot[];
 
   /**
    * True once at least one Schoology LTI student has launched this session and
@@ -4647,7 +4779,7 @@ export interface QuizGlobalConfig {
 export interface QuizConfig {
   view: 'manager' | 'import' | 'editor' | 'preview' | 'results' | 'monitor';
   /** Tab within the manager view: library of saved quizzes, in-progress assignments, or archived (inactive) assignments. */
-  managerTab?: 'library' | 'active' | 'archive';
+  managerTab?: 'library' | 'banks' | 'active' | 'archive';
   selectedQuizId: string | null;
   selectedQuizTitle: string | null;
   /** Assignment currently opened in monitor/results views. */
@@ -4905,6 +5037,13 @@ export interface QuizAssignmentSettings {
    * end-of-day. Absent = date-only (legacy/other create paths).
    */
   dueAtHasTime?: boolean;
+  /**
+   * Drive file holding the resolved quiz (fixed questions + every pool
+   * question with slot points) written at assign time when the quiz has bank
+   * slots. `quizDriveFileId` points at the same file so grading needs no
+   * special case. Absent on quizzes without banks.
+   */
+  resolvedDriveFileId?: string;
 }
 
 /**
@@ -7363,7 +7502,9 @@ export type GlobalFeature =
   /** Fail-closed: read it through `canAccessQuizMediaResponse`, never `canAccessFeature`. */
   | 'quiz-media-response'
   | 'settings-drawer'
-  | 'quiz-read-aloud';
+  | 'quiz-read-aloud'
+  /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
+  | 'question-bank-ai';
 
 /** `admin_settings/quiz_read_aloud` — voice mapping for quiz read-aloud (docs/plans/QUIZ_READ_ALOUD.md §3). */
 /** One spoken unit of a question (docs/plans/QUIZ_READ_ALOUD.md §4.1). */
@@ -8507,6 +8648,7 @@ export interface GuidedLearningAssignment {
 /** Which library the folders belong to. Folders never cross widgets. */
 export type LibraryFolderWidget =
   | 'quiz'
+  | 'question_bank'
   | 'video_activity'
   | 'guided_learning'
   | 'miniapp';

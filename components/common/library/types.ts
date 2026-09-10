@@ -23,7 +23,7 @@ import type { ClassRoster } from '@/types';
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
 
 /** Top-level library tabs. Mirrors Quiz's proven pattern. */
-export type LibraryTab = 'library' | 'active' | 'archive';
+export type LibraryTab = 'library' | 'banks' | 'active' | 'archive';
 
 /** View mode for item rendering. Grid is default; list is a density option. */
 export type LibraryViewMode = 'grid' | 'list';
@@ -175,6 +175,8 @@ export interface LibraryFilter {
 
 export interface LibraryShellTabCounts {
   library?: number;
+  /** Banks tab only renders when this is defined (Quiz only). */
+  banks?: number;
   active?: number;
   archive?: number;
 }
