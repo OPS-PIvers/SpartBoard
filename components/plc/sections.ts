@@ -2,7 +2,6 @@
 import {
   LayoutDashboard,
   ClipboardList,
-  BarChart3,
   FileText,
   ListChecks,
   SquareSquare,
@@ -32,7 +31,6 @@ export type PlcSectionId =
   // Unified Assessments library (Decision 4.5, §6.1) — hosts the quiz +
   // video-activity surfaces under one section with a type filter.
   | 'assessments'
-  | 'sharedData'
   | 'docs'
   | 'todos'
   | 'sharedBoards'
@@ -45,7 +43,7 @@ export type PlcSectionId =
  * 404) but which are no longer rail items. Each maps to its canonical
  * replacement via {@link PLC_SECTION_ALIASES}.
  */
-export type PlcSectionAlias = 'quizzes' | 'videoActivities';
+export type PlcSectionAlias = 'quizzes' | 'videoActivities' | 'sharedData';
 
 /** Any section token the router may see in a path (canonical id OR alias). */
 export type PlcRouteSection = PlcSectionId | PlcSectionAlias;
@@ -61,6 +59,8 @@ export const PLC_SECTION_ALIASES: Readonly<
 > = {
   quizzes: 'assessments',
   videoActivities: 'assessments',
+  // The former Data section merged into Assessments (plan D5).
+  sharedData: 'assessments',
 };
 
 /**
@@ -73,7 +73,6 @@ export const PLC_ROUTE_SECTIONS: ReadonlySet<PlcRouteSection> =
     'home',
     'meeting',
     'assessments',
-    'sharedData',
     'docs',
     'todos',
     'sharedBoards',
@@ -83,6 +82,7 @@ export const PLC_ROUTE_SECTIONS: ReadonlySet<PlcRouteSection> =
     // Aliases (router-accepted, rewritten to a canonical id):
     'quizzes',
     'videoActivities',
+    'sharedData',
   ]);
 
 /** Type guard: is `value` a canonical section id OR a router-accepted alias? */
@@ -140,12 +140,6 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     // Shown when EITHER the quiz OR the video-activity feature is enabled, so
     // teams that turn off just one half still get the combined section.
     isEnabled: (features) => features.quizzes || features.videoActivities,
-  },
-  {
-    id: 'sharedData',
-    icon: BarChart3,
-    labelKey: 'plcDashboard.tabs.sharedData',
-    labelDefault: 'Data',
   },
   {
     id: 'docs',

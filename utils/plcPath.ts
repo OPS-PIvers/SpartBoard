@@ -9,6 +9,7 @@
  *   /plc/:plcId/:section              → a section        { plcId, section }
  *   /plc/:plcId/meeting              → Meeting Mode     { plcId, section: 'meeting' }
  *   /plc/:plcId/meeting/:meetingId   → a meeting record { plcId, section: 'meeting', meetingId }
+ *   /plc/:plcId/assessments/:assessmentId → pooled results { plcId, section: 'assessments', assessmentId }
  *
  * Section is validated against the router-accepted token set via
  * `isPlcRouteSection`, then normalised to a canonical `PlcSectionId` via
@@ -31,6 +32,8 @@ export interface ParsedPlcPath {
   section: PlcSectionId;
   /** A specific meeting record id, only present on `/plc/:id/meeting/:meetingId`. */
   meetingId: string | null;
+  /** A pooled-results detail id, only present on `/plc/:id/assessments/:assessmentId`. */
+  assessmentId: string | null;
 }
 
 /** True when `pathname` is any route this module owns (`/plc` or under it). */
@@ -39,17 +42,19 @@ export function isPlcRoute(pathname: string): boolean {
 }
 
 /**
- * Parse a `/plc...` pathname into `{ plcId, section, meetingId }`.
+ * Parse a `/plc...` pathname into `{ plcId, section, meetingId, assessmentId }`.
  *
  * Tolerant: trailing slashes, empty segments, and an unknown section id are all
  * normalised rather than rejected. Returns `{ plcId: null, section: 'home',
- * meetingId: null }` for the bare `/plc` index hub or any non-PLC path.
+ * meetingId: null, assessmentId: null }` for the bare `/plc` index hub or any
+ * non-PLC path.
  */
 export function parsePlcPath(pathname: string): ParsedPlcPath {
   const fallback: ParsedPlcPath = {
     plcId: null,
     section: 'home',
     meetingId: null,
+    assessmentId: null,
   };
   if (!isPlcRoute(pathname)) return fallback;
 
@@ -80,8 +85,12 @@ export function parsePlcPath(pathname: string): ParsedPlcPath {
   // section makes no sense and is ignored.
   const meetingId =
     rawSection === 'meeting' && segments[2] ? segments[2] : null;
+  // Same rule for the pooled-results detail: only the literal `assessments`
+  // segment (not the `sharedData` alias) carries an assessment id.
+  const assessmentId =
+    rawSection === 'assessments' && segments[2] ? segments[2] : null;
 
-  return { plcId, section, meetingId };
+  return { plcId, section, meetingId, assessmentId };
 }
 
 /**
@@ -129,4 +138,12 @@ export function buildPlcPath(
     return `/plc/${id}/meeting/${encodeURIComponent(meetingId)}`;
   }
   return `/plc/${id}/${section}`;
+}
+
+/** Build the pooled-results detail path `/plc/:plcId/assessments/:assessmentId`. */
+export function buildPlcAssessmentPath(
+  plcId: string,
+  assessmentId: string
+): string {
+  return `${buildPlcPath(plcId, 'assessments')}/${encodeURIComponent(assessmentId)}`;
 }

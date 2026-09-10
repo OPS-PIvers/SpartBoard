@@ -4,7 +4,7 @@
  * Mounted by `App.tsx`'s teacher shell (inside DashboardProvider, so the PLC
  * section bodies that read `useDashboard` keep working). It:
  *
- *   1. Reads the parsed `{ plcId, section, meetingId }` from the pathname.
+ *   1. Reads the parsed `{ plcId, section, meetingId, assessmentId }` from the pathname.
  *   2. Subscribes ONCE to the user's live PLC list via `usePlcs()`.
  *   3. For `/plc` (no plcId) → renders the PLC index hub (your PLCs directory).
  *   4. For `/plc/:plcId...` → resolves the live `Plc`, mounts `PlcProvider`
@@ -47,7 +47,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
   // feature toggle / removal by another member is reflected immediately.
   const { plcs, loading } = usePlcs({ enabled: true });
 
-  const { plcId, section, meetingId } = parsed;
+  const { plcId, section, meetingId, assessmentId } = parsed;
 
   const activePlc = useMemo(
     () => (plcId ? (plcs.find((p) => p.id === plcId) ?? null) : null),
@@ -127,6 +127,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
         plc={activePlc}
         activeSection={section}
         meetingId={meetingId}
+        assessmentId={assessmentId}
         onClose={goHome}
       />
     </PlcProvider>

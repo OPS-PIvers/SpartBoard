@@ -48,11 +48,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedDe: string }> = [
     expectedDe: '{{actor}} hat die PLG verlassen',
   },
   {
-    path: 'plcDashboard.sharedData.emptySubtitle',
-    expectedDe:
-      'Wenn Mitglieder eine gemeinsame Bewertung im PLG-Modus durchführen, erscheinen hier anonymisierte Ergebnisse.',
-  },
-  {
     path: 'plcDashboard.meeting.pick.emptySubtitle',
     expectedDe:
       'Wenn das Team eine gemeinsame Bewertung im PLG-Modus durchführt, erscheinen hier die anonymisierten Ergebnisse zur gemeinsamen Durchsicht.',

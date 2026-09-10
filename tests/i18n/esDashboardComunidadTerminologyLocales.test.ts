@@ -45,11 +45,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedEs: string }> = [
     expectedEs: '{{actor}} salió de la Comunidad',
   },
   {
-    path: 'plcDashboard.sharedData.emptySubtitle',
-    expectedEs:
-      'Cuando los miembros realicen una evaluación común con el modo Comunidad, aquí aparecerán resultados anonimizados.',
-  },
-  {
     path: 'plcDashboard.meeting.pick.emptySubtitle',
     expectedEs:
       'Cuando el equipo aplique una evaluación común en modo Comunidad, los resultados anonimizados aparecerán aquí, listos para revisarlos juntos.',

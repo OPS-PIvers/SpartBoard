@@ -45,11 +45,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedFr: string }> = [
     expectedFr: '{{actor}} a quitté la CAP',
   },
   {
-    path: 'plcDashboard.sharedData.emptySubtitle',
-    expectedFr:
-      'Lorsque des membres réalisent une évaluation commune en mode CAP, des résultats anonymisés apparaissent ici.',
-  },
-  {
     path: 'plcDashboard.meeting.pick.emptySubtitle',
     expectedFr:
       'Lorsque l’équipe fait passer une évaluation commune en mode CAP, les résultats anonymisés apparaissent ici, prêts à être examinés ensemble.',

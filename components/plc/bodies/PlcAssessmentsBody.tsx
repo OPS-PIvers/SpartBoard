@@ -4,11 +4,10 @@
  * The pre-Wave-4 rail had two separate sections, Quizzes and Video Activities.
  * This body merges them into ONE Assessments section with a quiz /
  * video-activity TYPE FILTER at the top, matching the Common Assessment
- * abstraction. It deliberately PRESERVES the existing section internals — the
- * quiz view is the unchanged `PlcQuizzesBody` (its Library / In-progress /
- * Completed sub-tabs + assign wizard) and the video-activity view is the
- * unchanged `PlcVideoActivitiesTabsBody`. Nothing inside those bodies is
- * rebuilt; this component only chooses which one to mount.
+ * abstraction. The quiz view is the merged `PlcAssessmentList` (one row per
+ * assessment with a status badge; plan D5/D13) or `PlcAssessmentDetail` when
+ * the route carries an assessment id. The video-activity view is the
+ * unchanged `PlcVideoActivitiesTabsBody`.
  *
  * Feature gating: the section itself is only in the rail when EITHER the quiz
  * OR the video-activity feature is on (see `sections.ts`). Within the section
@@ -21,7 +20,8 @@ import React, { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, ClipboardCheck, Film, type LucideIcon } from 'lucide-react';
 import { Plc, getPlcFeatures } from '@/types';
-import { PlcQuizzesBody } from './PlcQuizzesBody';
+import { PlcAssessmentList } from '@/components/plc/assessments/PlcAssessmentList';
+import { PlcAssessmentDetail } from '@/components/plc/assessments/PlcAssessmentDetail';
 import { PlcVideoActivitiesTabsBody } from './PlcVideoActivitiesTabsBody';
 import { PlcRubricLibraryBody } from './PlcRubricLibraryBody';
 
@@ -57,6 +57,8 @@ const TYPE_FILTERS: readonly TypeFilterDef[] = [
 
 interface PlcAssessmentsBodyProps {
   plc: Plc;
+  /** Pooled-results detail id from `/plc/:id/assessments/:assessmentId`. */
+  assessmentId?: string | null;
   /**
    * Closes the entire PLC dashboard. Forwarded to the quiz body so its post-
    * assign "Edit all settings…" hand-off from the class-period picker can
@@ -68,6 +70,7 @@ interface PlcAssessmentsBodyProps {
 
 export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
   plc,
+  assessmentId = null,
   onCloseDashboard,
 }) => {
   const { t } = useTranslation();
@@ -108,9 +111,14 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
 
   const showFilter = enabledTypes.length > 1;
 
-  // No outer padding: the hosted bodies (`PlcQuizzesBody` /
-  // `PlcVideoActivitiesTabsBody`) own their own spacing exactly as they did
-  // when each was its own section, so the merge is visually transparent.
+  // A detail route renders the pooled view alone; the type filter belongs to
+  // the list.
+  if (assessmentId) {
+    return <PlcAssessmentDetail plc={plc} assessmentId={assessmentId} />;
+  }
+
+  // No outer padding: the hosted bodies own their own spacing exactly as they
+  // did when each was its own section, so the merge is visually transparent.
   return (
     <div className="flex flex-col gap-4 h-full">
       {showFilter && (
@@ -152,7 +160,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
         className="flex-1 min-h-0"
       >
         {effectiveType === 'quiz' && (
-          <PlcQuizzesBody plc={plc} onCloseDashboard={onCloseDashboard} />
+          <PlcAssessmentList plc={plc} onCloseDashboard={onCloseDashboard} />
         )}
         {effectiveType === 'video-activity' && (
           <PlcVideoActivitiesTabsBody plc={plc} />
