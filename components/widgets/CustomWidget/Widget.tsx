@@ -249,7 +249,7 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
   if (docLoading) {
     return (
       <div
-        className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400"
+        className="w-full h-full flex items-center justify-center text-slate-300"
         style={{ fontSize: 'min(14px, 5cqmin)' }}
       >
         Loading…
@@ -275,7 +275,7 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
   if (!activeGrid) {
     return (
       <div
-        className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400"
+        className="w-full h-full flex items-center justify-center text-slate-300"
         style={{ fontSize: 'min(14px, 5cqmin)' }}
       >
         No content configured.
