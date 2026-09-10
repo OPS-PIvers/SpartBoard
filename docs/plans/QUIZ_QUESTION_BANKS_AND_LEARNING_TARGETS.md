@@ -31,7 +31,7 @@ department can see mastery by target and roll it up to the standard.
 | 10  | **Slot shape:** `selected` (explicit ids) or `random` (count) with an optional target filter and slot points. A quiz may hold many slots.                                                                                                                          |
 | 11  | **Draw engine:** the teacher client writes a resolved, keyed quiz snapshot to a Drive file at assign time; the session doc holds the full public pool; the student app draws its subset at attempt start and records it in `servedQuestionIds`. No Cloud Function. |
 | 12  | **Caps:** 200 questions per bank (warn), 150 questions in a resolved assignment pool (block).                                                                                                                                                                      |
-| 13  | **Rules budget:** PR 0 compacts `firestore.rules` before any feature PR (target ≥ 20 KB freed).                                                                                                                                                                    |
+| 13  | **Rules budget:** PR 0 strips comments from `firestore.rules` at deploy time (`scripts/stripRulesComments.mjs`); the 256 KB cap now applies to rule logic only (~110 KB free).                                                                                     |
 | 14  | **Catalog seed:** datasets in `config/standards/`, loaded into a global `standards_catalog` collection by an admin "Seed standards" action. Re-seed is idempotent.                                                                                                 |
 | 15  | **PLC rollup:** the aggregate gains a `perTarget[]` axis next to `perQuestion[]`; per-question rows show served counts.                                                                                                                                            |
 | 16  | **Tag shape:** id + kind + code + label snapshot (+ parent standard ids) on the question, like `rubricSnapshot`. Rollups key on id; display survives renames and deletes.                                                                                          |
@@ -65,9 +65,9 @@ department can see mastery by target and roll it up to the standard.
 - The pooled aggregate (`functions/src/recomputePlcAssessments.ts`,
   `plcAssessmentMath.ts`) is written only by the server and already supports `byId`
   alignment. It has no grouping axis.
-- `firestore.rules` is 249,516 bytes against a 256 KB compiled cap (see memory note
-  "Firestore rules 256 KiB cap": the emulator does not enforce it, deploy fails with a bare
-  400).
+- `firestore.rules` is 249,516 bytes with comments, 152,186 bytes stripped. The deploy
+  script strips full-line comments and blank lines before `firebase deploy`, so the 256 KB
+  cap applies to the stripped text and `check:rules-size` measures that.
 - The only tag-like field today is `PlcCommonAssessment.unitLabel` (free text). It stays
   as is.
 
@@ -220,7 +220,7 @@ perQuestion[].servedCount: number;
 
 ## 5. Firestore rules
 
-PR 0 buys headroom first. New blocks (all owner/member checks, no schema locks beyond
+PR 0 bought headroom first. New blocks (all owner/member checks, no schema locks beyond
 `updatedAt`/array caps):
 
 | Path                                           | Read           | Write                           |
@@ -233,7 +233,8 @@ PR 0 buys headroom first. New blocks (all owner/member checks, no schema locks b
 | `synced_question_banks/{groupId}` + `versions` | group members  | mirror `synced_quizzes`         |
 | `global_permissions/question-bank-ai`          | existing       | existing                        |
 
-Budget line: PR 0 must free ≥ 20 KB; PR 1 + PR 2 together may spend ≤ 8 KB.
+Budget line: PR 0 freed ~97 KB of comment bytes from the deployed text; PR 1 + PR 2 have
+no practical byte constraint but keep validators shared.
 `tests/rules/` gains cases for each new path (CI-only on this machine).
 
 ## 6. Standards catalog
@@ -311,12 +312,13 @@ Budget line: PR 0 must free ≥ 20 KB; PR 1 + PR 2 together may spend ≤ 8 KB.
 
 ## 8. PR checklists
 
-### PR 0 — rules headroom
+### PR 0 — rules headroom (done)
 
-- [ ] Extract repeated validators in `firestore.rules` into functions; strip comment blocks
-      that duplicate `types.ts` docs.
-- [ ] Measure before/after bytes in the PR description; must free ≥ 20 KB.
-- [ ] `tests/rules/` unchanged and green in CI.
+- [x] Deploy-time comment strip: `scripts/stripRulesComments.mjs` runs in
+      `.github/scripts/firebase-deploy-with-retry.sh`; surviving lines are byte-identical.
+- [x] `scripts/checkRulesSize.mjs` measures the stripped size (152,186 of 262,144 bytes).
+- [x] Stripped output validated against the Rules API (same 3 pre-existing warnings).
+- [x] `tests/rules/` unchanged; they load the commented source.
 
 ### PR 1 — standards catalog, learning targets, tagging
 

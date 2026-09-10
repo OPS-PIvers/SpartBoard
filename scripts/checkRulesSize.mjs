@@ -18,12 +18,19 @@
  * bytes under the cap, and the dev-paul deploy failed on a green PR. It had
  * happened once before (#2089, which reclaimed headroom by slimming comments).
  *
+ * Since PR 0 of docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md, the
+ * deploy script strips full-line comments and blank lines first
+ * (scripts/stripRulesComments.mjs), so the cap applies to the STRIPPED
+ * text. This guard measures that same stripped text; the source size is
+ * reported for reference only.
+ *
  * This check is byte-exact and needs no emulator or network, so it runs in
  * `validate` and ahead of `test:rules`.
  */
 
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { stripRulesComments } from './stripRulesComments.mjs';
 
 const MAX_BYTES = 262144; // 256 KiB, enforced by the Firebase Rules API
 const WARN_RATIO = 0.9;
@@ -32,7 +39,9 @@ const RULES_PATH = fileURLToPath(
   new URL('../firestore.rules', import.meta.url)
 );
 
-const bytes = statSync(RULES_PATH).size;
+const source = readFileSync(RULES_PATH, 'utf8');
+const sourceBytes = Buffer.byteLength(source, 'utf8');
+const bytes = Buffer.byteLength(stripRulesComments(source), 'utf8');
 const pct = ((bytes / MAX_BYTES) * 100).toFixed(1);
 
 if (bytes > MAX_BYTES) {
@@ -56,11 +65,13 @@ if (bytes > MAX_BYTES) {
 
 if (bytes > MAX_BYTES * WARN_RATIO) {
   console.warn(
-    `warning: firestore.rules is ${bytes} bytes (${pct}% of the ${MAX_BYTES}-byte ` +
-      `cap, ${MAX_BYTES - bytes} left). Reclaim headroom before it blocks a deploy.`
+    `warning: firestore.rules is ${bytes} bytes stripped (${pct}% of the ` +
+      `${MAX_BYTES}-byte cap, ${MAX_BYTES - bytes} left). Reclaim headroom before ` +
+      `it blocks a deploy.`
   );
 } else {
   console.log(
-    `firestore.rules: ${bytes} bytes (${pct}% of cap, ${MAX_BYTES - bytes} free)`
+    `firestore.rules: ${bytes} bytes stripped (${pct}% of cap, ` +
+      `${MAX_BYTES - bytes} free; ${sourceBytes} bytes with comments)`
   );
 }
