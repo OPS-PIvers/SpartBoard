@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MathToolInstanceSettings } from './Settings';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData } from '@/types';
+import { WidgetData, MathToolType } from '@/types';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
@@ -51,5 +51,34 @@ describe('MathToolInstanceSettings — Min/Max label associations', () => {
     expect(
       screen.getByLabelText('True-Scale Calibration (px / inch)')
     ).toHaveAttribute('type', 'number');
+  });
+});
+
+describe('MathToolInstanceSettings — Tool Type radiogroup keyboard reachability', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      updateWidget: vi.fn(),
+    });
+  });
+
+  it('keeps exactly one tab stop when toolType matches no known tool', () => {
+    // A legacy/corrupted persisted value outside MathToolType — cast past
+    // the type system deliberately, since that's exactly the runtime case
+    // this test guards against.
+    const widgetWithUnknownToolType: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        toolType: 'not-a-real-tool' as unknown as MathToolType,
+      },
+    };
+    render(<MathToolInstanceSettings widget={widgetWithUnknownToolType} />);
+
+    const options = screen.getAllByRole('radio');
+    const tabbable = options.filter(
+      (option) => option.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
   });
 });

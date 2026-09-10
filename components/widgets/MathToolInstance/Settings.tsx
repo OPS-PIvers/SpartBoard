@@ -7,6 +7,7 @@ import {
 } from '@/components/widgets/math-tools/mathToolUtils';
 import { ROTATABLE_TOOLS } from './constants';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 
 export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -20,12 +21,29 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
   // Derived from the canonical MATH_TOOL_META — no local duplication
   const TOOL_TYPES = MATH_TOOL_META;
   const isRotatable = ROTATABLE_TOOLS.includes(config.toolType);
+  // Guards the "Tool Type" radiogroup's roving tabindex against a persisted
+  // toolType outside MATH_TOOL_META, which would otherwise leave every
+  // option tabIndex={-1} and make the group keyboard-unreachable.
+  const hasMatchingToolType = TOOL_TYPES.some(
+    (t) => t.type === config.toolType
+  );
 
   const numberLineModes: NumberLineMode[] = [
     'integers',
     'decimals',
     'fractions',
   ];
+  const rulerUnitOptions = ['in', 'cm', 'both'] as const;
+
+  const selectToolType = (tool: (typeof TOOL_TYPES)[number]) => {
+    updateWidget(widget.id, { config: { ...config, toolType: tool.type } });
+  };
+  const selectNumberLineMode = (m: NumberLineMode) => {
+    updateWidget(widget.id, { config: { ...config, numberLineMode: m } });
+  };
+  const selectRulerUnits = (u: (typeof rulerUnitOptions)[number]) => {
+    updateWidget(widget.id, { config: { ...config, rulerUnits: u } });
+  };
 
   return (
     <div className="space-y-5 p-1">
@@ -39,27 +57,36 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
         </SettingsLabel>
         <div
           className="grid grid-cols-2 gap-1"
-          role="group"
+          role="radiogroup"
           aria-labelledby={`mathtoolinstance-tooltype-label-${widget.id}`}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, TOOL_TYPES, selectToolType)
+          }
         >
-          {TOOL_TYPES.map(({ type, label, emoji }) => (
-            <button
-              key={type}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, toolType: type },
-                })
-              }
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xxs font-bold border transition-all text-left ${
-                config.toolType === type
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <span>{emoji}</span>
-              <span className="truncate">{label}</span>
-            </button>
-          ))}
+          {TOOL_TYPES.map((tool, index) => {
+            const { type, label, emoji } = tool;
+            const selected = hasMatchingToolType
+              ? config.toolType === type
+              : index === 0;
+            return (
+              <button
+                key={type}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => selectToolType(tool)}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xxs font-bold border transition-all text-left ${
+                  selected
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span>{emoji}</span>
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -122,26 +149,36 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
             </SettingsLabel>
             <div
               className="flex gap-1"
-              role="group"
+              role="radiogroup"
               aria-labelledby={`mathtoolinstance-mode-label-${widget.id}`}
+              onKeyDown={(e) =>
+                handleRadioGroupKeyDown(
+                  e,
+                  numberLineModes,
+                  selectNumberLineMode
+                )
+              }
             >
-              {numberLineModes.map((m) => (
-                <button
-                  key={m}
-                  onClick={() =>
-                    updateWidget(widget.id, {
-                      config: { ...config, numberLineMode: m },
-                    })
-                  }
-                  className={`px-2 py-1 rounded-lg text-xxs font-black border transition-all ${
-                    (config.numberLineMode ?? 'integers') === m
-                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
+              {numberLineModes.map((m) => {
+                const selected = (config.numberLineMode ?? 'integers') === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={selected ? 0 : -1}
+                    onClick={() => selectNumberLineMode(m)}
+                    className={`px-2 py-1 rounded-lg text-xxs font-black border transition-all ${
+                      selected
+                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -204,26 +241,32 @@ export const MathToolInstanceSettings: React.FC<{ widget: WidgetData }> = ({
           </SettingsLabel>
           <div
             className="flex gap-1"
-            role="group"
+            role="radiogroup"
             aria-labelledby={`mathtoolinstance-units-label-${widget.id}`}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, rulerUnitOptions, selectRulerUnits)
+            }
           >
-            {(['in', 'cm', 'both'] as const).map((u) => (
-              <button
-                key={u}
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, rulerUnits: u },
-                  })
-                }
-                className={`px-2 py-1 rounded-lg text-xxs font-black border transition-all ${
-                  (config.rulerUnits ?? 'both') === u
-                    ? 'bg-yellow-500 text-white border-yellow-500'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                {u}
-              </button>
-            ))}
+            {rulerUnitOptions.map((u) => {
+              const selected = (config.rulerUnits ?? 'both') === u;
+              return (
+                <button
+                  key={u}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => selectRulerUnits(u)}
+                  className={`px-2 py-1 rounded-lg text-xxs font-black border transition-all ${
+                    selected
+                      ? 'bg-yellow-500 text-white border-yellow-500'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {u}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
