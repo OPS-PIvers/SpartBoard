@@ -513,6 +513,8 @@ function sessionOptionsToSessionPatch(
     patch.showCorrectAnswerToStudent = o.showCorrectAnswerToStudent;
   if (o.showCorrectOnBoard !== undefined)
     patch.showCorrectOnBoard = o.showCorrectOnBoard;
+  if (o.showLearningTargets !== undefined)
+    patch.showLearningTargets = o.showLearningTargets;
   if (o.speedBonusEnabled !== undefined)
     patch.speedBonusEnabled = o.speedBonusEnabled;
   if (o.streakBonusEnabled !== undefined)
@@ -949,6 +951,7 @@ export const useQuizAssignments = (
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
+        showLearningTargets: opts.showLearningTargets ?? false,
         revealedAnswers: {},
         // Phase 2 gamification
         speedBonusEnabled: opts.speedBonusEnabled ?? false,

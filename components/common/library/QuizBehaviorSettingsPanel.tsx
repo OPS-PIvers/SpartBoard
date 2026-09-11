@@ -202,6 +202,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
       <AssignmentSettingsToggleGroup
         modeLocked={modeLocked}
         showCopyPasteToggle
+        showLearningTargetsToggle
         options={{
           tabWarningsEnabled: value.sessionOptions.tabWarningsEnabled,
           blockCopyPaste: value.sessionOptions.blockCopyPaste,
@@ -209,6 +210,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
           showCorrectAnswerToStudent:
             value.sessionOptions.showCorrectAnswerToStudent,
           showCorrectOnBoard: value.sessionOptions.showCorrectOnBoard,
+          showLearningTargets: value.sessionOptions.showLearningTargets,
           shuffleQuestions: value.sessionOptions.shuffleQuestions,
           shuffleAnswerOptions: value.sessionOptions.shuffleAnswerOptions,
         }}

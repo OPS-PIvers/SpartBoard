@@ -364,12 +364,18 @@ no practical byte constraint but keep validators shared.
       manager Banks tab (3), share validator (8), rules (CI-only).
 - [x] Changelog 2026.09.10.5. Help center article still to author in Firestore.
 
-### PR 3 — teacher Results by target
+### PR 3 — teacher Results by target (done 2026-09-10)
 
-- [ ] `computeTargetStats` + tests.
-- [ ] Targets tab (class view, grid, CSV, standard rollup, low-sample marker).
-- [ ] `showLearningTargets` assignment setting + student results grouping.
-- [ ] Changelog.
+- [x] `computeTargetStats` + tests.
+- [x] Targets tab (class view, grid, CSV, standard rollup, low-sample marker).
+- [x] `showLearningTargets` assignment setting + student results grouping.
+- [x] Bands here use `DEFAULT_MASTERY_CUTOFFS` per decision #26 ("personal views use
+      the defaults"). A PLC's configured `masteryCutoffs` are applied in the PR 4
+      aggregate view, not this one — `QuestionTargetTag.ownerId` is per-tag, so one
+      quiz can mix standards, personal targets and targets from two PLCs, and
+      `computeTargetStats` takes a single cutoffs object. Per-row cutoff resolution
+      would be a product decision, not a wiring change.
+- [x] Changelog 2026.09.10.6.
 
 ### PR 4 — PLC per-target aggregate
 
