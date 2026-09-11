@@ -936,6 +936,20 @@ export interface PlcAggregateChoiceRow {
   isCorrect: boolean;
 }
 
+/** An anonymized target/standard rollup in a PLC assessment aggregate. */
+export interface PlcAggregateTargetRow {
+  targetId: string;
+  kind: LearningTargetKind;
+  code?: string;
+  label: string;
+  questionIds: string[];
+  /** Published, graded answers across the questions carrying this tag. */
+  attempted: number;
+  correctPercent: number;
+  /** True until at least five graded answers contribute to the row. */
+  lowSample: boolean;
+}
+
 /**
  * The anonymized, member-readable rollup for one common assessment, stored at
  * `plcs/{plcId}/aggregates/{assessmentId}` and written **server-side only** by
@@ -989,9 +1003,15 @@ export interface PlcAssessmentAggregate {
     /** Answers carrying a published `isCorrect` flag (schema 2+). */
     graded?: number;
     correct?: number;
+    /** Completed attempts in which this question was served (schema 3+). */
+    servedCount?: number;
     /** MC only; empty for other types (schema 2+). */
     choiceDistribution?: PlcAggregateChoiceRow[];
   }>;
+  /** Direct question tags, including standards (schema 3+). */
+  perTarget?: PlcAggregateTargetRow[];
+  /** Standards directly tagged or inherited from child targets (schema 3+). */
+  perStandard?: PlcAggregateTargetRow[];
   /**
    * Per-teacher rollup — **anonymized**: a count of that teacher's students,
    * NEVER student names and NEVER per-student rows.
@@ -3428,6 +3448,209 @@ export interface QuizQuestion {
    * marker that the whole capture flow stays dormant.
    */
   recording?: RecordingConfig;
+  /**
+   * Learning-target tags (standards, PLC targets, personal targets). Frozen
+   * snapshots like `rubricSnapshot`: rollups key on `id`, display survives
+   * renames. Absent = untagged. See docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.1.
+   */
+  targets?: QuestionTargetTag[];
+}
+
+// --- LEARNING TARGETS AND STANDARDS ---
+
+export type StandardSubject = 'ela' | 'social-studies';
+
+/** One benchmark in the seeded `standards_catalog`. Doc id = `${set}:${code}`. */
+export interface StandardBenchmark {
+  id: string;
+  set: string;
+  subject: StandardSubject;
+  /** Official benchmark code, e.g. '6.4.2.2'. */
+  code: string;
+  /** 'K', '1' … '12', or a band like '11-12'. */
+  grade: string;
+  strand: string;
+  /** Parent (anchor) standard text. */
+  standard: string;
+  /** Benchmark text. */
+  text: string;
+  /** Lowercased code + text for client-side filtering. */
+  searchText: string;
+  /** Short standard id within the set, e.g. 'R9' or '5'; absent until re-seeded. */
+  standardCode?: string;
+  /** Standard heading without its code, e.g. 'Media Literacy in Reading'. */
+  standardTitle?: string;
+}
+
+export type LearningTargetKind = 'standard' | 'plc' | 'personal';
+
+/** A PLC- or teacher-authored target. Lives inside an owner's array doc. */
+export interface LearningTarget {
+  id: string;
+  code?: string;
+  label: string;
+  /** StandardBenchmark ids this target drills down from. */
+  standardIds?: string[];
+  /** Explicit grades ('K', '1' … '12'); absent = inherit from standardIds, else everywhere. */
+  grades?: string[];
+  /** Subject id from config/subjects.ts; absent = inherit from standardIds, else everywhere. */
+  subject?: string;
+  archived?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Cap on `LearningTargetList.targets`. */
+export const LEARNING_TARGET_LIST_CAP = 1000;
+
+/**
+ * Array doc at `plcs/{plcId}/meta/learningTargets` and
+ * `users/{uid}/userProfile/learningTargets`.
+ */
+export interface LearningTargetList {
+  targets: LearningTarget[];
+  /** PLC doc only; defaults 80 / 60. */
+  masteryCutoffs?: { proficient: number; approaching: number };
+  updatedAt: number;
+}
+
+/** Snapshot of a target stored on a question. */
+export interface QuestionTargetTag {
+  /** StandardBenchmark.id or LearningTarget.id */
+  id: string;
+  kind: LearningTargetKind;
+  /** plcId for 'plc'; absent for 'standard' and 'personal'. */
+  ownerId?: string;
+  code?: string;
+  label: string;
+  /** Copied from LearningTarget.standardIds so standard rollups need no lookup. */
+  standardIds?: string[];
+  /** For benchmark tags: the standard-level tag id (`set:std:standardCode`) they roll up into. */
+  parentId?: string;
+  /** Standard title snapshot so rollup rows can label the parent without a catalog lookup. */
+  parentLabel?: string;
+}
+
+// --- QUESTION BANKS ---
+
+/** Soft cap on questions in one bank (the editor warns past it). */
+export const QUESTION_BANK_SIZE_WARN = 200;
+/** Hard cap on fixed + pool questions in one assignment (assign is blocked past it). */
+export const QUIZ_ASSIGNMENT_POOL_CAP = 150;
+
+/** Drive JSON for a question bank: the QuizData shape plus bank-level tags. */
+export interface QuestionBankData {
+  id: string;
+  title: string;
+  questions: QuizQuestion[];
+  stimuli?: QuizStimulus[];
+  /** Inherited by every question when it is copied into a quiz or frozen into a pool. */
+  targets?: QuestionTargetTag[];
+  language?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** PLC share linkage on a bank; the owner republishes on every save. */
+export interface QuestionBankSyncLinkage {
+  /** Doc id under `/synced_question_banks/{groupId}`. */
+  groupId: string;
+  /** PLCs that carry a `plcs/{plcId}/question_banks` header for this bank. */
+  plcIds: string[];
+}
+
+/** Firestore metadata at `users/{uid}/question_banks/{bankId}`. */
+export interface QuestionBankMetadata {
+  id: string;
+  title: string;
+  driveFileId: string;
+  questionCount: number;
+  folderId?: string | null;
+  order?: number;
+  searchText?: string;
+  /** Union of bank tags and every question's tags. */
+  targetIds: string[];
+  /** targetId → questions eligible for that tag (bank tags count every question). */
+  targetCounts: Record<string, number>;
+  sync?: QuestionBankSyncLinkage;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Read-only canonical copy of a PLC-shared bank at
+ * `/synced_question_banks/{groupId}`. Only `ownerUid` writes; members read.
+ */
+export interface SyncedQuestionBank {
+  id: string;
+  ownerUid: string;
+  plcIds: string[];
+  /** Bumped by one on every owner publish. */
+  version: number;
+  title: string;
+  questions: QuizQuestion[];
+  stimuli?: QuizStimulus[];
+  targets?: QuestionTargetTag[];
+  language?: string;
+  questionCount: number;
+  targetIds: string[];
+  targetCounts: Record<string, number>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Header at `plcs/{plcId}/question_banks/{entryId}` pointing at the synced doc. */
+export interface PlcQuestionBankEntry {
+  id: string;
+  title: string;
+  questionCount: number;
+  syncGroupId: string;
+  targetIds: string[];
+  sharedBy: string;
+  sharedByEmail: string;
+  sharedByName: string;
+  sharedAt: number;
+  updatedAt: number;
+  deletedAt?: number | null;
+}
+
+/**
+ * A bank reference on a quiz. `selected` slots are resolved into fixed
+ * copies at add time, so at rest only `random` slots survive in
+ * `QuizData.bankSlots`.
+ */
+export interface QuizBankSlot {
+  id: string;
+  /** Owner's bank id (informational when `syncGroupId` is set). */
+  bankId: string;
+  /** Resolve from `/synced_question_banks/{syncGroupId}` when set. */
+  syncGroupId?: string;
+  bankTitle: string;
+  mode: 'selected' | 'random';
+  /** selected mode */
+  questionIds?: string[];
+  /** random mode: questions drawn per attempt */
+  count?: number;
+  /** random mode: any-of match on tag ids; absent = whole bank */
+  targetFilter?: string[];
+  /** random mode: points applied to every drawn question (default 1) */
+  points?: number;
+}
+
+/** Position of fixed questions and slots in the quiz editor list. */
+export interface QuizOrderEntry {
+  kind: 'question' | 'slot';
+  id: string;
+}
+
+/** Frozen slot on a session; the student draws `count` ids from `poolQuestionIds`. */
+export interface QuizSessionBankSlot {
+  id: string;
+  count: number;
+  points: number;
+  poolQuestionIds: string[];
+  /** Number of fixed questions that precede the slot. */
+  position: number;
 }
 
 /** What happens when a recording question's prep countdown runs out. */
@@ -3497,6 +3720,10 @@ export interface QuizData {
   stimuli?: QuizStimulus[];
   /** BCP-47 tag that picks the read-aloud voice. Absent = 'en-US'. */
   language?: string;
+  /** Random bank slots; see `QuizBankSlot`. Absent = no banks referenced. */
+  bankSlots?: QuizBankSlot[];
+  /** Interleaving of questions and slots; absent = questions in order, slots last. */
+  order?: QuizOrderEntry[];
   createdAt: number;
   updatedAt: number;
 }
@@ -3577,6 +3804,11 @@ export interface BaseSessionOptions {
   showResultToStudent?: boolean;
   showCorrectAnswerToStudent?: boolean;
   showCorrectOnBoard?: boolean;
+  /**
+   * Group the student results screen by learning target and project question
+   * tags into the session. Default off: students never see tags otherwise.
+   */
+  showLearningTargets?: boolean;
   /**
    * Randomize the order of questions per student per attempt. When on, every
    * student in the class sees questions in their own order, and each retake
@@ -3676,6 +3908,11 @@ export interface QuizPublicQuestion {
    * session doc without a Drive fetch. Carries no answer key.
    */
   recording?: RecordingConfig;
+  /**
+   * Projected from {@link QuizQuestion.targets} only when the assignment's
+   * `showLearningTargets` is on; students otherwise never receive tags.
+   */
+  targets?: QuestionTargetTag[];
 }
 
 export interface QuizLeaderboardEntry {
@@ -3748,6 +3985,12 @@ export interface QuizSession {
   readAloudTextByStimulusId?: Record<string, string>;
   /** Written by `prepareQuizReadAloudV1`; absent on pre-feature sessions (plan §3). */
   readAloud?: QuizReadAloudManifest;
+  /**
+   * Frozen bank slots (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.4).
+   * `publicQuestions` then holds fixed questions plus every pool question and
+   * `totalQuestions` counts fixed + Σ count. Absent on quizzes without banks.
+   */
+  bankSlots?: QuizSessionBankSlot[];
 
   /**
    * True once at least one Schoology LTI student has launched this session and
@@ -3780,6 +4023,8 @@ export interface QuizSession {
   showCorrectAnswerToStudent?: boolean;
   /** Show the correct answer on the teacher's projected board (default false) */
   showCorrectOnBoard?: boolean;
+  /** Group published answer feedback by the projected learning-target tags. */
+  showLearningTargets?: boolean;
   /**
    * Teacher-written map of questionId → correct answer text.
    * Students read from this after submitting; only populated when the
@@ -4568,7 +4813,7 @@ export interface QuizGlobalConfig {
 export interface QuizConfig {
   view: 'manager' | 'import' | 'editor' | 'preview' | 'results' | 'monitor';
   /** Tab within the manager view: library of saved quizzes, in-progress assignments, or archived (inactive) assignments. */
-  managerTab?: 'library' | 'active' | 'archive';
+  managerTab?: 'library' | 'banks' | 'active' | 'archive';
   selectedQuizId: string | null;
   selectedQuizTitle: string | null;
   /** Assignment currently opened in monitor/results views. */
@@ -4826,6 +5071,13 @@ export interface QuizAssignmentSettings {
    * end-of-day. Absent = date-only (legacy/other create paths).
    */
   dueAtHasTime?: boolean;
+  /**
+   * Drive file holding the resolved quiz (fixed questions + every pool
+   * question with slot points) written at assign time when the quiz has bank
+   * slots. `quizDriveFileId` points at the same file so grading needs no
+   * special case. Absent on quizzes without banks.
+   */
+  resolvedDriveFileId?: string;
 }
 
 /**
@@ -4840,6 +5092,15 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */
   quizDriveFileId: string;
+  /**
+   * Compact, teacher-private frozen tag snapshot used by server-side PLC
+   * recomputes. It includes resolved bank-pool questions without exposing
+   * learning-target metadata in the student session payload.
+   */
+  questionSnapshot?: Array<{
+    id: string;
+    targets?: QuestionTargetTag[];
+  }>;
   teacherUid: string;
   /** Join code for the student URL. Denormalized from the session doc for archive display. */
   code: string;
@@ -6985,6 +7246,10 @@ export interface UserRolesConfig {
 export interface UserProfile {
   /** IDs of the buildings the user works in (matches Building.id in config/buildings.ts) */
   selectedBuildings: string[];
+  /** Individual grades taught ('K', '1' … '12'); absent or empty = derive from buildings. */
+  gradesTaught?: string[];
+  /** Subject ids from `config/subjects.ts`; absent or empty = no subject filter. */
+  subjectsTaught?: string[];
   /** Optional language preference */
   language?: string;
   /**
@@ -7284,7 +7549,9 @@ export type GlobalFeature =
   /** Fail-closed: read it through `canAccessQuizMediaResponse`, never `canAccessFeature`. */
   | 'quiz-media-response'
   | 'settings-drawer'
-  | 'quiz-read-aloud';
+  | 'quiz-read-aloud'
+  /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
+  | 'question-bank-ai';
 
 /** `admin_settings/quiz_read_aloud` — voice mapping for quiz read-aloud (docs/plans/QUIZ_READ_ALOUD.md §3). */
 /** One spoken unit of a question (docs/plans/QUIZ_READ_ALOUD.md §4.1). */
@@ -8428,6 +8695,7 @@ export interface GuidedLearningAssignment {
 /** Which library the folders belong to. Folders never cross widgets. */
 export type LibraryFolderWidget =
   | 'quiz'
+  | 'question_bank'
   | 'video_activity'
   | 'guided_learning'
   | 'miniapp';

@@ -226,12 +226,39 @@ function setDefaults() {
   };
   mockAggregatesSlice = {
     data: [
-      makeAggregate(),
+      makeAggregate({
+        schemaVersion: 3,
+        perTarget: [
+          {
+            targetId: 'target-fractions',
+            kind: 'plc',
+            code: 'LT-1',
+            label: 'Model fractions',
+            questionIds: ['q1'],
+            attempted: 20,
+            correctPercent: 75,
+            lowSample: false,
+          },
+        ],
+      }),
       makeAggregate({
         assessmentId: 'a-running',
-        publishedSessionCount: 1,
+        scoredStudentCount: 0,
         studentCount: 12,
         teacherCount: 1,
+        schemaVersion: 3,
+        perTarget: [
+          {
+            targetId: 'target-decimals',
+            kind: 'plc',
+            code: 'LT-2',
+            label: 'Model decimals',
+            questionIds: ['q1'],
+            attempted: 12,
+            correctPercent: 60,
+            lowSample: false,
+          },
+        ],
       }),
     ],
     loading: false,
@@ -310,6 +337,17 @@ describe('PlcAssessmentList', () => {
     expect(
       screen.getByText('No assessments match this filter.')
     ).toBeInTheDocument();
+  });
+
+  it('renders target chips and filters assessments by target', () => {
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    expect(rowByTitle('Fractions CFA')).toHaveTextContent('LT-1');
+    expect(rowByTitle('Decimals quiz')).toHaveTextContent('LT-2');
+    fireEvent.change(screen.getByLabelText('Filter by target'), {
+      target: { value: 'target-decimals' },
+    });
+    expect(screen.getAllByTestId('assessment-row')).toHaveLength(1);
+    expect(screen.getByText('Decimals quiz')).toBeInTheDocument();
   });
 
   it('shows archived rows only under the Archived chip', () => {

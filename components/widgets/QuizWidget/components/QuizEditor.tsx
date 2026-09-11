@@ -6,24 +6,36 @@
  * through the controller object the modal hands them.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
+  ChevronDown,
   GripVertical,
+  Library,
   Mic,
   MousePointerClick,
   Plus,
+  Shuffle,
   Sparkles,
+  Tag,
   Trash2,
 } from 'lucide-react';
 import {
   LibraryFolder,
+  QuestionTargetTag,
+  QuizOrderEntry,
   QuizQuestion,
   QuizQuestionType,
   Rubric,
   isFreeResponseType,
 } from '@/types';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { BankSlotDetail, BankSlotRow } from './BankSlotRow';
+import { findSlotSource, slotEligibleFromSource } from './bankSlotHelpers';
+import { BankPickerModal } from './BankPickerModal';
+import { SaveToBankModal } from './SaveToBankModal';
+import type { QuizEditorBankApi } from './QuizEditorModal';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -42,17 +54,26 @@ import {
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
+import { TargetChips } from '@/components/quiz/targets/TargetChips';
+import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import type { QuizEditorController } from './useQuizEditorState';
 
 interface PaneProps {
   state: QuizEditorController;
   aiEnabled: boolean;
+  /** Question-bank access; omitted when banks are unavailable. */
+  bankApi?: QuizEditorBankApi;
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
   /** Drives the advisory's shuffle-no-op line; owned by the modal. */
   shuffleQuestionsEnabled?: boolean;
+  /** Rendered directly under the title input (bank editor's targets strip). */
+  titleSlot?: React.ReactNode;
+  titlePlaceholder?: string;
+  /** Bank-level tags every question inherits; rows render them muted. */
+  inheritedTargets?: QuestionTargetTag[];
 }
 
 const QUESTION_TYPES: {
@@ -91,7 +112,7 @@ const QUESTION_TYPES: {
 const EMPTY_DISTRACTORS: readonly string[] = Object.freeze([]);
 
 /** Hoisted so SortableList's memoized id array survives re-renders. */
-const getQuestionId = (q: QuizQuestion) => q.id;
+const getEntryId = (e: QuizOrderEntry) => e.id;
 
 const TYPE_BADGE: Record<QuizQuestionType, string> = {
   MC: 'bg-blue-100 text-blue-700',
@@ -114,22 +135,34 @@ const TYPE_BADGE: Record<QuizQuestionType, string> = {
  */
 const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.aiEnabled === next.aiEnabled &&
+  prev.bankApi === next.bankApi &&
   prev.folders === next.folders &&
   prev.folderId === next.folderId &&
   prev.onFolderChange === next.onFolderChange &&
   prev.state.title === next.state.title &&
   prev.state.questions === next.state.questions &&
+  prev.state.stimuli === next.state.stimuli &&
+  prev.state.order === next.state.order &&
+  prev.state.bankSlots === next.state.bankSlots &&
   prev.state.selectedId === next.state.selectedId &&
+  prev.state.checkedIds === next.state.checkedIds &&
   prev.shuffleQuestionsEnabled === next.shuffleQuestionsEnabled &&
+  prev.titleSlot === next.titleSlot &&
+  prev.titlePlaceholder === next.titlePlaceholder &&
+  prev.inheritedTargets === next.inheritedTargets &&
   prev.state.error === next.state.error;
 
 export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   state,
   aiEnabled,
+  bankApi,
   folders,
   folderId,
   onFolderChange,
   shuffleQuestionsEnabled,
+  titleSlot,
+  titlePlaceholder,
+  inheritedTargets,
 }: PaneProps) {
   const { canAccessQuizMediaResponse } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
@@ -137,14 +170,60 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
     title,
     setTitle,
     questions,
+    stimuli,
+    order,
+    bankSlots,
     selectedId,
     setSelectedId,
     addQuestion,
     deleteQuestion,
-    reorderQuestions,
+    reorderEntries,
+    addBankSlot,
+    removeBankSlot,
+    insertQuestions,
+    checkedIds,
+    toggleChecked,
+    setAllChecked,
+    deleteChecked,
+    applyTargets,
     error,
     setShowAiPrompt,
   } = state;
+  const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
+  const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const [saveToBankOpen, setSaveToBankOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [bankNotice, setBankNotice] = useState<string | null>(null);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(addMenuRef, () => setAddMenuOpen(false));
+
+  const questionsById = useMemo(
+    () => new Map(questions.map((q) => [q.id, q])),
+    [questions]
+  );
+  const slotsById = useMemo(
+    () => new Map(bankSlots.map((s) => [s.id, s])),
+    [bankSlots]
+  );
+  // Question numbers skip slot rows so "Question 3" matches the detail pane.
+  const questionNumberById = useMemo(() => {
+    const map = new Map<string, number>();
+    let n = 0;
+    for (const e of order) if (e.kind === 'question') map.set(e.id, n++);
+    return map;
+  }, [order]);
+  const bankSources = bankApi?.sources;
+  const eligibleBySlotId = useMemo(() => {
+    const map = new Map<string, number | null>();
+    for (const s of bankSlots)
+      map.set(s.id, slotEligibleFromSource(findSlotSource(bankSources, s), s));
+    return map;
+  }, [bankSlots, bankSources]);
+  const checkedQuestions = useMemo(
+    () => questions.filter((q) => checkedIds.has(q.id)),
+    [questions, checkedIds]
+  );
+  const banksAvailable = !!bankApi && bankApi.sources.length > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -154,9 +233,12 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Quiz title (e.g. Science Unit 4 Review)"
+          placeholder={
+            titlePlaceholder ?? 'Quiz title (e.g. Science Unit 4 Review)'
+          }
           className="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:outline-none text-lg font-bold p-0"
         />
+        {titleSlot}
         {folders && onFolderChange && (
           <FolderSelectField
             folders={folders}
@@ -168,6 +250,23 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
           <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
+          </div>
+        )}
+        {bankNotice && (
+          <div
+            role="status"
+            className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-xs text-emerald-800 font-semibold"
+          >
+            <Library className="w-4 h-4 shrink-0" aria-hidden />
+            <span className="flex-1">{bankNotice}</span>
+            <button
+              type="button"
+              onClick={() => setBankNotice(null)}
+              aria-label="Dismiss"
+              className="text-emerald-700 hover:text-emerald-900"
+            >
+              ×
+            </button>
           </div>
         )}
         {/* Advisory, not validation: it never blocks a save and never shares
@@ -185,8 +284,54 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Questions ({questions.length})
+            {bankSlots.length > 0 && (
+              <span className="ml-1.5 normal-case tracking-normal font-semibold text-indigo-600">
+                + {bankSlots.length} bank{' '}
+                {bankSlots.length === 1 ? 'draw' : 'draws'}
+              </span>
+            )}
           </h4>
           <div className="flex items-center gap-2">
+            {checkedIds.size > 0 && (
+              <>
+                <span className="text-xs font-semibold text-slate-600">
+                  {checkedIds.size} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setBulkPickerOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                  Tag
+                </button>
+                {bankApi && (
+                  <button
+                    type="button"
+                    onClick={() => setSaveToBankOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+                  >
+                    <Library className="w-3.5 h-3.5" />
+                    Save to bank…
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={deleteChecked}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 border border-slate-300 text-red-600 rounded-lg text-xs font-bold transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllChecked(false)}
+                  className="px-2 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                >
+                  Clear
+                </button>
+              </>
+            )}
             {aiEnabled && (
               <button
                 onClick={() => setShowAiPrompt(true)}
@@ -197,41 +342,160 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 Draft with AI
               </button>
             )}
-            <button
-              onClick={addQuestion}
-              className="flex items-center gap-1 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add
-            </button>
+            {bankApi ? (
+              <div ref={addMenuRef} className="relative flex items-stretch">
+                <button
+                  type="button"
+                  onClick={addQuestion}
+                  className="flex items-center gap-1 pl-2.5 pr-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-l-lg text-xs font-bold transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddMenuOpen((v) => !v)}
+                  aria-label="More ways to add"
+                  aria-haspopup="menu"
+                  aria-expanded={addMenuOpen}
+                  className="flex items-center px-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-r-lg border-l border-white/25 transition-colors"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+                {addMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-1 w-56 rounded-lg border border-slate-200 bg-white shadow-lg py-1 z-20"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setAddMenuOpen(false);
+                        addQuestion();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Blank question
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={!banksAvailable}
+                      onClick={() => {
+                        setAddMenuOpen(false);
+                        setBankPickerOpen(true);
+                      }}
+                      className="w-full flex items-start gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    >
+                      <Shuffle className="w-3.5 h-3.5 mt-px shrink-0" />
+                      <span>
+                        From question bank…
+                        {!banksAvailable && (
+                          <span className="block font-normal text-slate-500">
+                            Create a bank in the Banks tab first
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={addQuestion}
+                className="flex items-center gap-1 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add
+              </button>
+            )}
           </div>
         </div>
 
-        {questions.length === 0 ? (
+        {order.length === 0 ? (
           <div className="text-center text-slate-500 text-sm py-8 border-2 border-dashed border-slate-300 rounded-lg bg-white">
             No questions yet. Click <strong>Add</strong> to create your first
             question, or use <strong>Draft with AI</strong>.
           </div>
         ) : (
           <SortableList
-            items={questions}
-            getId={getQuestionId}
-            onReorder={reorderQuestions}
-            renderItem={(q, handle, index) => (
-              <QuestionRow
-                question={q}
-                index={index}
-                isSelected={q.id === selectedId}
-                onSelect={setSelectedId}
-                onDelete={deleteQuestion}
-                dragHandleAttributes={handle.attributes}
-                dragHandleListeners={handle.listeners}
-              />
-            )}
+            items={order}
+            getId={getEntryId}
+            onReorder={reorderEntries}
+            renderItem={(entry, handle) => {
+              if (entry.kind === 'slot') {
+                const slot = slotsById.get(entry.id);
+                if (!slot) return null;
+                return (
+                  <BankSlotRow
+                    slot={slot}
+                    eligibleCount={eligibleBySlotId.get(slot.id) ?? null}
+                    isSelected={slot.id === selectedId}
+                    onSelect={setSelectedId}
+                    onRemove={removeBankSlot}
+                    dragHandleAttributes={handle.attributes}
+                    dragHandleListeners={handle.listeners}
+                  />
+                );
+              }
+              const q = questionsById.get(entry.id);
+              if (!q) return null;
+              return (
+                <QuestionRow
+                  question={q}
+                  index={questionNumberById.get(q.id) ?? 0}
+                  isSelected={q.id === selectedId}
+                  isChecked={checkedIds.has(q.id)}
+                  onSelect={setSelectedId}
+                  onToggleChecked={toggleChecked}
+                  onDelete={deleteQuestion}
+                  dragHandleAttributes={handle.attributes}
+                  dragHandleListeners={handle.listeners}
+                  inheritedTargets={inheritedTargets}
+                />
+              );
+            }}
             className="space-y-1.5"
           />
         )}
       </div>
+      {bankPickerOpen && bankApi && (
+        <BankPickerModal
+          bankApi={bankApi}
+          onClose={() => setBankPickerOpen(false)}
+          onInsertQuestions={insertQuestions}
+          onAddSlot={addBankSlot}
+        />
+      )}
+      {saveToBankOpen && bankApi && (
+        <SaveToBankModal
+          bankApi={bankApi}
+          questions={checkedQuestions}
+          stimuli={stimuli}
+          onClose={() => setSaveToBankOpen(false)}
+          onSaved={(meta) => {
+            setBankNotice(
+              `Saved ${checkedQuestions.length} ${checkedQuestions.length === 1 ? 'question' : 'questions'} to "${meta.title}".`
+            );
+            setAllChecked(false);
+          }}
+        />
+      )}
+      {bulkPickerOpen && (
+        <TargetPicker
+          open
+          initial={[]}
+          allowReplace
+          title={`Tag ${checkedIds.size} question${checkedIds.size === 1 ? '' : 's'}`}
+          onApply={(tags, mode) => {
+            applyTargets([...checkedIds], tags, mode);
+            setBulkPickerOpen(false);
+          }}
+          onClose={() => setBulkPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }, quizContextPanePropsEqual);
@@ -242,10 +506,13 @@ interface QuestionRowProps {
   question: QuizQuestion;
   index: number;
   isSelected: boolean;
+  isChecked: boolean;
   onSelect: (id: string) => void;
+  onToggleChecked: (id: string, range?: boolean) => void;
   onDelete: (id: string) => void;
   dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
   dragHandleListeners: Record<string, (event: Event) => void> | undefined;
+  inheritedTargets?: QuestionTargetTag[];
 }
 
 /**
@@ -263,18 +530,28 @@ const questionRowPropsEqual = (
   prev.question === next.question &&
   prev.index === next.index &&
   prev.isSelected === next.isSelected &&
+  prev.isChecked === next.isChecked &&
   prev.onSelect === next.onSelect &&
-  prev.onDelete === next.onDelete;
+  prev.onToggleChecked === next.onToggleChecked &&
+  prev.onDelete === next.onDelete &&
+  prev.inheritedTargets === next.inheritedTargets;
 
 const QuestionRow = React.memo(function QuestionRow({
   question,
   index,
   isSelected,
+  isChecked,
   onSelect,
+  onToggleChecked,
   onDelete,
   dragHandleAttributes,
   dragHandleListeners,
+  inheritedTargets,
 }: QuestionRowProps) {
+  const ownIds = new Set((question.targets ?? []).map((t) => t.id));
+  const mutedTargets = (inheritedTargets ?? []).filter(
+    (t) => !ownIds.has(t.id)
+  );
   return (
     <div
       onClick={() => onSelect(question.id)}
@@ -298,6 +575,21 @@ const QuestionRow = React.memo(function QuestionRow({
       >
         <GripVertical className="w-4 h-4" />
       </button>
+      <input
+        type="checkbox"
+        checked={isChecked}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) =>
+          onToggleChecked(
+            question.id,
+            (e.nativeEvent as MouseEvent).shiftKey === true
+          )
+        }
+        aria-label={`Select question ${index + 1}`}
+        className={`shrink-0 accent-brand-blue-primary transition-opacity ${
+          isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}
+      />
       <span className="text-slate-400 font-mono font-bold text-xs w-5 shrink-0 text-center">
         {index + 1}
       </span>
@@ -312,9 +604,21 @@ const QuestionRow = React.memo(function QuestionRow({
           </>
         )}
       </span>
-      <span className="flex-1 text-sm text-slate-700 truncate">
-        {question.text || (
-          <span className="italic text-slate-400">Untitled question</span>
+      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <span className="text-sm text-slate-700 truncate">
+          {question.text || (
+            <span className="italic text-slate-400">Untitled question</span>
+          )}
+        </span>
+        {(question.targets?.length ?? 0) + mutedTargets.length > 0 && (
+          <span className="flex flex-wrap items-center gap-1">
+            {question.targets && question.targets.length > 0 && (
+              <TargetChips targets={question.targets} compact max={3} />
+            )}
+            {mutedTargets.length > 0 && (
+              <TargetChips targets={mutedTargets} compact max={3} muted />
+            )}
+          </span>
         )}
       </span>
       <button
@@ -341,23 +645,30 @@ const QuestionRow = React.memo(function QuestionRow({
  * handlers it consumes are all referentially stable.
  */
 const quizDetailPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
+  prev.bankApi === next.bankApi &&
   prev.state.questions === next.state.questions &&
   prev.state.selectedQuestion === next.state.selectedQuestion &&
+  prev.state.selectedSlot === next.state.selectedSlot &&
   prev.state.selectedIndex === next.state.selectedIndex &&
   prev.state.stimuli === next.state.stimuli;
 
 export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   state,
+  bankApi,
 }: PaneProps) {
   const {
     selectedQuestion,
+    selectedSlot,
     selectedIndex,
     questions,
     updateQuestion,
     updateIncorrect,
     addIncorrect,
     removeIncorrect,
+    updateBankSlot,
+    removeBankSlot,
   } = state;
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Stable per-selection callbacks so the memoized Matching/Ordering answer
   // editors don't re-render on every prompt keystroke (their `onChange` prop
@@ -438,6 +749,18 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     setShowRubricBuilder(false);
   }, [selectedQuestionId, selectedQuestion?.points, updateQuestion]);
 
+  if (selectedSlot) {
+    return (
+      <BankSlotDetail
+        key={selectedSlot.id}
+        slot={selectedSlot}
+        bankApi={bankApi}
+        onUpdate={updateBankSlot}
+        onRemove={removeBankSlot}
+      />
+    );
+  }
+
   if (!selectedQuestion) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
@@ -486,6 +809,49 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             placeholder="e.g. What is the capital of France?"
             className={`${inputClass} resize-none`}
           />
+        </div>
+
+        {/* Learning targets */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className={labelClass}>Learning targets</label>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+            >
+              <Tag className="w-3.5 h-3.5" />
+              {q.targets?.length ? 'Edit' : 'Add'}
+            </button>
+          </div>
+          {q.targets?.length ? (
+            <TargetChips
+              targets={q.targets}
+              onRemove={(id) => {
+                const remaining = (q.targets ?? []).filter((t) => t.id !== id);
+                updateQuestion(q.id, {
+                  targets: remaining.length ? remaining : undefined,
+                });
+              }}
+            />
+          ) : (
+            <p className="text-xs text-slate-500">
+              No targets. Tag standards or PLC targets to track mastery.
+            </p>
+          )}
+          {pickerOpen && (
+            <TargetPicker
+              open
+              initial={q.targets ?? []}
+              onApply={(tags: QuestionTargetTag[]) => {
+                updateQuestion(q.id, {
+                  targets: tags.length ? tags : undefined,
+                });
+                setPickerOpen(false);
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
         </div>
 
         {/* Type / time / points row */}

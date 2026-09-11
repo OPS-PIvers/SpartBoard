@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Verwende „Leitung übertragen“, um zu ändern, wer die PLG leitet.",
       "invalidRole": "Das ist keine gültige PLG-Rolle.",
       "alreadyLead": "Dieses Mitglied leitet diese PLG bereits.",
-      "orgRequired": "PLGs stehen nur Mitgliedern einer Organisation zur Verfügung."
+      "orgRequired": "PLGs stehen nur Mitgliedern einer Organisation zur Verfügung.",
+      "notActiveMember": "Diese Lehrkraft ist kein aktives Mitglied dieser PLG."
     }
   },
   "plcDashboard": {
@@ -376,7 +377,8 @@
       "members": "Mitglieder",
       "meeting": "Besprechungsmodus",
       "docs": "Notizen & Dokumente",
-      "resources": "Ressourcen"
+      "resources": "Ressourcen",
+      "targets": "Lernziele"
     },
     "assessmentsTypes": {
       "label": "Bewertungstyp",
@@ -1133,13 +1135,13 @@
       "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt; wer in den Klassen zweier Lehrkräfte ist, zählt doppelt.",
       "teachers": "Lehrkräfte",
       "teachersOf": "{{count}} von {{total}}",
-      "lastComputed": "Zuletzt berechnet",
+      "lastComputed": "Zuletzt aktualisiert",
       "neverComputed": "Noch nicht",
       "questionsHeading": "Fragen, am häufigsten falsch zuerst",
       "noQuestions": "Noch keine Ergebnisse. Sobald eine Lehrkraft diese Bewertung durchführt und Punkte veröffentlicht, erscheinen die gebündelten Fragen hier.",
       "incorrectPercent": "{{percent}} % falsch",
       "notScored": "Nicht bewertet",
-      "gradedOfAnswered": "{{graded}} bewertet · {{answered}} beantwortet",
+      "gradedOfAnswered": "{{served}} vorgelegt · {{graded}} bewertet · {{answered}} beantwortet",
       "choiceDistribution": "Antwortverteilung",
       "choiceCount": "{{count}} · {{percent}} %",
       "perTeacherHeading": "Nach Lehrkraft",
@@ -1147,7 +1149,12 @@
       "classes": "Klassen",
       "studentsColumn": "Schüler:innen",
       "average": "Durchschnitt",
-      "unknownTeacher": "Lehrkraft"
+      "unknownTeacher": "Lehrkraft",
+      "nonMemberTeacher": "Kein PLG-Mitglied"
+    },
+    "learningTargets": {
+      "heading": "Lernziele",
+      "description": "Ziele, mit denen die PLG Quizfragen markiert. Alle Mitglieder sehen dieselbe Liste."
     }
   },
   "widgetWindow": {
@@ -1743,7 +1750,21 @@
         "dissolveSuccess": "„{{name}}“ wurde aufgelöst.",
         "actionFailed": "Diese Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
         "cancel": "Abbrechen",
-        "confirm": "Bestätigen"
+        "confirm": "Bestätigen",
+        "members": "Mitglieder",
+        "membersDescription": "Lehrkraft aus Ihrer Organisation hinzufügen, Rolle ändern oder Mitglied entfernen. Die Lehrkraft wird nicht benachrichtigt.",
+        "noOtherMembers": "Keine Mitglieder außer der Leitung.",
+        "roleLabel": "Rolle",
+        "remove": "Entfernen",
+        "removeMember": "{{name}} entfernen",
+        "addMemberLabel": "Hinzuzufügende Lehrkraft",
+        "chooseTeacher": "Lehrkraft auswählen…",
+        "loadingTeachers": "Lehrkräfte werden geladen…",
+        "addMember": "Hinzufügen",
+        "noAddableTeachers": "Jede angemeldete Lehrkraft Ihrer Organisation ist bereits Mitglied.",
+        "memberSaved": "{{member}} ist jetzt {{role}} von „{{name}}“.",
+        "confirmRemoveMember": "{{member}} aus „{{name}}“ entfernen?",
+        "memberRemoved": "{{member}} wurde aus „{{name}}“ entfernt."
       }
     },
     "mediaReview": {
@@ -2358,6 +2379,65 @@
       "two-finger-long-pressDescription": "Zeichenmodus umschalten (ca. 0,6 s halten)",
       "one-finger-long-press": "1-Finger langes Drücken auf einem Widget",
       "one-finger-long-pressDescription": "Screenshot aufnehmen (ca. 0,6 s halten)"
+    }
+  },
+  "learningTargets": {
+    "personal": {
+      "title": "Meine Lernziele",
+      "button": "Ziele",
+      "description": "Ziele, die nur du siehst. Markiere Quizfragen damit, um den Lernfortschritt über deine eigenen Tests zu verfolgen.",
+      "sourceName": "Meine Lernziele"
+    },
+    "loading": "Ziele werden geladen…",
+    "empty": "Noch keine Lernziele. Füge eines hinzu, füge eine Liste ein oder importiere eine CSV-Datei.",
+    "columns": {
+      "code": "Code",
+      "label": "Ziel",
+      "standards": "Standards",
+      "grades": "Klassenstufen",
+      "subject": "Fach"
+    },
+    "archive": "Ziel archivieren",
+    "restore": "Ziel wiederherstellen",
+    "archivedCount": "Archiviert ({{count}})",
+    "addTarget": "Ziel hinzufügen",
+    "pasteList": "Liste einfügen",
+    "importCsv": "CSV importieren",
+    "add": "Hinzufügen",
+    "codePlaceholder": "Code",
+    "labelPlaceholder": "Ich kann…",
+    "searchStandards": "Standards nach Code oder Text suchen…",
+    "noStandardsMatch": "Keine passenden Standards.",
+    "pasteHint": "Ein Ziel pro Zeile. Optionaler Code vor einem senkrechten Strich: LT1 | Ich kann Brüche addieren.",
+    "parsedCount": "{{count}} Ziele gefunden",
+    "csvHint": "Kopfzeile mit label (erforderlich); optional code, standards, grades (Werte mit ; trennen) und subject.",
+    "csvLineError": "Zeile {{line}}: {{message}}",
+    "csvUnknownStandards": "Unbekannte Standard-Codes werden übersprungen: {{codes}}",
+    "importCount": "{{count}} importieren",
+    "masteryCutoffs": {
+      "heading": "Schwellenwerte",
+      "description": "Prozent richtig, damit ein Ziel als sicher oder annähernd erreicht gilt.",
+      "proficient": "Sicher",
+      "approaching": "Annähernd",
+      "save": "Schwellenwerte speichern"
+    },
+    "saving": "Wird gespeichert…",
+    "saveFailed": "Speichern fehlgeschlagen",
+    "anySubject": "Beliebiges Fach",
+    "gradesSubjectHint": "Optional. Klassenstufen und Fach leer lassen, um sie von den verknüpften Standards zu übernehmen.",
+    "csvUnknownSubjects": "Unbekannte Fächer werden übersprungen: {{subjects}}"
+  },
+  "settings": {
+    "profileAndSettings": "Profil & Einstellungen",
+    "profile": {
+      "title": "Profil",
+      "description": "Wo und was Sie unterrichten. Klassenstufen und Fachbereiche filtern Standards und Lernziele, damit Sie nur sehen, was für Sie gilt.",
+      "gradesTaught": "Unterrichtete Klassenstufen",
+      "gradesTaughtDescription": "Beginnt mit Ihren Gebäuden. Wählen Sie Klassenstufen ab, die Sie nicht unterrichten, um Standards, Lernziele und stufenspezifische Widgets einzugrenzen.",
+      "resetGrades": "Auf Gebäudestandard zurücksetzen",
+      "noGrades": "Keine Klassenstufen ausgewählt — Standards und Widgets zeigen alle Stufen.",
+      "subjectsTaught": "Unterrichtete Fachbereiche",
+      "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
     }
   }
 }

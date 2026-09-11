@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Use \"Transfer leadership\" to change who leads the PLC.",
       "invalidRole": "That is not a valid PLC role.",
       "alreadyLead": "That member is already the lead of this PLC.",
-      "orgRequired": "PLCs are only available to members of an organization."
+      "orgRequired": "PLCs are only available to members of an organization.",
+      "notActiveMember": "That teacher is not an active member of this PLC."
     }
   },
   "plcDashboard": {
@@ -376,7 +377,8 @@
       "members": "Members",
       "meeting": "Meeting Mode",
       "docs": "Notes & Docs",
-      "resources": "Resources"
+      "resources": "Resources",
+      "targets": "Learning Targets"
     },
     "assessmentsTypes": {
       "label": "Assessment type",
@@ -1133,13 +1135,13 @@
       "studentsHint": "Students are counted per teacher; a student in two teachers’ classes counts twice.",
       "teachers": "Teachers",
       "teachersOf": "{{count}} of {{total}}",
-      "lastComputed": "Last computed",
+      "lastComputed": "Last updated",
       "neverComputed": "Not yet",
       "questionsHeading": "Questions, most missed first",
       "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
       "incorrectPercent": "{{percent}}% incorrect",
       "notScored": "Not scored",
-      "gradedOfAnswered": "{{graded}} graded · {{answered}} answered",
+      "gradedOfAnswered": "{{served}} served · {{graded}} graded · {{answered}} answered",
       "choiceDistribution": "Answer distribution",
       "choiceCount": "{{count}} · {{percent}}%",
       "perTeacherHeading": "By teacher",
@@ -1147,7 +1149,12 @@
       "classes": "Classes",
       "studentsColumn": "Students",
       "average": "Average",
-      "unknownTeacher": "Teacher"
+      "unknownTeacher": "Teacher",
+      "nonMemberTeacher": "Not a PLC member"
+    },
+    "learningTargets": {
+      "heading": "Learning targets",
+      "description": "Targets the PLC tags quiz questions with. Every member sees the same list."
     }
   },
   "widgetSettings": {
@@ -1866,7 +1873,21 @@
         "dissolveSuccess": "“{{name}}” has been dissolved.",
         "actionFailed": "That action couldn't be completed. Please try again.",
         "cancel": "Cancel",
-        "confirm": "Confirm"
+        "confirm": "Confirm",
+        "members": "Members",
+        "membersDescription": "Add a teacher from your organization, change a role, or remove a member. The teacher is not notified.",
+        "noOtherMembers": "No members besides the lead.",
+        "roleLabel": "Role",
+        "remove": "Remove",
+        "removeMember": "Remove {{name}}",
+        "addMemberLabel": "Teacher to add",
+        "chooseTeacher": "Choose a teacher…",
+        "loadingTeachers": "Loading teachers…",
+        "addMember": "Add",
+        "noAddableTeachers": "Every signed-in teacher in your organization is already a member.",
+        "memberSaved": "{{member}} is now a {{role}} of “{{name}}”.",
+        "confirmRemoveMember": "Remove {{member}} from “{{name}}”?",
+        "memberRemoved": "{{member}} was removed from “{{name}}”."
       }
     },
     "mediaReview": {
@@ -2546,6 +2567,65 @@
       "two-finger-long-pressDescription": "Toggle annotation draw mode (hold ~0.6s)",
       "one-finger-long-press": "1-finger long press on a widget",
       "one-finger-long-pressDescription": "Take a screenshot (hold ~0.6s)"
+    }
+  },
+  "learningTargets": {
+    "personal": {
+      "title": "My learning targets",
+      "button": "Targets",
+      "description": "Targets only you can see. Tag quiz questions with them to track mastery across your own assessments.",
+      "sourceName": "My learning targets"
+    },
+    "loading": "Loading targets…",
+    "empty": "No learning targets yet. Add one, paste a list, or import a CSV.",
+    "columns": {
+      "code": "Code",
+      "label": "Target",
+      "standards": "Standards",
+      "grades": "Grades",
+      "subject": "Subject"
+    },
+    "archive": "Archive target",
+    "restore": "Restore target",
+    "archivedCount": "Archived ({{count}})",
+    "addTarget": "Add target",
+    "pasteList": "Paste list",
+    "importCsv": "Import CSV",
+    "add": "Add",
+    "codePlaceholder": "Code",
+    "labelPlaceholder": "I can…",
+    "searchStandards": "Search standards by code or text…",
+    "noStandardsMatch": "No standards match.",
+    "pasteHint": "One target per line. Optional code before a pipe: LT1 | I can add fractions.",
+    "parsedCount": "{{count}} targets found",
+    "csvHint": "Header row with label (required); optional code, standards, grades (separate values with ;) and subject.",
+    "csvLineError": "Line {{line}}: {{message}}",
+    "csvUnknownStandards": "Unknown standard codes will be skipped: {{codes}}",
+    "importCount": "Import {{count}}",
+    "masteryCutoffs": {
+      "heading": "Mastery cutoffs",
+      "description": "Percent correct needed for a target to count as proficient or approaching.",
+      "proficient": "Proficient",
+      "approaching": "Approaching",
+      "save": "Save cutoffs"
+    },
+    "saving": "Saving…",
+    "saveFailed": "Save failed",
+    "anySubject": "Any subject",
+    "gradesSubjectHint": "Optional. Leave grades and subject empty to inherit them from the linked standards.",
+    "csvUnknownSubjects": "Unknown subjects will be skipped: {{subjects}}"
+  },
+  "settings": {
+    "profileAndSettings": "Profile & Settings",
+    "profile": {
+      "title": "Profile",
+      "description": "Where and what you teach. Grades and content areas filter standards and learning targets so you only see what applies to you.",
+      "gradesTaught": "Grades taught",
+      "gradesTaughtDescription": "Starts from your building(s). Deselect grades you do not teach to narrow standards, learning targets and grade-specific widgets.",
+      "resetGrades": "Reset to building default",
+      "noGrades": "No grades selected — standards and widgets show every grade.",
+      "subjectsTaught": "Content areas taught",
+      "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
     }
   }
 }

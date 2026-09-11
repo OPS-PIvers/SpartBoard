@@ -90,6 +90,26 @@ describe('weakestQuestions', () => {
     weakestQuestions(input);
     expect(input).toEqual(copy);
   });
+
+  it('excludes questions served to fewer than five students', () => {
+    const result = weakestQuestions([
+      {
+        questionId: 'tiny',
+        text: 'Tiny sample',
+        correctPercent: 0,
+        points: 1,
+        servedCount: 4,
+      },
+      {
+        questionId: 'enough',
+        text: 'Enough data',
+        correctPercent: 60,
+        points: 1,
+        servedCount: 5,
+      },
+    ]);
+    expect(result.map((question) => question.questionId)).toEqual(['enough']);
+  });
 });
 
 describe('buildAssessmentCards', () => {

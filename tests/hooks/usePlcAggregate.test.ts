@@ -132,6 +132,43 @@ describe('parsePlcAggregate — tolerant parsing', () => {
       expect(row).toHaveProperty('studentCount');
     }
   });
+
+  it('parses schema 3 served counts and target rollups', () => {
+    const target = {
+      targetId: 'target-1',
+      kind: 'plc',
+      code: 'LT-1',
+      label: 'Use evidence',
+      questionIds: ['q1'],
+      attempted: 8,
+      correctPercent: 75,
+      lowSample: false,
+    };
+    const parsed = parsePlcAggregate(
+      'a',
+      validAggregateData({
+        schemaVersion: 3,
+        scoredStudentCount: 10,
+        linkedSessionCount: 2,
+        publishedSessionCount: 1,
+        perQuestion: [
+          {
+            questionId: 'q1',
+            text: 'Q1',
+            correctPercent: 75,
+            points: 1,
+            servedCount: 12,
+          },
+        ],
+        perTarget: [target],
+        perStandard: [{ ...target, targetId: 'std-1', kind: 'standard' }],
+      })
+    );
+    expect(parsed?.perQuestion[0]?.servedCount).toBe(12);
+    expect(parsed?.perTarget).toEqual([target]);
+    expect(parsed?.perStandard?.[0]?.targetId).toBe('std-1');
+    expect(parsed?.linkedSessionCount).toBe(2);
+  });
 });
 
 describe('parsePlcAggregate — rejection of malformed docs', () => {
@@ -173,6 +210,14 @@ describe('parsePlcAggregate — rejection of malformed docs', () => {
             },
           ],
         })
+      )
+    ).toBeNull();
+  });
+  it('rejects the WHOLE doc when a target row is malformed', () => {
+    expect(
+      parsePlcAggregate(
+        'a',
+        validAggregateData({ schemaVersion: 3, perTarget: [{ targetId: 'x' }] })
       )
     ).toBeNull();
   });

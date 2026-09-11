@@ -109,6 +109,8 @@ export interface MediaGradingResponse {
   answers?: QuizResponseAnswer[];
   grading?: Record<string, WrittenAnswerGrade>;
   artifactArchive?: Record<string, ArtifactArchiveEntry>;
+  /** Served-subset snapshot; a question outside it leaves this student's denominator. */
+  servedQuestionIds?: string[];
 }
 
 /**
@@ -248,6 +250,8 @@ export function questionPointsFor(
   question: Pick<QuizQuestion, 'id' | 'type' | 'points' | 'recording'>,
   response: MediaGradingResponse
 ): number {
+  const served = response.servedQuestionIds;
+  if (served && served.length > 0 && !served.includes(question.id)) return 0;
   return isQuestionExcused(question, response) ? 0 : (question.points ?? 1);
 }
 

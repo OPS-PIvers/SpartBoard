@@ -154,6 +154,25 @@ describe('QuizBehaviorSettingsPanel', () => {
     });
   });
 
+  it('writes the learning-target results toggle into sessionOptions', () => {
+    const onChange = vi.fn();
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Answer Feedback/i }));
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: /Group results by learning target/i,
+      })
+    );
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionOptions: expect.objectContaining({ showLearningTargets: true }),
+      })
+    );
+  });
+
   it('shows the auto-submit threshold row when tab warnings are enabled', () => {
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />

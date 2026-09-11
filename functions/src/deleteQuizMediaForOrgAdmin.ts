@@ -1000,13 +1000,20 @@ export function parseDeleteRequest(raw: unknown): DeleteMediaRequest {
   return { orgId, targets };
 }
 
-const callerEmailFrom = (token: { email?: unknown }): string => {
+// Unverified claims can't prove ownership of the caller's address (email/password sign-in allows a self-reported one) — same rail as isAdmin() / assertOrgMediaAdmin's own admin-doc lookup, resolveOrgForUser.ts.
+export const callerEmailFrom = (token: {
+  email?: unknown;
+  email_verified?: unknown;
+}): string => {
   const email = asString(token.email).trim().toLowerCase();
   if (!email) {
     throw new HttpsError(
       'permission-denied',
       'Caller must have an email address.'
     );
+  }
+  if (token.email_verified !== true) {
+    throw new HttpsError('permission-denied', 'Caller email must be verified.');
   }
   return email;
 };

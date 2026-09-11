@@ -553,6 +553,17 @@ describe('excused questions leave the student denominator', () => {
       questionPointsFor(question({ recording: undefined }), excusedResponse)
     ).toBe(4);
   });
+
+  it('drops a question outside the served-subset snapshot', () => {
+    const served = { answers: [], servedQuestionIds: ['other-q'] };
+    expect(questionPointsFor(question({ recording: undefined }), served)).toBe(
+      0
+    );
+    const included = { answers: [], servedQuestionIds: ['q1'] };
+    expect(
+      questionPointsFor(question({ recording: undefined }), included)
+    ).toBe(4);
+  });
 });
 
 describe('takeUnplayableReason', () => {

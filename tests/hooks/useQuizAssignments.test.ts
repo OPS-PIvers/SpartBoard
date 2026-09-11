@@ -925,7 +925,30 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
 
     const patch = findAssignmentPatch();
     expect(patch.plc).toBe(DELETE_FIELD_SENTINEL);
-    expect(mockDeleteField).toHaveBeenCalledTimes(1);
+    // 1 for assignment.plc + 3 for the mirrored session plcId/syncGroupId/plcLinkedAt clears.
+    expect(mockDeleteField).toHaveBeenCalledTimes(4);
+  });
+
+  it('clearing plc also drops the session-level plcId/syncGroupId/plcLinkedAt markPlcAssessmentDirty reads', async () => {
+    // stopSharingAssignmentWithPlc clears these 3 session fields; this path
+    // must match it or a "cleared" assignment keeps pooling into the PLC.
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
+        plc: undefined,
+      });
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      plcId: DELETE_FIELD_SENTINEL,
+      syncGroupId: DELETE_FIELD_SENTINEL,
+      plcLinkedAt: DELETE_FIELD_SENTINEL,
+    });
   });
 
   it('passes a real plc patch through unchanged (no deleteField translation)', async () => {
@@ -1011,6 +1034,24 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     });
     // No batch should have been opened — the early return precedes any
     // write activity.
+    expect(batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('refuses to sync an assignment built from question-bank draws', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 1 },
+        resolvedDriveFileId: 'drive-resolved',
+      }),
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await expect(
+      result.current.syncAssignmentToLatest(ASSIGNMENT_ID)
+    ).rejects.toThrow(/question-bank draws/);
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
@@ -2008,6 +2049,76 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findSessionSet()).toMatchObject({ blockCopyPaste: false });
   });
 
+  it('mirrors showLearningTargets and only projects tags when it is enabled', async () => {
+    const taggedQuiz = {
+      ...QUIZ,
+      questions: [
+        {
+          id: 'q-target',
+          type: 'MC' as const,
+          text: 'Targeted question',
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'personal' as const,
+              label: 'Use evidence',
+            },
+          ],
+        },
+      ],
+    };
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(taggedQuiz, {
+        sessionMode: 'student',
+        sessionOptions: { showLearningTargets: true },
+      });
+    });
+    const session = findSessionSet();
+    expect(session.showLearningTargets).toBe(true);
+    expect(
+      (session.publicQuestions as Array<{ targets?: unknown[] }>)[0].targets
+    ).toHaveLength(1);
+  });
+
+  it('keeps learning-target tags out of the student payload by default', async () => {
+    const taggedQuiz = {
+      ...QUIZ,
+      questions: [
+        {
+          id: 'q-target',
+          type: 'MC' as const,
+          text: 'Targeted question',
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'personal' as const,
+              label: 'Use evidence',
+            },
+          ],
+        },
+      ],
+    };
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(taggedQuiz, {
+        sessionMode: 'student',
+        sessionOptions: {},
+      });
+    });
+    const session = findSessionSet();
+    expect(session.showLearningTargets).toBe(false);
+    expect(
+      (session.publicQuestions as Array<{ targets?: unknown[] }>)[0].targets
+    ).toBeUndefined();
+  });
+
   it('opts every new session into the server-side completeness model (completenessModel: 1)', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
@@ -2063,6 +2174,86 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(
       (sessionSet.publicQuestions as { id: string }[]).map((q) => q.id)
     ).toEqual(['q-dup', 'q-unique']);
+  });
+
+  const mc = (id: string) => ({
+    id,
+    type: 'MC' as const,
+    text: id,
+    correctAnswer: 'a',
+    incorrectAnswers: ['b'],
+    timeLimit: 30,
+  });
+  const BANK_QUIZ = {
+    id: 'quiz-bank',
+    title: 'Bank Quiz',
+    driveFileId: 'drive-resolved',
+    questions: [mc('f1'), mc('p1'), mc('p2'), mc('p3'), mc('f2')],
+  };
+  const BANK_SLOTS = [
+    {
+      id: 's1',
+      count: 2,
+      points: 1,
+      poolQuestionIds: ['p1', 'p2', 'p3'],
+      position: 1,
+    },
+  ];
+
+  function findAssignmentSet(): Record<string, unknown> {
+    const call = batchSet.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.includes('quiz_assignments/')
+    );
+    if (!call) throw new Error('expected batch.set on assignment doc');
+    return call[1] as Record<string, unknown>;
+  }
+
+  it('writes bankSlots, a per-attempt totalQuestions and resolvedDriveFileId for bank-draw assignments', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(
+        BANK_QUIZ,
+        {
+          sessionMode: 'student',
+          sessionOptions: {},
+          resolvedDriveFileId: 'drive-resolved',
+        },
+        { bankSlots: BANK_SLOTS }
+      );
+    });
+    const session = findSessionSet();
+    expect(session.bankSlots).toEqual(BANK_SLOTS);
+    // 2 fixed + 2 drawn, not the 5 questions in the pool.
+    expect(session.totalQuestions).toBe(4);
+    expect((session.publicQuestions as { id: string }[]).length).toBe(5);
+    expect(findAssignmentSet()).toMatchObject({
+      quizDriveFileId: 'drive-resolved',
+      resolvedDriveFileId: 'drive-resolved',
+    });
+  });
+
+  it('rejects bank-draw assignments that are not self-paced', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await expect(
+      result.current.createAssignment(
+        BANK_QUIZ,
+        { sessionMode: 'teacher', sessionOptions: {} },
+        { bankSlots: BANK_SLOTS }
+      )
+    ).rejects.toThrow('Random bank draws need a self-paced session');
+    expect(batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('leaves bankSlots and resolvedDriveFileId off assignments without draws', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'student',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet()).not.toHaveProperty('bankSlots');
+    expect(findAssignmentSet()).not.toHaveProperty('resolvedDriveFileId');
   });
 
   // The `/quiz` route mounts no AuthProvider, so the media gate is decided

@@ -55,6 +55,7 @@ import {
   Users2,
   GraduationCap,
   Combine,
+  Target,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -67,7 +68,10 @@ import {
   SyncedQuizGroup,
   QuizBehaviorSettings,
   Plc,
+  QuestionBankMetadata,
 } from '@/types';
+import type { BankSource } from '@/hooks/useBankSources';
+import { QuizBanksTab } from './QuizBanksTab';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
@@ -120,6 +124,7 @@ import {
   type AssignDestination,
 } from './AssignDestinationModal';
 import { SchoologyAssignInstructions } from './SchoologyAssignInstructions';
+import { PersonalLearningTargetsModal } from './PersonalLearningTargetsModal';
 import {
   countItemsByFolder,
   filterByFolder,
@@ -234,6 +239,8 @@ function buildDefaultAssignOptions(
 }
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
+
+export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
 
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
@@ -361,8 +368,25 @@ interface QuizManagerProps {
   rosters: ClassRoster[];
   config: QuizConfig;
 
-  managerTab?: 'library' | 'active' | 'archive';
-  onTabChange?: (tab: 'library' | 'active' | 'archive') => void;
+  managerTab?: QuizManagerTab;
+  onTabChange?: (tab: QuizManagerTab) => void;
+  /** Question banks; the Banks tab renders only when this is provided. */
+  banks?: QuestionBankMetadata[];
+  banksLoading?: boolean;
+  /** Teammates' PLC-shared banks (kind 'plc'). */
+  sharedBankSources?: BankSource[];
+  onNewBank?: () => void;
+  onEditBank?: (meta: QuestionBankMetadata) => void;
+  onDuplicateBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
+  onDeleteBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
+  onReorderBanks?: (orderedIds: string[]) => Promise<void> | void;
+  /** Opens the widget's PLC picker for a bank. */
+  onShareBankWithPlc?: (meta: QuestionBankMetadata) => void;
+  onUnshareBankFromPlc?: (
+    meta: QuestionBankMetadata,
+    plcId: string
+  ) => void | Promise<void>;
+  onPreviewSharedBank?: (source: BankSource) => void;
   assignments?: QuizAssignment[];
   assignmentsLoading?: boolean;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
@@ -573,6 +597,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   config,
   managerTab = 'library',
   onTabChange,
+  banks,
+  banksLoading = false,
+  sharedBankSources,
+  onNewBank,
+  onEditBank,
+  onDuplicateBank,
+  onDeleteBank,
+  onReorderBanks,
+  onShareBankWithPlc,
+  onUnshareBankFromPlc,
+  onPreviewSharedBank,
   assignments = [],
   assignmentsLoading = false,
   onArchiveCopyUrl,
@@ -828,6 +863,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Bulk selection (Step 8) ──────────────────────────────────────────────
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
+  const [targetsModalOpen, setTargetsModalOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   // Phase 5 follow-up — preview pane state. We store the id (not the
   // metadata object) so the pane always reflects the latest Firestore
@@ -1797,33 +1833,84 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         sortOptions={SORT_OPTIONS}
         rightSlot={
           userId ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (selectionMode) {
-                  selection.clear();
-                  setSelectionMode(false);
-                } else {
-                  setSelectionMode(true);
+            <>
+              <button
+                type="button"
+                onClick={() => setTargetsModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
+                title={t('learningTargets.personal.title', {
+                  defaultValue: 'My learning targets',
+                })}
+              >
+                <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('learningTargets.personal.button', {
+                  defaultValue: 'Targets',
+                })}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectionMode) {
+                    selection.clear();
+                    setSelectionMode(false);
+                  } else {
+                    setSelectionMode(true);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                  selectionMode
+                    ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+                    : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
+                }`}
+                aria-pressed={selectionMode}
+                title={
+                  selectionMode ? 'Exit selection mode' : 'Enter selection mode'
                 }
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
-                selectionMode
-                  ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
-                  : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
-              }`}
-              aria-pressed={selectionMode}
-              title={
-                selectionMode ? 'Exit selection mode' : 'Enter selection mode'
-              }
-            >
-              <CheckSquare className="h-3.5 w-3.5" />
-              {selectionMode ? 'Cancel' : 'Select'}
-            </button>
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                {selectionMode ? 'Cancel' : 'Select'}
+              </button>
+            </>
           ) : undefined
         }
       />
     ) : undefined;
+
+  // ─── Shared tab chrome ────────────────────────────────────────────────────
+  const tabCounts = {
+    library: quizzes.length,
+    ...(banks ? { banks: banks.length } : {}),
+    active: activeAssignments.length,
+    archive: inactiveAssignments.length,
+  };
+  const tabLabels = isViewOnly ? { active: 'Shared' } : undefined;
+
+  if (managerTab === 'banks' && banks && onNewBank && onEditBank) {
+    return (
+      <QuizBanksTab
+        userId={userId}
+        banks={banks}
+        loading={banksLoading}
+        sharedBankSources={sharedBankSources ?? []}
+        plcs={plcs}
+        shell={{
+          widgetLabel: 'Quiz',
+          tab: managerTab,
+          onTabChange: (t) => onTabChange?.(t),
+          counts: tabCounts,
+          tabLabels,
+        }}
+        onNewBank={onNewBank}
+        onEditBank={onEditBank}
+        onDuplicateBank={onDuplicateBank ?? noop}
+        onDeleteBank={onDeleteBank ?? noop}
+        onReorderBanks={onReorderBanks}
+        onShareBankWithPlc={onShareBankWithPlc}
+        onUnshareBankFromPlc={onUnshareBankFromPlc}
+        onPreviewSharedBank={onPreviewSharedBank}
+      />
+    );
+  }
 
   // ─── Loading/error shell content ──────────────────────────────────────────
   if (loading && managerTab === 'library') {
@@ -1832,11 +1919,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         widgetLabel="Quiz"
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
-        counts={{
-          library: quizzes.length,
-          active: activeAssignments.length,
-          archive: inactiveAssignments.length,
-        }}
+        counts={tabCounts}
+        tabLabels={tabLabels}
         primaryAction={primaryAction}
         secondaryActions={secondaryActions}
         toolbarSlot={toolbar}
@@ -1880,12 +1964,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       widgetLabel="Quiz"
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
-      counts={{
-        library: quizzes.length,
-        active: activeAssignments.length,
-        archive: inactiveAssignments.length,
-      }}
-      tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
+      counts={tabCounts}
+      tabLabels={tabLabels}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
       toolbarSlot={toolbar}
@@ -2130,6 +2210,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           error={viewOnlyShareError}
           onConfirm={() => void handleConfirmViewOnlyShare()}
           onClose={closeViewOnlyShareModal}
+        />
+      )}
+
+      {targetsModalOpen && (
+        <PersonalLearningTargetsModal
+          isOpen
+          onClose={() => setTargetsModalOpen(false)}
         />
       )}
     </>

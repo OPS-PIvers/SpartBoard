@@ -41,4 +41,9 @@ describe('getQuizBehavior', () => {
   it('DEFAULT leaves copy/paste allowed (blockCopyPaste false)', () => {
     expect(DEFAULT_QUIZ_BEHAVIOR.sessionOptions.blockCopyPaste).toBe(false);
   });
+  it('DEFAULT keeps learning-target grouping off', () => {
+    expect(DEFAULT_QUIZ_BEHAVIOR.sessionOptions.showLearningTargets).toBe(
+      false
+    );
+  });
 });

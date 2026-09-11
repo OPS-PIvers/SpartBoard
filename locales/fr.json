@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Utilisez « Transférer la direction » pour changer le responsable de la CAP.",
       "invalidRole": "Ce n'est pas un rôle de CAP valide.",
       "alreadyLead": "Ce membre est déjà le responsable de cette CAP.",
-      "orgRequired": "Les CAP sont réservées aux membres d'une organisation."
+      "orgRequired": "Les CAP sont réservées aux membres d'une organisation.",
+      "notActiveMember": "Cet(te) enseignant(e) n’est pas membre actif de cette CAP."
     }
   },
   "plcDashboard": {
@@ -376,7 +377,8 @@
       "members": "Membres",
       "meeting": "Mode Réunion",
       "docs": "Notes et documents",
-      "resources": "Ressources"
+      "resources": "Ressources",
+      "targets": "Objectifs d’apprentissage"
     },
     "assessmentsTypes": {
       "label": "Type d'évaluation",
@@ -1133,13 +1135,13 @@
       "studentsHint": "Les élèves sont comptés par enseignant(e) ; un élève présent dans les classes de deux enseignant(e)s compte deux fois.",
       "teachers": "Enseignant(e)s",
       "teachersOf": "{{count}} sur {{total}}",
-      "lastComputed": "Dernier calcul",
+      "lastComputed": "Dernière mise à jour",
       "neverComputed": "Pas encore",
       "questionsHeading": "Questions, les plus ratées d’abord",
       "noQuestions": "Pas encore de résultats. Dès qu’un(e) enseignant(e) fait passer cette évaluation et publie les notes, les questions regroupées apparaissent ici.",
       "incorrectPercent": "{{percent}} % d’erreurs",
       "notScored": "Non notée",
-      "gradedOfAnswered": "{{graded}} notées · {{answered}} répondues",
+      "gradedOfAnswered": "{{served}} présentées · {{graded}} notées · {{answered}} répondues",
       "choiceDistribution": "Répartition des réponses",
       "choiceCount": "{{count}} · {{percent}} %",
       "perTeacherHeading": "Par enseignant(e)",
@@ -1147,7 +1149,12 @@
       "classes": "Classes",
       "studentsColumn": "Élèves",
       "average": "Moyenne",
-      "unknownTeacher": "Enseignant(e)"
+      "unknownTeacher": "Enseignant(e)",
+      "nonMemberTeacher": "Non membre de la CAP"
+    },
+    "learningTargets": {
+      "heading": "Objectifs d’apprentissage",
+      "description": "Objectifs avec lesquels la CAP étiquette les questions de quiz. Tous les membres voient la même liste."
     }
   },
   "widgetWindow": {
@@ -1743,7 +1750,21 @@
         "dissolveSuccess": "« {{name}} » a été dissoute.",
         "actionFailed": "Cette action n'a pas pu être effectuée. Veuillez réessayer.",
         "cancel": "Annuler",
-        "confirm": "Confirmer"
+        "confirm": "Confirmer",
+        "members": "Membres",
+        "membersDescription": "Ajoutez un(e) enseignant(e) de votre organisation, changez un rôle ou retirez un membre. La personne n’est pas notifiée.",
+        "noOtherMembers": "Aucun membre en dehors du responsable.",
+        "roleLabel": "Rôle",
+        "remove": "Retirer",
+        "removeMember": "Retirer {{name}}",
+        "addMemberLabel": "Enseignant(e) à ajouter",
+        "chooseTeacher": "Choisir un(e) enseignant(e)…",
+        "loadingTeachers": "Chargement des enseignant(e)s…",
+        "addMember": "Ajouter",
+        "noAddableTeachers": "Chaque enseignant(e) connecté(e) de votre organisation est déjà membre.",
+        "memberSaved": "{{member}} est désormais {{role}} de « {{name}} ».",
+        "confirmRemoveMember": "Retirer {{member}} de « {{name}} » ?",
+        "memberRemoved": "{{member}} a été retiré(e) de « {{name}} »."
       }
     },
     "mediaReview": {
@@ -2358,6 +2379,65 @@
       "two-finger-long-pressDescription": "Activer le mode dessin (maintenir ~0,6 s)",
       "one-finger-long-press": "Appui long à 1 doigt sur un widget",
       "one-finger-long-pressDescription": "Prendre une capture d'écran (maintenir ~0,6 s)"
+    }
+  },
+  "learningTargets": {
+    "personal": {
+      "title": "Mes objectifs d’apprentissage",
+      "button": "Objectifs",
+      "description": "Objectifs visibles par vous seul. Étiquetez vos questions de quiz pour suivre la maîtrise dans vos propres évaluations.",
+      "sourceName": "Mes objectifs d’apprentissage"
+    },
+    "loading": "Chargement des objectifs…",
+    "empty": "Aucun objectif pour le moment. Ajoutez-en un, collez une liste ou importez un CSV.",
+    "columns": {
+      "code": "Code",
+      "label": "Objectif",
+      "standards": "Normes",
+      "grades": "Niveaux",
+      "subject": "Matière"
+    },
+    "archive": "Archiver l’objectif",
+    "restore": "Restaurer l’objectif",
+    "archivedCount": "Archivés ({{count}})",
+    "addTarget": "Ajouter un objectif",
+    "pasteList": "Coller une liste",
+    "importCsv": "Importer un CSV",
+    "add": "Ajouter",
+    "codePlaceholder": "Code",
+    "labelPlaceholder": "Je peux…",
+    "searchStandards": "Rechercher des normes par code ou texte…",
+    "noStandardsMatch": "Aucune norme ne correspond.",
+    "pasteHint": "Un objectif par ligne. Code facultatif avant une barre verticale : LT1 | Je peux additionner des fractions.",
+    "parsedCount": "{{count}} objectifs trouvés",
+    "csvHint": "Ligne d'en-tête avec label (obligatoire) ; facultatifs code, standards, grades (séparez les valeurs par ;) et subject.",
+    "csvLineError": "Ligne {{line}} : {{message}}",
+    "csvUnknownStandards": "Les codes de norme inconnus seront ignorés : {{codes}}",
+    "importCount": "Importer {{count}}",
+    "masteryCutoffs": {
+      "heading": "Seuils de maîtrise",
+      "description": "Pourcentage de bonnes réponses requis pour qu’un objectif soit considéré comme maîtrisé ou en voie de maîtrise.",
+      "proficient": "Maîtrisé",
+      "approaching": "En voie",
+      "save": "Enregistrer les seuils"
+    },
+    "saving": "Enregistrement…",
+    "saveFailed": "Échec de l’enregistrement",
+    "anySubject": "Toute matière",
+    "gradesSubjectHint": "Facultatif. Laissez niveaux et matière vides pour les hériter des standards liés.",
+    "csvUnknownSubjects": "Les matières inconnues seront ignorées : {{subjects}}"
+  },
+  "settings": {
+    "profileAndSettings": "Profil et paramètres",
+    "profile": {
+      "title": "Profil",
+      "description": "Où et ce que vous enseignez. Les niveaux et les domaines filtrent les standards et les objectifs d'apprentissage pour ne montrer que ce qui vous concerne.",
+      "gradesTaught": "Niveaux enseignés",
+      "gradesTaughtDescription": "Part de vos bâtiments. Désélectionnez les niveaux que vous n'enseignez pas pour restreindre les standards, les objectifs et les widgets par niveau.",
+      "resetGrades": "Rétablir la valeur du bâtiment",
+      "noGrades": "Aucun niveau sélectionné — les standards et les widgets affichent tous les niveaux.",
+      "subjectsTaught": "Domaines enseignés",
+      "subjectsTaughtDescription": "Facultatif. Choisissez vos domaines pour ouvrir le sélecteur de standards directement dessus. Laissez vide pour voir tous les domaines."
     }
   }
 }

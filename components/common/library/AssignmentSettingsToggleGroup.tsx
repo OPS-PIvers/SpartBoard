@@ -210,6 +210,8 @@ export interface AssignmentSettingsToggleGroupProps {
    * this off. Defaults to false.
    */
   showCopyPasteToggle?: boolean;
+  /** Quiz-only: expose the learning-target grouping toggle in Answer Feedback. */
+  showLearningTargetsToggle?: boolean;
   /**
    * Optional content rendered directly under the Tab Switch Detection row
    * (still inside the integrity section). Quiz uses this for the M17 B4
@@ -239,6 +241,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   trailingSlot,
   integritySectionLabel,
   showCopyPasteToggle = false,
+  showLearningTargetsToggle = false,
   afterTabWarningsSlot,
 }) => {
   const update = <K extends keyof BaseSessionOptions>(
@@ -340,6 +343,15 @@ export const AssignmentSettingsToggleGroup: React.FC<
             onChange={(v) => update('showCorrectOnBoard', v)}
             hint="Display correct answer on the projected screen"
           />
+          {showLearningTargetsToggle && (
+            <ToggleRow
+              compact
+              label="Group results by learning target"
+              checked={options.showLearningTargets ?? false}
+              onChange={(v) => update('showLearningTargets', v)}
+              hint="Show learning-target headings with published answer feedback"
+            />
+          )}
         </CollapsibleSection>
       )}
 

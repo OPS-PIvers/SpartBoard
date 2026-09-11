@@ -44,6 +44,11 @@ trap 'rm -f "$LOG_FILE"' EXIT
 # Firebase SDK logs it as "code: UNAVAILABLE" or "code=UNAVAILABLE".
 TRANSIENT_PATTERN='HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE'
 
+# Comments count toward the 256 KiB ruleset cap, so deploy a comment-stripped
+# copy. Every surviving line is byte-identical to the source; tests still run
+# against the commented file. Idempotent, so retries are unaffected.
+node scripts/stripRulesComments.mjs firestore.rules --write
+
 attempt=1
 backoff=10
 while true; do

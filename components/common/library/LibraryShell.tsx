@@ -3,6 +3,7 @@ import {
   BookOpen,
   Activity,
   Archive as ArchiveIcon,
+  Library,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
@@ -143,6 +144,17 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
       icon: BookOpen,
       count: counts?.library,
     },
+    // Banks is Quiz-only: managers that never pass `counts.banks` are unchanged.
+    ...(counts?.banks !== undefined
+      ? [
+          {
+            key: 'banks' as const,
+            label: tabLabels?.banks ?? 'Banks',
+            icon: Library,
+            count: counts.banks,
+          },
+        ]
+      : []),
     {
       key: 'active',
       label: tabLabels?.active ?? 'In Progress',

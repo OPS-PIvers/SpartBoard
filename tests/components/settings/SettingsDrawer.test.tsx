@@ -152,6 +152,30 @@ describe('SettingsDrawer chrome', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Style' }));
     expect(screen.getAllByText('Background Color')).toHaveLength(1);
   });
+
+  it('moves focus and selection to the next tab on ArrowRight, matching the shared tablist pattern', () => {
+    renderDrawer();
+    const settingsTab = screen.getByRole('tab', { name: 'Settings' });
+    const styleTab = screen.getByRole('tab', { name: 'Style' });
+    settingsTab.focus();
+    fireEvent.keyDown(settingsTab, { key: 'ArrowRight' });
+    expect(styleTab).toHaveFocus();
+    expect(styleTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Window transparency (Global)')).toBeVisible();
+  });
+
+  it('wraps from the last tab to the first on ArrowRight and keeps only the active tab tabbable', () => {
+    renderDrawer();
+    const settingsTab = screen.getByRole('tab', { name: 'Settings' });
+    const styleTab = screen.getByRole('tab', { name: 'Style' });
+    expect(settingsTab).toHaveAttribute('tabindex', '0');
+    expect(styleTab).toHaveAttribute('tabindex', '-1');
+    styleTab.focus();
+    fireEvent.keyDown(styleTab, { key: 'ArrowRight' });
+    expect(settingsTab).toHaveFocus();
+    expect(settingsTab).toHaveAttribute('tabindex', '0');
+    expect(styleTab).toHaveAttribute('tabindex', '-1');
+  });
 });
 
 describe('SettingsDrawer read-only mode', () => {

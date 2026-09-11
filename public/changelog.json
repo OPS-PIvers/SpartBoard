@@ -1,6 +1,374 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.9",
+      "date": "2026-09-11",
+      "title": "PLC members who joined by invite now always count",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "A teacher who accepted a PLC invite could be missing from the member list and the assessment teacher counts. They now appear everywhere, and admins can manage them from Admin › PLC Resources."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Member lists merge uids that only the legacy arrays know about, and admin member writes backfill their map entries."
+        },
+        {
+          "type": "fix",
+          "text": "The admin member rule compares member uid sets rather than ordered lists."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.8",
+      "date": "2026-09-11",
+      "title": "PLC assessment results no longer wait for publishing",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Team averages, per-question results and per-teacher rows now fill in as soon as students submit. Teachers no longer have to publish scores to students before the PLC can compare results."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "The aggregate grades each response server-side from the shared answer key, using the teacher's saved manual grade for written questions. A response with an ungraded written answer is counted but not scored until the grade is entered."
+        },
+        {
+          "type": "improvement",
+          "text": "Published scores still take precedence when present. Assessments show as Scored once any student has a score."
+        },
+        {
+          "type": "fix",
+          "text": "Existing aggregates are refreshed automatically over the next few scheduled runs."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.7",
+      "date": "2026-09-11",
+      "title": "Admins can manage PLC members",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Admin",
+          "items": [
+            {
+              "text": "Site admins can now add a teacher from their organization to any PLC, change a member's role, or remove a member from Admin › PLC Resources. The teacher does not have to accept an invitation."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "New Members editor on each PLC card in the admin recovery panel, listing signed-in org teachers who are not yet members."
+        },
+        {
+          "type": "improvement",
+          "text": "Firestore rule lets an in-org admin change exactly one non-lead member per write; the lead and every other entry stay locked."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.6",
+      "date": "2026-09-11",
+      "title": "PLC assessment teacher count and label fixes",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "The Teachers stat on a scored assessment no longer reads \"4 of 3\" when a teacher who never joined the PLC has a linked session. Their row is labelled as a non-member, and the fourth stat is now called Last updated."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Teacher totals on the assessment list and detail page count active members plus any linked non-member teacher."
+        },
+        {
+          "type": "fix",
+          "text": "Per-teacher rows for a non-member show \"Not a PLC member\" instead of a blank name."
+        },
+        {
+          "type": "improvement",
+          "text": "\"Last computed\" renamed to \"Last updated\" in all four languages."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.5",
+      "date": "2026-09-11",
+      "title": "PLC Learning Targets tab and consistent page padding",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Learning targets now have their own tab in the PLC navigation instead of living at the bottom of Settings. Every PLC page also shares the same edge padding, so Settings, Members and Boards no longer sit flush against the rail."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "New Learning Targets section at /plc/:id/targets, shown whenever quizzes or video activities are on."
+        },
+        {
+          "type": "fix",
+          "text": "Page padding moved to the PLC panel wrapper; Home and Meeting Mode stay full-bleed."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.4",
+      "date": "2026-09-11",
+      "title": "Standards picker becomes a tree",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "The learning-target picker now browses standards by content area, strand and standard, with benchmarks one click away. Grades and content area come from your profile and can be changed for a single open. Tag a whole standard or a specific benchmark."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Tree picker — strands open by default, standards collapsed; search keeps the tree and opens matching branches."
+        },
+        {
+          "type": "feature",
+          "text": "Standard-level tags — tagging a standard rolls up every benchmark under it in quiz results and PLC aggregates, counting each question once."
+        },
+        {
+          "type": "improvement",
+          "text": "PLC and personal targets follow the same grade and content-area filter; targets without either always show."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.3",
+      "date": "2026-09-11",
+      "title": "Learning targets carry grades and a subject",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Learning targets",
+          "items": [
+            {
+              "text": "PLC and personal learning targets can now record the grades and content area they apply to. Leave them blank to inherit from the linked standards. CSV imports accept grades and subject columns."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Target editor — grade chips and a subject dropdown on the add form; the table shows both."
+        },
+        {
+          "type": "feature",
+          "text": "CSV import — optional grades (6;7;8) and subject columns; description is accepted as the label header."
+        },
+        {
+          "type": "improvement",
+          "text": "Standards catalog — each benchmark now records its short standard code and title; admins should re-seed standards from Admin › Standards after this update."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.2",
+      "date": "2026-09-11",
+      "title": "Profile: grades and content areas taught",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Settings",
+          "items": [
+            {
+              "text": "Settings is now Profile & Settings. The new Profile section holds your building(s), the individual grades you teach, and optionally the content areas you teach. Grades start from your building and can be narrowed, and they now drive grade-specific widgets."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Grades taught — pick individual grades (K-12) instead of relying on the whole building band. A one-click reset restores the building default."
+        },
+        {
+          "type": "feature",
+          "text": "Content areas taught — optional subject selection that will pre-filter the standards picker and learning targets."
+        },
+        {
+          "type": "feature",
+          "text": "Admin — a new Content areas panel adds, renames, or archives subjects; subjects with a standards catalog stay locked."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.1",
+      "date": "2026-09-11",
+      "title": "PLC mastery by learning target",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Common-assessment results now pool mastery by learning target and standard across the PLC, while preserving the existing anonymized aggregate boundary. Assessment rows show target chips and can be filtered by a target or standard."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Learning target mastery — standards and targets appear above item analysis with mastery bars, scored counts, low-sample notices, and expandable contributing questions."
+        },
+        {
+          "type": "feature",
+          "text": "Random-draw accuracy — pooled question rows now track how many completed attempts were actually served each item, and items served to fewer than five students stay out of hardest-question rankings."
+        },
+        {
+          "type": "feature",
+          "text": "Private snapshots — assignment records freeze compact question tags so server-side PLC rollups can include bank-pool questions without exposing hidden target metadata to students."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.10.6",
+      "date": "2026-09-10",
+      "title": "Quiz mastery by learning target",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Quiz Results now includes a Targets view with class mastery, expandable contributing questions, a sortable student-by-target grid, and CSV export. Standards roll up direct tags and linked learning targets without double-counting questions."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Targets — see served and scored counts, mastery bands, low-sample notices, and the exact questions contributing to every target or standard."
+        },
+        {
+          "type": "feature",
+          "text": "Student × target — sort students by name or mastery for any target, then export the current class-period view as CSV."
+        },
+        {
+          "type": "feature",
+          "text": "Student feedback — a new assignment setting can group published answer feedback under the learning-target tags projected with the assignment."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.10.5",
+      "date": "2026-09-10",
+      "title": "Question banks with random draws",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Build question banks in the new Banks tab, then add a random draw to any quiz: every student gets their own subset from the bank, with the same number of questions and the same maximum score. Share a bank with your PLC so teammates can draw from it too."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Banks tab — a fourth tab in the Quiz manager with the same grid, folders and search as the library. Bank-level learning targets are inherited by every question when it is copied into a quiz or drawn at assign time."
+        },
+        {
+          "type": "feature",
+          "text": "Add → From question bank… — pick questions to copy into the quiz, or add a random slot that draws N questions per attempt, optionally limited to a learning target, with one point value for every drawn question."
+        },
+        {
+          "type": "feature",
+          "text": "Save to bank — check questions in the quiz editor and send copies to an existing or new bank."
+        },
+        {
+          "type": "feature",
+          "text": "Per-attempt draws — the pool is frozen when you assign, each attempt (including retakes) draws fresh, and a refresh mid-attempt keeps the same questions. Assign is blocked with a fix-it message when a slot has fewer eligible questions than it draws, and pools are capped at 150 questions."
+        },
+        {
+          "type": "feature",
+          "text": "PLC sharing — share a bank with a PLC from its menu; teammates see it read-only in the bank picker. Sharing a quiz that draws from a bank requires the bank to be shared first."
+        },
+        {
+          "type": "feature",
+          "text": "Draft with AI in the bank editor is admin-gated under Global Permissions → Question bank AI drafting, and also requires Gemini Functions."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.10.4",
+      "date": "2026-09-10",
+      "title": "Learning targets and Minnesota standards",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Tag quiz questions with Minnesota ELA standards, PLC learning targets, or your own targets. Select several questions and tag them at once. Standards are seeded by an admin; PLC targets live in PLC settings."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Learning targets — every question in the quiz editor has a Learning targets field; a searchable picker lists seeded standards (filter by grade), each PLC’s targets, and your personal targets."
+        },
+        {
+          "type": "feature",
+          "text": "Bulk tagging — check questions in the list (shift-click for a range) and use Tag to add or replace targets on all of them, or Delete to remove them together."
+        },
+        {
+          "type": "feature",
+          "text": "PLC learning targets — PLC Settings gains a Learning targets section: add targets, link them to standards, paste a list or import a CSV, archive old ones, and set mastery cutoffs (default 80 / 60)."
+        },
+        {
+          "type": "feature",
+          "text": "My learning targets — the Quiz library toolbar has a Targets button for personal targets that work the same way."
+        },
+        {
+          "type": "improvement",
+          "text": "Admin — a Standards panel seeds the Minnesota ELA (2020) benchmarks into the shared catalog; re-seeding reports added / updated / unchanged and never deletes."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10.3",
       "date": "2026-09-10",
       "title": "Action items in PLC meeting notes",

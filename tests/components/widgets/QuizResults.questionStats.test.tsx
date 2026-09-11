@@ -140,6 +140,38 @@ const legacyResponse: QuizResponse = {
 } as unknown as QuizResponse;
 
 describe('QuizResults — per-slot question stats', () => {
+  it('offers the Targets drill-down when a tagged question was served', () => {
+    const taggedQuiz: QuizData = {
+      ...legacyQuiz,
+      questions: [
+        {
+          ...legacyQuiz.questions[0],
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'personal',
+              code: 'LT 1',
+              label: 'Choose supporting evidence',
+            },
+          ],
+        },
+      ],
+    };
+    render(
+      <QuizResults
+        quiz={taggedQuiz}
+        responses={[legacyResponse]}
+        config={{ view: 'results' } as unknown as QuizConfig}
+        onBack={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Targets'));
+    expect(screen.getByText('Class mastery by target')).toBeTruthy();
+    expect(screen.getByText('Student × target')).toBeTruthy();
+    expect(screen.getAllByText('LT 1')).toHaveLength(2);
+  });
+
   it('keeps the auto-graded percentage visible while the addendum awaits grading', () => {
     openQuestions([response()]);
     expect(screen.getByText('100%')).toBeTruthy();

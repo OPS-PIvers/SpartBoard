@@ -45,6 +45,7 @@ import {
   Music2,
   Link2,
   Mic,
+  Library,
   PanelRight,
   Volume2,
 } from 'lucide-react';
@@ -176,6 +177,13 @@ const GLOBAL_FEATURES: {
     icon: Volume2,
     description:
       'Lets teachers mark a quiz assignment, or individual signed-in students, to have questions and answer choices read aloud with a Google Cloud voice. Anonymous PIN joiners never get it. Fail-closed: until this is saved and enabled, the override checkbox, the assignment toggle and the quiz language field stay hidden. Characters are billed to the teacher who assigns; voices are set under Tools → Quiz Read-Aloud.',
+  },
+  {
+    id: 'question-bank-ai',
+    label: 'Question bank AI drafting',
+    icon: Library,
+    description:
+      'Shows "Draft with AI" inside the question-bank editor so teachers can generate bank questions from a prompt or file. Only takes effect when Gemini Functions is also enabled for the teacher; the generated questions inherit the bank\'s learning-target tags.',
   },
   {
     id: 'settings-drawer',

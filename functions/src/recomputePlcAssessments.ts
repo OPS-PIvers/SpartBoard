@@ -4,9 +4,11 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import {
+  AGGREGATE_SCHEMA_VERSION,
   computeAssessmentAggregate,
   resolveGroupQuestions,
   type CompletedResponse,
+  type ManualGrade,
   type RawAnswer,
   type SessionInput,
 } from './plcAssessmentMath';
@@ -49,9 +51,41 @@ export function parseCompletedResponse(
       typeof raw.score === 'number' && Number.isFinite(raw.score)
         ? raw.score
         : null,
+    servedQuestionIds: Array.isArray(raw.servedQuestionIds)
+      ? raw.servedQuestionIds.filter(
+          (id): id is string => typeof id === 'string' && id.length > 0
+        )
+      : undefined,
     classPeriod: asString(raw.classPeriod) || undefined,
     classId: asString(raw.classId) || undefined,
+    manualGrades: parseManualGrades(raw.grading),
   };
+}
+
+/** `grading[questionId]` for primary slots; media slot keys (`id::slot`) are skipped. */
+function parseManualGrades(
+  raw: unknown
+): Record<string, ManualGrade> | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const out: Record<string, ManualGrade> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (key.includes('::') || typeof value !== 'object' || value === null)
+      continue;
+    const points = (value as Record<string, unknown>).pointsAwarded;
+    if (typeof points !== 'number' || !Number.isFinite(points)) continue;
+    const scores = (value as Record<string, unknown>).rubricScores;
+    const scoredCriterionIds = Array.isArray(scores)
+      ? scores
+          .map((sc) =>
+            typeof sc === 'object' && sc !== null
+              ? asString((sc as Record<string, unknown>).criterionId)
+              : ''
+          )
+          .filter((id) => id.length > 0)
+      : [];
+    out[key] = { pointsAwarded: points, scoredCriterionIds };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** `plcs/{plcId}.members[uid].displayName`, else ''. */
@@ -121,11 +155,26 @@ export async function recomputeOnePlcAssessment(
   const sessions: SessionInput[] = [];
   for (const sessionDoc of sessionsSnap.docs) {
     const s = sessionDoc.data();
-    const responsesSnap = await sessionDoc.ref
-      .collection('responses')
-      .where('status', '==', 'completed')
-      .get();
     const teacherUid = asString(s.teacherUid);
+    const assignmentId = asString(s.assignmentId) || sessionDoc.id;
+    const [responsesSnap, assignmentSnap] = await Promise.all([
+      sessionDoc.ref
+        .collection('responses')
+        .where('status', '==', 'completed')
+        .get(),
+      teacherUid
+        ? db
+            .collection('users')
+            .doc(teacherUid)
+            .collection('quiz_assignments')
+            .doc(assignmentId)
+            .get()
+        : Promise.resolve(null),
+    ]);
+    const assignmentData = assignmentSnap?.data() as
+      | Record<string, unknown>
+      | undefined;
+    const questionSnapshot = assignmentData?.questionSnapshot;
     sessions.push({
       id: sessionDoc.id,
       teacherUid,
@@ -133,6 +182,7 @@ export async function recomputeOnePlcAssessment(
       publicQuestions: Array.isArray(s.publicQuestions)
         ? s.publicQuestions
         : [],
+      questionSnapshot: Array.isArray(questionSnapshot) ? questionSnapshot : [],
       responses: responsesSnap.docs.map((d) =>
         parseCompletedResponse(d.data())
       ),
@@ -143,7 +193,8 @@ export async function recomputeOnePlcAssessment(
 
   const groupQuestions = resolveGroupQuestions(
     syncedSnap.exists ? (syncedSnap.data() ?? null) : null,
-    sessions[0]?.publicQuestions ?? []
+    sessions.flatMap((session) => session.publicQuestions),
+    sessions.flatMap((session) => session.questionSnapshot ?? [])
   );
   const kind = assessment.kind === 'video-activity' ? 'video-activity' : 'quiz';
   const payload = computeAssessmentAggregate({
@@ -180,10 +231,12 @@ export async function runRecomputePlcAssessments(
     .limit(limit)
     .get();
 
-  for (const doc of dirtySnap.docs) {
+  const recompute = async (
+    doc: admin.firestore.QueryDocumentSnapshot
+  ): Promise<void> => {
     counts.scanned++;
     const plcId = doc.ref.parent.parent?.id;
-    if (!plcId) continue;
+    if (!plcId) return;
     try {
       await recomputeOnePlcAssessment(db, plcId, doc.id);
       counts.recomputed++;
@@ -195,6 +248,18 @@ export async function runRecomputePlcAssessments(
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  };
+  for (const doc of dirtySnap.docs) await recompute(doc);
+
+  // Spare budget refreshes aggregates written by an older schema.
+  const remaining = limit - dirtySnap.docs.length;
+  if (remaining > 0) {
+    const staleSnap = await db
+      .collectionGroup('aggregates')
+      .where('schemaVersion', '<', AGGREGATE_SCHEMA_VERSION)
+      .limit(remaining)
+      .get();
+    for (const doc of staleSnap.docs) await recompute(doc);
   }
   return counts;
 }

@@ -42,6 +42,7 @@ import { logError } from '@/utils/logError';
 import { buildPlcAssessmentPath, spaNavigate } from '@/utils/plcPath';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
+import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import {
   buildAssessmentRows,
   countRowsByFolder,
@@ -268,6 +269,11 @@ const AssessmentRow: React.FC<RowProps> = ({
         <span className="block text-xs text-slate-500 mt-0.5 truncate">
           {meta.join(' · ')}
         </span>
+        {row.targets.length > 0 && (
+          <span className="mt-1 block">
+            <TargetChips targets={row.targets} compact max={3} />
+          </span>
+        )}
       </span>
     </>
   );
@@ -552,25 +558,41 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
 
   const [filter, setFilter] = useState<AssessmentListFilter>('all');
   const [search, setSearch] = useState('');
+  const [targetFilter, setTargetFilter] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
+  const memberUids = useMemo(() => members.map((m) => m.uid), [members]);
   const rows = useMemo(
     () =>
       buildAssessmentRows({
         assessments,
         aggregates,
         libraryEntries,
-        memberCount: members.length,
+        memberUids,
       }),
-    [assessments, aggregates, libraryEntries, members.length]
+    [assessments, aggregates, libraryEntries, memberUids]
   );
   const folderFilteredRows = useMemo(
     () => filterRowsByFolder(rows, selectedFolderId),
     [rows, selectedFolderId]
   );
+  const targetOptions = useMemo(() => {
+    const byId = new Map<string, AssessmentListRow['targets'][number]>();
+    for (const row of rows) {
+      for (const target of row.targets) byId.set(target.id, target);
+    }
+    return Array.from(byId.values()).sort((a, b) =>
+      `${a.code ?? ''} ${a.label}`.localeCompare(
+        `${b.code ?? ''} ${b.label}`,
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+      )
+    );
+  }, [rows]);
   const visibleRows = useMemo(
-    () => filterAssessmentRows(folderFilteredRows, filter, search),
-    [folderFilteredRows, filter, search]
+    () =>
+      filterAssessmentRows(folderFilteredRows, filter, search, targetFilter),
+    [folderFilteredRows, filter, search, targetFilter]
   );
   const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
   const rowIds = useMemo(() => visibleRows.map((r) => r.id), [visibleRows]);
@@ -893,6 +915,29 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
               className="pl-8 pr-3 py-1.5 w-44 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             />
           </label>
+          {targetOptions.length > 0 && (
+            <select
+              value={targetFilter ?? ''}
+              onChange={(event) => setTargetFilter(event.target.value || null)}
+              aria-label={t('plcDashboard.assessmentList.targetFilterLabel', {
+                defaultValue: 'Filter by target',
+              })}
+              className="max-w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+            >
+              <option value="">
+                {t('plcDashboard.assessmentList.allTargets', {
+                  defaultValue: 'All targets',
+                })}
+              </option>
+              {targetOptions.map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.code
+                    ? `${target.code} — ${target.label}`
+                    : target.label}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         {shareButton}
       </div>

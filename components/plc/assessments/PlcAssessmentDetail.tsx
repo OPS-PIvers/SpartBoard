@@ -13,12 +13,18 @@ import {
   ArrowLeft,
   BookOpen,
   ChevronDown,
+  ChevronRight,
   ClipboardList,
   Loader2,
   Users,
   Video,
 } from 'lucide-react';
-import { getPlcFeatures, type Plc, type PlcAssessmentAggregate } from '@/types';
+import {
+  getPlcFeatures,
+  type Plc,
+  type PlcAggregateTargetRow,
+  type PlcAssessmentAggregate,
+} from '@/types';
 import {
   usePlcAggregatesData,
   usePlcAssessmentsData,
@@ -26,12 +32,17 @@ import {
 } from '@/context/usePlcContext';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { PlcCommentsThread } from '@/components/plc/comments/PlcCommentsThread';
+import { TargetChips } from '@/components/quiz/targets/TargetChips';
+import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
+import { DEFAULT_MASTERY_CUTOFFS } from '@/utils/learningTargets';
+import { masteryBandFor, type MasteryBand } from '@/utils/quizTargetStats';
 import {
   aggregateStatus,
   firstNonEmpty,
   formatShortDate,
   hasTeamAverage,
   sortWorstFirst,
+  teacherPoolSize,
 } from './assessmentListSelectors';
 import { AssessmentStatusBadge } from './PlcAssessmentList';
 
@@ -41,6 +52,12 @@ interface PlcAssessmentDetailProps {
 }
 
 type PerQuestion = PlcAssessmentAggregate['perQuestion'][number];
+
+const MASTERY_BAR_CLASS: Record<MasteryBand, string> = {
+  proficient: 'bg-emerald-500',
+  approaching: 'bg-amber-400',
+  beginning: 'bg-brand-red-light',
+};
 
 /** Tone by % incorrect: low error emerald, moderate amber, high red. */
 function incorrectToneClass(incorrectPercent: number): string {
@@ -127,7 +144,9 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
         </div>
         <div className="mt-1.5 text-xs text-slate-500">
           {t('plcDashboard.assessmentDetail.gradedOfAnswered', {
-            defaultValue: '{{graded}} graded · {{answered}} answered',
+            defaultValue:
+              '{{served}} served · {{graded}} graded · {{answered}} answered',
+            served: question.servedCount ?? answered,
             graded: question.graded ?? 0,
             answered,
           })}
@@ -179,6 +198,92 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
   );
 };
 
+const TargetAggregateRow: React.FC<{
+  row: PlcAggregateTargetRow;
+  questionsById: Map<string, PerQuestion>;
+  cutoffs: { proficient: number; approaching: number };
+}> = ({ row, questionsById, cutoffs }) => {
+  const [open, setOpen] = useState(false);
+  const questions = row.questionIds
+    .map((id) => questionsById.get(id))
+    .filter((question): question is PerQuestion => question !== undefined);
+  const band = masteryBandFor(row.correctPercent, cutoffs) ?? 'beginning';
+  return (
+    <li className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label={`${open ? 'Collapse' : 'Expand'} ${row.code ?? row.label}`}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+      >
+        {open ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+        )}
+        <span className="min-w-0 flex-1">
+          <TargetChips
+            targets={[
+              {
+                id: row.targetId,
+                kind: row.kind,
+                ...(row.code ? { code: row.code } : {}),
+                label: row.label,
+              },
+            ]}
+            compact
+          />
+          <span className="mt-1 block text-xxs text-slate-500">
+            {row.attempted} scored · {row.questionIds.length} question
+            {row.questionIds.length === 1 ? '' : 's'}
+          </span>
+        </span>
+        {row.lowSample && (
+          <span
+            title="Fewer than 5 scored student-question pairs"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-xxs font-bold text-amber-800"
+          >
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            Low sample
+          </span>
+        )}
+        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-slate-700">
+          {row.correctPercent}%
+        </span>
+        <span className="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-slate-100">
+          <span
+            className={`block h-full rounded-full ${MASTERY_BAR_CLASS[band]}`}
+            style={{
+              width: `${Math.min(100, Math.max(0, row.correctPercent))}%`,
+            }}
+          />
+        </span>
+      </button>
+      {open && (
+        <ul className="divide-y divide-slate-100 border-t border-slate-100 bg-slate-50/70">
+          {questions.map((question) => (
+            <li
+              key={question.questionId}
+              className="flex items-center gap-3 px-4 py-2 pl-10 text-xs text-slate-600"
+            >
+              <span className="min-w-0 flex-1 truncate">
+                {question.text || 'Untitled question'}
+              </span>
+              <span className="shrink-0 tabular-nums text-slate-500">
+                {question.servedCount ?? question.answered ?? 0} served
+              </span>
+              <span className="w-10 shrink-0 text-right font-bold tabular-nums text-slate-700">
+                {question.graded ? `${question.correctPercent}%` : '—'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+};
+
 export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   plc,
   assessmentId,
@@ -189,6 +294,11 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   const { data: aggregates, loading: aggregatesLoading } =
     usePlcAggregatesData();
   const members = usePlcMembers();
+  const memberUids = useMemo(
+    () => new Set(members.map((m) => m.uid)),
+    [members]
+  );
+  const { list: learningTargetList } = usePlcLearningTargets(plc.id);
   const showPerTeacher = getPlcFeatures(plc).showPerTeacher;
 
   const assessment = useMemo(
@@ -205,6 +315,22 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
     () => sortWorstFirst(aggregate?.perQuestion ?? []),
     [aggregate]
   );
+  const questionsById = useMemo(
+    () =>
+      new Map(
+        (aggregate?.perQuestion ?? []).map((question) => [
+          question.questionId,
+          question,
+        ])
+      ),
+    [aggregate]
+  );
+  const standards = aggregate?.perStandard ?? [];
+  const targets = (aggregate?.perTarget ?? []).filter(
+    (row) => row.kind !== 'standard'
+  );
+  const masteryCutoffs =
+    learningTargetList?.masteryCutoffs ?? DEFAULT_MASTERY_CUTOFFS;
 
   const goBack = () => spaNavigate(buildPlcPath(plc.id, 'assessments'));
   const backButton = (
@@ -330,14 +456,14 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
               {t('plcDashboard.assessmentDetail.teachersOf', {
                 defaultValue: '{{count}} of {{total}}',
                 count: teacherCount,
-                total: members.length,
+                total: teacherPoolSize([...memberUids], aggregate),
               })}
             </dd>
           </div>
           <div className="bg-slate-50 rounded-xl px-3 py-2.5">
             <dt className="text-xxs font-bold uppercase tracking-wider text-slate-500">
               {t('plcDashboard.assessmentDetail.lastComputed', {
-                defaultValue: 'Last computed',
+                defaultValue: 'Last updated',
               })}
             </dt>
             <dd className="text-base font-bold text-slate-800 mt-1">
@@ -369,6 +495,54 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
           </div>
         )}
       </header>
+
+      {(standards.length > 0 || targets.length > 0) && (
+        <section data-testid="target-mastery">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+            {t('plcDashboard.assessmentDetail.targetMasteryHeading', {
+              defaultValue: 'Learning target mastery',
+            })}
+          </h3>
+          {standards.length > 0 && (
+            <div className="mb-4">
+              <h4 className="mb-2 text-xxs font-bold uppercase tracking-wider text-slate-500">
+                {t('plcDashboard.assessmentDetail.standardsHeading', {
+                  defaultValue: 'Standards',
+                })}
+              </h4>
+              <ul className="space-y-2">
+                {standards.map((row) => (
+                  <TargetAggregateRow
+                    key={row.targetId}
+                    row={row}
+                    questionsById={questionsById}
+                    cutoffs={masteryCutoffs}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+          {targets.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-xxs font-bold uppercase tracking-wider text-slate-500">
+                {t('plcDashboard.assessmentDetail.targetsHeading', {
+                  defaultValue: 'Targets',
+                })}
+              </h4>
+              <ul className="space-y-2">
+                {targets.map((row) => (
+                  <TargetAggregateRow
+                    key={row.targetId}
+                    row={row}
+                    questionsById={questionsById}
+                    cutoffs={masteryCutoffs}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Per-question error frequency */}
       <section>
@@ -440,9 +614,19 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
                           aria-hidden="true"
                         />
                         {row.teacherName ||
-                          t('plcDashboard.assessmentDetail.unknownTeacher', {
-                            defaultValue: 'Teacher',
-                          })}
+                          (memberUids.has(row.teacherUid)
+                            ? t(
+                                'plcDashboard.assessmentDetail.unknownTeacher',
+                                {
+                                  defaultValue: 'Teacher',
+                                }
+                              )
+                            : t(
+                                'plcDashboard.assessmentDetail.nonMemberTeacher',
+                                {
+                                  defaultValue: 'Not a PLC member',
+                                }
+                              ))}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-slate-700">

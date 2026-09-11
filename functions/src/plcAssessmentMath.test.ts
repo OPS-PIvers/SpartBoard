@@ -3,6 +3,7 @@ import {
   ALIGNMENT_WARNING,
   alignSessionQuestions,
   computeAssessmentAggregate,
+  gradeGroupAnswer,
   resolveGroupQuestions,
   selectRepresentativeAnswers,
   type CompletedResponse,
@@ -22,6 +23,26 @@ const publicQuestions = [
   { id: 'q3', type: 'free-response', text: 'Explain.' },
 ];
 
+const standard = {
+  id: 'mn-ss-2021:6.2.1.1',
+  kind: 'standard' as const,
+  code: '6.2.1.1',
+  label: 'Evaluate evidence from historical sources.',
+};
+const sourceTarget = {
+  id: 'target-sources',
+  kind: 'plc' as const,
+  ownerId: 'plc-1',
+  label: 'Use evidence from sources',
+  standardIds: [standard.id],
+};
+const contextTarget = {
+  id: 'target-context',
+  kind: 'personal' as const,
+  label: 'Explain historical context',
+  standardIds: [standard.id],
+};
+
 const syncedQuestions = {
   questions: [
     {
@@ -31,8 +52,15 @@ const syncedQuestions = {
       correctAnswer: 'St. Paul',
       incorrectAnswers: ['Duluth', 'Rochester'],
       points: 2,
+      targets: [sourceTarget, standard],
     },
-    { id: 'q2', type: 'FIB', text: 'Two plus two?', correctAnswer: '4' },
+    {
+      id: 'q2',
+      type: 'FIB',
+      text: 'Two plus two?',
+      correctAnswer: '4',
+      targets: [contextTarget],
+    },
     { id: 'q3', type: 'free-response', text: 'Explain.', points: 5 },
   ],
 };
@@ -94,6 +122,18 @@ describe('resolveGroupQuestions', () => {
     expect(
       resolveGroupQuestions({ questions: 'nope' }, publicQuestions)
     ).toHaveLength(3);
+  });
+
+  it('merges private target snapshots onto resolved pool questions', () => {
+    const qs = resolveGroupQuestions(
+      syncedQuestions,
+      [
+        ...publicQuestions,
+        { id: 'pool-q', type: 'MC', text: 'Pool?', choices: ['A', 'B'] },
+      ],
+      [{ id: 'pool-q', targets: [sourceTarget] }]
+    );
+    expect(qs.find((q) => q.id === 'pool-q')?.targets).toEqual([sourceTarget]);
   });
 });
 
@@ -191,7 +231,7 @@ describe('computeAssessmentAggregate', () => {
       ]),
     ]);
 
-    expect(agg.schemaVersion).toBe(2);
+    expect(agg.schemaVersion).toBe(4);
     expect(agg.title).toBe('Unit 4 CFA');
     expect(agg.kind).toBe('quiz');
     expect(agg.teacherCount).toBe(2);
@@ -209,6 +249,7 @@ describe('computeAssessmentAggregate', () => {
       answered: 3,
       graded: 3,
       correct: 2,
+      servedCount: 3,
       correctPercent: 67,
       incorrectPercent: 33,
     });
@@ -224,6 +265,30 @@ describe('computeAssessmentAggregate', () => {
       incorrectPercent: 67,
       choiceDistribution: [],
     });
+
+    expect(
+      agg.perTarget.find((row) => row.targetId === sourceTarget.id)
+    ).toMatchObject({
+      kind: 'plc',
+      questionIds: ['q1'],
+      attempted: 3,
+      correctPercent: 67,
+      lowSample: true,
+    });
+    expect(agg.perTarget.some((row) => row.targetId === contextTarget.id)).toBe(
+      false
+    );
+    expect(agg.perStandard).toEqual([
+      expect.objectContaining({
+        targetId: standard.id,
+        code: standard.code,
+        label: standard.label,
+        questionIds: ['q1'],
+        attempted: 3,
+        correctPercent: 67,
+        lowSample: true,
+      }),
+    ]);
 
     expect(agg.perTeacher).toEqual([
       {
@@ -243,7 +308,7 @@ describe('computeAssessmentAggregate', () => {
     ]);
   });
 
-  it('counts unpublished students but reports null incorrectPercent', () => {
+  it('grades unpublished responses from the answer key', () => {
     const agg = compute([
       session('s-a', 'teacherA', [
         response([answer('q1', 'Duluth'), answer('q2', '4')]),
@@ -251,20 +316,68 @@ describe('computeAssessmentAggregate', () => {
       ]),
     ]);
     expect(agg.studentCount).toBe(2);
-    expect(agg.teamAveragePercent).toBe(0);
+    expect(agg.scoredStudentCount).toBe(2);
+    // 1/8 and 2/8 of the points (q3 unanswered counts against the student).
+    expect(agg.teamAveragePercent).toBe(19);
     expect(agg.perQuestion[0]).toMatchObject({
       answered: 2,
-      graded: 0,
-      correct: 0,
-      correctPercent: 0,
-      incorrectPercent: null,
+      graded: 2,
+      correct: 1,
+      correctPercent: 50,
+      incorrectPercent: 50,
     });
     expect(agg.perQuestion[0].choiceDistribution).toEqual([
       { label: 'St. Paul', count: 1, isCorrect: true },
       { label: 'Duluth', count: 1, isCorrect: false },
       { label: 'Rochester', count: 0, isCorrect: false },
     ]);
-    expect(agg.perTeacher[0].averagePercent).toBe(0);
+    expect(agg.perTeacher[0].averagePercent).toBe(19);
+  });
+
+  it('withholds a score while a written answer awaits a manual grade', () => {
+    const agg = compute([
+      session('s-a', 'teacherA', [
+        response([
+          answer('q1', 'St. Paul'),
+          answer('q2', '4'),
+          answer('q3', 'Because reasons'),
+        ]),
+        response(
+          [
+            answer('q1', 'St. Paul'),
+            answer('q2', '4'),
+            answer('q3', 'Because reasons'),
+          ],
+          { manualGrades: { q3: { pointsAwarded: 4, scoredCriterionIds: [] } } }
+        ),
+      ]),
+    ]);
+    expect(agg.studentCount).toBe(2);
+    expect(agg.scoredStudentCount).toBe(1);
+    // (2 + 1 + 4) / 8
+    expect(agg.teamAveragePercent).toBe(88);
+    expect(agg.perQuestion[0]).toMatchObject({ graded: 2, correct: 2 });
+    expect(agg.perQuestion[2]).toMatchObject({ graded: 1, correct: 0 });
+  });
+
+  it('withholds a score when no answer key is known but keeps published flags', () => {
+    const keyless = resolveGroupQuestions(null, publicQuestions);
+    const agg = compute(
+      [
+        session('s-a', 'teacherA', [
+          response([answer('q1', 'St. Paul', { isCorrect: true })]),
+          response([answer('q1', 'Duluth')], { score: 40 }),
+        ]),
+      ],
+      keyless
+    );
+    expect(agg.scoredStudentCount).toBe(1);
+    expect(agg.teamAveragePercent).toBe(40);
+    expect(agg.perQuestion[0]).toMatchObject({
+      answered: 2,
+      graded: 1,
+      correct: 1,
+    });
   });
 
   it('never emits free-text answers, only MC labels', () => {
@@ -407,8 +520,25 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.publishedSessionCount).toBe(1);
     expect(agg.sessionCount).toBe(2);
     expect(agg.studentCount).toBe(3);
-    expect(agg.scoredStudentCount).toBe(2);
-    expect(agg.teamAveragePercent).toBe(60);
+    // The blank unpublished response grades to 0 from the key.
+    expect(agg.scoredStudentCount).toBe(3);
+    expect(agg.teamAveragePercent).toBe(40);
+  });
+
+  it('counts only the questions served by each randomized attempt', () => {
+    const agg = compute([
+      session('s-a', 'teacherA', [
+        response([answer('q1', 'St. Paul', { isCorrect: true })], {
+          servedQuestionIds: ['q1'],
+        }),
+        response([answer('q2', '4', { isCorrect: true })], {
+          servedQuestionIds: ['q2'],
+        }),
+      ]),
+    ]);
+    expect(agg.perQuestion.map((question) => question.servedCount)).toEqual([
+      1, 1, 0,
+    ]);
   });
 
   it('returns a zeroed payload with question rows when nothing has run', () => {
@@ -418,5 +548,160 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.perQuestion).toHaveLength(3);
     expect(agg.perQuestion[0].incorrectPercent).toBeNull();
     expect(agg.perTeacher).toEqual([]);
+  });
+});
+
+describe('gradeGroupAnswer', () => {
+  const q = (over: Partial<GroupQuestion>): GroupQuestion => ({
+    id: 'q',
+    text: '',
+    type: 'MC',
+    points: 4,
+    choices: [],
+    correctAnswer: 'A',
+    allowPartialCredit: false,
+    rubricCriterionIds: [],
+    targets: [],
+    ...over,
+  });
+
+  it('matches MC and FIB case- and whitespace-insensitively', () => {
+    expect(gradeGroupAnswer(q({}), ' a ', undefined)).toMatchObject({
+      isCorrect: true,
+      pointsEarned: 4,
+      state: 'scored',
+    });
+    expect(gradeGroupAnswer(q({ type: 'FIB' }), '', undefined)).toMatchObject({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 4,
+      state: 'not-attempted',
+    });
+  });
+
+  it('grades matching strictly or partially', () => {
+    const m = q({ type: 'Matching', correctAnswer: 'a:1|b:2' });
+    expect(gradeGroupAnswer(m, 'a:1|b:3', undefined).pointsEarned).toBe(0);
+    expect(
+      gradeGroupAnswer({ ...m, allowPartialCredit: true }, 'a:1|b:3', undefined)
+        .pointsEarned
+    ).toBe(2);
+  });
+
+  it('grades ordering with partial credit by ordered subsequence', () => {
+    const o = q({ type: 'Ordering', correctAnswer: 'a|b|c|d' });
+    expect(gradeGroupAnswer(o, 'a|c|b|d', undefined).pointsEarned).toBe(0);
+    expect(
+      gradeGroupAnswer({ ...o, allowPartialCredit: true }, 'a|c|b|d', undefined)
+        .pointsEarned
+    ).toBe(3);
+  });
+
+  it('uses the clamped manual grade for written answers', () => {
+    const w = q({ type: 'free-response', correctAnswer: null });
+    expect(gradeGroupAnswer(w, '<p>text</p>', undefined).state).toBe(
+      'awaiting-grade'
+    );
+    expect(gradeGroupAnswer(w, '<p></p>', undefined).state).toBe(
+      'not-attempted'
+    );
+    expect(
+      gradeGroupAnswer(w, 'text', { pointsAwarded: 9, scoredCriterionIds: [] })
+    ).toMatchObject({
+      isCorrect: true,
+      pointsEarned: 4,
+      state: 'scored',
+    });
+  });
+
+  it('keeps a partially scored rubric awaiting a grade', () => {
+    const w = q({
+      type: 'free-response',
+      correctAnswer: null,
+      rubricCriterionIds: ['c1', 'c2'],
+    });
+    expect(
+      gradeGroupAnswer(w, 'text', {
+        pointsAwarded: 2,
+        scoredCriterionIds: ['c1'],
+      }).state
+    ).toBe('awaiting-grade');
+    expect(
+      gradeGroupAnswer(w, 'text', {
+        pointsAwarded: 4,
+        scoredCriterionIds: ['c1', 'c2'],
+      }).state
+    ).toBe('scored');
+    expect(
+      gradeGroupAnswer(w, 'text', { pointsAwarded: 3, scoredCriterionIds: [] })
+        .state
+    ).toBe('scored');
+  });
+
+  it('reports no-key for auto types without an answer key', () => {
+    expect(
+      gradeGroupAnswer(q({ correctAnswer: null }), 'A', undefined).state
+    ).toBe('no-key');
+  });
+});
+
+describe('standard-level rollup', () => {
+  const benchmark = {
+    id: 'mn-ela-2020:6.1.9.1',
+    kind: 'standard' as const,
+    code: '6.1.9.1',
+    label: 'Analyze ads.',
+    parentId: 'mn-ela-2020:std:R9',
+    parentLabel: 'Media Literacy',
+  };
+  const parent = {
+    id: 'mn-ela-2020:std:R9',
+    kind: 'standard' as const,
+    code: 'R9',
+    label: 'Media Literacy',
+  };
+
+  it('parses parentId/parentLabel and unions benchmarks into the parent row', () => {
+    const qs = resolveGroupQuestions(null, [
+      { id: 'q1', text: 'Q1', type: 'MC', targets: [benchmark] },
+      { id: 'q2', text: 'Q2', type: 'MC', targets: [parent] },
+      { id: 'q3', text: 'Q3', type: 'MC', targets: [benchmark, parent] },
+    ]);
+    expect(qs[0].targets[0]).toMatchObject({
+      parentId: benchmark.parentId,
+      parentLabel: benchmark.parentLabel,
+    });
+    const agg = computeAssessmentAggregate({
+      assessmentId: 'a1',
+      title: 'Rollup',
+      kind: 'quiz',
+      groupQuestions: qs,
+      sessions: [
+        session('s', 'teacher', [
+          response(
+            [
+              answer('q1', 'a', { isCorrect: true }),
+              answer('q2', 'b', { isCorrect: false }),
+              answer('q3', 'a', { isCorrect: true }),
+            ],
+            { score: 67 }
+          ),
+        ]),
+      ],
+    });
+    const parentRow = agg.perStandard.find((r) => r.targetId === parent.id);
+    expect(parentRow).toMatchObject({
+      code: 'R9',
+      label: 'Media Literacy',
+      questionIds: ['q1', 'q2', 'q3'],
+      attempted: 3,
+      correctPercent: 67,
+    });
+    expect(
+      agg.perStandard.find((r) => r.targetId === benchmark.id)?.questionIds
+    ).toEqual(['q1', 'q3']);
+    expect(agg.perTarget.map((r) => r.targetId).sort()).toEqual(
+      [benchmark.id, parent.id].sort()
+    );
   });
 });

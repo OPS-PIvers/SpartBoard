@@ -56,6 +56,10 @@ function matches(data: StubData, w: StubQueryOpts['where'][number]): boolean {
       return v === w.value;
     case '!=':
       return v !== undefined && v !== w.value;
+    case '<':
+      return (
+        typeof v === 'number' && typeof w.value === 'number' && v < w.value
+      );
     default:
       throw new Error(`stub: unsupported operator ${w.op}`);
   }

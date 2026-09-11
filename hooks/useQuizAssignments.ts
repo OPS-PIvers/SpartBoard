@@ -49,6 +49,7 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuizSessionBankSlot,
   QuizSessionMode,
   QuizSessionOptions,
   QuizStimulus,
@@ -56,6 +57,7 @@ import type {
   SharedQuizAssignment,
   StudentOverride,
 } from '@/types';
+import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { isFreeResponseType } from '@/types';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import {
@@ -168,6 +170,8 @@ export interface CreateAssignmentOptions {
   /** Open/close window (epoch ms), mirrored onto both assignment + session docs. */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Frozen bank pools; the session's `totalQuestions` becomes fixed + Σ count. */
+  bankSlots?: QuizSessionBankSlot[];
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -509,6 +513,8 @@ function sessionOptionsToSessionPatch(
     patch.showCorrectAnswerToStudent = o.showCorrectAnswerToStudent;
   if (o.showCorrectOnBoard !== undefined)
     patch.showCorrectOnBoard = o.showCorrectOnBoard;
+  if (o.showLearningTargets !== undefined)
+    patch.showLearningTargets = o.showLearningTargets;
   if (o.speedBonusEnabled !== undefined)
     patch.speedBonusEnabled = o.speedBonusEnabled;
   if (o.streakBonusEnabled !== undefined)
@@ -711,9 +717,16 @@ export const useQuizAssignments = (
   // Recorded answers are a self-paced (student mode) feature: only there does a
   // per-student submit exist to satisfy the Tennessen notice's promise. Strip the
   // recording block for any other session mode, regardless of the media gate.
+  // Learning-target tags reach students only when the assignment opts in.
   const projectPublicQuestionForMode = useCallback(
-    (question: QuizQuestion, mode: QuizSessionMode): QuizPublicQuestion => {
-      const projected = toGatedPublicQuestion(question);
+    (
+      question: QuizQuestion,
+      mode: QuizSessionMode,
+      showLearningTargets?: boolean
+    ): QuizPublicQuestion => {
+      const gated = toGatedPublicQuestion(question);
+      const { targets: _targets, ...withoutTargets } = gated;
+      const projected = showLearningTargets ? gated : withoutTargets;
       if (mode === 'student' || !projected.recording) return projected;
       const { recording: _stripped, ...rest } = projected;
       return rest;
@@ -788,8 +801,13 @@ export const useQuizAssignments = (
         overridesBySourcedId,
         openAt,
         closeAt,
+        bankSlots,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
+      const hasBankSlots = !!bankSlots && bankSlots.length > 0;
+      if (hasBankSlots && settings.sessionMode !== 'student') {
+        throw new Error('Random bank draws need a self-paced session');
+      }
       // Defensive sanitization at the hook boundary: drop empty/non-string
       // entries so this stays robust against future call sites that may
       // not pre-sanitize via `deriveSessionTargetsFromRosters`. Mirrors
@@ -808,12 +826,22 @@ export const useQuizAssignments = (
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
       const now = Date.now();
+      // Freeze a compact teacher-private tag snapshot for PLC aggregate
+      // recomputes. Student session projection remains governed separately by
+      // `showLearningTargets`.
+      const sessionQuestions = dedupeQuestionsById(quiz.questions);
+      const questionSnapshot = sessionQuestions.flatMap((question) =>
+        question.targets && question.targets.length > 0
+          ? [{ id: question.id, targets: question.targets }]
+          : []
+      );
 
       const assignment: QuizAssignment = {
         id: assignmentId,
         quizId: quiz.id,
         quizTitle: quiz.title,
         quizDriveFileId: quiz.driveFileId,
+        ...(questionSnapshot.length > 0 ? { questionSnapshot } : {}),
         teacherUid: userId,
         code,
         status: initialStatus,
@@ -857,12 +885,14 @@ export const useQuizAssignments = (
           : {}),
         ...(openAt != null ? { openAt } : {}),
         ...(closeAt != null ? { closeAt } : {}),
+        ...(settings.resolvedDriveFileId
+          ? { resolvedDriveFileId: settings.resolvedDriveFileId }
+          : {}),
       };
 
       const mode = settings.sessionMode;
       const opts = settings.sessionOptions;
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
-      const sessionQuestions = dedupeQuestionsById(quiz.questions);
       const sessionReadAloudText = readAloudTextByStimulusId({
         questions: sessionQuestions,
         stimuli: quiz.stimuli,
@@ -881,7 +911,7 @@ export const useQuizAssignments = (
               : 'waiting';
 
       const sessionPublicQuestions = sessionQuestions.map((q) =>
-        projectPublicQuestionForMode(q, mode)
+        projectPublicQuestionForMode(q, mode, opts.showLearningTargets)
       );
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
@@ -899,8 +929,14 @@ export const useQuizAssignments = (
         startedAt: mode === 'student' ? now : null,
         endedAt: null,
         code,
-        totalQuestions: sessionQuestions.length,
+        totalQuestions: hasBankSlots
+          ? sessionTotalQuestions(
+              sessionQuestions.map((q) => q.id),
+              bankSlots
+            )
+          : sessionQuestions.length,
         publicQuestions: sessionPublicQuestions,
+        ...(hasBankSlots ? { bankSlots } : {}),
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
@@ -924,6 +960,7 @@ export const useQuizAssignments = (
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
+        showLearningTargets: opts.showLearningTargets ?? false,
         revealedAnswers: {},
         // Phase 2 gamification
         speedBonusEnabled: opts.speedBonusEnabled ?? false,
@@ -1336,6 +1373,12 @@ export const useQuizAssignments = (
           sessionPatch,
           sessionOptionsToSessionPatch(patch.sessionOptions)
         );
+      }
+      // Clearing `plc` must also drop the session's plcId/syncGroupId/plcLinkedAt (mirrors stopSharingAssignmentWithPlc) — markPlcAssessmentDirty reads those, not assignment.plc, to keep pooling responses.
+      if (clearingPlc) {
+        sessionPatch.plcId = deleteField();
+        sessionPatch.syncGroupId = deleteField();
+        sessionPatch.plcLinkedAt = deleteField();
       }
       if (Object.keys(sessionPatch).length > 0) {
         batch.update(
@@ -1899,6 +1942,12 @@ export const useQuizAssignments = (
         // having to gate on `assignment.sync` ahead of every call.
         return { updated: false, version: 0, taggedResponseCount: 0 };
       }
+      // `resolvedDriveFileId` is written iff the session carries `bankSlots`.
+      if (assignment.resolvedDriveFileId) {
+        throw new Error(
+          'This assignment was built from question-bank draws; re-assign the quiz to pick up bank changes'
+        );
+      }
 
       const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
       const previousSyncedVersion = assignment.sync.syncedVersion;
@@ -1933,7 +1982,12 @@ export const useQuizAssignments = (
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
       const publicQuestions = canonicalQuestions.map((q) =>
-        projectPublicQuestionForMode(q, sessionMode)
+        projectPublicQuestionForMode(
+          q,
+          sessionMode,
+          (behavior?.sessionOptions ?? assignment.sessionOptions)
+            ?.showLearningTargets
+        )
       );
       const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({

@@ -39,20 +39,37 @@ export function getPlcMembers(plc: Plc): PlcMember[] {
   const members = plc.members;
   // A populated map is the source of truth. An empty (or absent) map means the
   // PLC predates migration / isn't backfilled — fall back to the legacy arrays.
+  const emails = plc.memberEmails ?? {};
+  const leadUid = plc.leadUid;
+  const synthesize = (uid: string): PlcMember => {
+    const rawEmail = typeof emails[uid] === 'string' ? emails[uid] : '';
+    const email = rawEmail.trim().toLowerCase();
+    const displayName = email.includes('@') ? email.split('@')[0] : email;
+    return {
+      uid,
+      email,
+      displayName,
+      role: uid === leadUid ? 'lead' : 'member',
+      joinedAt: 0,
+      status: 'active',
+    };
+  };
   if (
     members &&
     typeof members === 'object' &&
     Object.keys(members).length > 0
   ) {
-    return Object.values(members).filter(
+    const active = Object.values(members).filter(
       (member): member is PlcMember =>
         !!member && member.status === 'active' && typeof member.uid === 'string'
     );
+    // Invite accept writes only the arrays, so a uid can be in memberUids but not the map.
+    const known = new Set(Object.keys(members));
+    const drifted = (plc.memberUids ?? []).filter((uid) => !known.has(uid));
+    return active.concat(drifted.map(synthesize));
   }
 
   // Legacy fallback: synthesize from the denormalized arrays.
-  const emails = plc.memberEmails ?? {};
-  const leadUid = plc.leadUid;
   return (plc.memberUids ?? []).map((uid): PlcMember => {
     const rawEmail = typeof emails[uid] === 'string' ? emails[uid] : '';
     const email = rawEmail.trim().toLowerCase();

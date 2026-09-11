@@ -69,6 +69,14 @@ vi.mock('@/components/plc/comments/PlcCommentsThread', () => ({
   ),
 }));
 
+vi.mock('@/hooks/useLearningTargets', () => ({
+  usePlcLearningTargets: () => ({
+    list: { targets: [], masteryCutoffs: { proficient: 90, approaching: 70 } },
+    loading: false,
+    save: vi.fn(),
+  }),
+}));
+
 import { PlcAssessmentDetail } from '@/components/plc/assessments/PlcAssessmentDetail';
 
 const members: PlcMember[] = [
@@ -117,7 +125,7 @@ function makeAggregate(
 ): PlcAssessmentAggregate {
   return {
     assessmentId: 'a1',
-    schemaVersion: 2,
+    schemaVersion: 3,
     title: 'Unit 4 CFA',
     kind: 'quiz',
     teacherCount: 2,
@@ -137,6 +145,7 @@ function makeAggregate(
         answered: 40,
         graded: 40,
         correct: 37,
+        servedCount: 40,
         choiceDistribution: [
           { label: 'St. Paul', count: 37, isCorrect: true },
           { label: 'Duluth', count: 3, isCorrect: false },
@@ -151,6 +160,7 @@ function makeAggregate(
         answered: 40,
         graded: 40,
         correct: 16,
+        servedCount: 40,
         choiceDistribution: [],
       },
       {
@@ -162,7 +172,32 @@ function makeAggregate(
         answered: 38,
         graded: 0,
         correct: 0,
+        servedCount: 40,
         choiceDistribution: [],
+      },
+    ],
+    perTarget: [
+      {
+        targetId: 'target-evidence',
+        kind: 'plc',
+        code: 'LT-1',
+        label: 'Use evidence',
+        questionIds: ['q2'],
+        attempted: 3,
+        correctPercent: 67,
+        lowSample: true,
+      },
+    ],
+    perStandard: [
+      {
+        targetId: 'std-history',
+        kind: 'standard',
+        code: '6.2.1.1',
+        label: 'Evaluate historical sources',
+        questionIds: ['q1', 'q2'],
+        attempted: 80,
+        correctPercent: 66,
+        lowSample: false,
       },
     ],
     perTeacher: [
@@ -217,6 +252,36 @@ function setDefaults() {
 describe('PlcAssessmentDetail', () => {
   beforeEach(setDefaults);
 
+  it('widens the teacher total for a linked non-member and labels the row', () => {
+    mockAggregatesSlice = {
+      ...mockAggregatesSlice,
+      data: [
+        makeAggregate({
+          teacherCount: 3,
+          perTeacher: [
+            ...makeAggregate().perTeacher,
+            {
+              teacherUid: 'uid-outsider',
+              teacherName: '',
+              classCount: 1,
+              averagePercent: 50,
+              studentCount: 20,
+            },
+          ],
+        }),
+      ],
+    };
+    render(
+      <PlcAssessmentDetail
+        plc={makePlc({ features: { showPerTeacher: true } as Plc['features'] })}
+        assessmentId="a1"
+      />
+    );
+
+    expect(screen.getByText('3 of 4')).toBeInTheDocument();
+    expect(screen.getByText('Not a PLC member')).toBeInTheDocument();
+  });
+
   it('renders the header stats and the questions worst-first', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
 
@@ -244,6 +309,24 @@ describe('PlcAssessmentDetail', () => {
     expect(within(panel).getByText('St. Paul')).toBeInTheDocument();
     expect(within(panel).getByText('37 · 93%')).toBeInTheDocument();
     expect(within(panel).getByText('Duluth')).toBeInTheDocument();
+  });
+
+  it('shows standards above targets and expands tagged questions', () => {
+    const { container } = render(
+      <PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />
+    );
+    const mastery = screen.getByTestId('target-mastery');
+    expect(mastery).toHaveTextContent('Standards');
+    expect(mastery).toHaveTextContent('Targets');
+    expect((mastery.textContent ?? '').indexOf('6.2.1.1')).toBeLessThan(
+      (mastery.textContent ?? '').indexOf('LT-1')
+    );
+    expect(mastery).toHaveTextContent('Low sample');
+    fireEvent.click(
+      within(mastery).getByRole('button', { name: 'Expand LT-1' })
+    );
+    expect(within(mastery).getByText('Hard question')).toBeInTheDocument();
+    expect(container.textContent).not.toContain('studentDisplayName');
   });
 
   it('shows "Not scored yet" when no session has published scores', () => {
