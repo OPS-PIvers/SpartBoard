@@ -384,7 +384,8 @@
       "label": "Bewertungstyp",
       "quizzes": "Quizze",
       "videoActivities": "Videoaktivitäten",
-      "rubrics": "Bewertungsraster"
+      "rubrics": "Bewertungsraster",
+      "questionBanks": "Fragenpools"
     },
     "assignmentsSubTabs": {
       "label": "Aufgabenansichten",
@@ -725,6 +726,38 @@
       "unshareConfirm": "„{{title}}“ aus dieser PLG entfernen? Teammitglieder verlieren den Zugriff auf den geteilten Eintrag; bereits kopierte Bewertungsraster bleiben funktionsfähig.",
       "unshareFailed": "Freigabe des Bewertungsrasters konnte nicht aufgehoben werden."
     },
+    "bankLibrary": {
+      "heading": "Geteilte Fragenpools",
+      "count_one": "{{count}} Pool",
+      "count_other": "{{count}} Pools",
+      "loading": "Fragenpools werden geladen…",
+      "loadError": "Geteilte Fragenpools konnten nicht geladen werden. Bitte erneut versuchen.",
+      "empty": "Noch keine geteilten Fragenpools",
+      "emptyHint": "Teile einen Pool aus deiner Quiz-Bibliothek, damit Kolleg:innen getaggte Fragen in ihre eigenen Quizze ziehen können.",
+      "shareCta": "Pool teilen",
+      "driveDisconnected": "Verbinde Google Drive, um einen Fragenpool zu teilen.",
+      "driveDisconnectedCopy": "Verbinde Google Drive, um einen Fragenpool zu kopieren.",
+      "bySharer": "geteilt von {{name}}",
+      "unknownSharer": "einer Kollegin oder einem Kollegen",
+      "questionCount_one": "{{count}} Frage",
+      "questionCount_other": "{{count}} Fragen",
+      "pickerMeta_one": "{{count}} Frage",
+      "pickerMeta_other": "{{count}} Fragen",
+      "importAction": "In meine Pools kopieren",
+      "importedToast": "„{{title}}“ wurde zu deinen Fragenpools hinzugefügt.",
+      "importFailed": "Fragenpool konnte nicht kopiert werden.",
+      "sharedToast": "„{{title}}“ wurde mit dieser PLG geteilt.",
+      "shareFailed": "Fragenpool konnte nicht mit dieser PLG geteilt werden.",
+      "unshareLabel": "{{title}} nicht mehr teilen",
+      "unshareTitle": "Pool nicht mehr teilen",
+      "unshareAction": "Nicht mehr teilen",
+      "unshareConfirm": "„{{title}}“ nicht mehr mit dieser PLG teilen? Quizze von Kolleg:innen, die daraus ziehen, funktionieren dann nicht mehr; Kopien in ihren Bibliotheken bleiben erhalten.",
+      "unshareFailed": "Teilen des Fragenpools konnte nicht beendet werden.",
+      "sharePickerTitle": "Fragenpool mit dieser PLG teilen",
+      "sharePickerPrompt": "Wähle einen Pool aus deiner Quiz-Bibliothek.",
+      "sharePickerEmpty": "Du hast noch keine Fragenpools. Erstelle einen im Tab „Pools“ des Quiz-Widgets.",
+      "unshareNotReady": "Deine Fragenpools werden noch geladen. Versuche es gleich noch einmal."
+    },
     "presence": {
       "heading": "Wer ist hier",
       "othersHere": "{{count}} Teammitglied jetzt hier",
@@ -998,7 +1031,8 @@
       "notesNote": "Betrachter können Notizen und Dokumente lesen, aber nicht hinzufügen oder ändern.",
       "meetingNote": "Betrachter können dem Meeting folgen, es aber nicht bearbeiten oder speichern.",
       "homeNote": "Betrachter können hier alles lesen, aber keine neuen Inhalte erstellen.",
-      "rubricsNote": "Betrachter können geteilte Bewertungsraster ansehen und kopieren, aber nicht teilen oder deren Freigabe aufheben."
+      "rubricsNote": "Betrachter können geteilte Bewertungsraster ansehen und kopieren, aber nicht teilen oder deren Freigabe aufheben.",
+      "banksNote": "Betrachter können geteilte Fragenpools ansehen und kopieren, aber nicht teilen."
     },
     "resources": {
       "managerTitle": "PLG-Ressourcen",

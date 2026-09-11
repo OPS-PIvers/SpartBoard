@@ -384,7 +384,8 @@
       "label": "Type d'évaluation",
       "quizzes": "Quiz",
       "videoActivities": "Activités vidéo",
-      "rubrics": "Grilles d'évaluation"
+      "rubrics": "Grilles d'évaluation",
+      "questionBanks": "Banques de questions"
     },
     "assignmentsSubTabs": {
       "label": "Vues des activités",
@@ -725,6 +726,38 @@
       "unshareConfirm": "Retirer « {{title}} » de cette Communauté ? Les collègues perdront l'accès à l'entrée partagée ; les copies déjà présentes dans leurs bibliothèques continueront de fonctionner.",
       "unshareFailed": "Impossible d'arrêter le partage de la grille."
     },
+    "bankLibrary": {
+      "heading": "Banques de questions partagées",
+      "count_one": "{{count}} banque",
+      "count_other": "{{count}} banques",
+      "loading": "Chargement des banques de questions…",
+      "loadError": "Impossible de charger les banques partagées. Veuillez réessayer.",
+      "empty": "Aucune banque de questions partagée pour l’instant",
+      "emptyHint": "Partagez une banque de votre bibliothèque de quiz pour que vos collègues puissent tirer des questions étiquetées dans leurs propres quiz.",
+      "shareCta": "Partager une banque",
+      "driveDisconnected": "Connectez Google Drive pour partager une banque de questions.",
+      "driveDisconnectedCopy": "Connectez Google Drive pour copier une banque de questions.",
+      "bySharer": "partagé par {{name}}",
+      "unknownSharer": "un collègue",
+      "questionCount_one": "{{count}} question",
+      "questionCount_other": "{{count}} questions",
+      "pickerMeta_one": "{{count}} question",
+      "pickerMeta_other": "{{count}} questions",
+      "importAction": "Copier dans mes banques",
+      "importedToast": "« {{title}} » a été ajoutée à vos banques de questions.",
+      "importFailed": "Impossible de copier la banque de questions.",
+      "sharedToast": "« {{title}} » est partagée avec cette CAP.",
+      "shareFailed": "Impossible de partager la banque avec cette CAP.",
+      "unshareLabel": "Arrêter de partager {{title}}",
+      "unshareTitle": "Arrêter de partager la banque",
+      "unshareAction": "Arrêter de partager",
+      "unshareConfirm": "Arrêter de partager « {{title}} » avec cette CAP ? Les quiz de vos collègues qui en tirent des questions cesseront de fonctionner ; les copies dans leurs bibliothèques restent utilisables.",
+      "unshareFailed": "Impossible d’arrêter le partage de la banque.",
+      "sharePickerTitle": "Partager une banque de questions avec cette CAP",
+      "sharePickerPrompt": "Choisissez une banque de votre bibliothèque de quiz.",
+      "sharePickerEmpty": "Vous n’avez pas encore de banque de questions. Créez-en une dans l’onglet Banques du widget Quiz.",
+      "unshareNotReady": "Vos banques de questions sont encore en cours de chargement. Réessayez dans un instant."
+    },
     "presence": {
       "heading": "Qui est là",
       "othersHere": "{{count}} coéquipier ici maintenant",
@@ -998,7 +1031,8 @@
       "notesNote": "Les observateurs peuvent lire les notes et documents, mais ne peuvent pas les ajouter ni les modifier.",
       "meetingNote": "Les observateurs peuvent suivre la réunion, mais ne peuvent pas la modifier ni l’enregistrer.",
       "homeNote": "Les observateurs peuvent tout lire ici, mais ne peuvent pas créer de nouveau contenu.",
-      "rubricsNote": "Les observateurs peuvent consulter et copier les grilles partagées, mais ne peuvent ni les partager ni arrêter leur partage."
+      "rubricsNote": "Les observateurs peuvent consulter et copier les grilles partagées, mais ne peuvent ni les partager ni arrêter leur partage.",
+      "banksNote": "Les observateurs peuvent consulter et copier les banques partagées, mais pas les partager."
     },
     "resources": {
       "managerTitle": "Ressources de la CAP",

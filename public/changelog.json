@@ -1,6 +1,28 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.11",
+      "date": "2026-09-11",
+      "title": "Shared question banks in the PLC dashboard",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "My PLC › Assessments has a new Question Banks tab listing every bank teammates shared with the PLC, with who shared it, question count and the learning targets it covers. Copy a bank into your own library, share one of yours, or stop sharing a bank you own."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Reads the existing plcs/{plcId}/question_banks headers; no rules or data changes."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.10",
       "date": "2026-09-11",
       "title": "Import templates for learning targets and question banks",
