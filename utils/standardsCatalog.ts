@@ -50,6 +50,17 @@ export interface StandardHeading {
 const ELA_HEADING = /^([A-Z]{1,6}\s?\d{1,2})\b[.:]?\s*(.*)$/s;
 const SS_HEADING = /^(\d{1,2})\.\s*(.*)$/s;
 
+const TITLE_MAX = 72;
+
+// Headings without a colon are full sentences; keep the first clause so the title stays a label.
+function shortTitle(rest: string): string {
+  const colon = rest.indexOf(':');
+  if (colon > 0) return rest.slice(0, colon).trim();
+  const clause = rest.split(/[,;.]|\s-\s/)[0].trim();
+  if (clause.length <= TITLE_MAX) return clause;
+  return `${clause.slice(0, TITLE_MAX).replace(/\s+\S*$/, '')}…`;
+}
+
 /** Splits a standard's long text into its short code and title; falls back to the numeric key from the benchmark code. */
 export function parseStandardHeading(
   standard: string,
@@ -57,9 +68,7 @@ export function parseStandardHeading(
 ): StandardHeading {
   const text = standard.trim();
   const match = ELA_HEADING.exec(text) ?? SS_HEADING.exec(text);
-  const rest = (match ? match[2] : text).trim();
-  const colon = rest.indexOf(':');
-  const title = (colon > 0 ? rest.slice(0, colon) : rest).trim();
+  const title = shortTitle((match ? match[2] : text).trim());
   if (match) return { code: match[1].replace(/\s+/g, ' '), title };
   const parts = benchmarkCode.split('.');
   const code = parts.length >= 3 ? `${parts[1]}.${parts[2]}` : benchmarkCode;

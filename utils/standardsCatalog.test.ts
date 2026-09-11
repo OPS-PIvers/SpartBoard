@@ -95,7 +95,7 @@ describe('parseStandardHeading', () => {
     ).toEqual({ code: 'R9', title: 'Media Literacy in Reading' });
     expect(
       parseStandardHeading('LSVEI 1 Exchange ideas in discussion.', '6.3.1.1')
-    ).toEqual({ code: 'LSVEI 1', title: 'Exchange ideas in discussion.' });
+    ).toEqual({ code: 'LSVEI 1', title: 'Exchange ideas in discussion' });
   });
 
   it('splits Social Studies headings on the leading number', () => {
@@ -112,6 +112,23 @@ describe('parseStandardHeading', () => {
       code: '2.4',
       title: 'Anchor text only',
     });
+  });
+
+  it('keeps only the first clause of a sentence-style heading', () => {
+    expect(
+      parseStandardHeading(
+        'R4 Read critically to comprehend, interpret and analyze themes.',
+        '6.1.4.1'
+      )
+    ).toEqual({ code: 'R4', title: 'Read critically to comprehend' });
+    expect(
+      parseStandardHeading(
+        'W4 Write arguments to support claims and to persuade in an analysis of topics or texts using valid reasoning and evidence while considering audience.',
+        '6.2.4.1'
+      ).title
+    ).toBe(
+      'Write arguments to support claims and to persuade in an analysis of…'
+    );
   });
 
   it('builds standard tag ids', () => {
