@@ -126,20 +126,22 @@ export async function recomputeOnePlcAssessment(
   const sessions: SessionInput[] = [];
   for (const sessionDoc of sessionsSnap.docs) {
     const s = sessionDoc.data();
-    const responsesSnap = await sessionDoc.ref
-      .collection('responses')
-      .where('status', '==', 'completed')
-      .get();
     const teacherUid = asString(s.teacherUid);
     const assignmentId = asString(s.assignmentId) || sessionDoc.id;
-    const assignmentSnap = teacherUid
-      ? await db
-          .collection('users')
-          .doc(teacherUid)
-          .collection('quiz_assignments')
-          .doc(assignmentId)
-          .get()
-      : null;
+    const [responsesSnap, assignmentSnap] = await Promise.all([
+      sessionDoc.ref
+        .collection('responses')
+        .where('status', '==', 'completed')
+        .get(),
+      teacherUid
+        ? db
+            .collection('users')
+            .doc(teacherUid)
+            .collection('quiz_assignments')
+            .doc(assignmentId)
+            .get()
+        : Promise.resolve(null),
+    ]);
     const assignmentData = assignmentSnap?.data() as
       | Record<string, unknown>
       | undefined;
