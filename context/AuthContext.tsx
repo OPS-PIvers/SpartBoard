@@ -61,6 +61,11 @@ import {
   canonicalizeBuildingKeyedRecord,
   getBuildingGradeLevels,
 } from '@/config/buildings';
+import {
+  bandsFromGrades,
+  gradesFromBands,
+  normalizeGrades,
+} from '@/utils/gradeMatch';
 import i18n from '@/i18n';
 import { GoogleDriveService } from '@/utils/googleDriveService';
 import { onDriveTokenChange } from '@/utils/driveAuthErrors';
@@ -319,6 +324,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     GlobalFeaturePermission[]
   >([]);
   const [selectedBuildings, setSelectedBuildingsState] = useState<string[]>([]);
+  // null = never set; grades derive from the selected buildings until then.
+  const [gradesTaught, setGradesTaughtState] = useState<string[] | null>(null);
+  const [subjectsTaught, setSubjectsTaughtState] = useState<string[]>([]);
   const [savedWidgetConfigs, setSavedWidgetConfigs] = useState<
     Partial<Record<WidgetType, Partial<WidgetConfig>>>
   >({});
@@ -1549,6 +1557,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setLastBoardIdByCollectionState(undefined);
       setFavoriteBackgrounds([]);
       setRecentBackgrounds([]);
+      setGradesTaughtState(null);
+      setSubjectsTaughtState([]);
 
       if (!user) {
         driveProbedForUidRef.current = null;
@@ -1599,6 +1609,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           } else {
             setSelectedBuildingsState([]);
+          }
+
+          // Teaching profile: grades stay null when absent or empty so
+          // the building default keeps applying.
+          if (Array.isArray(data.gradesTaught)) {
+            const grades = normalizeGrades(data.gradesTaught);
+            setGradesTaughtState(grades.length > 0 ? grades : null);
+          }
+          if (Array.isArray(data.subjectsTaught)) {
+            setSubjectsTaughtState(
+              data.subjectsTaught.filter(
+                (s): s is string => typeof s === 'string' && s.length > 0
+              )
+            );
           }
 
           // Load language preference
@@ -2134,6 +2158,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  const updateTeachingProfile = useCallback(
+    async (updates: {
+      gradesTaught?: string[] | null;
+      subjectsTaught?: string[];
+    }) => {
+      const payload: Record<string, unknown> = {};
+      if (updates.gradesTaught !== undefined) {
+        const grades =
+          updates.gradesTaught === null
+            ? null
+            : normalizeGrades(updates.gradesTaught);
+        const next = grades && grades.length > 0 ? grades : null;
+        setGradesTaughtState(next);
+        // Firestore has no undefined; an empty array records "reset to default".
+        payload.gradesTaught = next ?? [];
+      }
+      if (updates.subjectsTaught !== undefined) {
+        const subjects = Array.from(
+          new Set(updates.subjectsTaught.filter((s) => s.length > 0))
+        );
+        setSubjectsTaughtState(subjects);
+        payload.subjectsTaught = subjects;
+      }
+      if (!user || isAuthBypass || Object.keys(payload).length === 0) return;
+      const myToken = ++writeTokenRef.current;
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          payload,
+          { merge: true }
+        );
+      } catch (error) {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving teaching profile:', error);
+        }
+        throw error;
+      }
+    },
+    [user]
+  );
+
   const updateAccountPreferences = useCallback(
     async (updates: {
       disableCloseConfirmation?: boolean;
@@ -2419,13 +2484,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user?.uid]
   );
 
-  const userGradeLevels = useMemo<GradeLevel[]>(() => {
+  const buildingGrades = useMemo<string[]>(() => {
     const source =
       orgBuildings.length > 0
         ? orgBuildings.map(buildingRecordToBuilding)
         : undefined;
-    return getBuildingGradeLevels(selectedBuildings, source);
+    return gradesFromBands(getBuildingGradeLevels(selectedBuildings, source));
   }, [selectedBuildings, orgBuildings]);
+
+  const effectiveGrades = gradesTaught ?? buildingGrades;
+
+  const userGradeLevels = useMemo<GradeLevel[]>(
+    () => bandsFromGrades(effectiveGrades),
+    [effectiveGrades]
+  );
 
   // Auth state listener
   useEffect(() => {
@@ -2945,6 +3017,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         selectedBuildings,
         userGradeLevels,
         setSelectedBuildings,
+        gradesTaught,
+        subjectsTaught,
+        effectiveGrades,
+        buildingGrades,
+        updateTeachingProfile,
         language,
         setLanguage,
         refreshGoogleToken,

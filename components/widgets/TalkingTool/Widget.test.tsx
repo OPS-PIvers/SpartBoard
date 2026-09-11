@@ -48,6 +48,13 @@ const mockAuthContext = (
   },
   selectedBuildings: [],
   userGradeLevels: [],
+  gradesTaught: null,
+  subjectsTaught: [],
+  effectiveGrades: [],
+  buildingGrades: [],
+  updateTeachingProfile: async () => {
+    /* mock */
+  },
   setSelectedBuildings: async () => {
     /* mock */
   },

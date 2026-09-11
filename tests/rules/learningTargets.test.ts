@@ -4,6 +4,7 @@
 //   - /plcs/{plcId}/meta/learningTargets: member reads, non-viewer writes,
 //     schema lock-down, 1,000-target cap, masteryCutoffs range, no delete
 //   - /users/{uid}/userProfile/learningTargets: owner-only (existing rule)
+//   - /admin_settings/subjects: any authed read, admin-only write
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -252,5 +253,43 @@ describe('users/{uid}/userProfile/learningTargets', () => {
     await assertSucceeds(getDoc(doc(asMember(), path)));
     await assertFails(getDoc(doc(asNonMember(), path)));
     await assertFails(setDoc(doc(asNonMember(), path), validList()));
+  });
+});
+
+describe('admin_settings/subjects', () => {
+  const subjectsDoc = {
+    subjects: [{ id: 'ela', label: 'English Language Arts' }],
+    updatedAt: 1,
+  };
+
+  it('admins write; teachers cannot', async () => {
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), 'admin_settings/subjects'), subjectsDoc)
+    );
+    await assertFails(
+      setDoc(doc(asMember(), 'admin_settings/subjects'), subjectsDoc)
+    );
+  });
+
+  it('any authed user reads subjects but not other admin settings', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'admin_settings/subjects'),
+        subjectsDoc
+      );
+      await setDoc(doc(ctx.firestore(), 'admin_settings/app_settings'), {
+        x: 1,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asMember(), 'admin_settings/subjects')));
+    await assertFails(getDoc(doc(asMember(), 'admin_settings/app_settings')));
+    await assertFails(
+      getDoc(
+        doc(
+          testEnv.unauthenticatedContext().firestore(),
+          'admin_settings/subjects'
+        )
+      )
+    );
   });
 });

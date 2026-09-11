@@ -2404,5 +2404,18 @@
     },
     "saving": "Guardando…",
     "saveFailed": "Error al guardar"
+  },
+  "settings": {
+    "profileAndSettings": "Perfil y ajustes",
+    "profile": {
+      "title": "Perfil",
+      "description": "Dónde y qué enseñas. Los grados y las áreas de contenido filtran los estándares y los objetivos de aprendizaje para que solo veas lo que te corresponde.",
+      "gradesTaught": "Grados que enseñas",
+      "gradesTaughtDescription": "Parte de tus edificios. Desmarca los grados que no enseñas para acotar estándares, objetivos de aprendizaje y widgets por grado.",
+      "resetGrades": "Restablecer al valor del edificio",
+      "noGrades": "Sin grados seleccionados — los estándares y widgets muestran todos los grados.",
+      "subjectsTaught": "Áreas de contenido que enseñas",
+      "subjectsTaughtDescription": "Opcional. Elige las áreas de contenido que enseñas para abrir el selector de estándares en ellas. Déjalo vacío para ver todas las áreas."
+    }
   }
 }

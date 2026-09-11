@@ -2592,5 +2592,18 @@
     },
     "saving": "Saving…",
     "saveFailed": "Save failed"
+  },
+  "settings": {
+    "profileAndSettings": "Profile & Settings",
+    "profile": {
+      "title": "Profile",
+      "description": "Where and what you teach. Grades and content areas filter standards and learning targets so you only see what applies to you.",
+      "gradesTaught": "Grades taught",
+      "gradesTaughtDescription": "Starts from your building(s). Deselect grades you do not teach to narrow standards, learning targets and grade-specific widgets.",
+      "resetGrades": "Reset to building default",
+      "noGrades": "No grades selected — standards and widgets show every grade.",
+      "subjectsTaught": "Content areas taught",
+      "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
+    }
   }
 }

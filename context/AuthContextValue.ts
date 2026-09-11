@@ -106,6 +106,19 @@ export interface AuthContextType {
   userGradeLevels: GradeLevel[];
   /** Persist the user's building selection to Firestore */
   setSelectedBuildings: (buildings: string[]) => Promise<void>;
+  /** Individual grades ('K', '1' … '12') the teacher chose; null = derive from buildings. */
+  gradesTaught: string[] | null;
+  /** Subject ids from `config/subjects.ts`; empty = no subject filtering. */
+  subjectsTaught: string[];
+  /** `gradesTaught` when set, else every grade covered by the selected buildings. */
+  effectiveGrades: string[];
+  /** Grades implied by the selected buildings alone (the profile's reset target). */
+  buildingGrades: string[];
+  /** Persist grades/subjects taught; `gradesTaught: null` restores the building default. */
+  updateTeachingProfile: (updates: {
+    gradesTaught?: string[] | null;
+    subjectsTaught?: string[];
+  }) => Promise<void>;
   /** The active UI language code (e.g. 'en', 'es', 'de', 'fr') */
   language: string;
   /** Persist the user's language preference to Firestore and update i18n */

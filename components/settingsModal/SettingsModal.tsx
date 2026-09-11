@@ -22,21 +22,32 @@ import {
   Palette,
   Settings,
   SlidersHorizontal,
+  UserCircle,
   X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useGlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
+import { ProfileSection } from './sections/ProfileSection';
 import { AppearanceSection } from './sections/AppearanceSection';
 import { DockSection } from './sections/DockSection';
 import { BehaviorSection } from './sections/BehaviorSection';
 import { LanguageSection } from './sections/LanguageSection';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
+export type SettingsSectionId =
+  | 'profile'
+  | 'appearance'
+  | 'dock'
+  | 'behavior'
+  | 'language';
+
 interface SettingsModalProps {
   onClose: () => void;
+  /** Section to open on; defaults to the first (profile). */
+  initialSection?: SettingsSectionId;
 }
 
-type SectionId = 'appearance' | 'dock' | 'behavior' | 'language';
+type SectionId = SettingsSectionId;
 
 interface SectionConfig {
   id: SectionId;
@@ -46,6 +57,12 @@ interface SectionConfig {
 }
 
 const SECTIONS: readonly SectionConfig[] = [
+  {
+    id: 'profile',
+    labelKey: 'settings.profile.title',
+    fallback: 'Profile',
+    icon: UserCircle,
+  },
   {
     id: 'appearance',
     labelKey: 'sidebar.nav.globalStyle',
@@ -95,10 +112,13 @@ const RailTab: React.FC<{
   </button>
 );
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  onClose,
+  initialSection = 'profile',
+}) => {
   const { t } = useTranslation();
   const editor = useGlobalStyleEditor();
-  const [activeSection, setActiveSection] = useState<SectionId>('appearance');
+  const [activeSection, setActiveSection] = useState<SectionId>(initialSection);
   // Mobile only: the drill-in list (true) vs. the selected panel (false). The
   // rail is always visible on md+, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);
@@ -119,10 +139,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const mobileTitle =
     !showMobileMenu && activeConfig
       ? label(activeConfig)
-      : t('settings.title', { defaultValue: 'Settings' });
+      : t('settings.profileAndSettings', {
+          defaultValue: 'Profile & Settings',
+        });
 
   const renderSection = (id: SectionId) => {
     switch (id) {
+      case 'profile':
+        return <ProfileSection />;
       case 'appearance':
         return <AppearanceSection editor={editor} />;
       case 'dock':
@@ -166,7 +190,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             >
               <span className="md:hidden">{mobileTitle}</span>
               <span className="hidden md:inline">
-                {t('settings.title', { defaultValue: 'Settings' })}
+                {t('settings.profileAndSettings', {
+                  defaultValue: 'Profile & Settings',
+                })}
               </span>
             </h2>
           </div>
@@ -187,7 +213,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           <nav
             role="tablist"
             aria-orientation="vertical"
-            aria-label={t('settings.title', { defaultValue: 'Settings' })}
+            aria-label={t('settings.profileAndSettings', {
+              defaultValue: 'Profile & Settings',
+            })}
             className="hidden md:flex flex-col md:w-[76px] lg:w-56 shrink-0 bg-slate-50 border-r border-slate-200 overflow-y-auto p-2 gap-0.5"
           >
             {SECTIONS.map((section) => (

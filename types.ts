@@ -7234,6 +7234,10 @@ export interface UserRolesConfig {
 export interface UserProfile {
   /** IDs of the buildings the user works in (matches Building.id in config/buildings.ts) */
   selectedBuildings: string[];
+  /** Individual grades taught ('K', '1' … '12'); absent or empty = derive from buildings. */
+  gradesTaught?: string[];
+  /** Subject ids from `config/subjects.ts`; absent or empty = no subject filter. */
+  subjectsTaught?: string[];
   /** Optional language preference */
   language?: string;
   /**
