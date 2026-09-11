@@ -165,6 +165,26 @@ describe('usePlcs - adminSetMember', () => {
     ]);
   });
 
+  it('backfills the full members map on an un-migrated PLC', async () => {
+    const { members: _map, ...legacy } = basePlcDoc();
+    void _map;
+    const captured = stubTransaction(legacy);
+    const { result } = render();
+    await act(async () => {
+      await result.current.adminSetMember('plc-1', target, 'viewer');
+    });
+    const members = (captured.update as Record<string, unknown>)
+      .members as Record<string, Record<string, unknown>>;
+    expect(members[LEAD_UID]).toMatchObject({ role: 'lead', status: 'active' });
+    expect(members[MEMBER_UID]).toMatchObject({ role: 'member' });
+    expect(members[NEW_UID]).toMatchObject({ role: 'viewer' });
+    expect((captured.update as Record<string, unknown>).memberUids).toEqual([
+      LEAD_UID,
+      MEMBER_UID,
+      NEW_UID,
+    ]);
+  });
+
   it('refuses to touch the lead', async () => {
     stubTransaction(basePlcDoc());
     const { result } = render();

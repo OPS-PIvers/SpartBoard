@@ -19,6 +19,7 @@ const ORG_ID = 'org-orono';
 const OTHER_ORG_ID = 'org-elsewhere';
 const PLC_ID = 'plc-ela9';
 const LEGACY_PLC_ID = 'plc-no-org';
+const UNMIGRATED_PLC_ID = 'plc-arrays-only';
 
 const LEAD_UID = 'lead-uid';
 const LEAD_EMAIL = 'lead@orono.k12.mn.us';
@@ -125,6 +126,10 @@ beforeEach(async () => {
     );
     await setDoc(doc(db, `plcs/${PLC_ID}`), root(ORG_ID));
     await setDoc(doc(db, `plcs/${LEGACY_PLC_ID}`), root(null));
+    // Arrays only: no `members` map yet.
+    const { members: _map, ...arraysOnly } = root(ORG_ID);
+    void _map;
+    await setDoc(doc(db, `plcs/${UNMIGRATED_PLC_ID}`), arraysOnly);
   });
 });
 
@@ -182,6 +187,27 @@ describe('plcs/{plcId} update — isAdminEditingPlcMembers', () => {
   it('an in-org admin can remove a member', async () => {
     await assertSucceeds(
       updateDoc(doc(asAdmin(), `plcs/${PLC_ID}`), removeMember())
+    );
+  });
+
+  it('an in-org admin can add to an un-migrated PLC, backfilling the map', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), `plcs/${UNMIGRATED_PLC_ID}`), addNew())
+    );
+  });
+
+  it('rejects an un-migrated backfill that demotes the lead', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asAdmin(), `plcs/${UNMIGRATED_PLC_ID}`),
+        addNew({
+          members: {
+            [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'member'),
+            [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'member'),
+            [NEW_UID]: member(NEW_UID, NEW_EMAIL, 'member'),
+          },
+        })
+      )
     );
   });
 
