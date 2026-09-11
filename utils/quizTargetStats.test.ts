@@ -228,6 +228,25 @@ describe('target mastery helpers', () => {
 
     expect(csv).toBe('Student\r\n"\'=HYPERLINK(""https://example.com"")"');
   });
+
+  // A leading '-' reads like a negative number, so it is the trigger most
+  // likely to be dropped from the guard later.
+  it('neutralizes the non-= formula triggers too', () => {
+    const csv = buildTargetGridCsv(
+      [],
+      [
+        { name: '@SUM(A1:A9)', values: new Map() },
+        { name: '-2+3', values: new Map() },
+        { name: '+1', values: new Map() },
+      ]
+    );
+
+    expect(csv.split('\r\n').slice(1)).toEqual([
+      "'@SUM(A1:A9)",
+      "'-2+3",
+      "'+1",
+    ]);
+  });
 });
 
 describe('groupQuestionsByTargets', () => {
