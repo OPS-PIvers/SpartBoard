@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Utilisez « Transférer la direction » pour changer le responsable de la CAP.",
       "invalidRole": "Ce n'est pas un rôle de CAP valide.",
       "alreadyLead": "Ce membre est déjà le responsable de cette CAP.",
-      "orgRequired": "Les CAP sont réservées aux membres d'une organisation."
+      "orgRequired": "Les CAP sont réservées aux membres d'une organisation.",
+      "notActiveMember": "Cet(te) enseignant(e) n’est pas membre actif de cette CAP."
     }
   },
   "plcDashboard": {
@@ -1134,7 +1135,7 @@
       "studentsHint": "Les élèves sont comptés par enseignant(e) ; un élève présent dans les classes de deux enseignant(e)s compte deux fois.",
       "teachers": "Enseignant(e)s",
       "teachersOf": "{{count}} sur {{total}}",
-      "lastComputed": "Dernier calcul",
+      "lastComputed": "Dernière mise à jour",
       "neverComputed": "Pas encore",
       "questionsHeading": "Questions, les plus ratées d’abord",
       "noQuestions": "Pas encore de résultats. Dès qu’un(e) enseignant(e) fait passer cette évaluation et publie les notes, les questions regroupées apparaissent ici.",
@@ -1148,7 +1149,8 @@
       "classes": "Classes",
       "studentsColumn": "Élèves",
       "average": "Moyenne",
-      "unknownTeacher": "Enseignant(e)"
+      "unknownTeacher": "Enseignant(e)",
+      "nonMemberTeacher": "Non membre de la CAP"
     },
     "learningTargets": {
       "heading": "Objectifs d’apprentissage",
@@ -1748,7 +1750,21 @@
         "dissolveSuccess": "« {{name}} » a été dissoute.",
         "actionFailed": "Cette action n'a pas pu être effectuée. Veuillez réessayer.",
         "cancel": "Annuler",
-        "confirm": "Confirmer"
+        "confirm": "Confirmer",
+        "members": "Membres",
+        "membersDescription": "Ajoutez un(e) enseignant(e) de votre organisation, changez un rôle ou retirez un membre. La personne n’est pas notifiée.",
+        "noOtherMembers": "Aucun membre en dehors du responsable.",
+        "roleLabel": "Rôle",
+        "remove": "Retirer",
+        "removeMember": "Retirer {{name}}",
+        "addMemberLabel": "Enseignant(e) à ajouter",
+        "chooseTeacher": "Choisir un(e) enseignant(e)…",
+        "loadingTeachers": "Chargement des enseignant(e)s…",
+        "addMember": "Ajouter",
+        "noAddableTeachers": "Chaque enseignant(e) connecté(e) de votre organisation est déjà membre.",
+        "memberSaved": "{{member}} est désormais {{role}} de « {{name}} ».",
+        "confirmRemoveMember": "Retirer {{member}} de « {{name}} » ?",
+        "memberRemoved": "{{member}} a été retiré(e) de « {{name}} »."
       }
     },
     "mediaReview": {

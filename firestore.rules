@@ -1973,6 +1973,46 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // In-org site admin adds, re-roles or removes ONE non-lead member; target named
+    // by the transient `adminMemberUid`. leadUid and every other entry are untouched.
+    function isAdminEditingPlcMembers() {
+      let target = request.resource.data.get('adminMemberUid', '');
+      let newMembers = request.resource.data.get('members', {});
+      let oldMembers = resource.data.get('members', {});
+      let oldUids = resource.data.memberUids;
+      let newUids = request.resource.data.memberUids;
+      // An un-migrated PLC backfills its whole map on first write; its existing uids may appear too.
+      // CEL cannot iterate a map, so on that one-time backfill only the key set, the lead entry
+      // and the target entry are checked; other legacy entries are copied through by the client.
+      let allowedKeys = oldMembers.size() == 0 ? oldUids.concat([target]) : [target];
+      return isAdmin()
+        && resource.data.get('orgId', null) is string
+        && isOrgMember(resource.data.orgId)
+        && target != ''
+        && target != resource.data.leadUid
+        && request.resource.data.leadUid == resource.data.leadUid
+        && (target in newMembers)
+        && newMembers.diff(oldMembers).affectedKeys().hasOnly(allowedKeys)
+        // A backfill must carry every legacy uid and nothing else.
+        && (oldMembers.size() > 0
+            || (newMembers.keys().hasOnly(allowedKeys)
+                && newMembers.keys().hasAll(allowedKeys)))
+        && (resource.data.leadUid in newMembers)
+        && newMembers[resource.data.leadUid].role == 'lead'
+        && newMembers[target].uid == target
+        && newMembers[target].role in ['coLead', 'member', 'viewer']
+        && newMembers[target].status in ['active', 'removed']
+        && ((target in newUids) == (newMembers[target].status == 'active'))
+        && newUids.removeAll([target]) == oldUids.removeAll([target])
+        && request.resource.data.memberEmails
+             .diff(resource.data.get('memberEmails', {}))
+             .affectedKeys().hasOnly(allowedKeys)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['members', 'memberUids', 'memberEmails', 'adminMemberUid',
+                       'updatedAt'])
+        && plcUpdatedAtOk();
+    }
+
     // Slim, PII-free discovery mirror of each PLC root, server-written by
     // mirrorPlcIndex (Decision 1.1). Powers the "PLCs in my building" directory
     // without exposing teacher emails/names — only name/orgId/buildingId/opaque
@@ -2064,6 +2104,7 @@ service cloud.firestore {
         || isUpdatingPlcFeatures()
         || isUpdatingPlcDigestOptIn()
         || isAdminManagingPlc()
+        || isAdminEditingPlcMembers()
       );
 
       // The lead can dissolve the PLC; an in-org SITE ADMIN can also dissolve an

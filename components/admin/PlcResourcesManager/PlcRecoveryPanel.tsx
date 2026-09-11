@@ -1,6 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShieldAlert, Crown, UserCog, Trash2, X, Check } from 'lucide-react';
+import {
+  ShieldAlert,
+  Crown,
+  UserCog,
+  Trash2,
+  X,
+  Check,
+  Users,
+} from 'lucide-react';
+import {
+  PlcAdminMembersEditor,
+  type AdminMemberRole,
+  type AdminMemberTarget,
+} from './PlcAdminMembersEditor';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -31,9 +44,19 @@ export const PlcRecoveryPanel: React.FC = () => {
   // Admin read mode: enumerate every PLC regardless of membership. The mutators
   // used here (`adminReassignLead` / `deletePlc`) are authorized for a
   // non-member admin by the rules layer.
-  const { plcs, loading, error, adminReassignLead, deletePlc } = usePlcs({
+  const {
+    plcs,
+    loading,
+    error,
+    adminReassignLead,
+    adminSetMember,
+    adminRemoveMember,
+    deletePlc,
+  } = usePlcs({
     asAdmin: true,
   });
+  // PLC whose member editor is open, or null.
+  const [membersEditingId, setMembersEditingId] = useState<string | null>(null);
 
   // uid of the PLC whose reassign picker is open (only one at a time), or null.
   const [reassigningId, setReassigningId] = useState<string | null>(null);
@@ -53,6 +76,77 @@ export const PlcRecoveryPanel: React.FC = () => {
   // Hidden entirely for non-admins (and while admin status is still resolving)
   // or admins with no org — neither can perform a scoped recovery.
   if (!isAdmin || !orgId) return null;
+
+  const handleSetMember = async (
+    plc: Plc,
+    target: AdminMemberTarget,
+    role: AdminMemberRole
+  ) => {
+    setBusyId(plc.id);
+    try {
+      await adminSetMember(plc.id, target, role);
+      addToast(
+        t('admin.plc.recovery.memberSaved', {
+          defaultValue: '{{member}} is now a {{role}} of “{{name}}”.',
+          member: target.displayName || target.email,
+          role,
+          name: plc.name,
+        }),
+        'success'
+      );
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('admin.plc.recovery.actionFailed', {
+              defaultValue:
+                "That action couldn't be completed. Please try again.",
+            }),
+        'error'
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRemoveMember = async (plc: Plc, member: PlcMember) => {
+    const label = member.displayName || member.email || member.uid;
+    if (
+      !window.confirm(
+        t('admin.plc.recovery.confirmRemoveMember', {
+          defaultValue: 'Remove {{member}} from “{{name}}”?',
+          member: label,
+          name: plc.name,
+        })
+      )
+    ) {
+      return;
+    }
+    setBusyId(plc.id);
+    try {
+      await adminRemoveMember(plc.id, member.uid);
+      addToast(
+        t('admin.plc.recovery.memberRemoved', {
+          defaultValue: '{{member}} was removed from “{{name}}”.',
+          member: label,
+          name: plc.name,
+        }),
+        'success'
+      );
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('admin.plc.recovery.actionFailed', {
+              defaultValue:
+                "That action couldn't be completed. Please try again.",
+            }),
+        'error'
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const openReassign = (plc: Plc) => {
     const eligible = eligibleNewLeads(plc);
@@ -206,6 +300,7 @@ export const PlcRecoveryPanel: React.FC = () => {
               : plc.leadUid;
             const eligible = eligibleNewLeads(plc);
             const isReassigning = reassigningId === plc.id;
+            const isEditingMembers = membersEditingId === plc.id;
             const isBusy = busyId === plc.id;
             return (
               <li
@@ -243,6 +338,20 @@ export const PlcRecoveryPanel: React.FC = () => {
                     <button
                       type="button"
                       onClick={() =>
+                        setMembersEditingId(isEditingMembers ? null : plc.id)
+                      }
+                      disabled={isBusy}
+                      aria-expanded={isEditingMembers}
+                      className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/10 disabled:opacity-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Users className="w-4 h-4" aria-hidden="true" />
+                      {t('admin.plc.recovery.members', {
+                        defaultValue: 'Members',
+                      })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
                         isReassigning ? closeReassign() : openReassign(plc)
                       }
                       disabled={isBusy}
@@ -266,6 +375,20 @@ export const PlcRecoveryPanel: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {isEditingMembers && (
+                  <PlcAdminMembersEditor
+                    plc={plc}
+                    orgId={orgId}
+                    busy={isBusy}
+                    onSetMember={(target, role) =>
+                      void handleSetMember(plc, target, role)
+                    }
+                    onRemoveMember={(member) =>
+                      void handleRemoveMember(plc, member)
+                    }
+                  />
+                )}
 
                 {isReassigning && (
                   <div className="mt-3 pt-3 border-t border-slate-100">

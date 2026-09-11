@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Use \"Transfer leadership\" to change who leads the PLC.",
       "invalidRole": "That is not a valid PLC role.",
       "alreadyLead": "That member is already the lead of this PLC.",
-      "orgRequired": "PLCs are only available to members of an organization."
+      "orgRequired": "PLCs are only available to members of an organization.",
+      "notActiveMember": "That teacher is not an active member of this PLC."
     }
   },
   "plcDashboard": {
@@ -1134,7 +1135,7 @@
       "studentsHint": "Students are counted per teacher; a student in two teachers’ classes counts twice.",
       "teachers": "Teachers",
       "teachersOf": "{{count}} of {{total}}",
-      "lastComputed": "Last computed",
+      "lastComputed": "Last updated",
       "neverComputed": "Not yet",
       "questionsHeading": "Questions, most missed first",
       "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
@@ -1148,7 +1149,8 @@
       "classes": "Classes",
       "studentsColumn": "Students",
       "average": "Average",
-      "unknownTeacher": "Teacher"
+      "unknownTeacher": "Teacher",
+      "nonMemberTeacher": "Not a PLC member"
     },
     "learningTargets": {
       "heading": "Learning targets",
@@ -1871,7 +1873,21 @@
         "dissolveSuccess": "“{{name}}” has been dissolved.",
         "actionFailed": "That action couldn't be completed. Please try again.",
         "cancel": "Cancel",
-        "confirm": "Confirm"
+        "confirm": "Confirm",
+        "members": "Members",
+        "membersDescription": "Add a teacher from your organization, change a role, or remove a member. The teacher is not notified.",
+        "noOtherMembers": "No members besides the lead.",
+        "roleLabel": "Role",
+        "remove": "Remove",
+        "removeMember": "Remove {{name}}",
+        "addMemberLabel": "Teacher to add",
+        "chooseTeacher": "Choose a teacher…",
+        "loadingTeachers": "Loading teachers…",
+        "addMember": "Add",
+        "noAddableTeachers": "Every signed-in teacher in your organization is already a member.",
+        "memberSaved": "{{member}} is now a {{role}} of “{{name}}”.",
+        "confirmRemoveMember": "Remove {{member}} from “{{name}}”?",
+        "memberRemoved": "{{member}} was removed from “{{name}}”."
       }
     },
     "mediaReview": {

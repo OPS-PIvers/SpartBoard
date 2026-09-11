@@ -140,7 +140,7 @@ describe('buildAssessmentRows', () => {
       assessments: [makeAssessment()],
       aggregates: [makeAggregate()],
       libraryEntries: [makeEntry({ syncGroupId: 'g1', questionCount: 12 })],
-      memberCount: 4,
+      memberUids: ['u1', 'u2', 'u3', 'u4'],
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -157,12 +157,42 @@ describe('buildAssessmentRows', () => {
     });
   });
 
+  it('counts a linked non-member teacher in the member total', () => {
+    const rows = buildAssessmentRows({
+      assessments: [makeAssessment()],
+      aggregates: [
+        makeAggregate({
+          teacherCount: 3,
+          perTeacher: [
+            {
+              teacherUid: 'u1',
+              teacherName: 'A',
+              classCount: 1,
+              averagePercent: 70,
+              studentCount: 10,
+            },
+            {
+              teacherUid: 'outsider',
+              teacherName: '',
+              classCount: 1,
+              averagePercent: 70,
+              studentCount: 10,
+            },
+          ],
+        }),
+      ],
+      libraryEntries: [],
+      memberUids: ['u1', 'u2'],
+    });
+    expect(rows[0]).toMatchObject({ teacherCount: 3, memberCount: 3 });
+  });
+
   it('adds library-only rows for shared quizzes with no assessment', () => {
     const rows = buildAssessmentRows({
       assessments: [makeAssessment()],
       aggregates: [],
       libraryEntries: [makeEntry()],
-      memberCount: 2,
+      memberUids: ['u1', 'u2'],
     });
     const libraryRow = rows.find((r) => r.assessmentId === null);
     expect(libraryRow?.status).toBe('notStarted');
@@ -182,7 +212,7 @@ describe('buildAssessmentRows', () => {
       ],
       aggregates: [],
       libraryEntries: [makeEntry({ deletedAt: 5 })],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(rows).toHaveLength(0);
   });
@@ -192,7 +222,7 @@ describe('buildAssessmentRows', () => {
       assessments: [makeAssessment({ title: '' })],
       aggregates: [makeAggregate({ title: 'From aggregate' })],
       libraryEntries: [],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(rows[0].title).toBe('From aggregate');
   });
@@ -202,7 +232,7 @@ describe('buildAssessmentRows', () => {
       assessments: [makeAssessment({ status: 'closed' })],
       aggregates: [makeAggregate({ ranAt: 0 })],
       libraryEntries: [],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(rows[0].archived).toBe(true);
     expect(rows[0].ranAt).toBeNull();
@@ -231,7 +261,7 @@ describe('buildAssessmentRows', () => {
         makeEntry({ id: 'l1', syncGroupId: 'lib-a', sharedAt: 10 }),
         makeEntry({ id: 'l2', syncGroupId: 'lib-b', sharedAt: 20 }),
       ],
-      memberCount: 3,
+      memberUids: ['u1', 'u2', 'u3'],
     });
     expect(rows.map((r) => r.id)).toEqual([
       'running',
@@ -269,7 +299,7 @@ describe('filterAssessmentRows', () => {
       makeAggregate({ assessmentId: 'b', scoredStudentCount: 0 }),
     ],
     libraryEntries: [makeEntry({ title: 'Ratios warm-up' })],
-    memberCount: 2,
+    memberUids: ['u1', 'u2'],
   });
 
   it('filters by status chip', () => {
@@ -313,7 +343,7 @@ describe('folder inheritance', () => {
       libraryEntries: [
         makeEntry({ syncGroupId: 'g1', folderId: 'lib-folder' }),
       ],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(rows[0].folderId).toBe('lib-folder');
     expect(rows[0].plcQuizId).toBe('e1');
@@ -326,7 +356,7 @@ describe('folder inheritance', () => {
       libraryEntries: [
         makeEntry({ syncGroupId: 'g1', folderId: 'lib-folder' }),
       ],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(rows[0].folderId).toBe('own-folder');
   });
@@ -336,7 +366,7 @@ describe('folder inheritance', () => {
       assessments: [],
       aggregates: [],
       libraryEntries: [makeEntry({ folderId: 'lib-folder' })],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(rows[0].folderId).toBe('lib-folder');
   });
@@ -348,7 +378,7 @@ describe('folder inheritance', () => {
       ],
       aggregates: [],
       libraryEntries: [makeEntry({ syncGroupId: 'g-lib', folderId: null })],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(filterRowsByFolder(rows, 'f1').map((r) => r.id)).toEqual(['a']);
     expect(filterRowsByFolder(rows, null)).toHaveLength(2);
@@ -361,7 +391,7 @@ describe('folder inheritance', () => {
       ],
       aggregates: [],
       libraryEntries: [makeEntry({ syncGroupId: 'g-lib' })],
-      memberCount: 1,
+      memberUids: ['u1'],
     });
     expect(countRowsByFolder(rows)).toEqual({ f1: 1, root: 1 });
   });
