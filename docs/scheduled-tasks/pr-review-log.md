@@ -3845,3 +3845,66 @@ So the flag's "silently reintroduce/duplicate" warning describes an unreachable 
   - **The `/mnt/skills/user/` skill paths named in the task prompt still do not exist here** (`/mnt/skills/` is absent entirely). Repo-local equivalents are at `.claude/skills/{new-widget,admin-widget-config}/`. Widget and admin-config standards came from the repo `CLAUDE.md`. Little was lost: no PR added a new widget, so the 8-file registration checklist had nothing to bite on, and the only widget-surface PRs were a back-face settings panel (#2964, where scaling rules explicitly do not apply) and two front-face scaling passes (#2961, #2967).
   - **Node version mismatch present and benign again:** container runs Node v22.22.2 against `engines: >=24.0.0`, printing an unsupported-engine warning on every `pnpm` invocation. It did not affect type-check, lint, or the 10,502-test run. Recorded so a future run seeing a real failure here does not re-diagnose the warning.
   - **The most useful check this run cost one probe file.** #2967's review would have read identically — "conversions look correct" — whether the units resolved against the widget or were inert. The only way to tell was to run the project's own Tailwind over `@container` and look at the bytes. It confirmed the PR and turned up a dead class elsewhere that has been shipping unnoticed. **When a CSS change's correctness depends on which ancestor is the container, the ancestor is part of the diff.**
+
+### 2026-09-11 — addendum (post-run PR activity)
+
+The entry above records the run as it stood at ~06:45. Subscribed-PR events kept arriving for
+another five hours and the outcome changed materially, so the headline numbers there
+(**1 fix pushed**) are superseded by what follows.
+
+- **#2961 MERGED** at 11:27. Final head `317e75b`, all five review threads resolved.
+- **Fixes pushed to #2961: 5, not 1** — `ad20aee` (cqmin scaling), `510bb0f` (skip the
+  per-student rescan when no question is tagged), `2788f2d` (plan-doc note, below),
+  `898aa26` (test coverage for the non-`=` CSV formula triggers), `317e75b` (drop the
+  "Other questions" heading when nothing is tagged). A sixth, an identical CSV guard, was
+  **written and then dropped** — see the collision note.
+- **The author fixed three findings from this run's reviews themselves**, concurrently:
+  `69ac053` (the `lowSample` served-vs-scored mismatch flagged in #2961's review),
+  `314bad0` (the CSV formula guard), and `2795efe` on `scheduled-tasks` (the leftover
+  `py-12` loading wrappers flagged in #2967's review).
+
+Lessons worth carrying, in rough order of reusability:
+
+- **Two automated review runs on the same PR asserted opposite things, and only checking
+  the code settled it.** On CSV formula injection, the earlier run called it a
+  "pre-existing, codebase-wide" gap every export shares and therefore not a regression;
+  the later run called it a real finding with an established in-repo mitigation. The later
+  was right: `escapeCsvCell` (`hooks/useGuidedLearningSession.ts:50`) exists and guards
+  `/^[=+\-@\t\r]/`. The first run's framing would have talked a reader out of a genuine
+  fix. **The useful distinction was never "is the codebase consistent" but "what reaches
+  the cell"** — `utils/rubricCsv.ts:77` is equally unguarded but carries teacher-authored
+  rubric text, while the GL exporter and `buildTargetGridCsv` both write *student names*.
+  Left `rubricCsv.ts` alone deliberately rather than widen a merged PR; **still open, worth
+  a human call.**
+- **Documenting a deferral stopped a finding that two runs had re-raised.** The
+  mastery-cutoffs question came back as a brand-new thread on the second pass because
+  nothing in the repo recorded that decision #26 already covers it. `2788f2d` added a note
+  to the plan doc's PR 3 checklist; the *third* review run then read it and closed the item
+  itself ("a deliberate, documented deferral — makes sense given a quiz can mix targets
+  from multiple PLCs"). **When a reviewer keeps rediscovering the same intentional choice,
+  the fix is a line of documentation, not a better reply.**
+- **Concurrent identical fixes are a real hazard on an actively-worked branch.** The author
+  and this run independently wrote byte-identical `quoteCsvCell` guards within minutes. The
+  push bounced, the duplicate was dropped in favour of theirs, and only the test coverage
+  their version lacked was contributed (`898aa26`). Two pushes bounced this way in total.
+  **On a fast-moving branch, fetch immediately before pushing and expect to discard work.**
+- **A background full-suite run that overlaps an edit produces a fake failure.** A run
+  started at 10:51 collected a test file edited at 10:55 and paired the new test with the
+  pre-edit module, reporting `1 failed`. A clean re-run passed 10,505. **Never start the
+  verification run before the edits are finished**, and re-run rather than reasoning about
+  whether a failure was a race.
+- **Verify a fix by breaking it.** For `317e75b` the guard was reverted in place to confirm
+  the new test fails on exactly the intended assertion, then restored. This also caught two
+  drafting bugs pre-push: a `QUESTIONS[1]` that would have spread `undefined` (the fixture
+  has one question), and a shell check printing "(remote ahead)" unconditionally because
+  `git log` exits 0 with no output.
+- **`--reporter=basic` crashes vitest here** (custom-reporter module load error);
+  `--reporter=dot --config vitest.config.ts` on a single file works and is ~2s versus ~10min
+  for the full suite. The `pnpm run test -- <path>` filter arg does **not** narrow the run.
+
+Standing item for the next run: **#2962** is still open, still based on `codex/quiz-target-results`
+(now merged), and its own description says "Merge #2961 first; do not merge this PR into
+`dev-paul` directly." It needs a **retarget to `dev-paul`** plus a rebase. Deliberately not done
+here — changing a PR's base is stack management on a PR this run neither opened nor was asked
+to drive. Its one Needs-changes finding (zero-attempt targets rendering as red 0% / "beginning"
+rather than "no data") is also still open.
