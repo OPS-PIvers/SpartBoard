@@ -82,11 +82,21 @@ export function hasTeamAverage(
   return published > 0 && scored > 0;
 }
 
+/** Active members plus any non-member teacher whose session is linked, so "N of M" never exceeds M. */
+export function teacherPoolSize(
+  memberUids: readonly string[],
+  aggregate: PlcAssessmentAggregate | null | undefined
+): number {
+  const pool = new Set(memberUids);
+  for (const row of aggregate?.perTeacher ?? []) pool.add(row.teacherUid);
+  return pool.size;
+}
+
 export interface BuildAssessmentRowsInput {
   assessments: PlcCommonAssessment[];
   aggregates: PlcAssessmentAggregate[];
   libraryEntries: PlcQuizEntry[];
-  memberCount: number;
+  memberUids: readonly string[];
 }
 
 const STATUS_ORDER: Record<AssessmentRowStatus, number> = {
@@ -167,7 +177,7 @@ export function buildAssessmentRows(
       archived: assessment.status === 'closed' || library?.archived === true,
       questionCount: library?.questionCount ?? null,
       teacherCount: aggregate?.teacherCount ?? 0,
-      memberCount: input.memberCount,
+      memberCount: teacherPoolSize(input.memberUids, aggregate),
       studentCount: aggregate?.studentCount ?? 0,
       ranAt: aggregate && aggregate.ranAt > 0 ? aggregate.ranAt : null,
       syncGroupId: assessment.syncGroupId,
@@ -192,7 +202,7 @@ export function buildAssessmentRows(
       archived: entry.archived === true,
       questionCount: entry.questionCount,
       teacherCount: 0,
-      memberCount: input.memberCount,
+      memberCount: input.memberUids.length,
       studentCount: 0,
       ranAt: null,
       syncGroupId,

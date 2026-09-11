@@ -42,6 +42,7 @@ import {
   formatShortDate,
   hasTeamAverage,
   sortWorstFirst,
+  teacherPoolSize,
 } from './assessmentListSelectors';
 import { AssessmentStatusBadge } from './PlcAssessmentList';
 
@@ -293,6 +294,10 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   const { data: aggregates, loading: aggregatesLoading } =
     usePlcAggregatesData();
   const members = usePlcMembers();
+  const memberUids = useMemo(
+    () => new Set(members.map((m) => m.uid)),
+    [members]
+  );
   const { list: learningTargetList } = usePlcLearningTargets(plc.id);
   const showPerTeacher = getPlcFeatures(plc).showPerTeacher;
 
@@ -451,14 +456,14 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
               {t('plcDashboard.assessmentDetail.teachersOf', {
                 defaultValue: '{{count}} of {{total}}',
                 count: teacherCount,
-                total: members.length,
+                total: teacherPoolSize([...memberUids], aggregate),
               })}
             </dd>
           </div>
           <div className="bg-slate-50 rounded-xl px-3 py-2.5">
             <dt className="text-xxs font-bold uppercase tracking-wider text-slate-500">
               {t('plcDashboard.assessmentDetail.lastComputed', {
-                defaultValue: 'Last computed',
+                defaultValue: 'Last updated',
               })}
             </dt>
             <dd className="text-base font-bold text-slate-800 mt-1">
@@ -609,9 +614,19 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
                           aria-hidden="true"
                         />
                         {row.teacherName ||
-                          t('plcDashboard.assessmentDetail.unknownTeacher', {
-                            defaultValue: 'Teacher',
-                          })}
+                          (memberUids.has(row.teacherUid)
+                            ? t(
+                                'plcDashboard.assessmentDetail.unknownTeacher',
+                                {
+                                  defaultValue: 'Teacher',
+                                }
+                              )
+                            : t(
+                                'plcDashboard.assessmentDetail.nonMemberTeacher',
+                                {
+                                  defaultValue: 'Not a PLC member',
+                                }
+                              ))}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-slate-700">

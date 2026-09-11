@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.6",
+      "date": "2026-09-11",
+      "title": "PLC assessment teacher count and label fixes",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "The Teachers stat on a scored assessment no longer reads \"4 of 3\" when a teacher who never joined the PLC has a linked session. Their row is labelled as a non-member, and the fourth stat is now called Last updated."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Teacher totals on the assessment list and detail page count active members plus any linked non-member teacher."
+        },
+        {
+          "type": "fix",
+          "text": "Per-teacher rows for a non-member show \"Not a PLC member\" instead of a blank name."
+        },
+        {
+          "type": "improvement",
+          "text": "\"Last computed\" renamed to \"Last updated\" in all four languages."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.5",
       "date": "2026-09-11",
       "title": "PLC Learning Targets tab and consistent page padding",

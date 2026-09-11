@@ -252,6 +252,36 @@ function setDefaults() {
 describe('PlcAssessmentDetail', () => {
   beforeEach(setDefaults);
 
+  it('widens the teacher total for a linked non-member and labels the row', () => {
+    mockAggregatesSlice = {
+      ...mockAggregatesSlice,
+      data: [
+        makeAggregate({
+          teacherCount: 3,
+          perTeacher: [
+            ...makeAggregate().perTeacher,
+            {
+              teacherUid: 'uid-outsider',
+              teacherName: '',
+              classCount: 1,
+              averagePercent: 50,
+              studentCount: 20,
+            },
+          ],
+        }),
+      ],
+    };
+    render(
+      <PlcAssessmentDetail
+        plc={makePlc({ features: { showPerTeacher: true } as Plc['features'] })}
+        assessmentId="a1"
+      />
+    );
+
+    expect(screen.getByText('3 of 4')).toBeInTheDocument();
+    expect(screen.getByText('Not a PLC member')).toBeInTheDocument();
+  });
+
   it('renders the header stats and the questions worst-first', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
 

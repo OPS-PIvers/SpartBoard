@@ -1134,7 +1134,7 @@
       "studentsHint": "Students are counted per teacher; a student in two teachers’ classes counts twice.",
       "teachers": "Teachers",
       "teachersOf": "{{count}} of {{total}}",
-      "lastComputed": "Last computed",
+      "lastComputed": "Last updated",
       "neverComputed": "Not yet",
       "questionsHeading": "Questions, most missed first",
       "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
@@ -1148,7 +1148,8 @@
       "classes": "Classes",
       "studentsColumn": "Students",
       "average": "Average",
-      "unknownTeacher": "Teacher"
+      "unknownTeacher": "Teacher",
+      "nonMemberTeacher": "Not a PLC member"
     },
     "learningTargets": {
       "heading": "Learning targets",
