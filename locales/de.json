@@ -1748,7 +1748,21 @@
         "dissolveSuccess": "„{{name}}“ wurde aufgelöst.",
         "actionFailed": "Diese Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
         "cancel": "Abbrechen",
-        "confirm": "Bestätigen"
+        "confirm": "Bestätigen",
+        "members": "Mitglieder",
+        "membersDescription": "Lehrkraft aus Ihrer Organisation hinzufügen, Rolle ändern oder Mitglied entfernen. Die Lehrkraft wird nicht benachrichtigt.",
+        "noOtherMembers": "Keine Mitglieder außer der Leitung.",
+        "roleLabel": "Rolle",
+        "remove": "Entfernen",
+        "removeMember": "{{name}} entfernen",
+        "addMemberLabel": "Hinzuzufügende Lehrkraft",
+        "chooseTeacher": "Lehrkraft auswählen…",
+        "loadingTeachers": "Lehrkräfte werden geladen…",
+        "addMember": "Hinzufügen",
+        "noAddableTeachers": "Jede angemeldete Lehrkraft Ihrer Organisation ist bereits Mitglied.",
+        "memberSaved": "{{member}} ist jetzt {{role}} von „{{name}}“.",
+        "confirmRemoveMember": "{{member}} aus „{{name}}“ entfernen?",
+        "memberRemoved": "{{member}} wurde aus „{{name}}“ entfernt."
       }
     },
     "mediaReview": {

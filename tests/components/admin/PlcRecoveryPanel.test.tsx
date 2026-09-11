@@ -17,14 +17,30 @@ import { PlcRecoveryPanel } from '@/components/admin/PlcResourcesManager/PlcReco
 import { usePlcs } from '@/hooks/usePlcs';
 import { useAuth } from '@/context/useAuth';
 
+const interpolate = (s: string, o?: Record<string, unknown>) =>
+  s.replace(/\{\{(\w+)\}\}/g, (_m, k: string) => {
+    const v = o?.[k];
+    return typeof v === 'string' || typeof v === 'number' ? String(v) : '';
+  });
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
+    t: (k: string, o?: Record<string, unknown>) =>
+      interpolate((o?.defaultValue as string | undefined) ?? k, o),
   }),
 }));
 
 const mockAdminReassignLead = vi.fn();
+const mockAdminSetMember = vi.fn();
+const mockAdminRemoveMember = vi.fn();
 const mockDeletePlc = vi.fn();
+vi.mock('@/hooks/useOrgMembers', () => ({
+  useOrgMembers: () => ({
+    members: [
+      { email: 'new@x.com', uid: 'new-9', name: 'Nia New', status: 'active' },
+    ],
+    loading: false,
+  }),
+}));
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: vi.fn(),
 }));
@@ -85,6 +101,8 @@ function setPlcs(plcs: unknown[]) {
     loading: false,
     error: null,
     adminReassignLead: mockAdminReassignLead,
+    adminSetMember: mockAdminSetMember,
+    adminRemoveMember: mockAdminRemoveMember,
     deletePlc: mockDeletePlc,
   });
 }
@@ -199,6 +217,44 @@ describe('PlcRecoveryPanel - dissolve', () => {
     fireEvent.click(screen.getByRole('button', { name: /dissolve plc/i }));
 
     expect(mockDeletePlc).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+});
+
+describe('PlcRecoveryPanel - members', () => {
+  it('opens the member editor and adds a teacher through the admin mutator', async () => {
+    mockAdminSetMember.mockResolvedValue(undefined);
+    render(<PlcRecoveryPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /^members$/i }));
+    expect(screen.getByTestId('admin-members-editor')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Teacher to add'), {
+      target: { value: 'new@x.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    await waitFor(() =>
+      expect(mockAdminSetMember).toHaveBeenCalledWith(
+        'plc-org',
+        { uid: 'new-9', email: 'new@x.com', displayName: 'Nia New' },
+        'member'
+      )
+    );
+    expect(mockAddToast).toHaveBeenCalledWith(
+      expect.stringContaining('Nia New'),
+      'success'
+    );
+  });
+
+  it('removes a member after confirmation', async () => {
+    mockAdminRemoveMember.mockResolvedValue(undefined);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<PlcRecoveryPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /^members$/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Mary Member' }));
+    await waitFor(() =>
+      expect(mockAdminRemoveMember).toHaveBeenCalledWith('plc-org', 'm-2')
+    );
     confirmSpy.mockRestore();
   });
 });

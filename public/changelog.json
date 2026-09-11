@@ -1,6 +1,32 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.7",
+      "date": "2026-09-11",
+      "title": "Admins can manage PLC members",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Admin",
+          "items": [
+            {
+              "text": "Site admins can now add a teacher from their organization to any PLC, change a member's role, or remove a member from Admin › PLC Resources. The teacher does not have to accept an invitation."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "New Members editor on each PLC card in the admin recovery panel, listing signed-in org teachers who are not yet members."
+        },
+        {
+          "type": "improvement",
+          "text": "Firestore rule lets an in-org admin change exactly one non-lead member per write; the lead and every other entry stay locked."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.5",
       "date": "2026-09-11",
       "title": "PLC Learning Targets tab and consistent page padding",
