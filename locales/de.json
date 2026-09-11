@@ -1134,7 +1134,7 @@
       "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt; wer in den Klassen zweier Lehrkräfte ist, zählt doppelt.",
       "teachers": "Lehrkräfte",
       "teachersOf": "{{count}} von {{total}}",
-      "lastComputed": "Zuletzt berechnet",
+      "lastComputed": "Zuletzt aktualisiert",
       "neverComputed": "Noch nicht",
       "questionsHeading": "Fragen, am häufigsten falsch zuerst",
       "noQuestions": "Noch keine Ergebnisse. Sobald eine Lehrkraft diese Bewertung durchführt und Punkte veröffentlicht, erscheinen die gebündelten Fragen hier.",
@@ -1148,7 +1148,8 @@
       "classes": "Klassen",
       "studentsColumn": "Schüler:innen",
       "average": "Durchschnitt",
-      "unknownTeacher": "Lehrkraft"
+      "unknownTeacher": "Lehrkraft",
+      "nonMemberTeacher": "Kein PLG-Mitglied"
     },
     "learningTargets": {
       "heading": "Lernziele",

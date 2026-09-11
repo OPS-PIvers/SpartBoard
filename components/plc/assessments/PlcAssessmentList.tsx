@@ -561,15 +561,16 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const [targetFilter, setTargetFilter] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
+  const memberUids = useMemo(() => members.map((m) => m.uid), [members]);
   const rows = useMemo(
     () =>
       buildAssessmentRows({
         assessments,
         aggregates,
         libraryEntries,
-        memberCount: members.length,
+        memberUids,
       }),
-    [assessments, aggregates, libraryEntries, members.length]
+    [assessments, aggregates, libraryEntries, memberUids]
   );
   const folderFilteredRows = useMemo(
     () => filterRowsByFolder(rows, selectedFolderId),

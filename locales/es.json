@@ -1134,7 +1134,7 @@
       "studentsHint": "Los estudiantes se cuentan por docente; quien está en las clases de dos docentes cuenta dos veces.",
       "teachers": "Docentes",
       "teachersOf": "{{count}} de {{total}}",
-      "lastComputed": "Último cálculo",
+      "lastComputed": "Última actualización",
       "neverComputed": "Todavía no",
       "questionsHeading": "Preguntas, las más falladas primero",
       "noQuestions": "Aún sin resultados. Cuando un docente aplique esta evaluación y publique las calificaciones, las preguntas reunidas aparecerán aquí.",
@@ -1148,7 +1148,8 @@
       "classes": "Clases",
       "studentsColumn": "Estudiantes",
       "average": "Promedio",
-      "unknownTeacher": "Docente"
+      "unknownTeacher": "Docente",
+      "nonMemberTeacher": "No es miembro de la Comunidad"
     },
     "learningTargets": {
       "heading": "Objetivos de aprendizaje",

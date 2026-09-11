@@ -1134,7 +1134,7 @@
       "studentsHint": "Les élèves sont comptés par enseignant(e) ; un élève présent dans les classes de deux enseignant(e)s compte deux fois.",
       "teachers": "Enseignant(e)s",
       "teachersOf": "{{count}} sur {{total}}",
-      "lastComputed": "Dernier calcul",
+      "lastComputed": "Dernière mise à jour",
       "neverComputed": "Pas encore",
       "questionsHeading": "Questions, les plus ratées d’abord",
       "noQuestions": "Pas encore de résultats. Dès qu’un(e) enseignant(e) fait passer cette évaluation et publie les notes, les questions regroupées apparaissent ici.",
@@ -1148,7 +1148,8 @@
       "classes": "Classes",
       "studentsColumn": "Élèves",
       "average": "Moyenne",
-      "unknownTeacher": "Enseignant(e)"
+      "unknownTeacher": "Enseignant(e)",
+      "nonMemberTeacher": "Non membre de la CAP"
     },
     "learningTargets": {
       "heading": "Objectifs d’apprentissage",
