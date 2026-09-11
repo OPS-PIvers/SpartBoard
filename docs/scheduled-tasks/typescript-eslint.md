@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-10_
+_Last audited: 2026-09-11_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-11: Full audit (Friday daily). `pnpm run type-check` (`tsc --noEmit`, full root run, ~63s) exit 0 — 0 TypeScript errors, no fallback needed (no `TS2307` stale-install misses this cycle). `pnpm run lint`: the full combined `pnpm run lint` (`lint:app` via `eslint . --max-warnings 0` + `lint:functions` via `functions/`'s own `eslint . --max-warnings 0`) completed cleanly in a single authoritative run this cycle, well under the ~280-300s cap — no timeout/OOM fallback needed, no 5-sweep methodology required. 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both. `git status` clean before and after — no installs were needed this cycle (dependency state already current). No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs). 0 new issues found._
 
 _2026-09-10: Full audit (Thursday daily). `pnpm type-check` (`tsc --noEmit`, full root run) exit 0 — 0 TypeScript errors. `pnpm run lint`: the combined `pnpm run lint` failed at the `lint:app` (`eslint . --max-warnings 0`) step with a bare `ELIFECYCLE Command failed` and no rule output before the 290s cap, same class of recurring environment limit as prior cycles (e.g. 2026-08-23, 2026-08-22). Fell back to the established 5-sweep methodology: `context/ hooks/ utils/ config/` exit 0; `components/widgets` exit 0; the remaining 30 `components/*` subdirs (activityWall, admin, announcements, assignmentsHub, auth, backgroundsModal, boardsModal, classes, classroomAddon, common, converter, dev, guidedLearning, help, landing, layout, legal, lti, miniApp, plc, poll, quickAccessModal, quiz, remote, settings, settingsModal, share, spotify, student, subs, videoActivity) exit 0; `App.tsx index.tsx types.ts i18n/ tests/ types/` exit 0; `functions/`'s own `pnpm run lint` exit 0. All 5 sweeps exit 0 — 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both. HEAD (`c27dd695`) is a Thursday css-scaling audit commit (docs-only); `git status` clean, no source changes made. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs). 0 new issues found._
 

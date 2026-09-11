@@ -699,7 +699,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </span>
         }
         thumbnail={
-          <div className="flex h-full w-full items-center justify-center bg-indigo-50 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+          <div
+            className="flex h-full w-full items-center justify-center bg-indigo-50 font-black uppercase tracking-widest text-indigo-600"
+            style={{ fontSize: 'min(10px, 4cqmin)' }}
+          >
             HTML
           </div>
         }
@@ -803,7 +806,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </span>
         }
         thumbnail={
-          <div className="flex h-full w-full items-center justify-center bg-violet-50 text-[10px] font-black uppercase tracking-widest text-violet-600">
+          <div
+            className="flex h-full w-full items-center justify-center bg-violet-50 font-black uppercase tracking-widest text-violet-600"
+            style={{ fontSize: 'min(10px, 4cqmin)' }}
+          >
             HTML
           </div>
         }
@@ -880,11 +886,24 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   );
 
   const activeEmpty = (
-    <div className="flex flex-col items-center justify-center gap-2 text-center py-10 text-slate-400">
-      <p className="text-sm font-black uppercase tracking-widest text-slate-500">
+    <div
+      className="flex flex-col items-center justify-center text-center text-slate-400"
+      style={{
+        gap: 'min(8px, 2cqmin)',
+        paddingTop: 'min(40px, 10cqmin)',
+        paddingBottom: 'min(40px, 10cqmin)',
+      }}
+    >
+      <p
+        className="font-black uppercase tracking-widest text-slate-500"
+        style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+      >
         {isViewOnly ? 'No active shares' : 'No active assignments'}
       </p>
-      <p className="text-xs font-medium text-slate-400">
+      <p
+        className="font-medium text-slate-400"
+        style={{ fontSize: 'min(11px, 4cqmin)' }}
+      >
         {isViewOnly
           ? 'Share a mini-app to create a viewable link for students.'
           : 'Assign a mini-app to create a live link for students.'}
@@ -893,11 +912,24 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   );
 
   const archiveEmpty = (
-    <div className="flex flex-col items-center justify-center gap-2 text-center py-10 text-slate-400">
-      <p className="text-sm font-black uppercase tracking-widest text-slate-500">
+    <div
+      className="flex flex-col items-center justify-center text-center text-slate-400"
+      style={{
+        gap: 'min(8px, 2cqmin)',
+        paddingTop: 'min(40px, 10cqmin)',
+        paddingBottom: 'min(40px, 10cqmin)',
+      }}
+    >
+      <p
+        className="font-black uppercase tracking-widest text-slate-500"
+        style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+      >
         {isViewOnly ? 'No archived shares' : 'No archived assignments'}
       </p>
-      <p className="text-xs font-medium text-slate-400">
+      <p
+        className="font-medium text-slate-400"
+        style={{ fontSize: 'min(11px, 4cqmin)' }}
+      >
         {isViewOnly
           ? 'Ended share links will appear here.'
           : 'Ended assignments will appear here.'}
@@ -997,8 +1029,17 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   if (tab === 'active') {
     if (assignmentsLoading) {
       tabContent = (
-        <div className="flex items-center justify-center py-12 text-slate-400">
-          <Loader2 className="h-6 w-6 animate-spin" />
+        <div
+          className="flex items-center justify-center text-slate-400"
+          style={{
+            paddingTop: 'min(48px, 12cqmin)',
+            paddingBottom: 'min(48px, 12cqmin)',
+          }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+          />
         </div>
       );
     } else if (activeAssignments.length === 0) {
@@ -1026,8 +1067,17 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   } else if (tab === 'archive') {
     if (assignmentsLoading) {
       tabContent = (
-        <div className="flex items-center justify-center py-12 text-slate-400">
-          <Loader2 className="h-6 w-6 animate-spin" />
+        <div
+          className="flex items-center justify-center text-slate-400"
+          style={{
+            paddingTop: 'min(48px, 12cqmin)',
+            paddingBottom: 'min(48px, 12cqmin)',
+          }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+          />
         </div>
       );
     } else if (archivedAssignments.length === 0) {
@@ -1077,10 +1127,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // the shared `LibraryDndContext` below), so a non-manual sort won't persist
     // a new order.
     tabContent = (
-      <div className="flex h-full min-h-0 gap-3">
+      <div className="flex h-full min-h-0" style={{ gap: 'min(12px, 3cqmin)' }}>
         <div className="flex-1 min-w-0 flex flex-col">
           {selectionMode && selection.count > 0 && (
-            <div className="mb-3">
+            <div style={{ marginBottom: 'min(12px, 3cqmin)' }}>
               <BulkActionBar
                 count={selection.count}
                 onClear={() => {
@@ -1155,7 +1205,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </span>
         }
         thumbnail={
-          <div className="flex h-full w-full items-center justify-center bg-indigo-50 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+          <div
+            className="flex h-full w-full items-center justify-center bg-indigo-50 font-black uppercase tracking-widest text-indigo-600"
+            style={{ fontSize: 'min(10px, 4cqmin)' }}
+          >
             HTML
           </div>
         }
@@ -1196,17 +1249,30 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                   setSelectionMode(true);
                 }
               }}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+              className={`inline-flex items-center rounded-lg font-bold uppercase tracking-wider transition-colors ${
                 selectionMode
                   ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
                   : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
               }`}
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                paddingLeft: 'min(10px, 2.5cqmin)',
+                paddingRight: 'min(10px, 2.5cqmin)',
+                paddingTop: 'min(6px, 1.5cqmin)',
+                paddingBottom: 'min(6px, 1.5cqmin)',
+                fontSize: 'min(11px, 4cqmin)',
+              }}
               aria-pressed={selectionMode}
               title={
                 selectionMode ? 'Exit selection mode' : 'Enter selection mode'
               }
             >
-              <CheckSquare className="h-3.5 w-3.5" />
+              <CheckSquare
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
               {selectionMode ? 'Cancel' : 'Select'}
             </button>
           ) : undefined
