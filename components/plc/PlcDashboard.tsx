@@ -14,6 +14,7 @@ import { PlcResourcesBody } from './resources/PlcResourcesBody';
 import { PlcAssessmentsBody } from './bodies/PlcAssessmentsBody';
 import { PlcSharedBoardsBody } from './bodies/PlcSharedBoardsBody';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
+import { PlcLearningTargetsBody } from './bodies/PlcLearningTargetsBody';
 import { MembersBody } from './bodies/MembersBody';
 import { PlcMeetingMode } from './meeting/PlcMeetingMode';
 import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
@@ -133,6 +134,8 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
             onCloseDashboard={onClose}
           />
         );
+      case 'targets':
+        return <PlcLearningTargetsBody plc={plc} />;
       case 'docs':
         // The Docs section now hosts the combined Notes & Docs surface: native
         // structured meeting notes (live default) with the Google-Doc embed one
@@ -299,7 +302,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
                   role="tabpanel"
                   id={`plc-panel-${activeSection}`}
                   aria-labelledby={`plc-tab-${activeSection}`}
-                  className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
+                  className={`animate-in fade-in slide-in-from-bottom-2 duration-300 h-full ${activeSectionDef.fullBleed ? '' : 'p-4 md:p-6'}`}
                 >
                   {renderSection(activeSection)}
                 </div>

@@ -134,7 +134,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({ plc }) => {
   ];
 
   return (
-    <div className="flex flex-col h-full p-4 md:p-6 gap-4 overflow-hidden">
+    <div className="flex flex-col h-full gap-4 overflow-hidden">
       {/* Tab switcher + open action items rollup */}
       <div className="flex items-center justify-between gap-2 shrink-0 flex-wrap">
         <div

@@ -376,7 +376,8 @@
       "members": "Mitglieder",
       "meeting": "Besprechungsmodus",
       "docs": "Notizen & Dokumente",
-      "resources": "Ressourcen"
+      "resources": "Ressourcen",
+      "targets": "Lernziele"
     },
     "assessmentsTypes": {
       "label": "Bewertungstyp",
@@ -516,10 +517,6 @@
       "showPerTeacher": {
         "title": "Aufschlüsselung nach Lehrkraft",
         "description": "Zeigt den Durchschnitt jeder Lehrkraft in gebündelten Bewertungsergebnissen. Standardmäßig aus, damit das Team zuerst auf die Gesamtdaten schaut."
-      },
-      "learningTargets": {
-        "heading": "Lernziele",
-        "description": "Ziele, mit denen die PLG Quizfragen markiert. Alle Mitglieder sehen dieselbe Liste."
       }
     },
     "overview": {
@@ -1152,6 +1149,10 @@
       "studentsColumn": "Schüler:innen",
       "average": "Durchschnitt",
       "unknownTeacher": "Lehrkraft"
+    },
+    "learningTargets": {
+      "heading": "Lernziele",
+      "description": "Ziele, mit denen die PLG Quizfragen markiert. Alle Mitglieder sehen dieselbe Liste."
     }
   },
   "widgetWindow": {

@@ -250,7 +250,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
   );
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-slate-800">
           {t('plcDashboard.resources.inboxTitle', {

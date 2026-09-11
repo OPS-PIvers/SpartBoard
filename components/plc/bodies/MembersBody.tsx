@@ -332,7 +332,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   // Compact: just the avatar grid (the original tile preview).
   if (compact) {
     return (
-      <div className="h-full p-4 flex flex-col">
+      <div className="h-full flex flex-col">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-7 h-7 rounded-lg bg-brand-blue-lighter flex items-center justify-center">
             <Users2 className="w-3.5 h-3.5 text-brand-blue-primary" />

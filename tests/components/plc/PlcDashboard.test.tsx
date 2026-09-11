@@ -26,7 +26,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { PlcDashboard } from '@/components/plc/PlcDashboard';
@@ -148,6 +148,11 @@ vi.mock('@/components/plc/bodies/PlcSharedBoardsBody', () => ({
 vi.mock('@/components/plc/tabs/PlcSettingsTab', () => ({
   PlcSettingsTab: () => <div data-testid="section-settings">Settings body</div>,
 }));
+vi.mock('@/components/plc/bodies/PlcLearningTargetsBody', () => ({
+  PlcLearningTargetsBody: () => (
+    <div data-testid="section-targets">Targets body</div>
+  ),
+}));
 vi.mock('@/components/plc/bodies/MembersBody', () => ({
   MembersBody: () => <div data-testid="section-members">Members body</div>,
 }));
@@ -240,6 +245,26 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
   });
 
+  it('pads every panel except full-bleed sections', () => {
+    const { unmount } = render(
+      <PlcDashboard plc={fakePlc} activeSection="targets" onClose={vi.fn()} />
+    );
+    expect(screen.getByTestId('section-targets')).toBeInTheDocument();
+    expect(screen.getByRole('tabpanel')).toHaveClass('p-4', 'md:p-6');
+    unmount();
+
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="settings" onClose={vi.fn()} />
+    );
+    expect(screen.getByRole('tabpanel')).toHaveClass('p-4', 'md:p-6');
+    cleanup();
+
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
+    );
+    expect(screen.getByRole('tabpanel')).not.toHaveClass('p-4');
+  });
+
   it("renders Meeting Mode (live) when activeSection='meeting' with no meetingId", () => {
     render(
       <PlcDashboard plc={fakePlc} activeSection="meeting" onClose={vi.fn()} />
@@ -302,6 +327,7 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
       'home',
       'meeting',
       'assessments',
+      'targets',
       'docs',
       'sharedBoards',
       'members',

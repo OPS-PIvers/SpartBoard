@@ -58,6 +58,10 @@ const SECTION_LABELS: Record<
     key: 'plcDashboard.tabs.assessments',
     defaultValue: 'Assessments',
   },
+  targets: {
+    key: 'plcDashboard.tabs.targets',
+    defaultValue: 'Learning Targets',
+  },
   docs: { key: 'plcDashboard.tabs.docs', defaultValue: 'Notes & Docs' },
   sharedBoards: {
     key: 'plcDashboard.tabs.sharedBoards',
