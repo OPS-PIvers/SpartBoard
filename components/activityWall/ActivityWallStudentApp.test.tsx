@@ -245,7 +245,9 @@ describe('ActivityWallStudentApp', () => {
         'student'
       );
       expect(screen.queryByLabelText(/your name/i)).not.toBeInTheDocument();
-      expect(document.body.dataset.chromeFree).toBe('true');
+      await waitFor(() =>
+        expect(document.body.dataset.chromeFree).toBe('true')
+      );
       expect(latestLayoutProps()?.viewerUid).toBe('sso-1');
       expect(mockSignInAnonymously).not.toHaveBeenCalled();
     });
