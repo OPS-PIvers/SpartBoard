@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { CircleHelp, Search, X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
 import { Z_INDEX } from '@/config/zIndex';
 import { useHelpItemsForWidget } from '@/hooks/useHelpResources';
@@ -68,6 +69,8 @@ export type SettingsDrawerProps = {
   /** The focus hook (1b.2) targets this heading on open. */
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
 };
+
+const SETTINGS_TABS = ['settings', 'style'] as const;
 
 const FORM_FIELD_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
@@ -521,13 +524,17 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       {!isFiltering && (
         <div
           role="tablist"
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, SETTINGS_TABS, setActiveTab)
+          }
           className="flex bg-slate-100 p-1 mx-4 mt-3 rounded-xl shrink-0"
         >
-          {(['settings', 'style'] as const).map((tab) => (
+          {SETTINGS_TABS.map((tab) => (
             <button
               key={tab}
               type="button"
               role="tab"
+              tabIndex={activeTab === tab ? 0 : -1}
               aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
