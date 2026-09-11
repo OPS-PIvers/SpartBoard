@@ -25,6 +25,8 @@ import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import { QuizDriveService } from '@/utils/quizDriveService';
 
 export interface QuizImportAdapterDeps {
+  /** Wizard copy label; defaults to 'Quiz'. */
+  widgetLabel?: string;
   /** Uploads the supplied data to Drive + mirrors metadata into Firestore. */
   saveQuiz: (data: QuizData) => Promise<void>;
   /**
@@ -263,7 +265,7 @@ export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
   return {
-    widgetLabel: 'Quiz',
+    widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: ['sheet', 'csv'],
     pickSheet: deps.pickSheet,
     templateHelper: {

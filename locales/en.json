@@ -2591,6 +2591,7 @@
     "addTarget": "Add target",
     "pasteList": "Paste list",
     "importCsv": "Import CSV",
+    "downloadTemplate": "Download CSV template",
     "add": "Add",
     "codePlaceholder": "Code",
     "labelPlaceholder": "I can…",
