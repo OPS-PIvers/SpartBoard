@@ -238,7 +238,7 @@ describe('grades and subject', () => {
       [
         'code,description,standardCodes,grades,subject',
         'LT1,Add,6.1.1.1;6.1.1.2,6;7;k,Math',
-        'LT2,Sub,,8;13,',
+        'LT2,Sub,,8;8;13,',
       ].join('\n')
     );
     expect(rows).toEqual([
@@ -252,7 +252,7 @@ describe('grades and subject', () => {
       { code: 'LT2', label: 'Sub', standardCodes: [], grades: ['8'] },
     ]);
     expect(errors).toEqual([
-      { line: 3, message: 'Unknown grade in "8;13" (use K or 1-12)' },
+      { line: 3, message: 'Unknown grade "13" (use K or 1-12)' },
     ]);
   });
 

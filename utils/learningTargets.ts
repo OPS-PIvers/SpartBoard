@@ -177,10 +177,13 @@ export function parseTargetsCsv(text: string): TargetCsvResult {
     const rawGrades = splitList(cell(rec, gradesCol));
     if (rawGrades.length > 0) {
       const grades = normalizeGrades(rawGrades);
-      if (grades.length !== rawGrades.length) {
+      const invalid = rawGrades.filter(
+        (g) => normalizeGrades([g]).length === 0
+      );
+      if (invalid.length > 0) {
         errors.push({
           line,
-          message: `Unknown grade in "${rawGrades.join(';')}" (use K or 1-12)`,
+          message: `Unknown grade "${invalid.join(';')}" (use K or 1-12)`,
         });
       }
       if (grades.length > 0) row.grades = grades;
