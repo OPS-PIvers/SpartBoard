@@ -62,15 +62,15 @@ export function normalizeSubjectsDoc(raw: unknown): SubjectsDoc {
       subjects.push(subject);
     }
   }
+  if (subjects.length === 0) {
+    return { subjects: DEFAULT_SUBJECTS, updatedAt: 0 };
+  }
   // Catalog subjects must always exist so the standards tree has a home.
   for (const id of CATALOG_SUBJECT_IDS) {
     if (!seen.has(id)) {
       const fallback = DEFAULT_SUBJECTS.find((s) => s.id === id);
       if (fallback) subjects.push({ ...fallback });
     }
-  }
-  if (subjects.length === 0) {
-    return { subjects: DEFAULT_SUBJECTS, updatedAt: 0 };
   }
   return {
     subjects,
