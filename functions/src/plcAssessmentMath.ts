@@ -12,6 +12,9 @@ export interface QuestionTargetSnapshot {
   code?: string;
   label: string;
   standardIds?: string[];
+  /** Benchmark tags: the standard-level id (`set:std:code`) they roll up into. */
+  parentId?: string;
+  parentLabel?: string;
 }
 
 export interface GroupQuestion {
@@ -172,6 +175,30 @@ function parseTarget(raw: unknown): QuestionTargetSnapshot | null {
     ...(asStringArray(r.standardIds).length > 0
       ? { standardIds: asStringArray(r.standardIds) }
       : {}),
+    ...(asString(r.parentId) ? { parentId: asString(r.parentId) } : {}),
+    ...(asString(r.parentLabel)
+      ? { parentLabel: asString(r.parentLabel) }
+      : {}),
+  };
+}
+
+const STANDARD_TAG_MARKER = ':std:';
+
+/** Parent standard row for a benchmark tag; null when the tag carries no parent. */
+function parentStandardTag(
+  target: QuestionTargetSnapshot
+): QuestionTargetSnapshot | null {
+  if (!target.parentId) return null;
+  const marker = target.parentId.indexOf(STANDARD_TAG_MARKER);
+  const code =
+    marker >= 0
+      ? target.parentId.slice(marker + STANDARD_TAG_MARKER.length)
+      : target.parentId;
+  return {
+    id: target.parentId,
+    kind: 'standard',
+    code,
+    label: target.parentLabel ?? code,
   };
 }
 
@@ -531,6 +558,8 @@ export function computeAssessmentAggregate(
           add(target, question.id);
         } else if (target.kind === 'standard') {
           add(target, question.id);
+          const parent = parentStandardTag(target);
+          if (parent) add(parent, question.id);
         } else {
           for (const standardId of new Set(target.standardIds ?? [])) {
             const code = standardId.includes(':')

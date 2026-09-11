@@ -177,10 +177,13 @@ export function parseTargetsCsv(text: string): TargetCsvResult {
     const rawGrades = splitList(cell(rec, gradesCol));
     if (rawGrades.length > 0) {
       const grades = normalizeGrades(rawGrades);
-      if (grades.length !== rawGrades.length) {
+      const invalid = rawGrades.filter(
+        (g) => normalizeGrades([g]).length === 0
+      );
+      if (invalid.length > 0) {
         errors.push({
           line,
-          message: `Unknown grade in "${rawGrades.join(';')}" (use K or 1-12)`,
+          message: `Unknown grade "${invalid.join(';')}" (use K or 1-12)`,
         });
       }
       if (grades.length > 0) row.grades = grades;
@@ -326,12 +329,30 @@ export function tagFromTarget(
 }
 
 export function tagFromBenchmark(b: StandardBenchmark): QuestionTargetTag {
+  const heading = benchmarkHeading(b);
   return {
     id: b.id,
     kind: 'standard',
     code: b.code,
     label: b.text,
-    parentId: standardTagId(b.set, benchmarkHeading(b).code),
+    parentId: standardTagId(b.set, heading.code),
+    parentLabel: heading.title || b.standard,
+  };
+}
+
+/** Fallback row for a standard reached only through its benchmarks. */
+export function parentTagFromBenchmarkTag(
+  tag: Pick<QuestionTargetTag, 'parentId' | 'parentLabel'>
+): QuestionTargetTag | null {
+  if (!tag.parentId) return null;
+  const marker = tag.parentId.indexOf(':std:');
+  const code =
+    marker >= 0 ? tag.parentId.slice(marker + ':std:'.length) : tag.parentId;
+  return {
+    id: tag.parentId,
+    kind: 'standard',
+    code,
+    label: tag.parentLabel ?? code,
   };
 }
 

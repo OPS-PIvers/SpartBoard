@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.4",
+      "date": "2026-09-11",
+      "title": "Standards picker becomes a tree",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "The learning-target picker now browses standards by content area, strand and standard, with benchmarks one click away. Grades and content area come from your profile and can be changed for a single open. Tag a whole standard or a specific benchmark."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Tree picker — strands open by default, standards collapsed; search keeps the tree and opens matching branches."
+        },
+        {
+          "type": "feature",
+          "text": "Standard-level tags — tagging a standard rolls up every benchmark under it in quiz results and PLC aggregates, counting each question once."
+        },
+        {
+          "type": "improvement",
+          "text": "PLC and personal targets follow the same grade and content-area filter; targets without either always show."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.3",
       "date": "2026-09-11",
       "title": "Learning targets carry grades and a subject",
