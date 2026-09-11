@@ -43,10 +43,18 @@ const displayTarget = (row: TargetStat): string =>
 
 const LowSampleBadge: React.FC = () => (
   <span
-    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-xxs font-bold text-amber-800"
+    className="inline-flex shrink-0 items-center rounded-full bg-amber-50 font-bold text-amber-800"
+    style={{
+      gap: 'min(4px, 1cqmin)',
+      padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+      fontSize: 'min(10px, 3.5cqmin)',
+    }}
     title="Fewer than 5 scored student-question pairs"
   >
-    <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+    <AlertTriangle
+      aria-hidden="true"
+      style={{ width: 'min(11px, 3.5cqmin)', height: 'min(11px, 3.5cqmin)' }}
+    />
     Low sample
   </span>
 );
@@ -54,34 +62,61 @@ const LowSampleBadge: React.FC = () => (
 const MasteryRow: React.FC<{ row: TargetStat }> = ({ row }) => {
   const [expanded, setExpanded] = useState(false);
   const percent = row.correctPercent;
+  const chevronStyle = {
+    width: 'min(14px, 4.5cqmin)',
+    height: 'min(14px, 4.5cqmin)',
+  };
   return (
     <div className="overflow-hidden rounded-lg border border-brand-gray-lighter bg-white">
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-slate-50"
+        className="flex w-full items-center text-left transition-colors hover:bg-slate-50"
+        style={{
+          gap: 'min(8px, 2cqmin)',
+          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+        }}
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
         aria-label={`${expanded ? 'Collapse' : 'Expand'} ${displayTarget(row)}`}
       >
         {expanded ? (
-          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+          <ChevronDown
+            className="shrink-0 text-slate-400"
+            style={chevronStyle}
+          />
         ) : (
-          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+          <ChevronRight
+            className="shrink-0 text-slate-400"
+            style={chevronStyle}
+          />
         )}
         <span className="min-w-0 flex-1">
           <TargetChips targets={[row.target]} compact />
-          <span className="mt-1 block truncate text-xxs text-slate-500">
+          <span
+            className="block truncate text-slate-500"
+            style={{
+              marginTop: 'min(4px, 1cqmin)',
+              fontSize: 'min(10px, 3.5cqmin)',
+            }}
+          >
             {row.servedCount} served · {row.attempted} scored ·{' '}
             {row.questionIds.length} question
             {row.questionIds.length === 1 ? '' : 's'}
           </span>
         </span>
         {row.lowSample && <LowSampleBadge />}
-        <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-slate-700">
+        <span
+          className="shrink-0 text-right font-bold tabular-nums text-slate-700"
+          style={{
+            width: 'min(40px, 12cqmin)',
+            fontSize: 'min(13px, 4.5cqmin)',
+          }}
+        >
           {percent === null ? '—' : `${percent}%`}
         </span>
         <span
-          className="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-slate-100"
+          className="shrink-0 overflow-hidden rounded-full bg-slate-100"
+          style={{ height: 'min(8px, 2cqmin)', width: 'min(80px, 22cqmin)' }}
           role="img"
           aria-label={
             percent === null ? 'Not scored yet' : `${percent}% mastery`
@@ -98,7 +133,13 @@ const MasteryRow: React.FC<{ row: TargetStat }> = ({ row }) => {
           {row.questions.map((question) => (
             <li
               key={question.id}
-              className="flex items-center gap-2 px-3 py-2 pl-9 text-xs text-slate-600"
+              className="flex items-center text-slate-600"
+              style={{
+                gap: 'min(8px, 2cqmin)',
+                padding:
+                  'min(8px, 2cqmin) min(12px, 3cqmin) min(8px, 2cqmin) min(36px, 9cqmin)',
+                fontSize: 'min(11px, 3.8cqmin)',
+              }}
             >
               <span className="shrink-0 font-mono font-bold text-brand-blue-primary">
                 Q{question.index + 1}
@@ -108,7 +149,10 @@ const MasteryRow: React.FC<{ row: TargetStat }> = ({ row }) => {
               <span className="shrink-0 tabular-nums text-slate-500">
                 {question.servedCount} served
               </span>
-              <span className="w-10 shrink-0 text-right font-bold tabular-nums text-slate-700">
+              <span
+                className="shrink-0 text-right font-bold tabular-nums text-slate-700"
+                style={{ width: 'min(40px, 12cqmin)' }}
+              >
                 {question.correctPercent === null
                   ? '—'
                   : `${question.correctPercent}%`}
@@ -195,17 +239,25 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const sectionHeadingStyle = {
+    marginBottom: 'min(6px, 1.5cqmin)',
+    fontSize: 'min(10px, 3.5cqmin)',
+  };
+  const listStyle = { gap: 'min(6px, 1.5cqmin)' };
+  const cellPadding = 'min(8px, 2cqmin)';
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col" style={{ gap: 'min(16px, 4cqmin)' }}>
       {standards.length > 0 && (
         <section aria-labelledby="quiz-standard-rollups-heading">
           <h2
             id="quiz-standard-rollups-heading"
-            className="mb-1.5 text-xxs font-bold uppercase tracking-wider text-brand-blue-primary"
+            className="font-bold uppercase tracking-wider text-brand-blue-primary"
+            style={sectionHeadingStyle}
           >
             Standards
           </h2>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col" style={listStyle}>
             {standards.map((row) => (
               <MasteryRow key={row.target.id} row={row} />
             ))}
@@ -216,11 +268,12 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
       <section aria-labelledby="quiz-target-mastery-heading">
         <h2
           id="quiz-target-mastery-heading"
-          className="mb-1.5 text-xxs font-bold uppercase tracking-wider text-brand-blue-primary"
+          className="font-bold uppercase tracking-wider text-brand-blue-primary"
+          style={sectionHeadingStyle}
         >
           Class mastery by target
         </h2>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col" style={listStyle}>
           {columns.map((row) => (
             <MasteryRow key={row.target.id} row={row} />
           ))}
@@ -228,10 +281,17 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
       </section>
 
       <section aria-labelledby="quiz-student-target-grid-heading">
-        <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div
+          className="flex items-center justify-between"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            marginBottom: 'min(6px, 1.5cqmin)',
+          }}
+        >
           <h2
             id="quiz-student-target-grid-heading"
-            className="text-xxs font-bold uppercase tracking-wider text-brand-blue-primary"
+            className="font-bold uppercase tracking-wider text-brand-blue-primary"
+            style={{ fontSize: 'min(10px, 3.5cqmin)' }}
           >
             Student × target
           </h2>
@@ -239,36 +299,68 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
             type="button"
             onClick={exportCsv}
             disabled={rows.length === 0 || columns.length === 0}
-            className="inline-flex items-center gap-1 rounded-md border border-brand-gray-lighter bg-white px-2 py-1 text-xxs font-bold text-brand-blue-primary transition-colors hover:border-brand-blue-light disabled:opacity-40"
+            className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-bold text-brand-blue-primary transition-colors hover:border-brand-blue-light disabled:opacity-40"
+            style={{
+              gap: 'min(4px, 1cqmin)',
+              padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              fontSize: 'min(10px, 3.5cqmin)',
+            }}
           >
-            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            <Download
+              aria-hidden="true"
+              style={{
+                width: 'min(12px, 4cqmin)',
+                height: 'min(12px, 4cqmin)',
+              }}
+            />
             Export CSV
           </button>
         </div>
         <div className="overflow-x-auto rounded-lg border border-brand-gray-lighter bg-white">
-          <table className="min-w-full border-collapse text-xs">
+          <table
+            className="min-w-full border-collapse"
+            style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+          >
             <thead>
               <tr className="bg-slate-50 text-left text-slate-600">
-                <th className="sticky left-0 z-10 min-w-36 border-b border-r border-slate-200 bg-slate-50 px-2 py-2">
+                <th
+                  className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-50"
+                  style={{
+                    minWidth: 'min(144px, 36cqmin)',
+                    padding: cellPadding,
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => changeSort('student')}
-                    className="inline-flex items-center gap-1 font-bold"
+                    className="inline-flex items-center font-bold"
+                    style={{ gap: 'min(4px, 1cqmin)' }}
                   >
                     Student
-                    <ArrowDownAZ className="h-3.5 w-3.5" aria-hidden="true" />
+                    <ArrowDownAZ
+                      aria-hidden="true"
+                      style={{
+                        width: 'min(12px, 4cqmin)',
+                        height: 'min(12px, 4cqmin)',
+                      }}
+                    />
                   </button>
                 </th>
                 {columns.map((column) => (
                   <th
                     key={column.target.id}
-                    className="min-w-28 border-b border-slate-200 px-2 py-2 text-center"
+                    className="border-b border-slate-200 text-center"
+                    style={{
+                      minWidth: 'min(112px, 28cqmin)',
+                      padding: cellPadding,
+                    }}
                     title={displayTarget(column)}
                   >
                     <button
                       type="button"
                       onClick={() => changeSort(column.target.id)}
-                      className="mx-auto block max-w-32 truncate font-bold"
+                      className="mx-auto block truncate font-bold"
+                      style={{ maxWidth: 'min(128px, 32cqmin)' }}
                     >
                       {column.target.code ?? column.target.label}
                     </button>
@@ -282,7 +374,10 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
                   key={row.key}
                   className="border-b border-slate-100 last:border-0"
                 >
-                  <th className="sticky left-0 z-10 border-r border-slate-100 bg-white px-2 py-2 text-left font-semibold text-slate-700">
+                  <th
+                    className="sticky left-0 z-10 border-r border-slate-100 bg-white text-left font-semibold text-slate-700"
+                    style={{ padding: cellPadding }}
+                  >
                     {row.name}
                   </th>
                   {columns.map((column) => {
@@ -290,11 +385,12 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
                     return (
                       <td
                         key={column.target.id}
-                        className={`px-2 py-2 text-center font-bold tabular-nums ${
+                        className={`text-center font-bold tabular-nums ${
                           value?.band
                             ? BAND_CELL[value.band]
                             : 'bg-slate-50 text-slate-400'
                         }`}
+                        style={{ padding: cellPadding }}
                         aria-label={`${row.name}, ${displayTarget(column)}: ${value?.correctPercent ?? 'not scored'}`}
                       >
                         {value?.correctPercent === null || !value
