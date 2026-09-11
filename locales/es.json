@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la Comunidad.",
       "invalidRole": "Ese no es un rol válido de la Comunidad.",
       "alreadyLead": "Ese miembro ya es el líder de esta Comunidad.",
-      "orgRequired": "Las Comunidades solo están disponibles para los miembros de una organización."
+      "orgRequired": "Las Comunidades solo están disponibles para los miembros de una organización.",
+      "notActiveMember": "Ese docente no es miembro activo de esta Comunidad."
     }
   },
   "plcDashboard": {
@@ -1749,7 +1750,21 @@
         "dissolveSuccess": "«{{name}}» se ha disuelto.",
         "actionFailed": "No se pudo completar esa acción. Inténtalo de nuevo.",
         "cancel": "Cancelar",
-        "confirm": "Confirmar"
+        "confirm": "Confirmar",
+        "members": "Miembros",
+        "membersDescription": "Agrega un docente de tu organización, cambia un rol o elimina un miembro. El docente no recibe notificación.",
+        "noOtherMembers": "No hay miembros aparte del líder.",
+        "roleLabel": "Rol",
+        "remove": "Quitar",
+        "removeMember": "Quitar a {{name}}",
+        "addMemberLabel": "Docente a agregar",
+        "chooseTeacher": "Elige un docente…",
+        "loadingTeachers": "Cargando docentes…",
+        "addMember": "Agregar",
+        "noAddableTeachers": "Todos los docentes con sesión iniciada de tu organización ya son miembros.",
+        "memberSaved": "{{member}} ahora es {{role}} de “{{name}}”.",
+        "confirmRemoveMember": "¿Quitar a {{member}} de “{{name}}”?",
+        "memberRemoved": "{{member}} fue quitado de “{{name}}”."
       }
     },
     "mediaReview": {

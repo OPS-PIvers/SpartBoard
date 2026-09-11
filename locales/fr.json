@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Utilisez « Transférer la direction » pour changer le responsable de la CAP.",
       "invalidRole": "Ce n'est pas un rôle de CAP valide.",
       "alreadyLead": "Ce membre est déjà le responsable de cette CAP.",
-      "orgRequired": "Les CAP sont réservées aux membres d'une organisation."
+      "orgRequired": "Les CAP sont réservées aux membres d'une organisation.",
+      "notActiveMember": "Cet(te) enseignant(e) n’est pas membre actif de cette CAP."
     }
   },
   "plcDashboard": {
@@ -1749,7 +1750,21 @@
         "dissolveSuccess": "« {{name}} » a été dissoute.",
         "actionFailed": "Cette action n'a pas pu être effectuée. Veuillez réessayer.",
         "cancel": "Annuler",
-        "confirm": "Confirmer"
+        "confirm": "Confirmer",
+        "members": "Membres",
+        "membersDescription": "Ajoutez un(e) enseignant(e) de votre organisation, changez un rôle ou retirez un membre. La personne n’est pas notifiée.",
+        "noOtherMembers": "Aucun membre en dehors du responsable.",
+        "roleLabel": "Rôle",
+        "remove": "Retirer",
+        "removeMember": "Retirer {{name}}",
+        "addMemberLabel": "Enseignant(e) à ajouter",
+        "chooseTeacher": "Choisir un(e) enseignant(e)…",
+        "loadingTeachers": "Chargement des enseignant(e)s…",
+        "addMember": "Ajouter",
+        "noAddableTeachers": "Chaque enseignant(e) connecté(e) de votre organisation est déjà membre.",
+        "memberSaved": "{{member}} est désormais {{role}} de « {{name}} ».",
+        "confirmRemoveMember": "Retirer {{member}} de « {{name}} » ?",
+        "memberRemoved": "{{member}} a été retiré(e) de « {{name}} »."
       }
     },
     "mediaReview": {

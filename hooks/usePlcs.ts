@@ -120,6 +120,14 @@ interface UsePlcsResult {
    * support.
    */
   adminReassignLead: (plcId: string, toUid: string) => Promise<void>;
+  /** Admin-only: add an org teacher to a PLC or change a non-lead member's role. */
+  adminSetMember: (
+    plcId: string,
+    target: { uid: string; email: string; displayName: string },
+    role: Exclude<PlcRole, 'lead'>
+  ) => Promise<void>;
+  /** Admin-only: remove a non-lead member. */
+  adminRemoveMember: (plcId: string, uid: string) => Promise<void>;
   /**
    * Any member: persist the auto-created PLC Google Sheet URL on the PLC
    * doc so teammates reuse it on subsequent assignments. Implemented as a
@@ -872,6 +880,75 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
+  const adminSetMember = useCallback(
+    async (
+      plcId: string,
+      target: { uid: string; email: string; displayName: string },
+      role: Exclude<PlcRole, 'lead'>
+    ) => {
+      if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
+      await runTransaction(db, async (tx) => {
+        const ref = doc(db, PLCS_COLLECTION, plcId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
+        const data = snap.data() as Record<string, unknown>;
+        const members = readMembersForWrite(data);
+        if (
+          target.uid === data.leadUid ||
+          members[target.uid]?.role === 'lead'
+        ) {
+          throw new Error(i18n.t('plc.errors.cannotDemoteLead'));
+        }
+        const existing = members[target.uid];
+        members[target.uid] = {
+          uid: target.uid,
+          email: target.email.trim().toLowerCase(),
+          displayName: existing?.displayName || target.displayName,
+          role,
+          joinedAt: existing?.joinedAt ?? serverTimestamp(),
+          status: 'active',
+        };
+        tx.update(ref, {
+          members,
+          memberUids: activeMemberUids(members),
+          memberEmails: activeMemberEmails(members),
+          // Rule pointer naming the single changed entry; ignored on read.
+          adminMemberUid: target.uid,
+          updatedAt: serverTimestamp(),
+        });
+      });
+    },
+    [user]
+  );
+
+  const adminRemoveMember = useCallback(
+    async (plcId: string, uid: string) => {
+      if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
+      await runTransaction(db, async (tx) => {
+        const ref = doc(db, PLCS_COLLECTION, plcId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
+        const data = snap.data() as Record<string, unknown>;
+        const members = readMembersForWrite(data);
+        if (uid === data.leadUid || members[uid]?.role === 'lead') {
+          throw new Error(i18n.t('plc.errors.leadCannotBeRemoved'));
+        }
+        if (!members[uid] || members[uid].status !== 'active') {
+          throw new Error(i18n.t('plc.errors.notActiveMember'));
+        }
+        members[uid] = { ...members[uid], status: 'removed' };
+        tx.update(ref, {
+          members,
+          memberUids: activeMemberUids(members),
+          memberEmails: activeMemberEmails(members),
+          adminMemberUid: uid,
+          updatedAt: serverTimestamp(),
+        });
+      });
+    },
+    [user]
+  );
+
   const deletePlc = useCallback(
     async (plcId: string) => {
       if (!user) return;
@@ -1044,6 +1121,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       transferLead,
       deletePlc,
       adminReassignLead,
+      adminSetMember,
+      adminRemoveMember,
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
@@ -1062,6 +1141,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       transferLead,
       deletePlc,
       adminReassignLead,
+      adminSetMember,
+      adminRemoveMember,
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
