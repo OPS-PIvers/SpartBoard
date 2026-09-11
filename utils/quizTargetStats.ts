@@ -294,7 +294,8 @@ export function computeTargetStats(
 }
 
 function quoteCsvCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 /** Build the Student × Target grid as RFC-4180-compatible CSV. */

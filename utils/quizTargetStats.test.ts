@@ -219,6 +219,15 @@ describe('target mastery helpers', () => {
       'Student,LT 2 I can analyze a central idea.\r\n"Rivera, Ana",100'
     );
   });
+
+  it('neutralizes spreadsheet formulas in student names', () => {
+    const csv = buildTargetGridCsv(
+      [],
+      [{ name: '=HYPERLINK("https://example.com")', values: new Map() }]
+    );
+
+    expect(csv).toBe('Student\r\n"\'=HYPERLINK(""https://example.com"")"');
+  });
 });
 
 describe('groupQuestionsByTargets', () => {
