@@ -150,7 +150,16 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
   const handleUnshare = useCallback(
     async (entry: PlcQuestionBankEntry) => {
       const meta = banks.find((b) => b.sync?.groupId === entry.syncGroupId);
-      if (!meta) return;
+      if (!meta) {
+        addToast(
+          t('plcDashboard.bankLibrary.unshareNotReady', {
+            defaultValue:
+              'Your question banks are still loading. Try again in a moment.',
+          }),
+          'info'
+        );
+        return;
+      }
       const confirmed = await showConfirm(
         t('plcDashboard.bankLibrary.unshareConfirm', {
           title: entry.title,

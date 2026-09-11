@@ -755,7 +755,8 @@
       "unshareFailed": "Teilen des Fragenpools konnte nicht beendet werden.",
       "sharePickerTitle": "Fragenpool mit dieser PLG teilen",
       "sharePickerPrompt": "Wähle einen Pool aus deiner Quiz-Bibliothek.",
-      "sharePickerEmpty": "Du hast noch keine Fragenpools. Erstelle einen im Tab „Pools“ des Quiz-Widgets."
+      "sharePickerEmpty": "Du hast noch keine Fragenpools. Erstelle einen im Tab „Pools“ des Quiz-Widgets.",
+      "unshareNotReady": "Deine Fragenpools werden noch geladen. Versuche es gleich noch einmal."
     },
     "presence": {
       "heading": "Wer ist hier",

@@ -755,7 +755,8 @@
       "unshareFailed": "Impossible d’arrêter le partage de la banque.",
       "sharePickerTitle": "Partager une banque de questions avec cette CAP",
       "sharePickerPrompt": "Choisissez une banque de votre bibliothèque de quiz.",
-      "sharePickerEmpty": "Vous n’avez pas encore de banque de questions. Créez-en une dans l’onglet Banques du widget Quiz."
+      "sharePickerEmpty": "Vous n’avez pas encore de banque de questions. Créez-en une dans l’onglet Banques du widget Quiz.",
+      "unshareNotReady": "Vos banques de questions sont encore en cours de chargement. Réessayez dans un instant."
     },
     "presence": {
       "heading": "Qui est là",

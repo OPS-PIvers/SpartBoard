@@ -755,7 +755,8 @@
       "unshareFailed": "Failed to stop sharing question bank.",
       "sharePickerTitle": "Share a question bank with this PLC",
       "sharePickerPrompt": "Pick a bank from your quiz library.",
-      "sharePickerEmpty": "You don’t have any question banks yet. Build one in the Quiz widget’s Banks tab."
+      "sharePickerEmpty": "You don’t have any question banks yet. Build one in the Quiz widget’s Banks tab.",
+      "unshareNotReady": "Your question banks are still loading. Try again in a moment."
     },
     "presence": {
       "heading": "Who’s here",

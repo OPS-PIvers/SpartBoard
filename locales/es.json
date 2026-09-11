@@ -755,7 +755,8 @@
       "unshareFailed": "No se pudo dejar de compartir el banco.",
       "sharePickerTitle": "Compartir un banco de preguntas con esta Comunidad",
       "sharePickerPrompt": "Elige un banco de tu biblioteca de cuestionarios.",
-      "sharePickerEmpty": "Aún no tienes bancos de preguntas. Crea uno en la pestaña Bancos del widget de cuestionarios."
+      "sharePickerEmpty": "Aún no tienes bancos de preguntas. Crea uno en la pestaña Bancos del widget de cuestionarios.",
+      "unshareNotReady": "Tus bancos de preguntas aún se están cargando. Inténtalo de nuevo en un momento."
     },
     "presence": {
       "heading": "Quién está aquí",
