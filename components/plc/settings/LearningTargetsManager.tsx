@@ -324,6 +324,17 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
     return [...missing];
   }, [csvPreview, idByCode]);
 
+  const unresolvedCsvSubjects = useMemo(() => {
+    if (!csvPreview) return [];
+    const missing = new Set<string>();
+    for (const r of csvPreview.rows) {
+      if (r.subject && !subjectIdByName.has(r.subject.toLowerCase())) {
+        missing.add(r.subject);
+      }
+    }
+    return [...missing];
+  }, [csvPreview, subjectIdByName]);
+
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
   const atCap = (list?.targets.length ?? 0) >= LEARNING_TARGET_LIST_CAP;
 
@@ -693,6 +704,15 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                       })}
                     </p>
                   )}
+                  {unresolvedCsvSubjects.length > 0 && (
+                    <p className="text-xxs text-amber-700">
+                      {t('learningTargets.csvUnknownSubjects', {
+                        defaultValue:
+                          'Unknown subjects will be skipped: {{subjects}}',
+                        subjects: unresolvedCsvSubjects.join(', '),
+                      })}
+                    </p>
+                  )}
                   {csvPreview.rows.length > 0 && (
                     <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white">
                       <table className="w-full text-left text-xs">
@@ -741,13 +761,19 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                                 {gradesLabel(row.grades)}
                               </td>
                               <td className="px-3 py-1.5 text-slate-600">
-                                {row.subject
-                                  ? subjectLabel(
-                                      subjectIdByName.get(
-                                        row.subject.toLowerCase()
-                                      ) ?? row.subject
-                                    )
-                                  : '—'}
+                                {(() => {
+                                  if (!row.subject) return '—';
+                                  const id = subjectIdByName.get(
+                                    row.subject.toLowerCase()
+                                  );
+                                  return id ? (
+                                    subjectLabel(id)
+                                  ) : (
+                                    <span className="text-amber-700 line-through">
+                                      {row.subject}
+                                    </span>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           ))}

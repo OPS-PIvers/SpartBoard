@@ -500,3 +500,64 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.perTeacher).toEqual([]);
   });
 });
+
+describe('standard-level rollup', () => {
+  const benchmark = {
+    id: 'mn-ela-2020:6.1.9.1',
+    kind: 'standard' as const,
+    code: '6.1.9.1',
+    label: 'Analyze ads.',
+    parentId: 'mn-ela-2020:std:R9',
+    parentLabel: 'Media Literacy',
+  };
+  const parent = {
+    id: 'mn-ela-2020:std:R9',
+    kind: 'standard' as const,
+    code: 'R9',
+    label: 'Media Literacy',
+  };
+
+  it('parses parentId/parentLabel and unions benchmarks into the parent row', () => {
+    const qs = resolveGroupQuestions(null, [
+      { id: 'q1', text: 'Q1', type: 'MC', targets: [benchmark] },
+      { id: 'q2', text: 'Q2', type: 'MC', targets: [parent] },
+      { id: 'q3', text: 'Q3', type: 'MC', targets: [benchmark, parent] },
+    ]);
+    expect(qs[0].targets[0]).toMatchObject({
+      parentId: benchmark.parentId,
+      parentLabel: benchmark.parentLabel,
+    });
+    const agg = computeAssessmentAggregate({
+      assessmentId: 'a1',
+      title: 'Rollup',
+      kind: 'quiz',
+      groupQuestions: qs,
+      sessions: [
+        session('s', 'teacher', [
+          response(
+            [
+              answer('q1', 'a', { isCorrect: true }),
+              answer('q2', 'b', { isCorrect: false }),
+              answer('q3', 'a', { isCorrect: true }),
+            ],
+            { score: 67 }
+          ),
+        ]),
+      ],
+    });
+    const parentRow = agg.perStandard.find((r) => r.targetId === parent.id);
+    expect(parentRow).toMatchObject({
+      code: 'R9',
+      label: 'Media Literacy',
+      questionIds: ['q1', 'q2', 'q3'],
+      attempted: 3,
+      correctPercent: 67,
+    });
+    expect(
+      agg.perStandard.find((r) => r.targetId === benchmark.id)?.questionIds
+    ).toEqual(['q1', 'q3']);
+    expect(agg.perTarget.map((r) => r.targetId).sort()).toEqual(
+      [benchmark.id, parent.id].sort()
+    );
+  });
+});

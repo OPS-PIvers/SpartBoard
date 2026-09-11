@@ -2407,7 +2407,8 @@
     "saving": "Wird gespeichert…",
     "saveFailed": "Speichern fehlgeschlagen",
     "anySubject": "Beliebiges Fach",
-    "gradesSubjectHint": "Optional. Klassenstufen und Fach leer lassen, um sie von den verknüpften Standards zu übernehmen."
+    "gradesSubjectHint": "Optional. Klassenstufen und Fach leer lassen, um sie von den verknüpften Standards zu übernehmen.",
+    "csvUnknownSubjects": "Unbekannte Fächer werden übersprungen: {{subjects}}"
   },
   "settings": {
     "profileAndSettings": "Profil & Einstellungen",
