@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.8",
+      "date": "2026-09-11",
+      "title": "PLC assessment results no longer wait for publishing",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Team averages, per-question results and per-teacher rows now fill in as soon as students submit. Teachers no longer have to publish scores to students before the PLC can compare results."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "The aggregate grades each response server-side from the shared answer key, using the teacher's saved manual grade for written questions. A response with an ungraded written answer is counted but not scored until the grade is entered."
+        },
+        {
+          "type": "improvement",
+          "text": "Published scores still take precedence when present. Assessments show as Scored once any student has a score."
+        },
+        {
+          "type": "fix",
+          "text": "Existing aggregates are refreshed automatically over the next few scheduled runs."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.7",
       "date": "2026-09-11",
       "title": "Admins can manage PLC members",

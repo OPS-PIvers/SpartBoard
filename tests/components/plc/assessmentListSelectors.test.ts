@@ -83,23 +83,28 @@ describe('aggregateStatus', () => {
     ).toBe('notStarted');
   });
 
-  it('is inProgress while some linked sessions are unpublished', () => {
+  it('is inProgress while no student has a score yet', () => {
     expect(
       aggregateStatus(
-        makeAggregate({ linkedSessionCount: 3, publishedSessionCount: 1 })
+        makeAggregate({ linkedSessionCount: 3, scoredStudentCount: 0 })
       )
     ).toBe('inProgress');
   });
 
-  it('is scored when every linked session is published', () => {
+  it('is scored once any student has a score, published or not', () => {
     expect(aggregateStatus(makeAggregate())).toBe('scored');
+    expect(
+      aggregateStatus(
+        makeAggregate({ publishedSessionCount: 0, scoredStudentCount: 5 })
+      )
+    ).toBe('scored');
   });
 
   it('falls back to studentCount for schema-1 aggregates', () => {
     const legacy = makeAggregate({
       schemaVersion: 1,
       linkedSessionCount: undefined,
-      publishedSessionCount: undefined,
+      scoredStudentCount: undefined,
     });
     expect(aggregateStatus(legacy)).toBe('inProgress');
     expect(aggregateStatus({ ...legacy, studentCount: 0 })).toBe('notStarted');
@@ -107,10 +112,10 @@ describe('aggregateStatus', () => {
 });
 
 describe('hasTeamAverage', () => {
-  it('needs a published session and a scored student', () => {
+  it('needs a scored student, published or not', () => {
     expect(hasTeamAverage(makeAggregate())).toBe(true);
     expect(hasTeamAverage(makeAggregate({ publishedSessionCount: 0 }))).toBe(
-      false
+      true
     );
     expect(hasTeamAverage(makeAggregate({ scoredStudentCount: 0 }))).toBe(
       false
@@ -122,7 +127,6 @@ describe('hasTeamAverage', () => {
     expect(
       hasTeamAverage(
         makeAggregate({
-          publishedSessionCount: undefined,
           scoredStudentCount: undefined,
         })
       )
@@ -249,7 +253,7 @@ describe('buildAssessmentRows', () => {
         makeAggregate({
           assessmentId: 'running',
           ranAt: 50,
-          publishedSessionCount: 0,
+          scoredStudentCount: 0,
         }),
         makeAggregate({ assessmentId: 'archived', ranAt: 900 }),
       ],
@@ -292,7 +296,7 @@ describe('filterAssessmentRows', () => {
           },
         ],
       }),
-      makeAggregate({ assessmentId: 'b', publishedSessionCount: 1 }),
+      makeAggregate({ assessmentId: 'b', scoredStudentCount: 0 }),
     ],
     libraryEntries: [makeEntry({ title: 'Ratios warm-up' })],
     memberUids: ['u1', 'u2'],
