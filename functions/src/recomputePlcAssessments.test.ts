@@ -203,6 +203,24 @@ describe('parseCompletedResponse', () => {
   });
 });
 
+describe('parseCompletedResponse manual grades', () => {
+  it('keeps primary-slot pointsAwarded and skips media slots and junk', () => {
+    const parsed = parseCompletedResponse({
+      answers: [],
+      grading: {
+        q3: { pointsAwarded: 4, overallComment: 'nice' },
+        'q3::video': { pointsAwarded: 2 },
+        q4: { pointsAwarded: 'x' },
+        q5: null,
+      },
+    });
+    expect(parsed.manualPoints).toEqual({ q3: 4 });
+    expect(
+      parseCompletedResponse({ answers: [] }).manualPoints
+    ).toBeUndefined();
+  });
+});
+
 describe('recomputeOnePlcAssessment', () => {
   it('writes a pooled aggregate from completed responses and clears dirtyAt', async () => {
     const stub = seedPipeline();
@@ -211,7 +229,7 @@ describe('recomputeOnePlcAssessment', () => {
     const agg = stub.get('plcs/plc-1/aggregates/grp-1');
     expect(agg).toMatchObject({
       assessmentId: 'grp-1',
-      schemaVersion: 3,
+      schemaVersion: 4,
       title: 'Unit 4 CFA',
       kind: 'quiz',
       teacherCount: 2,
@@ -366,6 +384,28 @@ describe('runRecomputePlcAssessments', () => {
       'plcs/plc-2/aggregates/older',
       'plcs/plc-1/aggregates/grp-1',
     ]);
+  });
+
+  it('refreshes stale-schema aggregates with spare budget', async () => {
+    const stub = seedPipeline({
+      'plcs/plc-1/assessments/grp-1': {
+        id: 'grp-1',
+        title: 'Unit 4 CFA',
+        kind: 'quiz',
+        syncGroupId: 'grp-1',
+        status: 'active',
+        dirtyAt: null,
+      },
+      'plcs/plc-1/aggregates/grp-1': {
+        assessmentId: 'grp-1',
+        schemaVersion: 3,
+      },
+      'plcs/plc-1/aggregates/_migration': { done: true },
+    });
+    const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(counts).toEqual({ scanned: 1, recomputed: 1, failed: 0 });
+    expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(4);
+    expect(stub.has('plcs/plc-1/aggregates/_migration')).toBe(true);
   });
 
   it('honors the batch limit', async () => {

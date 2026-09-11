@@ -3,6 +3,7 @@ import {
   ALIGNMENT_WARNING,
   alignSessionQuestions,
   computeAssessmentAggregate,
+  gradeGroupAnswer,
   resolveGroupQuestions,
   selectRepresentativeAnswers,
   type CompletedResponse,
@@ -230,7 +231,7 @@ describe('computeAssessmentAggregate', () => {
       ]),
     ]);
 
-    expect(agg.schemaVersion).toBe(3);
+    expect(agg.schemaVersion).toBe(4);
     expect(agg.title).toBe('Unit 4 CFA');
     expect(agg.kind).toBe('quiz');
     expect(agg.teacherCount).toBe(2);
@@ -307,7 +308,7 @@ describe('computeAssessmentAggregate', () => {
     ]);
   });
 
-  it('counts unpublished students but reports null incorrectPercent', () => {
+  it('grades unpublished responses from the answer key', () => {
     const agg = compute([
       session('s-a', 'teacherA', [
         response([answer('q1', 'Duluth'), answer('q2', '4')]),
@@ -315,20 +316,68 @@ describe('computeAssessmentAggregate', () => {
       ]),
     ]);
     expect(agg.studentCount).toBe(2);
-    expect(agg.teamAveragePercent).toBe(0);
+    expect(agg.scoredStudentCount).toBe(2);
+    // 1/8 and 2/8 of the points (q3 unanswered counts against the student).
+    expect(agg.teamAveragePercent).toBe(19);
     expect(agg.perQuestion[0]).toMatchObject({
       answered: 2,
-      graded: 0,
-      correct: 0,
-      correctPercent: 0,
-      incorrectPercent: null,
+      graded: 2,
+      correct: 1,
+      correctPercent: 50,
+      incorrectPercent: 50,
     });
     expect(agg.perQuestion[0].choiceDistribution).toEqual([
       { label: 'St. Paul', count: 1, isCorrect: true },
       { label: 'Duluth', count: 1, isCorrect: false },
       { label: 'Rochester', count: 0, isCorrect: false },
     ]);
-    expect(agg.perTeacher[0].averagePercent).toBe(0);
+    expect(agg.perTeacher[0].averagePercent).toBe(19);
+  });
+
+  it('withholds a score while a written answer awaits a manual grade', () => {
+    const agg = compute([
+      session('s-a', 'teacherA', [
+        response([
+          answer('q1', 'St. Paul'),
+          answer('q2', '4'),
+          answer('q3', 'Because reasons'),
+        ]),
+        response(
+          [
+            answer('q1', 'St. Paul'),
+            answer('q2', '4'),
+            answer('q3', 'Because reasons'),
+          ],
+          { manualPoints: { q3: 4 } }
+        ),
+      ]),
+    ]);
+    expect(agg.studentCount).toBe(2);
+    expect(agg.scoredStudentCount).toBe(1);
+    // (2 + 1 + 4) / 8
+    expect(agg.teamAveragePercent).toBe(88);
+    expect(agg.perQuestion[0]).toMatchObject({ graded: 2, correct: 2 });
+    expect(agg.perQuestion[2]).toMatchObject({ graded: 1, correct: 0 });
+  });
+
+  it('withholds a score when no answer key is known but keeps published flags', () => {
+    const keyless = resolveGroupQuestions(null, publicQuestions);
+    const agg = compute(
+      [
+        session('s-a', 'teacherA', [
+          response([answer('q1', 'St. Paul', { isCorrect: true })]),
+          response([answer('q1', 'Duluth')], { score: 40 }),
+        ]),
+      ],
+      keyless
+    );
+    expect(agg.scoredStudentCount).toBe(1);
+    expect(agg.teamAveragePercent).toBe(40);
+    expect(agg.perQuestion[0]).toMatchObject({
+      answered: 2,
+      graded: 1,
+      correct: 1,
+    });
   });
 
   it('never emits free-text answers, only MC labels', () => {
@@ -471,8 +520,9 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.publishedSessionCount).toBe(1);
     expect(agg.sessionCount).toBe(2);
     expect(agg.studentCount).toBe(3);
-    expect(agg.scoredStudentCount).toBe(2);
-    expect(agg.teamAveragePercent).toBe(60);
+    // The blank unpublished response grades to 0 from the key.
+    expect(agg.scoredStudentCount).toBe(3);
+    expect(agg.teamAveragePercent).toBe(40);
   });
 
   it('counts only the questions served by each randomized attempt', () => {
@@ -498,6 +548,73 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.perQuestion).toHaveLength(3);
     expect(agg.perQuestion[0].incorrectPercent).toBeNull();
     expect(agg.perTeacher).toEqual([]);
+  });
+});
+
+describe('gradeGroupAnswer', () => {
+  const q = (over: Partial<GroupQuestion>): GroupQuestion => ({
+    id: 'q',
+    text: '',
+    type: 'MC',
+    points: 4,
+    choices: [],
+    correctAnswer: 'A',
+    allowPartialCredit: false,
+    targets: [],
+    ...over,
+  });
+
+  it('matches MC and FIB case- and whitespace-insensitively', () => {
+    expect(gradeGroupAnswer(q({}), ' a ', undefined)).toMatchObject({
+      isCorrect: true,
+      pointsEarned: 4,
+      state: 'scored',
+    });
+    expect(gradeGroupAnswer(q({ type: 'FIB' }), '', undefined)).toMatchObject({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 4,
+      state: 'not-attempted',
+    });
+  });
+
+  it('grades matching strictly or partially', () => {
+    const m = q({ type: 'Matching', correctAnswer: 'a:1|b:2' });
+    expect(gradeGroupAnswer(m, 'a:1|b:3', undefined).pointsEarned).toBe(0);
+    expect(
+      gradeGroupAnswer({ ...m, allowPartialCredit: true }, 'a:1|b:3', undefined)
+        .pointsEarned
+    ).toBe(2);
+  });
+
+  it('grades ordering with partial credit by ordered subsequence', () => {
+    const o = q({ type: 'Ordering', correctAnswer: 'a|b|c|d' });
+    expect(gradeGroupAnswer(o, 'a|c|b|d', undefined).pointsEarned).toBe(0);
+    expect(
+      gradeGroupAnswer({ ...o, allowPartialCredit: true }, 'a|c|b|d', undefined)
+        .pointsEarned
+    ).toBe(3);
+  });
+
+  it('uses the clamped manual grade for written answers', () => {
+    const w = q({ type: 'free-response', correctAnswer: null });
+    expect(gradeGroupAnswer(w, '<p>text</p>', undefined).state).toBe(
+      'awaiting-grade'
+    );
+    expect(gradeGroupAnswer(w, '<p></p>', undefined).state).toBe(
+      'not-attempted'
+    );
+    expect(gradeGroupAnswer(w, 'text', 9)).toMatchObject({
+      isCorrect: true,
+      pointsEarned: 4,
+      state: 'scored',
+    });
+  });
+
+  it('reports no-key for auto types without an answer key', () => {
+    expect(
+      gradeGroupAnswer(q({ correctAnswer: null }), 'A', undefined).state
+    ).toBe('no-key');
   });
 });
 

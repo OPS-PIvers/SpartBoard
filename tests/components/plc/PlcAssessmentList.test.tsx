@@ -243,7 +243,7 @@ function setDefaults() {
       }),
       makeAggregate({
         assessmentId: 'a-running',
-        publishedSessionCount: 1,
+        scoredStudentCount: 0,
         studentCount: 12,
         teacherCount: 1,
         schemaVersion: 3,

@@ -61,12 +61,12 @@ export function aggregateStatus(
 ): AssessmentRowStatus {
   if (!aggregate) return 'notStarted';
   const linked = aggregate.linkedSessionCount;
-  const published = aggregate.publishedSessionCount;
-  if (typeof linked !== 'number' || typeof published !== 'number') {
+  const scored = aggregate.scoredStudentCount;
+  if (typeof linked !== 'number' || typeof scored !== 'number') {
     return aggregate.studentCount > 0 ? 'inProgress' : 'notStarted';
   }
   if (linked === 0) return 'notStarted';
-  return published === linked ? 'scored' : 'inProgress';
+  return scored > 0 ? 'scored' : 'inProgress';
 }
 
 /** True when the aggregate carries a usable team average. */
@@ -74,12 +74,9 @@ export function hasTeamAverage(
   aggregate: PlcAssessmentAggregate | null | undefined
 ): boolean {
   if (!aggregate) return false;
-  const published = aggregate.publishedSessionCount;
   const scored = aggregate.scoredStudentCount;
-  if (typeof published !== 'number' || typeof scored !== 'number') {
-    return aggregate.studentCount > 0;
-  }
-  return published > 0 && scored > 0;
+  if (typeof scored !== 'number') return aggregate.studentCount > 0;
+  return scored > 0;
 }
 
 export interface BuildAssessmentRowsInput {

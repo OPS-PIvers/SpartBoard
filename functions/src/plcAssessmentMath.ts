@@ -1,7 +1,7 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
-export const AGGREGATE_SCHEMA_VERSION = 3;
+export const AGGREGATE_SCHEMA_VERSION = 4;
 
 export type LearningTargetKind = 'standard' | 'plc' | 'personal';
 
@@ -26,6 +26,7 @@ export interface GroupQuestion {
   choices: string[];
   /** Known only when the synced group carries the answer key. */
   correctAnswer: string | null;
+  allowPartialCredit: boolean;
   /** Frozen tag snapshots used for target and standard rollups. */
   targets: QuestionTargetSnapshot[];
 }
@@ -51,6 +52,8 @@ export interface CompletedResponse {
   servedQuestionIds?: string[];
   classPeriod?: string;
   classId?: string;
+  /** Teacher manual grades by session question id (primary slot). */
+  manualPoints?: Record<string, number>;
 }
 
 export interface SessionInput {
@@ -232,6 +235,7 @@ function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
     points: asFiniteNumber(r.points) ?? 1,
     choices,
     correctAnswer: correctAnswer.length > 0 ? correctAnswer : null,
+    allowPartialCredit: r.allowPartialCredit === true,
     targets: parseTargets(r.targets),
   };
 }
@@ -250,6 +254,7 @@ export function parsePublicQuestion(raw: unknown): GroupQuestion | null {
     points: asFiniteNumber(r.points) ?? 1,
     choices: type === 'MC' ? asStringArray(r.choices) : [],
     correctAnswer: null,
+    allowPartialCredit: false,
     targets: parseTargets(r.targets),
   };
 }
@@ -371,6 +376,163 @@ export function selectRepresentativeAnswers(
   return byQuestion;
 }
 
+export type LocalGradeState =
+  | 'scored'
+  | 'not-attempted'
+  | 'awaiting-grade'
+  | 'no-key';
+
+export interface LocalGrade {
+  isCorrect: boolean;
+  pointsEarned: number;
+  pointsMax: number;
+  state: LocalGradeState;
+}
+
+const normalizeAnswer = (s: string): string =>
+  s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+function hasSubmittedContent(answer: string): boolean {
+  let stripped = answer ?? '';
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped.replace(/<[^<>]*>/g, '');
+  } while (stripped !== previous);
+  return stripped.replace(/&nbsp;/gi, ' ').trim().length > 0;
+}
+
+/** Longest run of `given` items appearing in `correct` order; mirrors the client grader. */
+function longestOrderedSubsequenceLength(
+  correct: string[],
+  given: string[]
+): number {
+  const correctNorm = correct.map(normalizeAnswer);
+  const used = new Array<boolean>(correct.length).fill(false);
+  const seq: number[] = [];
+  for (const g of given) {
+    const target = normalizeAnswer(g);
+    let chosen = -1;
+    for (let i = 0; i < correctNorm.length; i++) {
+      if (!used[i] && correctNorm[i] === target) {
+        chosen = i;
+        break;
+      }
+    }
+    if (chosen >= 0) {
+      used[chosen] = true;
+      seq.push(chosen);
+    }
+  }
+  const tails: number[] = [];
+  for (const x of seq) {
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (tails[mid] < x) lo = mid + 1;
+      else hi = mid;
+    }
+    tails[lo] = x;
+  }
+  return tails.length;
+}
+
+/** Server-side mirror of the client `gradeAnswer`; `manualPoints` is the teacher's stored grade for written types. */
+export function gradeGroupAnswer(
+  question: GroupQuestion,
+  studentAnswer: string,
+  manualPoints: number | undefined
+): LocalGrade {
+  const max = question.points;
+  const attempted = hasSubmittedContent(studentAnswer);
+  if (question.type === 'free-response') {
+    if (manualPoints === undefined) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: attempted ? 'awaiting-grade' : 'not-attempted',
+      };
+    }
+    const awarded = Math.min(max, Math.max(0, manualPoints));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+      state: 'scored',
+    };
+  }
+  if (question.correctAnswer === null) {
+    return {
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: max,
+      state: 'no-key',
+    };
+  }
+  const state: LocalGradeState = attempted ? 'scored' : 'not-attempted';
+  const correct = normalizeAnswer(question.correctAnswer);
+  const given = normalizeAnswer(studentAnswer);
+  const partial = question.allowPartialCredit;
+  if (question.type === 'Matching') {
+    const splitPair = (p: string): [string, string] => {
+      const sep = p.indexOf(':');
+      return sep < 0 ? [p, ''] : [p.slice(0, sep), p.slice(sep + 1)];
+    };
+    const correctMap = new Map<string, string>();
+    for (const p of correct.split('|').map(normalizeAnswer)) {
+      const [left, right] = splitPair(p);
+      correctMap.set(left, right);
+    }
+    const seenLefts = new Set<string>();
+    let matched = 0;
+    for (const p of given.split('|').map(normalizeAnswer)) {
+      const [left, right] = splitPair(p);
+      if (seenLefts.has(left)) continue;
+      seenLefts.add(left);
+      if (correctMap.get(left) === right) matched++;
+    }
+    const total = correctMap.size;
+    if (!partial) {
+      const strict = matched === total && seenLefts.size === total;
+      return {
+        isCorrect: strict,
+        pointsEarned: strict ? max : 0,
+        pointsMax: max,
+        state,
+      };
+    }
+    return {
+      isCorrect: matched === total,
+      pointsEarned: total === 0 ? 0 : (matched / total) * max,
+      pointsMax: max,
+      state,
+    };
+  }
+  if (question.type === 'Ordering' && partial) {
+    const correctItems = question.correctAnswer.split('|');
+    const lis = longestOrderedSubsequenceLength(
+      correctItems,
+      studentAnswer.split('|')
+    );
+    return {
+      isCorrect: lis === correctItems.length,
+      pointsEarned:
+        correctItems.length === 0 ? 0 : (lis / correctItems.length) * max,
+      pointsMax: max,
+      state,
+    };
+  }
+  const isCorrect = correct === given;
+  return {
+    isCorrect,
+    pointsEarned: isCorrect ? max : 0,
+    pointsMax: max,
+    state,
+  };
+}
+
 function pct(numerator: number, denominator: number): number {
   return Math.round((numerator / denominator) * 100);
 }
@@ -422,6 +584,7 @@ export function computeAssessmentAggregate(
     });
   }
 
+  const questionById = new Map(input.groupQuestions.map((q) => [q.id, q]));
   const teachers = new Map<string, TeacherAcc>();
   const sessionIds: string[] = [];
   let studentCount = 0;
@@ -465,7 +628,53 @@ export function computeAssessmentAggregate(
       studentCount++;
       teacher.studentCount++;
       teacher.classKeys.add(classKey(r, session.id));
-      const score = asFiniteNumber(r.score);
+
+      const servedIds =
+        r.servedQuestionIds && r.servedQuestionIds.length > 0
+          ? r.servedQuestionIds
+          : publicQuestionIds(session.publicQuestions);
+      const servedSet = new Set(servedIds);
+      for (const sessionQid of servedSet) {
+        const groupQid = alignment.map.get(sessionQid);
+        const q = groupQid ? acc.get(groupQid) : undefined;
+        if (q) q.served++;
+      }
+
+      const answers = Array.isArray(r.answers) ? r.answers : [];
+      const representative = selectRepresentativeAnswers(answers);
+
+      // Grade locally from the answer key so unpublished sessions still score;
+      // any served question without a key or an owed manual grade blocks the score.
+      let earned = 0;
+      let max = 0;
+      let gradable = true;
+      const verdicts = new Map<string, boolean>();
+      for (const sessionQid of servedSet) {
+        const groupQid = alignment.map.get(sessionQid);
+        const question = groupQid ? questionById.get(groupQid) : undefined;
+        if (!question) {
+          gradable = false;
+          continue;
+        }
+        const a = representative.get(sessionQid);
+        const grade = gradeGroupAnswer(
+          question,
+          a?.answer ?? '',
+          r.manualPoints?.[sessionQid]
+        );
+        if (grade.state === 'no-key' || grade.state === 'awaiting-grade') {
+          gradable = false;
+        } else {
+          earned += grade.pointsEarned;
+          max += grade.pointsMax;
+        }
+        if (grade.state === 'scored' && a)
+          verdicts.set(sessionQid, grade.isCorrect);
+      }
+      const published = asFiniteNumber(r.score);
+      const score =
+        published ??
+        (gradable ? (max > 0 ? Math.round((earned / max) * 100) : 0) : null);
       if (score !== null) {
         scoreSum += score;
         scoreCount++;
@@ -473,29 +682,23 @@ export function computeAssessmentAggregate(
         teacher.scoreCount++;
       }
 
-      const servedIds =
-        r.servedQuestionIds && r.servedQuestionIds.length > 0
-          ? r.servedQuestionIds
-          : publicQuestionIds(session.publicQuestions);
-      for (const sessionQid of new Set(servedIds)) {
-        const groupQid = alignment.map.get(sessionQid);
-        const q = groupQid ? acc.get(groupQid) : undefined;
-        if (q) q.served++;
-      }
-
-      const answers = Array.isArray(r.answers) ? r.answers : [];
-      for (const [sessionQid, a] of selectRepresentativeAnswers(answers)) {
+      for (const [sessionQid, a] of representative) {
         const groupQid = alignment.map.get(sessionQid);
         const q = groupQid ? acc.get(groupQid) : undefined;
         if (!q) continue;
         q.answered++;
-        if (typeof a.isCorrect === 'boolean') {
+        // A published flag is authoritative; otherwise use the local verdict.
+        const isCorrect =
+          typeof a.isCorrect === 'boolean'
+            ? a.isCorrect
+            : verdicts.get(sessionQid);
+        if (typeof isCorrect === 'boolean') {
           q.graded++;
-          if (a.isCorrect) q.correct++;
+          if (isCorrect) q.correct++;
         }
         const label = asString(a.answer);
         q.choiceCounts.set(label, (q.choiceCounts.get(label) ?? 0) + 1);
-        if (a.isCorrect === true) q.correctLabels.add(label);
+        if (isCorrect === true) q.correctLabels.add(label);
       }
     }
   }

@@ -4,6 +4,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import {
+  AGGREGATE_SCHEMA_VERSION,
   computeAssessmentAggregate,
   resolveGroupQuestions,
   type CompletedResponse,
@@ -56,7 +57,22 @@ export function parseCompletedResponse(
       : undefined,
     classPeriod: asString(raw.classPeriod) || undefined,
     classId: asString(raw.classId) || undefined,
+    manualPoints: parseManualPoints(raw.grading),
   };
+}
+
+/** `grading[questionId].pointsAwarded` for primary slots; media slot keys (`id::slot`) are skipped. */
+function parseManualPoints(raw: unknown): Record<string, number> | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (key.includes('::') || typeof value !== 'object' || value === null)
+      continue;
+    const points = (value as Record<string, unknown>).pointsAwarded;
+    if (typeof points === 'number' && Number.isFinite(points))
+      out[key] = points;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** `plcs/{plcId}.members[uid].displayName`, else ''. */
@@ -202,10 +218,12 @@ export async function runRecomputePlcAssessments(
     .limit(limit)
     .get();
 
-  for (const doc of dirtySnap.docs) {
+  const recompute = async (
+    doc: admin.firestore.QueryDocumentSnapshot
+  ): Promise<void> => {
     counts.scanned++;
     const plcId = doc.ref.parent.parent?.id;
-    if (!plcId) continue;
+    if (!plcId) return;
     try {
       await recomputeOnePlcAssessment(db, plcId, doc.id);
       counts.recomputed++;
@@ -217,6 +235,18 @@ export async function runRecomputePlcAssessments(
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  };
+  for (const doc of dirtySnap.docs) await recompute(doc);
+
+  // Spare budget refreshes aggregates written by an older schema.
+  const remaining = limit - dirtySnap.docs.length;
+  if (remaining > 0) {
+    const staleSnap = await db
+      .collectionGroup('aggregates')
+      .where('schemaVersion', '<', AGGREGATE_SCHEMA_VERSION)
+      .limit(remaining)
+      .get();
+    for (const doc of staleSnap.docs) await recompute(doc);
   }
   return counts;
 }
