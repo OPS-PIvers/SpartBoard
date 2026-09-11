@@ -2564,7 +2564,9 @@
     "columns": {
       "code": "Code",
       "label": "Target",
-      "standards": "Standards"
+      "standards": "Standards",
+      "grades": "Grades",
+      "subject": "Subject"
     },
     "archive": "Archive target",
     "restore": "Restore target",
@@ -2579,7 +2581,7 @@
     "noStandardsMatch": "No standards match.",
     "pasteHint": "One target per line. Optional code before a pipe: LT1 | I can add fractions.",
     "parsedCount": "{{count}} targets found",
-    "csvHint": "Header row with label (required), code and standards (optional, separate codes with ;).",
+    "csvHint": "Header row with label (required); optional code, standards, grades (separate values with ;) and subject.",
     "csvLineError": "Line {{line}}: {{message}}",
     "csvUnknownStandards": "Unknown standard codes will be skipped: {{codes}}",
     "importCount": "Import {{count}}",
@@ -2591,7 +2593,10 @@
       "save": "Save cutoffs"
     },
     "saving": "Saving…",
-    "saveFailed": "Save failed"
+    "saveFailed": "Save failed",
+    "anySubject": "Any subject",
+    "gradesSubjectHint": "Optional. Leave grades and subject empty to inherit them from the linked standards.",
+    "csvUnknownSubjects": "Unknown subjects will be skipped: {{subjects}}"
   },
   "settings": {
     "profileAndSettings": "Profile & Settings",

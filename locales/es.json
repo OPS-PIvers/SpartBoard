@@ -2376,7 +2376,9 @@
     "columns": {
       "code": "Código",
       "label": "Objetivo",
-      "standards": "Estándares"
+      "standards": "Estándares",
+      "grades": "Grados",
+      "subject": "Materia"
     },
     "archive": "Archivar objetivo",
     "restore": "Restaurar objetivo",
@@ -2391,7 +2393,7 @@
     "noStandardsMatch": "Ningún estándar coincide.",
     "pasteHint": "Un objetivo por línea. Código opcional antes de una barra vertical: LT1 | Puedo sumar fracciones.",
     "parsedCount": "{{count}} objetivos encontrados",
-    "csvHint": "Fila de encabezado con label (obligatorio), code y standards (opcionales; separa los códigos con ;).",
+    "csvHint": "Fila de encabezado con label (obligatorio); opcionales code, standards, grades (separa valores con ;) y subject.",
     "csvLineError": "Línea {{line}}: {{message}}",
     "csvUnknownStandards": "Se omitirán los códigos de estándar desconocidos: {{codes}}",
     "importCount": "Importar {{count}}",
@@ -2403,7 +2405,10 @@
       "save": "Guardar umbrales"
     },
     "saving": "Guardando…",
-    "saveFailed": "Error al guardar"
+    "saveFailed": "Error al guardar",
+    "anySubject": "Cualquier materia",
+    "gradesSubjectHint": "Opcional. Deja grados y materia vacíos para heredarlos de los estándares vinculados.",
+    "csvUnknownSubjects": "Las materias desconocidas se omitirán: {{subjects}}"
   },
   "settings": {
     "profileAndSettings": "Perfil y ajustes",

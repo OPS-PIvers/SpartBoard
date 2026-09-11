@@ -5,6 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { LearningTarget, LearningTargetList } from '@/types';
 import { logError } from '@/utils/logError';
+import { normalizeGrades } from '@/utils/gradeMatch';
 import i18n from '@/i18n/index';
 
 const PLCS_COLLECTION = 'plcs';
@@ -39,6 +40,11 @@ function parseTarget(raw: unknown): LearningTarget | null {
       (s): s is string => typeof s === 'string'
     );
   }
+  if (Array.isArray(r.grades)) {
+    const grades = normalizeGrades(r.grades);
+    if (grades.length > 0) t.grades = grades;
+  }
+  if (typeof r.subject === 'string' && r.subject) t.subject = r.subject;
   if (r.archived === true) t.archived = true;
   return t;
 }
@@ -83,6 +89,8 @@ function serializeList(list: LearningTargetList): Record<string, unknown> {
       if (t.code) clean.code = t.code;
       if (t.standardIds && t.standardIds.length > 0)
         clean.standardIds = t.standardIds;
+      if (t.grades && t.grades.length > 0) clean.grades = t.grades;
+      if (t.subject) clean.subject = t.subject;
       if (t.archived) clean.archived = true;
       return clean;
     }),

@@ -25,6 +25,8 @@ import {
   unarchiveTarget,
 } from '@/utils/learningTargets';
 import { filterBenchmarks } from '@/hooks/useStandardsCatalog';
+import { useSubjects } from '@/hooks/useSubjects';
+import { ALL_GRADES } from '@/utils/gradeMatch';
 
 interface LearningTargetsManagerProps {
   list: LearningTargetList | null;
@@ -140,6 +142,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
   standards = [],
 }) => {
   const { t } = useTranslation();
+  const { active: subjects, byId: subjectById } = useSubjects();
   const [panel, setPanel] = useState<Panel>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +151,8 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
   const [draftCode, setDraftCode] = useState('');
   const [draftLabel, setDraftLabel] = useState('');
   const [draftStandards, setDraftStandards] = useState<string[]>([]);
+  const [draftGrades, setDraftGrades] = useState<string[]>([]);
+  const [draftSubject, setDraftSubject] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [csvPreview, setCsvPreview] = useState<TargetCsvResult | null>(null);
   const [csvName, setCsvName] = useState('');
@@ -178,6 +183,19 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
     }
     return m;
   }, [standards]);
+
+  const subjectIdByName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of subjects) {
+      m.set(s.id.toLowerCase(), s.id);
+      m.set(s.label.toLowerCase(), s.id);
+    }
+    return m;
+  }, [subjects]);
+  const subjectLabel = (id: string | undefined) =>
+    id ? (subjectById.get(id)?.label ?? id) : '—';
+  const gradesLabel = (grades: string[] | undefined) =>
+    grades && grades.length > 0 ? grades.join(', ') : '—';
 
   const active = useMemo(
     () => (list?.targets ?? []).filter((x) => !x.archived),
@@ -214,12 +232,20 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
     if (!draftLabel.trim()) return;
     try {
       const next = addTargets(withList(), [
-        { code: draftCode, label: draftLabel, standardIds: draftStandards },
+        {
+          code: draftCode,
+          label: draftLabel,
+          standardIds: draftStandards,
+          grades: draftGrades,
+          subject: draftSubject,
+        },
       ]);
       if (await commit(next)) {
         setDraftCode('');
         setDraftLabel('');
         setDraftStandards([]);
+        setDraftGrades([]);
+        setDraftSubject('');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -253,6 +279,8 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
       standardIds: r.standardCodes
         .map((c) => idByCode.get(c.toLowerCase()))
         .filter((id): id is string => Boolean(id)),
+      grades: r.grades,
+      subject: r.subject ? subjectIdByName.get(r.subject.toLowerCase()) : '',
     }));
     try {
       if (await commit(addTargets(withList(), drafts))) {
@@ -296,6 +324,17 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
     return [...missing];
   }, [csvPreview, idByCode]);
 
+  const unresolvedCsvSubjects = useMemo(() => {
+    if (!csvPreview) return [];
+    const missing = new Set<string>();
+    for (const r of csvPreview.rows) {
+      if (r.subject && !subjectIdByName.has(r.subject.toLowerCase())) {
+        missing.add(r.subject);
+      }
+    }
+    return [...missing];
+  }, [csvPreview, subjectIdByName]);
+
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
   const atCap = (list?.targets.length ?? 0) >= LEARNING_TARGET_LIST_CAP;
 
@@ -330,6 +369,16 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                     defaultValue: 'Standards',
                   })}
                 </th>
+                <th className="px-3 py-2">
+                  {t('learningTargets.columns.grades', {
+                    defaultValue: 'Grades',
+                  })}
+                </th>
+                <th className="px-3 py-2">
+                  {t('learningTargets.columns.subject', {
+                    defaultValue: 'Subject',
+                  })}
+                </th>
                 {canEdit && <th className="px-3 py-2" />}
               </tr>
             </thead>
@@ -346,6 +395,12 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                           .map((id) => codeById.get(id) ?? id)
                           .join(', ')
                       : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
+                    {gradesLabel(target.grades)}
+                  </td>
+                  <td className="px-3 py-2 text-slate-600">
+                    {subjectLabel(target.subject)}
                   </td>
                   {canEdit && (
                     <td className="px-3 py-2 text-right">
@@ -498,6 +553,65 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                   onChange={setDraftStandards}
                 />
               )}
+              <div className="flex flex-wrap items-start gap-3">
+                <div
+                  role="group"
+                  aria-label={t('learningTargets.columns.grades', {
+                    defaultValue: 'Grades',
+                  })}
+                  className="flex flex-wrap gap-1"
+                >
+                  {ALL_GRADES.map((grade) => {
+                    const selected = draftGrades.includes(grade);
+                    return (
+                      <button
+                        key={grade}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() =>
+                          setDraftGrades((cur) =>
+                            cur.includes(grade)
+                              ? cur.filter((g) => g !== grade)
+                              : [...cur, grade]
+                          )
+                        }
+                        className={`min-w-[2rem] rounded-md border px-2 py-1 text-xxs font-bold transition-colors ${
+                          selected
+                            ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light'
+                        }`}
+                      >
+                        {grade}
+                      </button>
+                    );
+                  })}
+                </div>
+                <select
+                  value={draftSubject}
+                  onChange={(e) => setDraftSubject(e.target.value)}
+                  aria-label={t('learningTargets.columns.subject', {
+                    defaultValue: 'Subject',
+                  })}
+                  className={`${INPUT_CLASS} w-auto`}
+                >
+                  <option value="">
+                    {t('learningTargets.anySubject', {
+                      defaultValue: 'Any subject',
+                    })}
+                  </option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xxs text-slate-500">
+                {t('learningTargets.gradesSubjectHint', {
+                  defaultValue:
+                    'Optional. Leave grades and subject empty to inherit them from the linked standards.',
+                })}
+              </p>
               <div className="flex justify-end">
                 <button
                   type="submit"
@@ -553,7 +667,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
               <p className="text-xxs text-slate-500">
                 {t('learningTargets.csvHint', {
                   defaultValue:
-                    'Header row with label (required), code and standards (optional, separate codes with ;).',
+                    'Header row with label (required); optional code, standards, grades (separate values with ;) and subject.',
                 })}
               </p>
               <input
@@ -590,6 +704,15 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                       })}
                     </p>
                   )}
+                  {unresolvedCsvSubjects.length > 0 && (
+                    <p className="text-xxs text-amber-700">
+                      {t('learningTargets.csvUnknownSubjects', {
+                        defaultValue:
+                          'Unknown subjects will be skipped: {{subjects}}',
+                        subjects: unresolvedCsvSubjects.join(', '),
+                      })}
+                    </p>
+                  )}
                   {csvPreview.rows.length > 0 && (
                     <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white">
                       <table className="w-full text-left text-xs">
@@ -610,6 +733,16 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                                 defaultValue: 'Standards',
                               })}
                             </th>
+                            <th className="px-3 py-1.5">
+                              {t('learningTargets.columns.grades', {
+                                defaultValue: 'Grades',
+                              })}
+                            </th>
+                            <th className="px-3 py-1.5">
+                              {t('learningTargets.columns.subject', {
+                                defaultValue: 'Subject',
+                              })}
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -623,6 +756,24 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                               </td>
                               <td className="px-3 py-1.5 text-slate-600">
                                 {row.standardCodes.join(', ') || '—'}
+                              </td>
+                              <td className="px-3 py-1.5 text-slate-600 whitespace-nowrap">
+                                {gradesLabel(row.grades)}
+                              </td>
+                              <td className="px-3 py-1.5 text-slate-600">
+                                {(() => {
+                                  if (!row.subject) return '—';
+                                  const id = subjectIdByName.get(
+                                    row.subject.toLowerCase()
+                                  );
+                                  return id ? (
+                                    subjectLabel(id)
+                                  ) : (
+                                    <span className="text-amber-700 line-through">
+                                      {row.subject}
+                                    </span>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           ))}

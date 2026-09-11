@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.3",
+      "date": "2026-09-11",
+      "title": "Learning targets carry grades and a subject",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Learning targets",
+          "items": [
+            {
+              "text": "PLC and personal learning targets can now record the grades and content area they apply to. Leave them blank to inherit from the linked standards. CSV imports accept grades and subject columns."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Target editor — grade chips and a subject dropdown on the add form; the table shows both."
+        },
+        {
+          "type": "feature",
+          "text": "CSV import — optional grades (6;7;8) and subject columns; description is accepted as the label header."
+        },
+        {
+          "type": "improvement",
+          "text": "Standards catalog — each benchmark now records its short standard code and title; admins should re-seed standards from Admin › Standards after this update."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.2",
       "date": "2026-09-11",
       "title": "Profile: grades and content areas taught",
