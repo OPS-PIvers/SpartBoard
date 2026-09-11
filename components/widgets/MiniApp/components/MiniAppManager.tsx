@@ -1029,7 +1029,13 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   if (tab === 'active') {
     if (assignmentsLoading) {
       tabContent = (
-        <div className="flex items-center justify-center py-12 text-slate-400">
+        <div
+          className="flex items-center justify-center text-slate-400"
+          style={{
+            paddingTop: 'min(48px, 12cqmin)',
+            paddingBottom: 'min(48px, 12cqmin)',
+          }}
+        >
           <Loader2
             className="animate-spin"
             style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
@@ -1061,7 +1067,13 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   } else if (tab === 'archive') {
     if (assignmentsLoading) {
       tabContent = (
-        <div className="flex items-center justify-center py-12 text-slate-400">
+        <div
+          className="flex items-center justify-center text-slate-400"
+          style={{
+            paddingTop: 'min(48px, 12cqmin)',
+            paddingBottom: 'min(48px, 12cqmin)',
+          }}
+        >
           <Loader2
             className="animate-spin"
             style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
@@ -1257,8 +1269,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             >
               <CheckSquare
                 style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
                 }}
               />
               {selectionMode ? 'Cancel' : 'Select'}
