@@ -126,6 +126,10 @@ const recordingKey = (recording: QuizQuestion['recording']): string =>
     ? `${recording.prepSeconds}|${recording.limitSeconds}|${recording.prepExpiry}|${recording.takeLimit ?? 'null'}`
     : '';
 
+/** Order-stable id key for a question's learning-target tags (bulk tagging must flip dirty). */
+const targetIdsKey = (targets: QuestionTargetTag[] | undefined): string =>
+  (targets ?? []).map((t) => t.id).join('|');
+
 const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -143,6 +147,7 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.placeholder ?? '') !== (qb.placeholder ?? '') ||
       (qa.maxWords ?? 0) !== (qb.maxWords ?? 0) ||
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
+      targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
       recordingKey(qa.recording) !== recordingKey(qb.recording) ||
       rubricSnapshotKey(qa.rubricSnapshot) !==
