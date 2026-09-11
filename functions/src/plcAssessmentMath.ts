@@ -27,12 +27,20 @@ export interface GroupQuestion {
   /** Known only when the synced group carries the answer key. */
   correctAnswer: string | null;
   allowPartialCredit: boolean;
+  /** Rubric criterion ids on the synced question; empty when no rubric. */
+  rubricCriterionIds: string[];
   /** Frozen tag snapshots used for target and standard rollups. */
   targets: QuestionTargetSnapshot[];
 }
 
 export interface SyncedQuestions {
   questions?: unknown;
+}
+
+export interface ManualGrade {
+  pointsAwarded: number;
+  /** Rubric criteria scored so far; a subset of the question's criteria is provisional. */
+  scoredCriterionIds: string[];
 }
 
 export interface RawAnswer {
@@ -53,7 +61,7 @@ export interface CompletedResponse {
   classPeriod?: string;
   classId?: string;
   /** Teacher manual grades by session question id (primary slot). */
-  manualPoints?: Record<string, number>;
+  manualGrades?: Record<string, ManualGrade>;
 }
 
 export interface SessionInput {
@@ -215,6 +223,19 @@ function parseTargets(raw: unknown): QuestionTargetSnapshot[] {
   return Array.from(byId.values());
 }
 
+function parseRubricCriterionIds(raw: unknown): string[] {
+  if (typeof raw !== 'object' || raw === null) return [];
+  const criteria = (raw as Record<string, unknown>).criteria;
+  if (!Array.isArray(criteria)) return [];
+  return criteria
+    .map((c) =>
+      typeof c === 'object' && c !== null
+        ? asString((c as Record<string, unknown>).id)
+        : ''
+    )
+    .filter((id) => id.length > 0);
+}
+
 function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const r = raw as Record<string, unknown>;
@@ -236,6 +257,7 @@ function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
     choices,
     correctAnswer: correctAnswer.length > 0 ? correctAnswer : null,
     allowPartialCredit: r.allowPartialCredit === true,
+    rubricCriterionIds: parseRubricCriterionIds(r.rubricSnapshot),
     targets: parseTargets(r.targets),
   };
 }
@@ -255,6 +277,7 @@ export function parsePublicQuestion(raw: unknown): GroupQuestion | null {
     choices: type === 'MC' ? asStringArray(r.choices) : [],
     correctAnswer: null,
     allowPartialCredit: false,
+    rubricCriterionIds: [],
     targets: parseTargets(r.targets),
   };
 }
@@ -438,16 +461,16 @@ function longestOrderedSubsequenceLength(
   return tails.length;
 }
 
-/** Server-side mirror of the client `gradeAnswer`; `manualPoints` is the teacher's stored grade for written types. */
+/** Server-side mirror of the client `gradeAnswer`; `manual` is the teacher's stored grade for written types. */
 export function gradeGroupAnswer(
   question: GroupQuestion,
   studentAnswer: string,
-  manualPoints: number | undefined
+  manual: ManualGrade | undefined
 ): LocalGrade {
   const max = question.points;
   const attempted = hasSubmittedContent(studentAnswer);
   if (question.type === 'free-response') {
-    if (manualPoints === undefined) {
+    if (manual === undefined) {
       return {
         isCorrect: false,
         pointsEarned: 0,
@@ -455,12 +478,18 @@ export function gradeGroupAnswer(
         state: attempted ? 'awaiting-grade' : 'not-attempted',
       };
     }
-    const awarded = Math.min(max, Math.max(0, manualPoints));
+    const awarded = Math.min(max, Math.max(0, manual.pointsAwarded));
+    // A rubric saved one criterion at a time stays provisional until every criterion is scored.
+    const scored = new Set(manual.scoredCriterionIds);
+    const partialRubric =
+      question.rubricCriterionIds.length > 0 &&
+      scored.size > 0 &&
+      question.rubricCriterionIds.some((id) => !scored.has(id));
     return {
       isCorrect: awarded === max && max > 0,
       pointsEarned: awarded,
       pointsMax: max,
-      state: 'scored',
+      state: partialRubric ? 'awaiting-grade' : 'scored',
     };
   }
   if (question.correctAnswer === null) {
@@ -660,7 +689,7 @@ export function computeAssessmentAggregate(
         const grade = gradeGroupAnswer(
           question,
           a?.answer ?? '',
-          r.manualPoints?.[sessionQid]
+          r.manualGrades?.[sessionQid]
         );
         if (grade.state === 'no-key' || grade.state === 'awaiting-grade') {
           gradable = false;

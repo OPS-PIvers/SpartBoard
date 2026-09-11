@@ -348,7 +348,7 @@ describe('computeAssessmentAggregate', () => {
             answer('q2', '4'),
             answer('q3', 'Because reasons'),
           ],
-          { manualPoints: { q3: 4 } }
+          { manualGrades: { q3: { pointsAwarded: 4, scoredCriterionIds: [] } } }
         ),
       ]),
     ]);
@@ -560,6 +560,7 @@ describe('gradeGroupAnswer', () => {
     choices: [],
     correctAnswer: 'A',
     allowPartialCredit: false,
+    rubricCriterionIds: [],
     targets: [],
     ...over,
   });
@@ -604,11 +605,37 @@ describe('gradeGroupAnswer', () => {
     expect(gradeGroupAnswer(w, '<p></p>', undefined).state).toBe(
       'not-attempted'
     );
-    expect(gradeGroupAnswer(w, 'text', 9)).toMatchObject({
+    expect(
+      gradeGroupAnswer(w, 'text', { pointsAwarded: 9, scoredCriterionIds: [] })
+    ).toMatchObject({
       isCorrect: true,
       pointsEarned: 4,
       state: 'scored',
     });
+  });
+
+  it('keeps a partially scored rubric awaiting a grade', () => {
+    const w = q({
+      type: 'free-response',
+      correctAnswer: null,
+      rubricCriterionIds: ['c1', 'c2'],
+    });
+    expect(
+      gradeGroupAnswer(w, 'text', {
+        pointsAwarded: 2,
+        scoredCriterionIds: ['c1'],
+      }).state
+    ).toBe('awaiting-grade');
+    expect(
+      gradeGroupAnswer(w, 'text', {
+        pointsAwarded: 4,
+        scoredCriterionIds: ['c1', 'c2'],
+      }).state
+    ).toBe('scored');
+    expect(
+      gradeGroupAnswer(w, 'text', { pointsAwarded: 3, scoredCriterionIds: [] })
+        .state
+    ).toBe('scored');
   });
 
   it('reports no-key for auto types without an answer key', () => {

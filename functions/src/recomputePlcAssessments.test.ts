@@ -209,14 +209,21 @@ describe('parseCompletedResponse manual grades', () => {
       answers: [],
       grading: {
         q3: { pointsAwarded: 4, overallComment: 'nice' },
+        q6: {
+          pointsAwarded: 2,
+          rubricScores: [{ criterionId: 'c1', points: 2 }],
+        },
         'q3::video': { pointsAwarded: 2 },
         q4: { pointsAwarded: 'x' },
         q5: null,
       },
     });
-    expect(parsed.manualPoints).toEqual({ q3: 4 });
+    expect(parsed.manualGrades).toEqual({
+      q3: { pointsAwarded: 4, scoredCriterionIds: [] },
+      q6: { pointsAwarded: 2, scoredCriterionIds: ['c1'] },
+    });
     expect(
-      parseCompletedResponse({ answers: [] }).manualPoints
+      parseCompletedResponse({ answers: [] }).manualGrades
     ).toBeUndefined();
   });
 });

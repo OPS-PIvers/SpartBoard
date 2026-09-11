@@ -8,6 +8,7 @@ import {
   computeAssessmentAggregate,
   resolveGroupQuestions,
   type CompletedResponse,
+  type ManualGrade,
   type RawAnswer,
   type SessionInput,
 } from './plcAssessmentMath';
@@ -57,20 +58,32 @@ export function parseCompletedResponse(
       : undefined,
     classPeriod: asString(raw.classPeriod) || undefined,
     classId: asString(raw.classId) || undefined,
-    manualPoints: parseManualPoints(raw.grading),
+    manualGrades: parseManualGrades(raw.grading),
   };
 }
 
-/** `grading[questionId].pointsAwarded` for primary slots; media slot keys (`id::slot`) are skipped. */
-function parseManualPoints(raw: unknown): Record<string, number> | undefined {
+/** `grading[questionId]` for primary slots; media slot keys (`id::slot`) are skipped. */
+function parseManualGrades(
+  raw: unknown
+): Record<string, ManualGrade> | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
-  const out: Record<string, number> = {};
+  const out: Record<string, ManualGrade> = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (key.includes('::') || typeof value !== 'object' || value === null)
       continue;
     const points = (value as Record<string, unknown>).pointsAwarded;
-    if (typeof points === 'number' && Number.isFinite(points))
-      out[key] = points;
+    if (typeof points !== 'number' || !Number.isFinite(points)) continue;
+    const scores = (value as Record<string, unknown>).rubricScores;
+    const scoredCriterionIds = Array.isArray(scores)
+      ? scores
+          .map((sc) =>
+            typeof sc === 'object' && sc !== null
+              ? asString((sc as Record<string, unknown>).criterionId)
+              : ''
+          )
+          .filter((id) => id.length > 0)
+      : [];
+    out[key] = { pointsAwarded: points, scoredCriterionIds };
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
