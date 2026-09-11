@@ -3476,6 +3476,10 @@ export interface StandardBenchmark {
   text: string;
   /** Lowercased code + text for client-side filtering. */
   searchText: string;
+  /** Short standard id within the set, e.g. 'R9' or '5'; absent until re-seeded. */
+  standardCode?: string;
+  /** Standard heading without its code, e.g. 'Media Literacy in Reading'. */
+  standardTitle?: string;
 }
 
 export type LearningTargetKind = 'standard' | 'plc' | 'personal';
@@ -3487,6 +3491,10 @@ export interface LearningTarget {
   label: string;
   /** StandardBenchmark ids this target drills down from. */
   standardIds?: string[];
+  /** Explicit grades ('K', '1' … '12'); absent = inherit from standardIds, else everywhere. */
+  grades?: string[];
+  /** Subject id from config/subjects.ts; absent = inherit from standardIds, else everywhere. */
+  subject?: string;
   archived?: boolean;
   createdAt: number;
   updatedAt: number;
@@ -3517,6 +3525,8 @@ export interface QuestionTargetTag {
   label: string;
   /** Copied from LearningTarget.standardIds so standard rollups need no lookup. */
   standardIds?: string[];
+  /** For benchmark tags: the standard-level tag id (`set:std:standardCode`) they roll up into. */
+  parentId?: string;
 }
 
 // --- QUESTION BANKS ---

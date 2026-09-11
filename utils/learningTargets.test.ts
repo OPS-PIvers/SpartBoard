@@ -8,11 +8,14 @@ import {
   DEFAULT_MASTERY_CUTOFFS,
   addTargets,
   archiveTarget,
+  effectiveGrades,
+  effectiveSubject,
   parseCsvRecords,
   parsePastedTargets,
   parseTargetsCsv,
   setMasteryCutoffs,
   tagFromBenchmark,
+  tagFromStandard,
   tagFromTarget,
   unarchiveTarget,
   upsertTarget,
@@ -203,6 +206,97 @@ describe('tags', () => {
       kind: 'standard',
       code: '6.1.1.1',
       label: 'Cite evidence',
+      parentId: 'mn:std:1.1',
+    });
+  });
+});
+
+describe('grades and subject', () => {
+  const bench = (
+    id: string,
+    grade: string,
+    subject: 'ela' | 'social-studies' = 'ela'
+  ) => ({
+    id,
+    set: 'mn',
+    subject,
+    code: id,
+    grade,
+    strand: 'Reading',
+    standard: 'R1 Foundations: Read.',
+    text: 'Read.',
+    searchText: 'read.',
+  });
+  const catalog = new Map([
+    ['a', bench('a', '6')],
+    ['b', bench('b', '9-12', 'social-studies')],
+  ]);
+
+  it('parseTargetsCsv reads grades and subject columns', () => {
+    const { rows, errors } = parseTargetsCsv(
+      [
+        'code,description,standardCodes,grades,subject',
+        'LT1,Add,6.1.1.1;6.1.1.2,6;7;k,Math',
+        'LT2,Sub,,8;13,',
+      ].join('\n')
+    );
+    expect(rows).toEqual([
+      {
+        code: 'LT1',
+        label: 'Add',
+        standardCodes: ['6.1.1.1', '6.1.1.2'],
+        grades: ['K', '6', '7'],
+        subject: 'Math',
+      },
+      { code: 'LT2', label: 'Sub', standardCodes: [], grades: ['8'] },
+    ]);
+    expect(errors).toEqual([
+      { line: 3, message: 'Unknown grade in "8;13" (use K or 1-12)' },
+    ]);
+  });
+
+  it('addTargets keeps explicit grades and subject', () => {
+    const list = addTargets(
+      { targets: [], updatedAt: 0 },
+      [{ label: 'x', grades: ['7', 'k', 'zz'], subject: ' math ' }],
+      5
+    );
+    expect(list.targets[0].grades).toEqual(['K', '7']);
+    expect(list.targets[0].subject).toBe('math');
+  });
+
+  it('effectiveGrades: explicit, else union of linked standards, else null', () => {
+    expect(
+      effectiveGrades({ grades: ['3'], standardIds: ['a'] }, catalog)
+    ).toEqual(['3']);
+    expect(effectiveGrades({ standardIds: ['a', 'b'] }, catalog)).toEqual([
+      '6',
+      '9',
+      '10',
+      '11',
+      '12',
+    ]);
+    expect(effectiveGrades({ standardIds: ['missing'] }, catalog)).toBeNull();
+    expect(effectiveGrades({}, catalog)).toBeNull();
+  });
+
+  it('effectiveSubject: explicit, else agreeing linked subject, else null', () => {
+    expect(
+      effectiveSubject({ subject: 'math', standardIds: ['a'] }, catalog)
+    ).toBe('math');
+    expect(effectiveSubject({ standardIds: ['a'] }, catalog)).toBe('ela');
+    expect(effectiveSubject({ standardIds: ['a', 'b'] }, catalog)).toBeNull();
+    expect(effectiveSubject({}, catalog)).toBeNull();
+  });
+
+  it('tagFromBenchmark carries the parent standard id; tagFromStandard builds the parent', () => {
+    const b = bench('mn:6.1.1.1', '6');
+    expect(tagFromBenchmark(b).parentId).toBe('mn:std:R1');
+    expect(tagFromStandard(b)).toEqual({
+      id: 'mn:std:R1',
+      kind: 'standard',
+      code: 'R1',
+      label: 'Foundations',
     });
   });
 });

@@ -2376,7 +2376,9 @@
     "columns": {
       "code": "Code",
       "label": "Ziel",
-      "standards": "Standards"
+      "standards": "Standards",
+      "grades": "Klassenstufen",
+      "subject": "Fach"
     },
     "archive": "Ziel archivieren",
     "restore": "Ziel wiederherstellen",
@@ -2391,7 +2393,7 @@
     "noStandardsMatch": "Keine passenden Standards.",
     "pasteHint": "Ein Ziel pro Zeile. Optionaler Code vor einem senkrechten Strich: LT1 | Ich kann Brüche addieren.",
     "parsedCount": "{{count}} Ziele gefunden",
-    "csvHint": "Kopfzeile mit label (erforderlich), code und standards (optional, Codes mit ; trennen).",
+    "csvHint": "Kopfzeile mit label (erforderlich); optional code, standards, grades (Werte mit ; trennen) und subject.",
     "csvLineError": "Zeile {{line}}: {{message}}",
     "csvUnknownStandards": "Unbekannte Standard-Codes werden übersprungen: {{codes}}",
     "importCount": "{{count}} importieren",
@@ -2403,7 +2405,9 @@
       "save": "Schwellenwerte speichern"
     },
     "saving": "Wird gespeichert…",
-    "saveFailed": "Speichern fehlgeschlagen"
+    "saveFailed": "Speichern fehlgeschlagen",
+    "anySubject": "Beliebiges Fach",
+    "gradesSubjectHint": "Optional. Klassenstufen und Fach leer lassen, um sie von den verknüpften Standards zu übernehmen."
   },
   "settings": {
     "profileAndSettings": "Profil & Einstellungen",

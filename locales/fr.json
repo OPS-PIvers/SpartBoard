@@ -2376,7 +2376,9 @@
     "columns": {
       "code": "Code",
       "label": "Objectif",
-      "standards": "Normes"
+      "standards": "Normes",
+      "grades": "Niveaux",
+      "subject": "Matière"
     },
     "archive": "Archiver l’objectif",
     "restore": "Restaurer l’objectif",
@@ -2391,7 +2393,7 @@
     "noStandardsMatch": "Aucune norme ne correspond.",
     "pasteHint": "Un objectif par ligne. Code facultatif avant une barre verticale : LT1 | Je peux additionner des fractions.",
     "parsedCount": "{{count}} objectifs trouvés",
-    "csvHint": "Ligne d’en-tête avec label (obligatoire), code et standards (facultatifs ; séparez les codes par ;).",
+    "csvHint": "Ligne d'en-tête avec label (obligatoire) ; facultatifs code, standards, grades (séparez les valeurs par ;) et subject.",
     "csvLineError": "Ligne {{line}} : {{message}}",
     "csvUnknownStandards": "Les codes de norme inconnus seront ignorés : {{codes}}",
     "importCount": "Importer {{count}}",
@@ -2403,7 +2405,9 @@
       "save": "Enregistrer les seuils"
     },
     "saving": "Enregistrement…",
-    "saveFailed": "Échec de l’enregistrement"
+    "saveFailed": "Échec de l’enregistrement",
+    "anySubject": "Toute matière",
+    "gradesSubjectHint": "Facultatif. Laissez niveaux et matière vides pour les hériter des standards liés."
   },
   "settings": {
     "profileAndSettings": "Profil et paramètres",

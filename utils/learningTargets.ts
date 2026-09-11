@@ -5,17 +5,23 @@ import {
   QuestionTargetTag,
   StandardBenchmark,
 } from '@/types';
+import { expandGrade, normalizeGrades, sortGrades } from '@/utils/gradeMatch';
+import { benchmarkHeading, standardTagId } from '@/utils/standardsCatalog';
 
 export interface TargetDraft {
   code?: string;
   label: string;
   standardIds?: string[];
+  grades?: string[];
+  subject?: string;
 }
 
 export interface TargetCsvRow {
   code?: string;
   label: string;
   standardCodes: string[];
+  grades?: string[];
+  subject?: string;
 }
 
 export interface TargetCsvError {
@@ -119,9 +125,10 @@ export function parseCsvRecords(text: string): string[][] {
   return rows;
 }
 
-const LABEL_HEADERS = new Set(['label', 'target']);
+const LABEL_HEADERS = new Set(['label', 'target', 'description']);
+const STANDARDS_HEADERS = new Set(['standards', 'standardcodes']);
 
-/** Header row: `code` (optional), `label`/`target` (required), `standards` (optional, `;`-separated). */
+/** Header row: `label`/`target`/`description` (required); optional `code`, `standards` (`;`-separated), `grades` (`;`-separated), `subject`. */
 export function parseTargetsCsv(text: string): TargetCsvResult {
   const records = parseCsvRecords(text);
   const errors: TargetCsvError[] = [];
@@ -144,7 +151,16 @@ export function parseTargetsCsv(text: string): TargetCsvResult {
     };
   }
   const codeCol = header.indexOf('code');
-  const standardsCol = header.indexOf('standards');
+  const standardsCol = header.findIndex((h) => STANDARDS_HEADERS.has(h));
+  const gradesCol = header.indexOf('grades');
+  const subjectCol = header.indexOf('subject');
+  const cell = (rec: string[], col: number) =>
+    col === -1 ? '' : (rec[col] ?? '').trim();
+  const splitList = (value: string) =>
+    value
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean);
   for (let r = headerIdx + 1; r < records.length; r += 1) {
     const rec = records[r];
     const line = r + 1;
@@ -154,15 +170,24 @@ export function parseTargetsCsv(text: string): TargetCsvResult {
       errors.push({ line, message: 'Missing label' });
       continue;
     }
-    const code = codeCol === -1 ? '' : (rec[codeCol] ?? '').trim();
-    const standardCodes =
-      standardsCol === -1
-        ? []
-        : (rec[standardsCol] ?? '')
-            .split(';')
-            .map((s) => s.trim())
-            .filter(Boolean);
-    rows.push(code ? { code, label, standardCodes } : { label, standardCodes });
+    const code = cell(rec, codeCol);
+    const standardCodes = splitList(cell(rec, standardsCol));
+    const row: TargetCsvRow = { label, standardCodes };
+    if (code) row.code = code;
+    const rawGrades = splitList(cell(rec, gradesCol));
+    if (rawGrades.length > 0) {
+      const grades = normalizeGrades(rawGrades);
+      if (grades.length !== rawGrades.length) {
+        errors.push({
+          line,
+          message: `Unknown grade in "${rawGrades.join(';')}" (use K or 1-12)`,
+        });
+      }
+      if (grades.length > 0) row.grades = grades;
+    }
+    const subject = cell(rec, subjectCol);
+    if (subject) row.subject = subject;
+    rows.push(row);
   }
   return { rows, errors };
 }
@@ -183,9 +208,13 @@ function cleanDraft(draft: TargetDraft): Omit<TargetDraft, 'label'> & {
   const label = draft.label.trim();
   const code = draft.code?.trim();
   const standardIds = draft.standardIds?.filter(Boolean);
+  const grades = draft.grades ? normalizeGrades(draft.grades) : [];
+  const subject = draft.subject?.trim();
   const out: TargetDraft = { label };
   if (code) out.code = code;
   if (standardIds && standardIds.length > 0) out.standardIds = standardIds;
+  if (grades.length > 0) out.grades = grades;
+  if (subject) out.subject = subject;
   return out;
 }
 
@@ -297,5 +326,55 @@ export function tagFromTarget(
 }
 
 export function tagFromBenchmark(b: StandardBenchmark): QuestionTargetTag {
-  return { id: b.id, kind: 'standard', code: b.code, label: b.text };
+  return {
+    id: b.id,
+    kind: 'standard',
+    code: b.code,
+    label: b.text,
+    parentId: standardTagId(b.set, benchmarkHeading(b).code),
+  };
+}
+
+/** Standard-level tag built from any benchmark under that standard. */
+export function tagFromStandard(b: StandardBenchmark): QuestionTargetTag {
+  const heading = benchmarkHeading(b);
+  return {
+    id: standardTagId(b.set, heading.code),
+    kind: 'standard',
+    code: heading.code,
+    label: heading.title || b.standard,
+  };
+}
+
+export type BenchmarkLookup = Pick<Map<string, StandardBenchmark>, 'get'>;
+
+/** Explicit grades, else the union of linked benchmarks' grades, else null (applies everywhere). */
+export function effectiveGrades(
+  target: Pick<LearningTarget, 'grades' | 'standardIds'>,
+  catalogById: BenchmarkLookup
+): string[] | null {
+  if (target.grades && target.grades.length > 0) return target.grades;
+  const out = new Set<string>();
+  for (const id of target.standardIds ?? []) {
+    const b = catalogById.get(id);
+    if (!b) continue;
+    for (const g of expandGrade(b.grade)) out.add(g);
+  }
+  return out.size > 0 ? sortGrades([...out]) : null;
+}
+
+/** Explicit subject, else the linked benchmarks' subject when they agree, else null. */
+export function effectiveSubject(
+  target: Pick<LearningTarget, 'subject' | 'standardIds'>,
+  catalogById: BenchmarkLookup
+): string | null {
+  if (target.subject) return target.subject;
+  let found: string | null = null;
+  for (const id of target.standardIds ?? []) {
+    const b = catalogById.get(id);
+    if (!b) continue;
+    if (found === null) found = b.subject;
+    else if (found !== b.subject) return null;
+  }
+  return found;
 }
