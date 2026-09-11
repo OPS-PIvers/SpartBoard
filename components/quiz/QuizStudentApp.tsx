@@ -4208,6 +4208,11 @@ export const PublishedScoreReview: React.FC<{
             questions: publicQuestions,
           },
         ];
+  // Nothing tagged means one "Other questions" group over everything — a
+  // heading that labels the whole list as leftovers. Drop it in that case.
+  const hasTargetGroups = reviewGroups.some(
+    (group) => group.targets.length > 0
+  );
   const autoGradedQuestionIds = new Set(
     publicQuestions.filter((q) => !isFreeResponseType(q.type)).map((q) => q.id)
   );
@@ -4456,7 +4461,7 @@ export const PublishedScoreReview: React.FC<{
             <div className="flex flex-col gap-3">
               {reviewGroups.map((group) => (
                 <div key={group.key} className="flex flex-col gap-3">
-                  {session.showLearningTargets === true && (
+                  {session.showLearningTargets === true && hasTargetGroups && (
                     <div
                       className={`flex flex-wrap items-center gap-1.5 rounded-xl border px-3 py-2 ${
                         light
