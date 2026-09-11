@@ -207,6 +207,7 @@ describe('tags', () => {
       code: '6.1.1.1',
       label: 'Cite evidence',
       parentId: 'mn:std:1.1',
+      parentLabel: 'y',
     });
   });
 });

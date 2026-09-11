@@ -4,7 +4,10 @@ import type {
   QuizQuestion,
   QuizResponse,
 } from '@/types';
-import type { MasteryCutoffs } from '@/utils/learningTargets';
+import {
+  parentTagFromBenchmarkTag,
+  type MasteryCutoffs,
+} from '@/utils/learningTargets';
 import {
   computeQuestionStats,
   type QuestionStat,
@@ -122,6 +125,9 @@ function collectGroups(questions: QuizQuestion[]): {
       addQuestionToGroup(targets, target, question.id);
       if (target.kind === 'standard') {
         addQuestionToGroup(standards, target, question.id, true);
+        // A benchmark also counts toward its parent standard (union, once per question).
+        const parent = parentTagFromBenchmarkTag(target);
+        if (parent) addQuestionToGroup(standards, parent, question.id);
       } else {
         for (const standardId of new Set(target.standardIds ?? [])) {
           addQuestionToGroup(

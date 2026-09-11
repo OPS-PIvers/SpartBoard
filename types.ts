@@ -3527,6 +3527,8 @@ export interface QuestionTargetTag {
   standardIds?: string[];
   /** For benchmark tags: the standard-level tag id (`set:std:standardCode`) they roll up into. */
   parentId?: string;
+  /** Standard title snapshot so rollup rows can label the parent without a catalog lookup. */
+  parentLabel?: string;
 }
 
 // --- QUESTION BANKS ---

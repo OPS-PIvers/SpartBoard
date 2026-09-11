@@ -4,30 +4,25 @@ import { Search, X } from 'lucide-react';
 import type { LearningTarget, QuestionTargetTag } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import {
-  filterBenchmarks,
-  useStandardsCatalog,
-} from '@/hooks/useStandardsCatalog';
+import { useAuth } from '@/context/useAuth';
+import { useStandardsCatalog } from '@/hooks/useStandardsCatalog';
 import { useLearningTargetSources } from '@/hooks/useLearningTargets';
-import { tagFromBenchmark, tagFromTarget } from '@/utils/learningTargets';
+import { useSubjects } from '@/hooks/useSubjects';
+import { ALL_GRADES } from '@/utils/gradeMatch';
+import {
+  effectiveGrades as targetGrades,
+  effectiveSubject as targetSubject,
+  tagFromTarget,
+} from '@/utils/learningTargets';
+import {
+  buildStandardsTree,
+  filterStandardsTree,
+  treeSubjectIds,
+} from '@/utils/standardsTree';
+import { StandardsTree } from './StandardsTree';
 import { TargetChips } from './TargetChips';
 
-const GRADES = [
-  'K',
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  '10',
-  '11',
-  '12',
-];
-const MAX_STANDARD_ROWS = 60;
+const ALL_SUBJECTS = 'all';
 
 export interface TargetPickerProps {
   open: boolean;
@@ -39,16 +34,8 @@ export interface TargetPickerProps {
   title?: string;
   /** Offer a Replace action alongside Add (bulk tagging). */
   allowReplace?: boolean;
-  /** Preselect the grade filter, e.g. from the teacher's grade. */
+  /** Preselect a single grade instead of the profile's grades. */
   defaultGrade?: string;
-}
-
-function gradeMatches(benchmarkGrade: string, grade: string): boolean {
-  if (benchmarkGrade === grade) return true;
-  const band = benchmarkGrade.match(/^(\d+)-(\d+)$/);
-  if (!band) return false;
-  const n = Number(grade);
-  return n >= Number(band[1]) && n <= Number(band[2]);
 }
 
 function targetMatches(target: LearningTarget, query: string): boolean {
@@ -66,13 +53,20 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
   allowReplace = false,
   defaultGrade = '',
 }) => {
+  const { effectiveGrades: profileGrades, subjectsTaught } = useAuth();
+  const { benchmarks, loading: standardsLoading } = useStandardsCatalog();
+  const { sources } = useLearningTargetSources();
+  const { byId: subjectById } = useSubjects();
+
   const [query, setQuery] = useState('');
-  const [grade, setGrade] = useState(defaultGrade);
+  // Profile-seeded filters; changes last for this open only.
+  const [grades, setGrades] = useState<string[]>(() =>
+    defaultGrade ? [defaultGrade] : profileGrades
+  );
+  const [subjectChoice, setSubjectChoice] = useState<string | null>(null);
   const [selected, setSelected] = useState<Map<string, QuestionTargetTag>>(
     () => new Map(initial.map((t) => [t.id, t]))
   );
-  const { benchmarks, loading: standardsLoading } = useStandardsCatalog();
-  const { sources } = useLearningTargetSources();
 
   useEffect(() => {
     if (!open) return;
@@ -85,14 +79,40 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open, onClose]);
 
+  const tree = useMemo(() => buildStandardsTree(benchmarks), [benchmarks]);
+  const catalogSubjects = useMemo(() => treeSubjectIds(tree), [tree]);
+  const catalogById = useMemo(
+    () => new Map(benchmarks.map((b) => [b.id, b])),
+    [benchmarks]
+  );
+  // Open on the teacher's only catalog subject; otherwise show every content area.
+  const defaultSubject = useMemo(() => {
+    const taught = subjectsTaught.filter((s) => catalogSubjects.includes(s));
+    return taught.length === 1 ? taught[0] : ALL_SUBJECTS;
+  }, [subjectsTaught, catalogSubjects]);
+  const subject = subjectChoice ?? defaultSubject;
+  const subjectLabel = (id: string) => subjectById.get(id)?.label ?? id;
+
   const q = query.trim().toLowerCase();
-  const standardRows = useMemo(() => {
-    const byQuery = filterBenchmarks(benchmarks, { query: q });
-    const byGrade = grade
-      ? byQuery.filter((b) => gradeMatches(b.grade, grade))
-      : byQuery;
-    return byGrade.slice(0, MAX_STANDARD_ROWS);
-  }, [benchmarks, q, grade]);
+  const filteredTree = useMemo(
+    () =>
+      filterStandardsTree(tree, {
+        subject: subject === ALL_SUBJECTS ? null : subject,
+        grades,
+        query: q,
+      }),
+    [tree, subject, grades, q]
+  );
+
+  const targetVisible = (target: LearningTarget): boolean => {
+    if (target.archived || !targetMatches(target, q)) return false;
+    const g = targetGrades(target, catalogById);
+    if (grades.length > 0 && g && !g.some((x) => grades.includes(x))) {
+      return false;
+    }
+    const s = targetSubject(target, catalogById);
+    return subject === ALL_SUBJECTS || s === null || s === subject;
+  };
 
   if (!open) return null;
 
@@ -104,6 +124,11 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
       return next;
     });
   };
+
+  const toggleGrade = (grade: string) =>
+    setGrades((cur) =>
+      cur.includes(grade) ? cur.filter((g) => g !== grade) : [...cur, grade]
+    );
 
   const selectedList = [...selected.values()];
 
@@ -147,6 +172,22 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
     <p className="px-2 py-1 text-xs text-slate-500">{text}</p>
   );
 
+  const chip = (label: string, active: boolean, onClick: () => void) => (
+    <button
+      key={label}
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`min-w-[1.9rem] rounded-md border px-1.5 py-0.5 text-xs font-bold transition-colors ${
+        active
+          ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+          : 'border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return createPortal(
     <div
       className="fixed inset-0 flex items-center justify-center bg-black/40 p-4"
@@ -185,19 +226,31 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
                 className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:outline-none"
               />
             </div>
-            <select
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-              aria-label="Grade"
-              className="text-sm rounded-lg border border-slate-300 px-2 py-1.5 bg-white"
-            >
-              <option value="">All grades</option>
-              {GRADES.map((g) => (
-                <option key={g} value={g}>
-                  {g === 'K' ? 'K' : `Grade ${g}`}
-                </option>
-              ))}
-            </select>
+            {catalogSubjects.length > 0 && (
+              <select
+                value={subject}
+                onChange={(e) => setSubjectChoice(e.target.value)}
+                aria-label="Content area"
+                className="text-sm rounded-lg border border-slate-300 px-2 py-1.5 bg-white"
+              >
+                <option value={ALL_SUBJECTS}>All content areas</option>
+                {catalogSubjects.map((id) => (
+                  <option key={id} value={id}>
+                    {subjectLabel(id)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div
+            role="group"
+            aria-label="Grades"
+            className="flex flex-wrap items-center gap-1"
+          >
+            {chip('All grades', grades.length === 0, () => setGrades([]))}
+            {ALL_GRADES.map((g) =>
+              chip(g, grades.includes(g), () => toggleGrade(g))
+            )}
           </div>
           {selectedList.length > 0 && (
             <TargetChips
@@ -221,7 +274,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
                 `${s.name} targets`,
                 (() => {
                   const rows = (s.list?.targets ?? [])
-                    .filter((t) => !t.archived && targetMatches(t, q))
+                    .filter(targetVisible)
                     .map((t) => row(tagFromTarget(t, 'plc', s.ownerId)));
                   return rows.length ? rows : empty('No matching targets.');
                 })(),
@@ -235,7 +288,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
                 'My targets',
                 (() => {
                   const rows = (s.list?.targets ?? [])
-                    .filter((t) => !t.archived && targetMatches(t, q))
+                    .filter(targetVisible)
                     .map((t) => row(tagFromTarget(t, 'personal')));
                   return rows.length ? rows : empty('No matching targets.');
                 })()
@@ -243,20 +296,22 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
             )}
           {section(
             'Standards',
-            standardsLoading
-              ? empty('Loading standards…')
-              : benchmarks.length === 0
-                ? empty('No standards seeded yet. Ask an admin to seed them.')
-                : standardRows.length === 0
-                  ? empty('No matching standards.')
-                  : standardRows.map((b) =>
-                      row(tagFromBenchmark(b), `${b.strand} · ${b.standard}`)
-                    )
-          )}
-          {!standardsLoading && standardRows.length === MAX_STANDARD_ROWS && (
-            <p className="px-2 pb-2 text-xs text-slate-500">
-              Showing the first {MAX_STANDARD_ROWS}. Narrow by grade or search.
-            </p>
+            standardsLoading ? (
+              empty('Loading standards…')
+            ) : benchmarks.length === 0 ? (
+              empty('No standards seeded yet. Ask an admin to seed them.')
+            ) : filteredTree.subjects.length === 0 ? (
+              empty('No matching standards. Try more grades or "All grades".')
+            ) : (
+              <StandardsTree
+                tree={filteredTree}
+                searching={q.length > 0}
+                showSubjects={subject === ALL_SUBJECTS}
+                subjectLabel={subjectLabel}
+                isSelected={(id) => selected.has(id)}
+                onToggle={toggle}
+              />
+            )
           )}
         </div>
 

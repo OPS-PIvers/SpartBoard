@@ -280,3 +280,75 @@ describe('groupQuestionsByTargets', () => {
     expect(groups.flatMap((group) => group.questions)).toHaveLength(3);
   });
 });
+
+describe('standard-level rollup', () => {
+  const benchmark: QuestionTargetTag = {
+    id: 'mn-ela-2020:6.1.9.1',
+    kind: 'standard',
+    code: '6.1.9.1',
+    label: 'Analyze ads.',
+    parentId: 'mn-ela-2020:std:R9',
+    parentLabel: 'Media Literacy',
+  };
+  const parent: QuestionTargetTag = {
+    id: 'mn-ela-2020:std:R9',
+    kind: 'standard',
+    code: 'R9',
+    label: 'Media Literacy',
+  };
+
+  it('unions benchmark and direct standard tags under the parent, once per question', () => {
+    const questions = [
+      question('q1', [benchmark]),
+      question('q2', [parent]),
+      question('q3', [benchmark, parent]),
+    ];
+    const stats = computeTargetStats(
+      questions,
+      [
+        response(
+          'a',
+          ['q1', 'q2', 'q3'],
+          [
+            { questionId: 'q1', answer: 'Correct' },
+            { questionId: 'q2', answer: 'Wrong' },
+            { questionId: 'q3', answer: 'Correct' },
+          ]
+        ),
+      ],
+      CUTOFFS
+    );
+    const parentRow = stats.standards.find(
+      (row) => row.target.id === parent.id
+    );
+    expect(parentRow?.target).toEqual(parent);
+    expect(parentRow?.questionIds).toEqual(['q1', 'q2', 'q3']);
+    expect(parentRow?.attempted).toBe(3);
+    expect(parentRow?.correctPercent).toBe(67);
+    const benchRow = stats.standards.find(
+      (row) => row.target.id === benchmark.id
+    );
+    expect(benchRow?.questionIds).toEqual(['q1', 'q3']);
+    // Direct tags stay separate rows in the target list.
+    expect(stats.targets.map((row) => row.target.id).sort()).toEqual(
+      [benchmark.id, parent.id].sort()
+    );
+  });
+
+  it('labels a parent reached only through benchmarks from the snapshot', () => {
+    const stats = computeTargetStats(
+      [question('q1', [benchmark])],
+      [response('a', ['q1'], [{ questionId: 'q1', answer: 'Correct' }])],
+      CUTOFFS
+    );
+    const parentRow = stats.standards.find(
+      (row) => row.target.id === parent.id
+    );
+    expect(parentRow?.target).toEqual({
+      id: parent.id,
+      kind: 'standard',
+      code: 'R9',
+      label: 'Media Literacy',
+    });
+  });
+});
