@@ -262,8 +262,9 @@ export function computeTargetStats(
     cutoffs
   );
 
+  // Untagged quiz: the grid never renders, so skip the per-response rescan.
   const byStudent = new Map<string, Map<string, StudentTargetStat>>();
-  for (const response of responses) {
+  for (const response of groups.targets.size > 0 ? responses : []) {
     const responseQuestionStats = computeQuestionStats(questions, [response]);
     const responseServed = countServedByQuestion(questions, [response]);
     const studentTargets = new Map<string, StudentTargetStat>();

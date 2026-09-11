@@ -145,6 +145,17 @@ describe('computeTargetStats', () => {
     });
   });
 
+  it('skips the per-student scan when no question carries a target', () => {
+    const result = computeTargetStats(
+      [question('q1', [])],
+      [response('a', ['q1'], [{ questionId: 'q1', answer: 'Correct' }])],
+      CUTOFFS
+    );
+
+    expect(result.targets).toEqual([]);
+    expect(result.byStudent.size).toBe(0);
+  });
+
   it('does not count lobby-only responses as served', () => {
     const lobby = {
       ...response('a', [], []),
