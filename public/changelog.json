@@ -1,6 +1,32 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.9",
+      "date": "2026-09-11",
+      "title": "PLC members who joined by invite now always count",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "A teacher who accepted a PLC invite could be missing from the member list and the assessment teacher counts. They now appear everywhere, and admins can manage them from Admin › PLC Resources."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Member lists merge uids that only the legacy arrays know about, and admin member writes backfill their map entries."
+        },
+        {
+          "type": "fix",
+          "text": "The admin member rule compares member uid sets rather than ordered lists."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.8",
       "date": "2026-09-11",
       "title": "PLC assessment results no longer wait for publishing",

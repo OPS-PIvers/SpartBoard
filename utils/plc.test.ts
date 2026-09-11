@@ -167,6 +167,28 @@ describe('plc helpers', () => {
     }) as Plc;
 
   describe('getPlcMembers', () => {
+    it('appends uids present in memberUids but missing from the map', () => {
+      const plc = mapPlc({
+        'lead-1': makeMember({
+          uid: 'lead-1',
+          email: 'lead@example.com',
+          displayName: 'Lead',
+          role: 'lead',
+          joinedAt: 100,
+        }),
+      });
+      plc.memberUids = ['lead-1', 'late-9'];
+      plc.memberEmails = { ...plc.memberEmails, 'late-9': 'Late@Example.com' };
+      const members = getPlcMembers(plc);
+      expect(members.map((m) => m.uid)).toEqual(['lead-1', 'late-9']);
+      expect(members[1]).toMatchObject({
+        email: 'late@example.com',
+        displayName: 'late',
+        role: 'member',
+        status: 'active',
+      });
+    });
+
     it('reads the canonical members map when present', () => {
       const plc = mapPlc({
         'lead-1': makeMember({

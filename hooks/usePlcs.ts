@@ -245,7 +245,9 @@ type PlcMemberWrite = Omit<PlcMember, 'joinedAt'> & { joinedAt: unknown };
  * time rather than freezing `0`.
  */
 function readMembersForWrite(
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  // Admin writes may backfill uids that only the arrays know about.
+  { includeArrayOnly = false }: { includeArrayOnly?: boolean } = {}
 ): Record<string, PlcMemberWrite> {
   const parsed = parsePlcMembers(data.members);
   if (Object.keys(parsed).length > 0) {
@@ -266,10 +268,20 @@ function readMembersForWrite(
         joinedAt: rawMembers[uid]?.joinedAt ?? serverTimestamp(),
       };
     }
+    if (includeArrayOnly) {
+      for (const [uid, m] of Object.entries(synthesizeMembers(data))) {
+        if (!out[uid]) out[uid] = m;
+      }
+    }
     return out;
   }
+  return synthesizeMembers(data);
+}
 
-  // Legacy fallback: synthesize from the denormalized arrays.
+/** Members derived from the legacy arrays alone; the lead keeps the lead role. */
+function synthesizeMembers(
+  data: Record<string, unknown>
+): Record<string, PlcMemberWrite> {
   const leadUid = typeof data.leadUid === 'string' ? data.leadUid : '';
   const memberUids = Array.isArray(data.memberUids)
     ? (data.memberUids as unknown[]).filter(
@@ -892,7 +904,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         const snap = await tx.get(ref);
         if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
         const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data);
+        const members = readMembersForWrite(data, { includeArrayOnly: true });
         if (
           target.uid === data.leadUid ||
           members[target.uid]?.role === 'lead'
@@ -929,7 +941,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         const snap = await tx.get(ref);
         if (!snap.exists()) throw new Error(i18n.t('plc.errors.plcNotFound'));
         const data = snap.data() as Record<string, unknown>;
-        const members = readMembersForWrite(data);
+        const members = readMembersForWrite(data, { includeArrayOnly: true });
         if (uid === data.leadUid || members[uid]?.role === 'lead') {
           throw new Error(i18n.t('plc.errors.leadCannotBeRemoved'));
         }

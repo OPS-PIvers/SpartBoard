@@ -185,6 +185,30 @@ describe('usePlcs - adminSetMember', () => {
     ]);
   });
 
+  it('backfills a uid the arrays know but the map does not', async () => {
+    const data = basePlcDoc();
+    (data.memberUids as string[]).push('drift-uid');
+    (data.memberEmails as Record<string, string>)['drift-uid'] = 'd@x.com';
+    const captured = stubTransaction(data);
+    const { result } = render();
+    await act(async () => {
+      await result.current.adminSetMember('plc-1', target, 'member');
+    });
+    const update = captured.update as Record<string, unknown>;
+    const members = update.members as Record<string, Record<string, unknown>>;
+    expect(members['drift-uid']).toMatchObject({
+      role: 'member',
+      status: 'active',
+      email: 'd@x.com',
+    });
+    expect(update.memberUids).toEqual([
+      LEAD_UID,
+      MEMBER_UID,
+      'drift-uid',
+      NEW_UID,
+    ]);
+  });
+
   it('refuses to touch the lead', async () => {
     stubTransaction(basePlcDoc());
     const { result } = render();

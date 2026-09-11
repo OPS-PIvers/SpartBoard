@@ -20,6 +20,9 @@ const OTHER_ORG_ID = 'org-elsewhere';
 const PLC_ID = 'plc-ela9';
 const LEGACY_PLC_ID = 'plc-no-org';
 const UNMIGRATED_PLC_ID = 'plc-arrays-only';
+const DRIFTED_PLC_ID = 'plc-drifted';
+const DRIFT_UID = 'drift-uid';
+const DRIFT_EMAIL = 'drift@orono.k12.mn.us';
 
 const LEAD_UID = 'lead-uid';
 const LEAD_EMAIL = 'lead@orono.k12.mn.us';
@@ -130,6 +133,13 @@ beforeEach(async () => {
     const { members: _map, ...arraysOnly } = root(ORG_ID);
     void _map;
     await setDoc(doc(db, `plcs/${UNMIGRATED_PLC_ID}`), arraysOnly);
+    // Invite accept wrote the arrays but not the map.
+    const base = root(ORG_ID);
+    await setDoc(doc(db, `plcs/${DRIFTED_PLC_ID}`), {
+      ...base,
+      memberUids: [...base.memberUids, DRIFT_UID],
+      memberEmails: { ...base.memberEmails, [DRIFT_UID]: DRIFT_EMAIL },
+    });
   });
 });
 
@@ -238,6 +248,50 @@ describe('plcs/{plcId} update — isAdminEditingPlcMembers', () => {
           },
         })
       )
+    );
+  });
+
+  it('backfills an array-only member while adding, in any uid order', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), `plcs/${DRIFTED_PLC_ID}`), {
+        members: {
+          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
+          [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'member'),
+          [DRIFT_UID]: member(DRIFT_UID, DRIFT_EMAIL, 'member'),
+          [NEW_UID]: member(NEW_UID, NEW_EMAIL, 'member'),
+        },
+        memberUids: [LEAD_UID, DRIFT_UID, MEMBER_UID, NEW_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [MEMBER_UID]: MEMBER_EMAIL,
+          [DRIFT_UID]: DRIFT_EMAIL,
+          [NEW_UID]: NEW_EMAIL,
+        },
+        adminMemberUid: NEW_UID,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('still rejects a value change on a mapped non-target member', async () => {
+    await assertFails(
+      updateDoc(doc(asAdmin(), `plcs/${DRIFTED_PLC_ID}`), {
+        members: {
+          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
+          [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'viewer'),
+          [DRIFT_UID]: member(DRIFT_UID, DRIFT_EMAIL, 'member'),
+          [NEW_UID]: member(NEW_UID, NEW_EMAIL, 'member'),
+        },
+        memberUids: [LEAD_UID, MEMBER_UID, DRIFT_UID, NEW_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [MEMBER_UID]: MEMBER_EMAIL,
+          [DRIFT_UID]: DRIFT_EMAIL,
+          [NEW_UID]: NEW_EMAIL,
+        },
+        adminMemberUid: NEW_UID,
+        updatedAt: 2,
+      })
     );
   });
 
