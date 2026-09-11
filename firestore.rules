@@ -1982,6 +1982,8 @@ service cloud.firestore {
       let oldUids = resource.data.memberUids;
       let newUids = request.resource.data.memberUids;
       // An un-migrated PLC backfills its whole map on first write; its existing uids may appear too.
+      // CEL cannot iterate a map, so on that one-time backfill only the key set, the lead entry
+      // and the target entry are checked; other legacy entries are copied through by the client.
       let allowedKeys = oldMembers.size() == 0 ? oldUids.concat([target]) : [target];
       return isAdmin()
         && resource.data.get('orgId', null) is string
