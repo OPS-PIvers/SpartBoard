@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Use \"Transfer leadership\" to change who leads the PLC.",
       "invalidRole": "That is not a valid PLC role.",
       "alreadyLead": "That member is already the lead of this PLC.",
-      "orgRequired": "PLCs are only available to members of an organization."
+      "orgRequired": "PLCs are only available to members of an organization.",
+      "notActiveMember": "That teacher is not an active member of this PLC."
     }
   },
   "plcDashboard": {

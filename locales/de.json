@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Verwende „Leitung übertragen“, um zu ändern, wer die PLG leitet.",
       "invalidRole": "Das ist keine gültige PLG-Rolle.",
       "alreadyLead": "Dieses Mitglied leitet diese PLG bereits.",
-      "orgRequired": "PLGs stehen nur Mitgliedern einer Organisation zur Verfügung."
+      "orgRequired": "PLGs stehen nur Mitgliedern einer Organisation zur Verfügung.",
+      "notActiveMember": "Diese Lehrkraft ist kein aktives Mitglied dieser PLG."
     }
   },
   "plcDashboard": {

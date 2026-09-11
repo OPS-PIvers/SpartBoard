@@ -226,6 +226,6 @@ describe('usePlcs - adminRemoveMember', () => {
     const { result } = render();
     await expect(
       result.current.adminRemoveMember('plc-1', 'nobody')
-    ).rejects.toThrow('plc.errors.targetNotActiveMember');
+    ).rejects.toThrow('plc.errors.notActiveMember');
   });
 });

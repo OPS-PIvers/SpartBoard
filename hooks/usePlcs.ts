@@ -934,7 +934,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
           throw new Error(i18n.t('plc.errors.leadCannotBeRemoved'));
         }
         if (!members[uid] || members[uid].status !== 'active') {
-          throw new Error(i18n.t('plc.errors.targetNotActiveMember'));
+          throw new Error(i18n.t('plc.errors.notActiveMember'));
         }
         members[uid] = { ...members[uid], status: 'removed' };
         tx.update(ref, {

@@ -301,7 +301,8 @@
       "cannotDemoteLead": "Usa «Transferir liderazgo» para cambiar quién lidera la Comunidad.",
       "invalidRole": "Ese no es un rol válido de la Comunidad.",
       "alreadyLead": "Ese miembro ya es el líder de esta Comunidad.",
-      "orgRequired": "Las Comunidades solo están disponibles para los miembros de una organización."
+      "orgRequired": "Las Comunidades solo están disponibles para los miembros de una organización.",
+      "notActiveMember": "Ese docente no es miembro activo de esta Comunidad."
     }
   },
   "plcDashboard": {
