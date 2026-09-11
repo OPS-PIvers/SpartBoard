@@ -384,7 +384,8 @@
       "label": "Tipo de evaluación",
       "quizzes": "Cuestionarios",
       "videoActivities": "Actividades de Video",
-      "rubrics": "Rúbricas"
+      "rubrics": "Rúbricas",
+      "questionBanks": "Bancos de preguntas"
     },
     "assignmentsSubTabs": {
       "label": "Vistas de tareas",
@@ -725,6 +726,37 @@
       "unshareConfirm": "¿Eliminar \"{{title}}\" de esta Comunidad? Los compañeros perderán acceso a la entrada compartida; las copias que ya estén en sus bibliotecas seguirán funcionando.",
       "unshareFailed": "No se pudo dejar de compartir la rúbrica."
     },
+    "bankLibrary": {
+      "heading": "Bancos de preguntas compartidos",
+      "count_one": "{{count}} banco",
+      "count_other": "{{count}} bancos",
+      "loading": "Cargando bancos de preguntas…",
+      "loadError": "No se pudieron cargar los bancos compartidos. Inténtalo de nuevo.",
+      "empty": "Aún no hay bancos de preguntas compartidos",
+      "emptyHint": "Comparte un banco de tu biblioteca de cuestionarios para que tus colegas puedan usar preguntas etiquetadas en sus propios cuestionarios.",
+      "shareCta": "Compartir un banco",
+      "driveDisconnected": "Conecta Google Drive para compartir un banco de preguntas.",
+      "driveDisconnectedCopy": "Conecta Google Drive para copiar un banco de preguntas.",
+      "bySharer": "compartido por {{name}}",
+      "unknownSharer": "un colega",
+      "questionCount_one": "{{count}} pregunta",
+      "questionCount_other": "{{count}} preguntas",
+      "pickerMeta_one": "{{count}} pregunta",
+      "pickerMeta_other": "{{count}} preguntas",
+      "importAction": "Copiar a mis bancos",
+      "importedToast": "\"{{title}}\" se añadió a tus bancos de preguntas.",
+      "importFailed": "No se pudo copiar el banco de preguntas.",
+      "sharedToast": "\"{{title}}\" se compartió con esta Comunidad.",
+      "shareFailed": "No se pudo compartir el banco con esta Comunidad.",
+      "unshareLabel": "Dejar de compartir {{title}}",
+      "unshareTitle": "Dejar de compartir el banco",
+      "unshareAction": "Dejar de compartir",
+      "unshareConfirm": "¿Dejar de compartir \"{{title}}\" con esta Comunidad? Los cuestionarios de tus colegas que usan este banco dejarán de funcionar; las copias en sus bibliotecas se conservan.",
+      "unshareFailed": "No se pudo dejar de compartir el banco.",
+      "sharePickerTitle": "Compartir un banco de preguntas con esta Comunidad",
+      "sharePickerPrompt": "Elige un banco de tu biblioteca de cuestionarios.",
+      "sharePickerEmpty": "Aún no tienes bancos de preguntas. Crea uno en la pestaña Bancos del widget de cuestionarios."
+    },
     "presence": {
       "heading": "Quién está aquí",
       "othersHere": "{{count}} compañero aquí ahora",
@@ -998,7 +1030,8 @@
       "notesNote": "Los espectadores pueden leer notas y documentos, pero no agregarlos ni modificarlos.",
       "meetingNote": "Los espectadores pueden seguir la reunión, pero no editarla ni guardarla.",
       "homeNote": "Los espectadores pueden leer todo aquí, pero no crear contenido nuevo.",
-      "rubricsNote": "Los espectadores pueden explorar y copiar las rúbricas compartidas, pero no pueden compartirlas ni dejar de compartirlas."
+      "rubricsNote": "Los espectadores pueden explorar y copiar las rúbricas compartidas, pero no pueden compartirlas ni dejar de compartirlas.",
+      "banksNote": "Los observadores pueden ver y copiar bancos compartidos, pero no compartirlos."
     },
     "resources": {
       "managerTitle": "Recursos de la Comunidad",

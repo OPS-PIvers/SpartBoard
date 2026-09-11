@@ -384,7 +384,8 @@
       "label": "Assessment type",
       "quizzes": "Quizzes",
       "videoActivities": "Video Activities",
-      "rubrics": "Rubrics"
+      "rubrics": "Rubrics",
+      "questionBanks": "Question Banks"
     },
     "assignmentsSubTabs": {
       "label": "Assignment views",
@@ -725,6 +726,37 @@
       "unshareConfirm": "Remove \"{{title}}\" from this PLC? Teammates lose access to the shared entry; copies already in their libraries keep working.",
       "unshareFailed": "Failed to unshare rubric."
     },
+    "bankLibrary": {
+      "heading": "Shared Question Banks",
+      "count_one": "{{count}} bank",
+      "count_other": "{{count}} banks",
+      "loading": "Loading question banks…",
+      "loadError": "Couldn't load shared question banks. Please try again.",
+      "empty": "No shared question banks yet",
+      "emptyHint": "Share a bank from your quiz library so teammates can draw tagged questions into their own quizzes.",
+      "shareCta": "Share a bank",
+      "driveDisconnected": "Connect Google Drive to share a question bank.",
+      "driveDisconnectedCopy": "Connect Google Drive to copy a question bank.",
+      "bySharer": "shared by {{name}}",
+      "unknownSharer": "a teammate",
+      "questionCount_one": "{{count}} question",
+      "questionCount_other": "{{count}} questions",
+      "pickerMeta_one": "{{count}} question",
+      "pickerMeta_other": "{{count}} questions",
+      "importAction": "Copy to my banks",
+      "importedToast": "\"{{title}}\" added to your question banks.",
+      "importFailed": "Failed to copy question bank.",
+      "sharedToast": "\"{{title}}\" shared with this PLC.",
+      "shareFailed": "Failed to share question bank with this PLC.",
+      "unshareLabel": "Stop sharing {{title}}",
+      "unshareTitle": "Stop sharing bank",
+      "unshareAction": "Stop sharing",
+      "unshareConfirm": "Stop sharing \"{{title}}\" with this PLC? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.",
+      "unshareFailed": "Failed to stop sharing question bank.",
+      "sharePickerTitle": "Share a question bank with this PLC",
+      "sharePickerPrompt": "Pick a bank from your quiz library.",
+      "sharePickerEmpty": "You don’t have any question banks yet. Build one in the Quiz widget’s Banks tab."
+    },
     "presence": {
       "heading": "Who’s here",
       "othersHere": "{{count}} teammate here now",
@@ -998,7 +1030,8 @@
       "notesNote": "Viewers can read notes and docs but can’t add or change them.",
       "meetingNote": "Viewers can follow the meeting but can’t edit or save it.",
       "homeNote": "Viewers can read everything here but can’t create new content.",
-      "rubricsNote": "Viewers can browse and copy shared rubrics but can’t share or unshare them."
+      "rubricsNote": "Viewers can browse and copy shared rubrics but can’t share or unshare them.",
+      "banksNote": "Viewers can browse and copy shared question banks but can’t share them."
     },
     "resources": {
       "managerTitle": "PLC Resources",

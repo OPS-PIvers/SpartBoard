@@ -2,14 +2,21 @@
 
 import React, { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, ClipboardCheck, Film, type LucideIcon } from 'lucide-react';
+import {
+  BookOpen,
+  ClipboardCheck,
+  Film,
+  Library,
+  type LucideIcon,
+} from 'lucide-react';
 import { Plc, getPlcFeatures } from '@/types';
 import { PlcAssessmentList } from '@/components/plc/assessments/PlcAssessmentList';
 import { PlcAssessmentDetail } from '@/components/plc/assessments/PlcAssessmentDetail';
 import { PlcVideoActivitiesTabsBody } from './PlcVideoActivitiesTabsBody';
 import { PlcRubricLibraryBody } from './PlcRubricLibraryBody';
+import { PlcQuestionBanksBody } from './PlcQuestionBanksBody';
 
-type AssessmentType = 'quiz' | 'video-activity' | 'rubric';
+type AssessmentType = 'quiz' | 'bank' | 'video-activity' | 'rubric';
 
 interface TypeNavDef {
   id: AssessmentType;
@@ -24,6 +31,12 @@ const TYPE_NAV: readonly TypeNavDef[] = [
     icon: BookOpen,
     labelKey: 'plcDashboard.assessmentsTypes.quizzes',
     labelDefault: 'Quizzes',
+  },
+  {
+    id: 'bank',
+    icon: Library,
+    labelKey: 'plcDashboard.assessmentsTypes.questionBanks',
+    labelDefault: 'Question Banks',
   },
   {
     id: 'video-activity',
@@ -59,7 +72,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
   const enabledTypes = useMemo(
     () =>
       TYPE_NAV.filter((f) => {
-        if (f.id === 'quiz') return features.quizzes;
+        if (f.id === 'quiz' || f.id === 'bank') return features.quizzes;
         if (f.id === 'video-activity') return features.videoActivities;
         return true;
       }),
@@ -148,6 +161,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
             {effectiveType === 'video-activity' && (
               <PlcVideoActivitiesTabsBody plc={plc} />
             )}
+            {effectiveType === 'bank' && <PlcQuestionBanksBody plc={plc} />}
             {effectiveType === 'rubric' && <PlcRubricLibraryBody plc={plc} />}
           </div>
         </div>
