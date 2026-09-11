@@ -39,6 +39,8 @@ function loadCatalog(): Promise<StandardBenchmark[]> {
       list.sort((a, b) =>
         a.code.localeCompare(b.code, undefined, { numeric: true })
       );
+      // Don't cache an empty catalog so a seed done mid-session shows on the next mount.
+      if (list.length === 0) catalogPromise = null;
       return list;
     })
     .catch((err: unknown) => {
