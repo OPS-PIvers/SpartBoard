@@ -1374,6 +1374,12 @@ export const useQuizAssignments = (
           sessionOptionsToSessionPatch(patch.sessionOptions)
         );
       }
+      // Clearing `plc` must also drop the session's plcId/syncGroupId/plcLinkedAt (mirrors stopSharingAssignmentWithPlc) — markPlcAssessmentDirty reads those, not assignment.plc, to keep pooling responses.
+      if (clearingPlc) {
+        sessionPatch.plcId = deleteField();
+        sessionPatch.syncGroupId = deleteField();
+        sessionPatch.plcLinkedAt = deleteField();
+      }
       if (Object.keys(sessionPatch).length > 0) {
         batch.update(
           doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),

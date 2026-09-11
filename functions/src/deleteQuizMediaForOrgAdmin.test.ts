@@ -66,6 +66,7 @@ import {
   assertOrgMediaAdmin,
   buildQuestionTextMap,
   buildRowsForResponse,
+  callerEmailFrom,
   collectQuestionArtifacts,
   deleteOrgQuizMediaSets,
   finishStuckMediaDelete,
@@ -304,6 +305,26 @@ describe('request parsing fails closed', () => {
         ],
       })
     ).toThrow();
+  });
+});
+
+describe('callerEmailFrom', () => {
+  it('rejects an unverified self-reported email (impostor org-admin claim)', () => {
+    expect(() =>
+      callerEmailFrom({ email: 'admin@x.org', email_verified: false })
+    ).toThrow(/verified/i);
+  });
+
+  it('rejects a missing email_verified claim', () => {
+    expect(() => callerEmailFrom({ email: 'admin@x.org' })).toThrow(
+      /verified/i
+    );
+  });
+
+  it('accepts a verified email', () => {
+    expect(
+      callerEmailFrom({ email: 'Admin@X.org', email_verified: true })
+    ).toBe('admin@x.org');
   });
 });
 

@@ -4,6 +4,9 @@ import { WidgetData, DiceConfig } from '@/types';
 import { Dices, Hash, Palette, Circle } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+
+const DICE_COUNTS = [1, 2, 3, 4, 5, 6];
 
 export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as DiceConfig;
@@ -17,6 +20,9 @@ export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
+  // Shared select handler — reused by the onClick and roving-tabindex keydown paths.
+  const selectCount = (n: number) => updateConfig({ count: n });
+
   return (
     <div className="space-y-6">
       <div>
@@ -25,13 +31,20 @@ export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </SettingsLabel>
         <div
           className="grid grid-cols-3 gap-2"
-          role="group"
+          role="radiogroup"
           aria-labelledby={diceCountLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, DICE_COUNTS, selectCount)
+          }
         >
-          {[1, 2, 3, 4, 5, 6].map((n) => (
+          {DICE_COUNTS.map((n) => (
             <button
               key={n}
-              onClick={() => updateConfig({ count: n })}
+              type="button"
+              role="radio"
+              aria-checked={count === n}
+              tabIndex={count === n ? 0 : -1}
+              onClick={() => selectCount(n)}
               className={`
                 flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all
                 ${

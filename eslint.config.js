@@ -180,7 +180,7 @@ export default tseslint.config(
           patterns: [
             {
               regex:
-                '^(\\.\\./)+(activity|assessments|assignments|authoring|bodies|comments|docs|home|meeting|members|presence|resources|search|sections|settings|sharedBoards|sharedData|sync|tabs|todos|versions|viewer)(/.*)?$',
+                '^(\\.\\./)+(activity|assessments|assignments|authoring|bodies|comments|docs|home|meeting|members|notes|presence|resources|search|sections|settings|sharedBoards|sharedData|sync|tabs|todos|versions|viewer)(/.*)?$',
               caseSensitive: true,
               message:
                 "Cross-subdirectory plc import — use '@/components/plc/<dir>/...' instead of a relative path that escapes this subdirectory (see D4 in docs/routines/unifier.md).",
