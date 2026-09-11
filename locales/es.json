@@ -376,7 +376,8 @@
       "members": "Miembros",
       "meeting": "Modo Reunión",
       "docs": "Notas y Documentos",
-      "resources": "Recursos"
+      "resources": "Recursos",
+      "targets": "Objetivos de aprendizaje"
     },
     "assessmentsTypes": {
       "label": "Tipo de evaluación",
@@ -516,10 +517,6 @@
       "showPerTeacher": {
         "title": "Desglose por docente",
         "description": "Muestra el promedio de cada docente en los resultados reunidos. Desactivado por defecto para que el equipo mire primero los datos combinados."
-      },
-      "learningTargets": {
-        "heading": "Objetivos de aprendizaje",
-        "description": "Objetivos con los que la comunidad etiqueta las preguntas de los cuestionarios. Todos los miembros ven la misma lista."
       }
     },
     "overview": {
@@ -1152,6 +1149,10 @@
       "studentsColumn": "Estudiantes",
       "average": "Promedio",
       "unknownTeacher": "Docente"
+    },
+    "learningTargets": {
+      "heading": "Objetivos de aprendizaje",
+      "description": "Objetivos con los que la comunidad etiqueta las preguntas de los cuestionarios. Todos los miembros ven la misma lista."
     }
   },
   "widgetWindow": {

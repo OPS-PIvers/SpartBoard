@@ -17,16 +17,14 @@ const LOCALES: Record<string, Tree> = { de, es, fr };
 
 describe('learningTargets locale parity', () => {
   const enTop = leafPaths((en as Tree).learningTargets as Tree);
-  const enSettings = leafPaths(
-    ((en as Tree).plcDashboard as Tree).settings as Tree
-  ).filter((p) => p.startsWith('learningTargets.'));
+  const enPlc = leafPaths(
+    ((en as Tree).plcDashboard as Tree).learningTargets as Tree
+  );
 
   it('EN defines the namespace', () => {
     expect(enTop.length).toBeGreaterThan(20);
-    expect(enSettings).toEqual([
-      'learningTargets.heading',
-      'learningTargets.description',
-    ]);
+    expect(enPlc).toEqual(['heading', 'description']);
+    expect(((en as Tree).plcDashboard as Tree).tabs).toHaveProperty('targets');
   });
 
   for (const [lang, tree] of Object.entries(LOCALES)) {
@@ -34,10 +32,11 @@ describe('learningTargets locale parity', () => {
       expect(leafPaths(tree.learningTargets as Tree).sort()).toEqual(
         [...enTop].sort()
       );
-      const settings = leafPaths(
-        (tree.plcDashboard as Tree).settings as Tree
-      ).filter((p) => p.startsWith('learningTargets.'));
-      expect(settings.sort()).toEqual([...enSettings].sort());
+      const plc = leafPaths(
+        (tree.plcDashboard as Tree).learningTargets as Tree
+      );
+      expect(plc.sort()).toEqual([...enPlc].sort());
+      expect((tree.plcDashboard as Tree).tabs).toHaveProperty('targets');
     });
   }
 });

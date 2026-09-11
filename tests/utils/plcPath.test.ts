@@ -71,6 +71,7 @@ describe('parsePlcPath', () => {
 
   it.each<[PlcSectionId]>([
     ['assessments'],
+    ['targets'],
     ['docs'],
     ['sharedBoards'],
     ['members'],

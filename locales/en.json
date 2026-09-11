@@ -376,7 +376,8 @@
       "members": "Members",
       "meeting": "Meeting Mode",
       "docs": "Notes & Docs",
-      "resources": "Resources"
+      "resources": "Resources",
+      "targets": "Learning Targets"
     },
     "assessmentsTypes": {
       "label": "Assessment type",
@@ -516,10 +517,6 @@
       "showPerTeacher": {
         "title": "Per-teacher breakdown",
         "description": "Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first."
-      },
-      "learningTargets": {
-        "heading": "Learning targets",
-        "description": "Targets the PLC tags quiz questions with. Every member sees the same list."
       }
     },
     "overview": {
@@ -1152,6 +1149,10 @@
       "studentsColumn": "Students",
       "average": "Average",
       "unknownTeacher": "Teacher"
+    },
+    "learningTargets": {
+      "heading": "Learning targets",
+      "description": "Targets the PLC tags quiz questions with. Every member sees the same list."
     }
   },
   "widgetSettings": {

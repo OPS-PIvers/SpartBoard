@@ -1,6 +1,32 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.5",
+      "date": "2026-09-11",
+      "title": "PLC Learning Targets tab and consistent page padding",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Learning targets now have their own tab in the PLC navigation instead of living at the bottom of Settings. Every PLC page also shares the same edge padding, so Settings, Members and Boards no longer sit flush against the rail."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "New Learning Targets section at /plc/:id/targets, shown whenever quizzes or video activities are on."
+        },
+        {
+          "type": "fix",
+          "text": "Page padding moved to the PLC panel wrapper; Home and Meeting Mode stay full-bleed."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.4",
       "date": "2026-09-11",
       "title": "Standards picker becomes a tree",

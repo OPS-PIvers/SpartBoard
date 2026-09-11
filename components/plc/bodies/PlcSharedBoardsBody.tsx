@@ -130,7 +130,7 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
   }
 
   return (
-    <div className="flex flex-col gap-3 px-1">
+    <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between mb-1">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
           {t('plcDashboard.sharedBoards.heading', {

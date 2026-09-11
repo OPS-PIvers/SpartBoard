@@ -130,7 +130,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 p-4 md:p-6">
+    <div className="flex flex-col h-full min-h-0">
       {effectiveType === 'quiz' ? (
         <div {...panelProps} className="flex-1 min-h-0">
           <PlcAssessmentList

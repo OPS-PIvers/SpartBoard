@@ -7,6 +7,7 @@ import {
   Users2,
   Sparkles,
   Presentation,
+  Target,
   Settings as SettingsIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -30,6 +31,8 @@ export type PlcSectionId =
   // Unified Assessments library (Decision 4.5, §6.1) — hosts the quiz +
   // video-activity surfaces under one section with a type filter.
   | 'assessments'
+  // Shared learning targets the PLC tags quiz questions with.
+  | 'targets'
   | 'docs'
   | 'sharedBoards'
   | 'members'
@@ -78,6 +81,7 @@ export const PLC_ROUTE_SECTIONS: ReadonlySet<PlcRouteSection> =
     'home',
     'meeting',
     'assessments',
+    'targets',
     'docs',
     'todos',
     'sharedBoards',
@@ -122,6 +126,8 @@ export interface PlcSectionDef {
    * `assessments` show when EITHER the quiz OR the video-activity feature is on.
    */
   isEnabled?: (features: PlcFeatureSettings) => boolean;
+  /** Section paints its own edges; the panel adds no padding. */
+  fullBleed?: boolean;
 }
 
 export const PLC_SECTIONS: readonly PlcSectionDef[] = [
@@ -130,12 +136,14 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     icon: LayoutDashboard,
     labelKey: 'plcDashboard.tabs.home',
     labelDefault: 'Home',
+    fullBleed: true,
   },
   {
     id: 'meeting',
     icon: Presentation,
     labelKey: 'plcDashboard.tabs.meeting',
     labelDefault: 'Meeting Mode',
+    fullBleed: true,
   },
   {
     id: 'assessments',
@@ -144,6 +152,13 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     labelDefault: 'Assessments',
     // Shown when EITHER the quiz OR the video-activity feature is enabled, so
     // teams that turn off just one half still get the combined section.
+    isEnabled: (features) => features.quizzes || features.videoActivities,
+  },
+  {
+    id: 'targets',
+    icon: Target,
+    labelKey: 'plcDashboard.tabs.targets',
+    labelDefault: 'Learning Targets',
     isEnabled: (features) => features.quizzes || features.videoActivities,
   },
   {

@@ -376,7 +376,8 @@
       "members": "Membres",
       "meeting": "Mode Réunion",
       "docs": "Notes et documents",
-      "resources": "Ressources"
+      "resources": "Ressources",
+      "targets": "Objectifs d’apprentissage"
     },
     "assessmentsTypes": {
       "label": "Type d'évaluation",
@@ -516,10 +517,6 @@
       "showPerTeacher": {
         "title": "Détail par enseignant(e)",
         "description": "Affiche la moyenne de chaque enseignant(e) dans les résultats regroupés. Désactivé par défaut pour que l’équipe regarde d’abord les données combinées."
-      },
-      "learningTargets": {
-        "heading": "Objectifs d’apprentissage",
-        "description": "Objectifs avec lesquels la CAP étiquette les questions de quiz. Tous les membres voient la même liste."
       }
     },
     "overview": {
@@ -1152,6 +1149,10 @@
       "studentsColumn": "Élèves",
       "average": "Moyenne",
       "unknownTeacher": "Enseignant(e)"
+    },
+    "learningTargets": {
+      "heading": "Objectifs d’apprentissage",
+      "description": "Objectifs avec lesquels la CAP étiquette les questions de quiz. Tous les membres voient la même liste."
     }
   },
   "widgetWindow": {
