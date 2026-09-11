@@ -2404,5 +2404,18 @@
     },
     "saving": "Enregistrement…",
     "saveFailed": "Échec de l’enregistrement"
+  },
+  "settings": {
+    "profileAndSettings": "Profil et paramètres",
+    "profile": {
+      "title": "Profil",
+      "description": "Où et ce que vous enseignez. Les niveaux et les domaines filtrent les standards et les objectifs d'apprentissage pour ne montrer que ce qui vous concerne.",
+      "gradesTaught": "Niveaux enseignés",
+      "gradesTaughtDescription": "Part de vos bâtiments. Désélectionnez les niveaux que vous n'enseignez pas pour restreindre les standards, les objectifs et les widgets par niveau.",
+      "resetGrades": "Rétablir la valeur du bâtiment",
+      "noGrades": "Aucun niveau sélectionné — les standards et les widgets affichent tous les niveaux.",
+      "subjectsTaught": "Domaines enseignés",
+      "subjectsTaughtDescription": "Facultatif. Choisissez vos domaines pour ouvrir le sélecteur de standards directement dessus. Laissez vide pour voir tous les domaines."
+    }
   }
 }

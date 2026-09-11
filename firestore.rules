@@ -700,6 +700,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Content areas (subjects) — teachers read them for their profile; admins edit.
+    match /admin_settings/subjects {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via

@@ -44,12 +44,14 @@ import { useAppVersion } from '@/hooks/useAppVersion';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
-import { SettingsModal } from '@/components/settingsModal/SettingsModal';
+import {
+  SettingsModal,
+  type SettingsSectionId,
+} from '@/components/settingsModal/SettingsModal';
 import { AssignmentsHubModal } from '@/components/assignmentsHub/AssignmentsHubModal';
 import { BackgroundsModal } from '@/components/backgroundsModal/BackgroundsModal';
 import { QuickAccessModal } from '@/components/quickAccessModal/QuickAccessModal';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
-import { SidebarBuildings } from './SidebarBuildings';
 import { SidebarClasses } from './SidebarClasses';
 import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -66,7 +68,7 @@ const AdminSettings = React.lazy(() =>
   }))
 );
 
-type MenuSection = 'main' | 'classes' | 'plcs' | 'google-drive' | 'buildings';
+type MenuSection = 'main' | 'classes' | 'plcs' | 'google-drive';
 
 interface PlcsMenuButtonProps {
   onClick: () => void;
@@ -186,7 +188,8 @@ export const Sidebar: React.FC = () => {
   }, []);
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsModalSection, setSettingsModalSection] =
+    useState<SettingsSectionId | null>(null);
   const [showAssignmentsHub, setShowAssignmentsHub] = useState(false);
   const [showShortLinkQuickCreate, setShowShortLinkQuickCreate] =
     useState(false);
@@ -345,8 +348,11 @@ export const Sidebar: React.FC = () => {
         </LazyChunkErrorBoundary>
       )}
 
-      {showSettingsModal && (
-        <SettingsModal onClose={() => setShowSettingsModal(false)} />
+      {settingsModalSection && (
+        <SettingsModal
+          initialSection={settingsModalSection}
+          onClose={() => setSettingsModalSection(null)}
+        />
       )}
       {showAssignmentsHub && (
         <AssignmentsHubModal onClose={() => setShowAssignmentsHub(false)} />
@@ -544,7 +550,12 @@ export const Sidebar: React.FC = () => {
                         }
                       />
                       <button
-                        onClick={() => setActiveSection('buildings')}
+                        onClick={() => {
+                          // Buildings now live in the Profile section.
+                          setSettingsModalSection('profile');
+                          setIsOpen(false);
+                          setActiveSection('main');
+                        }}
                         className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                       >
                         <div className="w-8 h-8 rounded-lg bg-teal-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
@@ -576,7 +587,7 @@ export const Sidebar: React.FC = () => {
                     onClick={() => {
                       // Settings is a focused modal with its own rail; close
                       // the drawer so we don't stack modal-over-drawer.
-                      setShowSettingsModal(true);
+                      setSettingsModalSection('profile');
                       setIsOpen(false);
                       setActiveSection('main');
                     }}
@@ -586,7 +597,9 @@ export const Sidebar: React.FC = () => {
                       <SlidersHorizontal className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                     </div>
                     <span className="flex-grow text-[13px]">
-                      {t('settings.title', { defaultValue: 'Settings' })}
+                      {t('settings.profileAndSettings', {
+                        defaultValue: 'Profile & Settings',
+                      })}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
@@ -723,9 +736,6 @@ export const Sidebar: React.FC = () => {
                       spaNavigate(buildPlcPath(plcId));
                     }}
                   />
-
-                  {/* MY BUILDING(S) SECTION */}
-                  <SidebarBuildings isVisible={activeSection === 'buildings'} />
                 </>
               )}
 

@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.2",
+      "date": "2026-09-11",
+      "title": "Profile: grades and content areas taught",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Settings",
+          "items": [
+            {
+              "text": "Settings is now Profile & Settings. The new Profile section holds your building(s), the individual grades you teach, and optionally the content areas you teach. Grades start from your building and can be narrowed, and they now drive grade-specific widgets."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Grades taught — pick individual grades (K-12) instead of relying on the whole building band. A one-click reset restores the building default."
+        },
+        {
+          "type": "feature",
+          "text": "Content areas taught — optional subject selection that will pre-filter the standards picker and learning targets."
+        },
+        {
+          "type": "feature",
+          "text": "Admin — a new Content areas panel adds, renames, or archives subjects; subjects with a standards catalog stay locked."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.1",
       "date": "2026-09-11",
       "title": "PLC mastery by learning target",

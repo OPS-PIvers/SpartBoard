@@ -2404,5 +2404,18 @@
     },
     "saving": "Wird gespeichert…",
     "saveFailed": "Speichern fehlgeschlagen"
+  },
+  "settings": {
+    "profileAndSettings": "Profil & Einstellungen",
+    "profile": {
+      "title": "Profil",
+      "description": "Wo und was Sie unterrichten. Klassenstufen und Fachbereiche filtern Standards und Lernziele, damit Sie nur sehen, was für Sie gilt.",
+      "gradesTaught": "Unterrichtete Klassenstufen",
+      "gradesTaughtDescription": "Beginnt mit Ihren Gebäuden. Wählen Sie Klassenstufen ab, die Sie nicht unterrichten, um Standards, Lernziele und stufenspezifische Widgets einzugrenzen.",
+      "resetGrades": "Auf Gebäudestandard zurücksetzen",
+      "noGrades": "Keine Klassenstufen ausgewählt — Standards und Widgets zeigen alle Stufen.",
+      "subjectsTaught": "Unterrichtete Fachbereiche",
+      "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
+    }
   }
 }

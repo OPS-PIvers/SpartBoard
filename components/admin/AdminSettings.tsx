@@ -18,6 +18,7 @@ import {
   X,
   Volume2,
   BookOpenCheck,
+  Library,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -34,6 +35,7 @@ import { PresetSubEmailsManager } from './PresetSubEmailsManager';
 import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 import { StandardsPanel } from './StandardsPanel';
+import { SubjectsPanel } from './SubjectsPanel';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -94,6 +96,12 @@ const TAB_GROUPS = [
         label: 'Standards',
         icon: BookOpenCheck,
         component: StandardsPanel,
+      },
+      {
+        id: 'subjects',
+        label: 'Content areas',
+        icon: Library,
+        component: SubjectsPanel,
       },
     ],
   },

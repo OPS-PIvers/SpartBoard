@@ -31,6 +31,26 @@ vi.mock('@/context/useAuth', () => ({
     remoteControlEnabled: false,
     setLanguage,
     language: 'en',
+    selectedBuildings: [],
+    setSelectedBuildings: vi.fn(),
+    gradesTaught: null,
+    effectiveGrades: [],
+    buildingGrades: [],
+    subjectsTaught: [],
+    updateTeachingProfile: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/useAdminBuildings', () => ({
+  useAdminBuildings: () => [],
+}));
+
+vi.mock('@/hooks/useSubjects', () => ({
+  useSubjects: () => ({
+    subjects: [],
+    active: [],
+    byId: new Map(),
+    loading: false,
   }),
 }));
 
@@ -59,14 +79,24 @@ describe('SettingsModal', () => {
 
   it('renders a rail tab for every section', () => {
     render(<SettingsModal onClose={vi.fn()} />);
+    expect(screen.getByRole('tab', { name: 'Profile' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Appearance' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Dock' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Behavior' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Language' })).toBeInTheDocument();
   });
 
-  it('defaults to the Appearance section', () => {
+  it('defaults to the Profile section', () => {
     render(<SettingsModal onClose={vi.fn()} />);
+    expect(screen.getByText('Grades taught')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+  });
+
+  it('opens on the requested section', () => {
+    render(<SettingsModal onClose={vi.fn()} initialSection="appearance" />);
     expect(screen.getByText('Typography')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Appearance' })).toHaveAttribute(
       'aria-selected',
