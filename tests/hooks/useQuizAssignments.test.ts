@@ -925,7 +925,30 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
 
     const patch = findAssignmentPatch();
     expect(patch.plc).toBe(DELETE_FIELD_SENTINEL);
-    expect(mockDeleteField).toHaveBeenCalledTimes(1);
+    // 1 for assignment.plc + 3 for the mirrored session plcId/syncGroupId/plcLinkedAt clears.
+    expect(mockDeleteField).toHaveBeenCalledTimes(4);
+  });
+
+  it('clearing plc also drops the session-level plcId/syncGroupId/plcLinkedAt markPlcAssessmentDirty reads', async () => {
+    // stopSharingAssignmentWithPlc clears these 3 session fields; this path
+    // must match it or a "cleared" assignment keeps pooling into the PLC.
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
+        plc: undefined,
+      });
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      plcId: DELETE_FIELD_SENTINEL,
+      syncGroupId: DELETE_FIELD_SENTINEL,
+      plcLinkedAt: DELETE_FIELD_SENTINEL,
+    });
   });
 
   it('passes a real plc patch through unchanged (no deleteField translation)', async () => {
