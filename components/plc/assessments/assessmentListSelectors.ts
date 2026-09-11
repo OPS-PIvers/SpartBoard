@@ -7,6 +7,7 @@ import type {
   PlcAssessmentAggregate,
   PlcCommonAssessment,
   PlcQuizEntry,
+  QuestionTargetTag,
 } from '@/types';
 import {
   countItemsByFolder,
@@ -50,6 +51,8 @@ export interface AssessmentListRow {
   folderId: string | null;
   /** Id of the matched PLC library entry, or `null` when there isn't one. */
   plcQuizId: string | null;
+  /** Distinct target/standard snapshots present in the aggregate. */
+  targets: QuestionTargetTag[];
 }
 
 /** Schema-2 aggregates carry publish counts; schema-1 only knows students. */
@@ -91,6 +94,26 @@ const STATUS_ORDER: Record<AssessmentRowStatus, number> = {
   scored: 1,
   notStarted: 2,
 };
+
+function aggregateTargets(
+  aggregate: PlcAssessmentAggregate | null
+): QuestionTargetTag[] {
+  const tags = new Map<string, QuestionTargetTag>();
+  for (const row of [
+    ...(aggregate?.perTarget ?? []),
+    ...(aggregate?.perStandard ?? []),
+  ]) {
+    if (!tags.has(row.targetId)) {
+      tags.set(row.targetId, {
+        id: row.targetId,
+        kind: row.kind,
+        ...(row.code ? { code: row.code } : {}),
+        label: row.label,
+      });
+    }
+  }
+  return Array.from(tags.values());
+}
 
 function sortRows(rows: AssessmentListRow[]): AssessmentListRow[] {
   return [...rows].sort((a, b) => {
@@ -154,6 +177,7 @@ export function buildAssessmentRows(
       updatedAt: assessment.updatedAt,
       folderId: assessment.folderId ?? library?.folderId ?? null,
       plcQuizId: library?.id ?? null,
+      targets: aggregateTargets(aggregate),
     });
   }
 
@@ -178,6 +202,7 @@ export function buildAssessmentRows(
       updatedAt: 0,
       folderId: entry.folderId ?? null,
       plcQuizId: entry.id,
+      targets: [],
     });
   }
 
@@ -188,7 +213,8 @@ export function buildAssessmentRows(
 export function filterAssessmentRows(
   rows: AssessmentListRow[],
   filter: AssessmentListFilter,
-  search: string
+  search: string,
+  targetId: string | null = null
 ): AssessmentListRow[] {
   const needle = search.trim().toLowerCase();
   return rows.filter((row) => {
@@ -199,6 +225,9 @@ export function filterAssessmentRows(
       if (filter !== 'all' && row.status !== filter) return false;
     }
     if (needle.length > 0 && !row.title.toLowerCase().includes(needle)) {
+      return false;
+    }
+    if (targetId && !row.targets.some((target) => target.id === targetId)) {
       return false;
     }
     return true;
@@ -257,13 +286,18 @@ type PerQuestion = PlcAssessmentAggregate['perQuestion'][number];
 
 /** Worst-first; unscored questions (null incorrectPercent) sink to the bottom. */
 export function sortWorstFirst(perQuestion: PerQuestion[]): PerQuestion[] {
-  return [...perQuestion].sort((a, b) => {
-    const ai = a.incorrectPercent ?? null;
-    const bi = b.incorrectPercent ?? null;
-    if (ai === null && bi === null)
-      return a.questionId.localeCompare(b.questionId);
-    if (ai === null) return 1;
-    if (bi === null) return -1;
-    return bi - ai || a.questionId.localeCompare(b.questionId);
-  });
+  return perQuestion
+    .filter(
+      (question) =>
+        question.servedCount === undefined || question.servedCount >= 5
+    )
+    .sort((a, b) => {
+      const ai = a.incorrectPercent ?? null;
+      const bi = b.incorrectPercent ?? null;
+      if (ai === null && bi === null)
+        return a.questionId.localeCompare(b.questionId);
+      if (ai === null) return 1;
+      if (bi === null) return -1;
+      return bi - ai || a.questionId.localeCompare(b.questionId);
+    });
 }

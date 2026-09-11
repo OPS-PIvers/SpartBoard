@@ -22,6 +22,26 @@ const publicQuestions = [
   { id: 'q3', type: 'free-response', text: 'Explain.' },
 ];
 
+const standard = {
+  id: 'mn-ss-2021:6.2.1.1',
+  kind: 'standard' as const,
+  code: '6.2.1.1',
+  label: 'Evaluate evidence from historical sources.',
+};
+const sourceTarget = {
+  id: 'target-sources',
+  kind: 'plc' as const,
+  ownerId: 'plc-1',
+  label: 'Use evidence from sources',
+  standardIds: [standard.id],
+};
+const contextTarget = {
+  id: 'target-context',
+  kind: 'personal' as const,
+  label: 'Explain historical context',
+  standardIds: [standard.id],
+};
+
 const syncedQuestions = {
   questions: [
     {
@@ -31,8 +51,15 @@ const syncedQuestions = {
       correctAnswer: 'St. Paul',
       incorrectAnswers: ['Duluth', 'Rochester'],
       points: 2,
+      targets: [sourceTarget, standard],
     },
-    { id: 'q2', type: 'FIB', text: 'Two plus two?', correctAnswer: '4' },
+    {
+      id: 'q2',
+      type: 'FIB',
+      text: 'Two plus two?',
+      correctAnswer: '4',
+      targets: [contextTarget],
+    },
     { id: 'q3', type: 'free-response', text: 'Explain.', points: 5 },
   ],
 };
@@ -94,6 +121,18 @@ describe('resolveGroupQuestions', () => {
     expect(
       resolveGroupQuestions({ questions: 'nope' }, publicQuestions)
     ).toHaveLength(3);
+  });
+
+  it('merges private target snapshots onto resolved pool questions', () => {
+    const qs = resolveGroupQuestions(
+      syncedQuestions,
+      [
+        ...publicQuestions,
+        { id: 'pool-q', type: 'MC', text: 'Pool?', choices: ['A', 'B'] },
+      ],
+      [{ id: 'pool-q', targets: [sourceTarget] }]
+    );
+    expect(qs.find((q) => q.id === 'pool-q')?.targets).toEqual([sourceTarget]);
   });
 });
 
@@ -191,7 +230,7 @@ describe('computeAssessmentAggregate', () => {
       ]),
     ]);
 
-    expect(agg.schemaVersion).toBe(2);
+    expect(agg.schemaVersion).toBe(3);
     expect(agg.title).toBe('Unit 4 CFA');
     expect(agg.kind).toBe('quiz');
     expect(agg.teacherCount).toBe(2);
@@ -209,6 +248,7 @@ describe('computeAssessmentAggregate', () => {
       answered: 3,
       graded: 3,
       correct: 2,
+      servedCount: 3,
       correctPercent: 67,
       incorrectPercent: 33,
     });
@@ -224,6 +264,30 @@ describe('computeAssessmentAggregate', () => {
       incorrectPercent: 67,
       choiceDistribution: [],
     });
+
+    expect(
+      agg.perTarget.find((row) => row.targetId === sourceTarget.id)
+    ).toMatchObject({
+      kind: 'plc',
+      questionIds: ['q1'],
+      attempted: 3,
+      correctPercent: 67,
+      lowSample: true,
+    });
+    expect(agg.perTarget.some((row) => row.targetId === contextTarget.id)).toBe(
+      false
+    );
+    expect(agg.perStandard).toEqual([
+      expect.objectContaining({
+        targetId: standard.id,
+        code: standard.code,
+        label: standard.label,
+        questionIds: ['q1'],
+        attempted: 3,
+        correctPercent: 67,
+        lowSample: true,
+      }),
+    ]);
 
     expect(agg.perTeacher).toEqual([
       {
@@ -409,6 +473,22 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.studentCount).toBe(3);
     expect(agg.scoredStudentCount).toBe(2);
     expect(agg.teamAveragePercent).toBe(60);
+  });
+
+  it('counts only the questions served by each randomized attempt', () => {
+    const agg = compute([
+      session('s-a', 'teacherA', [
+        response([answer('q1', 'St. Paul', { isCorrect: true })], {
+          servedQuestionIds: ['q1'],
+        }),
+        response([answer('q2', '4', { isCorrect: true })], {
+          servedQuestionIds: ['q2'],
+        }),
+      ]),
+    ]);
+    expect(agg.perQuestion.map((question) => question.servedCount)).toEqual([
+      1, 1, 0,
+    ]);
   });
 
   it('returns a zeroed payload with question rows when nothing has run', () => {

@@ -379,10 +379,11 @@ no practical byte constraint but keep validators shared.
 
 ### PR 4 — PLC per-target aggregate
 
-- [ ] Aggregate types, `plcAssessmentMath` grouping + tests, `questionSnapshot.targets`.
-- [ ] Recompute trigger unchanged; backfill script for existing aggregates optional.
-- [ ] PLC detail Targets section, list chips and filter.
-- [ ] Changelog.
+- [x] Aggregate types, `plcAssessmentMath` grouping + tests, `questionSnapshot.targets`.
+- [x] Recompute trigger unchanged; no backfill required (the next dirty recompute upgrades
+      existing aggregates, while legacy snapshots remain readable).
+- [x] PLC detail Targets section, list chips and filter.
+- [x] Changelog 2026.09.11.1.
 
 ## 9. Verification
 

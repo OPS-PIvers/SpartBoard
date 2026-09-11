@@ -1143,7 +1143,7 @@
       "noQuestions": "Noch keine Ergebnisse. Sobald eine Lehrkraft diese Bewertung durchführt und Punkte veröffentlicht, erscheinen die gebündelten Fragen hier.",
       "incorrectPercent": "{{percent}} % falsch",
       "notScored": "Nicht bewertet",
-      "gradedOfAnswered": "{{graded}} bewertet · {{answered}} beantwortet",
+      "gradedOfAnswered": "{{served}} vorgelegt · {{graded}} bewertet · {{answered}} beantwortet",
       "choiceDistribution": "Antwortverteilung",
       "choiceCount": "{{count}} · {{percent}} %",
       "perTeacherHeading": "Nach Lehrkraft",
