@@ -2407,7 +2407,8 @@
     "saving": "Enregistrement…",
     "saveFailed": "Échec de l’enregistrement",
     "anySubject": "Toute matière",
-    "gradesSubjectHint": "Facultatif. Laissez niveaux et matière vides pour les hériter des standards liés."
+    "gradesSubjectHint": "Facultatif. Laissez niveaux et matière vides pour les hériter des standards liés.",
+    "csvUnknownSubjects": "Les matières inconnues seront ignorées : {{subjects}}"
   },
   "settings": {
     "profileAndSettings": "Profil et paramètres",

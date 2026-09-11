@@ -2595,7 +2595,8 @@
     "saving": "Saving…",
     "saveFailed": "Save failed",
     "anySubject": "Any subject",
-    "gradesSubjectHint": "Optional. Leave grades and subject empty to inherit them from the linked standards."
+    "gradesSubjectHint": "Optional. Leave grades and subject empty to inherit them from the linked standards.",
+    "csvUnknownSubjects": "Unknown subjects will be skipped: {{subjects}}"
   },
   "settings": {
     "profileAndSettings": "Profile & Settings",

@@ -2407,7 +2407,8 @@
     "saving": "Guardando…",
     "saveFailed": "Error al guardar",
     "anySubject": "Cualquier materia",
-    "gradesSubjectHint": "Opcional. Deja grados y materia vacíos para heredarlos de los estándares vinculados."
+    "gradesSubjectHint": "Opcional. Deja grados y materia vacíos para heredarlos de los estándares vinculados.",
+    "csvUnknownSubjects": "Las materias desconocidas se omitirán: {{subjects}}"
   },
   "settings": {
     "profileAndSettings": "Perfil y ajustes",
