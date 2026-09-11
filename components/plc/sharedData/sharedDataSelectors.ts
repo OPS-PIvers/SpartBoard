@@ -116,7 +116,11 @@ export function weakestQuestions(
   perQuestion: PlcAssessmentAggregate['perQuestion'],
   limit = 3
 ): AssessmentWeakQuestion[] {
-  return [...perQuestion]
+  return perQuestion
+    .filter(
+      (question) =>
+        question.servedCount === undefined || question.servedCount >= 5
+    )
     .sort(
       (a, b) =>
         a.correctPercent - b.correctPercent ||

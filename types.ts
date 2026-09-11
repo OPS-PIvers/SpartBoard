@@ -936,6 +936,20 @@ export interface PlcAggregateChoiceRow {
   isCorrect: boolean;
 }
 
+/** An anonymized target/standard rollup in a PLC assessment aggregate. */
+export interface PlcAggregateTargetRow {
+  targetId: string;
+  kind: LearningTargetKind;
+  code?: string;
+  label: string;
+  questionIds: string[];
+  /** Published, graded answers across the questions carrying this tag. */
+  attempted: number;
+  correctPercent: number;
+  /** True until at least five graded answers contribute to the row. */
+  lowSample: boolean;
+}
+
 /**
  * The anonymized, member-readable rollup for one common assessment, stored at
  * `plcs/{plcId}/aggregates/{assessmentId}` and written **server-side only** by
@@ -989,9 +1003,15 @@ export interface PlcAssessmentAggregate {
     /** Answers carrying a published `isCorrect` flag (schema 2+). */
     graded?: number;
     correct?: number;
+    /** Completed attempts in which this question was served (schema 3+). */
+    servedCount?: number;
     /** MC only; empty for other types (schema 2+). */
     choiceDistribution?: PlcAggregateChoiceRow[];
   }>;
+  /** Direct question tags, including standards (schema 3+). */
+  perTarget?: PlcAggregateTargetRow[];
+  /** Standards directly tagged or inherited from child targets (schema 3+). */
+  perStandard?: PlcAggregateTargetRow[];
   /**
    * Per-teacher rollup — **anonymized**: a count of that teacher's students,
    * NEVER student names and NEVER per-student rows.
@@ -5060,6 +5080,15 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */
   quizDriveFileId: string;
+  /**
+   * Compact, teacher-private frozen tag snapshot used by server-side PLC
+   * recomputes. It includes resolved bank-pool questions without exposing
+   * learning-target metadata in the student session payload.
+   */
+  questionSnapshot?: Array<{
+    id: string;
+    targets?: QuestionTargetTag[];
+  }>;
   teacherUid: string;
   /** Join code for the student URL. Denormalized from the session doc for archive display. */
   code: string;

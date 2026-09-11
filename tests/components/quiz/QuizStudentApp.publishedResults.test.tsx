@@ -273,6 +273,55 @@ describe('QuizStudentApp — published results on an active (self-paced) session
     expect(screen.queryByText('Hidden target')).not.toBeInTheDocument();
   });
 
+  it('omits the "Other questions" heading when the toggle is on but nothing is tagged', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      showLearningTargets: true,
+      publicQuestions: [{ ...QUESTIONS[0] }],
+    });
+    hookState.myResponse = buildResponse();
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.queryByText('Other questions')).not.toBeInTheDocument();
+    expect(screen.getAllByText('2 + 2?')).toHaveLength(1);
+  });
+
+  it('keeps the "Other questions" heading when some questions are tagged', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-and-responses',
+      showLearningTargets: true,
+      publicQuestions: [
+        {
+          ...QUESTIONS[0],
+          targets: [
+            {
+              id: 'lt-1',
+              kind: 'plc',
+              ownerId: 'plc-1',
+              code: 'LT 1',
+              label: 'I can explain my reasoning.',
+            },
+          ],
+        },
+        {
+          id: 'q2',
+          type: 'MC',
+          text: '3 + 3?',
+          timeLimit: 0,
+          choices: ['5', '6'],
+        },
+      ],
+    });
+    hookState.myResponse = buildResponse();
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.getByText('Other questions')).toBeInTheDocument();
+  });
+
   it('keeps a completed student on the submitted-wait screen until scores are published', async () => {
     // scoreVisibility absent (defaults to 'none') → not yet published.
     hookState.session = buildSession();

@@ -1143,7 +1143,7 @@
       "noQuestions": "Aún sin resultados. Cuando un docente aplique esta evaluación y publique las calificaciones, las preguntas reunidas aparecerán aquí.",
       "incorrectPercent": "{{percent}} % incorrectas",
       "notScored": "Sin calificar",
-      "gradedOfAnswered": "{{graded}} calificadas · {{answered}} respondidas",
+      "gradedOfAnswered": "{{served}} presentadas · {{graded}} calificadas · {{answered}} respondidas",
       "choiceDistribution": "Distribución de respuestas",
       "choiceCount": "{{count}} · {{percent}} %",
       "perTeacherHeading": "Por docente",

@@ -14,7 +14,10 @@ import {
   onSnapshot,
   writeBatch,
 } from 'firebase/firestore';
-import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import {
+  useQuizAssignments,
+  type AssignmentQuizRef,
+} from '@/hooks/useQuizAssignments';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -115,6 +118,16 @@ describe('useQuizAssignments — createAssignment PLC session linkage', () => {
     return call[1] as Record<string, unknown>;
   }
 
+  function findAssignmentSet(): Record<string, unknown> {
+    const call = batchSet.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!call) throw new Error('assignment doc was not written');
+    return call[1] as Record<string, unknown>;
+  }
+
   it('stamps plcId, the synced-group id and plcLinkedAt on the session doc', async () => {
     const before = Date.now();
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -186,5 +199,54 @@ describe('useQuizAssignments — createAssignment PLC session linkage', () => {
     expect(session).not.toHaveProperty('plcId');
     expect(session).not.toHaveProperty('syncGroupId');
     expect(session).not.toHaveProperty('plcLinkedAt');
+  });
+
+  it('stores a compact teacher-private target snapshot on the assignment', async () => {
+    const taggedQuiz = {
+      ...QUIZ,
+      questions: [
+        {
+          id: 'q1',
+          type: 'MC',
+          timeLimit: 0,
+          text: 'Which source is primary?',
+          correctAnswer: 'A diary',
+          incorrectAnswers: ['A textbook'],
+          points: 1,
+          targets: [
+            {
+              id: 'target-sources',
+              kind: 'plc',
+              ownerId: 'plc-42',
+              label: 'Evaluate sources',
+            },
+          ],
+        },
+      ],
+    } satisfies AssignmentQuizRef;
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(taggedQuiz, {
+        sessionMode: 'teacher',
+        sessionOptions: { showLearningTargets: false },
+        plc: PLC,
+      });
+    });
+    expect(findAssignmentSet().questionSnapshot).toEqual([
+      {
+        id: 'q1',
+        targets: [
+          {
+            id: 'target-sources',
+            kind: 'plc',
+            ownerId: 'plc-42',
+            label: 'Evaluate sources',
+          },
+        ],
+      },
+    ]);
+    expect(findSessionSet().publicQuestions).toEqual([
+      expect.not.objectContaining({ targets: expect.anything() }),
+    ]);
   });
 });

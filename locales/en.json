@@ -1143,7 +1143,7 @@
       "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
       "incorrectPercent": "{{percent}}% incorrect",
       "notScored": "Not scored",
-      "gradedOfAnswered": "{{graded}} graded · {{answered}} answered",
+      "gradedOfAnswered": "{{served}} served · {{graded}} graded · {{answered}} answered",
       "choiceDistribution": "Answer distribution",
       "choiceCount": "{{count}} · {{percent}}%",
       "perTeacherHeading": "By teacher",

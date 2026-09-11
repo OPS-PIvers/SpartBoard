@@ -34,6 +34,14 @@ const publicQuestions = [
   { id: 'q2', type: 'FIB', text: 'Sum?' },
 ];
 
+const sourceTarget = {
+  id: 'target-sources',
+  kind: 'plc',
+  ownerId: 'plc-1',
+  label: 'Use evidence from sources',
+  standardIds: ['mn-ss-2021:6.2.1.1'],
+};
+
 function seedPipeline(overrides: Record<string, StubData> = {}) {
   return makeStubFirestore({
     'plcs/plc-1': {
@@ -84,11 +92,15 @@ function seedPipeline(overrides: Record<string, StubData> = {}) {
       scorePublishedAt: NOW - 500,
       publicQuestions,
     },
+    'users/tA/quiz_assignments/sess-a': {
+      questionSnapshot: [{ id: 'q1', targets: [sourceTarget] }],
+    },
     'quiz_sessions/sess-a/responses/r1': {
       studentUid: 'stu-1',
       status: 'completed',
       score: 100,
       classPeriod: 'P1',
+      servedQuestionIds: ['q1', 'q2'],
       answers: [
         {
           questionId: 'q1',
@@ -114,11 +126,15 @@ function seedPipeline(overrides: Record<string, StubData> = {}) {
       syncGroupId: 'grp-1',
       publicQuestions,
     },
+    'users/tB/quiz_assignments/sess-b': {
+      questionSnapshot: [{ id: 'q1', targets: [sourceTarget] }],
+    },
     'quiz_sessions/sess-b/responses/r1': {
       studentUid: 'stu-3',
       status: 'completed',
       score: 0,
       classId: 'class-7',
+      servedQuestionIds: ['q1'],
       answers: [
         { questionId: 'q1', answer: 'Duluth', answeredAt: 1, isCorrect: false },
       ],
@@ -167,10 +183,12 @@ describe('parseCompletedResponse', () => {
         { answer: 'no-id' },
         'garbage',
       ],
+      servedQuestionIds: ['q1', 42, ''],
     });
     expect(r.score).toBeNull();
     expect(r.classPeriod).toBeUndefined();
     expect(r.classId).toBe('c1');
+    expect(r.servedQuestionIds).toEqual(['q1']);
     expect(r.answers).toEqual([
       {
         questionId: 'q1',
@@ -193,7 +211,7 @@ describe('recomputeOnePlcAssessment', () => {
     const agg = stub.get('plcs/plc-1/aggregates/grp-1');
     expect(agg).toMatchObject({
       assessmentId: 'grp-1',
-      schemaVersion: 2,
+      schemaVersion: 3,
       title: 'Unit 4 CFA',
       kind: 'quiz',
       teacherCount: 2,
@@ -213,11 +231,28 @@ describe('recomputeOnePlcAssessment', () => {
       answered: 2,
       graded: 2,
       correct: 1,
+      servedCount: 2,
       incorrectPercent: 50,
     });
     expect(perQuestion[0].choiceDistribution).toEqual([
       { label: 'St. Paul', count: 1, isCorrect: true },
       { label: 'Duluth', count: 1, isCorrect: false },
+    ]);
+    expect(perQuestion[1]).toMatchObject({ servedCount: 1 });
+    expect(agg!.perTarget).toEqual([
+      expect.objectContaining({
+        targetId: 'target-sources',
+        attempted: 2,
+        correctPercent: 50,
+        lowSample: true,
+      }),
+    ]);
+    expect(agg!.perStandard).toEqual([
+      expect.objectContaining({
+        targetId: 'mn-ss-2021:6.2.1.1',
+        questionIds: ['q1'],
+        attempted: 2,
+      }),
     ]);
     expect(agg!.perTeacher).toEqual([
       {
