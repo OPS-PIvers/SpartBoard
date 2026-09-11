@@ -523,6 +523,10 @@ export function computeAssessmentAggregate(
     };
     for (const question of input.groupQuestions) {
       for (const target of question.targets) {
+        // Personal targets live in a teacher-private document. They may be
+        // useful in that teacher's results, but must not cross the PLC
+        // aggregate boundary through either their label or linked standards.
+        if (target.kind === 'personal') continue;
         if (!standards) {
           add(target, question.id);
         } else if (target.kind === 'standard') {

@@ -274,15 +274,18 @@ describe('computeAssessmentAggregate', () => {
       correctPercent: 67,
       lowSample: true,
     });
+    expect(agg.perTarget.some((row) => row.targetId === contextTarget.id)).toBe(
+      false
+    );
     expect(agg.perStandard).toEqual([
       expect.objectContaining({
         targetId: standard.id,
         code: standard.code,
         label: standard.label,
-        questionIds: ['q1', 'q2'],
-        attempted: 6,
-        correctPercent: 50,
-        lowSample: false,
+        questionIds: ['q1'],
+        attempted: 3,
+        correctPercent: 67,
+        lowSample: true,
       }),
     ]);
 
