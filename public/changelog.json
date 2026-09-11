@@ -1,6 +1,68 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.11",
+      "date": "2026-09-11",
+      "title": "Shared question banks in the PLC dashboard",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "My PLC › Assessments has a new Question Banks tab listing every bank teammates shared with the PLC, with who shared it, question count and the learning targets it covers. Copy a bank into your own library, share one of yours, or stop sharing a bank you own."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Reads the existing plcs/{plcId}/question_banks headers; no rules or data changes."
+        }
+      ]
+    },
+    {
+      "version": "2026.09.11.10",
+      "date": "2026-09-11",
+      "title": "Import templates for learning targets and question banks",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Learning Targets › Import CSV now offers a downloadable template with the expected columns and two example rows."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Question banks can be imported from a CSV or Google Sheet using the same wizard and template as quizzes (Quiz › Banks › Import)."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Sidebar",
+          "items": [
+            {
+              "text": "The My Building(s) shortcut left the sidebar; the picker lives in Settings › Profile."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Bank import reuses the quiz import adapter; parsed questions and stimuli become a new bank saved to Drive."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.9",
       "date": "2026-09-11",
       "title": "PLC members who joined by invite now always count",

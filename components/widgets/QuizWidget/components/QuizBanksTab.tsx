@@ -3,6 +3,7 @@ import {
   CheckSquare,
   Edit2,
   Eye,
+  FileUp,
   Library,
   Loader2,
   Plus,
@@ -51,6 +52,8 @@ export interface QuizBanksTabProps {
     'tab' | 'onTabChange' | 'counts' | 'tabLabels' | 'widgetLabel'
   >;
   onNewBank: () => void;
+  /** Opens the CSV / Google Sheet import wizard for a new bank. */
+  onImportBank?: () => void;
   onEditBank: (meta: QuestionBankMetadata) => void;
   onDuplicateBank: (meta: QuestionBankMetadata) => void | Promise<void>;
   onDeleteBank: (meta: QuestionBankMetadata) => void | Promise<void>;
@@ -116,6 +119,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   plcs,
   shell,
   onNewBank,
+  onImportBank,
   onEditBank,
   onDuplicateBank,
   onDeleteBank,
@@ -519,6 +523,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     <LibraryShell
       {...shell}
       primaryAction={{ label: 'New bank', icon: Plus, onClick: onNewBank }}
+      secondaryActions={
+        onImportBank
+          ? [{ label: 'Import', icon: FileUp, onClick: onImportBank }]
+          : undefined
+      }
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
     >

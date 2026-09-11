@@ -125,6 +125,28 @@ export function parseCsvRecords(text: string): string[][] {
   return rows;
 }
 
+/** Downloadable starter file matching `parseTargetsCsv`. */
+export const TARGETS_CSV_TEMPLATE = [
+  'label,code,standards,grades,subject',
+  '"Cite textual evidence to support analysis",RL.1,9.4.1.1;9.4.2.2,9;10,ELA',
+  '"Determine a central idea and trace its development",RI.2,,9,ELA',
+].join('\n');
+
+/** Triggers a browser download of `text` as `filename`. */
+export function downloadTextFile(
+  filename: string,
+  text: string,
+  type = 'text/csv;charset=utf-8'
+): void {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const LABEL_HEADERS = new Set(['label', 'target', 'description']);
 const STANDARDS_HEADERS = new Set(['standards', 'standardcodes']);
 

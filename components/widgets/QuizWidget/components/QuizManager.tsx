@@ -376,6 +376,7 @@ interface QuizManagerProps {
   /** Teammates' PLC-shared banks (kind 'plc'). */
   sharedBankSources?: BankSource[];
   onNewBank?: () => void;
+  onImportBank?: () => void;
   onEditBank?: (meta: QuestionBankMetadata) => void;
   onDuplicateBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
   onDeleteBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
@@ -601,6 +602,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   banksLoading = false,
   sharedBankSources,
   onNewBank,
+  onImportBank,
   onEditBank,
   onDuplicateBank,
   onDeleteBank,
@@ -1901,6 +1903,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           tabLabels,
         }}
         onNewBank={onNewBank}
+        onImportBank={onImportBank}
         onEditBank={onEditBank}
         onDuplicateBank={onDuplicateBank ?? noop}
         onDeleteBank={onDeleteBank ?? noop}

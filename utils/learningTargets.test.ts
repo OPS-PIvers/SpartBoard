@@ -6,6 +6,7 @@ import {
 } from '@/types';
 import {
   DEFAULT_MASTERY_CUTOFFS,
+  TARGETS_CSV_TEMPLATE,
   addTargets,
   archiveTarget,
   effectiveGrades,
@@ -299,5 +300,20 @@ describe('grades and subject', () => {
       code: 'R1',
       label: 'Foundations',
     });
+  });
+});
+
+describe('TARGETS_CSV_TEMPLATE', () => {
+  it('parses cleanly with the documented columns', () => {
+    const result = parseTargetsCsv(TARGETS_CSV_TEMPLATE);
+    expect(result.errors).toEqual([]);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0]).toMatchObject({
+      code: 'RL.1',
+      standardCodes: ['9.4.1.1', '9.4.2.2'],
+      grades: ['9', '10'],
+      subject: 'ELA',
+    });
+    expect(result.rows[1].standardCodes).toEqual([]);
   });
 });
