@@ -1,7 +1,18 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
-export const AGGREGATE_SCHEMA_VERSION = 2;
+export const AGGREGATE_SCHEMA_VERSION = 3;
+
+export type LearningTargetKind = 'standard' | 'plc' | 'personal';
+
+export interface QuestionTargetSnapshot {
+  id: string;
+  kind: LearningTargetKind;
+  ownerId?: string;
+  code?: string;
+  label: string;
+  standardIds?: string[];
+}
 
 export interface GroupQuestion {
   id: string;
@@ -12,6 +23,8 @@ export interface GroupQuestion {
   choices: string[];
   /** Known only when the synced group carries the answer key. */
   correctAnswer: string | null;
+  /** Frozen tag snapshots used for target and standard rollups. */
+  targets: QuestionTargetSnapshot[];
 }
 
 export interface SyncedQuestions {
@@ -32,6 +45,7 @@ export interface CompletedResponse {
   studentUid: string;
   answers: RawAnswer[];
   score: number | null;
+  servedQuestionIds?: string[];
   classPeriod?: string;
   classId?: string;
 }
@@ -41,6 +55,8 @@ export interface SessionInput {
   teacherUid: string;
   teacherName: string;
   publicQuestions: unknown[];
+  /** Teacher-private assignment snapshot; carries tags even when students cannot see them. */
+  questionSnapshot?: unknown[];
   /** Only `status === 'completed'` responses belong here. */
   responses: CompletedResponse[];
   /** ms when the teacher published scores; null while unpublished. */
@@ -70,7 +86,19 @@ export interface AggregatePerQuestion {
   answered: number;
   graded: number;
   correct: number;
+  servedCount: number;
   choiceDistribution: AggregateChoiceRow[];
+}
+
+export interface AggregateTargetRow {
+  targetId: string;
+  kind: LearningTargetKind;
+  code?: string;
+  label: string;
+  questionIds: string[];
+  attempted: number;
+  correctPercent: number;
+  lowSample: boolean;
 }
 
 export interface AggregatePerTeacher {
@@ -101,6 +129,8 @@ export interface AggregatePayload {
   alignment: 'byId' | 'positional';
   alignmentWarning?: string;
   perQuestion: AggregatePerQuestion[];
+  perTarget: AggregateTargetRow[];
+  perStandard: AggregateTargetRow[];
   perTeacher: AggregatePerTeacher[];
 }
 
@@ -119,6 +149,40 @@ function asStringArray(v: unknown): string[] {
   return Array.isArray(v)
     ? v.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : [];
+}
+
+function parseTarget(raw: unknown): QuestionTargetSnapshot | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const id = asString(r.id);
+  const label = asString(r.label);
+  if (
+    id.length === 0 ||
+    label.length === 0 ||
+    (r.kind !== 'standard' && r.kind !== 'plc' && r.kind !== 'personal')
+  ) {
+    return null;
+  }
+  return {
+    id,
+    kind: r.kind,
+    label,
+    ...(asString(r.ownerId) ? { ownerId: asString(r.ownerId) } : {}),
+    ...(asString(r.code) ? { code: asString(r.code) } : {}),
+    ...(asStringArray(r.standardIds).length > 0
+      ? { standardIds: asStringArray(r.standardIds) }
+      : {}),
+  };
+}
+
+function parseTargets(raw: unknown): QuestionTargetSnapshot[] {
+  if (!Array.isArray(raw)) return [];
+  const byId = new Map<string, QuestionTargetSnapshot>();
+  for (const value of raw) {
+    const target = parseTarget(value);
+    if (target) byId.set(target.id, target);
+  }
+  return Array.from(byId.values());
 }
 
 function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
@@ -141,6 +205,7 @@ function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
     points: asFiniteNumber(r.points) ?? 1,
     choices,
     correctAnswer: correctAnswer.length > 0 ? correctAnswer : null,
+    targets: parseTargets(r.targets),
   };
 }
 
@@ -158,6 +223,7 @@ export function parsePublicQuestion(raw: unknown): GroupQuestion | null {
     points: asFiniteNumber(r.points) ?? 1,
     choices: type === 'MC' ? asStringArray(r.choices) : [],
     correctAnswer: null,
+    targets: parseTargets(r.targets),
   };
 }
 
@@ -168,20 +234,62 @@ export function publicQuestionIds(publicQuestions: unknown[]): string[] {
     .map((q) => q.id);
 }
 
-/** Synced group questions win (they carry the key); else the first session's public questions. */
+function mergeTargets(
+  existing: QuestionTargetSnapshot[],
+  incoming: QuestionTargetSnapshot[]
+): QuestionTargetSnapshot[] {
+  const byId = new Map(existing.map((target) => [target.id, target]));
+  for (const target of incoming) byId.set(target.id, target);
+  return Array.from(byId.values());
+}
+
+function parseQuestionTargetSnapshot(
+  raw: unknown
+): { id: string; targets: QuestionTargetSnapshot[] } | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const id = asString(r.id);
+  if (!id) return null;
+  return { id, targets: parseTargets(r.targets) };
+}
+
+/**
+ * Build the pooled question snapshot. Synced questions lead (and carry answer
+ * keys), while resolved session-pool questions are appended so random bank
+ * draws are represented. Teacher-private assignment snapshots supply frozen
+ * tags even when the student-facing payload intentionally omits them.
+ */
 export function resolveGroupQuestions(
   synced: SyncedQuestions | null,
-  firstSessionPublicQuestions: unknown[]
+  publicQuestions: unknown[],
+  questionSnapshot: unknown[] = []
 ): GroupQuestion[] {
+  const questions = new Map<string, GroupQuestion>();
   if (synced && Array.isArray(synced.questions)) {
-    const parsed = synced.questions
-      .map(parseSyncedQuestion)
-      .filter((q): q is GroupQuestion => q !== null);
-    if (parsed.length > 0) return parsed;
+    for (const raw of synced.questions) {
+      const parsed = parseSyncedQuestion(raw);
+      if (parsed) questions.set(parsed.id, parsed);
+    }
   }
-  return firstSessionPublicQuestions
-    .map(parsePublicQuestion)
-    .filter((q): q is GroupQuestion => q !== null);
+  for (const raw of publicQuestions) {
+    const parsed = parsePublicQuestion(raw);
+    if (!parsed) continue;
+    const existing = questions.get(parsed.id);
+    if (existing) {
+      existing.targets = mergeTargets(existing.targets, parsed.targets);
+    } else {
+      questions.set(parsed.id, parsed);
+    }
+  }
+  for (const raw of questionSnapshot) {
+    const snapshot = parseQuestionTargetSnapshot(raw);
+    if (!snapshot) continue;
+    const question = questions.get(snapshot.id);
+    if (question) {
+      question.targets = mergeTargets(question.targets, snapshot.targets);
+    }
+  }
+  return Array.from(questions.values());
 }
 
 export interface Alignment {
@@ -253,6 +361,7 @@ function classKey(r: CompletedResponse, sessionId: string): string {
 }
 
 interface QuestionAcc {
+  served: number;
   answered: number;
   graded: number;
   correct: number;
@@ -277,6 +386,7 @@ export function computeAssessmentAggregate(
   const acc = new Map<string, QuestionAcc>();
   for (const q of input.groupQuestions) {
     acc.set(q.id, {
+      served: 0,
       answered: 0,
       graded: 0,
       correct: 0,
@@ -336,6 +446,16 @@ export function computeAssessmentAggregate(
         teacher.scoreCount++;
       }
 
+      const servedIds =
+        r.servedQuestionIds && r.servedQuestionIds.length > 0
+          ? r.servedQuestionIds
+          : publicQuestionIds(session.publicQuestions);
+      for (const sessionQid of new Set(servedIds)) {
+        const groupQid = alignment.map.get(sessionQid);
+        const q = groupQid ? acc.get(groupQid) : undefined;
+        if (q) q.served++;
+      }
+
       const answers = Array.isArray(r.answers) ? r.answers : [];
       for (const [sessionQid, a] of selectRepresentativeAnswers(answers)) {
         const groupQid = alignment.map.get(sessionQid);
@@ -373,12 +493,91 @@ export function computeAssessmentAggregate(
       answered: q.answered,
       graded: q.graded,
       correct: q.correct,
+      servedCount: q.served,
       correctPercent: q.graded > 0 ? pct(q.correct, q.graded) : 0,
       incorrectPercent:
         q.graded > 0 ? pct(q.graded - q.correct, q.graded) : null,
       choiceDistribution,
     };
   });
+
+  const buildTargetRows = (standards: boolean): AggregateTargetRow[] => {
+    const groups = new Map<
+      string,
+      { target: QuestionTargetSnapshot; questionIds: Set<string> }
+    >();
+    const add = (target: QuestionTargetSnapshot, questionId: string) => {
+      const current = groups.get(target.id);
+      if (current) {
+        current.questionIds.add(questionId);
+        const incomingRich = target.label !== (target.code ?? target.id);
+        const currentRich =
+          current.target.label !== (current.target.code ?? current.target.id);
+        if (incomingRich || !currentRich) current.target = target;
+      } else {
+        groups.set(target.id, {
+          target,
+          questionIds: new Set([questionId]),
+        });
+      }
+    };
+    for (const question of input.groupQuestions) {
+      for (const target of question.targets) {
+        if (!standards) {
+          add(target, question.id);
+        } else if (target.kind === 'standard') {
+          add(target, question.id);
+        } else {
+          for (const standardId of new Set(target.standardIds ?? [])) {
+            const code = standardId.includes(':')
+              ? standardId.slice(standardId.indexOf(':') + 1)
+              : standardId;
+            add(
+              { id: standardId, kind: 'standard', code, label: code },
+              question.id
+            );
+          }
+        }
+      }
+    }
+    const order = new Map(
+      input.groupQuestions.map((question, index) => [question.id, index])
+    );
+    return Array.from(groups.values())
+      .map(({ target, questionIds }) => {
+        const ids = Array.from(questionIds).sort(
+          (a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)
+        );
+        const attempted = ids.reduce(
+          (sum, id) => sum + (acc.get(id)?.graded ?? 0),
+          0
+        );
+        const correct = ids.reduce(
+          (sum, id) => sum + (acc.get(id)?.correct ?? 0),
+          0
+        );
+        return {
+          targetId: target.id,
+          kind: target.kind,
+          ...(target.code ? { code: target.code } : {}),
+          label: target.label,
+          questionIds: ids,
+          attempted,
+          correctPercent: attempted > 0 ? pct(correct, attempted) : 0,
+          lowSample: attempted < 5,
+        };
+      })
+      .sort((a, b) =>
+        `${a.code ?? ''} ${a.label}`.localeCompare(
+          `${b.code ?? ''} ${b.label}`,
+          undefined,
+          { numeric: true, sensitivity: 'base' }
+        )
+      );
+  };
+
+  const perTarget = buildTargetRows(false);
+  const perStandard = buildTargetRows(true);
 
   const perTeacher: AggregatePerTeacher[] = Array.from(teachers.entries())
     .map(([teacherUid, t]) => ({
@@ -406,6 +605,8 @@ export function computeAssessmentAggregate(
     computedFromSessionIds: sessionIds,
     alignment: anyPositional ? 'positional' : 'byId',
     perQuestion,
+    perTarget,
+    perStandard,
     perTeacher,
   };
   if (anyMismatch) payload.alignmentWarning = ALIGNMENT_WARNING;

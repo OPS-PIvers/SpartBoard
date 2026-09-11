@@ -49,6 +49,11 @@ export function parseCompletedResponse(
       typeof raw.score === 'number' && Number.isFinite(raw.score)
         ? raw.score
         : null,
+    servedQuestionIds: Array.isArray(raw.servedQuestionIds)
+      ? raw.servedQuestionIds.filter(
+          (id): id is string => typeof id === 'string' && id.length > 0
+        )
+      : undefined,
     classPeriod: asString(raw.classPeriod) || undefined,
     classId: asString(raw.classId) || undefined,
   };
@@ -126,6 +131,19 @@ export async function recomputeOnePlcAssessment(
       .where('status', '==', 'completed')
       .get();
     const teacherUid = asString(s.teacherUid);
+    const assignmentId = asString(s.assignmentId) || sessionDoc.id;
+    const assignmentSnap = teacherUid
+      ? await db
+          .collection('users')
+          .doc(teacherUid)
+          .collection('quiz_assignments')
+          .doc(assignmentId)
+          .get()
+      : null;
+    const assignmentData = assignmentSnap?.data() as
+      | Record<string, unknown>
+      | undefined;
+    const questionSnapshot = assignmentData?.questionSnapshot;
     sessions.push({
       id: sessionDoc.id,
       teacherUid,
@@ -133,6 +151,7 @@ export async function recomputeOnePlcAssessment(
       publicQuestions: Array.isArray(s.publicQuestions)
         ? s.publicQuestions
         : [],
+      questionSnapshot: Array.isArray(questionSnapshot) ? questionSnapshot : [],
       responses: responsesSnap.docs.map((d) =>
         parseCompletedResponse(d.data())
       ),
@@ -143,7 +162,8 @@ export async function recomputeOnePlcAssessment(
 
   const groupQuestions = resolveGroupQuestions(
     syncedSnap.exists ? (syncedSnap.data() ?? null) : null,
-    sessions[0]?.publicQuestions ?? []
+    sessions.flatMap((session) => session.publicQuestions),
+    sessions.flatMap((session) => session.questionSnapshot ?? [])
   );
   const kind = assessment.kind === 'video-activity' ? 'video-activity' : 'quiz';
   const payload = computeAssessmentAggregate({

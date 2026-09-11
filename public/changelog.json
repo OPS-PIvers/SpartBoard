@@ -1,6 +1,36 @@
 {
   "entries": [
     {
+      "version": "2026.09.11.1",
+      "date": "2026-09-11",
+      "title": "PLC mastery by learning target",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "PLC",
+          "items": [
+            {
+              "text": "Common-assessment results now pool mastery by learning target and standard across the PLC, while preserving the existing anonymized aggregate boundary. Assessment rows show target chips and can be filtered by a target or standard."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Learning target mastery — standards and targets appear above item analysis with mastery bars, scored counts, low-sample notices, and expandable contributing questions."
+        },
+        {
+          "type": "feature",
+          "text": "Random-draw accuracy — pooled question rows now track how many completed attempts were actually served each item, and items served to fewer than five students stay out of hardest-question rankings."
+        },
+        {
+          "type": "feature",
+          "text": "Private snapshots — assignment records freeze compact question tags so server-side PLC rollups can include bank-pool questions without exposing hidden target metadata to students."
+        }
+      ]
+    },
+    {
       "version": "2026.09.10.6",
       "date": "2026-09-10",
       "title": "Quiz mastery by learning target",

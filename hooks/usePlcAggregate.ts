@@ -29,7 +29,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import type { PlcAggregateChoiceRow, PlcAssessmentAggregate } from '@/types';
+import type {
+  PlcAggregateChoiceRow,
+  PlcAggregateTargetRow,
+  PlcAssessmentAggregate,
+} from '@/types';
 import { logError } from '@/utils/logError';
 import { tsToMillis } from '@/utils/plc';
 import { usePlcSubcollection } from '@/context/usePlcContext';
@@ -79,6 +83,7 @@ function parsePerQuestion(
     ...optionalNumber('answered', rec.answered),
     ...optionalNumber('graded', rec.graded),
     ...optionalNumber('correct', rec.correct),
+    ...optionalNumber('servedCount', rec.servedCount),
     ...(choiceDistribution ? { choiceDistribution } : {}),
   };
 }
@@ -141,6 +146,42 @@ function parsePerTeacher(
   };
 }
 
+function parseTargetRows(raw: unknown): PlcAggregateTargetRow[] | null {
+  if (!Array.isArray(raw)) return null;
+  const rows: PlcAggregateTargetRow[] = [];
+  for (const value of raw) {
+    if (!value || typeof value !== 'object') return null;
+    const rec = value as Record<string, unknown>;
+    if (
+      typeof rec.targetId !== 'string' ||
+      (rec.kind !== 'standard' &&
+        rec.kind !== 'plc' &&
+        rec.kind !== 'personal') ||
+      typeof rec.label !== 'string' ||
+      !Array.isArray(rec.questionIds) ||
+      !rec.questionIds.every((id) => typeof id === 'string') ||
+      typeof rec.attempted !== 'number' ||
+      !Number.isFinite(rec.attempted) ||
+      typeof rec.correctPercent !== 'number' ||
+      !Number.isFinite(rec.correctPercent) ||
+      typeof rec.lowSample !== 'boolean'
+    ) {
+      return null;
+    }
+    rows.push({
+      targetId: rec.targetId,
+      kind: rec.kind,
+      ...(typeof rec.code === 'string' && rec.code ? { code: rec.code } : {}),
+      label: rec.label,
+      questionIds: rec.questionIds,
+      attempted: rec.attempted,
+      correctPercent: rec.correctPercent,
+      lowSample: rec.lowSample,
+    });
+  }
+  return rows;
+}
+
 /**
  * Parse a Firestore aggregate doc into the typed `PlcAssessmentAggregate`, or
  * `null` if a required scalar is malformed or any nested entry is bad (the doc
@@ -177,6 +218,14 @@ export function parsePlcAggregate(
     if (!parsed) return null;
     perTeacher.push(parsed);
   }
+  const perTarget =
+    data.perTarget === undefined ? undefined : parseTargetRows(data.perTarget);
+  if (perTarget === null) return null;
+  const perStandard =
+    data.perStandard === undefined
+      ? undefined
+      : parseTargetRows(data.perStandard);
+  if (perStandard === null) return null;
   return {
     // The doc id is the canonical assessment id; prefer it over a (redundant)
     // stored `assessmentId` so a mismatch can't desync the by-id lookup.
@@ -187,6 +236,8 @@ export function parsePlcAggregate(
     teamAveragePercent: data.teamAveragePercent,
     perQuestion,
     perTeacher,
+    ...(perTarget ? { perTarget } : {}),
+    ...(perStandard ? { perStandard } : {}),
     ranAt: tsToMillis(data.ranAt),
     // Schema 2 extras (server recompute); absent on legacy schema 1 docs.
     ...(typeof data.title === 'string' && data.title
@@ -196,6 +247,9 @@ export function parsePlcAggregate(
       ? { kind: data.kind }
       : {}),
     ...optionalNumber('sessionCount', data.sessionCount),
+    ...optionalNumber('scoredStudentCount', data.scoredStudentCount),
+    ...optionalNumber('linkedSessionCount', data.linkedSessionCount),
+    ...optionalNumber('publishedSessionCount', data.publishedSessionCount),
     ...(Array.isArray(data.computedFromSessionIds)
       ? {
           computedFromSessionIds: data.computedFromSessionIds.filter(

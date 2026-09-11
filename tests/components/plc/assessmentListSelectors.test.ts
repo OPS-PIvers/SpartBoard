@@ -248,7 +248,20 @@ describe('filterAssessmentRows', () => {
       makeAssessment({ id: 'b', title: 'Decimals quiz', syncGroupId: 'g-b' }),
     ],
     aggregates: [
-      makeAggregate({ assessmentId: 'a' }),
+      makeAggregate({
+        assessmentId: 'a',
+        perTarget: [
+          {
+            targetId: 'target-fractions',
+            kind: 'plc',
+            label: 'Model fractions',
+            questionIds: ['q1'],
+            attempted: 10,
+            correctPercent: 80,
+            lowSample: false,
+          },
+        ],
+      }),
       makeAggregate({ assessmentId: 'b', publishedSessionCount: 1 }),
     ],
     libraryEntries: [makeEntry({ title: 'Ratios warm-up' })],
@@ -273,6 +286,18 @@ describe('filterAssessmentRows', () => {
       filterAssessmentRows(rows, 'all', '  RATIO').map((r) => r.id)
     ).toEqual(['library:g-lib']);
     expect(filterAssessmentRows(rows, 'scored', 'decimals')).toHaveLength(0);
+  });
+
+  it('carries target chips and filters by target id', () => {
+    expect(rows.find((row) => row.id === 'a')?.targets[0]).toMatchObject({
+      id: 'target-fractions',
+      label: 'Model fractions',
+    });
+    expect(
+      filterAssessmentRows(rows, 'all', '', 'target-fractions').map(
+        (row) => row.id
+      )
+    ).toEqual(['a']);
   });
 });
 
@@ -387,6 +412,14 @@ describe('sortWorstFirst', () => {
         correctPercent: 40,
         points: 1,
         incorrectPercent: 60,
+      },
+      {
+        questionId: 'q-low-sample',
+        text: '',
+        correctPercent: 0,
+        points: 1,
+        incorrectPercent: 100,
+        servedCount: 4,
       },
     ]);
     expect(sorted.map((q) => q.questionId)).toEqual(['q2', 'q4', 'q3', 'q1']);

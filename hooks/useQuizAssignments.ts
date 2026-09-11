@@ -826,12 +826,22 @@ export const useQuizAssignments = (
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
       const now = Date.now();
+      // Freeze a compact teacher-private tag snapshot for PLC aggregate
+      // recomputes. Student session projection remains governed separately by
+      // `showLearningTargets`.
+      const sessionQuestions = dedupeQuestionsById(quiz.questions);
+      const questionSnapshot = sessionQuestions.flatMap((question) =>
+        question.targets && question.targets.length > 0
+          ? [{ id: question.id, targets: question.targets }]
+          : []
+      );
 
       const assignment: QuizAssignment = {
         id: assignmentId,
         quizId: quiz.id,
         quizTitle: quiz.title,
         quizDriveFileId: quiz.driveFileId,
+        ...(questionSnapshot.length > 0 ? { questionSnapshot } : {}),
         teacherUid: userId,
         code,
         status: initialStatus,
@@ -883,7 +893,6 @@ export const useQuizAssignments = (
       const mode = settings.sessionMode;
       const opts = settings.sessionOptions;
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
-      const sessionQuestions = dedupeQuestionsById(quiz.questions);
       const sessionReadAloudText = readAloudTextByStimulusId({
         questions: sessionQuestions,
         stimuli: quiz.stimuli,
