@@ -145,6 +145,26 @@ describe('computeTargetStats', () => {
     });
   });
 
+  it('marks a question low-sample from scored responses, not students served', () => {
+    const result = computeTargetStats(
+      [question('q1', [target])],
+      [
+        response('a', ['q1'], [{ questionId: 'q1', answer: 'Correct' }]),
+        response('b', ['q1'], []),
+        response('c', ['q1'], []),
+        response('d', ['q1'], []),
+        response('e', ['q1'], []),
+      ],
+      CUTOFFS
+    );
+
+    expect(result.targets[0]?.questions[0]).toMatchObject({
+      servedCount: 5,
+      attempted: 1,
+      lowSample: true,
+    });
+  });
+
   it('skips the per-student scan when no question carries a target', () => {
     const result = computeTargetStats(
       [question('q1', [])],

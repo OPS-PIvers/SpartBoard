@@ -196,7 +196,7 @@ function buildGroupStats(
             servedCount,
             attempted: stats.scoredCount,
             correctPercent: stats.averagePct,
-            lowSample: servedCount < 5,
+            lowSample: stats.scoredCount < 5,
           };
         })
         .filter((detail): detail is TargetQuestionStat => detail !== null)
