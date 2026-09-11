@@ -1996,8 +1996,8 @@ service cloud.firestore {
         && newMembers.diff(oldMembers).affectedKeys().hasOnly(allowedKeys)
         // A backfill must carry every legacy uid and nothing else.
         && (oldMembers.size() > 0
-            || (newMembers.keys().hasOnly(allowedKeys)
-                && newMembers.keys().hasAll(allowedKeys)))
+            || (newMembers.keys().toSet().hasOnly(allowedKeys)
+                && newMembers.keys().toSet().hasAll(allowedKeys)))
         && (resource.data.leadUid in newMembers)
         && newMembers[resource.data.leadUid].role == 'lead'
         && newMembers[target].uid == target
