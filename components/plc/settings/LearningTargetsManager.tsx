@@ -5,6 +5,7 @@ import {
   ArchiveRestore,
   ChevronDown,
   ClipboardPaste,
+  Download,
   FileUp,
   Plus,
   X,
@@ -21,6 +22,8 @@ import {
   archiveTarget,
   parsePastedTargets,
   parseTargetsCsv,
+  TARGETS_CSV_TEMPLATE,
+  downloadTextFile,
   setMasteryCutoffs,
   unarchiveTarget,
 } from '@/utils/learningTargets';
@@ -670,6 +673,21 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                     'Header row with label (required); optional code, standards, grades (separate values with ;) and subject.',
                 })}
               </p>
+              <button
+                type="button"
+                onClick={() =>
+                  downloadTextFile(
+                    'learning-targets-template.csv',
+                    TARGETS_CSV_TEMPLATE
+                  )
+                }
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:underline"
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('learningTargets.downloadTemplate', {
+                  defaultValue: 'Download CSV template',
+                })}
+              </button>
               <input
                 ref={fileRef}
                 type="file"

@@ -19,7 +19,6 @@ import {
   CloudCheck,
   AlertCircle,
   Zap,
-  Building2,
   SlidersHorizontal,
   Users,
   Users2,
@@ -549,25 +548,6 @@ export const Sidebar: React.FC = () => {
                           plcInvitationsHook.pendingInvites.length
                         }
                       />
-                      <button
-                        onClick={() => {
-                          // Buildings now live in the Profile section.
-                          setSettingsModalSection('profile');
-                          setIsOpen(false);
-                          setActiveSection('main');
-                        }}
-                        className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-teal-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                          <Building2 className="w-4 h-4 text-teal-400 group-hover:text-brand-blue-primary transition-colors" />
-                        </div>
-                        <span className="flex-grow text-[13px]">
-                          {t('sidebar.nav.buildings', {
-                            defaultValue: 'My Building(s)',
-                          })}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                      </button>
                     </>
                   )}
                 </div>

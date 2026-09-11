@@ -245,6 +245,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
+  const [bankImportOpen, setBankImportOpen] = useState(false);
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =
@@ -1159,27 +1160,57 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const view = config.view ?? 'manager';
 
+  // Sheets-API ops here (Picker-selected sheet read + template create) need
+  // only the non-sensitive `drive.file` login scope — silent for every
+  // signed-in user, NO `spreadsheets`. Interactive preserves the gesture
+  // for the rare never-granted-Drive case. The fresh token is forwarded so
+  // the template-create call doesn't use useQuiz's stale closure token.
+  const sharedImportDeps = {
+    importFromSheet,
+    importFromCSV,
+    createQuizTemplate: async (token?: string | null) =>
+      createQuizTemplate(token),
+    ensureDriveScope: () =>
+      ensureGoogleScope('drive.file', { interactive: true }),
+    pickSheet,
+  };
+
+  if (bankImportOpen) {
+    const adapter = createQuizImportAdapter({
+      ...sharedImportDeps,
+      widgetLabel: 'Question bank',
+      // Same row format as a quiz; the parsed questions become a new bank.
+      saveQuiz: async (data) => {
+        await saveBank({
+          id: crypto.randomUUID(),
+          title: data.title,
+          questions: data.questions,
+          ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+          ...(data.language ? { language: data.language } : {}),
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        });
+      },
+    });
+    return (
+      <ImportWizard
+        isOpen
+        onClose={() => setBankImportOpen(false)}
+        adapter={adapter}
+        onSaved={() => {
+          addToast('Question bank saved to Drive!', 'success');
+          setBankImportOpen(false);
+        }}
+      />
+    );
+  }
+
   if (view === 'import') {
     const adapter = createQuizImportAdapter({
+      ...sharedImportDeps,
       saveQuiz: async (data) => {
         await saveQuiz(data);
       },
-      importFromSheet,
-      importFromCSV,
-      createQuizTemplate: async (token) => {
-        // Forward the fresh `drive.file` token from the wizard so the
-        // template-create call uses it rather than useQuiz's stale render-time
-        // closure token (which would 403 on the first attempt).
-        const url = await createQuizTemplate(token);
-        return url;
-      },
-      // Sheets-API ops here (Picker-selected sheet read + template create) need
-      // only the non-sensitive `drive.file` login scope — silent for every
-      // signed-in user, NO `spreadsheets`. Interactive preserves the gesture
-      // for the rare never-granted-Drive case.
-      ensureDriveScope: () =>
-        ensureGoogleScope('drive.file', { interactive: true }),
-      pickSheet,
     });
     return (
       <ImportWizard
@@ -2086,6 +2117,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         banks={banks}
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
+        onImportBank={() => setBankImportOpen(true)}
         onNewBank={() => {
           const now = Date.now();
           setEditingBankMeta(null);
