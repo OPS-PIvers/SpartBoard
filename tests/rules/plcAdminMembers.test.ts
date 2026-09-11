@@ -211,6 +211,36 @@ describe('plcs/{plcId} update — isAdminEditingPlcMembers', () => {
     );
   });
 
+  it('rejects an un-migrated backfill that drops a legacy member from the map', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asAdmin(), `plcs/${UNMIGRATED_PLC_ID}`),
+        addNew({
+          members: {
+            [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
+            [NEW_UID]: member(NEW_UID, NEW_EMAIL, 'member'),
+          },
+        })
+      )
+    );
+  });
+
+  it('rejects an un-migrated backfill that adds an extra uid', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asAdmin(), `plcs/${UNMIGRATED_PLC_ID}`),
+        addNew({
+          members: {
+            [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
+            [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, 'member'),
+            [NEW_UID]: member(NEW_UID, NEW_EMAIL, 'member'),
+            'stray-uid': member('stray-uid', 'stray@orono.k12.mn.us', 'lead'),
+          },
+        })
+      )
+    );
+  });
+
   it('rejects a same-org non-admin', async () => {
     await assertFails(updateDoc(doc(asOrgPeer(), `plcs/${PLC_ID}`), addNew()));
   });
