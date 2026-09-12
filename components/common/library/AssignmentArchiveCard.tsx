@@ -27,6 +27,7 @@ import { createPortal } from 'react-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { Z_INDEX } from '@/config/zIndex';
 import type {
   AssignmentArchiveCardProps,
   LibraryBadgeTone,
@@ -176,7 +177,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
               position: 'fixed',
               top: menuPos.top,
               right: menuPos.right,
-              zIndex: 60,
+              zIndex: Z_INDEX.dropdown,
             }}
             className="min-w-[160px] bg-white rounded-lg shadow-lg border border-brand-blue-primary/15 py-1"
           >
