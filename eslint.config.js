@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
+import { readdirSync } from 'fs';
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
@@ -10,6 +11,23 @@ import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// D4 (Import Path Convention): live-computed list of components/plc/
+// subdirectory names, read from disk at lint-config-load time so the
+// no-restricted-imports pattern below can never drift from the actual
+// directory listing (see the D4 block for components/plc/** further down).
+const plcSubdirNames = readdirSync(join(__dirname, 'components/plc'), {
+  withFileTypes: true,
+})
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort();
+// `sections` is a file (components/plc/sections.ts), not a directory, so it
+// is never picked up by the readdirSync scan above — it's added explicitly
+// because it's the shared canonical-section-id module at the center of the
+// original bug this rule was written to prevent.
+const plcCrossSubdirRegex =
+  '^(\\.\\./)+(' + [...plcSubdirNames, 'sections'].join('|') + ')(/.*)?$';
 
 export default tseslint.config(
   {
@@ -171,7 +189,12 @@ export default tseslint.config(
     // this pattern, since it only fires when the segment immediately after
     // the last '../' is itself a plc subdirectory name (or `sections`, the
     // module at the center of the recurring bug).
-    // Covers existing components/plc/ subdirectory names plus forward-looking PLC_SECTIONS ids from sections.ts (e.g. assessments/todos, no dir yet) — keep both in sync.
+    // The subdirectory alternation is computed from a live readdirSync of
+    // components/plc/ at lint-config-load time (see plcSubdirNames /
+    // plcCrossSubdirRegex above), so it can never drift from the actual
+    // directory listing. `sections` is added explicitly to that computed
+    // list since it's a file (components/plc/sections.ts), not a directory,
+    // and readdirSync's directory filter won't pick it up.
     files: ['components/plc/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
@@ -179,8 +202,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex:
-                '^(\\.\\./)+(activity|assessments|assignments|authoring|bodies|comments|docs|home|meeting|members|notes|presence|resources|search|sections|settings|sharedBoards|sharedData|sync|tabs|todos|versions|viewer)(/.*)?$',
+              regex: plcCrossSubdirRegex,
               caseSensitive: true,
               message:
                 "Cross-subdirectory plc import — use '@/components/plc/<dir>/...' instead of a relative path that escapes this subdirectory (see D4 in docs/routines/unifier.md).",
