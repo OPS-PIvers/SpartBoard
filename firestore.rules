@@ -885,9 +885,11 @@ service cloud.firestore {
       // Non-admins can read public backgrounds
       allow read: if request.auth != null && resource.data.accessLevel == 'public';
       
-      // Non-admins can read beta backgrounds if they are explicitly in the beta list
-      allow read: if request.auth != null && 
-                  resource.data.accessLevel == 'beta' && 
+      // Non-admins can read beta backgrounds if they are explicitly in the beta list.
+      // email_verified is REQUIRED, same reason as isAdmin() above.
+      allow read: if request.auth != null &&
+                  resource.data.accessLevel == 'beta' &&
+                  request.auth.token.get('email_verified', false) == true &&
                   request.auth.token.email.lower() in resource.data.betaUsers;
 
       allow write: if isAdmin();
@@ -1669,6 +1671,9 @@ service cloud.firestore {
     // invite). Verified against a matching *pending* invitation doc, and
     // constrained so the only change is appending the caller (an invitee can't
     // rewrite the whole array).
+    // email_verified is REQUIRED, same reason as isAdmin() above — otherwise an
+    // unverified self-reported email lets an attacker accept another teacher's
+    // PLC invite and join in their place.
     function isAcceptingPlcInvite(plcId) {
       let emailLower = request.auth.token.get('email', '').lower();
       let oldMembers = resource.data.memberUids;
@@ -1688,7 +1693,8 @@ service cloud.firestore {
              && request.resource.data.members[request.auth.uid].status == 'active'
              && request.resource.data.members[request.auth.uid].uid == request.auth.uid
            );
-      return emailLower != ''
+      return request.auth.token.get('email_verified', false) == true
+        && emailLower != ''
         && !(request.auth.uid in oldMembers)
         && (request.auth.uid in newMembers)
         && newMembers.size() == oldMembers.size() + 1
@@ -3109,10 +3115,14 @@ service cloud.firestore {
     match /plc_invitations/{inviteId} {
       // Invitee sees their own invites; the inviter sees the ones they sent (for
       // the sidebar "Pending invites" / "Outstanding invitations" panels).
+      // email_verified is REQUIRED on the invitee branch, same reason as isAdmin()
+      // above — otherwise an unverified self-reported email would let an attacker
+      // read an invite addressed to someone else's inbox.
       allow read: if request.auth != null
         && request.auth.token.get('email', '') != ''
         && (
-          resource.data.inviteeEmailLower == request.auth.token.email.lower()
+          (request.auth.token.get('email_verified', false) == true
+            && resource.data.inviteeEmailLower == request.auth.token.email.lower())
           || request.auth.uid == resource.data.invitedByUid
         );
 
@@ -3139,8 +3149,12 @@ service cloud.firestore {
       // Invitee patches only status + respondedAt to accept/decline. Status must
       // go pending → terminal (no resurrecting to pending or arbitrary strings).
       // The invitee never deletes; the lead revokes, accepted invites kept for audit.
+      // email_verified is REQUIRED, same reason as isAdmin() above — otherwise an
+      // unverified self-reported email lets an attacker accept/decline an invite
+      // addressed to someone else.
       allow update: if request.auth != null
         && request.auth.token.get('email', '') != ''
+        && request.auth.token.get('email_verified', false) == true
         && resource.data.inviteeEmailLower == request.auth.token.email.lower()
         && resource.data.status == 'pending'
         && request.resource.data.status in ['accepted', 'declined']
@@ -3853,8 +3867,10 @@ service cloud.firestore {
          resource.data.enabled == true &&
          (
            resource.data.accessLevel == 'public' ||
+           // email_verified is REQUIRED, same reason as isAdmin() above.
            (resource.data.accessLevel == 'beta' &&
             request.auth.token.email != null &&
+            request.auth.token.get('email_verified', false) == true &&
             request.auth.token.email.lower() in resource.data.betaUsers)
          ));
       allow write: if isAdmin();

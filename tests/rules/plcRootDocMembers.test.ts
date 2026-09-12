@@ -78,6 +78,15 @@ const asNonMember = () =>
   testEnv
     .authenticatedContext(NON_MEMBER_UID, { email: NON_MEMBER_EMAIL })
     .firestore();
+// isAcceptingPlcInvite requires email_verified: true (F-EV1) — used only for
+// the legitimate accept-invite (assertSucceeds) cases below.
+const asNonMemberVerified = () =>
+  testEnv
+    .authenticatedContext(NON_MEMBER_UID, {
+      email: NON_MEMBER_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
@@ -817,7 +826,7 @@ describe('plcs/{plcId} update — accept-invite (members-map maintenance)', () =
   it('a non-member with a pending invite self-appends to BOTH the map and indexes', async () => {
     await seedPendingInvite(NON_MEMBER_EMAIL);
     await assertSucceeds(
-      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}`), {
+      updateDoc(doc(asNonMemberVerified(), `plcs/${PLC_ID}`), {
         memberUids: [
           LEAD_UID,
           COLEAD_UID,
@@ -940,7 +949,7 @@ describe('plcs/{plcId} update — accept-invite (members-map maintenance)', () =
   it('accepts with a serverTimestamp updatedAt (dual-accept)', async () => {
     await seedPendingInvite(NON_MEMBER_EMAIL);
     await assertSucceeds(
-      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}`), {
+      updateDoc(doc(asNonMemberVerified(), `plcs/${PLC_ID}`), {
         memberUids: [
           LEAD_UID,
           COLEAD_UID,
