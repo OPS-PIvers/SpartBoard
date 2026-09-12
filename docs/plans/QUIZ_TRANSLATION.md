@@ -982,6 +982,19 @@ loss on what will be the most common accommodation by far.
 (`functions/src/quizReadAloud.ts:515`) requires `xx-XX-(Neural2|Standard)-[A-J]`, and Cloud TTS has
 no voice of any shape for `so` or `hmn` to put in it.
 
+> **Verified 2026-09-12** against Google's live supported-voices list
+> (`docs.cloud.google.com/text-to-speech/docs/list-voices-and-types`): **neither Somali nor Hmong
+> appears anywhere in it**, at any tier (Standard, Neural2, WaveNet, Chirp3-HD, Studio). eSpeak NG's
+> 127-language list contains neither either. Spanish needs no external confirmation — the repo
+> already synthesizes `es-US` in production today.
+>
+> **But "no vendor has it" would be too strong, and v2 should start from the true statement.**
+> Third-party TTS SaaS (Narakeet, and Meta's MMS research models) do cover Somali. Adopting one is a
+> vendor, billing, secret-management and data-processing-agreement decision — a real project, not an
+> impossibility. Hmong coverage is materially thinner than Somali's even off-platform. So the honest
+> framing is: **no Somali or Hmong read-aloud on the stack this app already pays for**, not "it
+> cannot be done."
+
 > **D25.** For a locale **with** a voice: build target-language read-aloud (§4.7.1). For a locale
 > **without** one: suppress the speaker — **and disclose the conflict to the teacher at set-time,
 > not silently to the child.**
