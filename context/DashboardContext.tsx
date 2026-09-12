@@ -357,7 +357,8 @@ const getDashboardSaveState = (d: Dashboard) => ({
     background: d.background,
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
-    settings: JSON.stringify(d.settings ?? {}),
+    // settings is a map; stableStringify so a Firestore key-order echo doesn't read as a local edit.
+    settings: stableStringify(d.settings ?? {}),
     annotationOverlay: serializeAnnotationOverlay(d),
     // The remaining DASHBOARD_FIELDS, keyed by field name for both the save merge and the snapshot merge.
     dashboardFields: Object.fromEntries(
@@ -2061,7 +2062,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 JSON.stringify(currentActive.libraryOrder) !==
                   lastSavedFieldsRef.current.libraryOrder;
               const settingsChangedLocally =
-                JSON.stringify(currentActive.settings ?? {}) !==
+                stableStringify(currentActive.settings ?? {}) !==
                 (lastSavedFieldsRef.current.settings ?? '{}');
               // Unsaved ink must survive an incoming snapshot, same as name
               // and background — otherwise every remote echo erases it.
@@ -2269,7 +2270,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 );
               }
               if (!settingsChangedLocally) {
-                lastSavedFieldsRef.current.settings = JSON.stringify(
+                lastSavedFieldsRef.current.settings = stableStringify(
                   db.settings ?? {}
                 );
               }
@@ -2851,7 +2852,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // capture sites — JSON.stringify(undefined) returns undefined, not a
         // string, which would read as a local edit on every subsequent save.
         libraryOrder: JSON.stringify(active.libraryOrder ?? []),
-        settings: JSON.stringify(active.settings ?? {}),
+        settings: stableStringify(active.settings ?? {}),
         annotationOverlay: serializeAnnotationOverlay(active),
         dashboardFields: Object.fromEntries(
           DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(active[f])])

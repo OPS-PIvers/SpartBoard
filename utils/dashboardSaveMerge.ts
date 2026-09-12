@@ -135,8 +135,9 @@ export function mergeDashboardForSave(
       (baseline.libraryOrder ?? '[]')
         ? local.libraryOrder
         : server.libraryOrder,
+    // settings is a map, unlike the ordered libraryOrder array, so it needs the stable (key-sorted) compare or a Firestore-echoed reorder reads as a local edit forever.
     settings:
-      JSON.stringify(local.settings ?? {}) !== (baseline.settings ?? '{}')
+      stableStringify(local.settings ?? {}) !== (baseline.settings ?? '{}')
         ? local.settings
         : server.settings,
   };
