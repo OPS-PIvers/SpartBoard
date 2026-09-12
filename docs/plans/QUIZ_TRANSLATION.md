@@ -2097,8 +2097,11 @@ permutation, never reshuffle.
 > quiz suite as the gate. PR3 is where the feature becomes real, and it must not also carry PR1's
 > refactor risk.
 >
-> PR0 and PR3–PR5 are **shaped but not locked**. Each needs its own pass before it is built; §6
-> (back-translation) and §11's PR5 are explicitly lists of open questions, not plans.
+> PR0 and PR3–PR5 are **locked as of the D32–D40 pass.** PR0 is specified in §3.7, PR4's callable in
+> §6, and PR5's transport and approval authority in §11 — none is a list of open questions any more.
+> What PR3–PR5 still need is a build pass: file manifests and acceptance criteria at the level PR1
+> and PR2 carry. The remaining unknowns in this document are **measurements** (§16's merge gates),
+> not decisions.
 
 ### PR0 — roster standing-default writer (prerequisite, NOT this feature, NOT one-shot-ready)
 
@@ -2201,9 +2204,11 @@ localization and **no** accommodation-bar theme variant.
 
 ### PR4 — free-response back-translation (NOT one-shot)
 
-See §6. Additive, but its callable must be specified before it is built.
+See §6, which now specifies the callable end to end — `backTranslateResponseV1`, its request and
+response shape, the five auth gates, the cache key and location, and the quota. Additive, and no
+longer blocked on a design question.
 
-### PR5 — PLC translation sync (NOT one-shot; a list of open questions)
+### PR5 — PLC translation sync (NOT one-shot)
 
 **Transport is decided (D36), and it is not "copy the sidecar."** An earlier revision of this
 section said translations stay in Drive and the sync copies sidecars between teachers. **That is
