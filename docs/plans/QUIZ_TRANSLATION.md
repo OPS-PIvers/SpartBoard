@@ -75,6 +75,15 @@ that already exists end to end, and it means the teacher — not the 6th grader 
 | D29 | Bank-slot quizzes                  | Cannot be translated. Languages pane shows a disabled empty state; §10 treats as untranslated                                                                                                            |
 | D30 | Rollout                            | `quiz-translation`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`                                                                                                     |
 | D31 | Class-wide targeting               | **Seeds `targetStudents` with the roster's standing-default students so their pointer docs survive class-wide assignment. Client-side only; the Cloud Function already supports the shape** (§3.5) — NEW |
+| D32 | PR0 surface                        | **Per-row expander reusing `OverrideEditorRow` at `quizMode={false}`.** Do not widen `RosterEditorModal` — the grid math does not allow it (§3.7) — NEW                                                  |
+| D33 | PR0 scope                          | The three quiz-agnostic fields: `language`, `readAloud`, `timeMultiplier`. `openAt`/`closeAt` suppressed via a new prop (§3.7) — NEW                                                                     |
+| D34 | Standing-default merge             | **Per-field merge, standing loses.** `applyDefaultOverride`'s whole-object assign drops a standing language whenever the teacher has customized that student (§3.8) — NEW                                |
+| D35 | PR2 invocation                     | **DEV-only Generate harness** in `components/dev/`, so the client→callable→sidecar path is exercised inside PR2 (§5.9) — NEW                                                                             |
+| D36 | PR5 locale transport               | **Firestore group doc carries the payload; the puller writes their own Drive sidecar** — same path `questions` already takes. A peer cannot read the author's sidecar under `drive.file` (§11 PR5) — NEW |
+| D37 | Teacher-paced × accommodations     | **Enforce individual targeting ⇒ self-paced**, _and_ apply hidden options unconditionally so already-live sessions are fixed too (§4.8) — NEW                                                            |
+| D38 | PR0 write path                     | **Both, Drive authoritative.** Drive roster JSON is the home; Firestore mirrors (§3.7) — NEW                                                                                                             |
+| D39 | PR5 approval authority             | **Canonical wins; a pull overwrites local `approvedQuestionIds`** (§11 PR5) — NEW                                                                                                                        |
+| D40 | PR0 test scope                     | Round-trip, per-field merge, **and** a component test pinning `quizMode={false}` field visibility (§3.7) — NEW                                                                                           |
 
 ### 2.1 What this revision reversed, and why
 
@@ -397,6 +406,58 @@ index. The previous revision said _"decide explicitly"_ and did not.
 
 Predicate (both sides): `!lang || lang.toLowerCase().startsWith('en')`. The field defaults to
 `'en-US'` (`config/quizReadAloud.ts:6`), so "absent" is the common case.
+
+### 3.7 PR0's surface — a per-row expander, not a wider modal (D32, D33)
+
+§11 says PR0 has no spec. This is it, and it is smaller than it looks because the component already exists.
+
+**Do not widen `RosterEditorModal`.** It is `max-w-5xl` (64rem) at `h-[85vh]` (`:115-116`), and `buildGridTemplate` (`:760-774`) allocates `2rem | 5rem PIN | 1fr First | 1fr Last | 1.4fr Email | minmax(9rem,14rem) Restrictions | 2rem`. With every optional column on, the fixed parts plus `gap-3` consume ~22.5rem, leaving ~41.5rem across 3.4fr — First/Last ≈ 12rem, Email ≈ 17rem. A language select (~8rem), a time-multiplier select (~7rem), a read-aloud checkbox (~3rem) and their gaps cost ~20rem, which collapses the email column to ~8.8rem (~140px) — too narrow to read `firstname.lastname@district.k12.mn.us`. Holding the current text widths needs ~84rem; `max-w-7xl` is 80rem and still short, and 84rem does not fit a 1366px teacher laptop, let alone a tablet. **A fifth grid column is not available at any modal width worth shipping.**
+
+**The editor already exists and was already built for a non-quiz host.** `components/common/library/OverrideEditorRow.tsx:51`:
+
+```ts
+/** Quiz-only fields (subset picker, option hider, rubric swap, tab warning) render only when true. */
+quizMode?: boolean;
+```
+
+`quizMode={false}` renders exactly `timeMultiplier`, `openAt`/`closeAt` and `readAloud` (behind `readAloudAvailable`) — and the three override fields that key by **question id**, and therefore cannot be roster-level standing defaults at all (`questionIds`, `hiddenOptionIdsByQuestion`, `rubricOverrideByQuestion`), are already the ones that flag gates off. Its contract is `studentName` + `override` + `onChange`, with no quiz coupling, and it already collapses to `summarizeOverride` chips — which is what §17's "language chip; miss cost: accommodation invisible in collapsed rows" row is about. It has exactly one caller today; PR0 makes it two.
+
+**D33 — scope.** `language`, `readAloud`, `timeMultiplier`. This is not a subset of the generic editor PR0 promises; given the question-id constraint above, it **is** the generic editor.
+
+**One field does not come out cleanly, and it needs a prop.** `quizMode` gates only the subset picker, option hider, rubric swap and tab warning — so `openAt`/`closeAt` render at `quizMode={false}` for free. They should not: an availability window on a roster has no referent (open relative to _which_ assignment?), and shipping a control whose roster-level meaning is undefined invites someone to give it one later. **Add a `showWindow?: boolean` (defaulting true, so the existing caller is untouched) and pass `false` from the roster host.** This is the one change PR0 makes to a component with a live production caller, which is why D40 pins it with a test.
+
+**The one unavoidable cost.** `onSave` is `(name, students, groups?)` (`:23`, called at `:80-82`) and `DraftRow` carries no override. Both grow a fourth axis, threaded through the draft/validate/save path to `updateRoster`. That cost is identical for any surface that writes roster-level defaults — a separate modal would not avoid it.
+
+**Write path (D38): both, Drive authoritative.** The Drive roster JSON is the roster's home and Firestore mirrors it, which is why §3.1's `parseStudentOverride` fix (`hooks/useRosters.ts:171`) sits on the Drive read path — that is the path that decides whether a standing default survives a reload. Firestore carries the mirror so `AssignStudentPicker` and §10's advisory read it from the already-loaded roster with no Drive call. Write Drive first, then the mirror; on mirror failure the next load still recovers the truth from Drive.
+
+**Tests (D40) — three, and no more.** Two cover the silent-failure paths this plan identifies, and one covers the only regression PR0 can cause elsewhere:
+
+1. **Round-trip:** a standing override survives roster save → Drive JSON → `parseStudentOverride` (`hooks/useRosters.ts:171`) → reload. This is §3.1's allowlist, and it fails silently without a test.
+2. **Per-field merge (D34):** a standing `language` survives the teacher adding `timeMultiplier` on the same assignment, and a per-assignment `language` still beats the standing one.
+3. **Component:** `OverrideEditorRow` at `quizMode={false}` with `showWindow={false}` renders exactly `language` / `readAloud` / `timeMultiplier` and **no** quiz-only field — and its existing `quizMode` caller is unchanged.
+
+Deliberately **not** tested: Drive-write/Firestore-mirror consistency. Asserting it requires mocking both sides to say anything real, and D38's recovery property (Drive is authoritative, so a failed mirror self-heals on next load) is already exercised by test 1.
+
+**Acceptance criteria:** the three tests above pass; a standing accommodation set in the roster editor appears as a chip in the collapsed row and is applied by `AssignStudentPicker` on both individual and class-wide targeting (D31); and no existing `OverrideEditorRow` behavior changes for its quiz caller.
+
+PR0 is now fully specified.
+
+### 3.8 The standing-default merge rule (D34)
+
+D31 fixes **when** `applyDefaultOverride` fires. This fixes **what it does when it fires**, and the two are independent.
+
+`applyDefaultOverride` (`AssignStudentPicker.tsx:121-131`) short-circuits on `if (draftOverrides[key]) return;` and then assigns the standing override **whole-object**. Once standing defaults have a writer, that is wrong in the exact case this feature exists for: a teacher who adds extended time for one quiz to an EL student silently drops that student's standing `language`, and the child gets English. §4.4 names EL-plus-reduced-choices as one of the most common accommodation pairings there is.
+
+**Per-field merge, standing loses.** Drop the short-circuit; merge each standing field only where the per-assignment draft has no value:
+
+```ts
+setDraftOverrides((prev) => ({
+  ...prev,
+  [key]: { ...defaultOverride, ...prev[key] },
+}));
+```
+
+A per-assignment value always wins, so a teacher can still turn an accommodation off for one quiz. Like D31, this is **dark until PR0 ships** and changes behavior for every override type, not just language — so it belongs in PR1's acceptance criteria on its own line, beside D31's.
 
 ## 4. Serving to students — READ THIS BEFORE CODING
 
@@ -958,9 +1019,9 @@ Specifics that are decisions, not taste:
   advance — nineteen extra taps for a student who prefers English on a 20-question quiz. Display is
   a pure function of the toggle (D22: the cache holds English; D18: `locale` is stamped per call), so
   stickiness costs nothing and deletes the whole "why did it change back" class of confusion.
-- **Theme check.** `ReadAloudToolbar` is light-only (`bg-white/85 text-slate-600`) and
-  `light = isStudentPaced` (`:2778`). **Verify** a translated student can never reach a
-  `sessionMode === 'teacher'` session, or theme the bar off `light` — see §4.8.
+- **Theme.** `ReadAloudToolbar` is light-only (`bg-white/85 text-slate-600`) and
+  `light = isStudentPaced` (`:2778`). D37 makes every override-bearing session student-paced, so the
+  light palette is always correct — no theme prop, no dark variant (§4.8).
 
 **The toggle must not wipe in-progress work.** `MatchingResponseInput` keys placements by
 **left-term text** (`:213-217`) and resets on remount via `key={question.id}` — and the question id
@@ -1072,21 +1133,56 @@ for those students, inside a cap that today degrades rather than blocks.
 sync, so a session with `readAloudAll` and three locales today pays full TTS for audio no translated
 student can reach. Money, not correctness — but it is real.
 
-### 4.8 Two verifications this plan owes before PR3
+### 4.8 Teacher-paced mode is enforced out of reach (D37)
 
-Neither blocks the PR1+PR2 one-shot. Both must be answered before the student UI ships.
+Both of this section's former open verifications are now closed by one decision.
 
-1. **Is a translated student reachable in teacher-paced mode?** §4.6 previously asserted
+> **D37: an assignment that carries per-student overrides must be self-paced.** Throw in
+> `createAssignment` when `overridesBySourcedId` / `overridesByStudentUid` is non-empty and the
+> session mode is teacher-paced, mirroring the existing `bankSlots` throw at
+> `useQuizAssignments.ts:805-807`. `setAssignmentTargetsV1` needs the same guard on the edit path,
+> or a teacher adds an override to a live teacher-paced session and walks around it.
+
+**The enforcement is not sufficient on its own, and this is the part that is easy to get wrong.**
+It guards `create` and the target-edit path, so it protects assignments made _after_ PR1 — but
+nothing in the codebase prevented this combination before, so teacher-paced sessions carrying
+per-student overrides may already be live. Guarding new writes would leave those students with the
+accommodation still not applied, permanently and silently.
+
+> **So PR1 also fixes the underlying bug directly.** `QuizStudentApp.tsx:1746-1750` currently reads:
+>
+> ```ts
+> const served = isStudentPaced
+>   ? applyHiddenOptions(baseQuestion, override?.hiddenOptionIdsByQuestion)
+>   : baseQuestion;
+> ```
+>
+> Drop the `isStudentPaced` ternary and apply hidden options unconditionally. It is a no-op when the
+> student has no `hiddenOptionIdsByQuestion`, so it changes nothing for anyone else — and it repairs
+> every already-published session rather than only the ones created after this ships.
+
+That is an IEP accommodation silently not applied, it is **not** this feature's bug, and it ships in
+PR1 with its own acceptance line — cite the enforcement, never D15, which is about SSO and not about
+pacing. Name it in the PR description as a fix, not a side effect.
+
+The cost is real and worth stating: teacher-paced assignment with per-student overrides is a
+combination the product allows today and this removes it. Translated teacher-paced delivery is a v2
+feature with its own pass, not a thing that half-works.
+
+**Consequences, both previously open:**
+
+1. ~~**Is a translated student reachable in teacher-paced mode?**~~ **No — enforced.** For the record, the hole was real: §4.6 previously asserted
    `ReviewPhase` (`:3910`) is unreachable "per D15" — but **D15 is about SSO, not pacing**, and
    nothing enforces that individually-targeted implies self-paced: `createAssignment` throws only
    for `bankSlots` + non-student mode (`useQuizAssignments.ts:805-807`), `setAssignmentTargetsV1` has
    no mode constraint, and `myOverride` resolves regardless of `sessionMode`. If it is reachable, a
    translated student sees an English `ReviewPhase` between every question — and, separately,
    `applyHiddenOptions` is skipped in teacher-paced mode (`:1749`), so that student also sees answer
-   choices the accommodation was supposed to hide. **That second one is a pre-existing bug this
-   feature would surface.** Either localize `ReviewPhase` or add the missing enforcement — and cite
-   the enforcement, not D15.
-2. **`StudentAccommodationBar` theming**, per §4.6.
+   choices the accommodation was supposed to hide. No `ReviewPhase` localization ships in v1.
+2. ~~**`StudentAccommodationBar` theming**~~ **Resolved.** `light = isStudentPaced`
+   (`QuizStudentApp.tsx:2778`), and D37 makes every accommodation-bearing session student-paced, so
+   `ReadAloudToolbar`'s light-only palette (`bg-white/85 text-slate-600`) is always correct. No dark
+   variant, no theme prop.
 
 ## 5. Generation — `translateQuizV1`
 
@@ -1565,6 +1661,14 @@ admin side is currently write-only:
   it with a log-based metric alert on `failedUnits`: a sustained nonzero `failedUnits` _is_ the
   truncation runaway, and is otherwise indistinguishable from normal traffic.
 
+### 5.9 PR2 needs a way to invoke the callable (D35)
+
+Generation is client-driven: the client sends the questions and writes the sidecar. So with the Languages tab absent, **no code path in PR2 reaches `translateQuizV1`, `utils/quizTranslationApi.ts` or the new `QuizDriveService` sidecar methods.** PR2's acceptance criteria cover the pieces well — auth gates, the cap, the rules `getAfter()` branch, cross-runtime hash agreement — but every one of them exercises a unit in isolation. The **client → callable → validator → Drive sidecar** round trip is the one thing PR2 builds and nothing in PR2 runs, so a wire-format or sidecar-naming mismatch would first surface in PR3, on top of PR3's own new UI.
+
+**Add a DEV-only Generate harness.** This is a repo convention, not scaffolding: `components/dev/` holds twelve harnesses routed from `App.tsx:638-700` behind `import.meta.env.DEV`, including `QuizEditorDevView.tsx`. The harness picks a quiz and a locale, calls through `utils/quizTranslationApi.ts`, runs the response through the validator, and writes the sidecar via `saveTranslation` — proving the flat wire format's length contract and the sidecar filename before PR3 depends on both. It also gives PR3, PR4 and PR5 a way to produce real fixtures without hand-authoring translated JSON.
+
+It ships no production surface, so it does not weaken PR2's real claim (§11): _no teacher or student can reach translation, because the Languages tab does not exist and the flag is admin-only._
+
 ## 6. Free-response back-translation (D14)
 
 **PR4. Not one-shot-ready — it is specified as a behavior with no function.** The previous revision
@@ -1594,6 +1698,10 @@ export interface BackTranslateResult {
   budget: BudgetInfo;
 }
 ```
+
+**Name the export `backTranslateResponseV1`**, and add it to `EXPECTED_EXPORTS` in
+`functions/src/index.test.ts:3012` alongside `translateQuizV1` — that test pins the barrel's export
+set with `toEqual`, so a second export omitted there fails CI rather than shipping unregistered.
 
 > **It must take `{sessionId, responseKey}` and read the response server-side, not `{answerText}`.**
 > A callable that accepts arbitrary text is a second open translation proxy — the §5.2 problem
@@ -1989,8 +2097,11 @@ permutation, never reshuffle.
 > quiz suite as the gate. PR3 is where the feature becomes real, and it must not also carry PR1's
 > refactor risk.
 >
-> PR0 and PR3–PR5 are **shaped but not locked**. Each needs its own pass before it is built; §6
-> (back-translation) and §11's PR5 are explicitly lists of open questions, not plans.
+> PR0 and PR3–PR5 are **locked as of the D32–D40 pass.** PR0 is specified in §3.7, PR4's callable in
+> §6, and PR5's transport and approval authority in §11 — none is a list of open questions any more.
+> What PR3–PR5 still need is a build pass: file manifests and acceptance criteria at the level PR1
+> and PR2 carry. The remaining unknowns in this document are **measurements** (§16's merge gates),
+> not decisions.
 
 ### PR0 — roster standing-default writer (prerequisite, NOT this feature, NOT one-shot-ready)
 
@@ -2002,14 +2113,28 @@ the comment _"so bypass mode doesn't diverge once `defaultOverridesByStudentId` 
 Build the per-student accommodation row in the roster editor as its own PR. It is generic
 infrastructure that read-aloud and extended time need too, and translation lands on top for free.
 
-> **It has no spec here.** No file manifest, no UI shape, no write path, no answer to whether the
-> standing override persists to the Firestore roster, the Drive roster JSON, or both, no acceptance
-> criteria, no tests. **Do not attempt PR0 from this document.**
+> **§3.7 now specifies the surface and scope (D32, D33): a per-row expander reusing
+> `OverrideEditorRow` at `quizMode={false}`, over `language` / `readAloud` / `timeMultiplier`, with
+> the grid math for why `RosterEditorModal` must not be widened.** §3.7 also settles the write path
+> (D38: both, Drive authoritative), the `showWindow` prop, and PR0's three tests and acceptance
+> criteria (D40). **PR0 is fully specified — build it from §3.7.**
 
 **Until PR0 ships, the feature is inert**, because `defaultOverridesByStudentId` is always empty.
 That is exactly what makes D31 (§3.5) safe to land inside PR1.
 
 ### PR1 — override plumbing + the whole index-alignment path (dark) ★ one-shot
+
+PR1 also carries §3.8's **per-field standing-override merge** (D34) and §4.8's **self-paced
+enforcement** (D37). Like D31, both are dark or near-dark for translation but change behavior for
+every override type — so each needs its own acceptance-criteria line, not a shared one:
+
+- A standing `language` survives the teacher adding `timeMultiplier` on the same assignment (D34).
+- `createAssignment` **and** the target-edit path throw when overrides meet teacher-paced mode (D37).
+- A student with `hiddenOptionIdsByQuestion` no longer sees hidden choices **in an already-published
+  teacher-paced session**, because `applyHiddenOptions` now runs unconditionally (§4.8) — the
+  enforcement alone would only have protected assignments created after this ships. **This is a
+  pre-existing accommodation bug and should be called out in the PR description as a fix, not buried
+  as a side effect.**
 
 Types; the three allowlists (§3.1); **D31's class-targeting fix** (§3.5 — client-side, two sites); `seededPermutation` with
 `seededShuffle` refactored to delegate; `projectQuestionWithLocales`; `ServedQuestion` and
@@ -2061,6 +2186,9 @@ carve-outs; `tests/rules/`; and the analytics registration in all three mirrors.
   cannot read or create on teacher A's session.
 - Client and function hashes agree for the same quiz, and the §9.1 key-swap reads stale.
 - The `countTokens` spike and the session-byte measurement are **merge gates**, not follow-ups (§16).
+- The **DEV-only Generate harness** (§5.9, D35) drives one real quiz through client → callable →
+  validator → Drive sidecar, so PR2 proves the wire format and the sidecar filename rather than
+  deferring both to PR3.
 
 ### PR3 — teacher review + student serving (NOT one-shot)
 
@@ -2070,19 +2198,51 @@ The Languages tab; locale-doc read + tri-state gate; the accommodation bar and t
 language select threaded through `AssignTargetingSection` and its four callers; the English-question
 chip (§4.5); i18n for all four locales.
 
-Needs a preview-URL pass with a real SSO student, and the two §4.8 verifications answered first.
+Needs a preview-URL pass with a real SSO student. §4.8's two verifications are closed by D37, which
+ships in PR1 — so PR3 is no longer gated on an investigation, and it carries **no** `ReviewPhase`
+localization and **no** accommodation-bar theme variant.
 
 ### PR4 — free-response back-translation (NOT one-shot)
 
-See §6. Additive, but its callable must be specified before it is built.
+See §6, which now specifies the callable end to end — `backTranslateResponseV1`, its request and
+response shape, the five auth gates, the cache key and location, and the quota. Additive, and no
+longer blocked on a design question.
 
-### PR5 — PLC translation sync (NOT one-shot; a list of open questions)
+### PR5 — PLC translation sync (NOT one-shot)
 
-Requires a `firestore.rules` change: `/synced_quizzes/{groupId}` is schema-locked by `hasOnly([...])`
-on **both create and update** (`firestore.rules:1393-1431`), so a `translations` field is rejected
-outright today. Still unanswered: whether locales live in the Firestore group doc (which contradicts
-§3.3's entire rationale) or stay in Drive; an `approvedQuestionIds` authority rule; and Drive access
-on the sync path. It also lifts PR1's `syncAssignmentToLatest` refusal.
+**Transport is decided (D36), and it is not "copy the sidecar."** An earlier revision of this
+section said translations stay in Drive and the sync copies sidecars between teachers. **That is
+unbuildable.** The app holds only `drive.file` (`config/firebase.ts:84`), which grants access to
+files the app created for that user — the puller's client has no way to read a sidecar in the
+**author's** Drive, and the per-file Picker grant (`:67-68`) needs a human to pick a file they
+cannot see. A `driveFileId` on the group doc is a dangling pointer for everyone but its author.
+
+> **The existing sync already answers this.** `pullSyncedQuizContent`
+> (`hooks/useSyncedQuizGroups.ts:221-245`) reads `questions`, `stimuli` and `behavior` from the
+> **Firestore** group doc — not from Drive — and `pullSyncedQuiz` then writes the puller's own Drive
+> replica (`hooks/useQuiz.ts:323`). Translations take the identical path: **payload rides the group
+> doc, the puller writes their own locale sidecars.** No cross-account Drive access anywhere.
+
+So PR5 **does** need the `hasOnly` widened at `firestore.rules:1393-1431`, on create and update.
+Weigh that honestly: `/synced_quizzes/{groupId}` is `allow get: if request.auth != null` (`:1386`),
+so any authed caller holding the id — **anonymous students included** — can read it. The doc already
+carries `questions` with `correctAnswer`, so the **translated** answer key is not a new exposure
+class, but it is more surface. Mitigation is the existing unguessable-id posture plus
+`allow list: if false` (`:1390`). §3.3's rationale is not violated: it argues translations stay out
+of what loads on **every editor open and publish**, and the group doc is neither.
+
+Size is the constraint to watch, not scope: three locales of a 40-question quiz on the same doc as
+`questions`. Measure against the 1 MB cap before building, alongside §16's other merge gates.
+
+**Approval authority (D39): canonical wins.** A pull overwrites the puller's `approvedQuestionIds`
+for that quiz, matching `pullSyncedQuiz`'s existing overwrite-the-replica semantics and keeping one
+source of truth. A peer who approved locally loses that on the next pull — acceptable because the
+gate is procedural (D26) and the canonical author is the one who generated the translation. The
+alternatives were considered and rejected: an **intersection** rule silently drops coverage on every
+pull and makes the "12 of 20 approved" counter lie; a **union** rule lets one teacher's approval
+serve a second teacher's students content that second teacher never saw.
+
+Still unanswered: nothing. PR5 also lifts PR1's `syncAssignmentToLatest` refusal.
 
 > Note what widening that `hasOnly` means: `/synced_quizzes/{groupId}` is
 > `allow get: if request.auth != null` (`:1386`) — any authed caller, **including anonymous
@@ -2488,31 +2648,37 @@ indistinguishable from normal traffic.
 
 **Silent if missed** (no error, no test failure, feature quietly wrong):
 
-| File                                                            | Change                                                                                                                                                                                              | Miss cost                                                                                                   |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `functions/src/studentAssignmentTargets.ts:142-151`             | `language?: string` on the **functions-local** `StudentOverride` duplicate — `functions/` does not import root `types.ts`                                                                           | No type error anywhere in `type-check:all`                                                                  |
-| `functions/src/studentAssignmentTargets.ts:341`                 | validated `language` branch in `sanitizeOverride()`, whose doc comment is _"drops unknown keys"_                                                                                                    | **Feature dead**, no error                                                                                  |
-| `components/common/library/AssignTargetingSection.tsx:244-250`  | `collapse()` retains standing-default refs **and their `overridesByKey` entries** (D31, §3.5)                                                                                                       | Feature does nothing on the dominant assign path; retaining the ref alone silently clears the accommodation |
-| `components/common/library/AssignStudentPicker.tsx:142,191,379` | seed standing defaults for the **initial** class-wide value, not only on `toggleStudent`/`toggleSelectAll` (D31, §3.5)                                                                              | A teacher who never opens the individual picker still gets nothing                                          |
-| `hooks/useRosters.ts:171`                                       | `language` in `parseStudentOverride()` — the third allowlist                                                                                                                                        | Standing default lost on every reload                                                                       |
-| `hooks/useQuiz.ts:288,350,434,621`                              | preserve `translations` across four non-merging `setDoc`s. `:350` `pullSyncedQuiz` is **auto-fired by `usePlcAutoPullSync`**, so a peer's edit wipes your index with no action from you             | **Approval work destroyed on save**                                                                         |
-| `hooks/useQuizAssignments.ts:1299-1332` `deleteAssignment`      | reap `/locales` via `session.localeCodes`                                                                                                                                                           | Orphaned subcollection docs, invisible until a storage audit                                                |
-| `hooks/useQuizAssignments.ts:1952` `syncAssignmentToLatest`     | refuse on `session.localeCodes`, not on `localized`                                                                                                                                                 | **Refusal compiles, type-checks, never fires**                                                              |
-| `hooks/useQuiz.ts` duplicate path `:580-640`                    | carry `translations` **and copy the sidecar Drive files**. Carrying the index alone points the copy's index at the **source's** `driveFileId`s — editing the copy's Spanish rewrites the original's | Cross-quiz data corruption                                                                                  |
-| `functions/src/aiGeneration.ts:310`                             | export `getGeminiModelConfig` (currently `async function`, escaping only as the test alias `__getGeminiModelConfig` at `:394`)                                                                      | Unbuildable as cited                                                                                        |
-| `functions/src/aiGeneration.ts:183`                             | export `resolveOrgIdForToken` (same problem — test alias `__resolveOrgIdForToken` at `:278`)                                                                                                        | Unbuildable as cited                                                                                        |
-| `functions/src/quizReadAloud.ts:516`                            | lift `LANGUAGE_TAG_RE` to `functions/src/languageTag.ts`; it is `const`, not exported                                                                                                               | Unbuildable as cited                                                                                        |
-| `functions/src/adminAnalyticsCompute.ts:469`                    | `'translation'` in `GEMINI_SPECIFIC_FEATURES`                                                                                                                                                       | Usage docs parsed into a **phantom uid** and dropped from analytics                                         |
-| `functions/src/adminAnalyticsCompute.ts:486`                    | `.select('count')` → add `'outputTokens'`, `'costUsd'`                                                                                                                                              | The token/cost meter is **write-only**                                                                      |
-| `functions/src/adminAnalyticsCompute.ts:498-506`                | branch for `org-*` rows; `memberUids.has(uid)` drops them                                                                                                                                           | Org burn-down never visible (also true of read-aloud's `global_tts_` row today)                             |
-| `firestore.rules`                                               | `match /admin_settings/quiz_translation` — authed-read **minus anonymous**, admin-write                                                                                                             | Language picker silently empty                                                                              |
-| `firestore.rules`                                               | `admin_settings/quiz_translation_limits` stays admin-only under the existing `{document=**}` rule at `:699`                                                                                         | Caps config exposed to every teacher — the exact thing §7 refuses to do for read-aloud                      |
-| `config/featureDefaults.ts`                                     | `{ defaultAccessLevel: 'admin', defaultEnabled: true, missingDocPublic: false }` (D30)                                                                                                              | Gate fails unpredictably                                                                                    |
-| `config/featureDefaults.test.ts`                                | fail-closed assertion (existing per-feature pattern)                                                                                                                                                | —                                                                                                           |
-| `components/admin/GlobalPermissionsManager.tsx:175`             | registry entry beside `quiz-read-aloud`                                                                                                                                                             | Admin cannot toggle the flag                                                                                |
-| `utils/studentOverrideSummary.ts:68-71`                         | `language` chip, following `readAloud`                                                                                                                                                              | Accommodation invisible in collapsed rows                                                                   |
-| `utils/studentOverrideModifiedNote.ts`                          | **`language` counts as modified.** Decided, not deferred                                                                                                                                            | Unnamed sibling of the above                                                                                |
-| `public/changelog.json`                                         | one entry; `pnpm changelog:draft` prints a draft to rewrite                                                                                                                                         | Repo convention                                                                                             |
+| File                                                                                | Change                                                                                                                                                                                              | Miss cost                                                                                                   |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `functions/src/studentAssignmentTargets.ts:142-151`                                 | `language?: string` on the **functions-local** `StudentOverride` duplicate — `functions/` does not import root `types.ts`                                                                           | No type error anywhere in `type-check:all`                                                                  |
+| `functions/src/studentAssignmentTargets.ts:341`                                     | validated `language` branch in `sanitizeOverride()`, whose doc comment is _"drops unknown keys"_                                                                                                    | **Feature dead**, no error                                                                                  |
+| `components/common/library/AssignTargetingSection.tsx:244-250`                      | `collapse()` retains standing-default refs **and their `overridesByKey` entries** (D31, §3.5)                                                                                                       | Feature does nothing on the dominant assign path; retaining the ref alone silently clears the accommodation |
+| `components/common/library/AssignStudentPicker.tsx:142,191,379`                     | seed standing defaults for the **initial** class-wide value, not only on `toggleStudent`/`toggleSelectAll` (D31, §3.5)                                                                              | A teacher who never opens the individual picker still gets nothing                                          |
+| `components/common/library/AssignStudentPicker.tsx:121-131`                         | per-field merge instead of the whole-object assign, and drop the `if (draftOverrides[key]) return;` short-circuit (D34, §3.8)                                                                       | **Standing `language` silently dropped** whenever the teacher customizes that student on the assignment     |
+| `components/classes/RosterEditorModal.tsx`                                          | 4th `onSave` arg + `DraftRow` override + per-row expander (PR0, D32/D33, §3.7)                                                                                                                      | D1's headline story has no writer; the whole feature stays inert                                            |
+| `components/common/library/OverrideEditorRow.tsx`                                   | second host — must render correctly at `quizMode={false}` (PR0, §3.7)                                                                                                                               | Quiz-only fields leak into the roster editor, or the roster editor is rebuilt from scratch                  |
+| `hooks/useQuizAssignments.ts:805-807` + `functions/src/studentAssignmentTargets.ts` | throw when per-student overrides meet teacher-paced mode, on create **and** target-edit (D37, §4.8)                                                                                                 | A translated student gets an English `ReviewPhase`, and hidden answer choices come back                     |
+| `components/quiz/QuizStudentApp.tsx:1746-1750`                                      | drop the `isStudentPaced` ternary so `applyHiddenOptions` runs unconditionally (D37, §4.8)                                                                                                          | Already-live teacher-paced sessions keep showing choices the accommodation hides                            |
+| `components/dev/` + the `App.tsx` DEV route block                                   | DEV-only Generate harness (D35, §5.9)                                                                                                                                                               | PR2 ships a callable, a client API and Drive sidecar methods that nothing in PR2 executes                   |
+| `hooks/useRosters.ts:171`                                                           | `language` in `parseStudentOverride()` — the third allowlist                                                                                                                                        | Standing default lost on every reload                                                                       |
+| `hooks/useQuiz.ts:288,350,434,621`                                                  | preserve `translations` across four non-merging `setDoc`s. `:350` `pullSyncedQuiz` is **auto-fired by `usePlcAutoPullSync`**, so a peer's edit wipes your index with no action from you             | **Approval work destroyed on save**                                                                         |
+| `hooks/useQuizAssignments.ts:1299-1332` `deleteAssignment`                          | reap `/locales` via `session.localeCodes`                                                                                                                                                           | Orphaned subcollection docs, invisible until a storage audit                                                |
+| `hooks/useQuizAssignments.ts:1952` `syncAssignmentToLatest`                         | refuse on `session.localeCodes`, not on `localized`                                                                                                                                                 | **Refusal compiles, type-checks, never fires**                                                              |
+| `hooks/useQuiz.ts` duplicate path `:580-640`                                        | carry `translations` **and copy the sidecar Drive files**. Carrying the index alone points the copy's index at the **source's** `driveFileId`s — editing the copy's Spanish rewrites the original's | Cross-quiz data corruption                                                                                  |
+| `functions/src/aiGeneration.ts:310`                                                 | export `getGeminiModelConfig` (currently `async function`, escaping only as the test alias `__getGeminiModelConfig` at `:394`)                                                                      | Unbuildable as cited                                                                                        |
+| `functions/src/aiGeneration.ts:183`                                                 | export `resolveOrgIdForToken` (same problem — test alias `__resolveOrgIdForToken` at `:278`)                                                                                                        | Unbuildable as cited                                                                                        |
+| `functions/src/quizReadAloud.ts:516`                                                | lift `LANGUAGE_TAG_RE` to `functions/src/languageTag.ts`; it is `const`, not exported                                                                                                               | Unbuildable as cited                                                                                        |
+| `functions/src/adminAnalyticsCompute.ts:469`                                        | `'translation'` in `GEMINI_SPECIFIC_FEATURES`                                                                                                                                                       | Usage docs parsed into a **phantom uid** and dropped from analytics                                         |
+| `functions/src/adminAnalyticsCompute.ts:486`                                        | `.select('count')` → add `'outputTokens'`, `'costUsd'`                                                                                                                                              | The token/cost meter is **write-only**                                                                      |
+| `functions/src/adminAnalyticsCompute.ts:498-506`                                    | branch for `org-*` rows; `memberUids.has(uid)` drops them                                                                                                                                           | Org burn-down never visible (also true of read-aloud's `global_tts_` row today)                             |
+| `firestore.rules`                                                                   | `match /admin_settings/quiz_translation` — authed-read **minus anonymous**, admin-write                                                                                                             | Language picker silently empty                                                                              |
+| `firestore.rules`                                                                   | `admin_settings/quiz_translation_limits` stays admin-only under the existing `{document=**}` rule at `:699`                                                                                         | Caps config exposed to every teacher — the exact thing §7 refuses to do for read-aloud                      |
+| `config/featureDefaults.ts`                                                         | `{ defaultAccessLevel: 'admin', defaultEnabled: true, missingDocPublic: false }` (D30)                                                                                                              | Gate fails unpredictably                                                                                    |
+| `config/featureDefaults.test.ts`                                                    | fail-closed assertion (existing per-feature pattern)                                                                                                                                                | —                                                                                                           |
+| `components/admin/GlobalPermissionsManager.tsx:175`                                 | registry entry beside `quiz-read-aloud`                                                                                                                                                             | Admin cannot toggle the flag                                                                                |
+| `utils/studentOverrideSummary.ts:68-71`                                             | `language` chip, following `readAloud`                                                                                                                                                              | Accommodation invisible in collapsed rows                                                                   |
+| `utils/studentOverrideModifiedNote.ts`                                              | **`language` counts as modified.** Decided, not deferred                                                                                                                                            | Unnamed sibling of the above                                                                                |
+| `public/changelog.json`                                                             | one entry; `pnpm changelog:draft` prints a draft to rewrite                                                                                                                                         | Repo convention                                                                                             |
 
 **Files the previous revision required but never named** — every one of these is reachable only by
 deriving it, which is exactly what a one-shot cannot afford:
