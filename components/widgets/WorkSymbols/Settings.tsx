@@ -5,6 +5,9 @@ import { useDashboard } from '@/context/useDashboard';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+
+const TITLE_POSITION_OPTIONS: Array<'bottom' | 'top'> = ['bottom', 'top'];
 
 export const WorkSymbolsSettings: React.FC<{ widget: WidgetData }> = () => null;
 
@@ -18,6 +21,10 @@ export const WorkSymbolsAppearanceSettings: React.FC<{
     updateWidget(widget.id, { config: { ...config, ...updates } });
 
   const titlePosition = config.titlePosition ?? 'bottom';
+
+  // Shared select handler — reused by the onClick and roving-tabindex keydown paths.
+  const selectTitlePosition = (position: 'bottom' | 'top') =>
+    updateConfig({ titlePosition: position });
 
   return (
     <div className="space-y-6">
@@ -34,11 +41,22 @@ export const WorkSymbolsAppearanceSettings: React.FC<{
         </SettingsLabel>
         <div
           className="flex bg-slate-100 p-1 rounded-xl"
-          role="group"
+          role="radiogroup"
           aria-labelledby={`worksymbols-title-position-label-${widget.id}`}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(
+              e,
+              TITLE_POSITION_OPTIONS,
+              selectTitlePosition
+            )
+          }
         >
           <button
-            onClick={() => updateConfig({ titlePosition: 'bottom' })}
+            type="button"
+            role="radio"
+            aria-checked={titlePosition === 'bottom'}
+            tabIndex={titlePosition === 'bottom' ? 0 : -1}
+            onClick={() => selectTitlePosition('bottom')}
             className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
               titlePosition === 'bottom'
                 ? 'bg-white text-slate-900 shadow-sm'
@@ -48,7 +66,11 @@ export const WorkSymbolsAppearanceSettings: React.FC<{
             Bottom
           </button>
           <button
-            onClick={() => updateConfig({ titlePosition: 'top' })}
+            type="button"
+            role="radio"
+            aria-checked={titlePosition === 'top'}
+            tabIndex={titlePosition === 'top' ? 0 : -1}
+            onClick={() => selectTitlePosition('top')}
             className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
               titlePosition === 'top'
                 ? 'bg-white text-slate-900 shadow-sm'
