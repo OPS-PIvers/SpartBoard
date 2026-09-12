@@ -76,13 +76,14 @@ that already exists end to end, and it means the teacher — not the 6th grader 
 | D30 | Rollout                            | `quiz-translation`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`                                                                                                     |
 | D31 | Class-wide targeting               | **Seeds `targetStudents` with the roster's standing-default students so their pointer docs survive class-wide assignment. Client-side only; the Cloud Function already supports the shape** (§3.5) — NEW |
 | D32 | PR0 surface                        | **Per-row expander reusing `OverrideEditorRow` at `quizMode={false}`.** Do not widen `RosterEditorModal` — the grid math does not allow it (§3.7) — NEW                                                  |
-| D33 | PR0 scope                          | The three quiz-agnostic fields: `language`, `readAloud`, `timeMultiplier` (§3.7) — NEW                                                                                                                   |
+| D33 | PR0 scope                          | The three quiz-agnostic fields: `language`, `readAloud`, `timeMultiplier`. `openAt`/`closeAt` suppressed via a new prop (§3.7) — NEW                                                                     |
 | D34 | Standing-default merge             | **Per-field merge, standing loses.** `applyDefaultOverride`'s whole-object assign drops a standing language whenever the teacher has customized that student (§3.8) — NEW                                |
 | D35 | PR2 invocation                     | **DEV-only Generate harness** in `components/dev/`, so the client→callable→sidecar path is exercised inside PR2 (§5.9) — NEW                                                                             |
 | D36 | PR5 locale transport               | **Firestore group doc carries the payload; the puller writes their own Drive sidecar** — same path `questions` already takes. A peer cannot read the author's sidecar under `drive.file` (§11 PR5) — NEW |
-| D37 | Teacher-paced × accommodations     | **Enforce individual targeting ⇒ self-paced.** Throws in `createAssignment`. Also fixes a pre-existing `applyHiddenOptions` bug (§4.8) — NEW                                                             |
+| D37 | Teacher-paced × accommodations     | **Enforce individual targeting ⇒ self-paced**, _and_ apply hidden options unconditionally so already-live sessions are fixed too (§4.8) — NEW                                                            |
 | D38 | PR0 write path                     | **Both, Drive authoritative.** Drive roster JSON is the home; Firestore mirrors (§3.7) — NEW                                                                                                             |
 | D39 | PR5 approval authority             | **Canonical wins; a pull overwrites local `approvedQuestionIds`** (§11 PR5) — NEW                                                                                                                        |
+| D40 | PR0 test scope                     | Round-trip, per-field merge, **and** a component test pinning `quizMode={false}` field visibility (§3.7) — NEW                                                                                           |
 
 ### 2.1 What this revision reversed, and why
 
@@ -423,11 +424,23 @@ quizMode?: boolean;
 
 **D33 — scope.** `language`, `readAloud`, `timeMultiplier`. This is not a subset of the generic editor PR0 promises; given the question-id constraint above, it **is** the generic editor.
 
+**One field does not come out cleanly, and it needs a prop.** `quizMode` gates only the subset picker, option hider, rubric swap and tab warning — so `openAt`/`closeAt` render at `quizMode={false}` for free. They should not: an availability window on a roster has no referent (open relative to _which_ assignment?), and shipping a control whose roster-level meaning is undefined invites someone to give it one later. **Add a `showWindow?: boolean` (defaulting true, so the existing caller is untouched) and pass `false` from the roster host.** This is the one change PR0 makes to a component with a live production caller, which is why D40 pins it with a test.
+
 **The one unavoidable cost.** `onSave` is `(name, students, groups?)` (`:23`, called at `:80-82`) and `DraftRow` carries no override. Both grow a fourth axis, threaded through the draft/validate/save path to `updateRoster`. That cost is identical for any surface that writes roster-level defaults — a separate modal would not avoid it.
 
 **Write path (D38): both, Drive authoritative.** The Drive roster JSON is the roster's home and Firestore mirrors it, which is why §3.1's `parseStudentOverride` fix (`hooks/useRosters.ts:171`) sits on the Drive read path — that is the path that decides whether a standing default survives a reload. Firestore carries the mirror so `AssignStudentPicker` and §10's advisory read it from the already-loaded roster with no Drive call. Write Drive first, then the mirror; on mirror failure the next load still recovers the truth from Drive.
 
-What PR0 still owes before it is built: acceptance criteria and tests. Everything else is specified.
+**Tests (D40) — three, and no more.** Two cover the silent-failure paths this plan identifies, and one covers the only regression PR0 can cause elsewhere:
+
+1. **Round-trip:** a standing override survives roster save → Drive JSON → `parseStudentOverride` (`hooks/useRosters.ts:171`) → reload. This is §3.1's allowlist, and it fails silently without a test.
+2. **Per-field merge (D34):** a standing `language` survives the teacher adding `timeMultiplier` on the same assignment, and a per-assignment `language` still beats the standing one.
+3. **Component:** `OverrideEditorRow` at `quizMode={false}` with `showWindow={false}` renders exactly `language` / `readAloud` / `timeMultiplier` and **no** quiz-only field — and its existing `quizMode` caller is unchanged.
+
+Deliberately **not** tested: Drive-write/Firestore-mirror consistency. Asserting it requires mocking both sides to say anything real, and D38's recovery property (Drive is authoritative, so a failed mirror self-heals on next load) is already exercised by test 1.
+
+**Acceptance criteria:** the three tests above pass; a standing accommodation set in the roster editor appears as a chip in the collapsed row and is applied by `AssignStudentPicker` on both individual and class-wide targeting (D31); and no existing `OverrideEditorRow` behavior changes for its quiz caller.
+
+PR0 is now fully specified.
 
 ### 3.8 The standing-default merge rule (D34)
 
@@ -1130,11 +1143,27 @@ Both of this section's former open verifications are now closed by one decision.
 > `useQuizAssignments.ts:805-807`. `setAssignmentTargetsV1` needs the same guard on the edit path,
 > or a teacher adds an override to a live teacher-paced session and walks around it.
 
-This resolves both items below, and it **fixes a pre-existing accommodation bug** that is not this
-feature's: `applyHiddenOptions` is skipped in teacher-paced mode (`QuizStudentApp.tsx:1749`), so a
-student whose accommodation hides two wrong choices sees them anyway today. That is an IEP
-accommodation silently not applied, and it ships in PR1 as its own acceptance line — cite the
-enforcement, never D15, which is about SSO and not about pacing.
+**The enforcement is not sufficient on its own, and this is the part that is easy to get wrong.**
+It guards `create` and the target-edit path, so it protects assignments made _after_ PR1 — but
+nothing in the codebase prevented this combination before, so teacher-paced sessions carrying
+per-student overrides may already be live. Guarding new writes would leave those students with the
+accommodation still not applied, permanently and silently.
+
+> **So PR1 also fixes the underlying bug directly.** `QuizStudentApp.tsx:1746-1750` currently reads:
+>
+> ```ts
+> const served = isStudentPaced
+>   ? applyHiddenOptions(baseQuestion, override?.hiddenOptionIdsByQuestion)
+>   : baseQuestion;
+> ```
+>
+> Drop the `isStudentPaced` ternary and apply hidden options unconditionally. It is a no-op when the
+> student has no `hiddenOptionIdsByQuestion`, so it changes nothing for anyone else — and it repairs
+> every already-published session rather than only the ones created after this ships.
+
+That is an IEP accommodation silently not applied, it is **not** this feature's bug, and it ships in
+PR1 with its own acceptance line — cite the enforcement, never D15, which is about SSO and not about
+pacing. Name it in the PR description as a fix, not a side effect.
 
 The cost is real and worth stating: teacher-paced assignment with per-student overrides is a
 combination the product allows today and this removes it. Translated teacher-paced delivery is a v2
@@ -2084,8 +2113,8 @@ infrastructure that read-aloud and extended time need too, and translation lands
 > **§3.7 now specifies the surface and scope (D32, D33): a per-row expander reusing
 > `OverrideEditorRow` at `quizMode={false}`, over `language` / `readAloud` / `timeMultiplier`, with
 > the grid math for why `RosterEditorModal` must not be widened.** §3.7 also settles the write path
-> (D38: both, Drive authoritative). What remains for PR0 is acceptance criteria and tests — not
-> design. It is no longer a blank page.
+> (D38: both, Drive authoritative), the `showWindow` prop, and PR0's three tests and acceptance
+> criteria (D40). **PR0 is fully specified — build it from §3.7.**
 
 **Until PR0 ships, the feature is inert**, because `defaultOverridesByStudentId` is always empty.
 That is exactly what makes D31 (§3.5) safe to land inside PR1.
@@ -2098,9 +2127,11 @@ every override type — so each needs its own acceptance-criteria line, not a sh
 
 - A standing `language` survives the teacher adding `timeMultiplier` on the same assignment (D34).
 - `createAssignment` **and** the target-edit path throw when overrides meet teacher-paced mode (D37).
-- A student with `hiddenOptionIdsByQuestion` no longer sees hidden choices, because the combination
-  that skipped `applyHiddenOptions` is now unreachable. **This is a pre-existing accommodation bug
-  and should be called out in the PR description as a fix, not buried as a side effect.**
+- A student with `hiddenOptionIdsByQuestion` no longer sees hidden choices **in an already-published
+  teacher-paced session**, because `applyHiddenOptions` now runs unconditionally (§4.8) — the
+  enforcement alone would only have protected assignments created after this ships. **This is a
+  pre-existing accommodation bug and should be called out in the PR description as a fix, not buried
+  as a side effect.**
 
 Types; the three allowlists (§3.1); **D31's class-targeting fix** (§3.5 — client-side, two sites); `seededPermutation` with
 `seededShuffle` refactored to delegate; `projectQuestionWithLocales`; `ServedQuestion` and
@@ -2622,6 +2653,7 @@ indistinguishable from normal traffic.
 | `components/classes/RosterEditorModal.tsx`                                          | 4th `onSave` arg + `DraftRow` override + per-row expander (PR0, D32/D33, §3.7)                                                                                                                      | D1's headline story has no writer; the whole feature stays inert                                            |
 | `components/common/library/OverrideEditorRow.tsx`                                   | second host — must render correctly at `quizMode={false}` (PR0, §3.7)                                                                                                                               | Quiz-only fields leak into the roster editor, or the roster editor is rebuilt from scratch                  |
 | `hooks/useQuizAssignments.ts:805-807` + `functions/src/studentAssignmentTargets.ts` | throw when per-student overrides meet teacher-paced mode, on create **and** target-edit (D37, §4.8)                                                                                                 | A translated student gets an English `ReviewPhase`, and hidden answer choices come back                     |
+| `components/quiz/QuizStudentApp.tsx:1746-1750`                                      | drop the `isStudentPaced` ternary so `applyHiddenOptions` runs unconditionally (D37, §4.8)                                                                                                          | Already-live teacher-paced sessions keep showing choices the accommodation hides                            |
 | `components/dev/` + the `App.tsx` DEV route block                                   | DEV-only Generate harness (D35, §5.9)                                                                                                                                                               | PR2 ships a callable, a client API and Drive sidecar methods that nothing in PR2 executes                   |
 | `hooks/useRosters.ts:171`                                                           | `language` in `parseStudentOverride()` — the third allowlist                                                                                                                                        | Standing default lost on every reload                                                                       |
 | `hooks/useQuiz.ts:288,350,434,621`                                                  | preserve `translations` across four non-merging `setDoc`s. `:350` `pullSyncedQuiz` is **auto-fired by `usePlcAutoPullSync`**, so a peer's edit wipes your index with no action from you             | **Approval work destroyed on save**                                                                         |
