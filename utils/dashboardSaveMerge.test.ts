@@ -5,6 +5,7 @@ import {
   serializeDashboardField,
   type SaveBaseline,
 } from './dashboardSaveMerge';
+import { stableStringify } from './stableStringify';
 import type { Dashboard, WidgetData } from '@/types';
 
 const textOf = (w: WidgetData) => (w.config as { text: string }).text;
@@ -37,7 +38,7 @@ const baselineOf = (d: Dashboard): SaveBaseline => ({
   background: d.background,
   name: d.name,
   libraryOrder: JSON.stringify(d.libraryOrder ?? []),
-  settings: JSON.stringify(d.settings ?? {}),
+  settings: stableStringify(d.settings ?? {}),
   dashboardFields: Object.fromEntries(
     DASHBOARD_FIELDS.map((f) => [f, serializeDashboardField(d[f])])
   ),
@@ -245,6 +246,33 @@ describe('mergeDashboardForSave', () => {
     const merged = mergeDashboardForSave(local, server, baselineOf(base));
 
     expect(merged.globalStyle).toEqual(server.globalStyle);
+  });
+
+  it('takes a remote settings edit when the local copy is unchanged but key-reordered', () => {
+    // Same content as base, different key order (as Firestore echoes a map field back) —
+    // must still read as "unchanged locally" so the server's real settings edit isn't dropped.
+    const base = board([], {
+      settings: {
+        disableCloseConfirmation: true,
+        remoteControlEnabled: false,
+      } as never,
+    });
+    const local = board([], {
+      settings: {
+        remoteControlEnabled: false,
+        disableCloseConfirmation: true,
+      } as never,
+    });
+    const server = board([], {
+      settings: {
+        disableCloseConfirmation: true,
+        remoteControlEnabled: true,
+      } as never,
+    });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.settings).toEqual(server.settings);
   });
 });
 

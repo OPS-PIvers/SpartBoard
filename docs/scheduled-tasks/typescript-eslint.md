@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-11_
+_Last audited: 2026-09-12_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-12: Full audit (Saturday daily), delegated to a dedicated sub-agent, rebased onto `origin/dev-paul` (HEAD `91d32f68`, 26 commits absorbed this cycle) before running. `pnpm run type-check` (`tsc --noEmit`, full root run): exit 0 — 0 TypeScript errors. `pnpm run lint` (`lint:app` via root `eslint . --max-warnings 0` + `lint:functions` via `functions/`'s own `eslint . --max-warnings 0`): first two attempts were cut off by the tool's own 300s foreground call timeout (eslint needs several minutes in this sandbox) producing misleading truncated `ELIFECYCLE Command failed` output with no real rule findings; re-ran both commands as detached background processes with explicit exit-code capture to get trustworthy results — both exit 0, 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both. No installs were needed this cycle. No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs). 0 new issues found._
 
 _2026-09-11: Full audit (Friday daily). `pnpm run type-check` (`tsc --noEmit`, full root run, ~63s) exit 0 — 0 TypeScript errors, no fallback needed (no `TS2307` stale-install misses this cycle). `pnpm run lint`: the full combined `pnpm run lint` (`lint:app` via `eslint . --max-warnings 0` + `lint:functions` via `functions/`'s own `eslint . --max-warnings 0`) completed cleanly in a single authoritative run this cycle, well under the ~280-300s cap — no timeout/OOM fallback needed, no 5-sweep methodology required. 0 ESLint errors, 0 warnings (`--max-warnings 0`) across the whole codebase, root and functions both. `git status` clean before and after — no installs were needed this cycle (dependency state already current). No structured `### [SEVERITY]` Open items exist in this journal to cross-reference or move to Completed (prior entries remain narrative daily-check logs). 0 new issues found._
 

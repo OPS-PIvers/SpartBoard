@@ -147,6 +147,25 @@ const rubricQuiz: QuizData = {
   updatedAt: 2000,
 };
 
+const wordLimitQuiz: QuizData = {
+  id: 'quiz-3',
+  title: 'Reflection',
+  questions: [
+    {
+      id: 'q1',
+      text: 'Reflect on the reading.',
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      timeLimit: 0,
+      // maxWords pre-set so the "Enforce limit" toggle is visible from render.
+      maxWords: 200,
+    },
+  ],
+  createdAt: 1000,
+  updatedAt: 2000,
+};
+
 const dirtyAttr = () =>
   screen.getByTestId('editor-workspace').getAttribute('data-is-dirty');
 
@@ -229,5 +248,51 @@ describe('QuizEditorModal isDirty (behavior compare)', () => {
         .valueAsNumber
     ).toBe(7);
     expect(dirtyAttr()).toBe('true');
+  });
+
+  it('flips dirty when a free-response minimum word count is set', () => {
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={wordLimitQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(dirtyAttr()).toBe('false');
+
+    const detail = () => within(screen.getByTestId('detail-pane'));
+    fireEvent.change(detail().getByLabelText('Minimum words'), {
+      target: { value: '50' },
+    });
+    expect(dirtyAttr()).toBe('true');
+
+    // Revert to the original (unset) minimum — back to clean.
+    fireEvent.change(detail().getByLabelText('Minimum words'), {
+      target: { value: '' },
+    });
+    expect(dirtyAttr()).toBe('false');
+  });
+
+  it('flips dirty when "Enforce limit" is toggled on a free-response question', () => {
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={wordLimitQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(dirtyAttr()).toBe('false');
+
+    const detail = () => within(screen.getByTestId('detail-pane'));
+    const enforceToggle = detail().getByRole('switch', {
+      name: 'Enforce limit',
+    });
+    fireEvent.click(enforceToggle);
+    expect(dirtyAttr()).toBe('true');
+
+    fireEvent.click(enforceToggle);
+    expect(dirtyAttr()).toBe('false');
   });
 });

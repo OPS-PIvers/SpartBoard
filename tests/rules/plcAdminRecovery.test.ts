@@ -94,9 +94,13 @@ const asOtherAdmin = () =>
       email_verified: true,
     })
     .firestore();
+// isAcceptingPlcInvite requires email_verified: true (F-EV1).
 const asInvitee = () =>
   testEnv
-    .authenticatedContext(INVITEE_UID, { email: INVITEE_EMAIL })
+    .authenticatedContext(INVITEE_UID, {
+      email: INVITEE_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 const member = (

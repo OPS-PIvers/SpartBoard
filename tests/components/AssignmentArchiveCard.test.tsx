@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
+import { Z_INDEX } from '@/config/zIndex';
 import type {
   AssignmentStatusBadge,
   LibraryMenuAction,
@@ -96,6 +97,35 @@ describe('AssignmentArchiveCard', () => {
     // that React `preventDefault()` calls on `pointerdown` would suppress.
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('portals the overflow menu above widgets with an accumulated z-index', () => {
+    // widget.z is a monotonically-increasing counter bumped by bringToFront
+    // on every focus/drag (see DashboardContext) — it is never reset, so it
+    // regularly exceeds small numbers over a dashboard's lifetime. The
+    // portalled menu must out-rank it using the shared Z_INDEX.dropdown
+    // constant, not a hardcoded value that only looks safe in isolation.
+    const secondary: LibraryMenuAction[] = [
+      { id: 'edit', label: 'Edit', onClick: vi.fn() },
+    ];
+    render(
+      <AssignmentArchiveCard<Assignment>
+        assignment={ASSIGNMENT}
+        mode="active"
+        status={LIVE_STATUS}
+        primaryAction={{ ...basePrimary, onClick: vi.fn() }}
+        secondaryActions={secondary}
+        title={ASSIGNMENT.quizTitle}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    const menu = screen.getByRole('menu');
+    const menuZ = Number(menu.style.zIndex);
+    // A widget brought to front ~75 times in normal use — well within a
+    // single class period of drag/click activity.
+    const accumulatedWidgetZ = 75;
+    expect(menuZ).toBeGreaterThan(accumulatedWidgetZ);
+    expect(menuZ).toBe(Z_INDEX.dropdown);
   });
 
   it('styles destructive actions with destructive classes', () => {

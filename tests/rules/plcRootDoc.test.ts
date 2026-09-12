@@ -71,6 +71,15 @@ const asNonMember = () =>
   testEnv
     .authenticatedContext(NON_MEMBER_UID, { email: NON_MEMBER_EMAIL })
     .firestore();
+// isAcceptingPlcInvite requires email_verified: true (F-EV1) — a verified
+// context for the legitimate accept-invite path.
+const asNonMemberVerified = () =>
+  testEnv
+    .authenticatedContext(NON_MEMBER_UID, {
+      email: NON_MEMBER_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
@@ -135,7 +144,7 @@ describe('plcs/{plcId} update — isAcceptingPlcInvite', () => {
   it('a non-member with a pending invite can self-append to members', async () => {
     await seedPendingInvite(NON_MEMBER_EMAIL);
     await assertSucceeds(
-      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}`), {
+      updateDoc(doc(asNonMemberVerified(), `plcs/${PLC_ID}`), {
         memberUids: [MEMBER_A_UID, MEMBER_B_UID, NON_MEMBER_UID],
         memberEmails: {
           [MEMBER_A_UID]: MEMBER_A_EMAIL,
