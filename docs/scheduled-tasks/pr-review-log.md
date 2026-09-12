@@ -3845,3 +3845,107 @@ So the flag's "silently reintroduce/duplicate" warning describes an unreachable 
   - **The `/mnt/skills/user/` skill paths named in the task prompt still do not exist here** (`/mnt/skills/` is absent entirely). Repo-local equivalents are at `.claude/skills/{new-widget,admin-widget-config}/`. Widget and admin-config standards came from the repo `CLAUDE.md`. Little was lost: no PR added a new widget, so the 8-file registration checklist had nothing to bite on, and the only widget-surface PRs were a back-face settings panel (#2964, where scaling rules explicitly do not apply) and two front-face scaling passes (#2961, #2967).
   - **Node version mismatch present and benign again:** container runs Node v22.22.2 against `engines: >=24.0.0`, printing an unsupported-engine warning on every `pnpm` invocation. It did not affect type-check, lint, or the 10,502-test run. Recorded so a future run seeing a real failure here does not re-diagnose the warning.
   - **The most useful check this run cost one probe file.** #2967's review would have read identically — "conversions look correct" — whether the units resolved against the widget or were inert. The only way to tell was to run the project's own Tailwind over `@container` and look at the bytes. It confirmed the PR and turned up a dead class elsewhere that has been shipping unnoticed. **When a CSS change's correctness depends on which ancestor is the container, the ancestor is part of the diff.**
+
+### 2026-09-11 — addendum (post-run PR activity)
+
+The entry above records the run as it stood at ~06:45. Subscribed-PR events kept arriving for
+another five hours and the outcome changed materially, so the headline numbers there
+(**1 fix pushed**) are superseded by what follows.
+
+- **#2961 MERGED** at 11:27. Final head `317e75b`, all five review threads resolved.
+- **Fixes pushed to #2961: 5, not 1** — `ad20aee` (cqmin scaling), `510bb0f` (skip the
+  per-student rescan when no question is tagged), `2788f2d` (plan-doc note, below),
+  `898aa26` (test coverage for the non-`=` CSV formula triggers), `317e75b` (drop the
+  "Other questions" heading when nothing is tagged). A sixth, an identical CSV guard, was
+  **written and then dropped** — see the collision note.
+- **The author fixed three findings from this run's reviews themselves**, concurrently:
+  `69ac053` (the `lowSample` served-vs-scored mismatch flagged in #2961's review),
+  `314bad0` (the CSV formula guard), and `2795efe` on `scheduled-tasks` (the leftover
+  `py-12` loading wrappers flagged in #2967's review).
+
+Lessons worth carrying, in rough order of reusability:
+
+- **Two automated review runs on the same PR asserted opposite things, and only checking
+  the code settled it.** On CSV formula injection, the earlier run called it a
+  "pre-existing, codebase-wide" gap every export shares and therefore not a regression;
+  the later run called it a real finding with an established in-repo mitigation. The later
+  was right: `escapeCsvCell` (`hooks/useGuidedLearningSession.ts:50`) exists and guards
+  `/^[=+\-@\t\r]/`. The first run's framing would have talked a reader out of a genuine
+  fix. **The useful distinction was never "is the codebase consistent" but "what reaches
+  the cell"** — `utils/rubricCsv.ts:77` is equally unguarded but carries teacher-authored
+  rubric text, while the GL exporter and `buildTargetGridCsv` both write *student names*.
+  Left `rubricCsv.ts` alone deliberately rather than widen a merged PR; **still open, worth
+  a human call.**
+- **Documenting a deferral stopped a finding that two runs had re-raised.** The
+  mastery-cutoffs question came back as a brand-new thread on the second pass because
+  nothing in the repo recorded that decision #26 already covers it. `2788f2d` added a note
+  to the plan doc's PR 3 checklist; the *third* review run then read it and closed the item
+  itself ("a deliberate, documented deferral — makes sense given a quiz can mix targets
+  from multiple PLCs"). **When a reviewer keeps rediscovering the same intentional choice,
+  the fix is a line of documentation, not a better reply.**
+- **Concurrent identical fixes are a real hazard on an actively-worked branch.** The author
+  and this run independently wrote byte-identical `quoteCsvCell` guards within minutes. The
+  push bounced, the duplicate was dropped in favour of theirs, and only the test coverage
+  their version lacked was contributed (`898aa26`). Two pushes bounced this way in total.
+  **On a fast-moving branch, fetch immediately before pushing and expect to discard work.**
+- **A background full-suite run that overlaps an edit produces a fake failure.** A run
+  started at 10:51 collected a test file edited at 10:55 and paired the new test with the
+  pre-edit module, reporting `1 failed`. A clean re-run passed 10,505. **Never start the
+  verification run before the edits are finished**, and re-run rather than reasoning about
+  whether a failure was a race.
+- **Verify a fix by breaking it.** For `317e75b` the guard was reverted in place to confirm
+  the new test fails on exactly the intended assertion, then restored. This also caught two
+  drafting bugs pre-push: a `QUESTIONS[1]` that would have spread `undefined` (the fixture
+  has one question), and a shell check printing "(remote ahead)" unconditionally because
+  `git log` exits 0 with no output.
+- **`--reporter=basic` crashes vitest here** (custom-reporter module load error);
+  `--reporter=dot --config vitest.config.ts` on a single file works and is ~2s versus ~10min
+  for the full suite. The `pnpm run test -- <path>` filter arg does **not** narrow the run.
+
+Standing item for the next run: **#2962** is still open, still based on `codex/quiz-target-results`
+(now merged), and its own description says "Merge #2961 first; do not merge this PR into
+`dev-paul` directly." It needs a **retarget to `dev-paul`** plus a rebase. Deliberately not done
+here — changing a PR's base is stack management on a PR this run neither opened nor was asked
+to drive. Its one Needs-changes finding (zero-attempt targets rendering as red 0% / "beginning"
+rather than "no data") is also still open.
+
+## 2026-09-12
+
+- PRs reviewed: **10** (every open PR). All ten target `dev-paul`, all ten are drafts, and every head branch is a `nightly/*` branch or `scheduled-tasks` — none is `main`- or `dev-*`-headed, so all were writable under the branch-safety rule.
+  - **#3003** docs(debugger): log run 68 — 5 shipped (1 security), backlog reconciled (`nightly/debugger-log-2026-09-12`)
+  - **#3002** fix(rules): require `email_verified` on remaining PLC-invite + beta-allowlist checks (`nightly/build-tooling-2026-09-12`)
+  - **#3001** fix(quiz): flag `minWords`/`enforceWordLimit` edits as dirty in editor (`nightly/widgets-2026-09-12`)
+  - **#3000** fix(dashboard): stable-stringify settings in save-merge comparisons (`nightly/state-data-2026-09-12`)
+  - **#2999** fix(library): use shared `Z_INDEX.dropdown` for assignment card overflow menu (`nightly/dashboard-layout-2026-09-12`)
+  - **#2998** fix(admin): canonicalize building id in `NextUpConfigurationPanel` (`nightly/admin-config-2026-09-12`)
+  - **#2997** fix(css-scaling): convert `GuidedLearningManager` front-face to cqmin (`scheduled-tasks`)
+  - **#2996** docs(unifier): log run 84 — 2 shipped (D3, D4), 3 aligned (`nightly/unifier-log-2026-09-12`)
+  - **#2995** fix(lint): compute plc `no-restricted-imports` regex from live directory listing (`nightly/unify-d4-import-paths-2026-09-12`)
+  - **#2994** fix(a11y): retrofit WorkSymbols title-position picker as radiogroup (`nightly/unify-d3-settings-labels-2026-09-12`)
+- Comments processed: **8 — 0 fixed, 0 separately replied to.** **All ten PRs returned `totalCount: 0` inline review threads** — there was no threaded, line-anchored feedback anywhere in the fleet tonight, so the `pulls/{n}/comments/{id}/replies` path Phase 1 is written around had no target to post to. The eight comments were all issue-level `claude[bot]` review summaries. Three were already answered by the author before this run read them (#3002, #2995 — both substantive findings the author verified independently, declined on scope grounds, and logged to the routine backlogs; #2994 — a bare "no action needed"). The other five (#3001, #3000, #2999, #2998, #2997) concluded LGTM or carried an explicitly self-labelled non-blocking note ("fine to merge as-is", "not asking for a change here"). Nothing met the fix bar. Their dispositions were folded into this run's structured review on each PR rather than posted as a separate reply comment, to keep this run to one comment per PR. **Fifth consecutive run with nothing unresolved to act on.**
+- Fixes pushed: **none.** No comment identified an unaddressed defect, and independent review turned up nothing that was simultaneously confident, in-scope and mechanical. Everything found was raised in the reviews.
+- Reviews posted: **10** (one structured review per open PR). Findings that came from checking a claim against the codebase rather than restating the diff:
+  - **#3002 — checked conjunct *ordering*, not just presence.** In `isAcceptingPlcInvite()` the new `email_verified` test is the first conjunct, so short-circuit evaluation runs before `emailLower` is used to index `plcInviteDocId(plcId, emailLower)` — the membership grant is unreachable on an unverified token, not merely harder to reach. Same ordering incidentally hardens the `admin_backgrounds` beta read at L885, which (unlike the `feature_permissions` site at L3867) has no preceding `request.auth.token.email != null` guard. Also confirmed the gate is correctly *withheld* from the `plc_invitations` inviter branch, which authorizes on uid rather than email. Flagged one operational risk the diff doesn't show: `firestore.rules` was recently measured at ~96.9% of the 262,144-byte Firebase cap and this PR is net +26 lines, several of them comments — that failure mode is a blocked deploy, not a red test.
+  - **#3000 — verified the migration is complete rather than partial.** Enumerated all four `settings` capture/compare sites (`DashboardContext.tsx:361`, `:2065`, `:2273`, `:2855`) plus `dashboardSaveMerge.ts:139` and confirmed both sides of every comparison now produce key-sorted output — a half-migration here would be worse than no change. Then read the rest of the file for the same bug class and found two live asymmetries worth naming: `getDashboardSaveState:356` still uses plain `JSON.stringify` on `widgets` while the sibling helpers directly above it (`serializeDashboard:294`, `widgetMirrorSignature:284`) deliberately use `stableStringify` for exactly the stated key-order reason; and `configChangedLocally:2142` compares widget `config` maps with plain `JSON.stringify`. **Characterized the second one accurately rather than alarmingly** — its `stringify` branch is only reached when either widget lacks a `version`, so versioned widgets short-circuit on the counter and only legacy unversioned widgets are exposed. Both already appear in `docs/routines/debugger.md`'s backlog, matching what #3003 records.
+  - **#2997 — checked the ancestor, because for a cqmin conversion the ancestor is part of the diff.** Container-query units silently degrade to viewport-relative sizing with no container ancestor, so a conversion can be byte-perfect and still inert. Confirmed `guided-learning` carries `skipScaling: true`, that `GuidedLearningManager` mounts inside `WidgetLayout`'s `container-type: size` content, and — the part that actually needed checking — that `GuidedLearningPreviewPane` is rendered **inline at `:1165`, not portalled**; the file contains no `createPortal`/`<Modal>` usage at all. Also confirmed the icon conversions correctly *drop* lucide's numeric `size` prop rather than feeding it a CSS unit string, and that the retained `text-slate-400/500` usages sit on light surfaces, which is the explicit carve-out in CLAUDE.md's contrast rule rather than a violation of it.
+  - **#2994 — checked the one invariant that makes this retrofit silently wrong.** `handleRadioGroupKeyDown` maps `nodes.indexOf(document.activeElement)` onto `options[nextIdx]`, so it is only correct if the options array order matches DOM render order. `TITLE_POSITION_OPTIONS = ['bottom', 'top']` against Bottom-then-Top buttons: aligned. A mismatch would select the wrong value on arrow keys while looking perfect in review and in a snapshot test.
+  - **#2995 — checked the new failure modes a config-load-time `readdirSync` introduces.** Path is built with `join(__dirname, …)` rather than cwd-relative, which is the detail that would otherwise break IDE integrations and `lint-staged`; `.sort()` makes the generated regex deterministic; and the degenerate empty-directory case collapses to a still-valid regex that keeps enforcing the original chokepoint. Named the one genuinely new coupling: lint now fails with a module-load error, not a rule violation, if `components/plc/` is ever absent. Also stated plainly that the verification here (two live-fire planted escapes) is manual and does not re-run in CI — correct for lint config, but worth saying rather than calling coverage adequate.
+  - **#2998 — named the blast radius the diff doesn't show, and checked the prototype question.** `canonicalizeBuildingKeyedRecord` returns an `Object.create(null)` record; spreading it into the write-site object literal is safe (own enumerable props, normal resulting prototype), so nothing null-prototyped reaches Firestore. The behavioral note: saving any one building now rewrites the whole map with canonical keys, and if a legacy and canonical key ever coexisted for one building the helper's documented last-writer-wins collapse would drop one — its own JSDoc says that doesn't occur today.
+  - **#2999 — distinguished the fixed bug from the one that remains.** `Z_INDEX.dropdown` (110) clears the `widget.z` counter, but sits below `Z_INDEX.maximized` (10500), and the menu is portalled to a body-level sibling outside the maximized widget's stacking context, so it will still be occluded there. Separate defect, already in the PR's own Backlog and in `docs/routines/debugger.md`, and fixing it means changing the portal strategy rather than a constant.
+  - **#3001 — checked why `=== true` rather than `!==`.** Collapsing `undefined` and `false` to the same value is what stops mere field *initialization* registering as an edit; the test also covers revert-to-clean, which is the half of this bug class that usually goes untested.
+  - **#3003 / #2996 — read the journals against the PRs they describe.** Both reconcile correctly: #3003 advances the `canonicalBuildingId()` count 14 → 15 with #2998 appended, strikes three items with correct PR references, and — the part worth crediting — carries the still-unfixed substitute-teacher domain-regex gap forward as an open SECURITY backlog item rather than closing it out alongside #3002. #2996 correctly retires the three-recurrence D4 watch-item and opens the new, milder `sections.ts` forward-looking gap as a *fresh* row instead of reusing the old one. Flagged on #2996 that its own D3 backlog row is self-labelled as not re-verified live this run; that list is the input to the next run's pick, so the staleness compounds if skipped twice.
+- Cross-PR checks run this review:
+  - **Base freshness: all ten head branches are exactly 0 commits behind `origin/dev-paul` (`d2c8451`)**, each 1 commit ahead except `scheduled-tasks` at 3. No merge conflicts, and `dev-paul` did not move during the run.
+  - **No file-set overlap between the ten PRs.** `firestore.rules` + `tests/rules/` (#3002); `QuizWidget/components/QuizEditorModal*` (#3001); `context/DashboardContext.tsx` + `utils/dashboardSaveMerge*` (#3000); `components/common/library/AssignmentArchiveCard*` (#2999); `components/admin/NextUpConfigurationPanel*` (#2998); `GuidedLearning/components/GuidedLearningManager.tsx` + `docs/scheduled-tasks/*` (#2997); `eslint.config.js` (#2995); `WorkSymbols/Settings.tsx` + `legacySnapshots` snapshot (#2994); `docs/routines/debugger.md` (#3003); `docs/routines/unifier.md` (#2996). Merge order is unconstrained.
+  - **Regression surface is narrow.** Only #3000 touches `context/DashboardContext.tsx`, and it is confined to `settings` serialization — nowhere near `getAdminBuildingConfig` or the widget config-merge pipeline. Nothing touches `WidgetRegistry.ts`, the `WidgetType`/`WidgetConfig` union, `ConfigForWidget`, or `functions/src/index.ts`, so those checks are vacuous this run. No PR adds a new widget, so the 8-file registration checklist had nothing to bite on.
+  - **Standing item from the 2026-09-11 entry is resolved:** #2962 was merged 2026-09-11T11:40Z. The retarget-and-rebase it needed is moot; no action carried forward.
+- Verification standard: no code was pushed, so no pre-push gate was needed. Verification went into independent re-derivation instead — 1 helper-semantics read of `canonicalBuildingId`/`canonicalizeBuildingKeyedRecord` in `config/buildings.ts` (#2998), 1 full enumeration of `JSON.stringify`/`stableStringify` sites in `DashboardContext.tsx` with a read of the `configChangedLocally` version short-circuit (#3000), 1 mount-path and portal check on `GuidedLearningPreviewPane` (#2997), 1 read of `handleRadioGroupKeyDown` against the options/DOM order invariant (#2994), 1 `config/zIndex.ts` token-value confirmation (#2999), and 1 conjunct-ordering pass over the four changed rules chokepoints (#3002).
+- Notes:
+  - Branch safety: **no push to `main`, and no push to any `dev-*` branch this run.** No push to any PR head branch either, since no fix was warranted.
+  - **Log placement: appended to `scheduled-tasks`**, per the task prompt and matching the immediately preceding run (`91d32f6`, 2026-09-11). Noting the tradeoff explicitly because the 2026-09-04 entry decided the other way: `scheduled-tasks` currently heads open PR #2997, which carries a code change (`GuidedLearningManager.tsx`), so this journal commit rides along on a code PR. Appending at end-of-file keeps it conflict-free against both `dev-paul` and #2997's own log lines.
+  - **Phase 1 has now been empty five runs running, and tonight it was empty in the strongest sense yet: zero inline review threads across the entire fleet, not merely zero *unresolved* ones.** Phase 1's mechanism is built on the inline-comment replies endpoint; with `totalCount: 0` everywhere it has no surface to act on at all. Where substantive findings did exist (#3002's `shared_boards`/`shared_collections` domain-regex gap, #2995's `sections.ts` drift), the author had already verified them independently, declined on explicit scope grounds, and logged them to the routine backlogs — within minutes. **The value of this routine is now entirely in Phase 2, and specifically in the checks that go past the diff to the thing the diff depends on** (a container ancestor, a conjunct order, an options/DOM order, a helper's return prototype).
+  - **A pattern across #2998 and #2995, worth a line in the sweep routines' checklists.** Both are the same systemic gap fixed at two different altitudes: #2998 is the **15th** individually-patched instance of the `canonicalBuildingId()` bug, while #2995 converts a **3-recurrence** manual-sync gap into a structural fix by computing the list from the filesystem. #2995 is the right shape and #2998 is the wrong one, through no fault of its own — the `useCanonicalBuildingDefaults`-style helper that would end the series has been proposed repeatedly in `docs/routines/debugger.md` and remains unattempted. Raised on #2998 as a standing note rather than a change request.
+  - **`/mnt/skills/user/` still does not exist in this environment** (`/mnt/skills/` is absent entirely) — third run recording this. Repo-local equivalents are at `.claude/skills/{new-widget,admin-widget-config}/`; widget and admin-config standards came from those plus the repo `CLAUDE.md`. Little was lost again: no PR added a widget, and the only widget-surface PRs were a back-face settings panel (#2994, where scaling rules explicitly do not apply) and one front-face scaling pass (#2997).
+  - **Node version mismatch present and benign again:** container runs Node v22.22.2 against `engines: >=24.0.0`, printing an unsupported-engine warning on every `pnpm` invocation. Recorded so a future run seeing a real failure here does not re-diagnose the warning.
+  - Tooling: GitHub via the MCP server (**no `gh` CLI in this environment**, contrary to the task prompt's Pre-Task step — `gh auth status` is not runnable here); all PR list/read/review operations used `mcp__github__*` equivalents, and diffs were read locally via `git diff origin/dev-paul...origin/<head>` after fetching, which is cheaper and more reliable than paging large API payloads.
+  - **The append-contention recommendation still stands, unactioned.** One file per run under `docs/scheduled-tasks/pr-review-log/` has been proposed since 08-26; two entries have been lost to the current single-file mechanism (08-29, restored by #2647; 09-03, restored by #2797). No contention tonight, but the file is now past 3,900 lines and the structural fix remains a small standalone PR a maintainer could take at any time.
