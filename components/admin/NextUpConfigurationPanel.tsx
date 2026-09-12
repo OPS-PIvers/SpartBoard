@@ -1,6 +1,10 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { NextUpGlobalConfig } from '@/types';
 import { Settings2, ListOrdered, Palette, Type } from 'lucide-react';
@@ -16,9 +20,13 @@ export const NextUpConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
-  const currentBuildingConfig = buildingDefaults[selectedBuildingId] ?? {
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
+  const currentBuildingConfig = buildingDefaults[canonicalId] ?? {
     displayCount: 3,
     fontFamily: 'lexend',
     themeColor: '#2d3f89',
@@ -31,7 +39,7 @@ export const NextUpConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },
