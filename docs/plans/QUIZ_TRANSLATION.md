@@ -58,7 +58,7 @@ that already exists end to end, and it means the teacher — not the 6th grader 
 | D12 | Generation                         | New `translateQuizV1` Cloud Function; one Gemini call per quiz per language                                                                                                  |
 | D13 | Admin gate                         | Curated list + feature toggle + org monthly budget                                                                                                                           |
 | D14 | Free-response back-translation     | Teacher-side, **explicit per-response button** (§6). Not lazy-on-open                                                                                                        |
-| D15 | Who can receive a translation      | **SSO students only.** Structurally enforced (`QuizStudentApp.tsx:568`)                                                                                                      |
+| D15 | Who can receive a translation      | **SSO students only.** Structurally enforced (`QuizStudentApp.tsx:567`)                                                                                                      |
 | D16 | Where locale strings live          | **Sibling doc `/quiz_sessions/{id}/locales/{locale}` (§4.2) — REVERSED this revision**                                                                                       |
 | D17 | Source language                    | v1 requires `QuizData.language` English or absent. Generate disabled otherwise                                                                                               |
 | D18 | Response language                  | `QuizResponseAnswer.locale` stamped at submit. Per-call, and **never an input to grading**                                                                                   |
@@ -146,7 +146,7 @@ bare `Read aloud` — not `Language: Español`. **`language` counts as "modified
    (_"Never stored on session docs"_) — the override carries only the language _code_; the strings
    travel on a separate document (§4).
 2. **It only reaches SSO students (D15), already enforced structurally.**
-   `QuizStudentApp.tsx:568` computes `myStudentUid = isStudentRole ? auth.currentUser?.uid : null`,
+   `QuizStudentApp.tsx:567` computes `myStudentUid = isStudentRole ? auth.currentUser?.uid : null`,
    so a non-SSO joiner resolves no pointer; `AssignStudentPicker.tsx:478-485` already **disables**
    non-SSO students with `t('assignStudentPicker.needsSso')`. No new prose is needed.
 
@@ -317,7 +317,7 @@ delivered nothing, silently:
   `toggleStudent` / `toggleSelectAll`, i.e. only when students are picked individually.
 - `functions/src/studentAssignmentTargets.ts:914-921` — `targetMode === 'class'` ⇒
   `clearsIndividual` ⇒ `individualTargeting: false` **and the pointer docs are deleted.**
-- `QuizStudentApp.tsx:568-572` — `myOverride` comes only from the pointer doc. No pointer, no
+- `QuizStudentApp.tsx:567-572` — `myOverride` comes only from the pointer doc. No pointer, no
   language, English.
 
 And §10's advisory **cannot fire**, because it iterates targeted students and that set is empty. So
@@ -422,8 +422,8 @@ The previous revision put translations **on the session doc**, inline on each
    path both become unnecessary.
 
 3. **Data minimization, and the disclosure the previous revision priced only in dollars.**
-   `firestore.rules:3266-3272` is `allow read: if request.auth != null`, carrying the standing
-   comment _"the doc exposes no PII (answer-key stripped)."_ A `localized.hmn` key on that document
+   `firestore.rules:3272` is `allow read: if request.auth != null`, carrying the standing
+   comment at `:3270-3271` — _"the doc exposes no PII (answer-key stripped)."_ A `localized.hmn` key on that document
    is a public assertion that **someone in this class reads Hmong**. In a class with one Hmong
    speaker — the normal case, and the reason Karen was cut at D19 — the roster narrows it to one
    child, from devtools, by a classmate. Language accommodation is the operative proxy for EL/LIEP
@@ -477,7 +477,7 @@ localeCodes?: string[];
 
 **`questions` is keyed by question id, never positional.** `serveQuestionSubset`
 (`utils/quizOverrideServing.ts:14`), bank draws (`orderServedQuestions`) and `shufflePublicQuestions`
-(`utils/quizShuffle.ts:139`) all reorder and filter questions **client-side**. A parallel array would
+(`utils/quizShuffle.ts:140`) all reorder and filter questions **client-side**. A parallel array would
 misalign immediately. The inline design got question identity for free by riding the question object;
 this design has to state it.
 
@@ -545,7 +545,8 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
 translated distractors must be concatenated in exactly that order _before_ permuting. That merge is
 the easiest place in this design to silently misalign a matching question.
 
-`toGatedPublicQuestion` (`:707`) and `projectPublicQuestionForMode` (`:721`) take the translations
+`toGatedPublicQuestion` (`hooks/useQuizAssignments.ts:707`) and `projectPublicQuestionForMode`
+(`hooks/useQuizAssignments.ts:721` — a different file from the block above) take the translations
 argument and forward both outputs — their existing job of stripping `recording`/`targets` applies to
 `question` only, never to `localized`. `createAssignment` transposes question-major → locale-major
 once at `:913-915`, before the batch.
@@ -585,7 +586,7 @@ neither works.**
 Nest inside `match /quiz_sessions/{sessionId}` (after the `views` block at `:3605`). Note
 `/quiz_sessions/{sessionId}` matches the **document only** — it declares four nested matches and no
 `{document=**}` — so this path is default-deny today and needs an explicit match; the permissive
-`allow read` at `:3271` does **not** leak into it.
+`allow read` at `:3272` does **not** leak into it.
 
 ```
       // Per-locale translated strings (§4.2). A sibling doc rather than a `localized`
@@ -817,7 +818,7 @@ a presence check on `q.localized[locale]`, and that field no longer exists. Its 
 `useQuizSessionLocale` (§4.2.1), which owns the fetch.
 
 Hidden options compose cleanly, because `hiddenOptionIdsByQuestion` holds **English** option text
-(`types.ts:4994`) and the kept indices are computed from the English match; the existing "refuse to
+(`types.ts:4996`) and the kept indices are computed from the English match; the existing "refuse to
 hide the correct answer" guard (`QuizWidget/Widget.tsx:1575-1580`) operates on the English body and
 stays valid.
 
@@ -895,7 +896,7 @@ them, so the teacher sees honest coverage rather than a flattering one.
 ### 4.6 Student UI (D6)
 
 The student's language comes from `StudentAssignmentPointer.override.language`
-(`QuizStudentApp.tsx:568-572`). Render per-field from the locale doc, falling back to English
+(`QuizStudentApp.tsx:567-572`). Render per-field from the locale doc, falling back to English
 (§4.4 — never spread).
 
 **One segmented control, not one per question.** The question header (`:2991-3037`) already carries
@@ -2052,7 +2053,7 @@ on the sync path. It also lifts PR1's `syncAssignmentToLatest` refusal.
 > `allow get: if request.auth != null` (`:1386`) — any authed caller, **including anonymous
 > students**, who holds the groupId. The doc already carries `questions` with `correctAnswer`, so it
 > is not a new exposure class, but PR5 would add the **translated** answer key to the same doc.
-> Mitigation is the existing unguessable-id posture plus `allow list: if false` (`:1389`).
+> Mitigation is the existing unguessable-id posture plus `allow list: if false` (`:1390`).
 
 ## 12. Test plan
 
@@ -2313,7 +2314,7 @@ languages.hmn                                "Hmong"
 already carries exactly the proposed shape:
 
 ```ts
-{ code: 'es', label: 'Spanish', nativeLabel: 'Español' }   // i18n/index.ts:11
+{ code: 'es', label: 'Spanish', nativeLabel: 'Español' }   // i18n/index.ts:12
 ```
 
 Two literals of `Español` in two files will drift, and they feed two surfaces a teacher sees side by
