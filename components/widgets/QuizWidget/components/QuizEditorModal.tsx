@@ -145,7 +145,9 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.allowPartialCredit === true) !== (qb.allowPartialCredit === true) ||
       qa.incorrectAnswers.length !== qb.incorrectAnswers.length ||
       (qa.placeholder ?? '') !== (qb.placeholder ?? '') ||
+      (qa.minWords ?? 0) !== (qb.minWords ?? 0) ||
       (qa.maxWords ?? 0) !== (qb.maxWords ?? 0) ||
+      (qa.enforceWordLimit === true) !== (qb.enforceWordLimit === true) ||
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
