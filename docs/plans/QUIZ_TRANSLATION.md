@@ -42,53 +42,53 @@ that already exists end to end, and it means the teacher — not the 6th grader 
 
 ## 2. Locked decisions
 
-| #   | Decision                           | Choice                                                                                               |
-| --- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| D1  | Who picks the language             | Per-student accommodation on `StudentOverride`, with a standing roster default (**needs PR0**)       |
-| D2  | Storage (authoring)                | Sidecar per language: separate Drive file per language, index in `QuizMetadata`                      |
-| D3  | Target languages                   | Admin-curated per-district subset of the static catalog, seeded with D19's three                     |
-| D4  | Serving gate                       | **Approve-then-publish.** Unapproved translations are never written to a locale doc                  |
-| D5  | Missing translation at assign time | Inline per-student advisory; teacher may proceed (student gets English)                              |
-| D6  | Student display                    | Translated by default, one toggle to English (§4.6 — one control, **sticky for the session**)        |
-| D7  | Answer side                        | Translate the display; **grade in English space** (§4.4). Audited byte-identical — keep it           |
-| D8  | Staleness                          | Per-question content hash, **positionally ordered** (§9.1)                                           |
-| D9  | What gets translated               | Question content and rubric criteria/descriptors. Not quiz directions — no such field (D27)          |
-| D10 | Stimuli                            | Warning only in v1. No vision/OCR. Labels are never translated (§3.4)                                |
-| D11 | Review surface                     | New **Languages** tab in `QuizEditorModal`, quiz owner approves                                      |
-| D12 | Generation                         | New `translateQuizV1` Cloud Function; one Gemini call per quiz per language                          |
-| D13 | Admin gate                         | Curated list + feature toggle + org monthly budget                                                   |
-| D14 | Free-response back-translation     | Teacher-side, **explicit per-response button** (§6). Not lazy-on-open                                |
-| D15 | Who can receive a translation      | **SSO students only.** Structurally enforced (`QuizStudentApp.tsx:568`)                              |
-| D16 | Where locale strings live          | **Sibling doc `/quiz_sessions/{id}/locales/{locale}` (§4.2) — REVERSED this revision**               |
-| D17 | Source language                    | v1 requires `QuizData.language` English or absent. Generate disabled otherwise                       |
-| D18 | Response language                  | `QuizResponseAnswer.locale` stamped at submit. Per-call, and **never an input to grading**           |
-| D19 | Target languages                   | **Spanish (`es`), Somali (`so`), Hmong (`hmn`)**. Karen explicitly out — no vendor support           |
-| D20 | Model + cost posture               | **Pinned `gemini-3.5-flash-lite`; caps denominated in USD** (§6) — REVISED this revision             |
-| D21 | FIB                                | **Not translated in v1.** No `gradeAnswer` change, no awaiting-grade routing                         |
-| D22 | Answer cache                       | **Holds the English canonical value. Localization is display-only** (§4.4)                           |
-| D23 | Approval + staleness gating        | **Both gated at publish.** No hash of any kind on a student-readable doc (§4.3)                      |
-| D24 | Admin surface                      | **Two sections in one tab, over two language lists — not one merged table** (§7) — REVISED           |
-| D25 | Read-aloud × translation           | **Split by capability** (§4.7) — REVISED this revision                                               |
-| D26 | Attestation                        | `approvedQuestionIds` stays `string[]`. No reviewer identity or timestamp                            |
-| D27 | Title and directions               | No `directions` field. Translated **title** rides the locale doc, not `QuizSession`                  |
-| D28 | Spanish app chrome                 | **Withdrawn** (§4.6). All three languages get the same English shell — REVERSED                      |
-| D29 | Bank-slot quizzes                  | Cannot be translated. Languages pane shows a disabled empty state; §10 treats as untranslated        |
-| D30 | Rollout                            | `quiz-translation`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false` |
-| D31 | Class-wide targeting               | **Resolves roster standing defaults and writes pointer docs** (§3.5) — NEW                           |
+| #   | Decision                           | Choice                                                                                                                                                                       |
+| --- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Who picks the language             | Per-student accommodation on `StudentOverride`, with a standing roster default (**needs PR0**)                                                                               |
+| D2  | Storage (authoring)                | Sidecar per language: separate Drive file per language, index in `QuizMetadata`                                                                                              |
+| D3  | Target languages                   | Admin-curated per-district subset of the static catalog, seeded with D19's three                                                                                             |
+| D4  | Serving gate                       | **Approve-then-publish.** Unapproved translations are never written to a locale doc                                                                                          |
+| D5  | Missing translation at assign time | Inline per-student advisory; teacher may proceed (student gets English)                                                                                                      |
+| D6  | Student display                    | Translated by default, one toggle to English (§4.6 — one control, **sticky for the session**)                                                                                |
+| D7  | Answer side                        | Translate the display; **grade in English space** (§4.4). Audited byte-identical — keep it                                                                                   |
+| D8  | Staleness                          | Per-question content hash, **positionally ordered** (§9.1)                                                                                                                   |
+| D9  | What gets translated               | Question content and rubric criteria/descriptors. Not quiz directions — no such field (D27)                                                                                  |
+| D10 | Stimuli                            | Warning only in v1. No vision/OCR. Labels are never translated (§3.4)                                                                                                        |
+| D11 | Review surface                     | New **Languages** tab in `QuizEditorModal`, quiz owner approves                                                                                                              |
+| D12 | Generation                         | New `translateQuizV1` Cloud Function; one Gemini call per quiz per language                                                                                                  |
+| D13 | Admin gate                         | Curated list + feature toggle + org monthly budget                                                                                                                           |
+| D14 | Free-response back-translation     | Teacher-side, **explicit per-response button** (§6). Not lazy-on-open                                                                                                        |
+| D15 | Who can receive a translation      | **SSO students only.** Structurally enforced (`QuizStudentApp.tsx:568`)                                                                                                      |
+| D16 | Where locale strings live          | **Sibling doc `/quiz_sessions/{id}/locales/{locale}` (§4.2) — REVERSED this revision**                                                                                       |
+| D17 | Source language                    | v1 requires `QuizData.language` English or absent. Generate disabled otherwise                                                                                               |
+| D18 | Response language                  | `QuizResponseAnswer.locale` stamped at submit. Per-call, and **never an input to grading**                                                                                   |
+| D19 | Target languages                   | **Spanish (`es`), Somali (`so`), Hmong (`hmn`)**. Karen explicitly out — no vendor support                                                                                   |
+| D20 | Model + cost posture               | **Caps denominated in USD, admin-configurable, starting low. Model stays admin-overridable; a price table with a fail-expensive default keeps the dollar cap honest** (§5.8) |
+| D21 | FIB                                | **Not translated in v1.** No `gradeAnswer` change, no awaiting-grade routing                                                                                                 |
+| D22 | Answer cache                       | **Holds the English canonical value. Localization is display-only** (§4.4)                                                                                                   |
+| D23 | Approval + staleness gating        | **Both gated at publish.** No hash of any kind on a student-readable doc (§4.3)                                                                                              |
+| D24 | Admin surface                      | **Two sections in one tab, over two language lists — not one merged table** (§7) — REVISED                                                                                   |
+| D25 | Read-aloud × translation           | **Split by capability** (§4.7) — REVISED this revision                                                                                                                       |
+| D26 | Attestation                        | `approvedQuestionIds` stays `string[]`. No reviewer identity or timestamp                                                                                                    |
+| D27 | Title and directions               | No `directions` field. Translated **title** rides the locale doc, not `QuizSession`                                                                                          |
+| D28 | Spanish app chrome                 | **Withdrawn** (§4.6). All three languages get the same English shell — REVERSED                                                                                              |
+| D29 | Bank-slot quizzes                  | Cannot be translated. Languages pane shows a disabled empty state; §10 treats as untranslated                                                                                |
+| D30 | Rollout                            | `quiz-translation`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`                                                                         |
+| D31 | Class-wide targeting               | **Resolves roster standing defaults and writes pointer docs** (§3.5) — NEW                                                                                                   |
 
 ### 2.1 What this revision reversed, and why
 
 Recorded so none of it is re-litigated.
 
-| Was                                       | Now                             | Because                                                                                                                                                                                                          |
-| ----------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D16 inline `QuizPublicQuestion.localized` | sibling `/locales/{locale}` doc | 1.45 MB → 516 KB of concurrent classroom burst; 1 MB headroom; a monolingual student's device stops receiving another child's accommodation content. **Not** the $45 egress line, which was wrong by 5–10× (§16) |
-| D25 blanket speaker suppression           | split by capability             | `es-US` voices already ship (`config/quizReadAloud.ts:32-35`). Suppressing Spanish was a self-inflicted loss; for `so`/`hmn` it is a vendor gap                                                                  |
-| D28 switch i18n for Spanish               | withdrawn                       | `changeLanguage` writes `localStorage['spart_language']` (`i18n/index.ts:34-38`) — on a shared Chromebook it leaks Spanish to the **next student**, and it flips only ~6 strings                                 |
-| D24 one merged language table             | two sections, two lists         | The union table is 6 rows × 4 cols with `—` in half the voice cells, two caps in different units, and **one Save across two docs with different security rules**                                                 |
-| D20 token-denominated caps                | USD-denominated, model pinned   | The token estimate was 2.4× low; the cap would have hard-blocked the feature in normal use for exactly the low-resource languages it exists to serve (§6)                                                        |
-| "Reviewed"                                | "Approve for use"               | The reviewing teacher usually cannot read the target language. Name the gate what it is                                                                                                                          |
-| class-wide assign "just works"            | D31                             | It silently delivered nothing, and §10's advisory could not fire (§3.5)                                                                                                                                          |
+| Was                                       | Now                                                  | Because                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D16 inline `QuizPublicQuestion.localized` | sibling `/locales/{locale}` doc                      | 1.45 MB → 516 KB of concurrent classroom burst; 1 MB headroom; a monolingual student's device stops receiving another child's accommodation content. **Not** the $45 egress line, which was wrong by 5–10× (§16)                                                                                                                                                                                                 |
+| D25 blanket speaker suppression           | split by capability                                  | `es-US` voices already ship (`config/quizReadAloud.ts:32-35`). Suppressing Spanish was a self-inflicted loss; for `so`/`hmn` it is a vendor gap                                                                                                                                                                                                                                                                  |
+| D28 switch i18n for Spanish               | withdrawn                                            | `changeLanguage` writes `localStorage['spart_language']` (`i18n/index.ts:34-38`) — on a shared Chromebook it leaks Spanish to the **next student**, and it flips only ~6 strings                                                                                                                                                                                                                                 |
+| D24 one merged language table             | two sections, two lists                              | The union table is 6 rows × 4 cols with `—` in half the voice cells, two caps in different units, and **one Save across two docs with different security rules**                                                                                                                                                                                                                                                 |
+| D20 token-denominated caps                | USD-denominated, admin-set, starting at $5/org/month | The token estimate was 2.4× low; the cap would have hard-blocked the feature in normal use for exactly the low-resource languages it exists to serve. A mid-revision draft also **pinned the model** — withdrawn: Gemini ids turn over every few weeks and a code-edit-plus-deploy to follow them is not operational. A price table with a fail-expensive default solves the same problem without the pin (§5.8) |
+| "Reviewed"                                | "Approve for use"                                    | The reviewing teacher usually cannot read the target language. Name the gate what it is                                                                                                                                                                                                                                                                                                                          |
+| class-wide assign "just works"            | D31                                                  | It silently delivered nothing, and §10's advisory could not fire (§3.5)                                                                                                                                                                                                                                                                                                                                          |
 
 ## 3. Data model
 
@@ -1345,12 +1345,43 @@ At real tokenization an 8,000,000-token monthly cap permits ~846 Hmong units —
 feature in normal use, for exactly the low-resource languages it exists to serve. Cost control and
 the equity purpose collided, invisibly, inside a constant.
 
-**So the cap is a dollar figure, and the model is pinned.**
+**So the cap is a dollar figure — and the model stays admin-overridable.** An earlier draft of this
+revision pinned the model instead. That was the wrong tool: Gemini model ids turn over every few
+weeks, and requiring a code edit plus a functions deploy to follow them is not operationally
+realistic. Translation inherits `getGeminiModelConfig` like every other AI feature.
+
+What made pinning tempting was real, though, and still has to be solved: **a token count is not a
+dollar amount when the price can change underneath it.** `normalizeModelName`
+(`functions/src/shared.ts:34-47`) accepts any `gemini-[\w.-]+` that is not 1.x/2.0, and
+`getGeminiModelConfig` (`aiGeneration.ts:331`) reads `standardModel` straight from
+`global_permissions/gemini-functions`. So one Firestore field can move output cost **3.6×**
+(`gemini-3.5-flash` is $9.00/1M out against flash-lite's $2.50) with no cap change and no signal.
+
+**The answer is a price table with a fail-expensive default, not a pin.**
 
 ```ts
 // config/quizTranslation.ts
-export const TRANSLATION_MODEL = 'gemini-3.5-flash-lite' as const;
-export const TRANSLATION_PRICE_PER_1M = { input: 0.3, output: 2.5 } as const;
+
+/** Model comes from getGeminiModelConfig (admin-overridable); this is only the fallback,
+ *  and it is already what DEFAULT_STANDARD_MODEL is (aiGeneration.ts:47). */
+export const DEFAULT_TRANSLATION_MODEL = 'gemini-3.5-flash-lite';
+
+/** USD per 1M tokens. Admin-overridable in admin_settings/quiz_translation_limits so a new
+ *  model's real rate can be entered without a deploy — the same reason the model itself is
+ *  not pinned. Config is the seed; Firestore wins. */
+export const MODEL_PRICING: Record<string, { input: number; output: number }> =
+  {
+    'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
+    'gemini-3.5-flash': { input: 1.5, output: 9.0 },
+    'gemini-3.7-flash': { input: 0.75, output: 3.75 },
+  };
+
+/**
+ * Rate assumed for a model id we have no price for. Deliberately ABOVE every known rate:
+ * an unpriced model must make the cap trip EARLY, never late. Under-serving a new model
+ * until an admin enters its rate is recoverable; overspending against a stale table is not.
+ */
+export const UNKNOWN_MODEL_PRICING = { input: 2.0, output: 12.0 } as const;
 
 /** Measured, not estimated — replaced by §16's countTokens spike before caps go live. */
 export const OUT_TOKENS_PER_CHAR: Record<string, number> = {
@@ -1359,18 +1390,34 @@ export const OUT_TOKENS_PER_CHAR: Record<string, number> = {
   hmn: 0.82,
 };
 
-export const TRANSLATION_BUDGET = {
-  orgMonthlyUsd: 25,
+/** Seed only. The live ceiling lives in Firestore (§5.8.1) and starts deliberately low. */
+export const DEFAULT_TRANSLATION_BUDGET = {
+  orgMonthlyUsd: 5,
   teacherDailyUsd: 0.5,
 } as const;
 ```
 
-**Do not route the model through `getGeminiModelConfig`.** `normalizeModelName`
-(`functions/src/shared.ts:34-47`) accepts any `gemini-*` id that is not 1.x/2.0/preview, so an
-admin editing `global_permissions/gemini-functions.standardModel` can move output cost **3.6×**
-(`gemini-3.5-flash` is $9.00/1M out vs flash-lite's $2.50) with one field and no cap change. A
-token-denominated cap does not track price; a dollar cap is invariant to both tokenization and
-model choice. Pinning is what makes the dollar cap meaningful.
+Cost per call is then `inputTokens × price.input/1e6 + outputTokens × price.output/1e6`, where
+`price = MODEL_PRICING[activeModel] ?? adminOverride ?? UNKNOWN_MODEL_PRICING`. The dollar cap stays
+meaningful across any model the admin selects, and an unknown model degrades toward **less**
+spending rather than more.
+
+**Surface the assumption, or it is not a control.** The admin burn-down (§7) must show the **active
+model** and whether its rate is **known or assumed** — otherwise an admin who swaps models sees the
+budget drain 5× faster with no explanation. When `UNKNOWN_MODEL_PRICING` is in use, log once at
+`warn` per cache period and show _"rate assumed"_ beside the figure with a field to enter the real
+one.
+
+**The ceiling is admin-configurable and starts low.** Do not ship $25/month as a constant. The
+default is **$5/org/month**, set in Firestore (§5.8.1), on the explicit expectation that it **will**
+be hit during early rollout and raised from observed usage rather than from this plan's estimates —
+which have already been wrong by 2.4× once. That makes two things load-bearing:
+
+- `blockedCount` on the org row (§5.8.1), so "the cap is too low" is **visible in the burn-down**
+  rather than arriving as a teacher complaint. A cap you cannot see biting is a cap you will set
+  wrong twice.
+- The `quizTranslation.error.capReached` copy (§15.1) is a **normal path in month one**, not an edge
+  case. It returns `budget` so the teacher sees a number, not a wall.
 
 #### 5.8.1 Quota documents — per org, not global
 
@@ -1414,6 +1461,10 @@ Document bodies:
   unitsByLocale: Record<string, number>;
   failedUnits: number; // rejected/truncated calls: billed, produced nothing
   repairAttempts: number;
+  blockedCount: number; // generations refused by the cap. THE signal that the
+  // ceiling is set too low — surfaced in the burn-down (§7).
+  lastModel: string; // active model at last write
+  lastRateAssumed: boolean; // true when UNKNOWN_MODEL_PRICING was used
   updatedAt: number;
 }
 
@@ -1437,15 +1488,12 @@ Document bodies:
    (`quizReadAloud.ts:791-797`). If a fresh lock exists, return `{ status: 'in-progress' }`.
    **Without this, a double-click is two quota units, two Gemini calls, two Drive writes and a
    last-write-wins race on the sidecar.** The previous revision had no dedupe of any kind.
-4. **Transaction A — check, then charge.** Read the org-monthly and teacher-daily rows, throw
-   `resource-exhausted` on either, then `increment` units before returning.
-   Precedent is `aiGeneration.ts:463-586`, **not** `billSynthesis` — `billSynthesis`
-   (`quizReadAloud.ts:602-631`) only _increments_; it reads both refs solely to satisfy the
-   transaction API and never compares against a limit.
-   > **Do not copy `aiGeneration.ts:586-592`**, which catches non-`HttpsError` failures and
-   > proceeds with the generation anyway (_"Don't block AI generation if tracking fails"_). In a
-   > hard-blocking meter that turns a Firestore blip into unmetered spend. **Fail closed:** a
-   > transaction error is `unavailable`.
+4. **Transaction A — check, then charge.** First read the **live ceiling** from
+   `admin_settings/quiz_translation_limits`, falling back to `DEFAULT_TRANSLATION_BUDGET` when the
+   doc is absent. Memoize it with the same 5-minute TTL `getGeminiModelConfig` uses
+   (`aiGeneration.ts:300-310`) and read it **outside** the transaction. Then read the org-monthly and
+   teacher-daily rows, throw `resource-exhausted` on either — **incrementing `blockedCount` when you
+   do** — and otherwise `increment` units before returning.
 5. **Gemini call.**
 6. **Transaction B — settle, unconditionally.** Increment `outputTokens`/`inputTokens` from
    `result.usageMetadata` and the derived `costUsd` — **including on validator rejection, on
@@ -1572,8 +1620,19 @@ Reuse the panel's existing patterns; add no new visual vocabulary:
   BCP-47 tag. The translation section's columns are `Language | Offer for translation`. No voice
   column, so no em-dashes.
 - **Cap + burn-down** (`:238-268`) — clone the `grid gap-4 sm:grid-cols-2` block: a numeric input
-  (**US dollars per month**, §5.8) on the left, a "This month" `<dl>` of `flex justify-between` rows
-  with `font-mono` values and a percentage on the right.
+  (**US dollars per org per month**, §5.8) on the left, a "This month" `<dl>` of `flex justify-between`
+  rows with `font-mono` values and a percentage on the right.
+
+  This input is the **live ceiling**, written to `admin_settings/quiz_translation_limits` and read by
+  `translateQuizV1` — not a display of a constant. It **defaults to $5** and is meant to be raised
+  from observed usage; see §5.8. Three rows the burn-down must carry beyond spend:
+
+  | Row                                           | Why it is not optional                                                                                                                                               |
+  | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | **Blocked this month** (`blockedCount`)       | The only way "the ceiling is too low" becomes visible here instead of arriving as a teacher complaint. Starting low is only safe if biting is observable             |
+  | **Active model** (`lastModel`)                | Cost per generation moves 3.6× across models an admin can select. A burn-down that drains 5× faster with no explanation is not a control                             |
+  | **Rate: known / assumed** (`lastRateAssumed`) | When `UNKNOWN_MODEL_PRICING` is in use, say so and offer a field for the real rate. Otherwise the budget silently over-charges a new model and under-serves teachers |
+
 - **Accessibility:** each toggle carries `aria-label="Offer {{label}} for translation"`.
 - **The usage-read error handler renders `Usage unavailable`, not zeros.** Copying `:69`'s
   `() => setUsage({ neural2Chars: 0, … })` into a capped feature renders `permission-denied` as
@@ -2285,9 +2344,12 @@ file does not do.
 **Corrected this revision. The previous numbers were wrong in two directions**, and one of them was
 load-bearing for a design decision.
 
-**Pricing, stated rather than assumed.** `gemini-3.5-flash-lite` (pinned, §5.8):
+**Pricing, stated rather than assumed.** `gemini-3.5-flash-lite` (the default; §5.8):
 **$0.30/1M input, $2.50/1M output.** For contrast, `gemini-3.5-flash` is **$9.00/1M output** — 3.6×
-— which is why the model is pinned and the caps are denominated in dollars rather than tokens.
+— which is why costs are computed through a per-model price table with a fail-expensive default
+for unknown ids, and the caps are denominated in dollars rather than tokens (§5.8). The model itself
+stays admin-overridable: ids turn over every few weeks and chasing them with a deploy is not
+operational.
 
 **Token derivation for a 20-question reference quiz** (12 MC × 4 choices, 4 free-response with
 3-criterion rubrics, 2 matching 5+3, 2 ordering × 5, plus title) — ~10,545 translatable English
@@ -2344,10 +2406,17 @@ session. **Measure Hmong first** — it is the outlier and the one that breaks `
   Hmong**. The intuition that a dedicated translation API must be cheaper is simply wrong at 2026
   prices. **What is worth stealing is its contract** — `translateText` returns a same-length,
   same-order array — which §5.1 adopts as the flat indexed array.
-- **String-level shared translation cache — not worth it.** Read-aloud's cache pays because the same
-  audio is replayed ~30× per class; **a translation has no replay multiplier** — generated once per
-  quiz-language by one teacher. §3.3's duplicate-and-PLC-sync carrying already captures most real
-  duplication at the quiz level, for free.
+- **String-level shared translation cache — not worth it.** First, to be unambiguous about what is
+  already free: **generation is billed per quiz × language, never per student.** One Spanish
+  translation is generated once, stored in one sidecar, projected into one locale doc, and served to
+  every Spanish-reading student in the class at zero additional AI cost — three EL students cost
+  exactly what one does, the same way read-aloud audio is synthesized once and replayed.
+  What a _content-addressed_ cache would add on top is deduplication of identical strings **across
+  different quizzes**, and that is what does not pay: read-aloud's cache earns its keep because the
+  same audio part is re-requested many times, whereas a given quiz-language is generated once by one
+  teacher and never re-requested. The duplication that genuinely costs twice is **organizational** —
+  quizzes are per-user (`/users/{uid}/quizzes`), so five teachers each owning a copy of the same quiz
+  pay five times. §3.3's duplicate-and-PLC-sync carrying captures that at the quiz level, for free.
 - **Context caching** — only ~750 of ~4,075 input tokens are reusable, and at ~90 calls/teacher/**year**
   storage fees exceed the savings.
 - **Batch API (50% off)** — 24-hour turnaround is unusable for a teacher clicking Generate. It would
@@ -2459,8 +2528,9 @@ read-aloud is buildable and was being suppressed for no reason; Somali/Hmong are
 the conflict is now disclosed to the teacher rather than silently to the child); withdrew **D28**
 (the i18n switch leaks Spanish to the next student on a shared Chromebook and flips ~6 strings);
 revised **D24** (two admin sections, not one union table); revised **D20** (USD-denominated caps and
-a pinned model — the token cap would have hard-blocked the feature for the low-resource languages it
-exists to serve); renamed the gate to **Approve for use**; added **D31** (class-wide assignment
+an admin-set USD ceiling starting at $5/org/month — the token cap would have hard-blocked the
+feature for the low-resource languages it exists to serve, and a mid-revision draft that pinned the
+model was itself withdrawn as unworkable against a model list that turns over every few weeks); renamed the gate to **Approve for use**; added **D31** (class-wide assignment
 delivered no accommodation at all, silently).
 
 Fixed three defects that would have shipped harm: Matching mis-graded every EL student to **0** on
