@@ -841,7 +841,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         className="h-full w-full object-cover"
       />
     ) : (
-      <BookOpen className="h-5 w-5 text-slate-400" aria-hidden="true" />
+      <BookOpen
+        className="text-slate-400"
+        style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+        aria-hidden="true"
+      />
     );
 
     const isPersonal = entry.source === 'personal';
@@ -1095,17 +1099,31 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const renderLibraryTab = () => {
     if (loading || buildingLoading) {
       return (
-        <div className="flex h-40 items-center justify-center text-slate-500">
-          <Loader2 className="h-5 w-5 animate-spin" />
+        <div
+          className="flex items-center justify-center text-slate-500"
+          style={{ height: 'min(160px, 40cqmin)' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+          />
         </div>
       );
     }
 
     return (
-      <div className="flex h-full min-h-0 gap-3">
+      <div className="flex h-full min-h-0" style={{ gap: 'min(12px, 3cqmin)' }}>
         <div className="flex-1 min-w-0 flex flex-col">
           {showDriveBanner && (
-            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            <div
+              className="rounded-xl border border-amber-200 bg-amber-50 font-medium text-amber-800"
+              style={{
+                marginBottom: 'min(12px, 3cqmin)',
+                paddingInline: 'min(12px, 3cqmin)',
+                paddingBlock: 'min(8px, 2cqmin)',
+                fontSize: 'min(12px, 4cqmin)',
+              }}
+            >
               Your personal sets are saved to Google Drive. Sign out and sign
               back in to grant Drive access. Building sets are still available
               below.
@@ -1113,7 +1131,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           )}
 
           {selectionMode && selection.count > 0 && (
-            <div className="mb-3">
+            <div style={{ marginBottom: 'min(12px, 3cqmin)' }}>
               <BulkActionBar
                 count={selection.count}
                 onClear={() => {
@@ -1187,8 +1205,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const renderAssignmentTab = (mode: 'active' | 'archive') => {
     if (assignmentsLoading) {
       return (
-        <div className="flex h-40 items-center justify-center text-slate-500">
-          <Loader2 className="h-5 w-5 animate-spin" />
+        <div
+          className="flex items-center justify-center text-slate-500"
+          style={{ height: 'min(160px, 40cqmin)' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+          />
         </div>
       );
     }
@@ -1250,7 +1274,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         className="h-full w-full object-cover"
       />
     ) : (
-      <BookOpen className="h-5 w-5 text-slate-400" aria-hidden="true" />
+      <BookOpen
+        className="text-slate-400"
+        style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+        aria-hidden="true"
+      />
     );
     const subtitle = (
       <span>
@@ -1303,10 +1331,24 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             filters={[sourceFilter]}
             searchPlaceholder="Search sets…"
             rightSlot={
-              <span className="flex items-center gap-2">
+              <span
+                className="flex items-center"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
                 {isBuildingFiltered && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                    <Building2 size={12} />
+                  <span
+                    className="inline-flex items-center font-bold uppercase tracking-widest text-slate-500"
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      fontSize: 'min(11px, 4cqmin)',
+                    }}
+                  >
+                    <Building2
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
+                    />
                     Building library
                   </span>
                 )}
@@ -1321,11 +1363,17 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                         setSelectionMode(true);
                       }
                     }}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                    className={`inline-flex items-center rounded-lg font-bold uppercase tracking-wider transition-colors ${
                       selectionMode
                         ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
                         : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
                     }`}
+                    style={{
+                      gap: 'min(6px, 1.5cqmin)',
+                      paddingInline: 'min(10px, 2.5cqmin)',
+                      paddingBlock: 'min(6px, 1.5cqmin)',
+                      fontSize: 'min(12px, 4cqmin)',
+                    }}
                     aria-pressed={selectionMode}
                     title={
                       selectionMode
@@ -1333,7 +1381,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                         : 'Enter selection mode'
                     }
                   >
-                    <CheckSquare className="h-3.5 w-3.5" />
+                    <CheckSquare
+                      style={{
+                        width: 'min(14px, 3.5cqmin)',
+                        height: 'min(14px, 3.5cqmin)',
+                      }}
+                    />
                     {selectionMode ? 'Cancel' : 'Select'}
                   </button>
                 )}
@@ -1470,7 +1523,10 @@ const GuidedLearningPreviewPane: React.FC<{
           : undefined
       }
     >
-      <div className="flex flex-col gap-3 text-sm text-slate-700">
+      <div
+        className="flex flex-col text-slate-700"
+        style={{ gap: 'min(12px, 3cqmin)', fontSize: 'min(14px, 5.5cqmin)' }}
+      >
         {previewState === 'playing' && previewSet ? (
           <div
             className="relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-900"
@@ -1479,7 +1535,13 @@ const GuidedLearningPreviewPane: React.FC<{
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
+                  <Loader2
+                    className="animate-spin text-slate-300"
+                    style={{
+                      width: 'min(20px, 5cqmin)',
+                      height: 'min(20px, 5cqmin)',
+                    }}
+                  />
                 </div>
               }
             >
@@ -1490,11 +1552,19 @@ const GuidedLearningPreviewPane: React.FC<{
               />
             </Suspense>
             {previewStale && (
-              <div className="absolute inset-x-0 bottom-0 flex justify-center p-2">
+              <div
+                className="absolute inset-x-0 bottom-0 flex justify-center"
+                style={{ padding: 'min(8px, 2cqmin)' }}
+              >
                 <button
                   type="button"
                   onClick={handlePlayPreview}
-                  className="rounded-full border border-white/20 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-100 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900/85"
+                  className="rounded-full border border-white/20 bg-slate-900/70 font-medium text-slate-100 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900/85"
+                  style={{
+                    paddingInline: 'min(12px, 3cqmin)',
+                    paddingBlock: 'min(6px, 1.5cqmin)',
+                    fontSize: 'min(11px, 4cqmin)',
+                  }}
                 >
                   Updated — reload preview
                 </button>
@@ -1511,7 +1581,10 @@ const GuidedLearningPreviewPane: React.FC<{
                 loading="lazy"
               />
             ) : (
-              <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+              <div
+                className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-400"
+                style={{ fontSize: 'min(11px, 4cqmin)' }}
+              >
                 No preview image
               </div>
             )}
@@ -1523,11 +1596,29 @@ const GuidedLearningPreviewPane: React.FC<{
                 className="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-900/0 transition-colors hover:bg-slate-900/30 focus-visible:bg-slate-900/30"
                 aria-label={`Play preview of ${entry.title}`}
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-md">
+                <span
+                  className="flex items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-md"
+                  style={{
+                    width: 'min(44px, 12cqmin)',
+                    height: 'min(44px, 12cqmin)',
+                  }}
+                >
                   {previewState === 'loading' ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2
+                      className="animate-spin"
+                      style={{
+                        width: 'min(20px, 5cqmin)',
+                        height: 'min(20px, 5cqmin)',
+                      }}
+                    />
                   ) : (
-                    <Play className="ml-0.5 h-5 w-5" />
+                    <Play
+                      style={{
+                        marginLeft: 'min(2px, 0.5cqmin)',
+                        width: 'min(20px, 5cqmin)',
+                        height: 'min(20px, 5cqmin)',
+                      }}
+                    />
                   )}
                 </span>
               </button>
@@ -1535,16 +1626,25 @@ const GuidedLearningPreviewPane: React.FC<{
           </div>
         )}
         {previewState === 'error' && (
-          <p className="text-xs font-medium text-brand-red-primary">
+          <p
+            className="font-medium text-brand-red-primary"
+            style={{ fontSize: 'min(11px, 4cqmin)' }}
+          >
             Could not load this set for preview. Try again.
           </p>
         )}
         {entry.description && (
-          <p className="text-xs leading-relaxed text-slate-600">
+          <p
+            className="leading-relaxed text-slate-600"
+            style={{ fontSize: 'min(11px, 4cqmin)' }}
+          >
             {entry.description}
           </p>
         )}
-        <div className="text-xxs text-slate-500">
+        <div
+          className="text-slate-500"
+          style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+        >
           Mode:{' '}
           <span className="font-semibold text-slate-700">
             {MODE_LABELS[entry.mode]}
