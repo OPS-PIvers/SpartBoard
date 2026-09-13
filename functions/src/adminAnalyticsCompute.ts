@@ -484,7 +484,7 @@ export async function computeAnalyticsForOrg(
 
   const aiUsageStream = db
     .collection('ai_usage')
-    .select('count')
+    .select('count', 'backCount')
     .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
 
   for await (const usageDoc of aiUsageStream) {
@@ -507,8 +507,11 @@ export async function computeAnalyticsForOrg(
     const count = typeof usageData.count === 'number' ? usageData.count : 0;
 
     if (isSpecificFeature) {
+      // Back-translation writes `backCount`, not `count` — both are translation calls.
+      const backCount =
+        typeof usageData.backCount === 'number' ? usageData.backCount : 0;
       aiCallsByFeature[secondToLast] =
-        (aiCallsByFeature[secondToLast] ?? 0) + count;
+        (aiCallsByFeature[secondToLast] ?? 0) + count + backCount;
     }
 
     // ONLY count "overall" records for total analytics to avoid double counting

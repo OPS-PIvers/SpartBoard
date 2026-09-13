@@ -44,7 +44,11 @@ vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 
 import {
+  BACK_TRANSLATION_DAILY_LIMIT,
   TEACHER_DAILY_LIMIT,
+  assertQuizTranslationFeature,
+  parseTranslateQuizRequest,
+  translateResponse,
   monthlyTranslationDocId,
   teacherDailyTranslationDocId,
   translateQuiz,
@@ -57,37 +61,41 @@ import {
 type Doc = Record<string, unknown>;
 
 function makeDb(docs: Record<string, Doc>) {
+  const applyPatch = (path: string, patch: Doc) => {
+    const target = { ...(docs[path] ?? {}) };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v && typeof v === 'object' && INCREMENT in v) {
+        const prev = typeof target[k] === 'number' ? target[k] : 0;
+        target[k] = prev + (v as Record<symbol, number>)[INCREMENT];
+      } else {
+        target[k] = v;
+      }
+    }
+    docs[path] = target;
+  };
+  const snapshotFor = (path: string) => ({
+    exists: docs[path] !== undefined,
+    data: () => docs[path],
+    get: (field: string) => docs[path]?.[field],
+  });
   const refFor = (path: string) => ({
     path,
-    get: () =>
-      Promise.resolve({
-        exists: docs[path] !== undefined,
-        data: () => docs[path],
-        get: (field: string) => docs[path]?.[field],
-      }),
+    get: () => Promise.resolve(snapshotFor(path)),
+    set: (patch: Doc) => {
+      applyPatch(path, patch);
+      return Promise.resolve();
+    },
   });
   const db = {
     collection: (name: string) => ({
       doc: (id: string) => refFor(`${name}/${id}`),
     }),
-    runTransaction: async (fn: (tx: unknown) => Promise<void>) => {
+    runTransaction: async <T>(fn: (tx: unknown) => Promise<T>) => {
       const tx = {
-        get: (ref: { path: string }) =>
-          Promise.resolve({ exists: docs[ref.path] !== undefined }),
-        set: (ref: { path: string }, patch: Doc) => {
-          const target = { ...(docs[ref.path] ?? {}) };
-          for (const [k, v] of Object.entries(patch)) {
-            if (v && typeof v === 'object' && INCREMENT in v) {
-              const prev = typeof target[k] === 'number' ? target[k] : 0;
-              target[k] = prev + (v as Record<symbol, number>)[INCREMENT];
-            } else {
-              target[k] = v;
-            }
-          }
-          docs[ref.path] = target;
-        },
+        get: (ref: { path: string }) => Promise.resolve(snapshotFor(ref.path)),
+        set: (ref: { path: string }, patch: Doc) => applyPatch(ref.path, patch),
       };
-      await fn(tx);
+      return fn(tx);
     },
   };
   return db as unknown as TranslationDeps['db'];
@@ -417,5 +425,220 @@ describe('translateQuiz', () => {
     await expect(
       translateQuiz(baseRequest({ locale: 'hmn' }), 'teacher-1', deps())
     ).resolves.toBeTruthy();
+  });
+});
+
+describe('quota metering', () => {
+  it('reserves the unit before the model is called', async () => {
+    const docs: Record<string, Doc> = {};
+    const seen: Record<string, unknown>[] = [];
+    const generate: TranslationDeps['generate'] = vi.fn(() => {
+      seen.push({ ...docs[`ai_usage/${monthlyTranslationDocId(NOW)}`] });
+      return Promise.resolve({
+        text: JSON.stringify({ questions: [{ id: 'q1', ...goodMc() }] }),
+        outputTokens: 5,
+      });
+    });
+    await translateQuiz(baseRequest(), 'teacher-1', deps({ docs, generate }));
+    expect(seen[0]).toMatchObject({ units: 1 });
+  });
+
+  it('bills output tokens when the validator rejects both attempts', async () => {
+    const docs: Record<string, Doc> = {};
+    const generate = vi.fn(() =>
+      Promise.resolve({
+        text: JSON.stringify({
+          questions: [{ id: 'q1', text: 'x', choices: ['a'] }],
+        }),
+        outputTokens: 40,
+      })
+    );
+    await expect(
+      translateQuiz(baseRequest(), 'teacher-1', deps({ docs, generate }))
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(docs[`ai_usage/${monthlyTranslationDocId(NOW)}`]).toMatchObject({
+      units: 1,
+      outputTokens: 80,
+    });
+  });
+
+  it('bills output tokens on a MAX_TOKENS cut-off', async () => {
+    const docs: Record<string, Doc> = {};
+    const generate = vi.fn(() =>
+      Promise.resolve({
+        text: JSON.stringify({ questions: [] }),
+        finishReason: 'MAX_TOKENS',
+        outputTokens: 16384,
+      })
+    );
+    await expect(
+      translateQuiz(baseRequest(), 'teacher-1', deps({ docs, generate }))
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(docs[`ai_usage/${monthlyTranslationDocId(NOW)}`]).toMatchObject({
+      units: 1,
+      outputTokens: 16384,
+    });
+  });
+
+  it('blocks the second of two calls made at cap-1', async () => {
+    const docs: Record<string, Doc> = {
+      'admin_settings/quiz_translation': { monthlyCapUnits: 2 },
+      [`ai_usage/${monthlyTranslationDocId(NOW)}`]: { units: 1 },
+    };
+    const d = deps({ docs });
+    await expect(translateQuiz(baseRequest(), 't', d)).resolves.toBeTruthy();
+    await expect(translateQuiz(baseRequest(), 't', d)).rejects.toMatchObject({
+      code: 'resource-exhausted',
+      details: { reason: 'units' },
+    });
+  });
+
+  it('reports the true unit remainder when only the token cap is spent', async () => {
+    const docs = {
+      [`ai_usage/${monthlyTranslationDocId(NOW)}`]: {
+        units: 5,
+        outputTokens: 8_000_000,
+      },
+    };
+    await expect(
+      translateQuiz(baseRequest(), 'teacher-1', deps({ docs }))
+    ).rejects.toMatchObject({
+      details: { capRemaining: 1995, capTotal: 2000, reason: 'outputTokens' },
+    });
+  });
+});
+
+describe('translateResponse', () => {
+  const backDeps = (docs: Record<string, Doc>) =>
+    deps({
+      docs,
+      generate: vi.fn(() =>
+        Promise.resolve({
+          text: JSON.stringify({ text: 'I think so' }),
+          outputTokens: 30,
+        })
+      ),
+    });
+
+  it('never spends the org quiz-translation cap', async () => {
+    const docs: Record<string, Doc> = {};
+    await translateResponse(
+      { text: 'creo que si', sourceLocale: 'es' },
+      'teacher-1',
+      backDeps(docs)
+    );
+    const monthly = docs[`ai_usage/${monthlyTranslationDocId(NOW)}`];
+    expect(monthly).toMatchObject({ backUnits: 1, backOutputTokens: 30 });
+    expect(monthly.units).toBeUndefined();
+    expect(monthly.outputTokens).toBeUndefined();
+    expect(
+      docs[`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]
+    ).toMatchObject({ backCount: 1 });
+  });
+
+  it('still enforces its own daily ceiling', async () => {
+    const docs: Record<string, Doc> = {
+      [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {
+        backCount: BACK_TRANSLATION_DAILY_LIMIT,
+      },
+    };
+    await expect(
+      translateResponse(
+        { text: 'hola', sourceLocale: 'es' },
+        'teacher-1',
+        backDeps(docs)
+      )
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+  });
+
+  it('refuses a locale the admin has not enabled', async () => {
+    const docs: Record<string, Doc> = {
+      'admin_settings/quiz_translation': { enabledLanguages: ['so'] },
+    };
+    await expect(
+      translateResponse(
+        { text: 'hola', sourceLocale: 'es' },
+        'teacher-1',
+        backDeps(docs)
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+});
+
+describe('parseTranslateQuizRequest bounds', () => {
+  const many = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ ...mcQuestion(), id: `q${i}` }));
+
+  it('rejects more than 200 questions', () => {
+    expect(() =>
+      parseTranslateQuizRequest(baseRequest({ questions: many(201) }))
+    ).toThrow(/at most 200/);
+  });
+
+  it('rejects an oversized payload', () => {
+    const fat = many(10).map((q) => ({ ...q, text: 'x'.repeat(30_000) }));
+    expect(() =>
+      parseTranslateQuizRequest(baseRequest({ questions: fat }))
+    ).toThrow(/too large/);
+  });
+
+  it('rejects an empty questionIds array', () => {
+    expect(() =>
+      parseTranslateQuizRequest(baseRequest({ questionIds: [] }))
+    ).toThrow(/at least one question/);
+  });
+});
+
+describe('assertQuizTranslationFeature', () => {
+  const run = (docs: Record<string, Doc>, email?: string) =>
+    assertQuizTranslationFeature(makeDb(docs), email);
+
+  it('absent doc: admin-only', async () => {
+    await expect(run({}, 'teacher@x.org')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(
+      run({ 'admins/boss@x.org': {} }, 'Boss@X.org')
+    ).resolves.toBeUndefined();
+  });
+
+  it('disabled: denied even for an admin', async () => {
+    await expect(
+      run(
+        {
+          'global_permissions/quiz-translation': { enabled: false },
+          'admins/boss@x.org': {},
+        },
+        'boss@x.org'
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('beta: only listed emails', async () => {
+    const docs = {
+      'global_permissions/quiz-translation': {
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: ['Beta@x.org'],
+      },
+    };
+    await expect(run(docs, 'beta@x.org')).resolves.toBeUndefined();
+    await expect(run(docs, 'other@x.org')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('public: any signed-in teacher', async () => {
+    await expect(
+      run(
+        {
+          'global_permissions/quiz-translation': {
+            enabled: true,
+            accessLevel: 'public',
+          },
+        },
+        'teacher@x.org'
+      )
+    ).resolves.toBeUndefined();
   });
 });

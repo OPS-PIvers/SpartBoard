@@ -280,6 +280,48 @@ describe('duplicateQuiz — sidecars copied, index rebuilt', () => {
     expect(translationsOf(payloads[payloads.length - 1])?.es).toBeDefined();
   });
 
+  it('carries the readable locale when one sidecar is missing', async () => {
+    const { result } = renderHook(() => useQuiz(UID));
+    let saved!: QuizMetadata;
+    await act(async () => {
+      saved = await result.current.saveQuiz(QUIZ_DATA);
+    });
+    localStorage.setItem(
+      `mock_quiz_drive:${UID}:seed-so`,
+      JSON.stringify({
+        locale: 'so',
+        title: 'Su’aalo',
+        questions: { q1: { text: 'Kee?' } },
+        sourceHashes: { q1: freshHash },
+        reviewedQuestionIds: [],
+        model: 'm',
+        generatedAt: 1,
+        updatedAt: 1,
+      })
+    );
+    const entry = (driveFileId: string) => ({
+      driveFileId,
+      reviewedCount: 0,
+      staleCount: 0,
+      questionCount: 1,
+      sourceHashes: { q1: freshHash },
+      updatedAt: 1,
+    });
+    const sourceMeta: QuizMetadata = {
+      ...saved,
+      // `missing-es` was never seeded, so loading it rejects.
+      translations: { es: entry('missing-es'), so: entry('seed-so') },
+    };
+
+    let duplicated!: QuizMetadata;
+    await act(async () => {
+      duplicated = await result.current.duplicateQuiz(sourceMeta);
+    });
+
+    expect(duplicated.translations?.es).toBeUndefined();
+    expect(duplicated.translations?.so.driveFileId).not.toBe('seed-so');
+  });
+
   it('writes no translations key when the source has none', async () => {
     const { result } = renderHook(() => useQuiz(UID));
     let saved!: QuizMetadata;

@@ -5,7 +5,7 @@
  * unreviewed strings.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, isAuthBypass } from '@/config/firebase';
@@ -86,6 +86,21 @@ export function useQuizTranslations(
     for (const q of questions) next[q.id] = await hashQuestionForTranslation(q);
     setLiveHashes(next);
     return next;
+  }, [questions]);
+
+  // Hashing is async (crypto.subtle), so staleness can only be recomputed in an
+  // effect; without this, an edit made after load never shows as stale.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const q of questions)
+        next[q.id] = await hashQuestionForTranslation(q);
+      if (!cancelled) setLiveHashes(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [questions]);
 
   const load = useCallback(

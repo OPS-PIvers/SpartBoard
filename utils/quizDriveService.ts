@@ -24,6 +24,7 @@ import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/as
 import { computeQuestionStats } from '@/utils/quizQuestionStats';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
+import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
 
 /**
  * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
@@ -424,7 +425,7 @@ export class QuizDriveService {
         throw new Error('Translation file not found in Drive');
       throw new Error('Failed to download translation from Drive');
     }
-    return (await res.json()) as QuizTranslation;
+    return normalizeQuizTranslation(await res.json());
   }
 
   /** Delete a translation sidecar; a missing file is not an error. */

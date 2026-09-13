@@ -629,15 +629,24 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         for (const [locale, entry] of Object.entries(
           sourceMeta.translations ?? {}
         )) {
-          const payload = await drive.loadTranslation(entry.driveFileId);
-          const copiedId = await drive.saveTranslation(
-            fresh.id,
-            fresh.title,
-            locale,
-            payload
-          );
-          createdSidecarIds.push(copiedId);
-          translations[locale] = { ...entry, driveFileId: copiedId };
+          // A missing or unreadable sidecar must not fail the whole duplicate:
+          // drop that locale and carry the rest.
+          try {
+            const payload = await drive.loadTranslation(entry.driveFileId);
+            const copiedId = await drive.saveTranslation(
+              fresh.id,
+              fresh.title,
+              locale,
+              payload
+            );
+            createdSidecarIds.push(copiedId);
+            translations[locale] = { ...entry, driveFileId: copiedId };
+          } catch (sidecarErr) {
+            logError('useQuiz.duplicateQuiz.sidecarCopy', sidecarErr, {
+              sourceQuizId: sourceMeta.id,
+              locale,
+            });
+          }
         }
         const metadata: QuizMetadata = {
           id: fresh.id,

@@ -209,6 +209,28 @@ describe('useQuizTranslations', () => {
     );
   });
 
+  it('recomputes staleIds when the quiz body changes after load', async () => {
+    const fresh = await hashQuestionForTranslation(question);
+    loadTranslation.mockResolvedValue(
+      translation({ sourceHashes: { q1: fresh } })
+    );
+    const { result, rerender } = renderHook(
+      ({ q }: { q: QuizData }) => useQuizTranslations(q, metadata()),
+      { initialProps: { q: quiz } }
+    );
+    await act(async () => {
+      await result.current.load('es');
+    });
+    await waitFor(() => expect(result.current.staleIds('es')).toEqual([]));
+
+    const edited: QuizData = {
+      ...quiz,
+      questions: [{ ...question, text: 'Which one is prime?' }],
+    };
+    rerender({ q: edited });
+    await waitFor(() => expect(result.current.staleIds('es')).toEqual(['q1']));
+  });
+
   it('surfaces a save failure as an error instead of throwing', async () => {
     loadTranslation.mockResolvedValue(translation());
     saveTranslation.mockRejectedValueOnce(new Error('Drive is unavailable'));

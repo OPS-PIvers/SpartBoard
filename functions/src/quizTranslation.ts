@@ -97,6 +97,14 @@ export interface TranslateQuizResponse {
   cap: { remaining: number; total: number };
 }
 
+/** Which ceiling stopped the call; surfaced in the `resource-exhausted` details. */
+export type QuotaReason = 'daily' | 'units' | 'outputTokens';
+
+/** Request-size ceilings — a hostile payload must not reach Gemini or Firestore. */
+export const MAX_TRANSLATABLE_QUESTIONS = 200;
+export const MAX_TRANSLATABLE_QUESTIONS_BYTES = 200_000;
+export const MAX_BACK_TRANSLATION_CHARS = 5000;
+
 /** Injected so tests exercise the decisions, not Vertex or Firestore. */
 export interface TranslationDeps {
   db: Firestore;
@@ -158,77 +166,168 @@ export async function loadTranslationSettings(
   };
 }
 
-/** Hard block (never degrade): translation has no cheaper tier. */
-export async function assertQuotaAvailable(
+const inc = (n: number) => admin.firestore.FieldValue.increment(n);
+
+const usageRefs = (db: Firestore, uid: string, nowMs: number) => ({
+  monthlyRef: db.collection('ai_usage').doc(monthlyTranslationDocId(nowMs)),
+  dailyRef: db
+    .collection('ai_usage')
+    .doc(teacherDailyTranslationDocId(uid, nowMs)),
+});
+
+/**
+ * Reserve one translation unit BEFORE the model call. Reading and incrementing
+ * in one transaction is what makes the caps real: a failed generation is still
+ * paid for, and two concurrent calls at cap-1 cannot both pass.
+ * Hard block (never degrade): translation has no cheaper tier.
+ */
+export async function reserveTranslationUnit(
   db: Firestore,
   uid: string,
   settings: QuizTranslationSettings,
   nowMs: number
 ): Promise<{ remaining: number; total: number }> {
-  const [monthly, daily] = await Promise.all([
-    db.collection('ai_usage').doc(monthlyTranslationDocId(nowMs)).get(),
-    db
-      .collection('ai_usage')
-      .doc(teacherDailyTranslationDocId(uid, nowMs))
-      .get(),
-  ]);
-  const num = (snap: admin.firestore.DocumentSnapshot, field: string) =>
-    snap.exists ? Number(snap.get(field) ?? 0) : 0;
-  const units = num(monthly, 'units');
-  const tokens = num(monthly, 'outputTokens');
-  const cap = {
-    remaining: Math.max(0, settings.monthlyCapUnits - units),
-    total: settings.monthlyCapUnits,
-  };
-  if (units >= settings.monthlyCapUnits)
-    throw new HttpsError(
-      'resource-exhausted',
-      'This month’s translation limit has been reached.',
-      { capRemaining: 0, capTotal: settings.monthlyCapUnits }
-    );
-  if (tokens >= settings.monthlyCapOutputTokens)
-    throw new HttpsError(
-      'resource-exhausted',
-      'This month’s translation limit has been reached.',
-      { capRemaining: 0, capTotal: settings.monthlyCapUnits }
-    );
-  if (num(daily, 'count') >= TEACHER_DAILY_LIMIT)
-    throw new HttpsError(
-      'resource-exhausted',
-      'Daily translation limit reached. Try again tomorrow.',
-      { capRemaining: cap.remaining, capTotal: cap.total }
-    );
-  return cap;
+  const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
+  return db.runTransaction(async (tx) => {
+    const [monthly, daily] = await Promise.all([
+      tx.get(monthlyRef),
+      tx.get(dailyRef),
+    ]);
+    const num = (snap: admin.firestore.DocumentSnapshot, field: string) =>
+      snap.exists ? Number(snap.get(field) ?? 0) : 0;
+    const units = num(monthly, 'units');
+    const tokens = num(monthly, 'outputTokens');
+    const remaining = Math.max(0, settings.monthlyCapUnits - units);
+    const total = settings.monthlyCapUnits;
+    const block = (reason: QuotaReason, message: string): never => {
+      throw new HttpsError('resource-exhausted', message, {
+        capRemaining: remaining,
+        capTotal: total,
+        reason,
+      });
+    };
+    if (units >= settings.monthlyCapUnits)
+      block('units', 'This month’s translation limit has been reached.');
+    if (tokens >= settings.monthlyCapOutputTokens)
+      block('outputTokens', 'This month’s translation limit has been reached.');
+    if (num(daily, 'count') >= TEACHER_DAILY_LIMIT)
+      block('daily', 'Daily translation limit reached. Try again tomorrow.');
+    tx.set(monthlyRef, { units: inc(1), updatedAt: nowMs }, { merge: true });
+    tx.set(dailyRef, { count: inc(1), updatedAt: nowMs }, { merge: true });
+    return { remaining: Math.max(0, remaining - 1), total };
+  });
 }
 
-/** Teacher row and the org monthly counters, one transaction (mirrors `billSynthesis`). */
-export async function billTranslation(
+/** Post-call token spend for a reserved unit. Runs on success AND on failure. */
+export async function billTranslationTokens(
   db: Firestore,
   uid: string,
   outputTokens: number,
-  nowMs: number,
-  field: 'count' | 'backCount' = 'count'
+  nowMs: number
 ): Promise<void> {
-  const inc = (n: number) => admin.firestore.FieldValue.increment(n);
-  const monthlyRef = db
-    .collection('ai_usage')
-    .doc(monthlyTranslationDocId(nowMs));
-  const dailyRef = db
-    .collection('ai_usage')
-    .doc(teacherDailyTranslationDocId(uid, nowMs));
-  await db.runTransaction(async (tx) => {
-    await Promise.all([tx.get(monthlyRef), tx.get(dailyRef)]);
-    tx.set(
-      monthlyRef,
-      { units: inc(1), outputTokens: inc(outputTokens), updatedAt: nowMs },
+  if (outputTokens <= 0) return;
+  const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
+  await Promise.all([
+    monthlyRef.set(
+      { outputTokens: inc(outputTokens), updatedAt: nowMs },
       { merge: true }
-    );
-    tx.set(
-      dailyRef,
-      { [field]: inc(1), outputTokens: inc(outputTokens), updatedAt: nowMs },
+    ),
+    dailyRef.set(
+      { outputTokens: inc(outputTokens), updatedAt: nowMs },
       { merge: true }
+    ),
+  ]);
+}
+
+/**
+ * Back-translation is metered on its own ceiling only (200/teacher/day), so it
+ * never spends the org's quiz-translation cap. `backUnits`/`backOutputTokens`
+ * on the monthly doc are for visibility, not for any gate.
+ */
+export async function billBackTranslation(
+  db: Firestore,
+  uid: string,
+  outputTokens: number,
+  nowMs: number
+): Promise<void> {
+  const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
+  await Promise.all([
+    monthlyRef.set(
+      {
+        backUnits: inc(1),
+        backOutputTokens: inc(outputTokens),
+        updatedAt: nowMs,
+      },
+      { merge: true }
+    ),
+    dailyRef.set({ backCount: inc(1), updatedAt: nowMs }, { merge: true }),
+  ]);
+}
+
+// ── Feature flag (server mirror of the client's canAccessFeature) ───────────
+
+/** Mirrors FEATURE_DEFAULTS['quiz-translation'] in config/featureDefaults.ts. */
+const QUIZ_TRANSLATION_FEATURE_DEFAULT = {
+  enabled: true,
+  accessLevel: 'admin' as const,
+};
+
+async function isSpartBoardAdmin(
+  db: Firestore,
+  email: string | undefined
+): Promise<boolean> {
+  if (!email) return false;
+  const doc = await db.collection('admins').doc(email.toLowerCase()).get();
+  return doc.exists;
+}
+
+/**
+ * Server-side gate for `global_permissions/quiz-translation`, resolved exactly
+ * as `AuthContext.canAccessFeature` resolves it client-side.
+ */
+export async function assertQuizTranslationFeature(
+  db: Firestore,
+  email: string | undefined
+): Promise<void> {
+  let data: Record<string, unknown> | undefined;
+  try {
+    const snap = await db
+      .collection('global_permissions')
+      .doc('quiz-translation')
+      .get();
+    data = snap.exists ? (snap.data() as Record<string, unknown>) : undefined;
+  } catch {
+    data = undefined;
+  }
+  const enabled =
+    data === undefined
+      ? QUIZ_TRANSLATION_FEATURE_DEFAULT.enabled
+      : data.enabled !== false;
+  const accessLevel =
+    data === undefined
+      ? QUIZ_TRANSLATION_FEATURE_DEFAULT.accessLevel
+      : typeof data.accessLevel === 'string'
+        ? data.accessLevel
+        : '';
+  const deny = (): never => {
+    throw new HttpsError(
+      'permission-denied',
+      'Quiz translation is not available for your account.'
     );
-  });
+  };
+  if (!enabled) deny();
+  if (await isSpartBoardAdmin(db, email)) return;
+  if (accessLevel === 'public') return;
+  if (accessLevel === 'beta') {
+    const betaUsers = Array.isArray(data?.betaUsers)
+      ? (data.betaUsers as unknown[]).filter(
+          (e): e is string => typeof e === 'string'
+        )
+      : [];
+    const lower = (email ?? '').toLowerCase();
+    if (lower && betaUsers.some((e) => e.toLowerCase() === lower)) return;
+  }
+  deny();
 }
 
 // ── Alignment helpers ──────────────────────────────────────────────────────
@@ -440,18 +539,53 @@ interface RawTranslatedQuestion extends QuestionTranslation {
   rubric?: TranslatableRubric;
 }
 
-function shapeOutput(parsed: {
-  title?: string;
-  questions?: RawTranslatedQuestion[];
-}): { title?: string; questions: Record<string, QuestionTranslation> } {
+/** Keep only the fields that belong to the question's type — never spread. */
+function pickForType(
+  type: string,
+  q: RawTranslatedQuestion
+): QuestionTranslation {
+  const text = typeof q.text === 'string' ? q.text : '';
+  if (isMultipleChoice(type))
+    // Invariant: `choices[0]` is the CORRECT answer (filteredChoices order), so
+    // consumers map by index onto the shuffled English array — never render in order.
+    return { text, ...(q.choices ? { choices: q.choices } : {}) };
+  if (isMatching(type))
+    return {
+      text,
+      ...(q.matchingLeft ? { matchingLeft: q.matchingLeft } : {}),
+      ...(q.matchingRight ? { matchingRight: q.matchingRight } : {}),
+      ...(q.matchingDistractors
+        ? { matchingDistractors: q.matchingDistractors }
+        : {}),
+    };
+  if (isOrdering(type))
+    return {
+      text,
+      ...(q.orderingItems ? { orderingItems: q.orderingItems } : {}),
+    };
+  if (isFreeResponse(type))
+    return {
+      text,
+      ...(typeof q.placeholder === 'string'
+        ? { placeholder: q.placeholder }
+        : {}),
+      ...(q.rubric ? { rubricSnapshot: q.rubric } : {}),
+    };
+  return { text };
+}
+
+function shapeOutput(
+  parsed: {
+    title?: string;
+    questions?: RawTranslatedQuestion[];
+  },
+  byId: Map<string, TranslatableQuestion>
+): { title?: string; questions: Record<string, QuestionTranslation> } {
   const questions: Record<string, QuestionTranslation> = {};
   for (const q of parsed.questions ?? []) {
     if (!q || typeof q.id !== 'string') continue;
-    const { id, rubric, ...rest } = q;
-    questions[id] = {
-      ...rest,
-      ...(rubric ? { rubricSnapshot: rubric } : {}),
-    };
+    // Unknown ids are kept so the validator can reject them by name.
+    questions[q.id] = pickForType(byId.get(q.id)?.type ?? '', q);
   }
   return {
     ...(typeof parsed.title === 'string' ? { title: parsed.title } : {}),
@@ -472,6 +606,16 @@ export function parseTranslateQuizRequest(raw: unknown): TranslateQuizRequest {
   if (!Array.isArray(data.questions) || data.questions.length === 0)
     throw new HttpsError('invalid-argument', 'questions are required.');
   const questions = data.questions as TranslatableQuestion[];
+  if (questions.length > MAX_TRANSLATABLE_QUESTIONS)
+    throw new HttpsError(
+      'invalid-argument',
+      `A quiz may have at most ${MAX_TRANSLATABLE_QUESTIONS} questions to translate.`
+    );
+  if (JSON.stringify(questions).length > MAX_TRANSLATABLE_QUESTIONS_BYTES)
+    throw new HttpsError(
+      'invalid-argument',
+      'That quiz is too large to translate.'
+    );
   if (questions.some((q) => !q || typeof q.id !== 'string' || !q.id))
     throw new HttpsError('invalid-argument', 'Every question needs an id.');
   const questionIds = Array.isArray(data.questionIds)
@@ -479,6 +623,11 @@ export function parseTranslateQuizRequest(raw: unknown): TranslateQuizRequest {
         (id): id is string => typeof id === 'string'
       )
     : undefined;
+  if (questionIds && questionIds.length === 0)
+    throw new HttpsError(
+      'invalid-argument',
+      'questionIds must name at least one question.'
+    );
   return {
     quizId,
     locale,
@@ -519,9 +668,6 @@ export async function translateQuiz(
       'That language is not enabled for translation.'
     );
 
-  const nowMs = deps.now();
-  const cap = await assertQuotaAvailable(deps.db, uid, settings, nowMs);
-
   const isFullQuiz = !request.questionIds;
   const requestedIds =
     request.questionIds ?? request.questions.map((q) => q.id);
@@ -546,6 +692,12 @@ export async function translateQuiz(
   );
   const responseSchema = buildQuizTranslationResponseSchema();
   const maxOutputTokens = isFullQuiz ? 16384 : 4096;
+  const byId = new Map(request.questions.map((q) => [q.id, q]));
+
+  // Reserve the unit first: a rejected or truncated generation costs real tokens
+  // and must not be retryable for free.
+  const nowMs = deps.now();
+  const cap = await reserveTranslationUnit(deps.db, uid, settings, nowMs);
 
   let outputTokens = 0;
   let shaped: {
@@ -554,41 +706,45 @@ export async function translateQuiz(
   } | null = null;
   let complaint: string | null = null;
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const prompt =
-      attempt === 0
-        ? basePrompt
-        : `${basePrompt}\nYour previous output was rejected: ${complaint}\nReturn corrected JSON that fixes this.`;
-    const result = await deps.generate({
-      model,
-      systemInstruction,
-      prompt,
-      responseSchema,
-      maxOutputTokens,
-    });
-    outputTokens += result.outputTokens;
-    // A truncated array is a MISALIGNED array — never serve it.
-    if (result.finishReason === 'MAX_TOKENS')
-      throw new HttpsError(
-        'invalid-argument',
-        'The translation was cut off before it finished. Try regenerating fewer questions.'
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const prompt =
+        attempt === 0
+          ? basePrompt
+          : `${basePrompt}\nYour previous output was rejected: ${complaint}\nReturn corrected JSON that fixes this.`;
+      const result = await deps.generate({
+        model,
+        systemInstruction,
+        prompt,
+        responseSchema,
+        maxOutputTokens,
+      });
+      outputTokens += result.outputTokens;
+      // A truncated array is a MISALIGNED array — never serve it.
+      if (result.finishReason === 'MAX_TOKENS')
+        throw new HttpsError(
+          'invalid-argument',
+          'The translation was cut off before it finished. Try regenerating fewer questions.'
+        );
+      if (!result.text)
+        throw new HttpsError('internal', 'Empty response from the translator.');
+      const parsed = parseGeminiJson<{
+        title?: string;
+        questions?: RawTranslatedQuestion[];
+      }>(result.text);
+      const candidate = shapeOutput(parsed, byId);
+      complaint = validateQuizTranslation(
+        request.questions,
+        requestedIds,
+        candidate.questions
       );
-    if (!result.text)
-      throw new HttpsError('internal', 'Empty response from the translator.');
-    const parsed = parseGeminiJson<{
-      title?: string;
-      questions?: RawTranslatedQuestion[];
-    }>(result.text);
-    const candidate = shapeOutput(parsed);
-    complaint = validateQuizTranslation(
-      request.questions,
-      requestedIds,
-      candidate.questions
-    );
-    if (!complaint) {
-      shaped = candidate;
-      break;
+      if (!complaint) {
+        shaped = candidate;
+        break;
+      }
     }
+  } finally {
+    await billTranslationTokens(deps.db, uid, outputTokens, nowMs);
   }
 
   if (!shaped)
@@ -603,15 +759,13 @@ export async function translateQuiz(
     if (q) sourceHashes[id] = hashQuestionForTranslation(q);
   }
 
-  await billTranslation(deps.db, uid, outputTokens, nowMs);
-
   return {
     ...(isFullQuiz && shaped.title ? { title: shaped.title } : {}),
     questions: shaped.questions,
     sourceHashes,
     model,
     outputTokens,
-    cap: { remaining: Math.max(0, cap.remaining - 1), total: cap.total },
+    cap,
   };
 }
 
@@ -620,6 +774,12 @@ export async function translateResponse(
   uid: string,
   deps: TranslationDeps
 ): Promise<{ text: string; model: string }> {
+  const settings = await loadTranslationSettings(deps.db);
+  if (!settings.enabledLanguages.includes(input.sourceLocale))
+    throw new HttpsError(
+      'failed-precondition',
+      'That language is not enabled for translation.'
+    );
   const nowMs = deps.now();
   const dailySnap = await deps.db
     .collection('ai_usage')
@@ -657,7 +817,7 @@ export async function translateResponse(
   if (typeof parsed.text !== 'string' || parsed.text.trim() === '')
     throw new HttpsError('internal', 'The translator returned no text.');
 
-  await billTranslation(deps.db, uid, result.outputTokens, nowMs, 'backCount');
+  await billBackTranslation(deps.db, uid, result.outputTokens, nowMs);
   return { text: parsed.text, model };
 }
 
@@ -748,10 +908,12 @@ export const translateQuizV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign-in required.');
     if (request.auth.token.studentRole === true)
       throw new HttpsError('permission-denied', 'Teacher account required.');
+    const deps = buildDefaultDeps();
+    await assertQuizTranslationFeature(deps.db, request.auth.token.email);
     return translateQuiz(
       parseTranslateQuizRequest(request.data),
       request.auth.uid,
-      buildDefaultDeps()
+      deps
     );
   }
 );
@@ -774,12 +936,15 @@ export const translateResponseV1 = onCall(
     const sourceLocale =
       typeof data.sourceLocale === 'string' ? data.sourceLocale.trim() : '';
     if (!text) throw new HttpsError('invalid-argument', 'text is required.');
+    if (text.length > MAX_BACK_TRANSLATION_CHARS)
+      throw new HttpsError(
+        'invalid-argument',
+        'That response is too long to translate.'
+      );
     if (!LANGUAGE_TAG_RE.test(sourceLocale))
       throw new HttpsError('invalid-argument', 'A language tag is required.');
-    return translateResponse(
-      { text, sourceLocale },
-      request.auth.uid,
-      buildDefaultDeps()
-    );
+    const deps = buildDefaultDeps();
+    await assertQuizTranslationFeature(deps.db, request.auth.token.email);
+    return translateResponse({ text, sourceLocale }, request.auth.uid, deps);
   }
 );

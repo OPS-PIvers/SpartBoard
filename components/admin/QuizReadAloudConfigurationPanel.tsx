@@ -148,8 +148,9 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
       updatedBy: '',
     }) !== JSON.stringify({ ...savedTranslation, updatedAt: 0, updatedBy: '' });
 
-  const dirty =
-    (saved !== null && !settingsEqual(draft, saved)) || translationDirty;
+  const readAloudDirty = saved !== null && !settingsEqual(draft, saved);
+
+  const dirty = readAloudDirty || translationDirty;
 
   const toggleTranslationLanguage = (code: string, enabled: boolean) =>
     setTranslationDraft((d) => ({
@@ -170,10 +171,13 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
     setError(null);
     try {
       const now = Date.now();
-      await setDoc(
-        doc(db, 'admin_settings', QUIZ_READ_ALOUD_SETTINGS_DOC),
-        draft
-      );
+      // Save is enabled by a translation-only edit too; don't rewrite read-aloud then.
+      if (readAloudDirty) {
+        await setDoc(
+          doc(db, 'admin_settings', QUIZ_READ_ALOUD_SETTINGS_DOC),
+          draft
+        );
+      }
       if (translationDirty) {
         await setDoc(doc(db, 'admin_settings', QUIZ_TRANSLATION_SETTINGS_DOC), {
           ...translationDraft,

@@ -120,7 +120,7 @@ describe('quiz response backTranslations', () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
-        teacherId: TEACHER_UID,
+        teacherUid: TEACHER_UID,
         status: 'active',
         pin: '1234',
         totalQuestions: 1,
@@ -128,7 +128,7 @@ describe('quiz response backTranslations', () => {
         createdAt: Date.now(),
       });
       await setDoc(doc(ctx.firestore(), responsePath), {
-        studentId: STUDENT_UID,
+        studentUid: STUDENT_UID,
         studentName: 'Student',
         pin: '1234',
         answers: {},
@@ -136,6 +136,23 @@ describe('quiz response backTranslations', () => {
         joinedAt: Date.now(),
       });
     });
+  });
+
+  // Positive controls: without these the assertFails below could pass vacuously.
+  it('a student can still write their own answers', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), responsePath), { answers: { q1: 'hola' } })
+    );
+  });
+
+  it('the teacher-owner can write a back-translation', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), responsePath), {
+        backTranslations: {
+          q1: { text: 'hello', locale: 'so', model: 'm', at: 1 },
+        },
+      })
+    );
   });
 
   it('a student cannot write a back-translation onto their own response', async () => {
