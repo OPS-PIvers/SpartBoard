@@ -73,6 +73,9 @@ export function serveLocalizedQuestion(
   for (const field of LOCALIZED_ARRAY_FIELDS) {
     if (q[field]?.length && !entry[field]?.length) return null;
   }
+  // Free response: an untranslated rubric or placeholder is the same half-English mix.
+  if (q.placeholder && !entry.placeholder) return null;
+  if (q.rubricSnapshot && !entry.rubricSnapshot) return null;
   return entry;
 }
 

@@ -46,6 +46,17 @@ vi.mock('@/hooks/useQuizTranslations', () => ({
   useQuizTranslations: () => translationsApi,
 }));
 
+vi.mock('@/hooks/useQuizTranslationSettings', async () => {
+  const { QUIZ_TRANSLATION_LANGUAGES, DEFAULT_QUIZ_TRANSLATION_SETTINGS } =
+    await import('@/config/quizTranslation');
+  return {
+    useQuizTranslationSettings: () => ({
+      settings: DEFAULT_QUIZ_TRANSLATION_SETTINGS,
+      languages: QUIZ_TRANSLATION_LANGUAGES,
+    }),
+  };
+});
+
 vi.mock('@/context/useDialog', () => ({
   useDialog: vi.fn(() => ({
     showAlert: vi.fn(),

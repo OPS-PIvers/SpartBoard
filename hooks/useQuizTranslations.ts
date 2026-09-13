@@ -17,7 +17,10 @@ import type {
   QuizTranslation,
   QuizTranslationIndexEntry,
 } from '@/types';
-import { isTranslatableQuestionType } from '@/config/quizTranslation';
+import {
+  QUIZ_TRANSLATION_FEATURE,
+  isTranslatableQuestionType,
+} from '@/config/quizTranslation';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
 import { hashQuestionForTranslation } from '@/utils/quizTranslationHash';
@@ -57,12 +60,23 @@ export interface UseQuizTranslations {
   needsLoad(locale: string): boolean;
 }
 
+export interface UseQuizTranslationsOptions {
+  /** Defaults to the caller's `quiz-translation` access; false skips all hashing. */
+  enabled?: boolean;
+}
+
 export function useQuizTranslations(
   quiz: QuizData | null,
-  metadata: QuizMetadata | null
+  metadata: QuizMetadata | null,
+  options: UseQuizTranslationsOptions = {}
 ): UseQuizTranslations {
   // Read via context so a provider-less host denies instead of throwing.
   const authContext = useContext(AuthContext);
+  // No context method to ask means no gate to apply, so behavior is unchanged.
+  const enabled =
+    options.enabled ??
+    authContext?.canAccessFeature?.(QUIZ_TRANSLATION_FEATURE) ??
+    true;
   const user = authContext?.user ?? null;
   const googleAccessToken = authContext?.googleAccessToken ?? null;
   const [byLocale, setByLocale] = useState<
@@ -102,28 +116,29 @@ export function useQuizTranslations(
   );
 
   const refreshHashes = useCallback(async () => {
+    if (!enabled) return {};
     const next: Record<string, string> = {};
     for (const q of translatable)
       next[q.id] = await hashQuestionForTranslation(q);
     setLiveHashes(next);
     return next;
-  }, [translatable]);
+  }, [enabled, translatable]);
 
   // Hashing is async (crypto.subtle), so staleness can only be recomputed in an
   // effect; without this, an edit made after load never shows as stale.
   useEffect(() => {
-    if (!quiz) return;
+    if (!quiz || !enabled) return;
     let cancelled = false;
     void (async () => {
       const next: Record<string, string> = {};
-      for (const q of questions)
+      for (const q of translatable)
         next[q.id] = await hashQuestionForTranslation(q);
       if (!cancelled) setLiveHashes(next);
     })();
     return () => {
       cancelled = true;
     };
-  }, [questions, quiz]);
+  }, [enabled, quiz, translatable]);
 
   const load = useCallback(
     async (locale: string) => {

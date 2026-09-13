@@ -12,7 +12,7 @@
  * per-criterion/per-question row layout and light-surface card treatment.
  */
 
-import React, { useContext, useId, useState } from 'react';
+import React, { useContext, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
@@ -21,6 +21,7 @@ import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { AuthContext } from '@/context/AuthContextValue';
 import { isAppLocale } from '@/utils/isAppLocale';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
+import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 
 export interface OverrideEditorQuestionOption {
   id: string;
@@ -123,6 +124,14 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   // Read via context so a provider-less host denies instead of throwing.
   const translationAvailable =
     useContext(AuthContext)?.canAccessFeature?.('quiz-translation') === true;
+  const { languages: enabledLanguages } =
+    useQuizTranslationSettings(translationAvailable);
+  // A student already on a now-disabled code must still render their choice.
+  const languageOptions = useMemo(() => {
+    const codes = new Set(enabledLanguages.map((l) => l.code));
+    if (override.language) codes.add(override.language);
+    return QUIZ_TRANSLATION_LANGUAGES.filter((l) => codes.has(l.code));
+  }, [enabledLanguages, override.language]);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copySourceId, setCopySourceId] = useState('');
   const tabWarningInputId = useId();
@@ -316,7 +325,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                 <option value="">
                   {t('quizTranslation.editor.english', 'English')}
                 </option>
-                {QUIZ_TRANSLATION_LANGUAGES.map((language) => (
+                {languageOptions.map((language) => (
                   <option key={language.code} value={language.code}>
                     {language.nativeLabel}
                   </option>

@@ -259,6 +259,42 @@ describe('useQuizTranslations', () => {
     await waitFor(() => expect(result.current.staleIds('es')).toEqual(['q1']));
   });
 
+  it('skips hashing entirely when disabled, so staleness is never computed', async () => {
+    // The sidecar hash is deliberately wrong: enabled would report q1 stale.
+    loadTranslation.mockResolvedValue(translation());
+    const { result } = renderHook(
+      () => useQuizTranslations(quiz, metadata(), { enabled: false }),
+      { wrapper }
+    );
+    await act(async () => {
+      await result.current.load('es');
+    });
+    expect(result.current.staleIds('es')).toEqual([]);
+  });
+
+  it('derives enabled from the context feature gate when no flag is passed', async () => {
+    const deniedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(
+        AuthContext.Provider,
+        {
+          value: {
+            user: { uid: 'teacher-1' },
+            googleAccessToken: 'token',
+            canAccessFeature: () => false,
+          } as never,
+        },
+        children
+      );
+    loadTranslation.mockResolvedValue(translation());
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper: deniedWrapper,
+    });
+    await act(async () => {
+      await result.current.load('es');
+    });
+    expect(result.current.staleIds('es')).toEqual([]);
+  });
+
   it('surfaces a save failure as an error instead of throwing', async () => {
     loadTranslation.mockResolvedValue(translation());
     saveTranslation.mockRejectedValueOnce(new Error('Drive is unavailable'));

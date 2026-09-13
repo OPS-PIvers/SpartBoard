@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Languages, Loader2 } from 'lucide-react';
 import type { QuestionTranslation, QuizData, QuizMetadata } from '@/types';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
+import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 import { isNonEnglishSource } from '@/utils/quizTranslationSource';
 import { isAppLocale } from '@/utils/isAppLocale';
 import type { UseQuizTranslations } from '@/hooks/useQuizTranslations';
@@ -45,6 +46,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
   onSelectQuestion,
 }) => {
   const { t } = useTranslation();
+  const { languages } = useQuizTranslationSettings();
   const payload = selectedLocale ? api.byLocale[selectedLocale] : undefined;
   const translatableSet = useMemo(
     () => new Set(api.translatableIds),
@@ -113,7 +115,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
             {t('quizTranslation.editor.pickLanguage')}
           </p>
           <div className="flex flex-wrap gap-2">
-            {QUIZ_TRANSLATION_LANGUAGES.map((language) => {
+            {languages.map((language) => {
               const active = selectedLocale === language.code;
               return (
                 <button
@@ -265,11 +267,12 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
   selectedQuestionId,
 }) => {
   const { t } = useTranslation();
-  const payload = selectedLocale ? api.byLocale[selectedLocale] : undefined;
-  const question = quiz.questions.find((q) => q.id === selectedQuestionId);
+  // Detail pane labels a locale the teacher already picked, so the catalog (not the enabled subset) is the source.
   const language = QUIZ_TRANSLATION_LANGUAGES.find(
     (l) => l.code === selectedLocale
   );
+  const payload = selectedLocale ? api.byLocale[selectedLocale] : undefined;
+  const question = quiz.questions.find((q) => q.id === selectedQuestionId);
 
   if (!selectedLocale) {
     return (

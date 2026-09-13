@@ -328,10 +328,16 @@ export const AssignmentDetailPane: React.FC<{
   // A language this edit introduces that the live session does not serve (§10).
   const postPublishLocales = useMemo(
     () =>
-      row.kind === 'quiz' && servedLocales
+      row.kind === 'quiz' && translationAvailable && servedLocales
         ? newlyRequestedLocales(servedLocales, draft.overridesByKey, nameByKey)
         : [],
-    [row.kind, servedLocales, draft.overridesByKey, nameByKey]
+    [
+      row.kind,
+      translationAvailable,
+      servedLocales,
+      draft.overridesByKey,
+      nameByKey,
+    ]
   );
 
   const readAloudLine = !readAloudAvailable

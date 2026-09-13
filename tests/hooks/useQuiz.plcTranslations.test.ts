@@ -24,8 +24,15 @@ vi.mock('@/config/firebase', () => ({
   db: { __mock: 'db' },
   isAuthBypass: true,
 }));
+const { translationAccess } = vi.hoisted(() => ({
+  translationAccess: { current: true },
+}));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: vi.fn(() => ({ googleAccessToken: null })),
+  useAuth: vi.fn(() => ({
+    googleAccessToken: null,
+    canAccessFeature: (feature: string) =>
+      feature === 'quiz-translation' ? translationAccess.current : true,
+  })),
 }));
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: vi.fn(() => ({ isConnected: false })),
@@ -118,6 +125,7 @@ const syncedMeta = (
   }) as QuizMetadata;
 
 beforeEach(async () => {
+  translationAccess.current = true;
   vi.clearAllMocks();
   vi.restoreAllMocks();
   localStorage.clear();
@@ -167,6 +175,23 @@ describe('pullSyncedQuiz — canonical translations', () => {
       (payloads[0].translations as Record<string, QuizTranslationIndexEntry>).es
         .driveFileId
     ).toBe(entry?.driveFileId);
+  });
+
+  it('writes no sidecar and no index for a peer without the translation flag', async () => {
+    translationAccess.current = false;
+    const payloads = captureSetDocPayloads();
+    const saveSpy = vi.spyOn(MockQuizDriveService.prototype, 'saveTranslation');
+    const { result } = renderHook(() => useQuiz(UID));
+    let meta!: QuizMetadata;
+    await act(async () => {
+      meta = await result.current.pullSyncedQuiz(syncedMeta());
+    });
+    expect(saveSpy).not.toHaveBeenCalled();
+    expect(meta.translations).toBeUndefined();
+    expect(payloads[0].translations).toBeUndefined();
+    // Content still pulls exactly as before the flag existed.
+    expect(meta.title).toBe('Numbers');
+    expect(meta.sync?.lastSyncedVersion).toBe(5);
   });
 
   it('overwrites local review state with the canonical one', async () => {

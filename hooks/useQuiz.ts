@@ -45,6 +45,7 @@ import { buildQuizSearchText } from '@/utils/quizSearchText';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import {
   buildTranslationIndexEntry,
   recomputeTranslationIndex,
@@ -168,7 +169,7 @@ export interface UseQuizResult {
 }
 
 export const useQuiz = (userId: string | undefined): UseQuizResult => {
-  const { googleAccessToken } = useAuth();
+  const { googleAccessToken, canAccessFeature } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [quizzes, setQuizzes] = useState<QuizMetadata[]>([]);
   const [loading, setLoading] = useState(!!userId);
@@ -402,8 +403,10 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const pulledIndex: Record<string, QuizTranslationIndexEntry> = {
         ...(carried ?? {}),
       };
+      // A flagless peer pulls content exactly as before: no sidecars, no index.
+      const pullTranslations = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
       for (const [locale, payload] of Object.entries(
-        canonical.translations ?? {}
+        pullTranslations ? (canonical.translations ?? {}) : {}
       )) {
         // Per-locale: one unwritable sidecar must not strand the others or the
         // auto-pull path that fires this with no teacher action.
@@ -463,7 +466,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       );
       return metadata;
     },
-    [userId, getDriveService]
+    [userId, getDriveService, canAccessFeature]
   );
 
   const attachSyncLinkage = useCallback(
