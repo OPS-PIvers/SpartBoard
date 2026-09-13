@@ -152,6 +152,83 @@ describe('RosterEditorModal', () => {
     });
   });
 
+  it('saves a standing accommodation set on the Accommodations tab', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+      ],
+      driveFileId: null,
+      studentCount: 1,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
+    await user.click(screen.getByRole('button', { name: /alice smith/i }));
+    await user.click(screen.getByRole('tab', { name: /^2x$/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        'Existing Class',
+        expect.any(Array),
+        undefined,
+        { s1: { timeMultiplier: 2 } }
+      );
+    });
+  });
+
+  it('drops the student entry when a standing accommodation is cleared', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+      ],
+      defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+      driveFileId: null,
+      studentCount: 1,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
+    await user.click(screen.getByRole('button', { name: /alice smith/i }));
+    await user.click(screen.getByRole('tab', { name: /^none$/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        'Existing Class',
+        expect.any(Array),
+        undefined,
+        {}
+      );
+    });
+  });
+
   it('calls onSave exactly once on a plain student edit (no groups touched)', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);

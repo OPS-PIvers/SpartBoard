@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
-import { Student, ClassRoster, RosterGroup } from '@/types';
+import { Student, ClassRoster, RosterGroup, StudentOverride } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
@@ -9,6 +9,11 @@ import {
   RestrictionsPicker,
   RestrictionsPickerCandidate,
 } from './RestrictionsPicker';
+import { OverrideEditorRow } from '@/components/common/library/OverrideEditorRow';
+import {
+  isEmptyStudentOverride,
+  setRosterDefaultOverride,
+} from '@/utils/rosterDefaultOverrides';
 
 interface RosterEditorModalProps {
   isOpen: boolean;
@@ -16,15 +21,19 @@ interface RosterEditorModalProps {
   roster: ClassRoster | null;
   onClose: () => void;
   /**
-   * Single write per save (M17 A4 fix). `groups` is included only when the
-   * groups tab was actually edited from the roster's saved value — a plain
-   * student edit must produce exactly one call, matching pre-PR behavior.
+   * Single write per save (M17 A4 fix). `groups` and
+   * `defaultOverridesByStudentId` are included only when their tab was
+   * actually edited from the roster's saved value — a plain student edit must
+   * produce exactly one call, matching pre-PR behavior.
    */
   onSave: (
     name: string,
     students: Student[],
-    groups?: RosterGroup[]
+    groups?: RosterGroup[],
+    defaultOverridesByStudentId?: Record<string, StudentOverride>
   ) => Promise<void> | void;
+  /** Host-resolved 'quiz-read-aloud' gate, forwarded to the accommodations editor. */
+  readAloudAvailable?: boolean;
 }
 
 /**
@@ -39,6 +48,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   roster,
   onClose,
   onSave,
+  readAloudAvailable = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -62,9 +72,17 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     duplicatePins,
   } = useRosterRowsState(roster);
 
-  const [activeTab, setActiveTab] = useState<'students' | 'groups'>('students');
+  const [activeTab, setActiveTab] = useState<
+    'students' | 'groups' | 'accommodations'
+  >('students');
   const initialGroups = useMemo(() => roster?.groups ?? [], [roster]);
   const [groups, setGroups] = useState<RosterGroup[]>(initialGroups);
+  const initialOverrides = useMemo(
+    () => roster?.defaultOverridesByStudentId ?? {},
+    [roster]
+  );
+  const [defaultOverrides, setDefaultOverrides] =
+    useState<Record<string, StudentOverride>>(initialOverrides);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -73,10 +91,19 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     if (!name.trim() || saving) return;
     const groupsChanged =
       JSON.stringify(groups) !== JSON.stringify(initialGroups);
+    const overridesChanged =
+      JSON.stringify(defaultOverrides) !== JSON.stringify(initialOverrides);
     setSaveError(null);
     setSaving(true);
     try {
-      if (groupsChanged) {
+      if (overridesChanged) {
+        await onSave(
+          name.trim(),
+          validStudents,
+          groupsChanged ? groups : undefined,
+          defaultOverrides
+        );
+      } else if (groupsChanged) {
         await onSave(name.trim(), validStudents, groups);
       } else {
         await onSave(name.trim(), validStudents);
@@ -169,6 +196,13 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     count: groups.length,
                   }),
                 },
+                {
+                  value: 'accommodations',
+                  label: t('sidebar.classes.accommodationsTab', {
+                    defaultValue: 'Accommodations ({{count}})',
+                    count: Object.keys(defaultOverrides).length,
+                  }),
+                },
               ]}
             />
           </div>
@@ -179,6 +213,13 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             groups={groups}
             students={validStudents}
             onChange={setGroups}
+          />
+        ) : activeTab === 'accommodations' && roster ? (
+          <RosterAccommodationsPanel
+            students={validStudents}
+            overrides={defaultOverrides}
+            readAloudAvailable={readAloudAvailable}
+            onChange={setDefaultOverrides}
           />
         ) : (
           <>
@@ -717,6 +758,90 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
             </button>
           </div>
         </>
+      )}
+    </div>
+  );
+};
+
+interface RosterAccommodationsPanelProps {
+  students: Student[];
+  overrides: Record<string, StudentOverride>;
+  readAloudAvailable: boolean;
+  onChange: (overrides: Record<string, StudentOverride>) => void;
+}
+
+/**
+ * Standing accommodations editor. Writes `defaultOverridesByStudentId`, which
+ * the assign flow pre-fills onto every newly selected student
+ * (`AssignStudentPicker.applyDefaultOverride`). Reuses the assign flow's
+ * `OverrideEditorRow` so the two surfaces cannot drift; question-scoped
+ * controls (subset, option hider, rubric swap) render nothing here because a
+ * roster default has no quiz to reference.
+ */
+const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
+  students,
+  overrides,
+  readAloudAvailable,
+  onChange,
+}) => {
+  const { t } = useTranslation();
+  const studentName = (s: Student) =>
+    `${s.firstName} ${s.lastName}`.trim() || s.id;
+
+  return (
+    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
+      {students.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full w-full text-center px-6 py-10 gap-2 select-none">
+          <div className="p-3 bg-slate-100 rounded-full text-slate-400">
+            <Users size={32} />
+          </div>
+          <p className="font-black uppercase tracking-widest text-slate-500 text-sm">
+            {t('sidebar.classes.emptyAccommodationsTitle', {
+              defaultValue: 'No students yet',
+            })}
+          </p>
+          <p className="text-xs text-slate-400 max-w-xs">
+            {t('sidebar.classes.emptyAccommodationsSubtitle', {
+              defaultValue:
+                'Add students first, then set their standing accommodations.',
+            })}
+          </p>
+        </div>
+      ) : (
+        <div className="p-3 flex flex-col gap-2">
+          <p className="text-xs text-slate-500">
+            {t('sidebar.classes.accommodationsHelp', {
+              defaultValue:
+                'These apply automatically each time you assign work to this student. You can still change them per assignment.',
+            })}
+          </p>
+          {students.map((s) => {
+            const peers = students
+              .filter(
+                (other) =>
+                  other.id !== s.id &&
+                  !isEmptyStudentOverride(overrides[other.id])
+              )
+              .map((other) => ({
+                id: other.id,
+                name: studentName(other),
+                override: overrides[other.id],
+              }));
+            return (
+              <OverrideEditorRow
+                key={s.id}
+                studentName={studentName(s)}
+                override={overrides[s.id] ?? {}}
+                quizMode
+                readAloudAvailable={readAloudAvailable}
+                peers={peers}
+                onChange={(next) =>
+                  onChange(setRosterDefaultOverride(overrides, s.id, next))
+                }
+              />
+            );
+          })}
+        </div>
       )}
     </div>
   );

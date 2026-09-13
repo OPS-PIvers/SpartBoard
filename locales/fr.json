@@ -196,7 +196,11 @@
       "removeGroup": "Supprimer le groupe",
       "groupMemberCount_one": "{{count}} élève",
       "groupMemberCount_other": "{{count}} élèves",
-      "noStudentsToGroup": "Ajoutez d'abord des élèves."
+      "noStudentsToGroup": "Ajoutez d'abord des élèves.",
+      "accommodationsTab": "Accommodations ({{count}})",
+      "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
+      "emptyAccommodationsTitle": "No students yet",
+      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
     },
     "plcs": {
       "title": "Mes Communautés",
