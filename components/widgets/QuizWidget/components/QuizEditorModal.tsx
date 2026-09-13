@@ -19,6 +19,7 @@ import {
   QuizBankSlot,
   QuizBehaviorSettings,
   QuizData,
+  QuizMetadata,
   QuizOrderEntry,
   QuizQuestion,
   QuizStimulus,
@@ -44,6 +45,12 @@ import { sanitizeStimulusPointers } from '@/utils/quizStimuli';
 import { quizOrder } from '@/utils/questionBanks';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
+import { useTranslation } from 'react-i18next';
+import { useQuizTranslations } from '@/hooks/useQuizTranslations';
+import {
+  QuizLanguagesContextPane,
+  QuizLanguagesDetailPane,
+} from './QuizLanguagesPane';
 
 /** Bank access the editor needs for the picker, slot rows and "Save to bank". */
 export interface QuizEditorBankApi {
@@ -82,6 +89,8 @@ interface QuizEditorModalProps {
   bankTargetsDirty?: boolean;
   /** Overrides the AI feature gate (bank mode uses 'question-bank-ai'). */
   aiAllowed?: boolean;
+  /** Library metadata for this quiz; backs the Languages tab's translation index. */
+  metadata?: QuizMetadata | null;
 }
 
 const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
@@ -240,7 +249,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   onBankTargetsChange,
   bankTargetsDirty = false,
   aiAllowed,
+  metadata,
 }) => {
+  const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
   const isBank = mode === 'bank';
   const aiEnabled = aiAllowed ?? canAccessFeature('gemini-functions');
@@ -275,8 +286,14 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   // ─── Behavior settings state ─────────────────────────────────────────────
   const [editorTab, setEditorTab] = useState<
-    'questions' | 'stimuli' | 'settings'
+    'questions' | 'stimuli' | 'settings' | 'languages'
   >('questions');
+  const translationAvailable = canAccessFeature('quiz-translation');
+  const translationBlockedByBank = (quiz?.bankSlots?.length ?? 0) > 0;
+  const translations = useQuizTranslations(quiz ?? null, metadata ?? null);
+  const [selectedLocale, setSelectedLocale] = useState<string | null>(null);
+  const [selectedTranslationQuestionId, setSelectedTranslationQuestionId] =
+    useState<string | null>(null);
   const [behavior, setBehavior] = useState<QuizBehaviorSettings>(
     () => behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR
   );
@@ -479,7 +496,14 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   if (!quiz) return null;
 
-  const activeTab = isBank ? 'questions' : editorTab;
+  const editorTabs = translationAvailable
+    ? (['questions', 'stimuli', 'settings', 'languages'] as const)
+    : (['questions', 'stimuli', 'settings'] as const);
+  // Access revoked mid-session: fall back rather than render Settings under Languages.
+  const resolvedTab = (editorTabs as readonly string[]).includes(editorTab)
+    ? editorTab
+    : 'questions';
+  const activeTab = isBank ? 'questions' : resolvedTab;
 
   return (
     <EditorWorkspace
@@ -507,20 +531,34 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           {/* Questions / Settings segmented tab toggle (quiz mode only) */}
           {!isBank && (
             <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-              {(['questions', 'stimuli', 'settings'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setEditorTab(tab)}
-                  className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                    editorTab === tab
-                      ? 'bg-brand-blue-primary text-white'
-                      : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                  }`}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
+              {editorTabs.map((tab) => {
+                const disabled =
+                  tab === 'languages' && translationBlockedByBank;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    disabled={disabled}
+                    title={
+                      disabled
+                        ? t('quizTranslation.editor.disabled.bankSlots')
+                        : undefined
+                    }
+                    onClick={() => setEditorTab(tab)}
+                    className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                      disabled
+                        ? 'text-slate-300 cursor-not-allowed'
+                        : activeTab === tab
+                          ? 'bg-brand-blue-primary text-white'
+                          : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                    }`}
+                  >
+                    {tab === 'languages'
+                      ? t('quizTranslation.editor.tab')
+                      : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -545,6 +583,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               state={editorState}
               readAloudAvailable={readAloudAvailable}
             />
+          ) : activeTab === 'languages' ? (
+            <QuizLanguagesContextPane
+              quiz={quiz}
+              metadata={metadata ?? null}
+              api={translations}
+              selectedLocale={selectedLocale}
+              onSelectLocale={setSelectedLocale}
+              selectedQuestionId={selectedTranslationQuestionId}
+              onSelectQuestion={setSelectedTranslationQuestionId}
+            />
           ) : (
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
               {readAloudAvailable && (
@@ -565,6 +613,15 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             state={editorState}
             aiEnabled={aiEnabled}
             bankApi={isBank ? undefined : bankApi}
+          />
+        ) : activeTab === 'languages' ? (
+          <QuizLanguagesDetailPane
+            quiz={quiz}
+            api={translations}
+            selectedLocale={selectedLocale}
+            onSelectLocale={setSelectedLocale}
+            selectedQuestionId={selectedTranslationQuestionId}
+            onSelectQuestion={setSelectedTranslationQuestionId}
           />
         ) : activeTab === 'stimuli' ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">

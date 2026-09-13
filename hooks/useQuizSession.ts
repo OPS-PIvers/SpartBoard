@@ -53,6 +53,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
+import { isTranslatableQuestionType } from '@/config/quizTranslation';
 import {
   isRecordingSlotClosed,
   nextTakeIndex,
@@ -378,7 +379,10 @@ export function toPublicQuestion(
   q: QuizQuestion,
   translations?: Record<string, QuestionTranslation>
 ): QuizPublicQuestion {
-  const entries = Object.entries(translations ?? {});
+  // D21: FIB stems stay English — never seed a localized entry for them.
+  const entries = isTranslatableQuestionType(q.type)
+    ? Object.entries(translations ?? {})
+    : [];
   const localized: Record<string, LocalizedQuestionStrings> = {};
   for (const [loc, tr] of entries) localized[loc] = { text: tr.text };
   const base: QuizPublicQuestion = {

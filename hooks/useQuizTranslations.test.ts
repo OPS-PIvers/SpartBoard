@@ -22,12 +22,10 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('firebase/functions', () => ({
   httpsCallable: () => callableMock,
 }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    user: { uid: 'teacher-1' },
-    googleAccessToken: 'token',
-  }),
-}));
+vi.mock('@/context/AuthContextValue', async () => {
+  const { createContext } = await import('react');
+  return { AuthContext: createContext<unknown>(undefined) };
+});
 vi.mock('@/utils/quizDriveService', () => ({
   QuizDriveService: class {
     saveTranslation = saveTranslation;
@@ -39,6 +37,8 @@ vi.mock('@/utils/mockQuizDriveService', () => ({
   MockQuizDriveService: class {},
 }));
 
+import { createElement, type ReactNode } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useQuizTranslations } from './useQuizTranslations';
 import { hashQuestionForTranslation } from '@/utils/quizTranslationHash';
 import type { QuizData, QuizMetadata, QuizTranslation } from '@/types';
@@ -94,6 +94,19 @@ const metadata = (entryOverrides: Record<string, unknown> = {}): QuizMetadata =>
     },
   }) as QuizMetadata;
 
+// The hook reads auth via context, so a provider-less host must not throw.
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(
+    AuthContext.Provider,
+    {
+      value: {
+        user: { uid: 'teacher-1' },
+        googleAccessToken: 'token',
+      } as never,
+    },
+    children
+  );
+
 beforeEach(() => {
   vi.clearAllMocks();
   saveTranslation.mockResolvedValue('file-es');
@@ -102,7 +115,9 @@ beforeEach(() => {
 describe('useQuizTranslations', () => {
   it('loads a sidecar through the index driveFileId', async () => {
     loadTranslation.mockResolvedValue(translation());
-    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
     await act(async () => {
       await result.current.load('es');
     });
@@ -123,7 +138,10 @@ describe('useQuizTranslations', () => {
         cap: { remaining: 1999, total: 2000 },
       },
     });
-    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()));
+    // No index row yet: the first generation for a locale needs no load.
+    const { result } = renderHook(() => useQuizTranslations(quiz, null), {
+      wrapper,
+    });
     await act(async () => {
       await result.current.generate('es');
     });
@@ -151,7 +169,9 @@ describe('useQuizTranslations', () => {
         cap: { remaining: 1, total: 2 },
       },
     });
-    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
     await act(async () => {
       await result.current.load('es');
     });
@@ -163,7 +183,9 @@ describe('useQuizTranslations', () => {
 
   it('editQuestion clears the id from reviewedQuestionIds', async () => {
     loadTranslation.mockResolvedValue(translation());
-    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
     await act(async () => {
       await result.current.load('es');
     });
@@ -177,7 +199,9 @@ describe('useQuizTranslations', () => {
 
   it('setReviewed toggles without duplicating the id', async () => {
     loadTranslation.mockResolvedValue(translation({ reviewedQuestionIds: [] }));
-    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
     await act(async () => {
       await result.current.load('es');
     });
@@ -190,7 +214,9 @@ describe('useQuizTranslations', () => {
 
   it('staleIds flags a question whose live hash no longer matches', async () => {
     loadTranslation.mockResolvedValue(translation());
-    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
     await act(async () => {
       await result.current.load('es');
     });
@@ -200,7 +226,9 @@ describe('useQuizTranslations', () => {
     loadTranslation.mockResolvedValue(
       translation({ sourceHashes: { q1: fresh } })
     );
-    const second = renderHook(() => useQuizTranslations(quiz, metadata()));
+    const second = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
     await act(async () => {
       await second.result.current.load('es');
     });
@@ -216,7 +244,7 @@ describe('useQuizTranslations', () => {
     );
     const { result, rerender } = renderHook(
       ({ q }: { q: QuizData }) => useQuizTranslations(q, metadata()),
-      { initialProps: { q: quiz } }
+      { initialProps: { q: quiz }, wrapper }
     );
     await act(async () => {
       await result.current.load('es');
@@ -234,7 +262,9 @@ describe('useQuizTranslations', () => {
   it('surfaces a save failure as an error instead of throwing', async () => {
     loadTranslation.mockResolvedValue(translation());
     saveTranslation.mockRejectedValueOnce(new Error('Drive is unavailable'));
-    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
     await act(async () => {
       await result.current.load('es');
     });
@@ -242,5 +272,47 @@ describe('useQuizTranslations', () => {
       await result.current.save('es');
     });
     expect(result.current.error).toBe('Drive is unavailable');
+  });
+
+  it('renders without an AuthProvider instead of throwing', () => {
+    expect(() =>
+      renderHook(() => useQuizTranslations(quiz, metadata()))
+    ).not.toThrow();
+  });
+
+  it('refuses to generate while an indexed locale is still unloaded', async () => {
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.generate('es');
+    });
+    expect(callableMock).not.toHaveBeenCalled();
+    expect(saveTranslation).not.toHaveBeenCalled();
+    expect(setDocMock).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(
+      'quizTranslation.editor.error.unloadedLocale'
+    );
+    expect(result.current.needsLoad('es')).toBe(true);
+  });
+
+  it('marks a failed load as retryable and clears the flag on retry', async () => {
+    loadTranslation.mockRejectedValueOnce(new Error('Drive is unavailable'));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.load('es');
+    });
+    expect(result.current.error).toBe('Drive is unavailable');
+    expect(result.current.loadFailed.es).toBe(true);
+
+    loadTranslation.mockResolvedValueOnce(translation());
+    await act(async () => {
+      await result.current.load('es');
+    });
+    expect(result.current.loadFailed.es).toBe(false);
+    expect(result.current.byLocale.es?.title).toBe('N\u00fameros');
+    expect(result.current.needsLoad('es')).toBe(false);
   });
 });

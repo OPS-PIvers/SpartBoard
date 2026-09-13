@@ -1,5 +1,10 @@
 // Quiz translation constants shared by the admin card, the Languages tab and the hook (plan §7).
-import type { QuizTranslationSettings } from '@/types';
+import type { QuizQuestionType, QuizTranslationSettings } from '@/types';
+
+/** D21: FIB stems are not translated in v1 — the blank markup does not survive. */
+export function isTranslatableQuestionType(type: QuizQuestionType): boolean {
+  return type !== 'FIB';
+}
 
 export const QUIZ_TRANSLATION_FEATURE = 'quiz-translation' as const;
 export const QUIZ_TRANSLATION_SETTINGS_DOC = 'quiz_translation';

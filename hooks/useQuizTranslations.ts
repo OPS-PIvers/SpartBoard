@@ -5,11 +5,11 @@
  * unreviewed strings.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, isAuthBypass } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import type {
   QuestionTranslation,
   QuizData,
@@ -17,6 +17,7 @@ import type {
   QuizTranslation,
   QuizTranslationIndexEntry,
 } from '@/types';
+import { isTranslatableQuestionType } from '@/config/quizTranslation';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
 import { hashQuestionForTranslation } from '@/utils/quizTranslationHash';
@@ -34,6 +35,8 @@ interface TranslateQuizResponse {
 }
 
 export interface UseQuizTranslations {
+  /** Question ids eligible for translation (FIB excluded, D21). */
+  translatableIds: string[];
   byLocale: Record<string, QuizTranslation | undefined>;
   loading: Record<string, boolean>;
   load(locale: string): Promise<void>;
@@ -48,13 +51,20 @@ export interface UseQuizTranslations {
   staleIds(locale: string): string[];
   cap: { remaining: number; total: number } | null;
   error: string | null;
+  /** Sidecar load failed for this locale; the caller may retry. */
+  loadFailed: Record<string, boolean>;
+  /** True when the locale has a saved sidecar that is not loaded yet. */
+  needsLoad(locale: string): boolean;
 }
 
 export function useQuizTranslations(
   quiz: QuizData | null,
   metadata: QuizMetadata | null
 ): UseQuizTranslations {
-  const { user, googleAccessToken } = useAuth();
+  // Read via context so a provider-less host denies instead of throwing.
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user ?? null;
+  const googleAccessToken = authContext?.googleAccessToken ?? null;
   const [byLocale, setByLocale] = useState<
     Record<string, QuizTranslation | undefined>
   >({});
@@ -64,6 +74,7 @@ export function useQuizTranslations(
     null
   );
   const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState<Record<string, boolean>>({});
 
   const userId = user?.uid ?? null;
 
@@ -80,17 +91,28 @@ export function useQuizTranslations(
   }, [googleAccessToken, userId]);
 
   const questions = useMemo(() => quiz?.questions ?? [], [quiz]);
+  // D21: FIB stays English, so it is never requested, hashed or counted.
+  const translatable = useMemo(
+    () => questions.filter((q) => isTranslatableQuestionType(q.type)),
+    [questions]
+  );
+  const translatableIds = useMemo(
+    () => translatable.map((q) => q.id),
+    [translatable]
+  );
 
   const refreshHashes = useCallback(async () => {
     const next: Record<string, string> = {};
-    for (const q of questions) next[q.id] = await hashQuestionForTranslation(q);
+    for (const q of translatable)
+      next[q.id] = await hashQuestionForTranslation(q);
     setLiveHashes(next);
     return next;
-  }, [questions]);
+  }, [translatable]);
 
   // Hashing is async (crypto.subtle), so staleness can only be recomputed in an
   // effect; without this, an edit made after load never shows as stale.
   useEffect(() => {
+    if (!quiz) return;
     let cancelled = false;
     void (async () => {
       const next: Record<string, string> = {};
@@ -101,7 +123,7 @@ export function useQuizTranslations(
     return () => {
       cancelled = true;
     };
-  }, [questions]);
+  }, [questions, quiz]);
 
   const load = useCallback(
     async (locale: string) => {
@@ -109,12 +131,15 @@ export function useQuizTranslations(
       if (!entry) return;
       setLoading((l) => ({ ...l, [locale]: true }));
       setError(null);
+      setLoadFailed((f) => (f[locale] ? { ...f, [locale]: false } : f));
       try {
         const payload = await getDrive().loadTranslation(entry.driveFileId);
         setByLocale((b) => ({ ...b, [locale]: payload }));
         await refreshHashes();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Load failed');
+        // Re-arm the caller's one-shot guard so re-selecting the chip retries.
+        setLoadFailed((f) => ({ ...f, [locale]: true }));
       } finally {
         setLoading((l) => ({ ...l, [locale]: false }));
       }
@@ -166,6 +191,11 @@ export function useQuizTranslations(
   const generate = useCallback(
     async (locale: string, questionIds?: string[]) => {
       if (!quiz) return;
+      // An unloaded sidecar would make the merge drop every reviewed id (data loss).
+      if (metadata?.translations?.[locale] && !byLocale[locale]) {
+        setError('quizTranslation.editor.error.unloadedLocale');
+        return;
+      }
       setLoading((l) => ({ ...l, [locale]: true }));
       setError(null);
       try {
@@ -178,8 +208,14 @@ export function useQuizTranslations(
           locale,
           title: quiz.title,
           ...(quiz.language ? { sourceLanguage: quiz.language } : {}),
-          questions,
-          ...(questionIds ? { questionIds } : {}),
+          questions: translatable,
+          ...(questionIds
+            ? {
+                questionIds: questionIds.filter((id) =>
+                  translatableIds.includes(id)
+                ),
+              }
+            : {}),
           ...(quiz.bankSlots ? { bankSlots: quiz.bankSlots } : {}),
         });
         setCap(data.cap);
@@ -210,7 +246,15 @@ export function useQuizTranslations(
         setLoading((l) => ({ ...l, [locale]: false }));
       }
     },
-    [byLocale, persist, questions, quiz, refreshHashes]
+    [
+      byLocale,
+      metadata,
+      persist,
+      quiz,
+      refreshHashes,
+      translatable,
+      translatableIds,
+    ]
   );
 
   const editQuestion = useCallback(
@@ -288,17 +332,24 @@ export function useQuizTranslations(
         byLocale[locale]?.sourceHashes ??
         metadata?.translations?.[locale]?.sourceHashes;
       if (!hashes) return [];
-      return questions
+      return translatable
         .filter((q) => {
           const live = liveHashes[q.id];
           return live !== undefined && hashes[q.id] !== live;
         })
         .map((q) => q.id);
     },
-    [byLocale, liveHashes, metadata, questions]
+    [byLocale, liveHashes, metadata, translatable]
+  );
+
+  const needsLoad = useCallback(
+    (locale: string): boolean =>
+      !!metadata?.translations?.[locale] && !byLocale[locale],
+    [byLocale, metadata]
   );
 
   return {
+    translatableIds,
     byLocale,
     loading,
     load,
@@ -309,5 +360,7 @@ export function useQuizTranslations(
     staleIds,
     cap,
     error,
+    loadFailed,
+    needsLoad,
   };
 }

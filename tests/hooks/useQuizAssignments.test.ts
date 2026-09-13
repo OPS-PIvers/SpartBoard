@@ -81,6 +81,7 @@ const authMock: {
 };
 vi.mock('@/config/firebase', () => ({
   db: {},
+  isAuthBypass: false,
   get auth() {
     return authMock;
   },

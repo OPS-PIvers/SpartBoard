@@ -47,6 +47,7 @@
  */
 
 import React, { useId, useMemo, useState } from 'react';
+import type { AssignTranslationContext } from './AssignStudentPicker';
 import { useTranslation } from 'react-i18next';
 import { Plus, Users } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
@@ -76,6 +77,8 @@ export type AssignTargetingKind =
 export interface AssignTargetingQuizContext {
   questions: OverrideEditorQuestion[];
   rubrics: Rubric[];
+  /** Drives the §10 translation coverage advisory; absent = no advisory. */
+  translation?: AssignTranslationContext;
 }
 
 export interface AssignTargetingSectionProps {
@@ -399,6 +402,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           selected={value.targetStudents}
           overridesByKey={value.overridesByKey}
           selectedGroupIds={value.targetGroupIds}
+          translation={quizContext?.translation}
           onConfirm={(selected, overridesByKey, groupIds) => {
             patch({
               targetStudents: selected,

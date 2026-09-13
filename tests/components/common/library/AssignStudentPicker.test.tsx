@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 
 import { AssignStudentPicker } from '@/components/common/library/AssignStudentPicker';
 import type { ClassRoster } from '@/types';
+import { resolveStudentTargetRef } from '@/utils/studentTargetRef';
+import { studentTargetRefKey } from '@/utils/studentTargetRef';
 
 const mixedRoster: ClassRoster = {
   id: 'r1',
@@ -49,6 +51,14 @@ const loadErrorRoster: ClassRoster = {
   createdAt: 0,
   students: [],
   loadError: 'network error',
+};
+
+const graceRef = resolveStudentTargetRef(mixedRoster.students[1], mixedRoster);
+if (!graceRef) throw new Error('fixture: Grace must resolve to a target ref');
+const graceKey = studentTargetRefKey(graceRef);
+const spanishTargeting = {
+  selected: [graceRef],
+  overridesByKey: { [graceKey]: { language: 'es' } },
 };
 
 const renderPicker = (
@@ -213,5 +223,44 @@ describe('AssignStudentPicker', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /close/i })[1]);
 
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('disables the advisory Generate once the translation cap is used up', () => {
+    renderPicker({
+      ...spanishTargeting,
+      translation: {
+        sourceLanguage: 'en',
+        onGenerate: vi.fn(),
+        cap: { remaining: 0, total: 2000 },
+      },
+    });
+    const generate = screen.getByRole('button', { name: 'Generate' });
+    expect(generate).toBeDisabled();
+    expect(generate).toHaveAttribute(
+      'title',
+      "Your school's monthly translation limit is used up."
+    );
+  });
+
+  it('keeps the advisory Generate live while budget remains', () => {
+    const onGenerate = vi.fn();
+    renderPicker({
+      ...spanishTargeting,
+      translation: {
+        sourceLanguage: 'en',
+        onGenerate,
+        cap: { remaining: 5, total: 2000 },
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+    expect(onGenerate).toHaveBeenCalledWith(['es']);
+  });
+
+  it('renders the translation error inline', () => {
+    renderPicker({
+      ...spanishTargeting,
+      translation: { sourceLanguage: 'en', error: 'Drive is unavailable' },
+    });
+    expect(screen.getByText('Drive is unavailable')).toBeInTheDocument();
   });
 });

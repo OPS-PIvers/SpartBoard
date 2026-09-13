@@ -2066,6 +2066,78 @@
     "needsManual": "Der Text konnte nicht automatisch extrahiert werden. Hier einfügen oder eingeben.",
     "extractFailed": "Textextraktion fehlgeschlagen. Bitte erneut versuchen."
   },
+  "quizTranslation": {
+    "label": "Übersetzung",
+    "editor": {
+      "tab": "Sprachen",
+      "pickLanguage": "Sprache wählen",
+      "generate": "Übersetzung erstellen",
+      "reviewed": "Geprüft",
+      "stale": "Veraltet",
+      "regenerate_one": "{{count}} veraltete Frage neu übersetzen",
+      "regenerate_other": "{{count}} veraltete Fragen neu übersetzen",
+      "servedCount": "{{reviewed}} von {{total}} auf {{language}} freigegeben",
+      "save": "Übersetzung speichern",
+      "english": "Englisch",
+      "disabled": {
+        "capReached": "Das monatliche Übersetzungslimit deiner Schule ist aufgebraucht.",
+        "sourceNotEnglish": "Nur Quiz auf Englisch können übersetzt werden.",
+        "bankSlots": "Quiz mit Fragenpools können nicht übersetzt werden.",
+        "notLoaded": "Die gespeicherte Übersetzung wird geladen. Bitte gleich noch einmal versuchen."
+      },
+      "chromeNote": "Menüs bleiben auf Englisch.",
+      "empty": {
+        "noLanguage": {
+          "title": "Keine Sprache gewählt",
+          "body": "Wähle oben eine Sprache, um eine Übersetzung zu starten."
+        },
+        "noneReviewed": {
+          "title": "Noch nichts geprüft",
+          "body": "Lernende sehen nur Fragen, die du als geprüft markierst. Bitte eine Sprachförderkraft um Unterstützung, wenn du diese Sprache nicht liest."
+        },
+        "pickQuestion": {
+          "title": "Frage auswählen",
+          "body": "Wähle links eine Frage, um Englisch und Übersetzung nebeneinander zu sehen."
+        }
+      },
+      "error": {
+        "unloadedLocale": "Die gespeicherte Übersetzung dieser Sprache ist noch nicht geladen. Sprache erneut auswählen und dann generieren."
+      }
+    },
+    "authoring": {
+      "advisory": {
+        "stimulusText_one": "{{count}} Bild enthält möglicherweise Text, der auf Englisch bleibt.",
+        "stimulusText_other": "{{count}} Bilder enthalten möglicherweise Text, der auf Englisch bleibt."
+      }
+    },
+    "assign": {
+      "generate": "Erstellen",
+      "advisory": {
+        "missing_one": "{{name}} braucht {{language}}. Diese Übersetzung ist nicht bereit - Anzeige auf Englisch.",
+        "missing_other": "{{name}} und {{others}} weitere brauchen Übersetzungen, die nicht bereit sind ({{language}}) - Anzeige auf Englisch."
+      }
+    },
+    "student": {
+      "toggle": {
+        "english": "Englisch"
+      }
+    },
+    "grading": {
+      "backTranslate": "Diese Antwort übersetzen",
+      "backTranslationLabel": "Englische Rückübersetzung",
+      "machineGenerated": "Maschinell erstellt. Maßgeblich sind die eigenen Worte der Schülerin/des Schülers.",
+      "sectionLabel": "Sprache der Antwort",
+      "backTranslating": "Wird übersetzt…",
+      "nativeLabel": "Antwort der Schülerin/des Schülers",
+      "translatedRubricNote": "Diese Schülerin/dieser Schüler hat möglicherweise eine übersetzte Bewertungsvorlage gelesen; bewerte anhand der hier gezeigten englischen Vorlage.",
+      "saveFailed": "Übersetzung wird unten angezeigt, konnte aber nicht gespeichert werden. Sie muss beim nächsten Mal erneut ausgeführt werden.",
+      "errors": {
+        "failed": "Diese Antwort konnte nicht übersetzt werden. Bitte erneut versuchen.",
+        "capReached": "Tageslimit für Übersetzungen erreicht. Bitte morgen erneut versuchen.",
+        "tooLong": "Diese Antwort ist zu lang für eine Rückübersetzung."
+      }
+    }
+  },
   "quizMediaResponse": {
     "notice": {
       "title": "Before you record",
@@ -2479,23 +2551,6 @@
       "noGrades": "Keine Klassenstufen ausgewählt — Standards und Widgets zeigen alle Stufen.",
       "subjectsTaught": "Unterrichtete Fachbereiche",
       "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
-    }
-  },
-  "quizTranslation": {
-    "grading": {
-      "sectionLabel": "Sprache der Antwort",
-      "backTranslate": "Diese Antwort übersetzen",
-      "backTranslating": "Wird übersetzt…",
-      "backTranslationLabel": "Englische Rückübersetzung",
-      "nativeLabel": "Antwort der Schülerin/des Schülers",
-      "machineGenerated": "Maschinell erstellt. Maßgeblich sind die eigenen Worte der Schülerin/des Schülers.",
-      "translatedRubricNote": "Diese Schülerin/dieser Schüler hat möglicherweise eine übersetzte Bewertungsvorlage gelesen; bewerte anhand der hier gezeigten englischen Vorlage.",
-      "saveFailed": "Übersetzung wird unten angezeigt, konnte aber nicht gespeichert werden. Sie muss beim nächsten Mal erneut ausgeführt werden.",
-      "errors": {
-        "failed": "Diese Antwort konnte nicht übersetzt werden. Bitte erneut versuchen.",
-        "capReached": "Tageslimit für Übersetzungen erreicht. Bitte morgen erneut versuchen.",
-        "tooLong": "Diese Antwort ist zu lang für eine Rückübersetzung."
-      }
     }
   }
 }
