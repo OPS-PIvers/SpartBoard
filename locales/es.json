@@ -196,7 +196,11 @@
       "removeGroup": "Eliminar grupo",
       "groupMemberCount_one": "{{count}} estudiante",
       "groupMemberCount_other": "{{count}} estudiantes",
-      "noStudentsToGroup": "Agrega estudiantes primero."
+      "noStudentsToGroup": "Agrega estudiantes primero.",
+      "accommodationsTab": "Adaptaciones ({{count}})",
+      "accommodationsHelp": "Se aplican automáticamente cada vez que asignes trabajo a este estudiante. Aún puedes cambiarlas para cada tarea.",
+      "emptyAccommodationsTitle": "Todavía no hay estudiantes",
+      "emptyAccommodationsSubtitle": "Agrega estudiantes primero y luego define sus adaptaciones permanentes."
     },
     "plcs": {
       "title": "Mis Comunidades",

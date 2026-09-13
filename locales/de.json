@@ -196,7 +196,11 @@
       "removeGroup": "Gruppe entfernen",
       "groupMemberCount_one": "{{count}} Schüler/in",
       "groupMemberCount_other": "{{count}} Schüler/innen",
-      "noStudentsToGroup": "Füge zuerst Schüler/innen hinzu."
+      "noStudentsToGroup": "Füge zuerst Schüler/innen hinzu.",
+      "accommodationsTab": "Nachteilsausgleich ({{count}})",
+      "accommodationsHelp": "Diese werden automatisch übernommen, sobald du diesem Schüler/dieser Schülerin eine Aufgabe zuweist. Du kannst sie pro Aufgabe weiterhin anpassen.",
+      "emptyAccommodationsTitle": "Noch keine Schüler/innen",
+      "emptyAccommodationsSubtitle": "Füge zuerst Schüler/innen hinzu und lege dann ihren dauerhaften Nachteilsausgleich fest."
     },
     "plcs": {
       "title": "Meine PLGs",

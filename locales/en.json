@@ -196,7 +196,11 @@
       "removeGroup": "Remove group",
       "groupMemberCount_one": "{{count}} student",
       "groupMemberCount_other": "{{count}} students",
-      "noStudentsToGroup": "Add students first."
+      "noStudentsToGroup": "Add students first.",
+      "accommodationsTab": "Accommodations ({{count}})",
+      "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
+      "emptyAccommodationsTitle": "No students yet",
+      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
     },
     "plcs": {
       "title": "My PLCs",
