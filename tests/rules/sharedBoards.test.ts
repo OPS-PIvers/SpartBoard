@@ -74,8 +74,25 @@ const asStranger = () =>
     .authenticatedContext(STRANGER_UID, { email: 'stranger@example.com' })
     .firestore();
 
+// Real Orono staff sign in via Google, which always sets email_verified: true.
 const asOronoTeacher = () =>
-  testEnv.authenticatedContext(ORONO_UID, { email: ORONO_EMAIL }).firestore();
+  testEnv
+    .authenticatedContext(ORONO_UID, {
+      email: ORONO_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
+
+// Email/password sign-in leaves email_verified false until confirmed, so an
+// unverified account can self-report an @orono.k12.mn.us address it doesn't
+// own. Regression fixture for the substitute-share email_verified gap.
+const asUnverifiedOronoImpersonator = () =>
+  testEnv
+    .authenticatedContext('unverified-orono-impersonator-uid', {
+      email: ORONO_EMAIL,
+      email_verified: false,
+    })
+    .firestore();
 
 // isAdmin() matches on request.auth.token.email.lower() and also requires
 // email_verified: true.
@@ -199,6 +216,12 @@ describe('shared_boards — read, substitute share', () => {
 
   it('admin can read substitute share', async () => {
     await assertSucceeds(getDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`)));
+  });
+
+  it('an unverified account self-reporting an @orono email is denied', async () => {
+    await assertFails(
+      getDoc(doc(asUnverifiedOronoImpersonator(), `shared_boards/${SHARE_ID}`))
+    );
   });
 });
 
@@ -548,6 +571,10 @@ describe('shared_boards — substitute directory list query', () => {
     await assertFails(
       getDocs(query(collection(asOronoTeacher(), 'shared_boards')))
     );
+  });
+
+  it('an unverified account self-reporting an @orono email is denied the directory query', async () => {
+    await assertFails(getDocs(dirQuery(asUnverifiedOronoImpersonator())));
   });
 });
 

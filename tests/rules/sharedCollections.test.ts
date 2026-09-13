@@ -71,8 +71,25 @@ const asUnauth = () => testEnv.unauthenticatedContext().firestore();
 const asHost = () =>
   testEnv.authenticatedContext(HOST_UID, { email: HOST_EMAIL }).firestore();
 
+// Real Orono staff sign in via Google, which always sets email_verified: true.
 const asOronoTeacher = () =>
-  testEnv.authenticatedContext(ORONO_UID, { email: ORONO_EMAIL }).firestore();
+  testEnv
+    .authenticatedContext(ORONO_UID, {
+      email: ORONO_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
+
+// Email/password sign-in leaves email_verified false until confirmed, so an
+// unverified account can self-report an @orono.k12.mn.us address it doesn't
+// own. Regression fixture for the substitute-share email_verified gap.
+const asUnverifiedOronoImpersonator = () =>
+  testEnv
+    .authenticatedContext('unverified-orono-impersonator-uid-sc', {
+      email: ORONO_EMAIL,
+      email_verified: false,
+    })
+    .firestore();
 
 const asExternalTeacher = () =>
   testEnv
@@ -236,6 +253,10 @@ describe('shared_collections — read, substitute share', () => {
 
   it('admin can read substitute share', async () => {
     await assertSucceeds(getDoc(doc(asAdmin(), sharePath)));
+  });
+
+  it('an unverified account self-reporting an @orono email is denied', async () => {
+    await assertFails(getDoc(doc(asUnverifiedOronoImpersonator(), sharePath)));
   });
 });
 
@@ -603,6 +624,14 @@ describe('shared_collections/boards — read', () => {
     });
     await assertSucceeds(getDoc(doc(asHost(), boardPath)));
   });
+
+  it('an unverified account self-reporting an @orono email is denied on the board subcollection', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
+    });
+    await assertFails(getDoc(doc(asUnverifiedOronoImpersonator(), boardPath)));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -700,6 +729,10 @@ describe('shared_collections — substitute directory list query', () => {
 
   it('non-Orono email is denied on the directory query', async () => {
     await assertFails(getDocs(dirQuery(asExternalTeacher())));
+  });
+
+  it('an unverified account self-reporting an @orono email is denied the directory query', async () => {
+    await assertFails(getDocs(dirQuery(asUnverifiedOronoImpersonator())));
   });
 
   it('host can list their own substitute Collection shares', async () => {

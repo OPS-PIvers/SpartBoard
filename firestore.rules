@@ -934,12 +934,16 @@ service cloud.firestore {
       // a direct-REST client could read a frozen board snapshot plus Drive-grant metadata
       // indefinitely after expiry (the sweep can leave an expired doc up to 7 days).
       // Host/admin still read past expiry for cleanup. Mirrors /shared_collections.
+      // email_verified is REQUIRED on the @orono branch, same reason as isAdmin() above -
+      // otherwise an unverified email/password account could self-report an
+      // @orono.k12.mn.us address it doesn't own.
       allow get: if request.auth != null && (
         resource.data.get('intendedMode', null) != 'substitute'
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          request.auth.token.get('email_verified', false) == true
+          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -956,11 +960,13 @@ service cloud.firestore {
       //     share can never carry a plcId - forbidden at create, pinned in update)
       // Unscoped list stays admin-only. Expiry is NOT enforceable here, so an @orono
       // caller can list - never `get` - an expired sub share until the sweep reaps it.
+      // email_verified is REQUIRED on the @orono branch, same reason as the GET rule above.
       allow list: if request.auth != null && (
         isAdmin()
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || (
           resource.data.get('intendedMode', null) == 'substitute'
+          && request.auth.token.get('email_verified', false) == true
           && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
         )
         || (
@@ -1091,13 +1097,17 @@ service cloud.firestore {
       // GET: any authed user for non-substitute. Substitute shares gated by
       // host/admin/@orono.k12.mn.us email AND not past expiresAt (a hostile
       // direct-REST client would otherwise read stale snapshots forever). Host
-      // and admin can read past expiry for cleanup.
+      // and admin can read past expiry for cleanup. email_verified is REQUIRED
+      // on the @orono branch, same reason as isAdmin() above - otherwise an
+      // unverified email/password account could self-report an
+      // @orono.k12.mn.us address it doesn't own.
       allow get: if request.auth != null && (
         resource.data.get('intendedMode', null) != 'substitute'
         || resource.data.get('hostUid', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          request.auth.token.get('email_verified', false) == true
+          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1106,12 +1116,14 @@ service cloud.firestore {
       // equality-pinned fields carry a value and range-filtered `expiresAt` errors.
       // Branches match the two queries the app issues - a host's own substitute shares
       // and the /subs directory. Expiry can't be enforced in query scope, so expired
-      // shares stay listable (never `get`-able) until the sweep.
+      // shares stay listable (never `get`-able) until the sweep. email_verified is
+      // REQUIRED on the @orono branch, same reason as the GET rule above.
       allow list: if request.auth != null && (
         isAdmin()
         || resource.data.get('hostUid', null) == request.auth.uid
         || (
           resource.data.get('intendedMode', null) == 'substitute'
+          && request.auth.token.get('email_verified', false) == true
           && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
         )
       );
@@ -1159,14 +1171,16 @@ service cloud.firestore {
 
       // Per-Board snapshots. Read mirrors parent semantics (incl. substitute
       // expiresAt cutoff). Write only by the parent's host (the create batch
-      // writes the parent first, so the get() resolves).
+      // writes the parent first, so the get() resolves). email_verified is
+      // REQUIRED on the @orono branch, same reason as isAdmin() above.
       match /boards/{boardId} {
         allow read: if request.auth != null && (
           get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('intendedMode', null) != 'substitute'
           || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
           || isAdmin()
           || (
-            request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+            request.auth.token.get('email_verified', false) == true
+            && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
             && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('expiresAt', 0) > request.time.toMillis()
           )
         );
