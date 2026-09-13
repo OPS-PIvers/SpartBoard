@@ -1253,14 +1253,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const deltaY = (moveEvent.clientY - initialMouseY) / zoom;
 
         // Clamp the leader to world bounds so widgets can't be dragged
-        // outside the area visible at ZOOM_MIN.
+        // outside the area visible at ZOOM_MIN. Use resolvedW/resolvedH (not
+        // raw widget.w/widget.h) so a below-floor widget's world-bounds
+        // check matches the size it's actually rendered/dragged at.
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const { x: newX, y: newY } = clampWidgetToWorld(
           widget.x + deltaX,
           widget.y + deltaY,
-          widget.w,
-          widget.h,
+          resolvedW,
+          resolvedH,
           vw,
           vh
         );

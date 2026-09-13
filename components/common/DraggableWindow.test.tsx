@@ -911,6 +911,44 @@ describe('DraggableWindow', () => {
     });
   });
 
+  // Drag world-bounds clamping (clampWidgetToWorld) must also measure
+  // against the render-clamped size, not the raw stored size — otherwise a
+  // below-floor widget (rendered wider/taller than stored) can be dragged
+  // past the world edge by the difference.
+  it('clamps drag position to world bounds using the render-clamped size for a below-floor widget', async () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200, x: 1200 });
+
+    const dragSurface = screen.getByTestId(
+      'drag-surface'
+    ) as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    dragSurface.setPointerCapture = vi.fn();
+    dragSurface.hasPointerCapture = vi.fn().mockReturnValue(true);
+    dragSurface.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(dragSurface, {
+      clientX: 0,
+      clientY: 0,
+      pointerId: 1,
+    });
+    // Pre-clamp x = 1200 + 200 = 1400, which exceeds both the resolved-size
+    // world max (worldMaxX - 280) and the raw-size world max
+    // (worldMaxX - 200) at the default 1024x768 jsdom viewport (worldMaxX =
+    // 1536 per getWorldBounds/ZOOM_MIN) — using the raw stored 200px width
+    // here would let the visually-280px-wide box sit up to 80px further
+    // right than the world bounds actually allow.
+    fireEvent.pointerMove(dragSurface, {
+      clientX: 200,
+      clientY: 0,
+      pointerId: 1,
+    });
+
+    await waitFor(() => {
+      expect(windowEl.style.left).toBe('1256px');
+    });
+  });
+
   it('minimizes on Escape key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
