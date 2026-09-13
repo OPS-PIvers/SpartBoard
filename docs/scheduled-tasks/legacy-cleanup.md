@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
-_Last audited: 2026-09-06_
+_Last audited: 2026-09-13_
 _Last action: 2026-08-09 — Deleted the entire `scripts/tools/` directory (9 stale Python/Playwright dev-session scripts, zero references anywhere, including `fix_buttons.py` which auto-edited widget source). Resolves the source-modification-risk portion of the "scripts/tools/\*.py" MEDIUM; the root `scripts/*.js` audit portion remains Open (narrowed)._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-09-13 audit notes (Sunday, weekly D2): Re-verified all 8 existing Open items still present, none resolved (`migrateLocalStorageToFirestore` still called, now at `context/DashboardContext.tsx:2529`, line drifted from upstream churn but the same guard logic; `utils/periodCompat.ts` `buildPeriodFields`, `hooks/useScaledFont.ts`, `utils/imageProcessing.ts:109` console.warn-on-success, `utils/migrateProportionalLayout.ts` `dashboardNeedsProportionalMigration`, `hooks/usePlcPresence.ts` `usePlcStandalonePresence`, `utils/videoActivityDriveService.ts` all unchanged). Legacy type strings 'timer'/'stopwatch'/'workSymbols' confirmed to appear only in `utils/migration.ts` — all other hits are `TimeToolMode`/`ScheduleItem.mode` config values. `scripts/tools/` confirmed still absent. Zero `console.log()` found anywhere in components/, context/, hooks/, utils/. Commented-out code sweep (code-token-density-filtered) found zero actual disabled-code blocks — the two raw candidates that survived filtering (`components/quiz/WrittenResponseEditor.tsx:190-200`, `components/widgets/QuizWidget/components/QuizResults.tsx:1286-1304`) are legitimate prose/rationale comments. Root `scripts/*.js` LOW bucket gains two more file names since last audit — `scripts/backfill-plc-sessions.mjs` (one-time PLC-linkage backfill for existing quiz sessions, has `--apply`/dry-run flags) and `scripts/init-settings-drawer-flag.js` (one-time feature-flag seeding for the settings-drawer rollout) — both fit the existing bucket's pattern (self-documented one-shot ops scripts, not wired into `package.json`/CI), so no new item, just noting the addition. Sampled 24 utils/hooks files added/touched 2026-09-06→09-12 (the newest surface area not yet swept — learning-targets/standards/question-bank feature work) for dead exports: found two genuinely new zero-reference exports, both added below. 2 new LOW issues, 0 resolved this cycle._
 
 _2026-09-06 audit notes (Sunday): Re-verified all 8 existing Open items still present, none resolved: `migrateLocalStorageToFirestore` still called at `context/DashboardContext.tsx:2495` (guarded by `migrationStartedForUidRef`, line drifted from :2046 by upstream churn) — still not safely auto-fixable, needs production-data judgment; `utils/periodCompat.ts:28` `buildPeriodFields` still zero call sites; root `scripts/*.js` (~14 one-shot backfill/setup scripts) unchanged; `hooks/useScaledFont.ts` still dead (stale `vi.mock` still at `components/widgets/ScheduleWidget.test.tsx:65-66`); `utils/imageProcessing.ts:109` `console.warn` still fires on the success path; `utils/migrateProportionalLayout.ts:61` `dashboardNeedsProportionalMigration` still dead; `hooks/usePlcPresence.ts:125` `usePlcStandalonePresence` still dead; `utils/videoActivityDriveService.ts:66` `buildVideoActivityResultsSheetData` still only referenced from its own test file. `scripts/tools/` confirmed still absent. Zero `console.log()` found anywhere in components/, context/, hooks/, utils/. Legacy type strings 'timer'/'stopwatch'/'workSymbols' confirmed to appear only in `utils/migration.ts` — all other hits are legitimate `TimeToolMode`/`ScheduleItem.mode` config-value checks, not the retired `WidgetType` strings. Focused fresh-eyes effort (per `git log --oneline -30 -- utils/ hooks/ scripts/`) on the ~26 most-recently-touched files (notebook-converter/OLF-import and help-center/activity-wall features): `olfConverter.ts`, `notebookConverter.ts`, `notebookImport.ts`, `notebookSvgEdit.ts`, `notebookPlacedAssets.ts`, `helpEmbed.ts`, `helpCenterNormalize.ts`, `activityWallLinks.ts`, `activityWallNormalize.ts`, `activityWallWordCloud.ts`, `useHelpResources.ts`, `useActivityWallLibrary.ts` — a few exports (`repairEncoding`, `parseRtf`, `splitArgb`, `matrixToSvg`) initially looked unreferenced outside their own file and its test, but all four are called internally by `convertOlfToBundle` within the same file and exported only to support direct unit-testing — not dead code. Scanned the same file set plus `PageEditor.tsx`/`PageCanvas.tsx` for commented-out code blocks >10 lines: none found. Ran a repo-wide heuristic scan for `//`-comment runs >12 lines and spot-checked the largest hits (`AnnouncementOverlay.tsx:368-412`, `RandomWidget.tsx:1427-1457`, `useQuizSession.ts:1123-1154`, `useQuizAssignments.ts:1754-1783`) — all legitimate long-form rationale/architecture prose (Firestore security-rule reasoning, font-sizing math, subcollection-cleanup edge cases), not commented-out code. 0 new issues found, 0 resolved this cycle._
 
@@ -75,6 +77,20 @@ _2026-08-09 action notes (Sunday): The single highest-priority Open item across 
 - **File:** hooks/usePlcPresence.ts:125
 - **Detail:** `usePlcStandalonePresence(plcId)` is a full React hook (Firestore `onSnapshot` listener + `useState`/`useEffect`) exported and documented in the file's header JSDoc as "a standalone listener for a non-provider host that needs raw presence without mounting a whole `PlcProvider`." It has zero call sites anywhere in the codebase — every current PLC presence consumer goes through `PlcProvider` (`context/PlcContext.tsx`) and its selectors (`usePlcPresence()` / `usePlcWhoIsHere()` in `context/usePlcContext.ts`) instead. The only other occurrences of the name are the JSDoc mention and a self-referential `logError` scope string inside the function's own body. This looks like deliberately-built escape-hatch infrastructure for an anticipated non-provider host that was never built, rather than accidental cruft — but it is currently dead code (an unused Firestore subscription).
 - **Fix:** If no non-provider PLC host is planned, delete `usePlcStandalonePresence` (and its now-unused imports, e.g. `useEffect`/`useState`/`onSnapshot` if nothing else in the file needs them) along with its JSDoc mention. If a non-provider host is genuinely planned soon, leave in place but note the intended call site here so it doesn't get flagged as dead again. Run `pnpm type-check` and `pnpm lint` to verify clean.
+
+### LOW `utils/learningTargets.ts` — `EMPTY_LEARNING_TARGET_LIST` dead export
+
+- **Detected:** 2026-09-13
+- **File:** utils/learningTargets.ts:44
+- **Detail:** `EMPTY_LEARNING_TARGET_LIST` is exported but has zero references anywhere in the repo, including within its own defining file beyond the declaration. Added 2026-09-11 (commit `cdddbbf`/`7646ef0`, the CSV-import-template-for-learning-targets work).
+- **Fix:** Delete the export, or wire it in wherever an empty `LearningTargetList` sentinel is currently constructed inline instead.
+
+### LOW `utils/standardsCatalog.ts` — `isStandardTagId` dead export
+
+- **Detected:** 2026-09-13
+- **File:** utils/standardsCatalog.ts:84
+- **Detail:** `isStandardTagId` is an exported predicate with zero references anywhere, including within its own file. Added 2026-09-11 (commit `cdddbbf`).
+- **Fix:** Delete, or use it in place of any inline tag-id-shape check that duplicates its logic (e.g. wherever `STANDARD_TAG_MARKER` is checked manually).
 
 ### LOW `utils/videoActivityDriveService.ts` — export added 2026-05-08 with no production call site
 
