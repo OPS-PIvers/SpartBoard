@@ -136,6 +136,25 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
     };
   }, [open]);
 
+  // Close on the host widget's own geometry changes (Alt+M/Alt+R don't fire a window 'resize' event); skip ResizeObserver's own always-fires-once-on-observe() initial callback.
+  useEffect(() => {
+    if (!open) return;
+    const host = wrapperRef.current?.closest<HTMLElement>(
+      '[data-draggable-window]'
+    );
+    if (!host || typeof ResizeObserver === 'undefined') return;
+    let skippedInitial = false;
+    const observer = new ResizeObserver(() => {
+      if (!skippedInitial) {
+        skippedInitial = true;
+        return;
+      }
+      setOpen(false);
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [open]);
+
   if (actions.length === 0) return null;
 
   // Sort destructive actions to the bottom while preserving caller order
