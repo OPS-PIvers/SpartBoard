@@ -100,6 +100,44 @@ describe('serveLocalizedQuestion', () => {
     );
   });
 
+  it('falls back to English when the locale entry lacks the rubric snapshot', () => {
+    const rubric = { id: 'r1', title: 'Essay', criteria: [] } as never;
+    const question = {
+      ...q('a'),
+      type: 'FR',
+      rubricSnapshot: rubric,
+      localized: { es: { text: '¿Capital?' } },
+    } as unknown as QuizPublicQuestion;
+    expect(serveLocalizedQuestion(question, 'es')).toBeNull();
+  });
+
+  it('falls back to English when the locale entry lacks the placeholder', () => {
+    const question = {
+      ...q('a'),
+      type: 'FR',
+      placeholder: 'Type here',
+      localized: { es: { text: '¿Capital?' } },
+    } as unknown as QuizPublicQuestion;
+    expect(serveLocalizedQuestion(question, 'es')).toBeNull();
+  });
+
+  it('serves a free-response locale entry that carries both', () => {
+    const rubric = { id: 'r1', title: 'Ensayo', criteria: [] } as never;
+    const entry = {
+      text: '¿Capital?',
+      placeholder: 'Escribe aquí',
+      rubricSnapshot: rubric,
+    };
+    const question = {
+      ...q('a'),
+      type: 'FR',
+      placeholder: 'Type here',
+      rubricSnapshot: rubric,
+      localized: { es: entry },
+    } as unknown as QuizPublicQuestion;
+    expect(serveLocalizedQuestion(question, 'es')).toEqual(entry);
+  });
+
   it('never serves a FIB stem (D21)', () => {
     expect(
       serveLocalizedQuestion(

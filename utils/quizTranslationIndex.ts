@@ -5,7 +5,15 @@ import type {
   QuizTranslation,
   QuizTranslationIndexEntry,
 } from '@/types';
+import { isTranslatableQuestionType } from '@/config/quizTranslation';
 import { hashQuestionForTranslation } from './quizTranslationHash';
+
+/** D21: FIB is never translated, so every index count lives in this subset. */
+export function translatableQuestions(
+  questions: QuizQuestion[]
+): QuizQuestion[] {
+  return questions.filter((q) => isTranslatableQuestionType(q.type));
+}
 
 /** Ids whose live hash no longer matches the hash captured at translation time. */
 export async function staleQuestionIds(
@@ -13,7 +21,7 @@ export async function staleQuestionIds(
   sourceHashes: Record<string, string>
 ): Promise<string[]> {
   const stale: string[] = [];
-  for (const q of questions) {
+  for (const q of translatableQuestions(questions)) {
     const hash = await hashQuestionForTranslation(q);
     if (sourceHashes[q.id] !== hash) stale.push(q.id);
   }
@@ -22,7 +30,7 @@ export async function staleQuestionIds(
 
 /**
  * Carries an existing index forward against the in-memory quiz body, recomputing
- * `staleCount` and `questionCount`. Returns undefined when there is nothing to
+ * `staleCount` and `questionCount` over the translatable subset. Returns undefined when there is nothing to
  * carry, so a quiz with no translations never gains an empty `translations` key.
  */
 export async function recomputeTranslationIndex(
@@ -30,12 +38,13 @@ export async function recomputeTranslationIndex(
   questions: QuizQuestion[]
 ): Promise<Record<string, QuizTranslationIndexEntry> | undefined> {
   if (!existing || Object.keys(existing).length === 0) return undefined;
+  const translatableCount = translatableQuestions(questions).length;
   const next: Record<string, QuizTranslationIndexEntry> = {};
   for (const [locale, entry] of Object.entries(existing)) {
     const stale = await staleQuestionIds(questions, entry.sourceHashes ?? {});
     next[locale] = {
       ...entry,
-      questionCount: questions.length,
+      questionCount: translatableCount,
       staleCount: stale.length,
     };
   }
@@ -49,11 +58,15 @@ export async function buildTranslationIndexEntry(
   questions: QuizQuestion[]
 ): Promise<QuizTranslationIndexEntry> {
   const stale = await staleQuestionIds(questions, payload.sourceHashes ?? {});
+  const translatable = translatableQuestions(questions);
+  const translatableIds = new Set(translatable.map((q) => q.id));
   return {
     driveFileId,
-    reviewedCount: payload.reviewedQuestionIds.length,
+    reviewedCount: payload.reviewedQuestionIds.filter((id) =>
+      translatableIds.has(id)
+    ).length,
     staleCount: stale.length,
-    questionCount: questions.length,
+    questionCount: translatable.length,
     sourceHashes: { ...payload.sourceHashes },
     updatedAt: payload.updatedAt,
   };
