@@ -18,6 +18,12 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import type { TranslationCoverageContext } from '@/utils/quizTranslationAdvisory';
+import {
+  isNonEnglishQuizSource,
+  uncoveredLocalesForTargets,
+} from '@/utils/quizTranslationAdvisory';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Search, SearchX, Users, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -45,6 +51,17 @@ export interface AssignStudentPickerProps {
     overridesByKey: Record<string, StudentOverride>,
     groupIds: string[]
   ) => void;
+  /** Quiz only. Drives the §10 coverage advisory; absent = no advisory. */
+  translation?: AssignTranslationContext;
+}
+
+export interface AssignTranslationContext extends TranslationCoverageContext {
+  /** `QuizMetadata.language` — answers D17 without a Drive call. */
+  sourceLanguage?: string;
+  /** Generates the named locales; absent hides the action. */
+  onGenerate?: (locales: string[]) => void;
+  /** True while a generation is in flight. */
+  generating?: boolean;
 }
 
 interface RosterStudentRow {
@@ -61,6 +78,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
   overridesByKey,
   selectedGroupIds = [],
   onConfirm,
+  translation,
 }) => {
   const { t } = useTranslation();
   const [activeRosterId, setActiveRosterId] = useState<string | null>(
@@ -218,6 +236,30 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     return map;
   }, [rosters]);
 
+  // §10: cross-reference targeted languages against the in-memory index — zero reads.
+  const nonEnglishSource = isNonEnglishQuizSource(translation?.sourceLanguage);
+  const translationGenerateDisabled =
+    nonEnglishSource ||
+    translation?.hasBankSlots === true ||
+    !!translation?.generating;
+  const translationAdvisory = useMemo(() => {
+    if (!translation) return [];
+    return uncoveredLocalesForTargets(
+      draftSelected.map((ref) => {
+        const key = studentTargetRefKey(ref);
+        return {
+          name:
+            nameByKey.get(key) ??
+            t('assignStudentPicker.unknownStudent', {
+              defaultValue: 'Unknown student',
+            }),
+          language: draftOverrides[key]?.language,
+        };
+      }),
+      translation
+    );
+  }, [draftSelected, draftOverrides, nameByKey, translation, t]);
+
   const handleConfirm = () => {
     // Prune overrides for students no longer selected.
     const selectedSet = new Set(draftSelected.map(studentTargetRefKey));
@@ -294,6 +336,41 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
       contentClassName="p-0"
       ariaLabelledby={MODAL_LABEL_ID}
     >
+      {translationAdvisory.length > 0 && (
+        <div className="space-y-1.5 px-4 pt-3">
+          {translationAdvisory.map((entry) => (
+            <div
+              key={entry.locale}
+              role="status"
+              className="flex items-center gap-2 text-xxs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
+            >
+              <span className="flex-1">
+                {t('quizTranslation.assign.advisory.missing', {
+                  count: entry.names.length,
+                  name: entry.names[0],
+                  language: languageNativeLabel(entry.locale),
+                })}
+              </span>
+              {translation?.onGenerate && (
+                <button
+                  type="button"
+                  disabled={translationGenerateDisabled}
+                  title={
+                    nonEnglishSource
+                      ? t('quizTranslation.editor.disabled.sourceNotEnglish')
+                      : undefined
+                  }
+                  onClick={() => translation.onGenerate?.([entry.locale])}
+                  className="shrink-0 rounded-md border border-amber-500/50 px-2 py-0.5 font-bold text-amber-700 hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:text-slate-400 disabled:border-slate-200"
+                >
+                  {t('quizTranslation.assign.generate')}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {draftSelected.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-slate-100">
           {draftSelected.map((ref) => {

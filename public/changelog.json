@@ -1,6 +1,38 @@
 {
   "entries": [
     {
+      "version": "2026.09.13.1",
+      "date": "2026-09-13",
+      "title": "Quizzes in a student's own language",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quizzes",
+          "items": [
+            {
+              "text": "A new Languages tab in the quiz editor generates a Spanish, Somali or Hmong version of a quiz, which you review question by question. Nothing reaches a student until you mark it reviewed."
+            },
+            {
+              "text": "Set a student's language once as an accommodation and every quiz you assign them renders in it, with a one-tap toggle back to English. Answers are still recorded and graded in English, so results, exports and grade sync are unchanged."
+            },
+            {
+              "text": "The assign dialog warns you when a student you are targeting needs a translation the quiz does not have yet, and offers to generate it. It never blocks you from assigning."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Translations ride the public question through the same shuffle as the English strings, so position never leaks the answer key. Only reviewed and hash-fresh questions are published."
+        },
+        {
+          "type": "feature",
+          "text": "Behind the quiz-translation feature flag (admin-only). Bank-slot quizzes and non-English source quizzes are out of scope for now."
+        }
+      ]
+    },
+    {
       "version": "2026.09.11.11",
       "date": "2026-09-11",
       "title": "Shared question banks in the PLC dashboard",

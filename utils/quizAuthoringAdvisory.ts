@@ -5,7 +5,7 @@
  * media responses.
  */
 
-import type { QuizQuestion } from '@/types';
+import type { QuizQuestion, QuizStimulus } from '@/types';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
 import { groupIntoStimulusUnits } from '@/utils/quizShuffle';
 
@@ -15,7 +15,9 @@ export type QuizAdvisoryId =
   /** A mic the device blocks lands the question on the teacher's desk. */
   | 'device-blocked'
   /** Stimulus grouping collapses the question shuffle to a no-op. */
-  | 'shuffle-noop';
+  | 'shuffle-noop'
+  /** Text baked into an image is never translated (D10). */
+  | 'stimulus-text';
 
 export interface QuizAdvisoryLine {
   id: QuizAdvisoryId;
@@ -26,6 +28,10 @@ export interface QuizAuthoringAdvisoryInput {
   questions: readonly QuizQuestion[];
   /** Whether the authored behavior actually shuffles question order. */
   shuffleQuestionsEnabled?: boolean;
+  /** Quiz stimuli; only consulted for the translation advisory. */
+  stimuli?: readonly QuizStimulus[];
+  /** True on the Languages tab, where the image-text caveat is relevant. */
+  translationAvailable?: boolean;
 }
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -38,7 +44,12 @@ export function buildQuizAuthoringAdvisory(
   input: QuizAuthoringAdvisoryInput,
   t: Translate
 ): QuizAdvisoryLine[] {
-  const { questions, shuffleQuestionsEnabled = false } = input;
+  const {
+    questions,
+    shuffleQuestionsEnabled = false,
+    stimuli,
+    translationAvailable = false,
+  } = input;
   const lines: QuizAdvisoryLine[] = [];
 
   const slots = countRecordingSlots(questions);
@@ -59,6 +70,21 @@ export function buildQuizAuthoringAdvisory(
       lines.push({
         id: 'shuffle-noop',
         text: t('quizMediaResponse.authoring.advisory.shuffleNoOp'),
+      });
+    }
+  }
+
+  if (translationAvailable) {
+    const referenced = new Set(questions.flatMap((q) => q.stimulusIds ?? []));
+    const imageCount = (stimuli ?? []).filter(
+      (s) => referenced.has(s.id) && (s.type === 'image' || s.type === 'pdf')
+    ).length;
+    if (imageCount > 0) {
+      lines.push({
+        id: 'stimulus-text',
+        text: t('quizTranslation.authoring.advisory.stimulusText', {
+          count: imageCount,
+        }),
       });
     }
   }

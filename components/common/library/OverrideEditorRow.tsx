@@ -12,12 +12,14 @@
  * per-criterion/per-question row layout and light-surface card treatment.
  */
 
-import React, { useId, useState } from 'react';
+import React, { useContext, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { AuthContext } from '@/context/AuthContextValue';
+import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 
 export interface OverrideEditorQuestionOption {
   id: string;
@@ -117,6 +119,9 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   allowWindowShift = true,
 }) => {
   const { t } = useTranslation();
+  // Read via context so a provider-less host denies instead of throwing.
+  const translationAvailable =
+    useContext(AuthContext)?.canAccessFeature?.('quiz-translation') === true;
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copySourceId, setCopySourceId] = useState('');
   const tabWarningInputId = useId();
@@ -292,6 +297,39 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               <p className="mt-0.5 text-xs text-slate-500">
                 {t('quizReadAloud.help', 'Signed-in students only.')}
               </p>
+            </div>
+          )}
+
+          {quizMode && translationAvailable && (
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('studentOverride.language', 'Language')}
+              </label>
+              <select
+                value={override.language ?? ''}
+                onChange={(e) =>
+                  patch({ language: e.target.value || undefined })
+                }
+                className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-800"
+              >
+                <option value="">
+                  {t('quizTranslation.editor.english', 'English')}
+                </option>
+                {QUIZ_TRANSLATION_LANGUAGES.map((language) => (
+                  <option key={language.code} value={language.code}>
+                    {language.nativeLabel}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {t('quizReadAloud.help', 'Signed-in students only.')}
+              </p>
+              {override.language &&
+                !['en', 'es', 'de', 'fr'].includes(override.language) && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {t('quizTranslation.editor.chromeNote')}
+                  </p>
+                )}
             </div>
           )}
 

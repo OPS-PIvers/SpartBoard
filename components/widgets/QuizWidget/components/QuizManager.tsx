@@ -23,6 +23,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
 import {
   Plus,
@@ -791,6 +792,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [assignQuizData]
   );
   const { rubrics: assignRubrics } = useRubrics(userId);
+  // §10 assign advisory: coverage comes from the in-memory index; Generate reuses the editor hook.
+  const assignTranslations = useQuizTranslations(assignQuizData, assignTarget);
 
   // Subscribed at the parent so both AssignPlcSlot (UI) and
   // handleAssignConfirm (effective-id resolution) read the same source.
@@ -2117,6 +2120,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 quizContext={{
                   questions: toOverrideEditorQuestions(assignQuizData),
                   rubrics: assignRubrics,
+                  translation: {
+                    index: assignTarget?.translations,
+                    hasBankSlots: (assignQuizData?.bankSlots?.length ?? 0) > 0,
+                    sourceLanguage: assignTarget?.language,
+                    generating: Object.values(assignTranslations.loading).some(
+                      Boolean
+                    ),
+                    onGenerate: (locales) => {
+                      for (const locale of locales)
+                        void assignTranslations.generate(locale);
+                    },
+                  },
                 }}
                 onExpand={handleExpandIndividualTargeting}
               />

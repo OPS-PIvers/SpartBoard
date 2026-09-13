@@ -6,26 +6,34 @@
 import React, { useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { QuizQuestion } from '@/types';
+import type { QuizQuestion, QuizStimulus } from '@/types';
+import type { QuizAdvisoryId } from '@/utils/quizAuthoringAdvisory';
 import { buildQuizAuthoringAdvisory } from '@/utils/quizAuthoringAdvisory';
 
 export interface QuizAuthoringAdvisoryProps {
   questions: readonly QuizQuestion[];
   shuffleQuestionsEnabled?: boolean;
+  stimuli?: readonly QuizStimulus[];
+  translationAvailable?: boolean;
+  /** Restricts the banner to these lines; absent shows every line built. */
+  ids?: readonly QuizAdvisoryId[];
 }
 
 export const QuizAuthoringAdvisory: React.FC<QuizAuthoringAdvisoryProps> = ({
   questions,
   shuffleQuestionsEnabled = false,
+  stimuli,
+  translationAvailable = false,
+  ids,
 }) => {
   const { t } = useTranslation();
   const lines = useMemo(
     () =>
       buildQuizAuthoringAdvisory(
-        { questions, shuffleQuestionsEnabled },
+        { questions, shuffleQuestionsEnabled, stimuli, translationAvailable },
         (key, params) => t(key, params)
-      ),
-    [questions, shuffleQuestionsEnabled, t]
+      ).filter((line) => !ids || ids.includes(line.id)),
+    [questions, shuffleQuestionsEnabled, stimuli, translationAvailable, ids, t]
   );
 
   if (lines.length === 0) return null;

@@ -6,6 +6,8 @@
 // map keyed by uid since its submissions ARE keyed by the resolved pseudonym.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { newlyRequestedLocales } from '@/utils/quizTranslationAdvisory';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { QuizReadAloudManifest } from '@/types';
@@ -169,6 +171,18 @@ export const AssignmentDetailPane: React.FC<{
   };
 
   // Schoology sections ride the session's `classIds` as `schoology:<contextId>`.
+  // A language this edit introduces was never projected onto the live session (§10).
+  const postPublishLocales = useMemo(
+    () =>
+      row.kind === 'quiz'
+        ? newlyRequestedLocales(
+            assignmentRowToTargetingValue(row).overridesByKey,
+            draft.overridesByKey
+          )
+        : [],
+    [row, draft.overridesByKey]
+  );
+
   const schoologyClassIds = useMemo(
     () => (row.classIds ?? []).filter((id) => id.startsWith(SCHOOLOGY_PREFIX)),
     [row.classIds]
@@ -485,6 +499,19 @@ export const AssignmentDetailPane: React.FC<{
               showDueAt={row.kind === 'quiz'}
               readAloudAvailable={readAloudAvailable}
             />
+            {postPublishLocales.map((entry) => (
+              <p
+                key={entry.locale}
+                role="status"
+                className="text-xxs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
+              >
+                {t('quizTranslation.assign.advisory.missing', {
+                  count: entry.names.length,
+                  name: entry.names[0],
+                  language: languageNativeLabel(entry.locale),
+                })}
+              </p>
+            ))}
             {saveError && (
               <p className="text-xs font-medium text-brand-red-primary">
                 {saveError}
