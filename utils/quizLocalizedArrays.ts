@@ -42,3 +42,47 @@ export function reindexChoiceArray(
   next.localized = localized;
   return next;
 }
+
+/**
+ * Indices that reorder `source` into `target`, or null when they are not the
+ * same multiset. Duplicates are consumed left to right so a repeated string
+ * still yields a valid permutation.
+ */
+function matchOrderIndices(
+  source: string[] | undefined,
+  target: string[] | undefined
+): number[] | null {
+  if (!source || !target || source.length !== target.length) return null;
+  const used = new Array<boolean>(source.length).fill(false);
+  const indices: number[] = [];
+  for (const value of target) {
+    const i = source.findIndex((s, idx) => !used[idx] && s === value);
+    if (i < 0) return null;
+    used[i] = true;
+    indices.push(i);
+  }
+  return indices;
+}
+
+/**
+ * Re-apply the order a live session already served to a freshly projected
+ * question, so a PLC re-sync never invalidates answers students already picked
+ * (plan §11 PR5). A field whose English values changed keeps its fresh shuffle.
+ */
+export function alignToPreviousOrder(
+  fresh: QuizPublicQuestion,
+  previous: QuizPublicQuestion | undefined
+): QuizPublicQuestion {
+  if (!previous) return fresh;
+  const fields: ReindexableField[] = [
+    'choices',
+    'matchingRight',
+    'orderingItems',
+  ];
+  let out = fresh;
+  for (const field of fields) {
+    const indices = matchOrderIndices(out[field], previous[field]);
+    if (indices) out = reindexChoiceArray(out, field, indices);
+  }
+  return out;
+}

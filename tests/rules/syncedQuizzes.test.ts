@@ -293,6 +293,83 @@ describe('synced_quizzes — create (initial group seed)', () => {
   });
 });
 
+describe('synced_quizzes — translations payload (PLC translation sync)', () => {
+  const TRANSLATIONS = {
+    es: {
+      locale: 'es',
+      title: 'Titulo',
+      questions: { q1: { text: 'Hola' } },
+      sourceHashes: { q1: 'abc123' },
+      reviewedQuestionIds: ['q1'],
+      model: 'm',
+      generatedAt: 1000,
+      updatedAt: 1000,
+    },
+  };
+
+  it('accepts a participant update that carries translations', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`), {
+        version: 2,
+        title: 'Updated',
+        translations: TRANSLATIONS,
+        updatedAt: 2000,
+        updatedBy: TEACHER_A_UID,
+      })
+    );
+  });
+
+  it('still rejects a non-participant carrying translations', async () => {
+    await assertFails(
+      updateDoc(doc(asNonParticipant(), `synced_quizzes/${GROUP_ID}`), {
+        version: 2,
+        title: 'Updated',
+        translations: TRANSLATIONS,
+        updatedAt: 2000,
+        updatedBy: NON_PARTICIPANT_UID,
+      })
+    );
+  });
+
+  it('still rejects an unknown extra field alongside translations', async () => {
+    await assertFails(
+      updateDoc(doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`), {
+        version: 2,
+        title: 'Updated',
+        translations: TRANSLATIONS,
+        unexpectedField: 'malicious payload',
+        updatedAt: 2000,
+        updatedBy: TEACHER_A_UID,
+      })
+    );
+  });
+
+  it('accepts a create that carries translations', async () => {
+    await testEnv.clearFirestore();
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`),
+        seededGroup({
+          participants: { [TEACHER_A_UID]: { joinedAt: 1000 } },
+          translations: TRANSLATIONS,
+        })
+      )
+    );
+  });
+
+  it('still accepts a create with no translations at all', async () => {
+    await testEnv.clearFirestore();
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`),
+        seededGroup({
+          participants: { [TEACHER_A_UID]: { joinedAt: 1000 } },
+        })
+      )
+    );
+  });
+});
+
 describe('synced_quizzes — delete', () => {
   it('client-side delete is denied universally', async () => {
     // Orphan groups are kept on purpose so a stale share URL still

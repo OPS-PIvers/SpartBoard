@@ -41,11 +41,14 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
+import type { QuizDriveLike } from '@/utils/mockQuizDriveService';
 import type {
   PlcQuizVersionContent,
   QuizBehaviorSettings,
   QuizQuestion,
   QuizStimulus,
+  QuizTranslation,
+  QuizTranslationIndexEntry,
   SyncedQuizGroup,
   SyncedQuizVersionSnapshot,
 } from '@/types';
@@ -82,6 +85,8 @@ export interface PublishSyncedQuizInput {
   uid: string;
   /** Behavior settings to publish alongside content (optional). */
   behavior?: QuizBehaviorSettings;
+  /** Whole translation sidecars by locale. Omitted = clear on the canonical. */
+  translations?: Record<string, QuizTranslation>;
 }
 
 export interface PublishSyncedQuizResult {
@@ -213,6 +218,51 @@ export function useSyncedQuizGroupsByIds(
 }
 
 /**
+ * Conservative ceiling for the translation payload on the group doc. Firestore's
+ * hard cap is 1 MiB for the whole document; stop well short of it so questions
+ * and stimuli always have room.
+ */
+const MAX_SYNCED_TRANSLATIONS_BYTES = 800_000;
+
+/**
+ * Load the owner's translation sidecars for the group doc. A locale whose
+ * sidecar fails to load, or that would push the payload past the byte ceiling,
+ * is omitted and logged — syncing content must never fail over a translation.
+ */
+export async function loadTranslationsForSync(
+  drive: Pick<QuizDriveLike, 'loadTranslation'>,
+  index: Record<string, QuizTranslationIndexEntry> | undefined,
+  context: { quizId?: string; groupId?: string } = {}
+): Promise<Record<string, QuizTranslation> | undefined> {
+  const entries = Object.entries(index ?? {});
+  if (entries.length === 0) return undefined;
+  const out: Record<string, QuizTranslation> = {};
+  let bytes = 0;
+  for (const [locale, entry] of entries) {
+    try {
+      const payload = await drive.loadTranslation(entry.driveFileId);
+      const size = JSON.stringify(payload).length;
+      if (bytes + size > MAX_SYNCED_TRANSLATIONS_BYTES) {
+        logError(
+          'useSyncedQuizGroups.loadTranslationsForSync.tooLarge',
+          new Error('Translation payload exceeds the synced-doc byte ceiling'),
+          { ...context, locale }
+        );
+        continue;
+      }
+      bytes += size;
+      out[locale] = payload;
+    } catch (err) {
+      logError('useSyncedQuizGroups.loadTranslationsForSync', err, {
+        ...context,
+        locale,
+      });
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
  * Read the latest canonical content for a single synced group. Used by
  * the "Sync available" pull path on quiz library cards (writes the
  * returned content into the caller's Drive replica, then bumps the local
@@ -224,6 +274,7 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
   stimuli?: QuizStimulus[];
   language?: string;
   behavior?: QuizBehaviorSettings;
+  translations?: Record<string, QuizTranslation>;
   version: number;
 }> {
   const snap = await getDoc(doc(db, SYNCED_QUIZZES_COLLECTION, groupId));
@@ -232,7 +283,13 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
   }
   const data = snap.data() as Pick<
     SyncedQuizGroup,
-    'title' | 'questions' | 'stimuli' | 'language' | 'behavior' | 'version'
+    | 'title'
+    | 'questions'
+    | 'stimuli'
+    | 'language'
+    | 'behavior'
+    | 'translations'
+    | 'version'
   >;
   return {
     title: data.title,
@@ -240,6 +297,7 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
     stimuli: data.stimuli,
     language: data.language,
     behavior: data.behavior,
+    ...(data.translations ? { translations: data.translations } : {}),
     version: data.version ?? 1,
   };
 }
@@ -262,6 +320,7 @@ export async function createSyncedQuizGroup(input: {
   language?: string;
   plcId?: string;
   behavior?: QuizBehaviorSettings;
+  translations?: Record<string, QuizTranslation>;
 }): Promise<void> {
   const now = Date.now();
   const payload: SyncedQuizGroup = {
@@ -276,6 +335,9 @@ export async function createSyncedQuizGroup(input: {
     participants: { [input.uid]: { joinedAt: now } },
     ...(input.plcId ? { plcId: input.plcId } : {}),
     ...(input.behavior ? { behavior: input.behavior } : {}),
+    ...(input.translations && Object.keys(input.translations).length > 0
+      ? { translations: input.translations }
+      : {}),
     createdAt: now,
     updatedAt: now,
     updatedBy: input.uid,
@@ -339,6 +401,12 @@ export async function publishSyncedQuiz(
           ? input.stimuli
           : deleteField(),
       language: input.language ?? deleteField(),
+      // Cleared the same way stimuli are: a stale payload would resurrect
+      // translations the publisher deleted.
+      translations:
+        input.translations && Object.keys(input.translations).length > 0
+          ? input.translations
+          : deleteField(),
       updatedAt: now,
       updatedBy: input.uid,
       ...(input.behavior ? { behavior: input.behavior } : {}),

@@ -98,6 +98,8 @@ import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
+import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
+import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -2035,9 +2037,9 @@ export const useQuizAssignments = (
           'This assignment was built from question-bank draws; re-assign the quiz to pick up bank changes'
         );
       }
-      // A pull rewrites publicQuestions with a fresh unseeded shuffle, which
-      // would misalign every locale payload frozen beside them (§4.4). Read the
-      // session once here; the media-marker branch below reuses this snapshot.
+      // A pull rewrites publicQuestions, so the locales the session already
+      // serves must be re-projected alongside them. Read the session once here;
+      // the media-marker branch below reuses this snapshot.
       const sessionSnap = await getDoc(
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
       );
@@ -2045,15 +2047,15 @@ export const useQuizAssignments = (
       const sessionData = sessionSnap?.data() as
         | (QuizSession & { mediaResponseEnabled?: boolean })
         | undefined;
-      if (
-        sessionData?.publicQuestions?.some(
-          (pq) => pq.localized && Object.keys(pq.localized).length > 0
-        )
-      ) {
-        throw new Error(
-          'This assignment carries translated questions; syncing would drop them. Re-assign the quiz to pick up changes.'
-        );
+      // Exactly the locales already being served — a re-sync never widens coverage.
+      const servedLocales = new Set<string>();
+      for (const pq of sessionData?.publicQuestions ?? []) {
+        for (const locale of Object.keys(pq.localized ?? {}))
+          servedLocales.add(locale);
       }
+      const previousById = new Map(
+        (sessionData?.publicQuestions ?? []).map((pq) => [pq.id, pq])
+      );
 
       const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
       const previousSyncedVersion = assignment.sync.syncedVersion;
@@ -2087,14 +2089,35 @@ export const useQuizAssignments = (
       // doesn't have to special-case post-sync state.
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
-      const publicQuestions = canonicalQuestions.map((q) =>
-        projectPublicQuestionForMode(
+      // The group doc carries the sidecars themselves (plan §11 PR5), so this
+      // path needs no Drive access to re-project the served locales.
+      const servedTranslations: QuizTranslationsByLocale = {};
+      for (const [locale, payload] of Object.entries(
+        canonical.translations ?? {}
+      )) {
+        if (servedLocales.has(locale)) servedTranslations[locale] = payload;
+      }
+      const hasServedTranslations = Object.keys(servedTranslations).length > 0;
+      const freshByLocale = hasServedTranslations
+        ? await freshQuestionIdsByLocale(canonicalQuestions, servedTranslations)
+        : undefined;
+      const publicQuestions = canonicalQuestions.map((q) => {
+        const projected = projectPublicQuestionForMode(
           q,
           sessionMode,
           (behavior?.sessionOptions ?? assignment.sessionOptions)
-            ?.showLearningTargets
-        )
-      );
+            ?.showLearningTargets,
+          hasServedTranslations ? servedTranslations : undefined,
+          freshByLocale
+        );
+        // Students mid-session already committed answers against the served
+        // order; only a question whose English changed gets a fresh shuffle.
+        return alignToPreviousOrder(projected, previousById.get(q.id));
+      });
+      const quizTitleLocalized: Record<string, string> = {};
+      for (const [locale, payload] of Object.entries(servedTranslations)) {
+        if (payload.title) quizTitleLocalized[locale] = payload.title;
+      }
       const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({
         questions: canonicalQuestions,
@@ -2222,6 +2245,16 @@ export const useQuizAssignments = (
           : {}),
         publicQuestions,
         totalQuestions: canonicalQuestions.length,
+        // Only touched for a session that already serves locales, so an
+        // untranslated assignment's session doc gains no new field.
+        ...(servedLocales.size > 0
+          ? {
+              quizTitleLocalized:
+                Object.keys(quizTitleLocalized).length > 0
+                  ? quizTitleLocalized
+                  : deleteField(),
+            }
+          : {}),
         // Keep the session's stimuli in lockstep with the rebuilt
         // publicQuestions; deleteField clears stale entries when the
         // canonical edit removed the last stimulus.

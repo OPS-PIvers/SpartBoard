@@ -58,3 +58,26 @@ export async function buildTranslationIndexEntry(
     updatedAt: payload.updatedAt,
   };
 }
+
+/**
+ * Per-locale sets of question ids whose live hash still matches the hash the
+ * sidecar recorded. Feeds `selectQuestionTranslations`'s freshness gate (§4.3).
+ */
+export async function freshQuestionIdsByLocale(
+  questions: QuizQuestion[],
+  translations: Record<string, QuizTranslation> | undefined
+): Promise<Record<string, ReadonlySet<string>>> {
+  const out: Record<string, ReadonlySet<string>> = {};
+  if (!translations) return out;
+  const live = new Map<string, string>();
+  for (const q of questions)
+    live.set(q.id, await hashQuestionForTranslation(q));
+  for (const [locale, translation] of Object.entries(translations)) {
+    const fresh = new Set<string>();
+    for (const [id, hash] of live) {
+      if (translation.sourceHashes?.[id] === hash) fresh.add(id);
+    }
+    out[locale] = fresh;
+  }
+  return out;
+}

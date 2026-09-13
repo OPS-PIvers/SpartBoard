@@ -33,6 +33,7 @@ import {
   QuizDriveLike,
 } from '@/utils/mockQuizDriveService';
 import {
+  loadTranslationsForSync,
   publishSyncedQuiz,
   pullSyncedQuizContent,
   callLeaveSyncedQuizGroup,
@@ -43,7 +44,10 @@ import { buildQuizSearchText } from '@/utils/quizSearchText';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
-import { recomputeTranslationIndex } from '@/utils/quizTranslationIndex';
+import {
+  buildTranslationIndexEntry,
+  recomputeTranslationIndex,
+} from '@/utils/quizTranslationIndex';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -266,6 +270,13 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       // replica, and the next "Sync available" pull reconciles it.
       let nextSyncedVersion: number | undefined = undefined;
       if (existingSync) {
+        // Peers cannot read the author's `drive.file` sidecars, so the whole
+        // payload rides the group doc (plan §11 PR5).
+        const syncedTranslations = await loadTranslationsForSync(
+          drive,
+          existingMeta?.translations,
+          { quizId: quiz.id, groupId: existingSync.groupId }
+        );
         const result = await publishSyncedQuiz(existingSync.groupId, {
           title: updatedQuiz.title,
           questions: updatedQuiz.questions,
@@ -278,6 +289,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           ...(effectiveBehavior !== undefined
             ? { behavior: effectiveBehavior }
             : {}),
+          ...(syncedTranslations ? { translations: syncedTranslations } : {}),
         });
         nextSyncedVersion = result.version;
       }
@@ -359,10 +371,42 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const driveFileId = await drive.saveQuiz(refreshed, quizMeta.driveFileId);
 
       // A peer's edit runs this with no teacher action; staleCount must follow it.
-      const translations = await recomputeTranslationIndex(
+      const carried = await recomputeTranslationIndex(
         quizMeta.translations,
         canonical.questions
       );
+      // Canonical wins: every locale the group doc carries overwrites the local
+      // sidecar and its review state. Locales only this peer has are untouched.
+      const pulledIndex: Record<string, QuizTranslationIndexEntry> = {
+        ...(carried ?? {}),
+      };
+      for (const [locale, payload] of Object.entries(
+        canonical.translations ?? {}
+      )) {
+        // Per-locale: one unwritable sidecar must not strand the others or the
+        // auto-pull path that fires this with no teacher action.
+        try {
+          const sidecarId = await drive.saveTranslation(
+            quizMeta.id,
+            canonical.title,
+            locale,
+            payload,
+            quizMeta.translations?.[locale]?.driveFileId
+          );
+          pulledIndex[locale] = await buildTranslationIndexEntry(
+            sidecarId,
+            payload,
+            canonical.questions
+          );
+        } catch (sidecarErr) {
+          logError('useQuiz.pullSyncedQuiz.sidecarWrite', sidecarErr, {
+            quizId: quizMeta.id,
+            locale,
+          });
+        }
+      }
+      const translations =
+        Object.keys(pulledIndex).length > 0 ? pulledIndex : undefined;
 
       const metadata: QuizMetadata = {
         id: quizMeta.id,

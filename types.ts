@@ -5354,6 +5354,11 @@ export interface SyncedQuizGroup {
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
+   * Whole translation sidecars by BCP-47 code, carried on the group doc because
+   * a peer cannot read the author's `drive.file`-scoped sidecars (plan §11 PR5).
+   */
+  translations?: Record<string, QuizTranslation>;
+  /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
    * can be a simple `auth.uid in resource.data.participants` predicate.

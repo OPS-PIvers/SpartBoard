@@ -1403,7 +1403,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli',
+             'translations'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1426,7 +1427,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy', 'behavior', 'stimuli'
+             'updatedAt', 'updatedBy', 'behavior', 'stimuli',
+             'translations'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
