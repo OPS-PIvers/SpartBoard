@@ -1,6 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+
+// Captures the observed target + callback so a test can fire a resize by
+// hand — the global tests/setup.ts stub is a pure no-op and never invokes it.
+class ResizeObserverSpy {
+  static instances: ResizeObserverSpy[] = [];
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor(public callback: ResizeObserverCallback) {
+    ResizeObserverSpy.instances.push(this);
+  }
+}
 
 describe('OverflowMenu', () => {
   it('opens on click and shows items', () => {
@@ -88,6 +100,32 @@ describe('OverflowMenu', () => {
     expect(screen.getByRole('menuitem', { name: 'B' })).toHaveFocus();
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowUp' });
     expect(screen.getByRole('menuitem', { name: 'A' })).toHaveFocus();
+  });
+
+  it('closes when the host widget resizes (e.g. Alt+M maximize/restore)', () => {
+    // Alt+M and Alt+R resize/reposition the widget without any pointerdown
+    // (so useClickOutside never fires) and without a window 'resize' event
+    // (so the scroll/resize listener above never fires either) — this menu
+    // is `position: fixed` and portalled to document.body, so it would
+    // otherwise keep floating at its stale, pre-resize coordinates.
+    ResizeObserverSpy.instances.length = 0;
+    vi.stubGlobal('ResizeObserver', ResizeObserverSpy);
+    render(
+      <div data-draggable-window="">
+        <OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />
+      </div>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    expect(ResizeObserverSpy.instances).toHaveLength(1);
+    const instance = ResizeObserverSpy.instances[0];
+    act(() => {
+      instance.callback([], instance as unknown as ResizeObserver);
+    });
+
+    expect(screen.queryByRole('menu')).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it('renders a spinner for a loading item', () => {
