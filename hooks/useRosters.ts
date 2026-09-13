@@ -151,6 +151,11 @@ function parseRosterGroup(raw: unknown): RosterGroup | null {
   return { id: g.id, name: g.name, studentIds };
 }
 
+/** Keep in sync with `LANGUAGE_TAG_RE` in `functions/src/languageTag.ts`. */
+const LANGUAGE_TAG_RE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+/** BCP-47 practical maximum; caps an unbounded string before it reaches Firestore. */
+const LANGUAGE_TAG_MAX = 35;
+
 /**
  * Validates an embedded rubric snapshot from Drive JSON. Only the fields
  * `RubricSnapshot` declares required are checked — enough that a consumer can
@@ -226,6 +231,12 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
   if (o.readAloud === true) override.readAloud = true;
   if (typeof o.openAt === 'number') override.openAt = o.openAt;
   if (typeof o.closeAt === 'number') override.closeAt = o.closeAt;
+  // Shape only, mirroring the server sanitizer; membership is enforced downstream.
+  if (typeof o.language === 'string') {
+    const lang = o.language.trim();
+    if (lang.length <= LANGUAGE_TAG_MAX && LANGUAGE_TAG_RE.test(lang))
+      override.language = lang;
+  }
   return override;
 }
 

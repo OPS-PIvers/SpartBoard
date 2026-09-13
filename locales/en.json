@@ -2121,8 +2121,10 @@
       "tabWarningsOff": "Tab warnings off",
       "tabWarning": "Tab warning: {{threshold}}",
       "windowShifted": "Window shifted",
-      "readAloud": "Read aloud"
-    }
+      "readAloud": "Read aloud",
+      "language": "{{language}}"
+    },
+    "language": "Language"
   },
   "assignTargeting": {
     "expandAffordance": "+ Individual students & overrides",

@@ -124,9 +124,19 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     studentId: string
   ) => {
     const key = studentTargetRefKey(ref);
-    if (draftOverrides[key]) return;
     const defaultOverride = roster.defaultOverridesByStudentId?.[studentId];
     if (!defaultOverride) return;
+    const draft = draftOverrides[key];
+    if (draft) {
+      // D33: a customized student still picks up a standing `language`, and
+      // only that — every other field stays as the teacher set it.
+      if (draft.language || !defaultOverride.language) return;
+      setDraftOverrides((prev) => ({
+        ...prev,
+        [key]: { ...prev[key], language: defaultOverride.language },
+      }));
+      return;
+    }
     setDraftOverrides((prev) => ({ ...prev, [key]: defaultOverride }));
   };
 

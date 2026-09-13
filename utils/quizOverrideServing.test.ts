@@ -3,6 +3,7 @@ import {
   serveQuestionSubset,
   applyHiddenOptions,
   applyTimeMultiplier,
+  serveLocalizedQuestion,
 } from './quizOverrideServing';
 import type { QuizPublicQuestion } from '@/types';
 
@@ -77,5 +78,25 @@ describe('applyTimeMultiplier', () => {
 
   it('returns the input unchanged when no multiplier is set', () => {
     expect(applyTimeMultiplier(30, undefined)).toBe(30);
+  });
+});
+
+describe('serveLocalizedQuestion', () => {
+  const localized = { es: { text: '¿Capital?' } };
+
+  it('returns null when no locale is active', () => {
+    expect(
+      serveLocalizedQuestion({ ...q('a'), localized }, undefined)
+    ).toBeNull();
+  });
+
+  it('returns null when the question carries nothing for that locale', () => {
+    expect(serveLocalizedQuestion({ ...q('a'), localized }, 'so')).toBeNull();
+  });
+
+  it('returns the locale entry when present', () => {
+    expect(serveLocalizedQuestion({ ...q('a'), localized }, 'es')).toEqual(
+      localized.es
+    );
   });
 });

@@ -43,6 +43,8 @@ import {
   QuizResponseAnswer,
   QuizQuestion,
   QuizPublicQuestion,
+  QuestionTranslation,
+  LocalizedQuestionStrings,
   QuizAttemptLedger,
   GradeResult,
   ResponseArtifact,
@@ -168,6 +170,8 @@ export interface CommitRecordingTakeInput {
   artifact: ResponseArtifact;
   /** Tennessen acknowledgment time, stamped on the take it authorised. */
   noticeAckedAt?: number;
+  /** BCP-47 code the student was reading. Display hint only; never grades. */
+  locale?: string;
 }
 
 /**
@@ -320,9 +324,13 @@ export function isHistoryDocInRemovalWindow(
   return snapshotAtMs >= lower && snapshotAtMs <= upper;
 }
 
-/** Unbiased Fisher-Yates in-place shuffle (returns new array) */
-function fisherYatesShuffle<T>(arr: T[]): T[] {
-  const result = [...arr];
+/**
+ * Unbiased Fisher-Yates over indices. Returned as a permutation rather than a
+ * shuffled array so one draw can be applied to the English strings and to every
+ * locale's index-aligned labels identically.
+ */
+function randomPermutation(length: number): number[] {
+  const result = Array.from({ length }, (_, i) => i);
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
@@ -330,12 +338,49 @@ function fisherYatesShuffle<T>(arr: T[]): T[] {
   return result;
 }
 
+/** Apply one permutation to an array, or return undefined when there is nothing aligned to apply it to. */
+function permuteAligned(
+  source: string[] | undefined,
+  expectedLength: number,
+  permutation: number[]
+): string[] | undefined {
+  if (!source || source.length !== expectedLength) return undefined;
+  return permutation.map((i) => source[i]);
+}
+
+const hasDuplicates = (a: string[]) => new Set(a).size !== a.length;
+
+/** A locale array with duplicates English lacks makes index mapping ambiguous (§4.5). */
+function introducesAmbiguity(
+  labels: string[] | undefined,
+  english: string[]
+): boolean {
+  return !!labels && hasDuplicates(labels) && !hasDuplicates(english);
+}
+
+/** Answer strings round-trip through `|` and `:`; a translated label carrying one corrupts grading. */
+function carriesDelimiter(
+  labels: string[] | undefined,
+  chars: string
+): boolean {
+  return !!labels && labels.some((s) => [...chars].some((c) => s.includes(c)));
+}
+
 /**
  * Convert a full QuizQuestion (with correctAnswer) to a student-safe
- * QuizPublicQuestion (without correctAnswer). Answer choices are pre-shuffled
- * so students can render the UI without ever seeing the answer key.
+ * QuizPublicQuestion. Each shuffle permutation is computed ONCE and applied to
+ * the English array and to every locale's array, so locale strings ride
+ * alongside English in the same order. `translations` is pre-filtered to
+ * reviewed + hash-fresh locales; never spread a `QuestionTranslation` into a
+ * `localized` entry — that would re-expose `matchingDistractors` (§4.1, §4.2).
  */
-export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
+export function toPublicQuestion(
+  q: QuizQuestion,
+  translations?: Record<string, QuestionTranslation>
+): QuizPublicQuestion {
+  const entries = Object.entries(translations ?? {});
+  const localized: Record<string, LocalizedQuestionStrings> = {};
+  for (const [loc, tr] of entries) localized[loc] = { text: tr.text };
   const base: QuizPublicQuestion = {
     id: q.id,
     type: q.type,
@@ -344,10 +389,14 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
   if (q.type === 'MC') {
-    base.choices = fisherYatesShuffle([
-      q.correctAnswer,
-      ...q.incorrectAnswers.filter(Boolean),
-    ]);
+    const english = [q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)];
+    const permutation = randomPermutation(english.length);
+    base.choices = permutation.map((i) => english[i]);
+    for (const [loc, tr] of entries) {
+      const choices = permuteAligned(tr.choices, english.length, permutation);
+      if (choices && !introducesAmbiguity(choices, english))
+        localized[loc].choices = choices;
+    }
   } else if (q.type === 'Matching') {
     // Use indexOf+slice (not split(':')) so a definition that itself contains
     // a colon (e.g. "9:00 AM", "H:O") survives intact. Only the FIRST colon
@@ -359,15 +408,57 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     });
     const distractors = (q.matchingDistractors ?? []).filter(Boolean);
     base.matchingLeft = pairs.map((p) => p.left);
-    base.matchingRight = fisherYatesShuffle([
-      ...pairs.map((p) => p.right),
-      ...distractors,
-    ]);
+    const englishRight = [...pairs.map((p) => p.right), ...distractors];
+    const permutation = randomPermutation(englishRight.length);
+    base.matchingRight = permutation.map((i) => englishRight[i]);
+    for (const [loc, tr] of entries) {
+      const englishLeft = pairs.map((p) => p.left);
+      const left = permuteAligned(
+        tr.matchingLeft,
+        pairs.length,
+        pairs.map((_, i) => i)
+      );
+      // The merge order must mirror `englishRight` exactly, or every translated
+      // right-hand label attaches to the wrong English definition.
+      const mergedLabels = tr.matchingRight
+        ? [...tr.matchingRight, ...(tr.matchingDistractors ?? [])]
+        : undefined;
+      const right = permuteAligned(
+        mergedLabels,
+        englishRight.length,
+        permutation
+      );
+      // Dropped as a unit: a half-translated pair grid is worse than an English one.
+      const unsafeMatching =
+        carriesDelimiter(left, ':|') ||
+        carriesDelimiter(right, ':|') ||
+        introducesAmbiguity(left, englishLeft) ||
+        introducesAmbiguity(right, englishRight);
+      if (!unsafeMatching) {
+        if (left) localized[loc].matchingLeft = left;
+        if (right) localized[loc].matchingRight = right;
+      }
+    }
     // Do NOT copy `distractors` onto the public payload. The shuffled
     // `matchingRight` already mixes them in; exposing the explicit list lets
     // a student pop devtools and read off exactly which entries are wrong.
   } else if (q.type === 'Ordering') {
-    base.orderingItems = fisherYatesShuffle(q.correctAnswer.split('|'));
+    const english = q.correctAnswer.split('|');
+    const permutation = randomPermutation(english.length);
+    base.orderingItems = permutation.map((i) => english[i]);
+    for (const [loc, tr] of entries) {
+      const items = permuteAligned(
+        tr.orderingItems,
+        english.length,
+        permutation
+      );
+      if (
+        items &&
+        !carriesDelimiter(items, '|') &&
+        !introducesAmbiguity(items, english)
+      )
+        localized[loc].orderingItems = items;
+    }
   } else if (isFreeResponseType(q.type)) {
     if (q.placeholder) base.placeholder = q.placeholder;
     if (q.minWords && q.minWords > 0) base.minWords = q.minWords;
@@ -383,6 +474,12 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     }
     if (q.points && q.points > 0) base.points = q.points;
     if (q.rubricSnapshot) base.rubricSnapshot = q.rubricSnapshot;
+    for (const [loc, tr] of entries) {
+      if (base.placeholder && tr.placeholder)
+        localized[loc].placeholder = tr.placeholder;
+      if (base.rubricSnapshot && tr.rubricSnapshot)
+        localized[loc].rubricSnapshot = tr.rubricSnapshot;
+    }
   }
   // Stimulus pointers are student-safe (the referenced entries carry no
   // answer data) and are needed to render/group stimuli client-side.
@@ -397,6 +494,9 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     ? normalizeRecordingConfig(q.recording)
     : undefined;
   if (recording) base.recording = recording;
+  // Omit the key entirely when there is nothing to attach: Firestore rejects
+  // `undefined`, and an untranslated quiz must emit no new fields at all.
+  if (entries.length > 0) base.localized = localized;
   return base;
 }
 
@@ -1608,7 +1708,11 @@ export interface UseQuizSessionStudentResult {
     questionId: string,
     answer: string,
     speedBonus?: number,
-    opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
+    opts?: {
+      isDraft?: boolean;
+      timedOutUnderMinimum?: boolean;
+      locale?: string;
+    }
   ) => Promise<void>;
   /**
    * Appends a committed recording take as a sibling `answers[]` entry with an
@@ -2526,7 +2630,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       questionId: string,
       answer: string,
       speedBonus?: number,
-      opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
+      opts?: {
+        isDraft?: boolean;
+        timedOutUnderMinimum?: boolean;
+        locale?: string;
+      }
     ) => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
@@ -2621,6 +2729,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // response field, and a re-submit must not carry the stale marker.
         delete newAnswer.timedOutUnderMinimum;
         if (opts?.timedOutUnderMinimum) newAnswer.timedOutUnderMinimum = true;
+        // Per-call display hint (D18): a student who drafts in Somali, toggles to
+        // English and retypes must not resurrect `locale` from the spread.
+        delete newAnswer.locale;
+        if (opts?.locale) newAnswer.locale = opts.locale;
         if (speedBonus != null && speedBonus > 0) {
           newAnswer.speedBonus = Math.min(50, Math.max(0, speedBonus));
         }
@@ -2818,6 +2930,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           artifacts: [input.artifact],
         };
         if (input.noticeAckedAt) newAnswer.noticeAckedAt = input.noticeAckedAt;
+        if (input.locale) newAnswer.locale = input.locale;
 
         const updated = [...existingAnswers, newAnswer];
         const nextStatus =

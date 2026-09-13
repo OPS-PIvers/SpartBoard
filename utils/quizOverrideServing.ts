@@ -4,7 +4,12 @@
  * math is independently unit-testable.
  */
 
-import type { QuizPublicQuestion, StudentOverride } from '@/types';
+import type {
+  LocalizedQuestionStrings,
+  QuizPublicQuestion,
+  StudentOverride,
+} from '@/types';
+import { reindexChoiceArray } from './quizLocalizedArrays';
 
 /**
  * Filter `publicQuestions` down to the student's served subset. Preserves
@@ -36,9 +41,23 @@ export function applyHiddenOptions(
   const hidden = hiddenOptionIdsByQuestion?.[question.id];
   if (!hidden || hidden.length === 0 || !question.choices) return question;
   const hiddenSet = new Set(hidden);
-  const choices = question.choices.filter((c) => !hiddenSet.has(c));
-  if (choices.length === question.choices.length) return question;
-  return { ...question, choices };
+  const kept = question.choices
+    .map((c, i) => (hiddenSet.has(c) ? -1 : i))
+    .filter((i) => i >= 0);
+  if (kept.length === question.choices.length) return question;
+  return reindexChoiceArray(question, 'choices', kept);
+}
+
+/**
+ * The active locale's display strings for a question, or `null` to render
+ * English. A pure presence check: staleness and review are gated at publish.
+ */
+export function serveLocalizedQuestion(
+  q: QuizPublicQuestion,
+  locale: string | undefined
+): LocalizedQuestionStrings | null {
+  if (!locale) return null;
+  return q.localized?.[locale] ?? null;
 }
 
 /**

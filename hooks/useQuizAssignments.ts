@@ -49,6 +49,8 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuestionTranslation,
+  QuizTranslation,
   QuizSessionBankSlot,
   QuizSessionMode,
   QuizSessionOptions,
@@ -676,6 +678,32 @@ async function allocateJoinCode(): Promise<string> {
     .padEnd(6, '0');
 }
 
+/** Per-quiz sidecars at publish, keyed by BCP-47 code. */
+export type QuizTranslationsByLocale = Record<string, QuizTranslation>;
+
+/**
+ * Review AND staleness are both gated here, at publish (§4.3): a question is
+ * projected for a locale only when the teacher reviewed it and the sidecar's
+ * recorded hash still matches the live English body. `freshQuestionIdsByLocale`
+ * is computed by the caller, which holds the quiz body and can await the hash.
+ */
+export function selectQuestionTranslations(
+  questionId: string,
+  translations: QuizTranslationsByLocale | undefined,
+  freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
+): Record<string, QuestionTranslation> | undefined {
+  if (!translations) return undefined;
+  const out: Record<string, QuestionTranslation> = {};
+  for (const [locale, translation] of Object.entries(translations)) {
+    const entry = translation.questions?.[questionId];
+    if (!entry) continue;
+    if (!translation.reviewedQuestionIds?.includes(questionId)) continue;
+    if (!freshQuestionIdsByLocale?.[locale]?.has(questionId)) continue;
+    out[locale] = entry;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export const useQuizAssignments = (
   userId: string | undefined
 ): UseQuizAssignmentsResult => {
@@ -705,8 +733,19 @@ export const useQuizAssignments = (
   // Ungated teachers publish the question without its recording block, so the
   // student app has nothing to mount even if it wanted to.
   const toGatedPublicQuestion = useCallback(
-    (question: QuizQuestion): QuizPublicQuestion => {
-      const projected = toPublicQuestion(question);
+    (
+      question: QuizQuestion,
+      translations?: QuizTranslationsByLocale,
+      freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
+    ): QuizPublicQuestion => {
+      const projected = toPublicQuestion(
+        question,
+        selectQuestionTranslations(
+          question.id,
+          translations,
+          freshQuestionIdsByLocale
+        )
+      );
       if (mediaResponseGranted || !projected.recording) return projected;
       const { recording: _stripped, ...rest } = projected;
       return rest;
@@ -722,9 +761,15 @@ export const useQuizAssignments = (
     (
       question: QuizQuestion,
       mode: QuizSessionMode,
-      showLearningTargets?: boolean
+      showLearningTargets?: boolean,
+      translations?: QuizTranslationsByLocale,
+      freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
     ): QuizPublicQuestion => {
-      const gated = toGatedPublicQuestion(question);
+      const gated = toGatedPublicQuestion(
+        question,
+        translations,
+        freshQuestionIdsByLocale
+      );
       const { targets: _targets, ...withoutTargets } = gated;
       const projected = showLearningTargets ? gated : withoutTargets;
       if (mode === 'student' || !projected.recording) return projected;
@@ -1948,6 +1993,25 @@ export const useQuizAssignments = (
           'This assignment was built from question-bank draws; re-assign the quiz to pick up bank changes'
         );
       }
+      // A pull rewrites publicQuestions with a fresh unseeded shuffle, which
+      // would misalign every locale payload frozen beside them (§4.4). Read the
+      // session once here; the media-marker branch below reuses this snapshot.
+      const sessionSnap = await getDoc(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+      );
+      // A deleted session hands back nothing; treat that as untranslated, not a throw.
+      const sessionData = sessionSnap?.data() as
+        | (QuizSession & { mediaResponseEnabled?: boolean })
+        | undefined;
+      if (
+        sessionData?.publicQuestions?.some(
+          (pq) => pq.localized && Object.keys(pq.localized).length > 0
+        )
+      ) {
+        throw new Error(
+          'This assignment carries translated questions; syncing would drop them. Re-assign the quiz to pick up changes.'
+        );
+      }
 
       const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
       const previousSyncedVersion = assignment.sync.syncedVersion;
@@ -2044,12 +2108,6 @@ export const useQuizAssignments = (
         // Absent mirror predates this field; fall back to the session doc.
         let shouldScanArtifacts = assignment.mediaResponseEnabled === true;
         if (assignment.mediaResponseEnabled === undefined) {
-          const sessionSnap = await getDoc(
-            doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
-          );
-          const sessionData = sessionSnap.data() as
-            | { mediaResponseEnabled?: boolean }
-            | undefined;
           shouldScanArtifacts =
             shouldScanArtifacts || !!sessionData?.mediaResponseEnabled;
         }
