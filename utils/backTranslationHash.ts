@@ -3,7 +3,8 @@ export async function backTranslationCacheKey(
   text: string,
   locale: string
 ): Promise<string> {
-  const bytes = new TextEncoder().encode(`${text}${locale}`);
+  // Length-prefixed locale: both halves are client-asserted, so no delimiter alone is collision-proof.
+  const bytes = new TextEncoder().encode(`${locale.length}:${locale}${text}`);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))
