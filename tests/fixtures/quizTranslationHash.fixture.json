@@ -1,0 +1,134 @@
+[
+  {
+    "name": "MC with empty incorrectAnswers entries",
+    "question": {
+      "id": "q1",
+      "timeLimit": 0,
+      "type": "MC",
+      "text": "Capital of France?",
+      "correctAnswer": "Paris",
+      "incorrectAnswers": ["London", "", "Rome", ""]
+    },
+    "serialized": "[\"MC\",\"Capital of France?\",\"Paris\",[\"London\",\"Rome\"],[],\"\",\"\"]",
+    "hash": "b788f92a8946732d"
+  },
+  {
+    "name": "MC with the key swapped with a distractor — must differ from the case above (§9.1)",
+    "question": {
+      "id": "q1",
+      "timeLimit": 0,
+      "type": "MC",
+      "text": "Capital of France?",
+      "correctAnswer": "London",
+      "incorrectAnswers": ["Paris", "", "Rome", ""]
+    },
+    "serialized": "[\"MC\",\"Capital of France?\",\"London\",[\"Paris\",\"Rome\"],[],\"\",\"\"]",
+    "hash": "62edffc5d0c91c47"
+  },
+  {
+    "name": "FIB",
+    "question": {
+      "id": "q2",
+      "timeLimit": 30,
+      "type": "FIB",
+      "text": "Water freezes at ___ C.",
+      "correctAnswer": "0",
+      "incorrectAnswers": []
+    },
+    "serialized": "[\"FIB\",\"Water freezes at ___ C.\",\"0\",[],[],\"\",\"\"]",
+    "hash": "7b7af318c77d8a86"
+  },
+  {
+    "name": "Matching with empty distractor entries",
+    "question": {
+      "id": "q3",
+      "timeLimit": 0,
+      "type": "Matching",
+      "text": "Match the terms",
+      "correctAnswer": "Dog:Mammal|Frog:Amphibian",
+      "incorrectAnswers": [],
+      "matchingDistractors": ["Reptile", "", "Fish"]
+    },
+    "serialized": "[\"Matching\",\"Match the terms\",\"Dog:Mammal|Frog:Amphibian\",[],[\"Reptile\",\"Fish\"],\"\",\"\"]",
+    "hash": "16c65bf743685c86"
+  },
+  {
+    "name": "Ordering",
+    "question": {
+      "id": "q4",
+      "timeLimit": 0,
+      "type": "Ordering",
+      "text": "Order the steps",
+      "correctAnswer": "One|Two|Three",
+      "incorrectAnswers": []
+    },
+    "serialized": "[\"Ordering\",\"Order the steps\",\"One|Two|Three\",[],[],\"\",\"\"]",
+    "hash": "9a589a89c62d9b8f"
+  },
+  {
+    "name": "free-response with placeholder and rubric",
+    "question": {
+      "id": "q5",
+      "timeLimit": 0,
+      "type": "free-response",
+      "text": "Explain photosynthesis.",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "placeholder": "Cite two pieces of evidence.",
+      "rubricSnapshot": {
+        "id": "r1",
+        "title": "Evidence",
+        "createdAt": 1,
+        "updatedAt": 2,
+        "criteria": [
+          {
+            "id": "c1",
+            "title": "Claim",
+            "levels": [
+              {
+                "id": "l1",
+                "label": "Meets",
+                "points": 2,
+                "description": "Clear claim"
+              },
+              {
+                "id": "l0",
+                "label": "Not yet",
+                "points": 0,
+                "description": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "serialized": "[\"free-response\",\"Explain photosynthesis.\",\"\",[],[],\"Cite two pieces of evidence.\",\"{\\\"createdAt\\\":1,\\\"criteria\\\":[{\\\"id\\\":\\\"c1\\\",\\\"levels\\\":[{\\\"description\\\":\\\"Clear claim\\\",\\\"id\\\":\\\"l1\\\",\\\"label\\\":\\\"Meets\\\",\\\"points\\\":2},{\\\"description\\\":\\\"\\\",\\\"id\\\":\\\"l0\\\",\\\"label\\\":\\\"Not yet\\\",\\\"points\\\":0}],\\\"title\\\":\\\"Claim\\\"}],\\\"id\\\":\\\"r1\\\",\\\"title\\\":\\\"Evidence\\\",\\\"updatedAt\\\":2}\"]",
+    "hash": "378304b34a1f39d1"
+  },
+  {
+    "name": "legacy-shaped rubric (criteria with no levels)",
+    "question": {
+      "id": "q6",
+      "timeLimit": 0,
+      "type": "free-response",
+      "text": "Summarize the passage.",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "rubricSnapshot": {
+        "id": "r-legacy",
+        "title": "Legacy",
+        "createdAt": 0,
+        "updatedAt": 0,
+        "criteria": [
+          {
+            "id": "c1",
+            "title": "Summary",
+            "levels": []
+          }
+        ]
+      }
+    },
+    "serialized": "[\"free-response\",\"Summarize the passage.\",\"\",[],[],\"\",\"{\\\"createdAt\\\":0,\\\"criteria\\\":[{\\\"id\\\":\\\"c1\\\",\\\"levels\\\":[],\\\"title\\\":\\\"Summary\\\"}],\\\"id\\\":\\\"r-legacy\\\",\\\"title\\\":\\\"Legacy\\\",\\\"updatedAt\\\":0}\"]",
+    "hash": "c9b7b83c95c2ce8e"
+  }
+]

@@ -1933,8 +1933,10 @@
       "tabWarningsOff": "Avisos de pestaña desactivados",
       "tabWarning": "Aviso de pestaña: {{threshold}}",
       "windowShifted": "Horario ajustado",
-      "readAloud": "Lectura en voz alta"
-    }
+      "readAloud": "Lectura en voz alta",
+      "language": "{{language}}"
+    },
+    "language": "Language"
   },
   "assignTargeting": {
     "expandAffordance": "+ Estudiantes individuales y adaptaciones",

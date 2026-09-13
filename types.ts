@@ -3913,6 +3913,60 @@ export interface QuizPublicQuestion {
    * `showLearningTargets` is on; students otherwise never receive tags.
    */
   targets?: QuestionTargetTag[];
+  /**
+   * Locale strings that ride ALONGSIDE the English fields, never replacing them
+   * — the English arrays stay authoritative for every value the student writes.
+   * Absent on every untranslated question; the key is omitted, never undefined.
+   */
+  localized?: Record<string, LocalizedQuestionStrings>;
+}
+
+/** One question's translated strings, positionally aligned with the English question (plan §3.2). */
+export interface QuestionTranslation {
+  text: string;
+  /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
+  choices?: string[];
+  /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
+  matchingLeft?: string[];
+  matchingRight?: string[];
+  /** Matching: index-aligned with `(matchingDistractors ?? []).filter(Boolean)`. */
+  matchingDistractors?: string[];
+  /** Ordering: index-aligned with `correctAnswer.split('|')`. */
+  orderingItems?: string[];
+  /** Free response only. */
+  placeholder?: string;
+  /** Free response only. Structurally identical to the English `rubricSnapshot`. */
+  rubricSnapshot?: Rubric;
+}
+
+/** One language's authoring payload for a quiz, stored as a Drive sidecar (plan §3.2). */
+export interface QuizTranslation {
+  locale: string;
+  title: string;
+  questions: Record<string, QuestionTranslation>;
+  /** Per-question hash of the English source at translation time (§9). */
+  sourceHashes: Record<string, string>;
+  /** Question ids the teacher has explicitly approved. Only these are ever projected. */
+  reviewedQuestionIds: string[];
+  model: string;
+  generatedAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Locale-specific strings for one public question. Every array is the same
+ * length and order as the sibling array on the question. Note the absence of
+ * `matchingDistractors` — exposing it would tell a student which right-side
+ * entries are wrong, so never spread a `QuestionTranslation` into this (§4.2).
+ */
+export interface LocalizedQuestionStrings {
+  text: string;
+  choices?: string[];
+  matchingLeft?: string[];
+  matchingRight?: string[];
+  orderingItems?: string[];
+  placeholder?: string;
+  rubricSnapshot?: Rubric;
 }
 
 export interface QuizLeaderboardEntry {
@@ -3960,6 +4014,8 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /** D27's translated titles by BCP-47 code. Frozen with publicQuestions. */
+  quizTitleLocalized?: Record<string, string>;
   /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
   completenessModel?: number;
   /**
@@ -4299,6 +4355,12 @@ export interface QuizResponseAnswer {
   noticeAckedAt?: number;
   /** A question timeout auto-submitted this answer below the enforced `minWords`. */
   timedOutUnderMinimum?: true;
+  /**
+   * BCP-47 code the student was READING when they answered (D18). Per-call,
+   * client-asserted, display hint only — never an input to grading, scoring or
+   * routing. Absent means English; the key is omitted, never written undefined.
+   */
+  locale?: string;
 }
 
 /**
@@ -5000,6 +5062,8 @@ export interface StudentOverride {
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
+  /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
+  language?: string;
 }
 
 /**

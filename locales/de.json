@@ -1933,8 +1933,10 @@
       "tabWarningsOff": "Tab-Warnungen aus",
       "tabWarning": "Tab-Warnung: {{threshold}}",
       "windowShifted": "Zeitfenster verschoben",
-      "readAloud": "Vorlesen"
-    }
+      "readAloud": "Vorlesen",
+      "language": "{{language}}"
+    },
+    "language": "Language"
   },
   "assignTargeting": {
     "expandAffordance": "+ Einzelne Schüler & Anpassungen",

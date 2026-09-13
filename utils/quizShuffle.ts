@@ -12,6 +12,7 @@
  * across reloads and back-navigation.
  */
 import type { QuizPublicQuestion } from '@/types';
+import { reindexChoiceArray } from './quizLocalizedArrays';
 
 /**
  * cyrb53 — fast, well-distributed 53-bit string hash (public-domain).
@@ -46,18 +47,29 @@ function mulberry32(seed: number): () => number {
 }
 
 /**
- * Deterministic Fisher-Yates shuffle. Same input + same seed → same output.
- * Returns a new array; the input is not mutated.
+ * The permutation `seededShuffle` applies, as an index array: `out[i]` is the
+ * source index that lands at position `i`. Exposed so a question's English
+ * array and its index-aligned locale labels can be reordered in lockstep.
  */
-export function seededShuffle<T>(items: readonly T[], seed: string): T[] {
-  const result = items.slice();
-  if (result.length <= 1) return result;
+export function seededPermutation(length: number, seed: string): number[] {
+  const result = Array.from({ length }, (_, i) => i);
+  if (length <= 1) return result;
   const rng = mulberry32(cyrb53(seed));
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+/**
+ * Deterministic Fisher-Yates shuffle. Same input + same seed → same output.
+ * Returns a new array; the input is not mutated. Delegates to
+ * `seededPermutation` so the two can never drift apart.
+ */
+export function seededShuffle<T>(items: readonly T[], seed: string): T[] {
+  if (items.length <= 1) return items.slice();
+  return seededPermutation(items.length, seed).map((i) => items[i]);
 }
 
 /**
@@ -72,13 +84,25 @@ export function shuffleQuestionForStudent(
 ): QuizPublicQuestion {
   const seed = `${studentSeed}:${q.id}`;
   if (q.type === 'MC' && q.choices && q.choices.length > 1) {
-    return { ...q, choices: seededShuffle(q.choices, seed) };
+    return reindexChoiceArray(
+      q,
+      'choices',
+      seededPermutation(q.choices.length, seed)
+    );
   }
   if (q.type === 'Matching' && q.matchingRight && q.matchingRight.length > 1) {
-    return { ...q, matchingRight: seededShuffle(q.matchingRight, seed) };
+    return reindexChoiceArray(
+      q,
+      'matchingRight',
+      seededPermutation(q.matchingRight.length, seed)
+    );
   }
   if (q.type === 'Ordering' && q.orderingItems && q.orderingItems.length > 1) {
-    return { ...q, orderingItems: seededShuffle(q.orderingItems, seed) };
+    return reindexChoiceArray(
+      q,
+      'orderingItems',
+      seededPermutation(q.orderingItems.length, seed)
+    );
   }
   return q;
 }

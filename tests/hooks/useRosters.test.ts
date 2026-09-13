@@ -1095,6 +1095,29 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     });
   });
 
+  it('round-trips a standing `language` and drops a malformed tag', async () => {
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' }), student({ id: 's2' })],
+          groups: [],
+          defaultOverridesByStudentId: {
+            s1: { language: ' es ' },
+            s2: { language: 'not a tag!' },
+          },
+        })
+      ),
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    const overrides = result.current.rosters[0].defaultOverridesByStudentId;
+    expect(overrides?.s1).toEqual({ language: 'es' });
+    expect(overrides?.s2).toEqual({});
+  });
+
   it('drops malformed rubric snapshots but keeps points mode and valid ones', async () => {
     const validRubric = {
       id: 'r1',

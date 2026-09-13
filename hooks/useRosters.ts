@@ -157,6 +157,9 @@ function parseRosterGroup(raw: unknown): RosterGroup | null {
  * safely reach for `criteria` — and anything malformed is dropped here rather
  * than thrown on at read time.
  */
+/** Keep in sync with `LANGUAGE_TAG_RE` in `functions/src/quizReadAloud.ts`. */
+const LANGUAGE_TAG_RE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+
 function parseRubricSnapshot(raw: unknown): RubricSnapshot | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -226,6 +229,9 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
   if (o.readAloud === true) override.readAloud = true;
   if (typeof o.openAt === 'number') override.openAt = o.openAt;
   if (typeof o.closeAt === 'number') override.closeAt = o.closeAt;
+  // Shape only, mirroring the server sanitizer; membership is enforced downstream.
+  if (typeof o.language === 'string' && LANGUAGE_TAG_RE.test(o.language.trim()))
+    override.language = o.language.trim();
   return override;
 }
 

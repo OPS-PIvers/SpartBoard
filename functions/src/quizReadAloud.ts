@@ -19,6 +19,7 @@ import { v1beta1, protos } from '@google-cloud/text-to-speech';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import './functionsInit';
+import { LANGUAGE_TAG_RE } from './languageTag';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -513,7 +514,6 @@ export function teacherDailyDocId(teacherUid: string, nowMs: number): string {
 }
 
 const VOICE_NAME_RE = /^[a-z]{2,3}-[A-Z]{2}-(Neural2|Standard)-[A-J]$/;
-const LANGUAGE_TAG_RE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
 export function parseSynthesizeRequest(
   raw: unknown

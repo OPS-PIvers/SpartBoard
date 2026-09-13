@@ -135,6 +135,10 @@ import {
   applyHiddenOptions,
   applyTimeMultiplier,
 } from '@/utils/quizOverrideServing';
+import {
+  toCanonicalAnswer,
+  toDisplayAnswer,
+} from '@/utils/quizLocalizedAnswer';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
@@ -1757,6 +1761,8 @@ const ActiveQuiz: React.FC<{
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  // PR1 is dark: the locale toggle and the pointer's `language` land in PR3.
+  const activeLocale: string | undefined = undefined;
 
   // Read-aloud (docs/plans/QUIZ_READ_ALOUD.md §6.2): self-paced light shell only.
   const readAloud = useQuizReadAloud({
@@ -3139,8 +3145,16 @@ const ActiveQuiz: React.FC<{
                 const isLocked = submitted && !isStudentPaced;
                 const lockedRef = selectedAnswer ?? liveAnswer;
                 const isSelected = isLocked
-                  ? lockedRef === opt
-                  : liveAnswer === opt;
+                  ? toDisplayAnswer(
+                      currentQuestion,
+                      activeLocale,
+                      lockedRef ?? ''
+                    ) === opt
+                  : toDisplayAnswer(
+                      currentQuestion,
+                      activeLocale,
+                      liveAnswer ?? ''
+                    ) === opt;
                 let cls =
                   'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
                 if (!isLocked) {
@@ -3154,7 +3168,12 @@ const ActiveQuiz: React.FC<{
                   return (
                     <button
                       key={opt}
-                      onClick={() => !isLocked && setCacheForCurrent(opt)}
+                      onClick={() =>
+                        !isLocked &&
+                        setCacheForCurrent(
+                          toCanonicalAnswer(currentQuestion, activeLocale, opt)
+                        )
+                      }
                       disabled={isLocked || submitting}
                       className={cls}
                     >
@@ -3171,7 +3190,12 @@ const ActiveQuiz: React.FC<{
                     className={`flex items-stretch gap-2 rounded-2xl transition-colors ${highlightClass(choicePart, readAloud.highlightedPart)}`}
                   >
                     <button
-                      onClick={() => !isLocked && setCacheForCurrent(opt)}
+                      onClick={() =>
+                        !isLocked &&
+                        setCacheForCurrent(
+                          toCanonicalAnswer(currentQuestion, activeLocale, opt)
+                        )
+                      }
                       disabled={isLocked || submitting}
                       className={`${cls} flex-1`}
                     >
@@ -3376,12 +3400,28 @@ const ActiveQuiz: React.FC<{
                 question={currentQuestion}
                 submitted={submitted}
                 isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
-                savedAnswer={liveAnswer}
-                onSubmit={(answer) => void handleSubmit(answer)}
-                onSubmitAndAdvance={(answer) =>
-                  void handleSubmitAndAdvance(answer)
+                savedAnswer={toDisplayAnswer(
+                  currentQuestion,
+                  activeLocale,
+                  liveAnswer ?? ''
+                )}
+                onSubmit={(displayed) =>
+                  void handleSubmit(
+                    toCanonicalAnswer(currentQuestion, activeLocale, displayed)
+                  )
                 }
-                onAnswerChange={(answer) => {
+                onSubmitAndAdvance={(displayed) =>
+                  void handleSubmitAndAdvance(
+                    toCanonicalAnswer(currentQuestion, activeLocale, displayed)
+                  )
+                }
+                onAnswerChange={(displayed) => {
+                  // Everything past this line is the English canonical value.
+                  const answer = toCanonicalAnswer(
+                    currentQuestion,
+                    activeLocale,
+                    displayed
+                  );
                   // The input remounts per question (keyed by id) and its mount
                   // effect re-emits the seeded answer. Skip the write when the
                   // emitted value already matches the cached value: a back-nav

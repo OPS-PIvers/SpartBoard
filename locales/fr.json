@@ -1933,8 +1933,10 @@
       "tabWarningsOff": "Avertissements d'onglet désactivés",
       "tabWarning": "Avertissement d'onglet : {{threshold}}",
       "windowShifted": "Fenêtre décalée",
-      "readAloud": "Lecture à voix haute"
-    }
+      "readAloud": "Lecture à voix haute",
+      "language": "{{language}}"
+    },
+    "language": "Language"
   },
   "assignTargeting": {
     "expandAffordance": "+ Élèves individuels & aménagements",
