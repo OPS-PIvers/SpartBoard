@@ -89,13 +89,20 @@ const EMPTY_OCCUPIED_CELLS: ReadonlySet<string> = new Set();
 const DEFAULT_MIN_W = 150;
 const DEFAULT_MIN_H = 100;
 
-// Per-widget overrides — used for widget types that intentionally need to
-// shrink smaller than the default floor (e.g. URL bookmarks meant to feel
-// like a floating icon on the board).
+// Per-widget overrides — used for widget types that intentionally need a
+// floor different from the default: either smaller (e.g. URL bookmarks meant
+// to feel like a floating icon on the board) or larger (e.g. BloomsTaxonomy's
+// pyramid, whose 6 stacked tiers each carry their own clamp() px floor and
+// would clip below the height needed to fit all six without shrinking past it).
 const WIDGET_MIN_SIZE_OVERRIDES: Partial<
   Record<WidgetType, { w: number; h: number }>
 > = {
   url: { w: 80, h: 80 },
+  // min(w,h) here must stay above ~240 so 13cqmin/5cqmin (the pyramid tier
+  // height / label formulas) clear their 24px/12px clamp() floors at the
+  // enforced minimum — otherwise the floors bind while the box is still too
+  // short to contain all 6 stacked tiers, and the bottom tier(s) clip.
+  'blooms-taxonomy': { w: 280, h: 300 },
 };
 
 const INTERACTIVE_ELEMENTS_SELECTOR =
