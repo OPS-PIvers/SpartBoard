@@ -2480,5 +2480,20 @@
       "subjectsTaught": "Domaines enseignés",
       "subjectsTaughtDescription": "Facultatif. Choisissez vos domaines pour ouvrir le sélecteur de standards directement dessus. Laissez vide pour voir tous les domaines."
     }
+  },
+  "quizTranslation": {
+    "grading": {
+      "sectionLabel": "Langue de la réponse",
+      "backTranslate": "Traduire cette réponse",
+      "backTranslating": "Traduction en cours…",
+      "backTranslationLabel": "Rétrotraduction en anglais",
+      "nativeLabel": "Réponse de l'élève",
+      "machineGenerated": "Généré automatiquement. Les mots de l'élève font foi.",
+      "translatedRubricNote": "Cet élève a lu une grille traduite ; évaluez à partir de la grille anglaise affichée ici.",
+      "errors": {
+        "failed": "Impossible de traduire cette réponse. Réessayez.",
+        "capReached": "Limite quotidienne de traductions atteinte. Réessayez demain."
+      }
+    }
   }
 }

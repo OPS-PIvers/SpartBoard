@@ -2668,5 +2668,20 @@
       "subjectsTaught": "Content areas taught",
       "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
     }
+  },
+  "quizTranslation": {
+    "grading": {
+      "sectionLabel": "Response language",
+      "backTranslate": "Translate this response",
+      "backTranslating": "Translating…",
+      "backTranslationLabel": "English back-translation",
+      "nativeLabel": "Student's response",
+      "machineGenerated": "Machine-generated. The student's own words are the record.",
+      "translatedRubricNote": "This student read a translated rubric; grade against the English rubric shown here.",
+      "errors": {
+        "failed": "Couldn't translate this response. Try again.",
+        "capReached": "Daily translation limit reached. Try again tomorrow."
+      }
+    }
   }
 }

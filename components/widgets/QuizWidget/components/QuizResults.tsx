@@ -486,6 +486,31 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     [session?.id]
   );
 
+  // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
+  const saveBackTranslation = useCallback(
+    async (
+      responseKey: string,
+      hash: string,
+      entry: import('@/types').QuizResponseBackTranslation
+    ) => {
+      const sessionId = session?.id;
+      if (!sessionId) {
+        throw new Error(
+          'Cannot save translation: no active session in scope. Reopen the quiz results and try again.'
+        );
+      }
+      const ref = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      await updateDoc(ref, { [`backTranslations.${hash}`]: entry });
+    },
+    [session?.id]
+  );
+
   // Undo path for the media grader: removing the key returns the slot to
   // "still owed a grade" — writing an empty grade would read as a real 0.
   const clearWrittenGrade = useCallback(
@@ -1803,6 +1828,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           teacherUid={user.uid}
           resolveTakeUrl={showMediaGrading ? resolveTakeUrl : undefined}
           onSaveGrade={saveWrittenGrade}
+          onSaveBackTranslation={saveBackTranslation}
           onClearGrade={clearWrittenGrade}
           overridesBySourcedId={overridesBySourcedId}
           targetRefKeyByStudentUid={targetRefKeyByStudentUid}

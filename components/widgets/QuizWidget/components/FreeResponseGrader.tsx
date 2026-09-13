@@ -38,6 +38,7 @@ import {
   type QuizQuestion,
   type QuizResponse,
   type QuizResponseAnswer,
+  type QuizResponseBackTranslation,
   type StudentOverride,
   type WrittenAnswerAnnotation,
   type WrittenAnswerGrade,
@@ -86,7 +87,9 @@ import {
   type TraversalTarget,
 } from '@/utils/gradeTraversal';
 import { useGradeWriteQueue } from '@/hooks/useGradeWriteQueue';
+import { isBackTranslatableLocale } from '@/utils/backTranslationHash';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
+import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
 
@@ -136,6 +139,12 @@ export interface FreeResponseGraderProps {
   ) => Promise<void>;
   /** Removes one slot's grade entirely; backs the "Undo excuse" control. */
   onClearGrade?: (responseKey: string, key: string) => Promise<void>;
+  /** Caches one back-translation on the response; omit to hide the control. */
+  onSaveBackTranslation?: (
+    responseKey: string,
+    hash: string,
+    entry: QuizResponseBackTranslation
+  ) => Promise<void>;
   /** Per-student overrides keyed by namespaced `StudentTargetRef` (M17 §5 C4). */
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   /** `studentUid` -> namespaced `StudentTargetRef` key, from `useAssignmentPseudonyms`. */
@@ -300,6 +309,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   resolveTakeUrl,
   onSaveGrade,
   onClearGrade,
+  onSaveBackTranslation,
   overridesBySourcedId,
   targetRefKeyByStudentUid,
   graderMode = 'question',
@@ -967,6 +977,18 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const snapshotForList =
     savedGrade?.gradingSnapshot ??
     (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
+  const answerLocale = textEntry?.locale;
+  const backTranslationResponseKey = response
+    ? responseKeyOf(response)
+    : undefined;
+  // FIB is never translated (plan D21), so only true free-response answers qualify.
+  const showBackTranslation =
+    !!onSaveBackTranslation &&
+    !isMedia &&
+    !!question &&
+    isFreeResponseType(question.type) &&
+    !!studentAnswer &&
+    isBackTranslatableLocale(answerLocale);
   const showPoints = !isUnavailable || adjudication === 'substitute';
   const mediaTargets = targets.filter((x) => x.kind === 'media');
   const showAllGraded = allGradedUntil > 0;
@@ -1354,6 +1376,24 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                     {tg('noTextAnswer')}
                   </div>
+                )}
+                {showBackTranslation && (
+                  <BackTranslationPanel
+                    key={`${targetKey}::${answerLocale}::${studentAnswer}`}
+                    text={studentAnswer}
+                    locale={answerLocale as string}
+                    cache={response?.backTranslations}
+                    translatedRubric={rubricCriteriaCount > 0}
+                    onSave={(hash, entry) =>
+                      backTranslationResponseKey && onSaveBackTranslation
+                        ? onSaveBackTranslation(
+                            backTranslationResponseKey,
+                            hash,
+                            entry
+                          )
+                        : Promise.resolve()
+                    }
+                  />
                 )}
               </>
             )}

@@ -4441,6 +4441,14 @@ export interface ArtifactArchiveEntry {
  * wrote the doc — Firestore rules enforce ownership against this field
  * (not the key), since the key is no longer guaranteed to match the uid.
  */
+/** One cached machine back-translation of a student's free-response answer (plan §6). */
+export interface QuizResponseBackTranslation {
+  text: string;
+  locale: string;
+  model: string;
+  at: number;
+}
+
 export interface QuizResponse {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -4615,6 +4623,14 @@ export interface QuizResponse {
    * `gradingKey`/`parseGradingKey` in `utils/mediaGrading.ts`.
    */
   grading?: { [gradingKey: string]: WrittenAnswerGrade };
+  /**
+   * Teacher-only cache of machine back-translations of this student's own
+   * free-response answers (plan §6), keyed by `sha256(answerText + locale)`.
+   * Written through the same teacher-owner path as `grading` and excluded
+   * from the student write whitelist; never inside `answers[]`, and never
+   * copied into a `gradingSnapshot`.
+   */
+  backTranslations?: Record<string, QuizResponseBackTranslation>;
   /**
    * Server-written only (Admin SDK, via the archival callable), keyed by
    * {@link ResponseArtifact.id}. Lives outside `answers[]` for the same reason
