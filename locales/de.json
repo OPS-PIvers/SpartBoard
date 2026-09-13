@@ -2082,7 +2082,8 @@
       "disabled": {
         "capReached": "Das monatliche Übersetzungslimit deiner Schule ist aufgebraucht.",
         "sourceNotEnglish": "Nur Quiz auf Englisch können übersetzt werden.",
-        "bankSlots": "Quiz mit Fragenpools können nicht übersetzt werden."
+        "bankSlots": "Quiz mit Fragenpools können nicht übersetzt werden.",
+        "notLoaded": "Die gespeicherte Übersetzung wird geladen. Bitte gleich noch einmal versuchen."
       },
       "chromeNote": "Menüs bleiben auf Englisch.",
       "empty": {
@@ -2098,6 +2099,9 @@
           "title": "Frage auswählen",
           "body": "Wähle links eine Frage, um Englisch und Übersetzung nebeneinander zu sehen."
         }
+      },
+      "error": {
+        "unloadedLocale": "Die gespeicherte Übersetzung dieser Sprache ist noch nicht geladen. Sprache erneut auswählen und dann generieren."
       }
     },
     "authoring": {

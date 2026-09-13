@@ -9,6 +9,7 @@ import { Languages, Loader2 } from 'lucide-react';
 import type { QuestionTranslation, QuizData, QuizMetadata } from '@/types';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import { isNonEnglishSource } from '@/utils/quizTranslationSource';
+import { isAppLocale } from '@/utils/isAppLocale';
 import type { UseQuizTranslations } from '@/hooks/useQuizTranslations';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 
@@ -61,6 +62,14 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
     requested.current.add(selectedLocale);
     void api.load(selectedLocale);
   }, [api, metadata, selectedLocale]);
+  // A failed load must not latch: re-selecting the chip retries it.
+  const selectLocale = (code: string) => {
+    onSelectLocale(code);
+    if (api.loadFailed[code]) {
+      requested.current.delete(code);
+      void api.load(code);
+    }
+  };
   const stale = selectedLocale ? api.staleIds(selectedLocale) : [];
   const staleSet = new Set(stale);
   const busy = selectedLocale ? api.loading[selectedLocale] === true : false;
@@ -72,11 +81,18 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
       ? t('quizTranslation.editor.disabled.sourceNotEnglish')
       : api.cap && api.cap.remaining <= 0
         ? t('quizTranslation.editor.disabled.capReached')
-        : null;
+        : selectedLocale && api.needsLoad(selectedLocale)
+          ? t('quizTranslation.editor.disabled.notLoaded')
+          : null;
 
   const servedCount = (locale: string): number => {
     const entry = api.byLocale[locale];
-    if (!entry) return 0;
+    if (!entry) {
+      // Unloaded sidecar: the index row is the only truth we have.
+      const indexed = metadata?.translations?.[locale];
+      if (!indexed) return 0;
+      return Math.max(0, indexed.reviewedCount - indexed.staleCount);
+    }
     const localeStale = new Set(api.staleIds(locale));
     return entry.reviewedQuestionIds.filter(
       (id) => translatableSet.has(id) && !localeStale.has(id)
@@ -104,7 +120,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                   key={language.code}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => onSelectLocale(language.code)}
+                  onClick={() => selectLocale(language.code)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
                     active
                       ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
@@ -173,7 +189,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
             )}
             {api.error && (
               <p role="status" className="text-xxs text-brand-red-primary">
-                {api.error}
+                {t(api.error, { defaultValue: api.error })}
               </p>
             )}
           </div>
@@ -323,7 +339,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
           {language?.nativeLabel ?? selectedLocale}
         </h4>
-        {language && !['en', 'es', 'de', 'fr'].includes(language.code) && (
+        {language && !isAppLocale(language.code) && (
           <p className="text-xxs text-slate-500">
             {t('quizTranslation.editor.chromeNote')}
           </p>

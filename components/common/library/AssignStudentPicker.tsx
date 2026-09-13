@@ -62,6 +62,10 @@ export interface AssignTranslationContext extends TranslationCoverageContext {
   onGenerate?: (locales: string[]) => void;
   /** True while a generation is in flight. */
   generating?: boolean;
+  /** Monthly translation budget; Generate is refused once it is used up. */
+  cap?: { remaining: number; total: number } | null;
+  /** Last generation/load failure, shown inline beside the advisory. */
+  error?: string | null;
 }
 
 interface RosterStudentRow {
@@ -238,9 +242,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
 
   // §10: cross-reference targeted languages against the in-memory index — zero reads.
   const nonEnglishSource = isNonEnglishQuizSource(translation?.sourceLanguage);
+  const capReached = !!translation?.cap && translation.cap.remaining <= 0;
   const translationGenerateDisabled =
     nonEnglishSource ||
     translation?.hasBankSlots === true ||
+    capReached ||
     !!translation?.generating;
   const translationAdvisory = useMemo(() => {
     if (!translation) return [];
@@ -336,7 +342,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
       contentClassName="p-0"
       ariaLabelledby={MODAL_LABEL_ID}
     >
-      {translationAdvisory.length > 0 && (
+      {(translationAdvisory.length > 0 || translation?.error) && (
         <div className="space-y-1.5 px-4 pt-3">
           {translationAdvisory.map((entry) => (
             <div
@@ -359,7 +365,9 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   title={
                     nonEnglishSource
                       ? t('quizTranslation.editor.disabled.sourceNotEnglish')
-                      : undefined
+                      : capReached
+                        ? t('quizTranslation.editor.disabled.capReached')
+                        : undefined
                   }
                   onClick={() => translation.onGenerate?.([entry.locale])}
                   className="shrink-0 rounded-md border border-amber-500/50 px-2 py-0.5 font-bold text-amber-700 hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:text-slate-400 disabled:border-slate-200"
@@ -369,6 +377,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               )}
             </div>
           ))}
+          {translation?.error && (
+            <p role="status" className="text-xxs text-brand-red-primary">
+              {t(translation.error, { defaultValue: translation.error })}
+            </p>
+          )}
         </div>
       )}
 

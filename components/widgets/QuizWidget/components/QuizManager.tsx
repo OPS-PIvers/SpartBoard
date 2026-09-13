@@ -2133,6 +2133,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                           generating: Object.values(
                             assignTranslations.loading
                           ).some(Boolean),
+                          cap: assignTranslations.cap,
+                          error: assignTranslations.error,
                           onGenerate: (locales: string[]) => {
                             for (const locale of locales)
                               void assignTranslations.generate(locale);

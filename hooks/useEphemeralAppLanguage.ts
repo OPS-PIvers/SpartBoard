@@ -6,12 +6,10 @@
  */
 
 import { useEffect } from 'react';
-import i18n, { SUPPORTED_LANGUAGES } from '@/i18n';
+import i18n from '@/i18n';
+import { isAppLocale } from '@/utils/isAppLocale';
 
 const STORAGE_KEY = 'spart_language';
-
-const isAppLocale = (code: string | undefined): boolean =>
-  !!code && SUPPORTED_LANGUAGES.some((l) => l.code === code);
 
 function readKey(): string | null {
   try {
@@ -40,7 +38,10 @@ export function useEphemeralAppLanguage(locale: string | undefined): void {
     let cancelled = false;
     void i18n.changeLanguage(locale).finally(() => {
       restoreKey(storedBefore);
-      if (cancelled) void i18n.changeLanguage(languageBefore);
+      if (cancelled)
+        void i18n.changeLanguage(languageBefore).finally(() => {
+          restoreKey(storedBefore);
+        });
     });
     return () => {
       cancelled = true;

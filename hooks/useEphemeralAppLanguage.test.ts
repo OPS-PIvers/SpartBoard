@@ -86,4 +86,24 @@ describe('useEphemeralAppLanguage', () => {
     await Promise.resolve();
     expect(localStorage.getItem('spart_language')).toBeNull();
   });
+
+  it('restores spart_language after the cancelled-race revert', async () => {
+    localStorage.setItem('spart_language', 'de');
+    const first = deferred();
+    changeLanguage.mockImplementationOnce(() => {
+      localStorage.setItem('spart_language', 'es');
+      return first.promise;
+    });
+    changeLanguage.mockImplementation(() => {
+      localStorage.setItem('spart_language', 'en');
+      return Promise.resolve();
+    });
+    const { unmount } = renderHook(() => useEphemeralAppLanguage('es'));
+    unmount();
+    first.resolve();
+    await first.promise;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(localStorage.getItem('spart_language')).toBe('de');
+  });
 });

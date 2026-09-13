@@ -36,7 +36,9 @@ const { translationsApi } = vi.hoisted(() => ({
     save: vi.fn(),
     staleIds: () => [] as string[],
     cap: null,
-    error: null,
+    error: null as string | null,
+    loadFailed: {} as Record<string, boolean>,
+    needsLoad: vi.fn((_locale: string) => false),
   },
 }));
 
@@ -130,6 +132,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   translationsApi.byLocale = {};
   translationsApi.translatableIds = ['q1'];
+  translationsApi.loadFailed = {};
+  translationsApi.error = null;
+  translationsApi.needsLoad.mockReturnValue(false);
   canAccessFeature.mockImplementation(
     (feature: string) => feature === 'quiz-translation'
   );
@@ -236,6 +241,81 @@ describe('QuizEditorModal Languages tab — saved sidecars', () => {
     openTab('Languages');
     expect(screen.getByTestId('context-pane').textContent).toContain(
       '1 of 1 served'
+    );
+  });
+
+  it('counts an unloaded locale from the index instead of showing 0', () => {
+    translationsApi.needsLoad.mockReturnValue(true);
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={quiz}
+        metadata={metadata}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    openTab('Languages');
+    expect(screen.getByTestId('context-pane').textContent).toContain(
+      '1 of 1 served'
+    );
+  });
+
+  it('refuses Generate and explains while the sidecar is unloaded', () => {
+    translationsApi.needsLoad.mockReturnValue(true);
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={quiz}
+        metadata={metadata}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    openTab('Languages');
+    fireEvent.click(screen.getByRole('button', { name: /Español/ }));
+    const generate = screen.getByRole('button', {
+      name: 'Generate translation',
+    });
+    expect(generate).toHaveProperty('disabled', true);
+    expect(screen.getByTestId('context-pane').textContent).toContain(
+      'Loading this language'
+    );
+  });
+
+  it('retries the load when a failed chip is selected again', () => {
+    translationsApi.loadFailed = { es: true };
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={quiz}
+        metadata={metadata}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    openTab('Languages');
+    const chip = screen.getByRole('button', { name: /Español/ });
+    fireEvent.click(chip);
+    fireEvent.click(chip);
+    expect(translationsApi.load.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows the load error text', () => {
+    translationsApi.error = 'Drive is unavailable';
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={quiz}
+        metadata={metadata}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    openTab('Languages');
+    fireEvent.click(screen.getByRole('button', { name: /Español/ }));
+    expect(screen.getByTestId('context-pane').textContent).toContain(
+      'Drive is unavailable'
     );
   });
 });

@@ -2082,7 +2082,8 @@
       "disabled": {
         "capReached": "Se agotó el límite mensual de traducción de tu centro.",
         "sourceNotEnglish": "Solo se pueden traducir los cuestionarios escritos en inglés.",
-        "bankSlots": "Los cuestionarios que usan bancos de preguntas no se pueden traducir."
+        "bankSlots": "Los cuestionarios que usan bancos de preguntas no se pueden traducir.",
+        "notLoaded": "Se está cargando la traducción guardada. Inténtalo de nuevo en un momento."
       },
       "chromeNote": "Los menús siguen en inglés.",
       "empty": {
@@ -2098,6 +2099,9 @@
           "title": "Elige una pregunta",
           "body": "Selecciona una pregunta a la izquierda para ver el inglés y la traducción lado a lado."
         }
+      },
+      "error": {
+        "unloadedLocale": "La traducción guardada de este idioma aún no se ha cargado. Selecciónalo de nuevo y luego genera."
       }
     },
     "authoring": {

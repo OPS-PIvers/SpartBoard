@@ -2270,7 +2270,8 @@
       "disabled": {
         "capReached": "Your school's monthly translation limit is used up.",
         "sourceNotEnglish": "Only quizzes written in English can be translated.",
-        "bankSlots": "Quizzes that draw from question banks can't be translated."
+        "bankSlots": "Quizzes that draw from question banks can't be translated.",
+        "notLoaded": "Loading this language's saved translation. Try again in a moment."
       },
       "chromeNote": "App menus stay in English.",
       "empty": {
@@ -2286,6 +2287,9 @@
           "title": "Pick a question",
           "body": "Choose a question on the left to see English and the translation side by side."
         }
+      },
+      "error": {
+        "unloadedLocale": "This language's saved translation hasn't loaded yet. Select it again, then generate."
       }
     },
     "authoring": {
@@ -2298,7 +2302,7 @@
       "generate": "Generate",
       "advisory": {
         "missing_one": "{{name}} needs {{language}}. That translation isn't ready - they'll see English.",
-        "missing_other": "{{name}} and {{others}} others need translations that aren't ready ({{language}}) - they'll see English."
+        "missing_other": "{{name}} and {{others}} more need translations that aren't ready ({{language}}) - they'll see English."
       }
     },
     "student": {

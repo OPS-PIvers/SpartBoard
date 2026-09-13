@@ -19,6 +19,7 @@ import type { Rubric, StudentOverride } from '@/types';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { AuthContext } from '@/context/AuthContextValue';
+import { isAppLocale } from '@/utils/isAppLocale';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 
 export interface OverrideEditorQuestionOption {
@@ -324,12 +325,11 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               <p className="mt-0.5 text-xs text-slate-500">
                 {t('quizReadAloud.help', 'Signed-in students only.')}
               </p>
-              {override.language &&
-                !['en', 'es', 'de', 'fr'].includes(override.language) && (
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {t('quizTranslation.editor.chromeNote')}
-                  </p>
-                )}
+              {override.language && !isAppLocale(override.language) && (
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {t('quizTranslation.editor.chromeNote')}
+                </p>
+              )}
             </div>
           )}
 

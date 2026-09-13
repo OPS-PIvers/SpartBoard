@@ -2082,7 +2082,8 @@
       "disabled": {
         "capReached": "La limite mensuelle de traduction de votre établissement est atteinte.",
         "sourceNotEnglish": "Seuls les questionnaires rédigés en anglais peuvent être traduits.",
-        "bankSlots": "Les questionnaires qui puisent dans des banques de questions ne peuvent pas être traduits."
+        "bankSlots": "Les questionnaires qui puisent dans des banques de questions ne peuvent pas être traduits.",
+        "notLoaded": "La traduction enregistrée est en cours de chargement. Réessaie dans un instant."
       },
       "chromeNote": "Les menus restent en anglais.",
       "empty": {
@@ -2098,6 +2099,9 @@
           "title": "Choisissez une question",
           "body": "Sélectionnez une question à gauche pour voir l'anglais et la traduction côte à côte."
         }
+      },
+      "error": {
+        "unloadedLocale": "La traduction enregistrée de cette langue n'est pas encore chargée. Sélectionne-la de nouveau, puis génère."
       }
     },
     "authoring": {
@@ -2110,7 +2114,7 @@
       "generate": "Générer",
       "advisory": {
         "missing_one": "{{name}} a besoin de {{language}}. Cette traduction n'est pas prête : l'anglais sera affiché.",
-        "missing_other": "{{name}} et {{others}} autres ont besoin de traductions qui ne sont pas prêtes ({{language}}) : l'anglais sera affiché."
+        "missing_other": "{{name}} et {{others}} de plus ont besoin de traductions qui ne sont pas prêtes ({{language}}) : l'anglais sera affiché."
       }
     },
     "student": {
