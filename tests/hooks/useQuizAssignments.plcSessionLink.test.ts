@@ -54,6 +54,7 @@ vi.mock('@/hooks/useSyncedQuizGroups', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
+  isAuthBypass: false,
   auth: { currentUser: { displayName: 'Alice', email: 'alice@example.com' } },
 }));
 

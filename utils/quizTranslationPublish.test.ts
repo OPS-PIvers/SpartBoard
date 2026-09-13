@@ -144,10 +144,17 @@ describe('enforceSessionSizeBudget', () => {
     expect(session.publicQuestions[0].localized).toHaveProperty('so');
   });
 
-  it('drops the least-targeted locale first when over budget', () => {
+  it('drops the least-targeted locale first, keeping the rest', () => {
+    // Budget = exactly the size the session reaches once `so` is gone, so the
+    // loop must stop after one drop.
+    const probe = build();
+    enforceSessionSizeBudget(probe, { so: 1 }, 0);
+    const budget = new TextEncoder().encode(JSON.stringify(probe)).length;
+
     const session = build();
-    const dropped = enforceSessionSizeBudget(session, { es: 9, so: 1 }, 12_000);
-    expect(dropped[0]).toBe('so');
+    const dropped = enforceSessionSizeBudget(session, { es: 9, so: 1 }, budget);
+    expect(dropped).toEqual(['so']);
+    expect(session.publicQuestions[0].localized).toHaveProperty('es');
     expect(session.publicQuestions[0].localized).not.toHaveProperty('so');
     expect(session.quizTitleLocalized).not.toHaveProperty('so');
   });
