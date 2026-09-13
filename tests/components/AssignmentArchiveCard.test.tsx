@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { Z_INDEX } from '@/config/zIndex';
@@ -47,6 +47,10 @@ describe('AssignmentArchiveCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ResizeObserverSpy.instances.length = 0;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('renders with emerald styling in active mode for success tone', () => {
@@ -179,7 +183,6 @@ describe('AssignmentArchiveCard', () => {
     });
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    vi.unstubAllGlobals();
   });
 
   it('styles destructive actions with destructive classes', () => {

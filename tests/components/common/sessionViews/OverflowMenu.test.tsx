@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
 
@@ -15,6 +15,10 @@ class ResizeObserverSpy {
 }
 
 describe('OverflowMenu', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('opens on click and shows items', () => {
     render(<OverflowMenu items={[{ label: 'Export', onClick: vi.fn() }]} />);
     expect(screen.queryByRole('menu')).toBeNull();
@@ -131,7 +135,6 @@ describe('OverflowMenu', () => {
     });
 
     expect(screen.queryByRole('menu')).toBeNull();
-    vi.unstubAllGlobals();
   });
 
   it('renders a spinner for a loading item', () => {
