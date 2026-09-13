@@ -55,20 +55,16 @@ export function isNonEnglishQuizSource(language: string | undefined): boolean {
 }
 
 /**
- * Locales this edit introduces that the live session was never published with
- * (§10 last paragraph). Re-projection on edit is v2, so the student sees
- * English until the teacher re-publishes.
+ * Locales this edit introduces that the live session does not actually serve
+ * (§10 last paragraph). The baseline is the session's own served-locale set —
+ * re-projection on edit is v2, so the student sees English until re-publish.
  */
 export function newlyRequestedLocales(
-  previousOverrides: Record<string, { language?: string }>,
+  servedLocales: Iterable<string>,
   nextOverrides: Record<string, { language?: string }>,
   nameByKey?: Record<string, string>
 ): UncoveredLocale[] {
-  const published = new Set(
-    Object.values(previousOverrides)
-      .map((o) => o.language)
-      .filter((code): code is string => !!code)
-  );
+  const published = new Set(servedLocales);
   const byLocale = new Map<string, string[]>();
   for (const [key, override] of Object.entries(nextOverrides)) {
     const locale = override.language;

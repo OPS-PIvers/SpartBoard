@@ -134,6 +134,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
+import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
@@ -792,6 +793,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [assignQuizData]
   );
   const { rubrics: assignRubrics } = useRubrics(userId);
+  const { canAccessFeature } = useAuth();
+  const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
   // §10 assign advisory: coverage comes from the in-memory index; Generate reuses the editor hook.
   const assignTranslations = useQuizTranslations(assignQuizData, assignTarget);
 
@@ -2120,18 +2123,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 quizContext={{
                   questions: toOverrideEditorQuestions(assignQuizData),
                   rubrics: assignRubrics,
-                  translation: {
-                    index: assignTarget?.translations,
-                    hasBankSlots: (assignQuizData?.bankSlots?.length ?? 0) > 0,
-                    sourceLanguage: assignTarget?.language,
-                    generating: Object.values(assignTranslations.loading).some(
-                      Boolean
-                    ),
-                    onGenerate: (locales) => {
-                      for (const locale of locales)
-                        void assignTranslations.generate(locale);
-                    },
-                  },
+                  ...(translationAllowed
+                    ? {
+                        translation: {
+                          index: assignTarget?.translations,
+                          hasBankSlots:
+                            (assignQuizData?.bankSlots?.length ?? 0) > 0,
+                          sourceLanguage: assignTarget?.language,
+                          generating: Object.values(
+                            assignTranslations.loading
+                          ).some(Boolean),
+                          onGenerate: (locales: string[]) => {
+                            for (const locale of locales)
+                              void assignTranslations.generate(locale);
+                          },
+                        },
+                      }
+                    : {}),
                 }}
                 onExpand={handleExpandIndividualTargeting}
               />

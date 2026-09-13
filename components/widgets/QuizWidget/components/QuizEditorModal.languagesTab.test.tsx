@@ -24,19 +24,24 @@ vi.mock('@/context/useAuth', () => ({
   })),
 }));
 
-vi.mock('@/hooks/useQuizTranslations', () => ({
-  useQuizTranslations: () => ({
-    byLocale: {},
-    loading: {},
+const { translationsApi } = vi.hoisted(() => ({
+  translationsApi: {
+    translatableIds: ['q1'],
+    byLocale: {} as Record<string, unknown>,
+    loading: {} as Record<string, boolean>,
     load: vi.fn(),
     generate: vi.fn(),
     editQuestion: vi.fn(),
     setReviewed: vi.fn(),
     save: vi.fn(),
-    staleIds: () => [],
+    staleIds: () => [] as string[],
     cap: null,
     error: null,
-  }),
+  },
+}));
+
+vi.mock('@/hooks/useQuizTranslations', () => ({
+  useQuizTranslations: () => translationsApi,
 }));
 
 vi.mock('@/context/useDialog', () => ({
@@ -123,6 +128,8 @@ const openTab = (label: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  translationsApi.byLocale = {};
+  translationsApi.translatableIds = ['q1'];
   canAccessFeature.mockImplementation(
     (feature: string) => feature === 'quiz-translation'
   );
@@ -175,6 +182,60 @@ describe('QuizEditorModal Languages tab', () => {
     openTab('Languages');
     expect(screen.getByTestId('detail-pane').textContent).not.toContain(
       'No language chosen'
+    );
+  });
+});
+
+describe('QuizEditorModal Languages tab — saved sidecars', () => {
+  const metadata = {
+    id: 'quiz-1',
+    title: 'Test quiz',
+    driveFileId: 'drive-1',
+    questionCount: 1,
+    updatedAt: 1,
+    translations: {
+      es: {
+        driveFileId: 'file-es',
+        reviewedCount: 1,
+        staleCount: 0,
+        questionCount: 1,
+        sourceHashes: {},
+        updatedAt: 1,
+      },
+    },
+  } as unknown as import('@/types').QuizMetadata;
+
+  it('loads the saved sidecar when its language chip is selected', () => {
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={quiz}
+        metadata={metadata}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    openTab('Languages');
+    fireEvent.click(screen.getByRole('button', { name: /Español/ }));
+    expect(translationsApi.load).toHaveBeenCalledWith('es');
+  });
+
+  it('renders the reviewed count from the loaded sidecar', () => {
+    translationsApi.byLocale = {
+      es: { reviewedQuestionIds: ['q1'], questions: { q1: { text: 'x' } } },
+    };
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={quiz}
+        metadata={metadata}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    openTab('Languages');
+    expect(screen.getByTestId('context-pane').textContent).toContain(
+      '1 of 1 served'
     );
   });
 });

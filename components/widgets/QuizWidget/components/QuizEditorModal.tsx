@@ -586,6 +586,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           ) : activeTab === 'languages' ? (
             <QuizLanguagesContextPane
               quiz={quiz}
+              metadata={metadata ?? null}
               api={translations}
               selectedLocale={selectedLocale}
               onSelectLocale={setSelectedLocale}

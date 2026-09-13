@@ -2110,7 +2110,7 @@
       "generate": "Générer",
       "advisory": {
         "missing_one": "{{name}} a besoin de {{language}}. Cette traduction n'est pas prête : l'anglais sera affiché.",
-        "missing_other": "{{name}} et {{count}} autres ont besoin de traductions qui ne sont pas prêtes ({{language}}) : l'anglais sera affiché."
+        "missing_other": "{{name}} et {{others}} autres ont besoin de traductions qui ne sont pas prêtes ({{language}}) : l'anglais sera affiché."
       }
     },
     "student": {

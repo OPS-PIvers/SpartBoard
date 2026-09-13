@@ -347,6 +347,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               <span className="flex-1">
                 {t('quizTranslation.assign.advisory.missing', {
                   count: entry.names.length,
+                  others: entry.names.length - 1,
                   name: entry.names[0],
                   language: languageNativeLabel(entry.locale),
                 })}

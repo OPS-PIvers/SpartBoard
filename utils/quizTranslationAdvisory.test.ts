@@ -82,19 +82,25 @@ describe('newlyRequestedLocales', () => {
   it('flags a language this edit introduces', () => {
     expect(
       newlyRequestedLocales(
-        { a: { language: 'es' } },
+        ['es'],
         { a: { language: 'es' }, b: { language: 'so' } },
         { b: 'Bilan' }
       )
     ).toEqual([{ locale: 'so', names: ['Bilan'] }]);
   });
 
+  it('falls back to the override key when no name is known', () => {
+    expect(
+      newlyRequestedLocales([], { 'classlink:42': { language: 'es' } })
+    ).toEqual([{ locale: 'es', names: ['classlink:42'] }]);
+  });
+
   it('stays silent when the language was already published', () => {
     expect(
-      newlyRequestedLocales(
-        { a: { language: 'es' } },
-        { a: { language: 'es' }, b: { language: 'es' } }
-      )
+      newlyRequestedLocales(['es'], {
+        a: { language: 'es' },
+        b: { language: 'es' },
+      })
     ).toEqual([]);
   });
 });

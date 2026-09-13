@@ -49,6 +49,9 @@ function quizGradeFnWithManualGrades(
   return response ? applyMediaSlots(question, response, base) : base;
 }
 
+/** A stalled Drive GET must never hold a publish open (§4.2). */
+const TRANSLATION_FETCH_TIMEOUT_MS = 15000;
+
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
@@ -417,9 +420,24 @@ export class QuizDriveService {
 
   /** Load one language's translation payload from its Drive sidecar. */
   async loadTranslation(fileId: string): Promise<QuizTranslation> {
-    const res = await fetch(`${DRIVE_API_URL}/files/${fileId}?alt=media`, {
-      headers: this.authHeaders,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      TRANSLATION_FETCH_TIMEOUT_MS
+    );
+    let res: Response;
+    try {
+      res = await fetch(`${DRIVE_API_URL}/files/${fileId}?alt=media`, {
+        headers: this.authHeaders,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError')
+        throw new Error('Translation download from Drive timed out');
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) {
       if (res.status === 404)
         throw new Error('Translation file not found in Drive');

@@ -9,6 +9,7 @@ import type {
   QuizPublicQuestion,
   StudentOverride,
 } from '@/types';
+import { isTranslatableQuestionType } from '@/config/quizTranslation';
 import { reindexChoiceArray } from './quizLocalizedArrays';
 
 /**
@@ -48,16 +49,31 @@ export function applyHiddenOptions(
   return reindexChoiceArray(question, 'choices', kept);
 }
 
+const LOCALIZED_ARRAY_FIELDS = [
+  'choices',
+  'matchingLeft',
+  'matchingRight',
+  'orderingItems',
+] as const;
+
 /**
- * The active locale's display strings for a question, or `null` to render
- * English. A pure presence check: staleness and review are gated at publish.
+ * The active locale's display strings, or `null` to render English. Staleness
+ * and review are gated at publish; this rejects what would render half-English.
  */
 export function serveLocalizedQuestion(
   q: QuizPublicQuestion,
   locale: string | undefined
 ): LocalizedQuestionStrings | null {
   if (!locale) return null;
-  return q.localized?.[locale] ?? null;
+  // D21: FIB stems are never translated, so a stray entry must not be served.
+  if (!isTranslatableQuestionType(q.type)) return null;
+  const entry = q.localized?.[locale];
+  if (!entry) return null;
+  // Whole-question fallback (§4.6): a translated stem over English options is worse than English.
+  for (const field of LOCALIZED_ARRAY_FIELDS) {
+    if (q[field]?.length && !entry[field]?.length) return null;
+  }
+  return entry;
 }
 
 /**

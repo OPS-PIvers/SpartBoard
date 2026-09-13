@@ -10,6 +10,7 @@ import type {
   QuizTranslationIndexEntry,
   StudentOverride,
 } from '@/types';
+import { isTranslatableQuestionType } from '@/config/quizTranslation';
 import { hashQuestionForTranslation } from './quizTranslationHash';
 
 /** Serialized-UTF-8 ceiling; Firestore's hard limit is 1 MiB. */
@@ -40,6 +41,28 @@ export function targetedLocaleCounts(
   return counts;
 }
 
+/** A stalled sidecar load must never block a publish (§4.2). */
+export const TRANSLATION_LOAD_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('Translation sidecar load timed out')),
+      ms
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    );
+  });
+}
+
 export interface TranslationLoader {
   loadTranslation(fileId: string): Promise<QuizTranslation>;
 }
@@ -52,18 +75,30 @@ export async function loadTranslationsForPublish(
   loader: TranslationLoader | null,
   index: Record<string, QuizTranslationIndexEntry> | undefined,
   locales: string[],
-  questions: QuizQuestion[]
+  questions: QuizQuestion[],
+  timeoutMs: number = TRANSLATION_LOAD_TIMEOUT_MS
 ): Promise<PublishTranslations> {
   const wanted = locales.filter((code) => !!index?.[code]?.driveFileId);
   if (!loader || wanted.length === 0) return EMPTY;
 
   const results = await Promise.allSettled(
-    wanted.map((code) => loader.loadTranslation(index![code].driveFileId))
+    wanted.map((code) => {
+      const entry = index?.[code];
+      if (!entry?.driveFileId)
+        return Promise.reject(new Error(`No sidecar for ${code}`));
+      return withTimeout(loader.loadTranslation(entry.driveFileId), timeoutMs);
+    })
   );
 
-  const liveHashes = new Map<string, string>();
-  for (const q of questions)
-    liveHashes.set(q.id, await hashQuestionForTranslation(q));
+  const hashable = questions.filter((q) => isTranslatableQuestionType(q.type));
+  const liveHashes = new Map<string, string>(
+    await Promise.all(
+      hashable.map(
+        async (q) =>
+          [q.id, await hashQuestionForTranslation(q)] as [string, string]
+      )
+    )
+  );
 
   const out: PublishTranslations = {
     byLocale: {},
@@ -82,12 +117,19 @@ export async function loadTranslationsForPublish(
     const payload = result.value;
     const fresh = new Set<string>();
     for (const q of questions) {
+      // D21: FIB never serves a translation, so it never counts as fresh.
+      if (!isTranslatableQuestionType(q.type)) continue;
       if (payload.sourceHashes?.[q.id] === liveHashes.get(q.id))
         fresh.add(q.id);
     }
     out.byLocale[code] = payload;
     out.freshQuestionIdsByLocale[code] = fresh;
-    if (payload.title) out.titleByLocale[code] = payload.title;
+    // The sidecar title rides the same review gate as the questions (§4.2).
+    const servesAnything = payload.reviewedQuestionIds.some((id) =>
+      fresh.has(id)
+    );
+    if (payload.title && servesAnything)
+      out.titleByLocale[code] = payload.title;
   });
   return out;
 }
@@ -128,11 +170,18 @@ export function enforceSessionSizeBudget<
   budget: number = SESSION_DOC_BYTE_BUDGET
 ): string[] {
   const dropped: string[] = [];
-  const order = Object.keys(targetedCountByLocale).sort(
-    (a, b) =>
-      (targetedCountByLocale[a] ?? 0) - (targetedCountByLocale[b] ?? 0) ||
-      a.localeCompare(b)
-  );
+  const present = new Set<string>();
+  for (const q of session.publicQuestions)
+    for (const code of Object.keys(q.localized ?? {})) present.add(code);
+  for (const code of Object.keys(session.quizTitleLocalized ?? {}))
+    present.add(code);
+  const order = Object.keys(targetedCountByLocale)
+    .filter((code) => present.has(code))
+    .sort(
+      (a, b) =>
+        (targetedCountByLocale[a] ?? 0) - (targetedCountByLocale[b] ?? 0) ||
+        a.localeCompare(b)
+    );
   for (const locale of order) {
     if (byteLength(session) <= budget) break;
     stripLocale(session, locale);

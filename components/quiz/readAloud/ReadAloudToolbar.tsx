@@ -92,7 +92,7 @@ export const ReadAloudControls: React.FC<{
       {message && (
         <p
           role="status"
-          className="w-full text-xs font-medium text-brand-red-primary"
+          className="w-full px-4 pb-2 text-xs font-medium text-brand-red-primary"
         >
           {message}
         </p>

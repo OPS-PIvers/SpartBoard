@@ -171,18 +171,6 @@ export const AssignmentDetailPane: React.FC<{
   };
 
   // Schoology sections ride the session's `classIds` as `schoology:<contextId>`.
-  // A language this edit introduces was never projected onto the live session (§10).
-  const postPublishLocales = useMemo(
-    () =>
-      row.kind === 'quiz'
-        ? newlyRequestedLocales(
-            assignmentRowToTargetingValue(row).overridesByKey,
-            draft.overridesByKey
-          )
-        : [],
-    [row, draft.overridesByKey]
-  );
-
   const schoologyClassIds = useMemo(
     () => (row.classIds ?? []).filter((id) => id.startsWith(SCHOOLOGY_PREFIX)),
     [row.classIds]
@@ -297,27 +285,55 @@ export const AssignmentDetailPane: React.FC<{
     ]
   );
 
+  const nameByKey = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of rosterRows) map[r.key] = r.displayName;
+    return map;
+  }, [rosterRows]);
+
   // Read-aloud manifest status (plan §6.1): only subscribed for quiz rows with the flag on.
   const readAloudAvailable =
     row.kind === 'quiz' && canAccessFeature('quiz-read-aloud');
   const [readAloudStatus, setReadAloudStatus] = useState<
     QuizReadAloudManifest['status'] | null
   >(null);
+  // Locales the live session actually serves — the §10 advisory's baseline.
+  const [servedLocales, setServedLocales] = useState<string[] | null>(null);
+  const isQuizRow = row.kind === 'quiz';
   useEffect(() => {
-    if (!readAloudAvailable) return;
+    if (!isQuizRow) return;
     return onSnapshot(
       doc(db, 'quiz_sessions', row.sessionId),
       (snap) => {
-        const manifest = snap.data()?.readAloud as
-          | QuizReadAloudManifest
-          | undefined;
+        const data = snap.data();
+        const manifest = data?.readAloud as QuizReadAloudManifest | undefined;
         setReadAloudStatus(manifest?.status ?? null);
+        const questions = (data?.publicQuestions ?? []) as {
+          localized?: Record<string, unknown>;
+        }[];
+        const codes = new Set<string>();
+        for (const q of questions)
+          for (const code of Object.keys(q.localized ?? {})) codes.add(code);
+        setServedLocales([...codes]);
       },
-      () => setReadAloudStatus(null)
+      () => {
+        setReadAloudStatus(null);
+        setServedLocales(null);
+      }
     );
-  }, [readAloudAvailable, row.sessionId]);
-  const readAloudLine =
-    readAloudStatus === 'preparing'
+  }, [isQuizRow, row.sessionId]);
+  // A language this edit introduces that the live session does not serve (§10).
+  const postPublishLocales = useMemo(
+    () =>
+      row.kind === 'quiz' && servedLocales
+        ? newlyRequestedLocales(servedLocales, draft.overridesByKey, nameByKey)
+        : [],
+    [row.kind, servedLocales, draft.overridesByKey, nameByKey]
+  );
+
+  const readAloudLine = !readAloudAvailable
+    ? null
+    : readAloudStatus === 'preparing'
       ? t('quizReadAloud.preparing', 'Preparing read-aloud…')
       : readAloudStatus === 'partial' || readAloudStatus === 'failed'
         ? t('quizReadAloud.partial', 'Some audio will load on demand.')
@@ -507,6 +523,7 @@ export const AssignmentDetailPane: React.FC<{
               >
                 {t('quizTranslation.assign.advisory.missing', {
                   count: entry.names.length,
+                  others: entry.names.length - 1,
                   name: entry.names[0],
                   language: languageNativeLabel(entry.locale),
                 })}

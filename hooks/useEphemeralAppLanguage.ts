@@ -36,13 +36,17 @@ export function useEphemeralAppLanguage(locale: string | undefined): void {
     if (!isAppLocale(locale) || i18n.language === locale) return;
     const storedBefore = readKey();
     const languageBefore = i18n.language;
-    void i18n.changeLanguage(locale).finally(() => restoreKey(storedBefore));
-    restoreKey(storedBefore);
+    // An unmount mid-switch must not let the in-flight change win the revert.
+    let cancelled = false;
+    void i18n.changeLanguage(locale).finally(() => {
+      restoreKey(storedBefore);
+      if (cancelled) void i18n.changeLanguage(languageBefore);
+    });
     return () => {
+      cancelled = true;
       void i18n
         .changeLanguage(languageBefore)
         .finally(() => restoreKey(storedBefore));
-      restoreKey(storedBefore);
     };
   }, [locale]);
 }

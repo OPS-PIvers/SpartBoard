@@ -2298,7 +2298,7 @@
       "generate": "Generate",
       "advisory": {
         "missing_one": "{{name}} needs {{language}}. That translation isn't ready - they'll see English.",
-        "missing_other": "{{name}} and {{count}} others need translations that aren't ready ({{language}}) - they'll see English."
+        "missing_other": "{{name}} and {{others}} others need translations that aren't ready ({{language}}) - they'll see English."
       }
     },
     "student": {

@@ -1,8 +1,7 @@
 /**
  * Display-only overlay of a locale's strings onto a public question (§4.6).
- * The English arrays stay on the returned object so `toCanonicalAnswer` and
- * grading keep working; only the rendered strings change, and only when the
- * locale array is lockstep with its English sibling.
+ * Returns a render-only clone whose arrays ARE the localized ones — never pass
+ * it to `toDisplayAnswer`/`toCanonicalAnswer`, which need the English question.
  */
 
 import type { LocalizedQuestionStrings, QuizPublicQuestion } from '@/types';
@@ -43,4 +42,13 @@ export function applyLocalizedStrings(
   if (strings.rubricSnapshot && q.rubricSnapshot)
     next.rubricSnapshot = strings.rubricSnapshot;
   return next;
+}
+
+/** The session title in the student's locale, falling back to English (§4.2). */
+export function localizedQuizTitle(
+  session: { quizTitle: string; quizTitleLocalized?: Record<string, string> },
+  locale: string | undefined
+): string {
+  if (!locale) return session.quizTitle;
+  return session.quizTitleLocalized?.[locale] ?? session.quizTitle;
 }

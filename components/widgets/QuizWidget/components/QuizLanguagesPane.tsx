@@ -3,16 +3,18 @@
  * question, mark reviewed. Only reviewed + hash-fresh questions ever publish.
  */
 
-import React from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Languages, Loader2 } from 'lucide-react';
-import type { QuestionTranslation, QuizData } from '@/types';
+import type { QuestionTranslation, QuizData, QuizMetadata } from '@/types';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
+import { isNonEnglishSource } from '@/utils/quizTranslationSource';
 import type { UseQuizTranslations } from '@/hooks/useQuizTranslations';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 
 export interface QuizLanguagesPaneProps {
   quiz: QuizData;
+  metadata?: QuizMetadata | null;
   api: UseQuizTranslations;
   selectedLocale: string | null;
   onSelectLocale: (locale: string) => void;
@@ -32,14 +34,9 @@ const EmptyState: React.FC<{ title: string; body: string }> = ({
   </div>
 );
 
-/** Non-English source (D17) blocks generation before the callable is reached. */
-export function isNonEnglishSource(quiz: QuizData): boolean {
-  const lang = quiz.language?.trim().toLowerCase();
-  return !!lang && !lang.startsWith('en');
-}
-
 export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
   quiz,
+  metadata,
   api,
   selectedLocale,
   onSelectLocale,
@@ -48,6 +45,22 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
 }) => {
   const { t } = useTranslation();
   const payload = selectedLocale ? api.byLocale[selectedLocale] : undefined;
+  const translatableSet = useMemo(
+    () => new Set(api.translatableIds),
+    [api.translatableIds]
+  );
+  // D21: FIB rows are not translated, so they never appear in the review list.
+  const rows = quiz.questions.filter((q) => translatableSet.has(q.id));
+  const requested = useRef<Set<string>>(new Set());
+  // Rehydrate a saved sidecar from Drive the first time its chip is selected.
+  useEffect(() => {
+    if (!selectedLocale) return;
+    if (!metadata?.translations?.[selectedLocale]?.driveFileId) return;
+    if (api.byLocale[selectedLocale]) return;
+    if (requested.current.has(selectedLocale)) return;
+    requested.current.add(selectedLocale);
+    void api.load(selectedLocale);
+  }, [api, metadata, selectedLocale]);
   const stale = selectedLocale ? api.staleIds(selectedLocale) : [];
   const staleSet = new Set(stale);
   const busy = selectedLocale ? api.loading[selectedLocale] === true : false;
@@ -65,8 +78,9 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
     const entry = api.byLocale[locale];
     if (!entry) return 0;
     const localeStale = new Set(api.staleIds(locale));
-    return entry.reviewedQuestionIds.filter((id) => !localeStale.has(id))
-      .length;
+    return entry.reviewedQuestionIds.filter(
+      (id) => translatableSet.has(id) && !localeStale.has(id)
+    ).length;
   };
 
   return (
@@ -103,7 +117,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                   >
                     {t('quizTranslation.editor.servedCount', {
                       reviewed: servedCount(language.code),
-                      total: quiz.questions.length,
+                      total: rows.length,
                       language: language.nativeLabel,
                     })}
                   </span>
@@ -167,9 +181,9 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
       </div>
 
       <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-4">
-        {payload ? (
+        {payload && selectedLocale ? (
           <ul className="space-y-1.5">
-            {quiz.questions.map((question, index) => {
+            {rows.map((question, index) => {
               const reviewed = payload.reviewedQuestionIds.includes(
                 question.id
               );
@@ -190,7 +204,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                       aria-label={t('quizTranslation.editor.reviewed')}
                       onChange={(e) =>
                         api.setReviewed(
-                          selectedLocale!,
+                          selectedLocale,
                           question.id,
                           e.target.checked
                         )

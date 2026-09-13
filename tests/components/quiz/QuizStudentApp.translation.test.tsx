@@ -17,33 +17,40 @@ import type {
   StudentOverride,
 } from '@/types';
 
-const { mockAuth, mockJoinQuizSession, hookState, pointerState, mockSubmit } =
-  vi.hoisted(() => {
-    type MockUser = {
-      uid: string;
-      isAnonymous: boolean;
-      getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>;
-    };
-    const state: {
-      session: import('@/types').QuizSession | null;
-      myResponse: import('@/types').QuizResponse | null;
-    } = { session: null, myResponse: null };
-    return {
-      mockAuth: {
-        onAuthStateChanged: vi.fn(),
-        signInWithPopup: vi.fn(),
-        signOut: vi.fn(),
-        authStateReady: vi.fn().mockResolvedValue(undefined),
-        currentUser: null as MockUser | null,
-      },
-      mockJoinQuizSession: vi.fn(),
-      hookState: state,
-      pointerState: {
-        current: null as StudentAssignmentPointer | null | undefined,
-      },
-      mockSubmit: vi.fn(),
-    };
-  });
+const {
+  mockAuth,
+  mockJoinQuizSession,
+  hookState,
+  pointerState,
+  mockSubmit,
+  mockCommitRecording,
+} = vi.hoisted(() => {
+  type MockUser = {
+    uid: string;
+    isAnonymous: boolean;
+    getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>;
+  };
+  const state: {
+    session: import('@/types').QuizSession | null;
+    myResponse: import('@/types').QuizResponse | null;
+  } = { session: null, myResponse: null };
+  return {
+    mockAuth: {
+      onAuthStateChanged: vi.fn(),
+      signInWithPopup: vi.fn(),
+      signOut: vi.fn(),
+      authStateReady: vi.fn().mockResolvedValue(undefined),
+      currentUser: null as MockUser | null,
+    },
+    mockJoinQuizSession: vi.fn(),
+    hookState: state,
+    pointerState: {
+      current: null as StudentAssignmentPointer | null | undefined,
+    },
+    mockSubmit: vi.fn(),
+    mockCommitRecording: vi.fn(),
+  };
+});
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: () => pointerState.current,
@@ -66,8 +73,35 @@ vi.mock('firebase/auth', () => ({
   onAuthStateChanged: vi.fn(() => () => undefined),
 }));
 
+vi.mock('@/components/quiz/recording/AudioResponseCapture', () => ({
+  AudioResponseCapture: (props: {
+    onCommit: (take: {
+      blob: Blob;
+      mimeType: string;
+      durationMs: number;
+    }) => Promise<void>;
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        void props.onCommit({
+          blob: new Blob(['x']),
+          mimeType: 'audio/webm',
+          durationMs: 1000,
+        })
+      }
+    >
+      commit-take
+    </button>
+  ),
+}));
+
 vi.mock('@/hooks/useQuizSession', () => ({
   useQuizSessionStudent: () => ({
+    commitRecordingTake: mockCommitRecording,
+    setArtifactUploadState: vi.fn(),
+    markUnresponded: vi.fn(),
+    acknowledgeRecordingNotice: vi.fn(),
     session: hookState.session,
     myResponse: hookState.myResponse,
     loading: false,
@@ -85,6 +119,27 @@ vi.mock('@/hooks/useQuizSession', () => ({
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
+
+type SubmitCall = [
+  string,
+  string,
+  (number | undefined)?,
+  ({ locale?: string } | undefined)?,
+];
+
+/** Last `commitRecordingTake` input, typed — the mock's tuple is untyped. */
+function lastCommit(): { questionId: string; locale?: string } {
+  const call = mockCommitRecording.mock.calls.at(-1);
+  if (!call) throw new Error('commitRecordingTake was never called');
+  return call[0] as { questionId: string; locale?: string };
+}
+
+/** Last `submitAnswer` call, typed — the mock's tuple is untyped. */
+function lastSubmit(): SubmitCall {
+  const call = mockSubmit.mock.calls.at(-1);
+  if (!call) throw new Error('submitAnswer was never called');
+  return call as SubmitCall;
+}
 
 // D28 switches the shell to Spanish for an `es` student, so the chrome is Spanish.
 const ENGLISH_LABEL = /^(English|Inglés)$/;
@@ -177,6 +232,7 @@ beforeEach(() => {
   mockAuth.currentUser = mintUser('sso-uid-1');
   mockJoinQuizSession.mockResolvedValue('session-1');
   mockSubmit.mockResolvedValue(undefined);
+  mockCommitRecording.mockResolvedValue(null);
   window.history.replaceState({}, '', '/quiz?code=ABC123');
   localStorage.clear();
 });
@@ -248,7 +304,7 @@ describe('QuizStudentApp — translation serving', () => {
 
     await user.click(screen.getByText('París'));
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
-    const [, answer, , opts] = mockSubmit.mock.calls.at(-1)!;
+    const [, answer, , opts] = lastSubmit();
     expect(answer).toBe('Paris');
     expect(opts?.locale).toBe('es');
   });
@@ -266,7 +322,7 @@ describe('QuizStudentApp — translation serving', () => {
     await user.click(screen.getByText('London'));
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
 
-    const [, answer, , opts] = mockSubmit.mock.calls.at(-1)!;
+    const [, answer, , opts] = lastSubmit();
     expect(answer).toBe('London');
     expect(opts?.locale).toBeUndefined();
   });
@@ -278,7 +334,7 @@ describe('QuizStudentApp — translation serving', () => {
     await waitFor(() => expect(screen.getByText('París')).toBeInTheDocument());
     await user.click(screen.getByText('París'));
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
-    const [, answer] = mockSubmit.mock.calls.at(-1)!;
+    const [, answer] = lastSubmit();
     expect(answer).toBe('Paris');
 
     await user.click(englishToggle());
@@ -345,7 +401,7 @@ describe('QuizStudentApp — Matching placements across a locale toggle', () => 
     );
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
     // The English canonical pair is what reaches Firestore.
-    const [, answer] = mockSubmit.mock.calls.at(-1)!;
+    const [, answer] = lastSubmit();
     expect(answer).toContain('France:Paris');
 
     await user.click(englishToggle());
@@ -390,5 +446,109 @@ describe('QuizStudentApp — read-aloud x translation (D25)', () => {
         screen.getByRole('button', { name: READ_QUESTION })
       ).toBeInTheDocument()
     );
+  });
+});
+
+describe('QuizStudentApp — FIB is never translated (D21)', () => {
+  const FIB: QuizPublicQuestion = {
+    id: 'qf',
+    type: 'FIB',
+    text: 'The capital of France is ___.',
+    timeLimit: 0,
+    localized: { es: { text: 'La capital de Francia es ___.' } },
+  };
+
+  it('renders the English stem with no toggle', async () => {
+    hookState.session = buildSession({
+      publicQuestions: [FIB],
+      totalQuestions: 1,
+    });
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(
+        screen.getByText('The capital of France is ___.')
+      ).toBeInTheDocument()
+    );
+    expect(
+      screen.queryByText('La capital de Francia es ___.')
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: ENGLISH_LABEL })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('QuizStudentApp — localized quiz title', () => {
+  it('shows the localized title in the waiting room', async () => {
+    hookState.session = buildSession({
+      status: 'waiting',
+      quizTitleLocalized: { es: 'Examen de prueba' },
+    });
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('Examen de prueba')).toBeInTheDocument()
+    );
+    expect(screen.queryByText('Test quiz')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the English title when the locale has none', async () => {
+    hookState.session = buildSession({ status: 'waiting' });
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('Test quiz')).toBeInTheDocument()
+    );
+  });
+});
+
+describe('QuizStudentApp — recording takes carry the rendering locale', () => {
+  const SPOKEN: QuizPublicQuestion = {
+    id: 'qr',
+    type: 'free-response',
+    text: 'Describe Paris.',
+    timeLimit: 0,
+    recording: {
+      prepSeconds: 0,
+      limitSeconds: 60,
+      prepExpiry: 'auto-start',
+      takeLimit: 3,
+    },
+    localized: { es: { text: 'Describe París.' } },
+  } as QuizPublicQuestion;
+
+  beforeEach(() => {
+    hookState.session = buildSession({
+      publicQuestions: [SPOKEN],
+      totalQuestions: 1,
+      mediaResponseEnabled: true,
+    });
+    hookState.myResponse = buildResponse({ _responseKey: 'resp-1' });
+  });
+
+  it('stamps `locale` on a take committed from the localized rendering', async () => {
+    const user = userEvent.setup();
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('Describe París.')).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole('button', { name: 'commit-take' }));
+    await waitFor(() => expect(mockCommitRecording).toHaveBeenCalled());
+    expect(lastCommit()).toMatchObject({ questionId: 'qr', locale: 'es' });
+  });
+
+  it('omits `locale` once the student toggles to English', async () => {
+    const user = userEvent.setup();
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('Describe París.')).toBeInTheDocument()
+    );
+    await user.click(englishToggle());
+    await user.click(screen.getByRole('button', { name: 'commit-take' }));
+    await waitFor(() => expect(mockCommitRecording).toHaveBeenCalled());
+    expect(lastCommit()).not.toHaveProperty('locale');
   });
 });

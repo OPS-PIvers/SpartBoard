@@ -1170,7 +1170,7 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId, projectPublicQuestionForMode]
+    [userId, projectPublicQuestionForMode, translationLoader]
   );
 
   const setStatus = useCallback(

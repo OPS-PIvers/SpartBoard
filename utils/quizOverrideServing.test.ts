@@ -99,4 +99,46 @@ describe('serveLocalizedQuestion', () => {
       localized.es
     );
   });
+
+  it('never serves a FIB stem (D21)', () => {
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a'), type: 'FIB', localized } as QuizPublicQuestion,
+        'es'
+      )
+    ).toBeNull();
+  });
+
+  it('falls back to English when the locale entry is missing the choices', () => {
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a', ['Paris', 'London']), localized },
+        'es'
+      )
+    ).toBeNull();
+  });
+
+  it('serves a locale entry whose arrays are complete', () => {
+    const entry = { text: '¿Capital?', choices: ['París', 'Londres'] };
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a', ['Paris', 'London']), localized: { es: entry } },
+        'es'
+      )
+    ).toEqual(entry);
+  });
+
+  it('falls back when an ordering question has no localized items', () => {
+    expect(
+      serveLocalizedQuestion(
+        {
+          ...q('a'),
+          type: 'Ordering',
+          orderingItems: ['one', 'two'],
+          localized,
+        } as QuizPublicQuestion,
+        'es'
+      )
+    ).toBeNull();
+  });
 });

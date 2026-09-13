@@ -904,6 +904,7 @@ export function usePlcQuizActions(
         isOpen={editing !== null}
         quiz={editing?.quiz ?? null}
         behavior={editing ? getQuizBehavior(editing.meta) : undefined}
+        metadata={editing?.meta ?? null}
         onClose={() => setEditing(null)}
         onSave={handleSaveEdit}
       />

@@ -136,7 +136,10 @@ import {
   applyTimeMultiplier,
   serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
-import { applyLocalizedStrings } from '@/utils/quizLocalizedDisplay';
+import {
+  applyLocalizedStrings,
+  localizedQuizTitle,
+} from '@/utils/quizLocalizedDisplay';
 import { useEphemeralAppLanguage } from '@/hooks/useEphemeralAppLanguage';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import {
@@ -815,7 +818,7 @@ const QuizJoinFlow: React.FC<{
   );
 
   const handleCommitRecording = useCallback(
-    async (questionId: string, take: AudioTake) => {
+    async (questionId: string, take: AudioTake, locale?: string) => {
       if (isViewOnly) return;
       const sessionId = session?.id;
       const studentUid = authedUid;
@@ -845,6 +848,7 @@ const QuizJoinFlow: React.FC<{
         questionId,
         artifact,
         noticeAckedAt: noticeAckedAt ?? undefined,
+        ...(locale ? { locale } : {}),
       });
       // null means the commit was declined (closed slot, or the response doc
       // no longer exists) — never upload an artifact no answers row references.
@@ -1130,6 +1134,7 @@ const QuizJoinFlow: React.FC<{
         session={session}
         pin={pin}
         totalQuestions={servedTotalQuestions}
+        locale={myOverride?.language}
       />
     );
   }
@@ -1307,12 +1312,16 @@ const WaitingRoom: React.FC<{
   pin: string;
   /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
   totalQuestions?: number;
-}> = ({ session, pin, totalQuestions }) => (
+  /** This student's assigned locale, when the session serves one. */
+  locale?: string;
+}> = ({ session, pin, totalQuestions, locale }) => (
   <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
     <div className="w-16 h-16 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
       <ClipboardList className="w-8 h-8 text-violet-400" />
     </div>
-    <h1 className="text-2xl font-black text-white mb-2">{session.quizTitle}</h1>
+    <h1 className="text-2xl font-black text-white mb-2">
+      {localizedQuizTitle(session, locale)}
+    </h1>
     <p className="text-slate-400 text-sm mb-2">
       Waiting for your teacher to start…
     </p>
@@ -1375,7 +1384,11 @@ const ActiveQuiz: React.FC<{
     }
   ) => Promise<void>;
   /** Appends one committed take; rejects so the recorder can show the failure. */
-  onCommitRecording: (questionId: string, take: AudioTake) => Promise<void>;
+  onCommitRecording: (
+    questionId: string,
+    take: AudioTake,
+    locale?: string
+  ) => Promise<void>;
   /** Re-sends a failed take's own artifact; rejects if it fails again. */
   onRetryRecordingUpload: (
     questionId: string,
@@ -3176,7 +3189,13 @@ const ActiveQuiz: React.FC<{
                 takesCommitted={committedTakes}
                 noticeAckedAt={noticeAckedAt}
                 onAcknowledgeNotice={onAcknowledgeNotice}
-                onCommit={(take) => onCommitRecording(currentQuestion.id, take)}
+                onCommit={(take) =>
+                  onCommitRecording(
+                    currentQuestion.id,
+                    take,
+                    localizedStrings ? activeLocale : undefined
+                  )
+                }
                 onRetryUpload={
                   latestRecordingArtifact &&
                   canRetryRecordingUpload(latestRecordingArtifact.id)
@@ -4511,7 +4530,9 @@ export const PublishedScoreReview: React.FC<{
           <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
             Your Results
           </h1>
-          <p className={`mt-1 text-sm ${subtleText}`}>{session.quizTitle}</p>
+          <p className={`mt-1 text-sm ${subtleText}`}>
+            {localizedQuizTitle(session, override?.language)}
+          </p>
           {pin && (
             <p className={`mt-1 text-xs ${faintText}`}>
               PIN <span className={`font-mono ${prepText}`}>{pin}</span>
