@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { useRosters, ROSTER_DRIVE_CONCURRENCY } from '@/hooks/useRosters';
+import { resolveStudentTargetRef } from '@/utils/studentTargetRef';
 import type { ClassRosterMeta, Student } from '@/types';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
@@ -282,6 +283,34 @@ describe('useRosters — subscription', () => {
     expect(roster.students[1].pin).toBe('02');
     expect(roster.loadError).toBeUndefined();
     expect(currentDriveService.downloadFile).toHaveBeenCalledWith('file-1');
+  });
+
+  it('keeps student email from Drive so test-class students stay targetable', async () => {
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob([
+          {
+            id: 'a',
+            firstName: 'sstudent25',
+            lastName: '',
+            pin: '01',
+            email: 'sstudent25@example.org',
+          },
+        ])
+      ),
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', { driveFileId: 'file-1', testClassId: 'mock-period-1' }),
+    ]);
+
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    const roster = result.current.rosters[0];
+    expect(roster.students[0].email).toBe('sstudent25@example.org');
+    expect(resolveStudentTargetRef(roster.students[0], roster)).toEqual({
+      kind: 'test',
+      email: 'sstudent25@example.org',
+    });
   });
 
   it('surfaces loadError and does not cache when a Drive download fails', async () => {

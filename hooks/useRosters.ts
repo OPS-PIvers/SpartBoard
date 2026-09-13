@@ -115,6 +115,9 @@ function parseRawStudent(raw: unknown): Student | null {
   if (typeof s.classLinkSourcedId === 'string') {
     base.classLinkSourcedId = s.classLinkSourcedId;
   }
+  if (typeof s.email === 'string' && s.email.trim() !== '') {
+    base.email = s.email;
+  }
   if (Array.isArray(s.restrictedStudentIds)) {
     const ids = s.restrictedStudentIds.filter(
       (id): id is string => typeof id === 'string'
