@@ -26,7 +26,7 @@ vi.mock('@/components/common/TypographySettings', () => ({
   TypographySettings: () => null,
 }));
 
-import { WeatherSettings } from './Settings';
+import { WeatherSettings } from './SchemaControls';
 
 const widget: WidgetData = {
   id: 'weather-test-1',

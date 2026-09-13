@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ChecklistSettings } from './Settings';
+import { ChecklistSettings } from './SchemaControls';
 import { useDashboard } from '@/context/useDashboard';
 import { ChecklistItem, WidgetData } from '@/types';
 

@@ -1,2 +1,2 @@
 export { ExpectationsWidget } from './Widget';
-export { ExpectationsSettings } from './Settings';
+export { ExpectationsSettings } from './SchemaControls';

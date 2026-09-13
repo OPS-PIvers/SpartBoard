@@ -1381,6 +1381,23 @@
       "styleMinimal": "Minimal",
       "themeColor": "Color Palette",
       "glow": "Glow"
+    },
+    "checklist": {
+      "taskSettings": "Task settings",
+      "appearance": "Task appearance"
+    },
+    "weather": {
+      "weatherSettings": "Weather settings",
+      "appearance": "Weather appearance"
+    },
+    "expectations": {
+      "nexusConnections": "Nexus connections"
+    },
+    "random": {
+      "randomizerSettings": "Randomizer settings"
+    },
+    "url": {
+      "linkSettings": "Link settings"
     }
   },
   "widgetWindow": {
