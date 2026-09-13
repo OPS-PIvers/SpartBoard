@@ -70,7 +70,7 @@ export const Pyramid: React.FC<PyramidProps> = ({
               style={{
                 clipPath,
                 backgroundColor: color,
-                height: 'min(60px, 13cqmin)',
+                height: 'clamp(24px, 13cqmin, 140px)',
                 opacity: tierOpacity,
               }}
               onClick={() => onTierClick(level)}
@@ -100,7 +100,7 @@ export const Pyramid: React.FC<PyramidProps> = ({
               <span
                 className="font-bold text-white tracking-wide pointer-events-none"
                 style={{
-                  fontSize: 'min(16px, 5cqmin)',
+                  fontSize: 'clamp(12px, 5cqmin, 32px)',
                   textShadow: '0 1px 3px rgba(0,0,0,0.3)',
                 }}
               >

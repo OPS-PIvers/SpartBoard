@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-09-13_
-_Last action: 2026-09-12 — MEDIUM "Manager/Library front-face views" partial fix: converted `GuidedLearning/components/GuidedLearningManager.tsx` (1,556 lines, smaller of the two remaining files, single consumer — `GuidedLearning/Widget.tsx`, confirmed via repo-wide import grep, mounted directly in the widget's own `skipScaling: true` front face) to `cqmin` throughout — library/assignment-tab loading spinners, the Drive-disconnected banner, bulk-action-bar and library/preview-pane split spacing, the fallback thumbnail icon (both the card and drag-overlay renders), the toolbar's "Building library" label + Select-mode toggle button/icon, and the entire inline preview-pane content block (video/image containers, reload-preview button, Play/Loader overlay, error/description text, mode line). Left the assignment card's `ViewCountSubtitle` `gap-2` untouched — it's nested inside `LibraryItemCard`'s own `cqmin`-scaled subtitle wrapper (font-size already cascades; confirmed directly), same reasoning as the prior cycle's `MiniAppManager` KB-size spans. `QuizManager.tsx` (~2900 lines) and `VideoActivityManager.tsx` (1,627 lines) are untouched and still fully un-scaled — item stays **Open**, 2 of 4 files remain. `pnpm exec tsc --noEmit`/`eslint --max-warnings 0`/`prettier --check` clean on the changed file; the three existing tests importing `GuidedLearningManager` (`GuidedLearningManager.moveToFolder.test.tsx`, `GuidedLearningManager.folderCounts.test.tsx`, `GuidedLearningWidget.onAssign.test.tsx`) all pass (6/6)._
+_Last action: 2026-09-13 — MEDIUM `BloomsTaxonomy` pyramid px-ceiling fix: switched `Pyramid.tsx`'s tier height and label font-size from `min(Npx, Ycqmin)` to `clamp(floor, Ycqmin, ceiling)` (`clamp(24px, 13cqmin, 140px)` / `clamp(12px, 5cqmin, 32px)`), matching the `CatalystVisualWidget`/`ConceptWeb` precedent so the pyramid keeps growing on large/projected widgets instead of hitting its ceiling almost immediately. `tsc --noEmit`/`eslint --max-warnings 0`/`prettier --check` clean. Moved to Completed._
 
 ---
 
@@ -13,6 +13,8 @@ _Last action: 2026-09-12 — MEDIUM "Manager/Library front-face views" partial f
 _2026-09-13 audit note (Sunday daily): Swept all 48 `Widget.tsx` front-face files for the four standing anti-pattern categories (hardcoded px on content that should scale, `max-h-[Npx]`/`max-w-[Npx]` caps, mis-tiered hardcoded `cqmin`, `overflow-hidden` without `flex-1`), with manual review of the widgets least-referenced in this journal (`BloomsTaxonomy`, `TextWidget`, `MathToolInstance`, `StarterPack`, `CustomWidget`, `Scoreboard`, `WorkSymbols`, `UrlWidget`, `HotspotImage`, `SeatingChart`, `TrafficLightWidget`). Found one new item — `BloomsTaxonomy` pyramid height/label ceiling, added below as MEDIUM. Confirmed `QuizManager.tsx`/`VideoActivityManager.tsx` are still unchanged and fully un-scaled (0 `cqmin` in either file) — the tracked "Manager/Library front-face views" MEDIUM item stays accurate as-is, not re-reported. Every other repo-wide hit resolved to an already-tracked item or an established non-bug exception (portaled/fixed-position popovers outside the container-query scope, viewport-bound import wizards, intentional user-configurable font sizes, fixed-size drag-resize touch targets). 1 new issue found, 0 resolved this cycle._
 
 The CLAUDE.md scaling rules recommend `cqmin` for consistency. **However**, `cqmin` (and `clamp(…, Xpx)` caps) can leave large amounts of empty space on widgets that get resized aggressively — especially short/wide layouts where the height-driven `cqh` axis would have filled the widget. User preference: widget content should **logically fill the widget window**. If a widget already uses a `cqh`/`cqw` mix (or `min(Acqh, Bcqw)`) that fills better than the equivalent `cqmin` form, **leave it**. Do not propose `cqmin` conversions for widgets where the existing formula visibly fills the widget at a wider range of aspect ratios. When in doubt, audit visually before flagging.
+
+_2026-09-13 action notes (Sunday): Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) plus two Sunday weeklies (admin-settings-alignment, legacy-cleanup) — all five already carried today's Sunday audit entries. Nothing In Progress anywhere across all five. No HIGH open items in any journal. Among MEDIUMs, daily journals outrank weekly: widget-registry (order 1) carries only LOW items, so css-scaling (order 2) is the first journal in the reading list with an open, actionable MEDIUM. Of css-scaling's open MEDIUMs, the `BloomsTaxonomy` pyramid ceiling item (filed by today's own audit pass, above) is first in document order. File-recency check passed: `git log --oneline -10 -- components/widgets/BloomsTaxonomy/Pyramid.tsx` shows the only commit ever touching this file is an old dev-paul merge, well outside the last 5 branch commits. Resolution recorded above; moved to Completed._
 
 ---
 
@@ -23,13 +25,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM `BloomsTaxonomy` pyramid — the widget's sole hero content is capped at a px ceiling that binds almost immediately
-
-- **Detected:** 2026-09-13
-- **File:** `components/widgets/BloomsTaxonomy/Pyramid.tsx:73` (tier height), `:103` (tier label text)
-- **Detail:** Each pyramid tier's height is `min(60px, 13cqmin)` and its label text is `min(16px, 5cqmin)`. `blooms-taxonomy` is `skipScaling: true`, `canSpread: true`, default 450×550 (`config/widgetDefaults.ts:579-583`, `WidgetRegistry.ts:952-958`). At the default size the 13cqmin value (≈58.5px) is already nearly at the 60px ceiling, so any widget wider than ~461px hits the cap and the pyramid — the widget's only content, centered via `items-center justify-center` — stops growing entirely; on a large/projected widget the six tiers top out around ~370px total height regardless of how much taller the widget is made, leaving large empty space above/below. Same failure mode already fixed for `ClockWidget`, `DiceWidget`, and `CatalystVisualWidget` (see Completed) — a tight `min()` ceiling on a widget's sole hero content.
-- **Fix:** Follow the `CatalystVisualWidget`/`ConceptWeb` precedent — switch to `clamp(floor, Ycqmin, muchHigherCeiling)`, e.g. `clamp(24px, 13cqmin, 140px)` for tier height and `clamp(12px, 5cqmin, 32px)` for the label, so the pyramid keeps growing through normal-to-large widget sizes and only guards against blur at extreme sizes.
 
 ### LOW `MiniAppAssignModal`'s "skipped students" warning text drops to hardcoded `text-xs` amid otherwise-correct cqmin scaling
 
@@ -410,6 +405,14 @@ _2026-09-10: Full audit (Thursday daily). `git log --oneline --since="2026-09-09
 ---
 
 ## Completed
+
+### MEDIUM `BloomsTaxonomy` pyramid — the widget's sole hero content is capped at a px ceiling that binds almost immediately
+
+- **Detected:** 2026-09-13
+- **Completed:** 2026-09-13
+- **File:** `components/widgets/BloomsTaxonomy/Pyramid.tsx:73` (tier height), `:103` (tier label text)
+- **Detail:** Each pyramid tier's height was `min(60px, 13cqmin)` and its label text `min(16px, 5cqmin)`. `blooms-taxonomy` is `skipScaling: true`, `canSpread: true`, default 450×550. At the default size the 13cqmin value (≈58.5px) was already nearly at the 60px ceiling, so any widget wider than ~461px hit the cap and the pyramid — the widget's only content — stopped growing entirely, leaving large empty space on bigger/projected widgets. Same failure mode already fixed for `ClockWidget`, `DiceWidget`, and `CatalystVisualWidget`.
+- **Resolution:** Followed the `CatalystVisualWidget`/`ConceptWeb` precedent exactly per the item's own Fix guidance — tier height changed to `clamp(24px, 13cqmin, 140px)`, label text to `clamp(12px, 5cqmin, 32px)`. `tsc --noEmit -p tsconfig.json` exit 0, `eslint components/widgets/BloomsTaxonomy/Pyramid.tsx --max-warnings 0` exit 0, `prettier --check` clean. No dedicated test file exists for `Pyramid.tsx`. PR opened to dev-paul.
 
 ### MEDIUM `CustomWidgetWidget` loading and no-content states use a full-widget opaque `bg-slate-800` root, masking the glass shell
 
