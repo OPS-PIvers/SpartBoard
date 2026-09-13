@@ -885,6 +885,36 @@ describe('DraggableWindow', () => {
     });
   });
 
+  // dragState.current.w/h are seeded from the render-clamped size (above),
+  // so for a below-floor widget that alone differs from the raw stored
+  // widget.w/h — a plain click-and-release on a resize handle, with zero
+  // pointermove events, must not be mistaken for a real resize and persist
+  // the clamped size to Firestore.
+  it('does not commit a size change to a below-floor widget on a resize handle click with no movement', () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+
+    const seHandleEl = document.querySelector('.cursor-se-resize');
+    expect(seHandleEl).not.toBeNull();
+    if (!seHandleEl) return;
+    const seHandle = seHandleEl as unknown as HTMLElementWithCapture;
+
+    seHandle.setPointerCapture = vi.fn();
+    seHandle.hasPointerCapture = vi.fn().mockReturnValue(true);
+    seHandle.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(seHandle, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    // No pointerMove at all — a plain click.
+    fireEvent.pointerUp(seHandle, { pointerId: 1 });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
   it('grows via the west handle from the render-clamped size when resizing a below-floor widget', async () => {
     renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
 

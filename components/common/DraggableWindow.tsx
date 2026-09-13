@@ -1529,6 +1529,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const startY = e.clientY;
     const startPosX = widget.x;
     const startPosY = widget.y;
+    // dragState.current.w/h are seeded from the render-clamped size above
+    // (not the raw stored widget.w/h), so a below-floor widget's floor/raw
+    // difference alone would make the final commit check below look like a
+    // real change even on a plain click with zero movement. Track whether
+    // any pointermove actually fired and require it before committing.
+    let hasMoved = false;
 
     // See handleDragStart for the rationale: pointer capture routes all
     // subsequent pointer events to this element, and attaching listeners here
@@ -1565,6 +1571,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         onPointerUp(moveEvent);
         return;
       }
+
+      hasMoved = true;
 
       if (resizeAnimationFrame !== null) {
         cancelAnimationFrame(resizeAnimationFrame);
@@ -1679,10 +1687,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // Ignore capture release errors
       }
 
-      // Commit final position/size if using direct DOM manipulation
+      // Commit final position/size if using direct DOM manipulation. Requires
+      // hasMoved — dragState.current.w/h are seeded from the render-clamped
+      // size, which alone would look like a change for a below-floor widget
+      // even on a plain click that never actually resized anything.
       if (
         !POSITION_AWARE_WIDGETS.has(widget.type) &&
         dragState.current &&
+        hasMoved &&
         (dragState.current.w !== widget.w ||
           dragState.current.h !== widget.h ||
           dragState.current.x !== widget.x ||
