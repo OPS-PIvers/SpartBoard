@@ -201,6 +201,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   useSettingsDrawer = false,
 }) => {
   const { t } = useTranslation();
+  // Per-widget-type size floor — also enforced on the rendered width/height
+  // below (not just interactive resize) so a dashboard saved before an
+  // override existed or was raised doesn't render smaller than the current
+  // floor and clip its content.
+  const effectiveMinW =
+    WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
+  const effectiveMinH =
+    WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
   // Mount-stable actions surface — identities never change, so dep arrays
   // listing them are trivially satisfied and never re-fire.
   const {
@@ -1498,8 +1506,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const startY = e.clientY;
     const startPosX = widget.x;
     const startPosY = widget.y;
-    const minW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
-    const minH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
 
     // See handleDragStart for the rationale: pointer capture routes all
     // subsequent pointer events to this element, and attaching listeners here
@@ -1551,21 +1557,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         let newY = startPosY;
 
         if (direction.includes('e')) {
-          newW = Math.max(minW, startW + dx);
+          newW = Math.max(effectiveMinW, startW + dx);
         }
         if (direction.includes('w')) {
           const potentialW = startW - dx;
-          if (potentialW >= minW) {
+          if (potentialW >= effectiveMinW) {
             newW = potentialW;
             newX = startPosX + dx;
           }
         }
         if (direction.includes('s')) {
-          newH = Math.max(minH, startH + dy);
+          newH = Math.max(effectiveMinH, startH + dy);
         }
         if (direction.includes('n')) {
           const potentialH = startH - dy;
-          if (potentialH >= minH) {
+          if (potentialH >= effectiveMinH) {
             newH = potentialH;
             newY = startPosY + dy;
           }
@@ -1593,8 +1599,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const wb = getWorldBounds(vw, vh);
         const availableW = Math.max(0, wb.maxX - newX);
         const availableH = Math.max(0, wb.maxY - newY);
-        newW = Math.max(Math.min(minW, availableW), Math.min(newW, availableW));
-        newH = Math.max(Math.min(minH, availableH), Math.min(newH, availableH));
+        newW = Math.max(
+          Math.min(effectiveMinW, availableW),
+          Math.min(newW, availableW)
+        );
+        newH = Math.max(
+          Math.min(effectiveMinH, availableH),
+          Math.min(newH, availableH)
+        );
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
@@ -2222,14 +2234,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             : (override?.y ?? widget.y),
         width: isMaximized
           ? '100vw'
-          : shouldUseDragState && dragState.current
-            ? dragState.current.w
-            : (override?.w ?? widget.w),
+          : Math.max(
+              effectiveMinW,
+              shouldUseDragState && dragState.current
+                ? dragState.current.w
+                : (override?.w ?? widget.w)
+            ),
         height: isMaximized
           ? '100vh'
-          : shouldUseDragState && dragState.current
-            ? dragState.current.h
-            : (override?.h ?? widget.h),
+          : Math.max(
+              effectiveMinH,
+              shouldUseDragState && dragState.current
+                ? dragState.current.h
+                : (override?.h ?? widget.h)
+            ),
         /* eslint-enable react-hooks/refs */
         zIndex: isMaximized ? Z_INDEX.maximized : widget.z,
         display: 'flex',

@@ -793,6 +793,26 @@ describe('DraggableWindow', () => {
     expect(windowEl.style.width).toBe('250px');
   });
 
+  // WIDGET_MIN_SIZE_OVERRIDES is enforced during interactive resize (above),
+  // but a widget can also be smaller on load — e.g. a dashboard saved before
+  // an override existed or was raised. Render must clamp up to the current
+  // floor too, or the stored size renders below it and clips content.
+  it('clamps a stored size below WIDGET_MIN_SIZE_OVERRIDES up to the floor on render', () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+    const windowEl = screen.getByTestId('draggable-window');
+
+    expect(windowEl.style.width).toBe('280px');
+    expect(windowEl.style.height).toBe('300px');
+  });
+
+  it('leaves a stored size above WIDGET_MIN_SIZE_OVERRIDES untouched on render', () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 450, h: 550 });
+    const windowEl = screen.getByTestId('draggable-window');
+
+    expect(windowEl.style.width).toBe('450px');
+    expect(windowEl.style.height).toBe('550px');
+  });
+
   it('minimizes on Escape key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
