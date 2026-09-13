@@ -706,6 +706,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Curated translation languages + org caps — teachers read the language list
+    // for the quiz Languages tab; admins edit. Deliberately a SEPARATE doc from
+    // quiz_read_aloud, which stays admin-only.
+    match /admin_settings/quiz_translation {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via
@@ -3438,6 +3446,9 @@ service cloud.firestore {
            // `grading.<questionId>` via dotted field paths; any student write touching
            // `grading.*` is rejected by this hasOnly([...]). See
            // docs/written-response-quiz-questions.md section 9.
+           // `backTranslations` is excluded for the same reason: the teacher-owner
+           // path writes machine back-translations of a student's own answer, and a
+           // student must never be able to forge or edit one.
            // Use `affectedKeys()` (added + removed + changed), not `changedKeys()` - the latter
            // only covers keys present on BOTH sides, so a smuggled NEW field would land in
            // addedKeys and bypass the whitelist entirely.

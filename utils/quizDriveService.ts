@@ -14,6 +14,7 @@ import {
   QuizQuestion,
   QuizQuestionType,
   QuizResponse,
+  QuizTranslation,
   isFreeResponseType,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
@@ -23,6 +24,7 @@ import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/as
 import { computeQuestionStats } from '@/utils/quizQuestionStats';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
+import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
 
 /**
  * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
@@ -317,6 +319,123 @@ export class QuizDriveService {
     });
     if (!res.ok && res.status !== 404) {
       throw new Error('Failed to delete quiz file from Drive');
+    }
+  }
+
+  // ─── Translation sidecars ───────────────────────────────────────────────────
+
+  /** Sidecar file name for one locale, mirroring `saveQuiz`'s quiz-id prefix. */
+  static translationFileName(
+    quizId: string,
+    quizTitle: string,
+    locale: string
+  ): string {
+    return `${sanitizeDriveFileName(quizTitle)}.${quizId.slice(0, 8)}.${locale}.tr.json`;
+  }
+
+  /**
+   * Save one language's translation payload beside the quiz. Returns the Drive
+   * file id; mirrors `saveQuiz`'s update → name-collision → create fallback.
+   */
+  async saveTranslation(
+    quizId: string,
+    quizTitle: string,
+    locale: string,
+    payload: QuizTranslation,
+    existingFileId?: string
+  ): Promise<string> {
+    const folderId = await this.getQuizFolderId();
+    const fileName = QuizDriveService.translationFileName(
+      quizId,
+      quizTitle,
+      locale
+    );
+    const content = JSON.stringify(payload, null, 2);
+
+    if (existingFileId) {
+      const updateRes = await fetch(
+        `${UPLOAD_API_URL}/files/${existingFileId}?uploadType=media`,
+        {
+          method: 'PATCH',
+          headers: { ...this.authHeaders, 'Content-Type': 'application/json' },
+          body: content,
+        }
+      );
+      if (updateRes.ok) return existingFileId;
+    }
+
+    const existingRes = await fetch(
+      `${DRIVE_API_URL}/files?q=${encodeURIComponent(
+        `name = '${driveQueryEscape(fileName)}' and '${folderId}' in parents and trashed = false`
+      )}&fields=files(id)`,
+      { headers: this.authHeaders }
+    );
+    if (existingRes.ok) {
+      const existing = (await existingRes.json()) as DriveFileListResponse;
+      if (existing.files && existing.files.length > 0) {
+        const fileId = existing.files[0].id;
+        const patchRes = await fetch(
+          `${UPLOAD_API_URL}/files/${fileId}?uploadType=media`,
+          {
+            method: 'PATCH',
+            headers: {
+              ...this.authHeaders,
+              'Content-Type': 'application/json',
+            },
+            body: content,
+          }
+        );
+        if (patchRes.ok) return fileId;
+      }
+    }
+
+    const metaRes = await fetch(`${DRIVE_API_URL}/files`, {
+      method: 'POST',
+      headers: this.jsonHeaders,
+      body: JSON.stringify({
+        name: fileName,
+        parents: [folderId],
+        mimeType: 'application/json',
+      }),
+    });
+    if (!metaRes.ok)
+      throw new Error('Failed to create translation file in Drive');
+    const meta = (await metaRes.json()) as DriveFileCreateResponse;
+
+    const uploadRes = await fetch(
+      `${UPLOAD_API_URL}/files/${meta.id}?uploadType=media`,
+      {
+        method: 'PATCH',
+        headers: { ...this.authHeaders, 'Content-Type': 'application/json' },
+        body: content,
+      }
+    );
+    if (!uploadRes.ok)
+      throw new Error('Failed to upload translation content to Drive');
+    return meta.id;
+  }
+
+  /** Load one language's translation payload from its Drive sidecar. */
+  async loadTranslation(fileId: string): Promise<QuizTranslation> {
+    const res = await fetch(`${DRIVE_API_URL}/files/${fileId}?alt=media`, {
+      headers: this.authHeaders,
+    });
+    if (!res.ok) {
+      if (res.status === 404)
+        throw new Error('Translation file not found in Drive');
+      throw new Error('Failed to download translation from Drive');
+    }
+    return normalizeQuizTranslation(await res.json());
+  }
+
+  /** Delete a translation sidecar; a missing file is not an error. */
+  async deleteTranslation(fileId: string): Promise<void> {
+    const res = await fetch(`${DRIVE_API_URL}/files/${fileId}`, {
+      method: 'DELETE',
+      headers: this.authHeaders,
+    });
+    if (!res.ok && res.status !== 404) {
+      throw new Error('Failed to delete translation file from Drive');
     }
   }
 

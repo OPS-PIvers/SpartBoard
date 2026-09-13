@@ -1205,6 +1205,27 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['video-activity-audio-transcription']).toBe(1);
   });
 
+  it('counts back-translation calls in the translation byFeature bucket', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_translation_2026-06-10', data: { count: 2, backCount: 3 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.byFeature['translation']).toBe(5);
+  });
+
   it('does not populate a phantom byFeature bucket for guided-learning (stale GEMINI_SPECIFIC_FEATURES entry)', async () => {
     // Root cause: `guided-learning` was listed in GEMINI_SPECIFIC_FEATURES even
     // though no Cloud Function ever writes a `{uid}_guided-learning_{date}` doc
@@ -3016,6 +3037,8 @@ describe('index barrel — deployed export set', () => {
     'generateWithAI',
     'generateVideoActivity',
     'transcribeVideoWithGemini',
+    'translateQuizV1',
+    'translateResponseV1',
     'generateGuidedLearning',
     'validateAndBucketVideoQuestions',
     'validateAndBucketQuizQuestions',

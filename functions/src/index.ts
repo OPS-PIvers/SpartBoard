@@ -55,6 +55,7 @@ export { getQuizArtifactPlaybackUrl } from './getQuizArtifactPlaybackUrl';
 
 // ── Quiz read-aloud (Cloud Text-to-Speech; docs/plans/QUIZ_READ_ALOUD.md) ──
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
+export { translateQuizV1, translateResponseV1 } from './quizTranslation';
 export { extractStimulusReadAloudTextV1 } from './quizStimulusText';
 
 // ── Org-admin media review & compliance delete (COPPA review-and-delete) ───

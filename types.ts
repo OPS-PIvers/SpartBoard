@@ -3779,6 +3779,24 @@ export interface QuizMetadata {
    * Omitted for quizzes never manually reordered.
    */
   order?: number;
+  /**
+   * Per-locale translation index (plan §3.3). Absent on quizzes with no
+   * translation — never written as an empty object.
+   */
+  translations?: Record<string, QuizTranslationIndexEntry>;
+  /** Copy of `QuizData.language` (D32). Absent = English. */
+  language?: string;
+}
+
+/** One locale's row in `QuizMetadata.translations`; a Drive-free coverage answer (plan §3.3). */
+export interface QuizTranslationIndexEntry {
+  driveFileId: string;
+  reviewedCount: number;
+  staleCount: number;
+  questionCount: number;
+  /** Copy of the sidecar's `sourceHashes` (D31), so staleness needs no Drive read. */
+  sourceHashes: Record<string, string>;
+  updatedAt: number;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -7614,8 +7632,20 @@ export type GlobalFeature =
   | 'quiz-media-response'
   | 'settings-drawer'
   | 'quiz-read-aloud'
+  /** Teacher-authored AI quiz translations for multilingual learners. */
+  | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai';
+
+/** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
+export interface QuizTranslationSettings {
+  /** Codes from `QUIZ_TRANSLATION_LANGUAGES` the district offers. */
+  enabledLanguages: string[];
+  monthlyCapUnits: number;
+  monthlyCapOutputTokens: number;
+  updatedAt: number;
+  updatedBy: string;
+}
 
 /** `admin_settings/quiz_read_aloud` — voice mapping for quiz read-aloud (docs/plans/QUIZ_READ_ALOUD.md §3). */
 /** One spoken unit of a question (docs/plans/QUIZ_READ_ALOUD.md §4.1). */
