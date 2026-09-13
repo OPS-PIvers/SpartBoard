@@ -1,2 +1,5 @@
 export { ChecklistWidget } from './Widget';
-export { ChecklistSettings, ChecklistAppearanceSettings } from './Settings';
+export {
+  ChecklistSettings,
+  ChecklistAppearanceSettings,
+} from './SchemaControls';

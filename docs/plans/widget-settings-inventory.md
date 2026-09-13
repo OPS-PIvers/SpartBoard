@@ -1783,15 +1783,15 @@ Pre-migration config fixture:
 Updated once per wave by the orchestrator (widget · wave · PR · done). Wave-2 rows retired their
 0.4 legacy snapshots in the same PR.
 
-| Widget       | Type           | Wave | PR                        | Done |
-| ------------ | -------------- | ---- | ------------------------- | ---- |
-| Timer        | `time-tool`    | 2    | `feat/settings-drawer-w2` | yes  |
-| Note         | `text`         | 2    | `feat/settings-drawer-w2` | yes  |
-| Embed        | `embed`        | 2    | `feat/settings-drawer-w2` | yes  |
-| Clock        | `clock`        | 2    | `feat/settings-drawer-w2` | yes  |
-| Lunch        | `lunchCount`   | 2    | `feat/settings-drawer-w2` | yes  |
-| Tasks        | `checklist`    | 3    |                           |      |
-| Weather      | `weather`      | 3    |                           |      |
-| Expectations | `expectations` | 3    |                           |      |
-| Random       | `random`       | 3    |                           |      |
-| Links        | `url`          | 3    |                           |      |
+| Widget       | Type           | Wave | PR                           | Done |
+| ------------ | -------------- | ---- | ---------------------------- | ---- |
+| Timer        | `time-tool`    | 2    | `feat/settings-drawer-w2`    | yes  |
+| Note         | `text`         | 2    | `feat/settings-drawer-w2`    | yes  |
+| Embed        | `embed`        | 2    | `feat/settings-drawer-w2`    | yes  |
+| Clock        | `clock`        | 2    | `feat/settings-drawer-w2`    | yes  |
+| Lunch        | `lunchCount`   | 2    | `feat/settings-drawer-w2`    | yes  |
+| Tasks        | `checklist`    | 3    | `feat/settings-drawer-wave3` | yes  |
+| Weather      | `weather`      | 3    | `feat/settings-drawer-wave3` | yes  |
+| Expectations | `expectations` | 3    | `feat/settings-drawer-wave3` | yes  |
+| Random       | `random`       | 3    | `feat/settings-drawer-wave3` | yes  |
+| Links        | `url`          | 3    | `feat/settings-drawer-wave3` | yes  |

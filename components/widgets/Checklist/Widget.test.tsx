@@ -2,7 +2,7 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { ChecklistWidget } from './Widget';
-import { ChecklistSettings } from './Settings';
+import { ChecklistSettings } from './SchemaControls';
 import { useDashboard } from '@/context/useDashboard';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 import {
