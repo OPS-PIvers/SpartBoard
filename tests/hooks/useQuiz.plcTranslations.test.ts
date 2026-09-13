@@ -329,6 +329,23 @@ describe("saveQuiz — publishing the owner's sidecars", () => {
       await publishInput({ es: localEntry('local-es', freshHash) })
     ).not.toHaveProperty('translations');
   });
+
+  it('omits the key when only some sidecars load, rather than publishing a partial map', async () => {
+    vi.spyOn(
+      MockQuizDriveService.prototype,
+      'loadTranslation'
+    ).mockImplementation(async (fileId: string) =>
+      fileId === 'local-es'
+        ? canonicalSidecar('es', freshHash, ['q1'])
+        : Promise.reject(new Error('Drive 500'))
+    );
+    expect(
+      await publishInput({
+        es: localEntry('local-es', freshHash),
+        so: localEntry('local-so', freshHash),
+      })
+    ).not.toHaveProperty('translations');
+  });
 });
 
 describe('loadSyncedTranslations — share/create budget', () => {

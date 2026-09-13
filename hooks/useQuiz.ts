@@ -36,6 +36,7 @@ import {
   loadTranslationsForSync,
   publishSyncedQuiz,
   pullSyncedQuizContent,
+  syncedTranslationsInput,
   type SyncedTranslationsLoad,
   callLeaveSyncedQuizGroup,
   SyncedQuizVersionConflictError,
@@ -307,10 +308,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           ...(effectiveBehavior !== undefined
             ? { behavior: effectiveBehavior }
             : {}),
-          // A save never clears canonical translations: publish what loaded,
-          // omit the key entirely when nothing did (preserve-on-omit).
+          // A save never clears canonical translations (a peer's locales may be
+          // the only ones there), and the helper omits a partial load so a
+          // half-loaded map can't replace the whole canonical field.
           ...(Object.keys(syncedTranslations.translations).length > 0
-            ? { translations: syncedTranslations.translations }
+            ? syncedTranslationsInput(syncedTranslations)
             : {}),
         });
         nextSyncedVersion = result.version;

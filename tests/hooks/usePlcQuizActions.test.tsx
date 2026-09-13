@@ -172,12 +172,7 @@ vi.mock('@/hooks/useSyncedQuizGroups', () => ({
   syncedTranslationsInput: (load: {
     translations: Record<string, unknown>;
     complete: boolean;
-  }) =>
-    Object.keys(load.translations).length > 0
-      ? { translations: load.translations }
-      : load.complete
-        ? { translations: {} }
-        : {},
+  }) => (load.complete ? { translations: load.translations } : {}),
 }));
 
 const plc = {

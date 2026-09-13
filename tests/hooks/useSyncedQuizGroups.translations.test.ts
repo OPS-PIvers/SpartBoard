@@ -187,6 +187,15 @@ describe('syncedTranslationsInput', () => {
       translations,
     });
   });
+
+  it('omits a partial load so it cannot replace the canonical map', () => {
+    expect(
+      syncedTranslationsInput({
+        translations: { es: sidecar('es') },
+        complete: false,
+      })
+    ).toEqual({});
+  });
 });
 
 describe('publishSyncedQuiz — translations threading', () => {

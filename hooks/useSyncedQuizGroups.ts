@@ -287,17 +287,15 @@ export async function loadTranslationsForSync(
 }
 
 /**
- * Turn a load result into the publish/create input fragment. The canonical is
- * cleared only when every sidecar was accounted for and the owner genuinely has
- * no locales; a failed load preserves whatever the canonical already carries.
+ * Turn a load result into the publish/create input fragment. Publishing is a
+ * whole-map replace, so only a complete load may be written: a partial one
+ * would drop the locales that failed this round. Anything short of complete
+ * omits the key and preserves whatever the canonical already carries.
  */
 export function syncedTranslationsInput(load: SyncedTranslationsLoad): {
   translations?: Record<string, QuizTranslation>;
 } {
-  if (Object.keys(load.translations).length > 0) {
-    return { translations: load.translations };
-  }
-  return load.complete ? { translations: {} } : {};
+  return load.complete ? { translations: load.translations } : {};
 }
 
 /**
