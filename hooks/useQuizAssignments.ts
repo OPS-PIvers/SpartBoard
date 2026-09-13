@@ -28,7 +28,16 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { auth, db, isAuthBypass } from '@/config/firebase';
+import { QuizDriveService } from '@/utils/quizDriveService';
+import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
+import type { QuizTranslationIndexEntry } from '@/types';
+import type { TranslationLoader } from '@/utils/quizTranslationPublish';
+import {
+  enforceSessionSizeBudget,
+  loadTranslationsForPublish,
+  targetedLocaleCounts,
+} from '@/utils/quizTranslationPublish';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
@@ -174,6 +183,8 @@ export interface CreateAssignmentOptions {
   closeAt?: number | null;
   /** Frozen bank pools; the session's `totalQuestions` becomes fixed + Σ count. */
   bankSlots?: QuizSessionBankSlot[];
+  /** `QuizMetadata.translations` — lets publish load sidecars with zero extra reads (§4.2). */
+  translationIndex?: Record<string, QuizTranslationIndexEntry>;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -727,6 +738,12 @@ export const useQuizAssignments = (
   // on the session doc. Read via `useContext` rather than `useAuth()` so a
   // provider-less caller denies instead of throwing.
   const authContext = useContext(AuthContext);
+  const googleAccessToken = authContext?.googleAccessToken ?? null;
+  // Drive handle for publish-time sidecar reads; null when Drive isn't connected.
+  const translationLoader = useCallback((): TranslationLoader | null => {
+    if (isAuthBypass) return userId ? new MockQuizDriveService(userId) : null;
+    return googleAccessToken ? new QuizDriveService(googleAccessToken) : null;
+  }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
 
@@ -847,6 +864,7 @@ export const useQuizAssignments = (
         openAt,
         closeAt,
         bankSlots,
+        translationIndex,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
@@ -955,8 +973,25 @@ export const useQuizAssignments = (
               ? 'active'
               : 'waiting';
 
+      // Translations ride the projection so locale strings share the English shuffle (§4.2).
+      // Bank-slot quizzes are never translated (D29).
+      const targetedLocaleCountByCode = hasBankSlots
+        ? {}
+        : targetedLocaleCounts(overridesBySourcedId);
+      const translations = await loadTranslationsForPublish(
+        translationLoader(),
+        translationIndex,
+        Object.keys(targetedLocaleCountByCode),
+        sessionQuestions
+      );
       const sessionPublicQuestions = sessionQuestions.map((q) =>
-        projectPublicQuestionForMode(q, mode, opts.showLearningTargets)
+        projectPublicQuestionForMode(
+          q,
+          mode,
+          opts.showLearningTargets,
+          translations.byLocale,
+          translations.freshQuestionIdsByLocale
+        )
       );
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
@@ -993,6 +1028,9 @@ export const useQuizAssignments = (
         // Read-aloud snapshot (docs/plans/QUIZ_READ_ALOUD.md §3); omitted when off.
         ...(opts.readAloudAll ? { readAloudAll: true } : {}),
         ...(quiz.language ? { language: quiz.language } : {}),
+        ...(Object.keys(translations.titleByLocale).length > 0
+          ? { quizTitleLocalized: { ...translations.titleByLocale } }
+          : {}),
         ...(Object.keys(sessionReadAloudText).length > 0
           ? { readAloudTextByStimulusId: sessionReadAloudText }
           : {}),
@@ -1059,6 +1097,10 @@ export const useQuizAssignments = (
             }
           : {}),
       };
+
+      if (Object.keys(translations.byLocale).length > 0) {
+        enforceSessionSizeBudget(session, targetedLocaleCountByCode);
+      }
 
       const batch = writeBatch(db);
       batch.set(

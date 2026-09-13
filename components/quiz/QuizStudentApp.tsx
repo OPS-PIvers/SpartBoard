@@ -115,7 +115,7 @@ import {
   type ReadAloudItemControls,
 } from './readAloud/useQuizReadAloud';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
-import { ReadAloudToolbar } from './readAloud/ReadAloudToolbar';
+import { StudentAccommodationBar } from './StudentAccommodationBar';
 import {
   highlightClass,
   sameReadAloudPart,
@@ -134,7 +134,11 @@ import {
   serveQuestionSubset,
   applyHiddenOptions,
   applyTimeMultiplier,
+  serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
+import { applyLocalizedStrings } from '@/utils/quizLocalizedDisplay';
+import { useEphemeralAppLanguage } from '@/hooks/useEphemeralAppLanguage';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import {
   toCanonicalAnswer,
   toDisplayAnswer,
@@ -574,6 +578,8 @@ const QuizJoinFlow: React.FC<{
     session?.assignmentId ?? null
   );
   const myOverride: StudentOverride | undefined = myPointer?.override;
+  // D28/D34: Spanish students get the Spanish shell; the choice is never persisted.
+  useEphemeralAppLanguage(myOverride?.language);
   // M17 F2 — the pointer's top-level window IS this student's effective one
   // (the CF folds `override.openAt`/`closeAt` into it); it wins over the session.
   const myEffectiveWindow = resolveEffectiveWindow(session, myPointer);
@@ -1362,7 +1368,11 @@ const ActiveQuiz: React.FC<{
     qId: string,
     answer: string,
     speedBonus?: number,
-    opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
+    opts?: {
+      isDraft?: boolean;
+      timedOutUnderMinimum?: boolean;
+      locale?: string;
+    }
   ) => Promise<void>;
   /** Appends one committed take; rejects so the recorder can show the failure. */
   onCommitRecording: (questionId: string, take: AudioTake) => Promise<void>;
@@ -1761,12 +1771,37 @@ const ActiveQuiz: React.FC<{
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
-  // PR1 is dark: the locale toggle and the pointer's `language` land in PR3.
-  const activeLocale: string | undefined = undefined;
+  // The student's accommodation language; the toggle resets to it on advance (§4.6).
+  const assignedLocale = override?.language;
+  const currentQidForLocale = currentQuestion?.id ?? null;
+  const [localeChoice, setLocaleChoice] = useState<{
+    qid: string | null;
+    locale: string | undefined;
+  }>({ qid: currentQidForLocale, locale: assignedLocale });
+  if (
+    localeChoice.qid !== currentQidForLocale ||
+    (localeChoice.locale !== undefined &&
+      localeChoice.locale !== assignedLocale)
+  ) {
+    setLocaleChoice({ qid: currentQidForLocale, locale: assignedLocale });
+  }
+  const activeLocale = localeChoice.locale;
+  // Per-question English fallback: a question with no reviewed translation just renders English.
+  const localizedStrings = currentQuestion
+    ? serveLocalizedQuestion(currentQuestion, activeLocale)
+    : null;
+  const localeAvailable =
+    !!assignedLocale &&
+    !!currentQuestion &&
+    serveLocalizedQuestion(currentQuestion, assignedLocale) !== null;
 
   // Read-aloud (docs/plans/QUIZ_READ_ALOUD.md §6.2): self-paced light shell only.
   const readAloud = useQuizReadAloud({
-    enabled: readAloudRequested === true && isStudentPaced,
+    // D25: no speaker on a localized rendering; it returns on the English toggle.
+    enabled:
+      readAloudRequested === true &&
+      isStudentPaced &&
+      localizedStrings === null,
     sessionId: session.id,
     manifest: session.readAloud,
     canonicalQuestions: session.publicQuestions,
@@ -2084,8 +2119,27 @@ const ActiveQuiz: React.FC<{
   currentQuestionRef.current = currentQuestion;
   const selectedAnswerRef = useRef(selectedAnswer);
   selectedAnswerRef.current = selectedAnswer;
+  // `locale` is per-call (D18): stamped only while a localized rendering is on screen.
+  const answerLocaleRef = useRef<{ qid: string | null; locale?: string }>({
+    qid: null,
+  });
+  answerLocaleRef.current = {
+    qid: currentQidForLocale,
+    locale: localizedStrings ? activeLocale : undefined,
+  };
   const onAnswerRef = useRef(onAnswer);
-  onAnswerRef.current = onAnswer;
+  onAnswerRef.current = (qId, answer, speedBonus, opts) => {
+    const stamp =
+      answerLocaleRef.current.qid === qId
+        ? answerLocaleRef.current.locale
+        : undefined;
+    return onAnswer(
+      qId,
+      answer,
+      speedBonus,
+      stamp ? { ...opts, locale: stamp } : opts
+    );
+  };
   // Mirror of `myResponse.status` for the visibility/unmount flush
   // handlers (which are scoped to `[]` deps and can't read state
   // directly). Used to short-circuit the flush after the student has
@@ -2521,7 +2575,7 @@ const ActiveQuiz: React.FC<{
       if (bonusPct > 0) computedSpeedBonus = bonusPct;
     }
 
-    await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+    await onAnswerRef.current(currentQuestion.id, answer, computedSpeedBonus);
     setSubmitting(false);
 
     // ─── Answer feedback & gamification ──────────────────────────────────────
@@ -2670,7 +2724,11 @@ const ActiveQuiz: React.FC<{
         }
 
         try {
-          await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+          await onAnswerRef.current(
+            currentQuestion.id,
+            answer,
+            computedSpeedBonus
+          );
         } catch (err) {
           console.error(
             '[QuizStudentApp] onAnswer failed for question',
@@ -2769,8 +2827,13 @@ const ActiveQuiz: React.FC<{
   const progress = ((currentIndex + 1) / effectiveTotalQuestions) * 100;
 
   // Choices are pre-shuffled in publicQuestions by the teacher side
+  // Rendered strings only; `currentQuestion` stays canonical for answer conversion.
+  const displayQuestion = applyLocalizedStrings(
+    currentQuestion,
+    localizedStrings
+  );
   const options =
-    currentQuestion.type === 'MC' ? (currentQuestion.choices ?? []) : [];
+    displayQuestion.type === 'MC' ? (displayQuestion.choices ?? []) : [];
 
   // ─── Light / dark theme tokens ──────────────────────────────────────────────
   // The async / self-paced assignment experience renders LIGHT (matching the
@@ -2956,7 +3019,24 @@ const ActiveQuiz: React.FC<{
           style={{ width: `${progress}%` }}
         />
       </div>
-      {readAloudOn && <ReadAloudToolbar controller={readAloud} />}
+      {(readAloudOn || localeAvailable) && (
+        <StudentAccommodationBar
+          readAloud={readAloudOn ? readAloud : undefined}
+          locale={
+            localeAvailable && assignedLocale
+              ? {
+                  nativeLabel: languageNativeLabel(assignedLocale),
+                  localized: activeLocale !== undefined,
+                  onChange: (localized) =>
+                    setLocaleChoice({
+                      qid: currentQidForLocale,
+                      locale: localized ? assignedLocale : undefined,
+                    }),
+                }
+              : undefined
+          }
+        />
+      )}
 
       <div
         className={
@@ -3069,7 +3149,7 @@ const ActiveQuiz: React.FC<{
               <h2
                 className={`flex-1 text-xl font-bold leading-snug break-words ${headingText}`}
               >
-                {currentQuestion.text}
+                {displayQuestion.text}
               </h2>
               <ReadAloudButton
                 variant="prominent"
@@ -3083,7 +3163,7 @@ const ActiveQuiz: React.FC<{
             <h2
               className={`text-xl font-bold mb-8 leading-snug break-words ${headingText}`}
             >
-              {currentQuestion.text}
+              {displayQuestion.text}
             </h2>
           )}
 
@@ -3396,8 +3476,8 @@ const ActiveQuiz: React.FC<{
             (currentQuestion.type === 'Matching' ||
               currentQuestion.type === 'Ordering') && (
               <StructuredQuestionInput
-                key={currentQuestion.id}
-                question={currentQuestion}
+                key={`${currentQuestion.id}:${activeLocale ?? 'en'}`}
+                question={displayQuestion}
                 submitted={submitted}
                 isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
                 savedAnswer={toDisplayAnswer(
@@ -3449,9 +3529,9 @@ const ActiveQuiz: React.FC<{
 
           {!recordingConfig && isFreeResponseType(currentQuestion.type) && (
             <div className="space-y-4">
-              {currentQuestion.rubricSnapshot && (
+              {displayQuestion.rubricSnapshot && (
                 <CollapsibleRubric
-                  rubric={currentQuestion.rubricSnapshot}
+                  rubric={displayQuestion.rubricSnapshot}
                   light={light}
                 />
               )}
@@ -3487,7 +3567,7 @@ const ActiveQuiz: React.FC<{
                   }`}
                   value={liveAnswer ?? ''}
                   onChange={(html) => setCacheForCurrent(html)}
-                  placeholder={currentQuestion.placeholder}
+                  placeholder={displayQuestion.placeholder}
                   minWords={currentQuestion.minWords}
                   maxWords={currentQuestion.maxWords}
                   enforceWordLimit={currentQuestion.enforceWordLimit}
@@ -4541,6 +4621,18 @@ export const PublishedScoreReview: React.FC<{
                     const idx = publicQuestionIndex.get(q.id) ?? 0;
                     const ans = answerById.get(q.id);
                     const studentAnswer = ans?.answer ?? '';
+                    // Recap follows the accommodation language, with no toggle (§4.6).
+                    const recapStrings = serveLocalizedQuestion(
+                      q,
+                      override?.language
+                    );
+                    const recapLocale = recapStrings
+                      ? override?.language
+                      : undefined;
+                    const recapQuestion = applyLocalizedStrings(
+                      q,
+                      recapStrings
+                    );
                     const isWritten = isFreeResponseType(q.type);
                     const writtenGrade = isWritten
                       ? myResponse.grading?.[q.id]
@@ -4595,7 +4687,7 @@ export const PublishedScoreReview: React.FC<{
                           <p
                             className={`flex-1 min-w-0 break-words text-sm font-semibold ${qTextCls}`}
                           >
-                            {q.text}
+                            {recapQuestion.text}
                           </p>
                           {isCorrect && (
                             <Check
@@ -4644,7 +4736,11 @@ export const PublishedScoreReview: React.FC<{
                                   >
                                     {studentAnswer
                                       ? formatAnswerForDisplay(
-                                          studentAnswer,
+                                          toDisplayAnswer(
+                                            q,
+                                            recapLocale,
+                                            studentAnswer
+                                          ),
                                           q.type
                                         )
                                       : '— no response'}
@@ -4658,7 +4754,11 @@ export const PublishedScoreReview: React.FC<{
                                     className={`font-mono ${answerCorrectText}`}
                                   >
                                     {formatAnswerForDisplay(
-                                      correctAnswer,
+                                      toDisplayAnswer(
+                                        q,
+                                        recapLocale,
+                                        correctAnswer
+                                      ),
                                       q.type
                                     )}
                                   </span>

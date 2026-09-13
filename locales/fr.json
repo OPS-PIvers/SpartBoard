@@ -2066,6 +2066,64 @@
     "needsManual": "Impossible d'extraire le texte automatiquement. Collez-le ou saisissez-le ici.",
     "extractFailed": "L'extraction du texte a échoué. Réessayez."
   },
+  "quizTranslation": {
+    "label": "Traduction",
+    "editor": {
+      "tab": "Langues",
+      "pickLanguage": "Choisir une langue",
+      "generate": "Générer la traduction",
+      "reviewed": "Vérifiée",
+      "stale": "Obsolète",
+      "regenerate_one": "Regénérer {{count}} question obsolète",
+      "regenerate_other": "Regénérer {{count}} questions obsolètes",
+      "servedCount": "{{reviewed}} sur {{total}} proposées en {{language}}",
+      "save": "Enregistrer la traduction",
+      "english": "Anglais",
+      "disabled": {
+        "capReached": "La limite mensuelle de traduction de votre établissement est atteinte.",
+        "sourceNotEnglish": "Seuls les questionnaires rédigés en anglais peuvent être traduits.",
+        "bankSlots": "Les questionnaires qui puisent dans des banques de questions ne peuvent pas être traduits."
+      },
+      "chromeNote": "Les menus restent en anglais.",
+      "empty": {
+        "noLanguage": {
+          "title": "Aucune langue choisie",
+          "body": "Choisissez une langue ci-dessus pour commencer une traduction."
+        },
+        "noneReviewed": {
+          "title": "Rien de vérifié pour l'instant",
+          "body": "Les élèves ne voient que les questions que vous marquez comme vérifiées. Demandez à un spécialiste des langues si vous ne lisez pas cette langue."
+        },
+        "pickQuestion": {
+          "title": "Choisissez une question",
+          "body": "Sélectionnez une question à gauche pour voir l'anglais et la traduction côte à côte."
+        }
+      }
+    },
+    "authoring": {
+      "advisory": {
+        "stimulusText_one": "{{count}} image peut contenir du texte qui reste en anglais.",
+        "stimulusText_other": "{{count}} images peuvent contenir du texte qui reste en anglais."
+      }
+    },
+    "assign": {
+      "generate": "Générer",
+      "advisory": {
+        "missing_one": "{{name}} a besoin de {{language}}. Cette traduction n'est pas prête : l'anglais sera affiché.",
+        "missing_other": "{{name}} et {{count}} autres ont besoin de traductions qui ne sont pas prêtes ({{language}}) : l'anglais sera affiché."
+      }
+    },
+    "student": {
+      "toggle": {
+        "english": "Anglais"
+      }
+    },
+    "grading": {
+      "backTranslate": "Traduire cette réponse",
+      "backTranslationLabel": "Traduction en anglais",
+      "machineGenerated": "Générée par une machine. Les mots de l'élève font foi."
+    }
+  },
   "quizMediaResponse": {
     "notice": {
       "title": "Before you record",

@@ -1735,6 +1735,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 overridesBySourcedId: resolvedTargeting.overridesByKey,
                 openAt: resolvedTargeting.openAt ?? null,
                 closeAt: resolvedTargeting.closeAt ?? null,
+                ...(meta.translations
+                  ? { translationIndex: meta.translations }
+                  : {}),
               }
             );
 

@@ -2066,6 +2066,64 @@
     "needsManual": "Der Text konnte nicht automatisch extrahiert werden. Hier einfügen oder eingeben.",
     "extractFailed": "Textextraktion fehlgeschlagen. Bitte erneut versuchen."
   },
+  "quizTranslation": {
+    "label": "Übersetzung",
+    "editor": {
+      "tab": "Sprachen",
+      "pickLanguage": "Sprache wählen",
+      "generate": "Übersetzung erstellen",
+      "reviewed": "Geprüft",
+      "stale": "Veraltet",
+      "regenerate_one": "{{count}} veraltete Frage neu übersetzen",
+      "regenerate_other": "{{count}} veraltete Fragen neu übersetzen",
+      "servedCount": "{{reviewed}} von {{total}} auf {{language}} freigegeben",
+      "save": "Übersetzung speichern",
+      "english": "Englisch",
+      "disabled": {
+        "capReached": "Das monatliche Übersetzungslimit deiner Schule ist aufgebraucht.",
+        "sourceNotEnglish": "Nur Quiz auf Englisch können übersetzt werden.",
+        "bankSlots": "Quiz mit Fragenpools können nicht übersetzt werden."
+      },
+      "chromeNote": "Menüs bleiben auf Englisch.",
+      "empty": {
+        "noLanguage": {
+          "title": "Keine Sprache gewählt",
+          "body": "Wähle oben eine Sprache, um eine Übersetzung zu starten."
+        },
+        "noneReviewed": {
+          "title": "Noch nichts geprüft",
+          "body": "Lernende sehen nur Fragen, die du als geprüft markierst. Bitte eine Sprachförderkraft um Unterstützung, wenn du diese Sprache nicht liest."
+        },
+        "pickQuestion": {
+          "title": "Frage auswählen",
+          "body": "Wähle links eine Frage, um Englisch und Übersetzung nebeneinander zu sehen."
+        }
+      }
+    },
+    "authoring": {
+      "advisory": {
+        "stimulusText_one": "{{count}} Bild enthält möglicherweise Text, der auf Englisch bleibt.",
+        "stimulusText_other": "{{count}} Bilder enthalten möglicherweise Text, der auf Englisch bleibt."
+      }
+    },
+    "assign": {
+      "generate": "Erstellen",
+      "advisory": {
+        "missing_one": "{{name}} braucht {{language}}. Diese Übersetzung ist nicht bereit - Anzeige auf Englisch.",
+        "missing_other": "{{name}} und {{count}} weitere brauchen Übersetzungen, die nicht bereit sind ({{language}}) - Anzeige auf Englisch."
+      }
+    },
+    "student": {
+      "toggle": {
+        "english": "Englisch"
+      }
+    },
+    "grading": {
+      "backTranslate": "Diese Antwort übersetzen",
+      "backTranslationLabel": "Englische Übersetzung",
+      "machineGenerated": "Maschinell erstellt. Maßgeblich sind die eigenen Worte der Lernenden."
+    }
+  },
   "quizMediaResponse": {
     "notice": {
       "title": "Before you record",
