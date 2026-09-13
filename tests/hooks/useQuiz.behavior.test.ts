@@ -28,10 +28,7 @@ vi.mock('@/config/firebase', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: vi.fn(() => ({
-    googleAccessToken: null,
-    canAccessFeature: () => true,
-  })),
+  useAuth: vi.fn(() => ({ googleAccessToken: null })),
 }));
 
 vi.mock('@/hooks/useGoogleDrive', () => ({

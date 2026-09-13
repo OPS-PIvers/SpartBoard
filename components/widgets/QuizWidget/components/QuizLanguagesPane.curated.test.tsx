@@ -120,6 +120,18 @@ describe('QuizLanguagesContextPane curated languages', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps a disabled language whose sidecar already exists so it stays reviewable', () => {
+    enabledCodes.current = ['so'];
+    renderPane();
+    expect(screen.getByRole('button', { name: /Español/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Soomaali/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Hmoob/ })
+    ).not.toBeInTheDocument();
+  });
+
   it('counts the served questions over the translatable subset (1 of 1, not 1 of 2)', () => {
     enabledCodes.current = ['es'];
     renderPane();

@@ -46,7 +46,14 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
   onSelectQuestion,
 }) => {
   const { t } = useTranslation();
-  const { languages } = useQuizTranslationSettings();
+  const { languages: enabledLanguages } = useQuizTranslationSettings();
+  // A locale the admin later disabled stays reviewable while a sidecar for it exists.
+  const languages = useMemo(() => {
+    const codes = new Set(enabledLanguages.map((l) => l.code));
+    for (const code of Object.keys(metadata?.translations ?? {}))
+      codes.add(code);
+    return QUIZ_TRANSLATION_LANGUAGES.filter((l) => codes.has(l.code));
+  }, [enabledLanguages, metadata?.translations]);
   const payload = selectedLocale ? api.byLocale[selectedLocale] : undefined;
   const translatableSet = useMemo(
     () => new Set(api.translatableIds),
