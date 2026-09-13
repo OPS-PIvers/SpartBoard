@@ -181,6 +181,7 @@ export const CountdownAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   const eventColor = config.eventColor ?? '#2d3f89';
   const selectEventColor = (color: string) =>
     updateConfig({ eventColor: color });
+  const selectedIndex = TEXT_COLOR_PRESETS.findIndex((c) => c === eventColor);
 
   return (
     <div className="space-y-6">
@@ -197,13 +198,17 @@ export const CountdownAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
             handleRadioGroupKeyDown(e, TEXT_COLOR_PRESETS, selectEventColor)
           }
         >
-          {TEXT_COLOR_PRESETS.map((color) => (
+          {TEXT_COLOR_PRESETS.map((color, index) => (
             <button
               key={color}
               type="button"
               role="radio"
               aria-checked={eventColor === color}
-              tabIndex={eventColor === color ? 0 : -1}
+              tabIndex={
+                eventColor === color || (selectedIndex < 0 && index === 0)
+                  ? 0
+                  : -1
+              }
               onClick={() => selectEventColor(color)}
               className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
                 eventColor === color
