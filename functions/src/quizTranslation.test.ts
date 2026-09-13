@@ -41,7 +41,16 @@ vi.mock('@google/genai', () => ({
   ThinkingLevel: { MINIMAL: 'minimal' },
 }));
 vi.mock('./functionsInit', () => ({}));
-vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
+vi.mock('./classlinkShared', () => ({
+  ALLOWED_ORIGINS: [],
+  normalizeEmailDomain: (email: string) => {
+    const at = email.lastIndexOf('@');
+    return at < 0 || at === email.length - 1
+      ? null
+      : '@' + email.slice(at + 1).toLowerCase();
+  },
+  resolveOrgIdForDomain: () => Promise.resolve(null),
+}));
 
 import {
   BACK_TRANSLATION_DAILY_LIMIT,
@@ -90,6 +99,7 @@ function makeDb(docs: Record<string, Doc>) {
     collection: (name: string) => ({
       doc: (id: string) => refFor(`${name}/${id}`),
     }),
+    doc: (path: string) => refFor(path),
     runTransaction: async <T>(fn: (tx: unknown) => Promise<T>) => {
       const tx = {
         get: (ref: { path: string }) => Promise.resolve(snapshotFor(ref.path)),
@@ -509,15 +519,20 @@ describe('quota metering', () => {
 });
 
 describe('translateResponse', () => {
-  const backDeps = (docs: Record<string, Doc>) =>
+  const backDeps = (
+    docs: Record<string, Doc>,
+    generate?: TranslationDeps['generate']
+  ) =>
     deps({
       docs,
-      generate: vi.fn(() =>
-        Promise.resolve({
-          text: JSON.stringify({ text: 'I think so' }),
-          outputTokens: 30,
-        })
-      ),
+      generate:
+        generate ??
+        vi.fn(() =>
+          Promise.resolve({
+            text: JSON.stringify({ text: 'I think so' }),
+            outputTokens: 30,
+          })
+        ),
     });
 
   it('never spends the org quiz-translation cap', async () => {
@@ -536,6 +551,43 @@ describe('translateResponse', () => {
     ).toMatchObject({ backCount: 1 });
   });
 
+  it('reserves the unit before the model is called', async () => {
+    const docs: Record<string, Doc> = {};
+    const seen: Record<string, unknown>[] = [];
+    const generate: TranslationDeps['generate'] = vi.fn(() => {
+      seen.push({
+        ...docs[`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`],
+      });
+      return Promise.resolve({
+        text: JSON.stringify({ text: 'I think so' }),
+        outputTokens: 5,
+      });
+    });
+    await translateResponse(
+      { text: 'creo que si', sourceLocale: 'es' },
+      'teacher-1',
+      backDeps(docs, generate)
+    );
+    expect(seen[0]).toMatchObject({ backCount: 1 });
+  });
+
+  it('still reserves the unit even when the model call fails', async () => {
+    const docs: Record<string, Doc> = {};
+    const generate: TranslationDeps['generate'] = vi.fn(() =>
+      Promise.reject(new Error('vertex down'))
+    );
+    await expect(
+      translateResponse(
+        { text: 'creo que si', sourceLocale: 'es' },
+        'teacher-1',
+        backDeps(docs, generate)
+      )
+    ).rejects.toThrow('vertex down');
+    expect(
+      docs[`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]
+    ).toMatchObject({ backCount: 1 });
+  });
+
   it('still enforces its own daily ceiling', async () => {
     const docs: Record<string, Doc> = {
       [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {
@@ -548,6 +600,21 @@ describe('translateResponse', () => {
         'teacher-1',
         backDeps(docs)
       )
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+  });
+
+  it('blocks the second of two sequential calls made at cap-1', async () => {
+    const docs: Record<string, Doc> = {
+      [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {
+        backCount: BACK_TRANSLATION_DAILY_LIMIT - 1,
+      },
+    };
+    const d = backDeps(docs);
+    await expect(
+      translateResponse({ text: 'hola', sourceLocale: 'es' }, 'teacher-1', d)
+    ).resolves.toBeTruthy();
+    await expect(
+      translateResponse({ text: 'hola', sourceLocale: 'es' }, 'teacher-1', d)
     ).rejects.toMatchObject({ code: 'resource-exhausted' });
   });
 
@@ -587,19 +654,31 @@ describe('parseTranslateQuizRequest bounds', () => {
       parseTranslateQuizRequest(baseRequest({ questionIds: [] }))
     ).toThrow(/at least one question/);
   });
+
+  it('rejects a title over 1000 characters', () => {
+    expect(() =>
+      parseTranslateQuizRequest(baseRequest({ title: 'x'.repeat(1001) }))
+    ).toThrow(/at most 1000 characters/);
+  });
+
+  it('accepts a title at exactly 1000 characters', () => {
+    expect(() =>
+      parseTranslateQuizRequest(baseRequest({ title: 'x'.repeat(1000) }))
+    ).not.toThrow();
+  });
 });
 
 describe('assertQuizTranslationFeature', () => {
-  const run = (docs: Record<string, Doc>, email?: string) =>
-    assertQuizTranslationFeature(makeDb(docs), email);
+  const run = (docs: Record<string, Doc>, email?: string, uid = 'uid-1') =>
+    assertQuizTranslationFeature(makeDb(docs), email, uid);
 
-  it('absent doc: admin-only', async () => {
+  it('absent doc: denies everyone, admins included (missingDocPublic: false)', async () => {
     await expect(run({}, 'teacher@x.org')).rejects.toMatchObject({
       code: 'permission-denied',
     });
     await expect(
       run({ 'admins/boss@x.org': {} }, 'Boss@X.org')
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
   it('disabled: denied even for an admin', async () => {
@@ -612,6 +691,32 @@ describe('assertQuizTranslationFeature', () => {
         'boss@x.org'
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('requires enabled === true, not merely !== false', async () => {
+    await expect(
+      run(
+        { 'global_permissions/quiz-translation': { accessLevel: 'public' } },
+        'teacher@x.org'
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('admin bypasses accessLevel, minTier and buildings once the doc exists and is enabled', async () => {
+    await expect(
+      run(
+        {
+          'global_permissions/quiz-translation': {
+            enabled: true,
+            accessLevel: 'admin',
+            minTier: 'internal',
+            buildings: ['high'],
+          },
+          'admins/boss@x.org': {},
+        },
+        'boss@x.org'
+      )
+    ).resolves.toBeUndefined();
   });
 
   it('beta: only listed emails', async () => {
@@ -640,5 +745,47 @@ describe('assertQuizTranslationFeature', () => {
         'teacher@x.org'
       )
     ).resolves.toBeUndefined();
+  });
+
+  it('minTier: denies a free-tier teacher and allows an internal-domain one', async () => {
+    const docs = {
+      'global_permissions/quiz-translation': {
+        enabled: true,
+        accessLevel: 'public',
+        minTier: 'org',
+      },
+    };
+    await expect(run(docs, 'teacher@gmail.com')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(run(docs, 'teacher@orono.k12.mn.us')).resolves.toBeUndefined();
+  });
+
+  it('buildings: denies a teacher whose selectedBuildings do not match', async () => {
+    const docs = {
+      'global_permissions/quiz-translation': {
+        enabled: true,
+        accessLevel: 'public',
+        buildings: ['high'],
+      },
+      'users/uid-1/userProfile/profile': { selectedBuildings: ['middle'] },
+    };
+    await expect(run(docs, 'teacher@x.org', 'uid-1')).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('buildings: allows a teacher with a matching selectedBuildings entry', async () => {
+    const docs = {
+      'global_permissions/quiz-translation': {
+        enabled: true,
+        accessLevel: 'public',
+        buildings: ['high'],
+      },
+      'users/uid-1/userProfile/profile': {
+        selectedBuildings: ['orono-high-school'],
+      },
+    };
+    await expect(run(docs, 'teacher@x.org', 'uid-1')).resolves.toBeUndefined();
   });
 });

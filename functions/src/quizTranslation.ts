@@ -19,7 +19,11 @@ import {
   ThinkingLevel,
   GoogleGenAIOptions,
 } from '@google/genai';
-import { ALLOWED_ORIGINS } from './classlinkShared';
+import {
+  ALLOWED_ORIGINS,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
+} from './classlinkShared';
 import { parseGeminiJson } from './parseGeminiJson';
 import { normalizeModelName } from './shared';
 import { LANGUAGE_TAG_RE } from './languageTag';
@@ -103,6 +107,7 @@ export type QuotaReason = 'daily' | 'units' | 'outputTokens';
 /** Request-size ceilings — a hostile payload must not reach Gemini or Firestore. */
 export const MAX_TRANSLATABLE_QUESTIONS = 200;
 export const MAX_TRANSLATABLE_QUESTIONS_BYTES = 200_000;
+export const MAX_TRANSLATABLE_TITLE_CHARS = 1000;
 export const MAX_BACK_TRANSLATION_CHARS = 5000;
 
 /** Injected so tests exercise the decisions, not Vertex or Firestore. */
@@ -226,51 +231,62 @@ export async function billTranslationTokens(
   nowMs: number
 ): Promise<void> {
   if (outputTokens <= 0) return;
-  const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
-  await Promise.all([
-    monthlyRef.set(
-      { outputTokens: inc(outputTokens), updatedAt: nowMs },
-      { merge: true }
-    ),
-    dailyRef.set(
-      { outputTokens: inc(outputTokens), updatedAt: nowMs },
-      { merge: true }
-    ),
-  ]);
+  const { monthlyRef } = usageRefs(db, uid, nowMs);
+  // Only the monthly doc's outputTokens is ever read (reserveTranslationUnit's
+  // token-cap check) — no daily write to keep.
+  await monthlyRef.set(
+    { outputTokens: inc(outputTokens), updatedAt: nowMs },
+    { merge: true }
+  );
 }
 
 /**
- * Back-translation is metered on its own ceiling only (200/teacher/day), so it
- * never spends the org's quiz-translation cap. `backUnits`/`backOutputTokens`
- * on the monthly doc are for visibility, not for any gate.
+ * Reserve one back-translation unit BEFORE the model call, mirroring
+ * `reserveTranslationUnit`: a failed generation is still paid for, and two
+ * concurrent calls at cap-1 cannot both pass. Back-translation is metered on
+ * its own ceiling only (200/teacher/day), so it never spends the org's
+ * quiz-translation cap. `backUnits` on the monthly doc is for visibility,
+ * not for any gate.
  */
-export async function billBackTranslation(
+export async function reserveBackTranslationUnit(
+  db: Firestore,
+  uid: string,
+  nowMs: number
+): Promise<void> {
+  const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
+  return db.runTransaction(async (tx) => {
+    const daily = await tx.get(dailyRef);
+    const used = daily.exists ? Number(daily.get('backCount') ?? 0) : 0;
+    if (used >= BACK_TRANSLATION_DAILY_LIMIT)
+      throw new HttpsError(
+        'resource-exhausted',
+        'Daily back-translation limit reached. Try again tomorrow.'
+      );
+    tx.set(dailyRef, { backCount: inc(1), updatedAt: nowMs }, { merge: true });
+    tx.set(
+      monthlyRef,
+      { backUnits: inc(1), updatedAt: nowMs },
+      { merge: true }
+    );
+  });
+}
+
+/** Post-call token spend for a reserved back-translation unit. */
+export async function billBackTranslationTokens(
   db: Firestore,
   uid: string,
   outputTokens: number,
   nowMs: number
 ): Promise<void> {
-  const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
-  await Promise.all([
-    monthlyRef.set(
-      {
-        backUnits: inc(1),
-        backOutputTokens: inc(outputTokens),
-        updatedAt: nowMs,
-      },
-      { merge: true }
-    ),
-    dailyRef.set({ backCount: inc(1), updatedAt: nowMs }, { merge: true }),
-  ]);
+  if (outputTokens <= 0) return;
+  const { monthlyRef } = usageRefs(db, uid, nowMs);
+  await monthlyRef.set(
+    { backOutputTokens: inc(outputTokens), updatedAt: nowMs },
+    { merge: true }
+  );
 }
 
 // ── Feature flag (server mirror of the client's canAccessFeature) ───────────
-
-/** Mirrors FEATURE_DEFAULTS['quiz-translation'] in config/featureDefaults.ts. */
-const QUIZ_TRANSLATION_FEATURE_DEFAULT = {
-  enabled: true,
-  accessLevel: 'admin' as const,
-};
 
 async function isSpartBoardAdmin(
   db: Firestore,
@@ -281,53 +297,134 @@ async function isSpartBoardAdmin(
   return doc.exists;
 }
 
+/** Mirrors `BUILDING_ID_ALIASES` in `config/buildings.ts`; functions cannot import it. */
+const BUILDING_ID_ALIASES: Readonly<Record<string, string>> = {
+  'orono-high-school': 'high',
+  'orono-middle-school': 'middle',
+  'orono-intermediate-school': 'intermediate',
+  'schumann-elementary': 'schumann',
+};
+
+/** Mirrors `INTERNAL_TIER_DOMAINS` in `utils/userTier.ts`. */
+const INTERNAL_TIER_DOMAINS: readonly string[] = ['orono.k12.mn.us'];
+
+/** Mirrors the `free < org < internal` ordering in `utils/userTier.ts`. */
+const TIER_RANK: Readonly<Record<string, number>> = {
+  free: 0,
+  org: 1,
+  internal: 2,
+};
+
+/** Server twin of `meetsMinTier` — an unset floor imposes no restriction. */
+function meetsMinTierServer(tier: string, minTier: unknown): boolean {
+  if (typeof minTier !== 'string' || !minTier) return true;
+  return (TIER_RANK[tier] ?? 0) >= (TIER_RANK[minTier] ?? 0);
+}
+
+/** Server twin of `canonicalizeBuildingIds` — legacy ids, de-duplicated. */
+function canonicalizeBuildingIdsServer(ids: readonly unknown[]): string[] {
+  const out: string[] = [];
+  for (const raw of ids) {
+    if (typeof raw !== 'string') continue;
+    const canonical = BUILDING_ID_ALIASES[raw] ?? raw;
+    if (!out.includes(canonical)) out.push(canonical);
+  }
+  return out;
+}
+
+/** The teacher's `selectedBuildings`, canonicalized the way AuthContext does. */
+async function loadTeacherBuildings(
+  db: Firestore,
+  teacherUid: string
+): Promise<string[]> {
+  if (!teacherUid) return [];
+  const snap = await db
+    .doc(`users/${teacherUid}/userProfile/profile`)
+    .get()
+    .catch(() => null);
+  const raw: unknown = snap?.data()?.selectedBuildings;
+  return Array.isArray(raw) ? canonicalizeBuildingIdsServer(raw) : [];
+}
+
+/** Server twin of `deriveUserTier` — internal domain, else org member, else free. */
+async function deriveTeacherTier(
+  db: Firestore,
+  teacherEmail: string
+): Promise<string> {
+  const domain = teacherEmail.split('@')[1] ?? '';
+  if (domain && INTERNAL_TIER_DOMAINS.includes(domain)) return 'internal';
+  const domainWithAt = normalizeEmailDomain(teacherEmail);
+  if (!domainWithAt) return 'free';
+  const orgId = await resolveOrgIdForDomain(db, domainWithAt).catch(() => null);
+  if (!orgId) return 'free';
+  const member = await db
+    .doc(`organizations/${orgId}/members/${teacherEmail}`)
+    .get()
+    .catch(() => null);
+  return member?.exists ? 'org' : 'free';
+}
+
 /**
  * Server-side gate for `global_permissions/quiz-translation`, resolved exactly
- * as `AuthContext.canAccessFeature` resolves it client-side.
+ * as `AuthContext.resolvePermissionAccess`/`canAccessFeature` resolve it
+ * client-side (`missingDocPublic: false` for this feature — see
+ * `config/featureDefaults.ts` — so an absent doc denies everyone, admins
+ * included).
  */
 export async function assertQuizTranslationFeature(
   db: Firestore,
-  email: string | undefined
+  email: string | undefined,
+  uid: string
 ): Promise<void> {
-  let data: Record<string, unknown> | undefined;
-  try {
-    const snap = await db
-      .collection('global_permissions')
-      .doc('quiz-translation')
-      .get();
-    data = snap.exists ? (snap.data() as Record<string, unknown>) : undefined;
-  } catch {
-    data = undefined;
-  }
-  const enabled =
-    data === undefined
-      ? QUIZ_TRANSLATION_FEATURE_DEFAULT.enabled
-      : data.enabled !== false;
-  const accessLevel =
-    data === undefined
-      ? QUIZ_TRANSLATION_FEATURE_DEFAULT.accessLevel
-      : typeof data.accessLevel === 'string'
-        ? data.accessLevel
-        : '';
   const deny = (): never => {
     throw new HttpsError(
       'permission-denied',
       'Quiz translation is not available for your account.'
     );
   };
-  if (!enabled) deny();
-  if (await isSpartBoardAdmin(db, email)) return;
-  if (accessLevel === 'public') return;
-  if (accessLevel === 'beta') {
-    const betaUsers = Array.isArray(data?.betaUsers)
-      ? (data.betaUsers as unknown[]).filter(
-          (e): e is string => typeof e === 'string'
-        )
-      : [];
-    const lower = (email ?? '').toLowerCase();
-    if (lower && betaUsers.some((e) => e.toLowerCase() === lower)) return;
+  let raw: Record<string, unknown> | undefined;
+  try {
+    const snap = await db
+      .collection('global_permissions')
+      .doc('quiz-translation')
+      .get();
+    raw = snap.exists ? (snap.data() as Record<string, unknown>) : undefined;
+  } catch {
+    raw = undefined;
   }
-  deny();
+  if (raw === undefined) deny();
+  // `deny()` always throws, so `raw` is defined below; assert to avoid TS
+  // narrowing limits on a `let` reassigned inside try/catch.
+  const data = raw as Record<string, unknown>;
+  if (data.enabled !== true) deny();
+  const isAdmin = await isSpartBoardAdmin(db, email);
+  const accessLevel =
+    typeof data.accessLevel === 'string' ? data.accessLevel : '';
+  if (!isAdmin) {
+    if (accessLevel === 'beta') {
+      const betaUsers = Array.isArray(data.betaUsers)
+        ? (data.betaUsers as unknown[]).filter(
+            (e): e is string => typeof e === 'string'
+          )
+        : [];
+      const lower = (email ?? '').toLowerCase();
+      if (!lower || !betaUsers.some((e) => e.toLowerCase() === lower)) deny();
+    } else if (accessLevel !== 'public') {
+      deny();
+    }
+    // Tier gate: an unset `minTier` imposes no restriction.
+    if (data.minTier !== undefined && data.minTier !== null) {
+      const tier = email ? await deriveTeacherTier(db, email) : 'free';
+      if (!meetsMinTierServer(tier, data.minTier)) deny();
+    }
+    // Building gate: only applies when the record explicitly restricts it.
+    const buildings = Array.isArray(data.buildings) ? data.buildings : [];
+    if (buildings.length > 0) {
+      const allowed = new Set(buildings);
+      const selected = await loadTeacherBuildings(db, uid);
+      if (!selected.some((b) => allowed.has(b))) deny();
+    }
+  }
 }
 
 // ── Alignment helpers ──────────────────────────────────────────────────────
@@ -603,6 +700,11 @@ export function parseTranslateQuizRequest(raw: unknown): TranslateQuizRequest {
   if (!quizId) throw new HttpsError('invalid-argument', 'quizId is required.');
   if (!LANGUAGE_TAG_RE.test(locale))
     throw new HttpsError('invalid-argument', 'A language tag is required.');
+  if (title.length > MAX_TRANSLATABLE_TITLE_CHARS)
+    throw new HttpsError(
+      'invalid-argument',
+      `The quiz title may be at most ${MAX_TRANSLATABLE_TITLE_CHARS} characters.`
+    );
   if (!Array.isArray(data.questions) || data.questions.length === 0)
     throw new HttpsError('invalid-argument', 'questions are required.');
   const questions = data.questions as TranslatableQuestion[];
@@ -611,7 +713,10 @@ export function parseTranslateQuizRequest(raw: unknown): TranslateQuizRequest {
       'invalid-argument',
       `A quiz may have at most ${MAX_TRANSLATABLE_QUESTIONS} questions to translate.`
     );
-  if (JSON.stringify(questions).length > MAX_TRANSLATABLE_QUESTIONS_BYTES)
+  if (
+    Buffer.byteLength(JSON.stringify(questions), 'utf8') >
+    MAX_TRANSLATABLE_QUESTIONS_BYTES
+  )
     throw new HttpsError(
       'invalid-argument',
       'That quiz is too large to translate.'
@@ -695,7 +800,9 @@ export async function translateQuiz(
   const byId = new Map(request.questions.map((q) => [q.id, q]));
 
   // Reserve the unit first: a rejected or truncated generation costs real tokens
-  // and must not be retryable for free.
+  // and must not be retryable for free. One reserved unit may fund the initial
+  // generate call plus its single repair retry; real spend stays bounded by the
+  // outputTokens ceiling regardless.
   const nowMs = deps.now();
   const cap = await reserveTranslationUnit(deps.db, uid, settings, nowMs);
 
@@ -744,7 +851,11 @@ export async function translateQuiz(
       }
     }
   } finally {
-    await billTranslationTokens(deps.db, uid, outputTokens, nowMs);
+    try {
+      await billTranslationTokens(deps.db, uid, outputTokens, nowMs);
+    } catch (err) {
+      console.error('Failed to bill quiz-translation tokens', err);
+    }
   }
 
   if (!shaped)
@@ -780,45 +891,47 @@ export async function translateResponse(
       'failed-precondition',
       'That language is not enabled for translation.'
     );
+
+  // Reserve before the model call: a rejected or truncated generation still
+  // costs real tokens and must not be retryable for free (mirrors translateQuiz).
   const nowMs = deps.now();
-  const dailySnap = await deps.db
-    .collection('ai_usage')
-    .doc(teacherDailyTranslationDocId(uid, nowMs))
-    .get();
-  const used = dailySnap.exists ? Number(dailySnap.get('backCount') ?? 0) : 0;
-  if (used >= BACK_TRANSLATION_DAILY_LIMIT)
-    throw new HttpsError(
-      'resource-exhausted',
-      'Daily back-translation limit reached. Try again tomorrow.'
-    );
+  await reserveBackTranslationUnit(deps.db, uid, nowMs);
 
   const model = await resolveStandardModel(deps.db);
-  const result = await deps.generate({
-    model,
-    systemInstruction:
-      'You translate a K-12 student’s quiz answer into English for their teacher. ' +
-      'Translate faithfully, preserve numbers and proper nouns, add nothing, and return JSON only.',
-    prompt: `Source language code: ${input.sourceLocale}\nStudent response:\n${JSON.stringify(input.text)}`,
-    responseSchema: {
-      type: Type.OBJECT,
-      required: ['text'],
-      properties: { text: { type: Type.STRING } },
-    } as Schema,
-    maxOutputTokens: 2048,
-  });
-  if (result.finishReason === 'MAX_TOKENS')
-    throw new HttpsError(
-      'invalid-argument',
-      'The response was too long to translate.'
-    );
-  if (!result.text)
-    throw new HttpsError('internal', 'Empty response from the translator.');
-  const parsed = parseGeminiJson<{ text?: string }>(result.text);
-  if (typeof parsed.text !== 'string' || parsed.text.trim() === '')
-    throw new HttpsError('internal', 'The translator returned no text.');
-
-  await billBackTranslation(deps.db, uid, result.outputTokens, nowMs);
-  return { text: parsed.text, model };
+  let outputTokens = 0;
+  try {
+    const result = await deps.generate({
+      model,
+      systemInstruction:
+        'You translate a K-12 student’s quiz answer into English for their teacher. ' +
+        'Translate faithfully, preserve numbers and proper nouns, add nothing, and return JSON only.',
+      prompt: `Source language code: ${input.sourceLocale}\nStudent response:\n${JSON.stringify(input.text)}`,
+      responseSchema: {
+        type: Type.OBJECT,
+        required: ['text'],
+        properties: { text: { type: Type.STRING } },
+      } as Schema,
+      maxOutputTokens: 2048,
+    });
+    outputTokens = result.outputTokens;
+    if (result.finishReason === 'MAX_TOKENS')
+      throw new HttpsError(
+        'invalid-argument',
+        'The response was too long to translate.'
+      );
+    if (!result.text)
+      throw new HttpsError('internal', 'Empty response from the translator.');
+    const parsed = parseGeminiJson<{ text?: string }>(result.text);
+    if (typeof parsed.text !== 'string' || parsed.text.trim() === '')
+      throw new HttpsError('internal', 'The translator returned no text.');
+    return { text: parsed.text, model };
+  } finally {
+    try {
+      await billBackTranslationTokens(deps.db, uid, outputTokens, nowMs);
+    } catch (err) {
+      console.error('Failed to bill back-translation tokens', err);
+    }
+  }
 }
 
 // ── Vertex plumbing ────────────────────────────────────────────────────────
@@ -909,7 +1022,11 @@ export const translateQuizV1 = onCall(
     if (request.auth.token.studentRole === true)
       throw new HttpsError('permission-denied', 'Teacher account required.');
     const deps = buildDefaultDeps();
-    await assertQuizTranslationFeature(deps.db, request.auth.token.email);
+    await assertQuizTranslationFeature(
+      deps.db,
+      request.auth.token.email,
+      request.auth.uid
+    );
     return translateQuiz(
       parseTranslateQuizRequest(request.data),
       request.auth.uid,
@@ -944,7 +1061,11 @@ export const translateResponseV1 = onCall(
     if (!LANGUAGE_TAG_RE.test(sourceLocale))
       throw new HttpsError('invalid-argument', 'A language tag is required.');
     const deps = buildDefaultDeps();
-    await assertQuizTranslationFeature(deps.db, request.auth.token.email);
+    await assertQuizTranslationFeature(
+      deps.db,
+      request.auth.token.email,
+      request.auth.uid
+    );
     return translateResponse({ text, sourceLocale }, request.auth.uid, deps);
   }
 );
