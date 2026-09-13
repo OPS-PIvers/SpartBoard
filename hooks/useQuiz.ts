@@ -36,7 +36,6 @@ import {
   loadTranslationsForSync,
   publishSyncedQuiz,
   pullSyncedQuizContent,
-  syncedTranslationsInput,
   type SyncedTranslationsLoad,
   callLeaveSyncedQuizGroup,
   SyncedQuizVersionConflictError,
@@ -161,7 +160,8 @@ export interface UseQuizResult {
    * doc with them (peers cannot read `drive.file`-scoped sidecars).
    */
   loadSyncedTranslations: (
-    quizMeta: QuizMetadata
+    quizMeta: QuizMetadata,
+    docBase?: Record<string, unknown>
   ) => Promise<SyncedTranslationsLoad>;
   /** Is a Drive service available? */
   isDriveConnected: boolean;
@@ -307,7 +307,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           ...(effectiveBehavior !== undefined
             ? { behavior: effectiveBehavior }
             : {}),
-          ...syncedTranslationsInput(syncedTranslations),
+          // A save never clears canonical translations: publish what loaded,
+          // omit the key entirely when nothing did (preserve-on-omit).
+          ...(Object.keys(syncedTranslations.translations).length > 0
+            ? { translations: syncedTranslations.translations }
+            : {}),
         });
         nextSyncedVersion = result.version;
       }
@@ -804,9 +808,13 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   );
 
   const loadSyncedTranslations = useCallback(
-    async (quizMeta: QuizMetadata): Promise<SyncedTranslationsLoad> =>
+    async (
+      quizMeta: QuizMetadata,
+      docBase?: Record<string, unknown>
+    ): Promise<SyncedTranslationsLoad> =>
       loadTranslationsForSync(getDriveService(), quizMeta.translations, {
         quizId: quizMeta.id,
+        ...(docBase ? { docBase } : {}),
       }),
     [getDriveService]
   );

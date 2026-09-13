@@ -1143,6 +1143,19 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         },
       ],
       version: 5,
+      // The canonical still carries the locale the session serves.
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'T es',
+          questions: { q1: { text: 'P1' } },
+          sourceHashes: {},
+          reviewedQuestionIds: ['q1'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
     });
     mockGetDoc
       .mockResolvedValueOnce({
@@ -1256,6 +1269,19 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         },
       ],
       version: 5,
+      // The canonical still carries the locale the session serves.
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'T es',
+          questions: { q1: { text: 'P1' } },
+          sourceHashes: {},
+          reviewedQuestionIds: ['q1'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
     });
     mockGetDoc
       .mockResolvedValueOnce({
@@ -1294,7 +1320,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(patch.publicQuestions[0].choices).toEqual(['d', 'c', 'b', 'a']);
   });
 
-  it('clears a stale quizTitleLocalized even when no question carries localized', async () => {
+  it('refuses the sync when the canonical lost a locale the session serves', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');
     (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
@@ -1329,17 +1355,17 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
           quizTitleLocalized: { es: 'Titulo viejo' },
         }),
       });
-    mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
-    await act(async () => {
-      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
-    });
-    const sessionCall = batchUpdate.mock.calls.find(
-      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
-    );
-    const patch = sessionCall?.[1] as Record<string, unknown>;
-    expect(patch.quizTitleLocalized).toBe(DELETE_FIELD_SENTINEL);
+    await expect(
+      result.current.syncAssignmentToLatest(ASSIGNMENT_ID)
+    ).rejects.toThrow(/no longer has/);
+    // The live session is left exactly as it was.
+    expect(
+      batchUpdate.mock.calls.filter(
+        ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+      )
+    ).toHaveLength(0);
   });
 
   it('drops the locale entry for an unreviewed or stale question, and never leaks the answer key', async () => {

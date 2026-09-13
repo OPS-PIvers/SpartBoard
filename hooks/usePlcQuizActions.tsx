@@ -747,7 +747,14 @@ export function usePlcQuizActions(
             behavior: meta.behavior,
             // Peers cannot read the owner's drive.file sidecars, so seed the
             // group doc with them at share time (plan §11 PR5).
-            ...syncedTranslationsInput(await loadSyncedTranslations(meta)),
+            ...syncedTranslationsInput(
+              await loadSyncedTranslations(meta, {
+                title: data.title,
+                questions: data.questions,
+                stimuli: data.stimuli,
+                behavior: meta.behavior,
+              })
+            ),
           });
           try {
             await attachSyncLinkage(meta.id, {

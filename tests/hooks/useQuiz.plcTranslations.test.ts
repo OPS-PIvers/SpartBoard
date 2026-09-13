@@ -271,8 +271,42 @@ describe("saveQuiz — publishing the owner's sidecars", () => {
     >;
   };
 
-  it('clears the canonical when the owner genuinely has no locales', async () => {
-    expect((await publishInput(undefined)).translations).toEqual({});
+  it('omits the key when the owner has no local locales', async () => {
+    expect(await publishInput(undefined)).not.toHaveProperty('translations');
+  });
+
+  it('never clears the canonical after a pull whose sidecar writes all failed', async () => {
+    vi.spyOn(
+      MockQuizDriveService.prototype,
+      'saveTranslation'
+    ).mockRejectedValue(new Error('Drive 500'));
+    (firestore.getDoc as unknown as Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => syncedMeta(undefined),
+    });
+    const { result } = renderHook(() => useQuiz(UID));
+    let pulled: QuizMetadata | undefined;
+    await act(async () => {
+      pulled = await result.current.pullSyncedQuiz(syncedMeta(undefined));
+    });
+    expect(pulled).not.toHaveProperty('translations');
+
+    (firestore.getDoc as unknown as Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => pulled,
+    });
+    await act(async () => {
+      await result.current.saveQuiz({
+        id: 'quiz-plc-tr',
+        title: 'Numbers',
+        questions: [QUESTION],
+        createdAt: 1_000_000,
+        updatedAt: 1_000_000,
+      });
+    });
+    expect(
+      (publishSyncedQuiz as unknown as Mock).mock.calls[0][1]
+    ).not.toHaveProperty('translations');
   });
 
   it('publishes the locales it loaded', async () => {
@@ -294,5 +328,31 @@ describe("saveQuiz — publishing the owner's sidecars", () => {
     expect(
       await publishInput({ es: localEntry('local-es', freshHash) })
     ).not.toHaveProperty('translations');
+  });
+});
+
+describe('loadSyncedTranslations — share/create budget', () => {
+  const load = async (docBase?: Record<string, unknown>) => {
+    vi.spyOn(
+      MockQuizDriveService.prototype,
+      'loadTranslation'
+    ).mockResolvedValue(canonicalSidecar('es', freshHash, ['q1']));
+    const { result } = renderHook(() => useQuiz(UID));
+    return result.current.loadSyncedTranslations(
+      syncedMeta({ es: localEntry('local-es', freshHash) }),
+      docBase
+    );
+  };
+
+  it('keeps the locale when the doc body is small', async () => {
+    await expect(
+      load({ title: 'Numbers', questions: [QUESTION] })
+    ).resolves.toMatchObject({ complete: true });
+  });
+
+  it('drops the locale when the doc body already fills the budget', async () => {
+    const out = await load({ questions: [{ text: 'x'.repeat(900_000) }] });
+    expect(out.translations).toEqual({});
+    expect(out.complete).toBe(false);
   });
 });

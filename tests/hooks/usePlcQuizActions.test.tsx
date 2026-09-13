@@ -582,7 +582,13 @@ describe('usePlcQuizActions', () => {
           })
         )
       );
-      expect(loadSyncedTranslations).toHaveBeenCalledWith(personal);
+      // The byte budget must account for the doc body it shares (round 2).
+      expect(loadSyncedTranslations).toHaveBeenCalledWith(personal, {
+        title: 'Photosynthesis Quiz',
+        questions: [],
+        stimuli: undefined,
+        behavior: undefined,
+      });
     });
 
     it('creates a sync group, links it, and writes the PLC quiz entry for an unsynced quiz', async () => {

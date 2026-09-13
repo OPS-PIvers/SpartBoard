@@ -2099,6 +2099,16 @@ export const useQuizAssignments = (
       )) {
         if (servedLocales.has(locale)) servedTranslations[locale] = payload;
       }
+      // Degrading a live session is worse than refusing the sync: if the
+      // canonical no longer carries a locale the session serves, stop.
+      const missingServed = [...servedLocales].filter(
+        (locale) => !servedTranslations[locale]
+      );
+      if (missingServed.length > 0) {
+        throw new Error(
+          'This assignment carries translated questions the synced quiz no longer has; syncing would drop them. Re-assign the quiz to pick up changes.'
+        );
+      }
       const hasServedTranslations = Object.keys(servedTranslations).length > 0;
       const freshByLocale = hasServedTranslations
         ? await freshQuestionIdsByLocale(canonicalQuestions, servedTranslations)
