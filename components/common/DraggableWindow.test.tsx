@@ -146,8 +146,24 @@ vi.mock('./GlassCard', () => {
   return { GlassCard };
 });
 
+// Spy wrapper for AnnotationCanvas — records every canvasWidth/canvasHeight
+// pair passed to the component so a regression test can assert it matches
+// the render-clamped size, not the raw stored widget.w/widget.h.
+const { annotationCanvasSizeProps } = vi.hoisted(() => ({
+  annotationCanvasSizeProps: [] as Array<{
+    canvasWidth: number;
+    canvasHeight: number;
+  }>,
+}));
+
 vi.mock('./AnnotationCanvas', () => ({
-  AnnotationCanvas: () => <div data-testid="annotation-canvas" />,
+  AnnotationCanvas: (props: { canvasWidth: number; canvasHeight: number }) => {
+    annotationCanvasSizeProps.push({
+      canvasWidth: props.canvasWidth,
+      canvasHeight: props.canvasHeight,
+    });
+    return <div data-testid="annotation-canvas" />;
+  },
 }));
 
 // Spy wrapper for SettingsPanel — records every props object passed to the
@@ -235,6 +251,8 @@ describe('DraggableWindow', () => {
     mockGetLocalIsoDate.mockImplementation(defaultGetLocalIsoDate.current);
     // Reset SettingsPanel render spy before each test
     settingsPanelRenderProps.length = 0;
+    // Reset AnnotationCanvas size-prop spy before each test
+    annotationCanvasSizeProps.length = 0;
     // Setup default spy to return null
     activeElementSpy = vi.spyOn(document, 'activeElement', 'get');
     activeElementSpy.mockReturnValue(null);
@@ -946,6 +964,26 @@ describe('DraggableWindow', () => {
 
     await waitFor(() => {
       expect(windowEl.style.left).toBe('1256px');
+    });
+  });
+
+  // AnnotationCanvas sizes its drawing bitmap from canvasWidth/canvasHeight
+  // while its <canvas> is CSS-stretched to fill the parent, which now
+  // renders at the render-clamped size — the bitmap must match, or pointer
+  // coordinates drift from the drawn strokes.
+  it('sizes the annotation canvas from the render-clamped size for a below-floor widget', () => {
+    renderComponent(
+      { type: 'blooms-taxonomy', w: 200, h: 200 },
+      <div>Content</div>,
+      <div>Settings</div>,
+      'test-widget'
+    );
+
+    fireEvent.click(screen.getByTitle('Annotate (Alt+D)'));
+
+    expect(annotationCanvasSizeProps).toContainEqual({
+      canvasWidth: 280,
+      canvasHeight: 300,
     });
   });
 

@@ -2506,8 +2506,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 paths={widget.annotation?.paths ?? []}
                 color={annotationColor}
                 width={annotationWidth}
-                canvasWidth={isMaximized ? window.innerWidth : widget.w}
-                canvasHeight={isMaximized ? window.innerHeight : widget.h}
+                /* eslint-disable react-hooks/refs -- resolvedW/resolvedH are
+                   derived from dragState.current (see the disable block
+                   above); this second, distant usage falls outside that
+                   directive's line range. */
+                canvasWidth={isMaximized ? window.innerWidth : resolvedW}
+                canvasHeight={isMaximized ? window.innerHeight : resolvedH}
+                /* eslint-enable react-hooks/refs */
                 onPathsChange={(newPaths: Path[]) => {
                   updateWidget(widget.id, {
                     annotation: {
