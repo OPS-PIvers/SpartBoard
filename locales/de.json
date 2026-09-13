@@ -2480,5 +2480,22 @@
       "subjectsTaught": "Unterrichtete Fachbereiche",
       "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
     }
+  },
+  "quizTranslation": {
+    "grading": {
+      "sectionLabel": "Sprache der Antwort",
+      "backTranslate": "Diese Antwort übersetzen",
+      "backTranslating": "Wird übersetzt…",
+      "backTranslationLabel": "Englische Rückübersetzung",
+      "nativeLabel": "Antwort der Schülerin/des Schülers",
+      "machineGenerated": "Maschinell erstellt. Maßgeblich sind die eigenen Worte der Schülerin/des Schülers.",
+      "translatedRubricNote": "Diese Schülerin/dieser Schüler hat möglicherweise eine übersetzte Bewertungsvorlage gelesen; bewerte anhand der hier gezeigten englischen Vorlage.",
+      "saveFailed": "Übersetzung wird unten angezeigt, konnte aber nicht gespeichert werden. Sie muss beim nächsten Mal erneut ausgeführt werden.",
+      "errors": {
+        "failed": "Diese Antwort konnte nicht übersetzt werden. Bitte erneut versuchen.",
+        "capReached": "Tageslimit für Übersetzungen erreicht. Bitte morgen erneut versuchen.",
+        "tooLong": "Diese Antwort ist zu lang für eine Rückübersetzung."
+      }
+    }
   }
 }
