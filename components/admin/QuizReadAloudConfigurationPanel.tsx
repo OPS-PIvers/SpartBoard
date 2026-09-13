@@ -1,9 +1,20 @@
-// Admin card for `admin_settings/quiz_read_aloud` (docs/plans/QUIZ_READ_ALOUD.md D13).
+// Admin card for quiz languages: read-aloud voices and translation (plan §7, D24).
 import React, { useEffect, useState } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { Loader2, Save, Volume2 } from 'lucide-react';
 import { db } from '@/config/firebase';
-import type { QuizReadAloudAdminSettings } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import type {
+  QuizReadAloudAdminSettings,
+  QuizTranslationSettings,
+} from '@/types';
+import {
+  DEFAULT_QUIZ_TRANSLATION_SETTINGS,
+  QUIZ_TRANSLATION_LANGUAGES,
+  QUIZ_TRANSLATION_SETTINGS_DOC,
+  monthlyTranslationUsageDocId,
+  normalizeQuizTranslationSettings,
+} from '@/config/quizTranslation';
 import {
   DEFAULT_QUIZ_READ_ALOUD_SETTINGS,
   QUIZ_READ_ALOUD_LANGUAGES,
@@ -13,6 +24,11 @@ import {
   normalizeQuizReadAloudSettings,
 } from '@/config/quizReadAloud';
 import { ReadAloudPreviewButton } from '@/components/quiz/readAloud/ReadAloudPreviewButton';
+
+interface TranslationUsage {
+  units: number;
+  outputTokens: number;
+}
 
 interface MonthlyUsage {
   neural2Chars: number;
@@ -30,7 +46,14 @@ const settingsEqual = (
 
 const formatChars = (n: number): string => n.toLocaleString();
 
+/** Read-aloud tags are regional (`es-US`); translation codes are bare (`es`). */
+const readAloudTagForCode = (code: string): string | undefined =>
+  QUIZ_READ_ALOUD_LANGUAGES.find(
+    ({ tag }) => tag.split('-')[0].toLowerCase() === code.toLowerCase()
+  )?.tag;
+
 export const QuizReadAloudConfigurationPanel: React.FC = () => {
+  const { user } = useAuth();
   const [saved, setSaved] = useState<QuizReadAloudAdminSettings | null>(null);
   const [draft, setDraft] = useState<QuizReadAloudAdminSettings>(
     DEFAULT_QUIZ_READ_ALOUD_SETTINGS
@@ -40,6 +63,13 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [savedTranslation, setSavedTranslation] =
+    useState<QuizTranslationSettings | null>(null);
+  const [translationDraft, setTranslationDraft] =
+    useState<QuizTranslationSettings>(DEFAULT_QUIZ_TRANSLATION_SETTINGS);
+  const [translationSeeded, setTranslationSeeded] = useState(false);
+  const [translationUsage, setTranslationUsage] =
+    useState<TranslationUsage | null>(null);
 
   useEffect(() => {
     const ref = doc(db, 'admin_settings', QUIZ_READ_ALOUD_SETTINGS_DOC);
@@ -70,13 +100,64 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
     );
   }, []);
 
+  useEffect(() => {
+    const ref = doc(db, 'admin_settings', QUIZ_TRANSLATION_SETTINGS_DOC);
+    return onSnapshot(
+      ref,
+      (snap) =>
+        setSavedTranslation(normalizeQuizTranslationSettings(snap.data())),
+      (err) => {
+        console.error('[QuizReadAloudConfigurationPanel] translation:', err);
+        setSavedTranslation(DEFAULT_QUIZ_TRANSLATION_SETTINGS);
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    const ref = doc(db, 'ai_usage', monthlyTranslationUsageDocId());
+    return onSnapshot(
+      ref,
+      (snap) => {
+        const d = snap.data() ?? {};
+        const num = (v: unknown) => (typeof v === 'number' ? v : 0);
+        setTranslationUsage({
+          units: num(d.units),
+          outputTokens: num(d.outputTokens),
+        });
+      },
+      () => setTranslationUsage(null)
+    );
+  }, []);
+
   // Seed the draft from the first snapshot only; later snapshots never clobber edits.
   if (saved && !seeded) {
     setDraft(saved);
     setSeeded(true);
   }
 
-  const dirty = saved !== null && !settingsEqual(draft, saved);
+  if (savedTranslation && !translationSeeded) {
+    setTranslationDraft(savedTranslation);
+    setTranslationSeeded(true);
+  }
+
+  const translationDirty =
+    savedTranslation !== null &&
+    JSON.stringify({
+      ...translationDraft,
+      updatedAt: 0,
+      updatedBy: '',
+    }) !== JSON.stringify({ ...savedTranslation, updatedAt: 0, updatedBy: '' });
+
+  const dirty =
+    (saved !== null && !settingsEqual(draft, saved)) || translationDirty;
+
+  const toggleTranslationLanguage = (code: string, enabled: boolean) =>
+    setTranslationDraft((d) => ({
+      ...d,
+      enabledLanguages: enabled
+        ? Array.from(new Set([...d.enabledLanguages, code]))
+        : d.enabledLanguages.filter((c) => c !== code),
+    }));
 
   const setVoice = (
     kind: 'voicesByLanguage' | 'standardVoicesByLanguage',
@@ -88,11 +169,19 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
     setSaving(true);
     setError(null);
     try {
+      const now = Date.now();
       await setDoc(
         doc(db, 'admin_settings', QUIZ_READ_ALOUD_SETTINGS_DOC),
         draft
       );
-      setSavedAt(Date.now());
+      if (translationDirty) {
+        await setDoc(doc(db, 'admin_settings', QUIZ_TRANSLATION_SETTINGS_DOC), {
+          ...translationDraft,
+          updatedAt: now,
+          updatedBy: user?.email ?? '',
+        });
+      }
+      setSavedAt(now);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -115,11 +204,11 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
           <Volume2 className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Quiz read-aloud</h2>
+          <h2 className="text-lg font-bold text-slate-900">Quiz languages</h2>
           <p className="text-xs text-slate-600">
-            Voices used when a quiz is read aloud to signed-in students. The
-            Standard voice takes over once the month&apos;s Neural2 characters
-            reach the cap.
+            Voices used when a quiz is read aloud to signed-in students, and the
+            languages teachers may translate a quiz into. The Standard voice
+            takes over once the month&apos;s Neural2 characters reach the cap.
           </p>
         </div>
       </div>
@@ -137,6 +226,9 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
                 <tr>
                   <th className="text-left font-bold px-4 py-2">Language</th>
                   <th className="text-left font-bold px-4 py-2">
+                    Offer for translation
+                  </th>
+                  <th className="text-left font-bold px-4 py-2">
                     Neural2 voice
                   </th>
                   <th className="text-left font-bold px-4 py-2">
@@ -147,6 +239,9 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
               <tbody>
                 {QUIZ_READ_ALOUD_LANGUAGES.map(({ tag, label }) => {
                   const voices = QUIZ_READ_ALOUD_VOICES[tag];
+                  const translationCode = QUIZ_TRANSLATION_LANGUAGES.find(
+                    (l) => readAloudTagForCode(l.code) === tag
+                  )?.code;
                   return (
                     <tr key={tag} className="border-t border-slate-100">
                       <td className="px-4 py-2 font-semibold text-slate-800">
@@ -154,6 +249,27 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
                         <span className="block text-xs font-normal text-slate-500">
                           {tag}
                         </span>
+                      </td>
+                      <td className="px-4 py-2">
+                        {translationCode ? (
+                          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={translationDraft.enabledLanguages.includes(
+                                translationCode
+                              )}
+                              onChange={(e) =>
+                                toggleTranslationLanguage(
+                                  translationCode,
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            Enabled
+                          </label>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 space-y-1">
                         <select
@@ -204,6 +320,34 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
                     </tr>
                   );
                 })}
+                {QUIZ_TRANSLATION_LANGUAGES.filter(
+                  (l) => !readAloudTagForCode(l.code)
+                ).map(({ code, label, nativeLabel }) => (
+                  <tr key={code} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-semibold text-slate-800">
+                      {label}
+                      <span className="block text-xs font-normal text-slate-500">
+                        {nativeLabel} · {code}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={translationDraft.enabledLanguages.includes(
+                            code
+                          )}
+                          onChange={(e) =>
+                            toggleTranslationLanguage(code, e.target.checked)
+                          }
+                        />
+                        Enabled
+                      </label>
+                    </td>
+                    <td className="px-4 py-2 text-slate-500">—</td>
+                    <td className="px-4 py-2 text-slate-500">—</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -254,6 +398,80 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
                     <dt>Cache hits</dt>
                     <dd className="font-mono">
                       {formatChars(usage.cacheHits)}
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-sm text-slate-500">Loading…</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-3">
+              <label className="block">
+                <span className="block text-xs font-bold text-slate-700 mb-1">
+                  Translations per month
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={translationDraft.monthlyCapUnits}
+                  onChange={(e) => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    setTranslationDraft((d) => ({
+                      ...d,
+                      monthlyCapUnits: Number.isFinite(n) ? Math.max(0, n) : 0,
+                    }));
+                  }}
+                  className={selectClass}
+                />
+                <span className="block text-xs text-slate-500 mt-1">
+                  One unit is one quiz translated into one language. Teachers
+                  are blocked past the cap.
+                </span>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-bold text-slate-700 mb-1">
+                  Translation output tokens per month
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step={100000}
+                  value={translationDraft.monthlyCapOutputTokens}
+                  onChange={(e) => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    setTranslationDraft((d) => ({
+                      ...d,
+                      monthlyCapOutputTokens: Number.isFinite(n)
+                        ? Math.max(0, n)
+                        : 0,
+                    }));
+                  }}
+                  className={selectClass}
+                />
+              </label>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="text-xs font-bold text-slate-700">
+                Translations this month
+              </p>
+              {translationUsage ? (
+                <dl className="mt-1 space-y-0.5 text-sm text-slate-800">
+                  <div className="flex justify-between">
+                    <dt>Quiz languages</dt>
+                    <dd className="font-mono">
+                      {formatChars(translationUsage.units)} of{' '}
+                      {formatChars(translationDraft.monthlyCapUnits)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>Output tokens</dt>
+                    <dd className="font-mono">
+                      {formatChars(translationUsage.outputTokens)} of{' '}
+                      {formatChars(translationDraft.monthlyCapOutputTokens)}
                     </dd>
                   </div>
                 </dl>

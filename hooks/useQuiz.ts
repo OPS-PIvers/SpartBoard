@@ -25,6 +25,7 @@ import {
   QuizMetadata,
   type QuizMetadataSyncLinkage,
   type QuizBehaviorSettings,
+  type QuizTranslationIndexEntry,
 } from '@/types';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
@@ -42,6 +43,7 @@ import { buildQuizSearchText } from '@/utils/quizSearchText';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { recomputeTranslationIndex } from '@/utils/quizTranslationIndex';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -285,6 +287,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         existingDriveFileId
       );
 
+      // The index is rebuilt field-by-field below, so carry it explicitly (D31).
+      const translations = await recomputeTranslationIndex(
+        existingMeta?.translations,
+        updatedQuiz.questions
+      );
+
       const metadata: QuizMetadata = {
         id: quiz.id,
         title: quiz.title,
@@ -311,6 +319,8 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(effectiveBehavior !== undefined
           ? { behavior: effectiveBehavior }
           : {}),
+        ...(translations ? { translations } : {}),
+        ...(updatedQuiz.language ? { language: updatedQuiz.language } : {}),
       };
 
       await setDoc(metaRef, metadata);
@@ -348,6 +358,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       };
       const driveFileId = await drive.saveQuiz(refreshed, quizMeta.driveFileId);
 
+      // A peer's edit runs this with no teacher action; staleCount must follow it.
+      const translations = await recomputeTranslationIndex(
+        quizMeta.translations,
+        canonical.questions
+      );
+
       const metadata: QuizMetadata = {
         id: quizMeta.id,
         title: canonical.title,
@@ -372,6 +388,8 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...((canonical.behavior ?? quizMeta.behavior) !== undefined
           ? { behavior: canonical.behavior ?? quizMeta.behavior }
           : {}),
+        ...(translations ? { translations } : {}),
+        ...(canonical.language ? { language: canonical.language } : {}),
       };
       await setDoc(
         doc(db, 'users', userId, QUIZZES_COLLECTION, quizMeta.id),
@@ -444,6 +462,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(quizMeta.folderId !== undefined
           ? { folderId: quizMeta.folderId }
           : {}),
+        // Detach never touches the quiz body, so the index carries forward as-is.
+        ...(quizMeta.translations
+          ? { translations: quizMeta.translations }
+          : {}),
+        ...(quizMeta.language ? { language: quizMeta.language } : {}),
         // Intentionally omit `sync` so the metadata reverts to the
         // unsynced shape.
       };
@@ -597,8 +620,25 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         updatedAt: now,
       };
       let createdDriveFileId: string | undefined;
+      const createdSidecarIds: string[] = [];
       try {
         createdDriveFileId = await drive.saveQuiz(fresh);
+        // Sidecars first, index second: an orphan Drive file is recoverable, a
+        // dangling index row is not.
+        const translations: Record<string, QuizTranslationIndexEntry> = {};
+        for (const [locale, entry] of Object.entries(
+          sourceMeta.translations ?? {}
+        )) {
+          const payload = await drive.loadTranslation(entry.driveFileId);
+          const copiedId = await drive.saveTranslation(
+            fresh.id,
+            fresh.title,
+            locale,
+            payload
+          );
+          createdSidecarIds.push(copiedId);
+          translations[locale] = { ...entry, driveFileId: copiedId };
+        }
         const metadata: QuizMetadata = {
           id: fresh.id,
           title: fresh.title,
@@ -616,6 +656,8 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           ...(sourceMeta.behavior !== undefined
             ? { behavior: sourceMeta.behavior }
             : {}),
+          ...(Object.keys(translations).length > 0 ? { translations } : {}),
+          ...(fresh.language ? { language: fresh.language } : {}),
         };
         await setDoc(
           doc(db, 'users', userId, QUIZZES_COLLECTION, fresh.id),
@@ -623,6 +665,16 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         );
         return metadata;
       } catch (err) {
+        for (const sidecarId of createdSidecarIds) {
+          try {
+            await drive.deleteTranslation(sidecarId);
+          } catch (rollbackErr) {
+            logError('useQuiz.duplicateQuiz.sidecarRollback', rollbackErr, {
+              sourceQuizId: sourceMeta.id,
+              orphanDriveFileId: sidecarId,
+            });
+          }
+        }
         if (createdDriveFileId) {
           try {
             await drive.deleteQuizFile(createdDriveFileId);

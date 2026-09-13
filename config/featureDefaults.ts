@@ -212,6 +212,13 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz translation for multilingual learners. Admin-only while the Languages
+  // tab ships in stacked PRs; fail-closed so a missing doc grants nobody.
+  'quiz-translation': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // "Draft with AI" in the question-bank editor; also requires gemini-functions.
   'question-bank-ai': {
     defaultAccessLevel: 'admin',

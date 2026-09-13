@@ -12,7 +12,7 @@
  *
  * Only activated when isAuthBypass is true.
  */
-import { QuizData, QuizQuestion } from '@/types';
+import { QuizData, QuizQuestion, QuizTranslation } from '@/types';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
 
 const STORAGE_PREFIX = 'mock_quiz_drive';
@@ -28,6 +28,15 @@ export interface QuizDriveLike {
   ): Promise<QuizQuestion[]>;
   createQuizTemplate(): Promise<string>;
   createVideoActivityTemplate(title: string): Promise<string>;
+  saveTranslation(
+    quizId: string,
+    quizTitle: string,
+    locale: string,
+    payload: QuizTranslation,
+    existingFileId?: string
+  ): Promise<string>;
+  loadTranslation(fileId: string): Promise<QuizTranslation>;
+  deleteTranslation(fileId: string): Promise<void>;
 }
 
 export class MockQuizDriveService implements QuizDriveLike {
@@ -51,6 +60,32 @@ export class MockQuizDriveService implements QuizDriveLike {
   }
 
   deleteQuizFile(fileId: string): Promise<void> {
+    localStorage.removeItem(this.key(fileId));
+    return Promise.resolve();
+  }
+
+  saveTranslation(
+    quizId: string,
+    quizTitle: string,
+    locale: string,
+    payload: QuizTranslation,
+    existingFileId?: string
+  ): Promise<string> {
+    const fileId = existingFileId ?? `mock-tr-${quizId}-${locale}`;
+    localStorage.setItem(this.key(fileId), JSON.stringify(payload));
+    return Promise.resolve(fileId);
+  }
+
+  loadTranslation(fileId: string): Promise<QuizTranslation> {
+    const raw = localStorage.getItem(this.key(fileId));
+    if (!raw)
+      return Promise.reject(
+        new Error('Translation file not found in mock drive')
+      );
+    return Promise.resolve(JSON.parse(raw) as QuizTranslation);
+  }
+
+  deleteTranslation(fileId: string): Promise<void> {
     localStorage.removeItem(this.key(fileId));
     return Promise.resolve();
   }

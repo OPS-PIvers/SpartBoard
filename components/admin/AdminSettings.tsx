@@ -141,7 +141,7 @@ const TAB_GROUPS = [
       },
       {
         id: 'quiz-read-aloud',
-        label: 'Quiz Read-Aloud',
+        label: 'Quiz Languages',
         icon: Volume2,
         component: QuizReadAloudConfigurationPanel,
       },

@@ -479,6 +479,7 @@ export async function computeAnalyticsForOrg(
     'widget-builder',
     'widget-explainer',
     'tts',
+    'translation',
   ];
 
   const aiUsageStream = db

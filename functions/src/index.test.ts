@@ -3016,6 +3016,8 @@ describe('index barrel — deployed export set', () => {
     'generateWithAI',
     'generateVideoActivity',
     'transcribeVideoWithGemini',
+    'translateQuizV1',
+    'translateResponseV1',
     'generateGuidedLearning',
     'validateAndBucketVideoQuestions',
     'validateAndBucketQuizQuestions',
