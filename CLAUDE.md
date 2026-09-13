@@ -1108,6 +1108,17 @@ Test directories (note: many `*.test.ts(x)` files also live colocated next to th
 7. Request review
 8. Merge after approval
 
+### Editing a plan in `docs/plans/`
+
+**Before rewriting or substantially revising any `docs/plans/*.md`, list open PRs that touch that
+file and rebase onto them instead of rewriting from the version on `main`.** These docs get multiple
+agent passes, and two sessions revising the same plan in parallel produces a conflict that has to be
+resolved by hand, decision by decision — the losing pass's work is silently discarded if whoever
+resolves it does not read both. A rewrite that never checked cannot know what it is dropping.
+
+This applies to a rewrite, an audit pass, or a resequencing. Appending one decision to a plan you
+just read does not need the check.
+
 ---
 
 **Last Updated**: 2026-09-01
