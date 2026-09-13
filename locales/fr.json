@@ -197,10 +197,10 @@
       "groupMemberCount_one": "{{count}} élève",
       "groupMemberCount_other": "{{count}} élèves",
       "noStudentsToGroup": "Ajoutez d'abord des élèves.",
-      "accommodationsTab": "Accommodations ({{count}})",
-      "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
-      "emptyAccommodationsTitle": "No students yet",
-      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
+      "accommodationsTab": "Aménagements ({{count}})",
+      "accommodationsHelp": "Ils s'appliquent automatiquement chaque fois que tu assignes un travail à cet élève. Tu peux toujours les modifier pour chaque devoir.",
+      "emptyAccommodationsTitle": "Pas encore d'élèves",
+      "emptyAccommodationsSubtitle": "Ajoute d'abord des élèves, puis définis leurs aménagements permanents."
     },
     "plcs": {
       "title": "Mes Communautés",

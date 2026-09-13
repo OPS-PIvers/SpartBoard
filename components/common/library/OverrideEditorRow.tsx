@@ -57,6 +57,8 @@ export interface OverrideEditorRowProps {
   defaultExpanded?: boolean;
   /** Quiz only. Shows the "Read aloud" checkbox; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
+  /** Set false on standing-default surfaces (e.g. roster accommodations) where openAt/closeAt are absolute timestamps that must never be copied onto future assignments. */
+  allowWindowShift?: boolean;
 }
 
 /** `labelKey`/`labelDefault` are absent for the bare multiplier units (1.5x, 2x), which read the same in every locale. */
@@ -112,6 +114,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   peers = [],
   defaultExpanded = false,
   readAloudAvailable = false,
+  allowWindowShift = true,
 }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -345,35 +348,37 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </div>
           )}
 
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              {t('studentOverride.windowShift', 'Window shift')}
-            </span>
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              <label className="text-xs text-slate-600">
-                {t('studentOverride.opensAt', 'Opens')}
-                <input
-                  type="datetime-local"
-                  value={msToLocalInputValue(override.openAt)}
-                  onChange={(e) =>
-                    patch({ openAt: localInputValueToMs(e.target.value) })
-                  }
-                  className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
-                />
-              </label>
-              <label className="text-xs text-slate-600">
-                {t('studentOverride.closesAt', 'Closes')}
-                <input
-                  type="datetime-local"
-                  value={msToLocalInputValue(override.closeAt)}
-                  onChange={(e) =>
-                    patch({ closeAt: localInputValueToMs(e.target.value) })
-                  }
-                  className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
-                />
-              </label>
+          {allowWindowShift && (
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('studentOverride.windowShift', 'Window shift')}
+              </span>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <label className="text-xs text-slate-600">
+                  {t('studentOverride.opensAt', 'Opens')}
+                  <input
+                    type="datetime-local"
+                    value={msToLocalInputValue(override.openAt)}
+                    onChange={(e) =>
+                      patch({ openAt: localInputValueToMs(e.target.value) })
+                    }
+                    className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
+                  />
+                </label>
+                <label className="text-xs text-slate-600">
+                  {t('studentOverride.closesAt', 'Closes')}
+                  <input
+                    type="datetime-local"
+                    value={msToLocalInputValue(override.closeAt)}
+                    onChange={(e) =>
+                      patch({ closeAt: localInputValueToMs(e.target.value) })
+                    }
+                    className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
+                  />
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           {quizMode && questions.length > 0 && (
             <div>

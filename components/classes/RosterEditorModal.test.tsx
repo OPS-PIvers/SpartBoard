@@ -40,6 +40,23 @@ describe('RosterEditorModal', () => {
     ).toBeInTheDocument();
   });
 
+  it('does not offer the Accommodations tab for a brand-new roster', () => {
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={null}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    // No roster yet — the whole tab strip (Students/Groups/Accommodations)
+    // is gated on `roster`, so activeTab can never resolve to 'accommodations'.
+    expect(
+      screen.queryByRole('tab', { name: /accommodations/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('adds a row via "+ Add Student" and shows dual name fields by default', async () => {
     const user = userEvent.setup();
     render(
@@ -188,6 +205,82 @@ describe('RosterEditorModal', () => {
         { s1: { timeMultiplier: 2 } }
       );
     });
+  });
+
+  it('does not render window-shift inputs on the roster accommodations surface', async () => {
+    const user = userEvent.setup();
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+      ],
+      driveFileId: null,
+      studentCount: 1,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
+    await user.click(screen.getByRole('button', { name: /alice smith/i }));
+
+    // Standing defaults are absolute timestamps and must never be editable
+    // here — they'd be copied verbatim onto every future assignment.
+    expect(screen.queryByText(/window shift/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/opens/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/closes/i)).not.toBeInTheDocument();
+  });
+
+  it('never lets openAt/closeAt reach onSave from the roster accommodations tab', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+      ],
+      driveFileId: null,
+      studentCount: 1,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /accommodations/i }));
+    await user.click(screen.getByRole('button', { name: /alice smith/i }));
+    await user.click(screen.getByRole('tab', { name: /^2x$/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        'Existing Class',
+        expect.any(Array),
+        undefined,
+        { s1: { timeMultiplier: 2 } }
+      );
+    });
+    const savedOverrides = onSave.mock.calls[0][3] as Record<
+      string,
+      Record<string, unknown>
+    >;
+    expect(savedOverrides.s1).not.toHaveProperty('openAt');
+    expect(savedOverrides.s1).not.toHaveProperty('closeAt');
   });
 
   it('drops the student entry when a standing accommodation is cleared', async () => {

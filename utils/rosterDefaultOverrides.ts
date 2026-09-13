@@ -24,11 +24,15 @@ export const isEmptyStudentOverride = (
   });
 };
 
+/** Standing defaults have no assignment to shift; strip these before storing. */
+const WINDOW_SHIFT_KEYS = new Set(['openAt', 'closeAt']);
+
 /** Drops cleared keys so a stored override never carries `undefined` values. */
 const compactStudentOverride = (override: StudentOverride): StudentOverride => {
   const next: Record<string, unknown> = {};
   const entries: Array<[string, unknown]> = Object.entries(override);
   for (const [key, value] of entries) {
+    if (WINDOW_SHIFT_KEYS.has(key)) continue;
     if (value === undefined || value === false) continue;
     if (Array.isArray(value) && value.length === 0) continue;
     if (

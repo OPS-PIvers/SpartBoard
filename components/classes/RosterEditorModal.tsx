@@ -220,6 +220,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             overrides={defaultOverrides}
             readAloudAvailable={readAloudAvailable}
             onChange={setDefaultOverrides}
+            onAddStudents={() => setActiveTab('students')}
           />
         ) : (
           <>
@@ -768,6 +769,7 @@ interface RosterAccommodationsPanelProps {
   overrides: Record<string, StudentOverride>;
   readAloudAvailable: boolean;
   onChange: (overrides: Record<string, StudentOverride>) => void;
+  onAddStudents: () => void;
 }
 
 /**
@@ -783,6 +785,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
   overrides,
   readAloudAvailable,
   onChange,
+  onAddStudents,
 }) => {
   const { t } = useTranslation();
   const studentName = (s: Student) =>
@@ -791,22 +794,19 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
   return (
     <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
       {students.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full w-full text-center px-6 py-10 gap-2 select-none">
-          <div className="p-3 bg-slate-100 rounded-full text-slate-400">
-            <Users size={32} />
-          </div>
-          <p className="font-black uppercase tracking-widest text-slate-500 text-sm">
-            {t('sidebar.classes.emptyAccommodationsTitle', {
-              defaultValue: 'No students yet',
-            })}
-          </p>
-          <p className="text-xs text-slate-400 max-w-xs">
-            {t('sidebar.classes.emptyAccommodationsSubtitle', {
-              defaultValue:
-                'Add students first, then set their standing accommodations.',
-            })}
-          </p>
-        </div>
+        <RosterEmptyState
+          title={t('sidebar.classes.emptyAccommodationsTitle', {
+            defaultValue: 'No students yet',
+          })}
+          subtitle={t('sidebar.classes.emptyAccommodationsSubtitle', {
+            defaultValue:
+              'Add students first, then set their standing accommodations.',
+          })}
+          addLabel={t('sidebar.classes.addStudent', {
+            defaultValue: '+ Add Student',
+          })}
+          onAdd={onAddStudents}
+        />
       ) : (
         <div className="p-3 flex flex-col gap-2">
           <p className="text-xs text-slate-500">
@@ -833,6 +833,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
                 studentName={studentName(s)}
                 override={overrides[s.id] ?? {}}
                 quizMode
+                allowWindowShift={false}
                 readAloudAvailable={readAloudAvailable}
                 peers={peers}
                 onChange={(next) =>
