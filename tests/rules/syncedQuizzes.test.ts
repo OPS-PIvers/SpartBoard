@@ -357,6 +357,35 @@ describe('synced_quizzes — translations payload (PLC translation sync)', () =>
     );
   });
 
+  it('rejects an update whose translations is not a map', async () => {
+    for (const bad of ['a string', ['es'], 7]) {
+      await assertFails(
+        updateDoc(doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`), {
+          version: 2,
+          title: 'Updated',
+          translations: bad,
+          updatedAt: 2000,
+          updatedBy: TEACHER_A_UID,
+        })
+      );
+    }
+  });
+
+  it('rejects a create whose translations is not a map', async () => {
+    for (const bad of ['a string', ['es'], 7]) {
+      await testEnv.clearFirestore();
+      await assertFails(
+        setDoc(
+          doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`),
+          seededGroup({
+            participants: { [TEACHER_A_UID]: { joinedAt: 1000 } },
+            translations: bad,
+          })
+        )
+      );
+    }
+  });
+
   it('still accepts a create with no translations at all', async () => {
     await testEnv.clearFirestore();
     await assertSucceeds(

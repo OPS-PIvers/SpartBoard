@@ -36,6 +36,8 @@ import {
   loadTranslationsForSync,
   publishSyncedQuiz,
   pullSyncedQuizContent,
+  syncedTranslationsInput,
+  type SyncedTranslationsLoad,
   callLeaveSyncedQuizGroup,
   SyncedQuizVersionConflictError,
 } from './useSyncedQuizGroups';
@@ -154,6 +156,13 @@ export interface UseQuizResult {
     quizId: string,
     linkage: QuizMetadataSyncLinkage
   ) => Promise<void>;
+  /**
+   * Load the owner's translation sidecars so a share site can seed the group
+   * doc with them (peers cannot read `drive.file`-scoped sidecars).
+   */
+  loadSyncedTranslations: (
+    quizMeta: QuizMetadata
+  ) => Promise<SyncedTranslationsLoad>;
   /** Is a Drive service available? */
   isDriveConnected: boolean;
 }
@@ -275,7 +284,16 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         const syncedTranslations = await loadTranslationsForSync(
           drive,
           existingMeta?.translations,
-          { quizId: quiz.id, groupId: existingSync.groupId }
+          {
+            quizId: quiz.id,
+            groupId: existingSync.groupId,
+            docBase: {
+              title: updatedQuiz.title,
+              questions: updatedQuiz.questions,
+              stimuli: updatedQuiz.stimuli,
+              behavior: effectiveBehavior,
+            },
+          }
         );
         const result = await publishSyncedQuiz(existingSync.groupId, {
           title: updatedQuiz.title,
@@ -289,7 +307,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           ...(effectiveBehavior !== undefined
             ? { behavior: effectiveBehavior }
             : {}),
-          ...(syncedTranslations ? { translations: syncedTranslations } : {}),
+          ...syncedTranslationsInput(syncedTranslations),
         });
         nextSyncedVersion = result.version;
       }
@@ -785,6 +803,14 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     [userId, saveQuiz]
   );
 
+  const loadSyncedTranslations = useCallback(
+    async (quizMeta: QuizMetadata): Promise<SyncedTranslationsLoad> =>
+      loadTranslationsForSync(getDriveService(), quizMeta.translations, {
+        quizId: quizMeta.id,
+      }),
+    [getDriveService]
+  );
+
   return {
     quizzes,
     loading,
@@ -802,6 +828,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     pullSyncedQuiz,
     detachSyncedQuiz,
     attachSyncLinkage,
+    loadSyncedTranslations,
     isDriveConnected: isAuthBypass || isConnected,
   };
 };

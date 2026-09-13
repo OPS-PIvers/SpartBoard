@@ -1417,7 +1417,8 @@ service cloud.firestore {
         // a non-string value that downstream PLC reads would mishandle.
         && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
         && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
-        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
+        && (!('translations' in request.resource.data) || request.resource.data.translations is map);
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
@@ -1438,7 +1439,8 @@ service cloud.firestore {
         // — handle the case where either side is missing the field with a default.
         && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
         && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
-        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list);
+        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
+        && (!('translations' in request.resource.data) || request.resource.data.translations is map);
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.

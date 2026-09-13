@@ -13,6 +13,8 @@ import {
   publishSyncedQuiz,
   pullSyncedQuizContent,
   createSyncedQuizGroup,
+  restoreSyncedVersion,
+  syncedTranslationsInput,
 } from '@/hooks/useSyncedQuizGroups';
 import type { QuizTranslation, QuizTranslationIndexEntry } from '@/types';
 
@@ -80,11 +82,12 @@ describe('loadTranslationsForSync', () => {
       es: indexEntry('file-es'),
       so: indexEntry('file-so'),
     });
-    expect(Object.keys(out ?? {}).sort()).toEqual(['es', 'so']);
-    expect(out?.es.reviewedQuestionIds).toEqual(['q1']);
+    expect(Object.keys(out.translations).sort()).toEqual(['es', 'so']);
+    expect(out.translations.es.reviewedQuestionIds).toEqual(['q1']);
+    expect(out.complete).toBe(true);
   });
 
-  it('omits a locale whose sidecar fails to load and keeps the rest', async () => {
+  it('omits a locale whose sidecar fails to load and reports incomplete', async () => {
     const drive = {
       loadTranslation: vi
         .fn()
@@ -98,14 +101,14 @@ describe('loadTranslationsForSync', () => {
       es: indexEntry('file-es'),
       so: indexEntry('file-so'),
     });
-    expect(Object.keys(out ?? {})).toEqual(['so']);
+    expect(Object.keys(out.translations)).toEqual(['so']);
+    expect(out.complete).toBe(false);
   });
 
-  it('returns undefined when the quiz has no index at all', async () => {
+  it('reports an empty complete load when the quiz has no index at all', async () => {
     const drive = { loadTranslation: vi.fn() };
-    await expect(loadTranslationsForSync(drive, undefined)).resolves.toBe(
-      undefined
-    );
+    const out = await loadTranslationsForSync(drive, undefined);
+    expect(out).toEqual({ translations: {}, complete: true });
     expect(drive.loadTranslation).not.toHaveBeenCalled();
   });
 
@@ -125,7 +128,64 @@ describe('loadTranslationsForSync', () => {
       es: indexEntry('file-es'),
       so: indexEntry('file-so'),
     });
-    expect(Object.keys(out ?? {})).toEqual(['so']);
+    expect(Object.keys(out.translations)).toEqual(['so']);
+    expect(out.complete).toBe(false);
+  });
+
+  it('measures UTF-8 bytes, not UTF-16 units, for non-Latin text', async () => {
+    // 300k CJK chars ≈ 900 KB of UTF-8 but only 300k String.length units.
+    const cjk: QuizTranslation = {
+      ...sidecar('zh'),
+      questions: { q1: { text: '\u6f22'.repeat(300_000) } },
+    };
+    const drive = {
+      loadTranslation: vi.fn().mockResolvedValue(cjk),
+    };
+    const out = await loadTranslationsForSync(drive, {
+      zh: indexEntry('file-zh'),
+    });
+    expect(out.translations).toEqual({});
+    expect(out.complete).toBe(false);
+  });
+
+  it('seeds the byte budget with the rest of the doc', async () => {
+    const payload: QuizTranslation = {
+      ...sidecar('es'),
+      questions: { q1: { text: 'y'.repeat(500_000) } },
+    };
+    const drive = { loadTranslation: vi.fn().mockResolvedValue(payload) };
+    const withoutBase = await loadTranslationsForSync(drive, {
+      es: indexEntry('file-es'),
+    });
+    expect(Object.keys(withoutBase.translations)).toEqual(['es']);
+    const withBase = await loadTranslationsForSync(
+      drive,
+      { es: indexEntry('file-es') },
+      { docBase: { questions: [{ text: 'z'.repeat(400_000) }] } }
+    );
+    expect(withBase.translations).toEqual({});
+    expect(withBase.complete).toBe(false);
+  });
+});
+
+describe('syncedTranslationsInput', () => {
+  it('clears only when the load completed and the owner has no locales', () => {
+    expect(
+      syncedTranslationsInput({ translations: {}, complete: true })
+    ).toEqual({ translations: {} });
+  });
+
+  it('omits the key when a sidecar failed to load', () => {
+    expect(
+      syncedTranslationsInput({ translations: {}, complete: false })
+    ).toEqual({});
+  });
+
+  it('passes the loaded locales through', () => {
+    const translations = { es: sidecar('es') };
+    expect(syncedTranslationsInput({ translations, complete: true })).toEqual({
+      translations,
+    });
   });
 });
 
@@ -150,7 +210,7 @@ describe('publishSyncedQuiz — translations threading', () => {
       questions: BASE_GROUP_DOC.questions as never,
       expectedVersion: 2,
       uid: UID,
-      ...(translations ? { translations } : {}),
+      ...(translations === undefined ? {} : { translations }),
     });
     return updates[0];
   }
@@ -160,8 +220,13 @@ describe('publishSyncedQuiz — translations threading', () => {
     expect(patch.translations).toEqual({ es: sidecar('es') });
   });
 
-  it('clears the canonical payload when the publisher has none', async () => {
+  it('preserves the canonical payload when the caller omits translations', async () => {
     const patch = await runPublish(undefined);
+    expect(patch).not.toHaveProperty('translations');
+  });
+
+  it('clears the canonical payload only on an explicit empty map', async () => {
+    const patch = await runPublish({});
     expect(patch.translations).toBe('__delete__');
   });
 });
@@ -208,5 +273,70 @@ describe('createSyncedQuizGroup / pullSyncedQuizContent — translations', () =>
     });
     const pulled = await pullSyncedQuizContent(GROUP_ID);
     expect(pulled).not.toHaveProperty('translations');
+  });
+});
+
+describe('restoreSyncedVersion — translations preservation', () => {
+  it('re-publishes the canonical translations a snapshot cannot carry', async () => {
+    const current = {
+      ...BASE_GROUP_DOC,
+      translations: { es: sidecar('es') },
+    };
+    (firestore.getDoc as unknown as Mock)
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          content: { title: 'Old', questions: BASE_GROUP_DOC.questions },
+        }),
+      })
+      .mockResolvedValueOnce({ exists: () => true, data: () => current });
+    const updates: Array<Record<string, unknown>> = [];
+    const tx = {
+      get: vi
+        .fn()
+        .mockResolvedValue({ exists: () => true, data: () => current }),
+      update: vi.fn((_ref: unknown, patch: Record<string, unknown>) => {
+        updates.push(patch);
+      }),
+      set: vi.fn(),
+    };
+    (firestore.runTransaction as unknown as Mock).mockImplementation(
+      async (_db: unknown, fn: (t: typeof tx) => Promise<unknown>) => fn(tx)
+    );
+    await restoreSyncedVersion(GROUP_ID, 1, UID);
+    expect(updates[0].translations).toEqual({ es: sidecar('es') });
+  });
+});
+
+describe('pullSyncedQuizContent — hostile translations payloads', () => {
+  const pullWith = async (translations: unknown) => {
+    (firestore.getDoc as unknown as Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ ...BASE_GROUP_DOC, translations }),
+    });
+    return pullSyncedQuizContent(GROUP_ID);
+  };
+
+  it('drops a non-object translations value entirely', async () => {
+    await expect(pullWith('not-a-map')).resolves.not.toHaveProperty(
+      'translations'
+    );
+    await expect(pullWith([sidecar('es')])).resolves.not.toHaveProperty(
+      'translations'
+    );
+  });
+
+  it('drops non-object locale payloads and keeps the good ones', async () => {
+    const pulled = await pullWith({ es: sidecar('es'), so: 'garbage', fr: 7 });
+    expect(Object.keys(pulled.translations ?? {})).toEqual(['es']);
+  });
+
+  it('coerces a malformed locale payload through the sidecar normalizer', async () => {
+    const pulled = await pullWith({
+      es: { locale: 'es', reviewedQuestionIds: 'q1', questions: null },
+    });
+    expect(pulled.translations?.es.reviewedQuestionIds).toEqual([]);
+    expect(pulled.translations?.es.questions).toEqual({});
+    expect(pulled.translations?.es.title).toBe('');
   });
 });

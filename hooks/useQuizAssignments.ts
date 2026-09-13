@@ -2048,7 +2048,9 @@ export const useQuizAssignments = (
         | (QuizSession & { mediaResponseEnabled?: boolean })
         | undefined;
       // Exactly the locales already being served — a re-sync never widens coverage.
-      const servedLocales = new Set<string>();
+      const servedLocales = new Set<string>(
+        Object.keys(sessionData?.quizTitleLocalized ?? {})
+      );
       for (const pq of sessionData?.publicQuestions ?? []) {
         for (const locale of Object.keys(pq.localized ?? {}))
           servedLocales.add(locale);
@@ -2110,9 +2112,12 @@ export const useQuizAssignments = (
           hasServedTranslations ? servedTranslations : undefined,
           freshByLocale
         );
-        // Students mid-session already committed answers against the served
-        // order; only a question whose English changed gets a fresh shuffle.
-        return alignToPreviousOrder(projected, previousById.get(q.id));
+        // Untranslated sessions take the canonical order verbatim so a
+        // teacher's deliberate reorder still lands; a translated session keeps
+        // the order it already served so committed answers stay valid.
+        return servedLocales.size > 0
+          ? alignToPreviousOrder(projected, previousById.get(q.id))
+          : projected;
       });
       const quizTitleLocalized: Record<string, string> = {};
       for (const [locale, payload] of Object.entries(servedTranslations)) {

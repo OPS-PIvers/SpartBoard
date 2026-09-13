@@ -111,6 +111,9 @@ const loadQuizData = vi.fn().mockResolvedValue({
 const pullSyncedQuiz = vi.fn().mockResolvedValue(undefined);
 let mockPersonalQuizzes: QuizMetadata[] = [];
 let mockIsDriveConnected = true;
+const loadSyncedTranslations = vi
+  .fn()
+  .mockResolvedValue({ translations: {}, complete: true });
 vi.mock('@/hooks/useQuiz', () => ({
   SyncedQuizVersionConflictError: class extends Error {},
   useQuiz: () => ({
@@ -119,6 +122,7 @@ vi.mock('@/hooks/useQuiz', () => ({
     deleteQuiz,
     attachSyncLinkage,
     loadQuizData,
+    loadSyncedTranslations,
     pullSyncedQuiz,
     isDriveConnected: mockIsDriveConnected,
   }),
@@ -165,6 +169,15 @@ vi.mock('@/hooks/useSyncedQuizGroups', () => ({
   createSyncedQuizGroup: (...args: unknown[]): Promise<void> =>
     createSyncedQuizGroup(...args) as Promise<void>,
   useSyncedQuizGroupsByIds: () => ({ groups: new Map(), loading: false }),
+  syncedTranslationsInput: (load: {
+    translations: Record<string, unknown>;
+    complete: boolean;
+  }) =>
+    Object.keys(load.translations).length > 0
+      ? { translations: load.translations }
+      : load.complete
+        ? { translations: {} }
+        : {},
 }));
 
 const plc = {
@@ -260,6 +273,10 @@ describe('usePlcQuizActions', () => {
     });
     callLeaveSyncedQuizGroup.mockResolvedValue(undefined);
     createSyncedQuizGroup.mockResolvedValue(undefined);
+    loadSyncedTranslations.mockResolvedValue({
+      translations: {},
+      complete: true,
+    });
     vi.mocked(pullSyncedQuizContent).mockResolvedValue({
       title: 'Photosynthesis Quiz',
       questions: [],
@@ -547,6 +564,26 @@ describe('usePlcQuizActions', () => {
       questionCount: 3,
       updatedAt: 5000,
     } as unknown as QuizMetadata;
+
+    it("seeds the group doc with the owner's translation sidecars", async () => {
+      mockPersonalQuizzes = [personal];
+      loadSyncedTranslations.mockResolvedValueOnce({
+        translations: { es: { locale: 'es' } },
+        complete: true,
+      });
+      renderSubject();
+      fireEvent.click(screen.getByText('OpenShare'));
+      fireEvent.click(await screen.findByRole('button', { name: /^Share$/ }));
+
+      await waitFor(() =>
+        expect(createSyncedQuizGroup).toHaveBeenCalledWith(
+          expect.objectContaining({
+            translations: { es: { locale: 'es' } },
+          })
+        )
+      );
+      expect(loadSyncedTranslations).toHaveBeenCalledWith(personal);
+    });
 
     it('creates a sync group, links it, and writes the PLC quiz entry for an unsynced quiz', async () => {
       mockPersonalQuizzes = [personal];

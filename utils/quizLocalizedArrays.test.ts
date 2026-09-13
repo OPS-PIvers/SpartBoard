@@ -126,7 +126,7 @@ describe('alignToPreviousOrder', () => {
     expect(alignToPreviousOrder(fresh, undefined)).toBe(fresh);
   });
 
-  it('reorders duplicate strings without dropping one', () => {
+  it('leaves a field alone when its English array repeats a label', () => {
     const fresh: QuizPublicQuestion = {
       id: 'q2',
       type: 'Ordering',
@@ -138,6 +138,7 @@ describe('alignToPreviousOrder', () => {
       ...fresh,
       orderingItems: ['b', 'a', 'a'],
     });
-    expect(out.orderingItems).toEqual(['b', 'a', 'a']);
+    // The mapping would be ambiguous, so the fresh order stands.
+    expect(out.orderingItems).toEqual(['a', 'a', 'b']);
   });
 });

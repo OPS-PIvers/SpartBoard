@@ -1186,6 +1186,162 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     ]);
   });
 
+  it('takes the canonical choice order verbatim on an untranslated session', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Q1',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b', 'c', 'd'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'MC',
+              text: 'Q1',
+              timeLimit: 30,
+              // No `localized`: the teacher's reorder must not be re-imposed.
+              choices: ['d', 'c', 'b', 'a'],
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as { publicQuestions: QuizPublicQuestion[] };
+    expect(patch.publicQuestions[0].choices).not.toEqual(['d', 'c', 'b', 'a']);
+  });
+
+  it('keeps the served order on a translated session', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Q1',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b', 'c', 'd'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'MC',
+              text: 'Q1',
+              timeLimit: 30,
+              choices: ['d', 'c', 'b', 'a'],
+              localized: { es: { text: 'P1' } },
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as { publicQuestions: QuizPublicQuestion[] };
+    expect(patch.publicQuestions[0].choices).toEqual(['d', 'c', 'b', 'a']);
+  });
+
+  it('clears a stale quizTitleLocalized even when no question carries localized', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q0',
+          text: 'Q0',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            { id: 'q0', type: 'MC', text: 'Q0', timeLimit: 30 },
+          ],
+          quizTitleLocalized: { es: 'Titulo viejo' },
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as Record<string, unknown>;
+    expect(patch.quizTitleLocalized).toBe(DELETE_FIELD_SENTINEL);
+  });
+
   it('drops the locale entry for an unreviewed or stale question, and never leaks the answer key', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');

@@ -43,16 +43,21 @@ export function reindexChoiceArray(
   return next;
 }
 
+/** A repeated label makes any index mapping ambiguous. */
+export const hasDuplicateLabels = (values: string[]): boolean =>
+  new Set(values).size !== values.length;
+
 /**
  * Indices that reorder `source` into `target`, or null when they are not the
- * same multiset. Duplicates are consumed left to right so a repeated string
- * still yields a valid permutation.
+ * same multiset. A `source` with repeated strings is refused outright: the
+ * mapping would be ambiguous and could pair a locale label with the wrong slot.
  */
 function matchOrderIndices(
   source: string[] | undefined,
   target: string[] | undefined
 ): number[] | null {
   if (!source || !target || source.length !== target.length) return null;
+  if (hasDuplicateLabels(source)) return null;
   const used = new Array<boolean>(source.length).fill(false);
   const indices: number[] = [];
   for (const value of target) {

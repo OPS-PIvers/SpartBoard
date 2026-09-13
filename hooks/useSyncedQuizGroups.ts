@@ -41,6 +41,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
+import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
 import type { QuizDriveLike } from '@/utils/mockQuizDriveService';
 import type {
   PlcQuizVersionContent,
@@ -85,7 +86,10 @@ export interface PublishSyncedQuizInput {
   uid: string;
   /** Behavior settings to publish alongside content (optional). */
   behavior?: QuizBehaviorSettings;
-  /** Whole translation sidecars by locale. Omitted = clear on the canonical. */
+  /**
+   * Whole translation sidecars by locale. Omitted = preserve whatever the
+   * canonical already carries; an explicit empty map clears it.
+   */
   translations?: Record<string, QuizTranslation>;
 }
 
@@ -218,46 +222,107 @@ export function useSyncedQuizGroupsByIds(
 }
 
 /**
- * Conservative ceiling for the translation payload on the group doc. Firestore's
- * hard cap is 1 MiB for the whole document; stop well short of it so questions
- * and stimuli always have room.
+ * Conservative ceiling for the whole synced group doc. Firestore's hard cap is
+ * 1 MiB; stop well short of it so questions and stimuli always have room.
  */
-const MAX_SYNCED_TRANSLATIONS_BYTES = 800_000;
+const MAX_SYNCED_DOC_BYTES = 800_000;
+
+/** UTF-8 byte length of a value's JSON form — Firestore bills bytes, not UTF-16 units. */
+function jsonByteLength(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value) ?? '').length;
+}
+
+export interface SyncedTranslationsLoad {
+  /** The locales that loaded and fit inside the byte budget. */
+  translations: Record<string, QuizTranslation>;
+  /** False when any indexed locale failed to load or was dropped for size. */
+  complete: boolean;
+}
 
 /**
  * Load the owner's translation sidecars for the group doc. A locale whose
- * sidecar fails to load, or that would push the payload past the byte ceiling,
- * is omitted and logged — syncing content must never fail over a translation.
+ * sidecar fails to load, or that would push the doc past the byte ceiling, is
+ * omitted and logged — syncing content must never fail over a translation. Pass
+ * the rest of the doc as `docBase` so the budget accounts for it.
  */
 export async function loadTranslationsForSync(
   drive: Pick<QuizDriveLike, 'loadTranslation'>,
   index: Record<string, QuizTranslationIndexEntry> | undefined,
-  context: { quizId?: string; groupId?: string } = {}
-): Promise<Record<string, QuizTranslation> | undefined> {
+  context: {
+    quizId?: string;
+    groupId?: string;
+    docBase?: Record<string, unknown>;
+  } = {}
+): Promise<SyncedTranslationsLoad> {
+  const { docBase, ...logContext } = context;
   const entries = Object.entries(index ?? {});
-  if (entries.length === 0) return undefined;
+  if (entries.length === 0) return { translations: {}, complete: true };
   const out: Record<string, QuizTranslation> = {};
-  let bytes = 0;
+  let bytes = docBase ? jsonByteLength(docBase) : 0;
+  let complete = true;
   for (const [locale, entry] of entries) {
     try {
       const payload = await drive.loadTranslation(entry.driveFileId);
-      const size = JSON.stringify(payload).length;
-      if (bytes + size > MAX_SYNCED_TRANSLATIONS_BYTES) {
+      const size = jsonByteLength(payload);
+      if (bytes + size > MAX_SYNCED_DOC_BYTES) {
+        complete = false;
         logError(
           'useSyncedQuizGroups.loadTranslationsForSync.tooLarge',
           new Error('Translation payload exceeds the synced-doc byte ceiling'),
-          { ...context, locale }
+          { ...logContext, locale }
         );
         continue;
       }
       bytes += size;
       out[locale] = payload;
     } catch (err) {
+      complete = false;
       logError('useSyncedQuizGroups.loadTranslationsForSync', err, {
-        ...context,
+        ...logContext,
         locale,
       });
     }
+  }
+  return { translations: out, complete };
+}
+
+/**
+ * Turn a load result into the publish/create input fragment. The canonical is
+ * cleared only when every sidecar was accounted for and the owner genuinely has
+ * no locales; a failed load preserves whatever the canonical already carries.
+ */
+export function syncedTranslationsInput(load: SyncedTranslationsLoad): {
+  translations?: Record<string, QuizTranslation>;
+} {
+  if (Object.keys(load.translations).length > 0) {
+    return { translations: load.translations };
+  }
+  return load.complete ? { translations: {} } : {};
+}
+
+/**
+ * Trust boundary for the group doc's translations map: peers write it, and the
+ * rule only checks that it is a map. Drop non-object locale payloads and coerce
+ * the rest before anything downstream reads them.
+ */
+function normalizeSyncedTranslations(
+  raw: unknown
+): Record<string, QuizTranslation> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const out: Record<string, QuizTranslation> = {};
+  for (const [locale, payload] of Object.entries(
+    raw as Record<string, unknown>
+  )) {
+    if (
+      typeof payload !== 'object' ||
+      payload === null ||
+      Array.isArray(payload)
+    ) {
+      continue;
+    }
+    out[locale] = normalizeQuizTranslation(payload);
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -291,13 +356,14 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
     | 'translations'
     | 'version'
   >;
+  const translations = normalizeSyncedTranslations(data.translations);
   return {
     title: data.title,
     questions: normalizeQuizQuestions(data.questions ?? []),
     stimuli: data.stimuli,
     language: data.language,
     behavior: data.behavior,
-    ...(data.translations ? { translations: data.translations } : {}),
+    ...(translations ? { translations } : {}),
     version: data.version ?? 1,
   };
 }
@@ -401,12 +467,17 @@ export async function publishSyncedQuiz(
           ? input.stimuli
           : deleteField(),
       language: input.language ?? deleteField(),
-      // Cleared the same way stimuli are: a stale payload would resurrect
-      // translations the publisher deleted.
-      translations:
-        input.translations && Object.keys(input.translations).length > 0
-          ? input.translations
-          : deleteField(),
+      // Preserve-on-omit like `behavior`: a caller that never loaded the
+      // sidecars must not wipe the whole PLC's locales. An explicit empty map
+      // is the only way to clear.
+      ...(input.translations === undefined
+        ? {}
+        : {
+            translations:
+              Object.keys(input.translations).length > 0
+                ? input.translations
+                : deleteField(),
+          }),
       updatedAt: now,
       updatedBy: input.uid,
       ...(input.behavior ? { behavior: input.behavior } : {}),
@@ -551,6 +622,8 @@ export async function restoreSyncedVersion(
   // current canonical's so a restore never silently wipes attachments.
   // Dangling pointers are sanitized on the next editor load/save.
   const restoredStimuli = content.stimuli ?? current.stimuli;
+  // Snapshots predate translations, so a restore preserves the canonical's.
+  const restoredTranslations = current.translations;
   return publishSyncedQuiz(groupId, {
     title: content.title,
     questions: normalizeQuizQuestions(content.questions),
@@ -561,6 +634,7 @@ export async function restoreSyncedVersion(
       : {}),
     ...(content.language ? { language: content.language } : {}),
     ...(content.behavior ? { behavior: content.behavior } : {}),
+    ...(restoredTranslations ? { translations: restoredTranslations } : {}),
   });
 }
 

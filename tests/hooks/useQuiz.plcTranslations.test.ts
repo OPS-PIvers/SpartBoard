@@ -48,7 +48,10 @@ vi.mock('@/components/common/library/libraryDuplicate', () => ({
   suggestDuplicateTitle: vi.fn((t: string) => `${t} (Copy)`),
 }));
 
-import { pullSyncedQuizContent } from '@/hooks/useSyncedQuizGroups';
+import {
+  publishSyncedQuiz,
+  pullSyncedQuizContent,
+} from '@/hooks/useSyncedQuizGroups';
 
 const UID = 'teacher-uid-plc-tr';
 
@@ -233,5 +236,63 @@ describe('pullSyncedQuiz — canonical translations', () => {
       await result.current.pullSyncedQuiz(syncedMeta());
     });
     expect(payloads[0]).not.toHaveProperty('translations');
+  });
+});
+
+describe("saveQuiz — publishing the owner's sidecars", () => {
+  beforeEach(() => {
+    (publishSyncedQuiz as unknown as Mock).mockResolvedValue({ version: 4 });
+    (firestore.getDoc as unknown as Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => syncedMeta({ es: localEntry('local-es', freshHash) }),
+    });
+  });
+
+  const publishInput = async (
+    metaTranslations?: QuizMetadata['translations']
+  ) => {
+    (firestore.getDoc as unknown as Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => syncedMeta(metaTranslations),
+    });
+    const { result } = renderHook(() => useQuiz(UID));
+    await act(async () => {
+      await result.current.saveQuiz({
+        id: 'quiz-plc-tr',
+        title: 'Numbers',
+        questions: [QUESTION],
+        createdAt: 1_000_000,
+        updatedAt: 1_000_000,
+      });
+    });
+    return (publishSyncedQuiz as unknown as Mock).mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
+  };
+
+  it('clears the canonical when the owner genuinely has no locales', async () => {
+    expect((await publishInput(undefined)).translations).toEqual({});
+  });
+
+  it('publishes the locales it loaded', async () => {
+    vi.spyOn(
+      MockQuizDriveService.prototype,
+      'loadTranslation'
+    ).mockResolvedValue(canonicalSidecar('es', freshHash, ['q1']));
+    expect(
+      (await publishInput({ es: localEntry('local-es', freshHash) }))
+        .translations
+    ).toEqual({ es: canonicalSidecar('es', freshHash, ['q1']) });
+  });
+
+  it('omits the key entirely when the only sidecar fails to load', async () => {
+    vi.spyOn(
+      MockQuizDriveService.prototype,
+      'loadTranslation'
+    ).mockRejectedValue(new Error('Drive 500'));
+    expect(
+      await publishInput({ es: localEntry('local-es', freshHash) })
+    ).not.toHaveProperty('translations');
   });
 });
