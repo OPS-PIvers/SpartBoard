@@ -77,6 +77,8 @@ const api = (): UseQuizTranslations => ({
   editQuestion: vi.fn(),
   setReviewed: vi.fn(),
   save: vi.fn(),
+  saveAll: vi.fn(() => Promise.resolve()),
+  hasUnsavedChanges: false,
   staleIds: () => [],
   cap: null,
   error: null,

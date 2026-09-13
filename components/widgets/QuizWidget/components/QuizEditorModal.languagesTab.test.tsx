@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizEditorModal } from './QuizEditorModal';
 import type { QuizData } from '@/types';
 
@@ -34,6 +34,8 @@ const { translationsApi } = vi.hoisted(() => ({
     editQuestion: vi.fn(),
     setReviewed: vi.fn(),
     save: vi.fn(),
+    saveAll: vi.fn((): Promise<void> => Promise.resolve()),
+    hasUnsavedChanges: false as boolean,
     staleIds: () => [] as string[],
     cap: null,
     error: null as string | null,
@@ -83,15 +85,22 @@ vi.mock('@/components/common/EditorWorkspace', () => ({
   EditorWorkspace: vi.fn(
     ({
       isOpen,
+      isDirty,
+      onSave,
       contextPane,
       detailPane,
     }: {
       isOpen: boolean;
+      isDirty: boolean;
+      onSave: () => void;
       contextPane: React.ReactNode;
       detailPane: React.ReactNode;
     }) =>
       isOpen ? (
-        <div data-testid="editor-workspace">
+        <div data-testid="editor-workspace" data-dirty={String(isDirty)}>
+          <button type="button" onClick={onSave}>
+            workspace-save
+          </button>
           <div data-testid="context-pane">{contextPane}</div>
           <div data-testid="detail-pane">{detailPane}</div>
         </div>
@@ -146,12 +155,53 @@ beforeEach(() => {
   translationsApi.loadFailed = {};
   translationsApi.error = null;
   translationsApi.needsLoad.mockReturnValue(false);
+  translationsApi.hasUnsavedChanges = false;
+  translationsApi.saveAll.mockImplementation(() => Promise.resolve());
   canAccessFeature.mockImplementation(
     (feature: string) => feature === 'quiz-translation'
   );
 });
 
 describe('QuizEditorModal Languages tab', () => {
+  it('counts unsaved translation edits as unsaved changes', () => {
+    translationsApi.hasUnsavedChanges = true;
+    render(
+      <QuizEditorModal isOpen quiz={quiz} onClose={vi.fn()} onSave={vi.fn()} />
+    );
+    expect(screen.getByTestId('editor-workspace').dataset.dirty).toBe('true');
+  });
+
+  it('saves translations before the quiz on the main Save', async () => {
+    const onSave = vi.fn(() => Promise.resolve());
+    const onClose = vi.fn();
+    render(
+      <QuizEditorModal isOpen quiz={quiz} onClose={onClose} onSave={onSave} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'workspace-save' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(translationsApi.saveAll).toHaveBeenCalledTimes(1);
+    expect(translationsApi.saveAll.mock.invocationCallOrder[0]).toBeLessThan(
+      onSave.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('keeps the editor open when saving translations fails', async () => {
+    translationsApi.saveAll.mockImplementation(() =>
+      Promise.reject(new Error('Drive is unavailable'))
+    );
+    const onSave = vi.fn(() => Promise.resolve());
+    const onClose = vi.fn();
+    render(
+      <QuizEditorModal isOpen quiz={quiz} onClose={onClose} onSave={onSave} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'workspace-save' }));
+    await waitFor(() =>
+      expect(screen.getByText('Drive is unavailable')).toBeTruthy()
+    );
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('renders the tab when the feature is granted', () => {
     render(
       <QuizEditorModal isOpen quiz={quiz} onClose={vi.fn()} onSave={vi.fn()} />

@@ -223,19 +223,6 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                         : 'border-slate-200 bg-white'
                     }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={reviewed}
-                      aria-label={t('quizTranslation.editor.reviewed')}
-                      onChange={(e) =>
-                        api.setReviewed(
-                          selectedLocale,
-                          question.id,
-                          e.target.checked
-                        )
-                      }
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-brand-blue-primary"
-                    />
                     <button
                       type="button"
                       onClick={() => onSelectQuestion(question.id)}
@@ -245,6 +232,21 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                         {index + 1}. {question.text}
                       </span>
                     </button>
+                    <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xxs font-bold text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={reviewed}
+                        onChange={(e) =>
+                          api.setReviewed(
+                            selectedLocale,
+                            question.id,
+                            e.target.checked
+                          )
+                        }
+                        className="h-4 w-4 accent-brand-blue-primary"
+                      />
+                      {t('quizTranslation.editor.reviewed')}
+                    </label>
                     {isStale && (
                       <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-700">
                         {t('quizTranslation.editor.stale')}

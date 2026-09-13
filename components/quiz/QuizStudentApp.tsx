@@ -1787,18 +1787,15 @@ const ActiveQuiz: React.FC<{
   // The student's accommodation language; the toggle resets to it on advance (§4.6).
   const assignedLocale = override?.language;
   const currentQidForLocale = currentQuestion?.id ?? null;
+  // Stores only an explicit English pick, so a pointer that loads after first render still applies.
   const [localeChoice, setLocaleChoice] = useState<{
     qid: string | null;
-    locale: string | undefined;
-  }>({ qid: currentQidForLocale, locale: assignedLocale });
-  if (
-    localeChoice.qid !== currentQidForLocale ||
-    (localeChoice.locale !== undefined &&
-      localeChoice.locale !== assignedLocale)
-  ) {
-    setLocaleChoice({ qid: currentQidForLocale, locale: assignedLocale });
+    english: boolean;
+  }>({ qid: currentQidForLocale, english: false });
+  if (localeChoice.qid !== currentQidForLocale) {
+    setLocaleChoice({ qid: currentQidForLocale, english: false });
   }
-  const activeLocale = localeChoice.locale;
+  const activeLocale = localeChoice.english ? undefined : assignedLocale;
   // Per-question English fallback: a question with no reviewed translation just renders English.
   const localizedStrings = currentQuestion
     ? serveLocalizedQuestion(currentQuestion, activeLocale)
@@ -3043,7 +3040,7 @@ const ActiveQuiz: React.FC<{
                   onChange: (localized) =>
                     setLocaleChoice({
                       qid: currentQidForLocale,
-                      locale: localized ? assignedLocale : undefined,
+                      english: !localized,
                     }),
                 }
               : undefined

@@ -332,9 +332,11 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       ) ||
       !(order === originalOrder || orderEqual(order, originalOrder)) ||
       bankTargetsDirty ||
+      translations.hasUnsavedChanges ||
       !quizBehaviorSettingsEqual(behavior, originalBehavior),
     [
       bankTargetsDirty,
+      translations.hasUnsavedChanges,
       title,
       originalTitle,
       language,
@@ -391,6 +393,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     setSaving(true);
     setError(null);
     try {
+      await translations.saveAll();
       // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
       // live, but a save must never persist a dangling pointer.
       const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);

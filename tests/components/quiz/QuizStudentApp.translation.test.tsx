@@ -248,6 +248,22 @@ describe('QuizStudentApp — translation serving', () => {
     expect(screen.queryByText('Capital of France?')).not.toBeInTheDocument();
   });
 
+  it('applies the language when the pointer arrives after the question renders', async () => {
+    pointerState.current = undefined;
+    const { rerender } = render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('Capital of France?')).toBeInTheDocument()
+    );
+
+    setPointer({ language: 'es' });
+    rerender(<QuizStudentApp />);
+
+    await waitFor(() =>
+      expect(screen.getByText('¿Capital de Francia?')).toBeInTheDocument()
+    );
+    expect(englishToggle()).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('shows one segmented toggle that swaps the rendering back to English', async () => {
     const user = userEvent.setup();
     setPointer({ language: 'es' });

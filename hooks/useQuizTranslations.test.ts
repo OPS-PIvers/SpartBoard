@@ -210,6 +210,114 @@ describe('useQuizTranslations', () => {
     expect(result.current.byLocale.es?.reviewedQuestionIds).toEqual(['q1']);
     act(() => result.current.setReviewed('es', 'q1', false));
     expect(result.current.byLocale.es?.reviewedQuestionIds).toEqual([]);
+    await waitFor(() => expect(result.current.hasUnsavedChanges).toBe(false));
+  });
+
+  it('setReviewed saves the sidecar immediately, without a separate Save', async () => {
+    loadTranslation.mockResolvedValue(translation({ reviewedQuestionIds: [] }));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.load('es');
+    });
+    act(() => result.current.setReviewed('es', 'q1', true));
+
+    await waitFor(() => expect(saveTranslation).toHaveBeenCalledTimes(1));
+    const call = saveTranslation.mock.calls[0] as unknown as [
+      string,
+      string,
+      string,
+      QuizTranslation,
+      string | undefined,
+    ];
+    expect(call[3].reviewedQuestionIds).toEqual(['q1']);
+    expect(call[4]).toBe('file-es');
+    await waitFor(() => expect(result.current.hasUnsavedChanges).toBe(false));
+  });
+
+  it('reuses the first new sidecar file for rapid follow-up saves', async () => {
+    saveTranslation.mockResolvedValue('file-new');
+    callableMock.mockResolvedValue({
+      data: {
+        questions: {
+          q1: { text: '¿Cuál es primo?', choices: ['Siete', 'Ocho'] },
+        },
+        sourceHashes: { q1: 'fresh-hash' },
+        model: 'm',
+        outputTokens: 1,
+        cap: { remaining: 1, total: 2 },
+      },
+    });
+    // No index row, and the metadata prop never updates during the test.
+    const { result } = renderHook(() => useQuizTranslations(quiz, null), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.generate('es');
+    });
+    act(() => result.current.setReviewed('es', 'q1', true));
+    act(() => result.current.setReviewed('es', 'q1', false));
+
+    await waitFor(() => expect(saveTranslation).toHaveBeenCalledTimes(3));
+    const existingIds = saveTranslation.mock.calls.map(
+      (c) => (c as unknown as unknown[])[4]
+    );
+    expect(existingIds).toEqual([undefined, 'file-new', 'file-new']);
+    const last = saveTranslation.mock.calls[2] as unknown as [
+      string,
+      string,
+      string,
+      QuizTranslation,
+    ];
+    expect(last[3].reviewedQuestionIds).toEqual([]);
+  });
+
+  it('saveAll writes unsaved text edits and clears hasUnsavedChanges', async () => {
+    loadTranslation.mockResolvedValue(translation());
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.load('es');
+    });
+    act(() => {
+      result.current.editQuestion('es', 'q1', { text: 'corregido' });
+    });
+    expect(result.current.hasUnsavedChanges).toBe(true);
+    expect(saveTranslation).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.saveAll();
+    });
+    const call = saveTranslation.mock.calls[0] as unknown as [
+      string,
+      string,
+      string,
+      QuizTranslation,
+    ];
+    expect(call[3].questions.q1.text).toBe('corregido');
+    expect(result.current.hasUnsavedChanges).toBe(false);
+  });
+
+  it('saveAll rejects and keeps the changes unsaved when Drive fails', async () => {
+    loadTranslation.mockResolvedValue(translation());
+    saveTranslation.mockRejectedValueOnce(new Error('Drive is unavailable'));
+    const { result } = renderHook(() => useQuizTranslations(quiz, metadata()), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.load('es');
+    });
+    act(() => {
+      result.current.editQuestion('es', 'q1', { text: 'corregido' });
+    });
+    await act(async () => {
+      await expect(result.current.saveAll()).rejects.toThrow(
+        'Drive is unavailable'
+      );
+    });
+    expect(result.current.hasUnsavedChanges).toBe(true);
   });
 
   it('staleIds flags a question whose live hash no longer matches', async () => {

@@ -1,11 +1,17 @@
 /**
  * Languages-tab state for one quiz (docs/plans/QUIZ_TRANSLATION.md §8).
- * Deliberately independent of the editor's own dirty/save cycle: a discarded
- * quiz edit must not lose a translation edit, and a quiz save must never push
- * unreviewed strings.
+ * Review ticks save immediately; text edits save with "Save translation" or the
+ * editor's main Save (`saveAll`). Only reviewed + fresh questions ever publish.
  */
 
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, isAuthBypass } from '@/config/firebase';
@@ -49,8 +55,12 @@ export interface UseQuizTranslations {
     questionId: string,
     patch: Partial<QuestionTranslation>
   ): void;
+  /** Also saves the locale immediately; a failure surfaces in `error`. */
   setReviewed(locale: string, questionId: string, reviewed: boolean): void;
   save(locale: string): Promise<void>;
+  /** Saves every locale with unsaved changes; rejects if any save fails. */
+  saveAll(): Promise<void>;
+  hasUnsavedChanges: boolean;
   staleIds(locale: string): string[];
   cap: { remaining: number; total: number } | null;
   error: string | null;
@@ -89,6 +99,17 @@ export function useQuizTranslations(
   );
   const [error, setError] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState<Record<string, boolean>>({});
+  const [dirty, setDirty] = useState<Record<string, boolean>>({});
+  // Mirrors `byLocale` synchronously so a queued save always writes the newest payload.
+  const byLocaleRef = useRef(byLocale);
+  // The index row lags a first save, so a follow-up save must reuse this id, not create a file.
+  const fileIdRef = useRef<Record<string, string>>({});
+  const saveChainRef = useRef<Record<string, Promise<void>>>({});
+
+  const commit = useCallback((locale: string, next: QuizTranslation) => {
+    byLocaleRef.current = { ...byLocaleRef.current, [locale]: next };
+    setByLocale(byLocaleRef.current);
+  }, []);
 
   const userId = user?.uid ?? null;
 
@@ -149,7 +170,8 @@ export function useQuizTranslations(
       setLoadFailed((f) => (f[locale] ? { ...f, [locale]: false } : f));
       try {
         const payload = await getDrive().loadTranslation(entry.driveFileId);
-        setByLocale((b) => ({ ...b, [locale]: payload }));
+        fileIdRef.current[locale] ??= entry.driveFileId;
+        commit(locale, payload);
         await refreshHashes();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Load failed');
@@ -159,7 +181,7 @@ export function useQuizTranslations(
         setLoading((l) => ({ ...l, [locale]: false }));
       }
     },
-    [getDrive, metadata, refreshHashes]
+    [commit, getDrive, metadata, refreshHashes]
   );
 
   const writeIndex = useCallback(
@@ -178,13 +200,16 @@ export function useQuizTranslations(
     async (locale: string, payload: QuizTranslation) => {
       if (!quiz) return;
       const drive = getDrive();
+      const existingId =
+        fileIdRef.current[locale] ??
+        metadata?.translations?.[locale]?.driveFileId;
       // Sidecar first, index second (§3.3): an orphan file beats a dangling row.
       const fileId = await drive.saveTranslation(
         quiz.id,
         quiz.title,
         locale,
         payload,
-        metadata?.translations?.[locale]?.driveFileId
+        existingId
       );
       const entry = await buildTranslationIndexEntry(
         fileId,
@@ -194,13 +219,33 @@ export function useQuizTranslations(
       try {
         await writeIndex(locale, entry);
       } catch (err) {
-        if (!metadata?.translations?.[locale]) {
+        if (!existingId) {
           await drive.deleteTranslation(fileId).catch(() => undefined);
         }
         throw err;
       }
+      fileIdRef.current[locale] = fileId;
     },
     [getDrive, metadata, questions, quiz, writeIndex]
+  );
+
+  // Saves run one at a time per locale, so an older payload can never land after a newer one.
+  const enqueueSave = useCallback(
+    (locale: string): Promise<void> => {
+      const run = async () => {
+        const payload = byLocaleRef.current[locale];
+        if (!payload) return;
+        await persist(locale, payload);
+        if (byLocaleRef.current[locale] === payload)
+          setDirty((d) => ({ ...d, [locale]: false }));
+      };
+      const next = (saveChainRef.current[locale] ?? Promise.resolve())
+        .catch(() => undefined)
+        .then(run);
+      saveChainRef.current[locale] = next;
+      return next;
+    },
+    [persist]
   );
 
   const generate = useCallback(
@@ -235,7 +280,7 @@ export function useQuizTranslations(
         });
         setCap(data.cap);
         const now = Date.now();
-        const previous = byLocale[locale];
+        const previous = byLocaleRef.current[locale];
         const merged: QuizTranslation = {
           locale,
           title: data.title ?? previous?.title ?? quiz.title,
@@ -252,9 +297,9 @@ export function useQuizTranslations(
           generatedAt: previous?.generatedAt ?? now,
           updatedAt: now,
         };
-        setByLocale((b) => ({ ...b, [locale]: merged }));
+        commit(locale, merged);
         await refreshHashes();
-        await persist(locale, merged);
+        await enqueueSave(locale);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Generation failed');
       } finally {
@@ -263,8 +308,9 @@ export function useQuizTranslations(
     },
     [
       byLocale,
+      commit,
+      enqueueSave,
       metadata,
-      persist,
       quiz,
       refreshHashes,
       translatable,
@@ -278,68 +324,69 @@ export function useQuizTranslations(
       questionId: string,
       patch: Partial<QuestionTranslation>
     ) => {
-      setByLocale((b) => {
-        const current = b[locale];
-        if (!current) return b;
-        const existing = current.questions[questionId];
-        if (!existing) return b;
-        return {
-          ...b,
-          [locale]: {
-            ...current,
-            questions: {
-              ...current.questions,
-              [questionId]: { ...existing, ...patch },
-            },
-            // An edited string is no longer the string the teacher approved.
-            reviewedQuestionIds: current.reviewedQuestionIds.filter(
-              (id) => id !== questionId
-            ),
-            updatedAt: Date.now(),
-          },
-        };
+      const current = byLocaleRef.current[locale];
+      const existing = current?.questions[questionId];
+      if (!current || !existing) return;
+      commit(locale, {
+        ...current,
+        questions: {
+          ...current.questions,
+          [questionId]: { ...existing, ...patch },
+        },
+        // An edited string is no longer the string the teacher approved.
+        reviewedQuestionIds: current.reviewedQuestionIds.filter(
+          (id) => id !== questionId
+        ),
+        updatedAt: Date.now(),
       });
+      setDirty((d) => ({ ...d, [locale]: true }));
     },
-    []
+    [commit]
   );
 
   const setReviewed = useCallback(
     (locale: string, questionId: string, reviewed: boolean) => {
-      setByLocale((b) => {
-        const current = b[locale];
-        if (!current) return b;
-        const others = current.reviewedQuestionIds.filter(
-          (id) => id !== questionId
-        );
-        return {
-          ...b,
-          [locale]: {
-            ...current,
-            reviewedQuestionIds: reviewed ? [...others, questionId] : others,
-            updatedAt: Date.now(),
-          },
-        };
+      const current = byLocaleRef.current[locale];
+      if (!current) return;
+      const others = current.reviewedQuestionIds.filter(
+        (id) => id !== questionId
+      );
+      commit(locale, {
+        ...current,
+        reviewedQuestionIds: reviewed ? [...others, questionId] : others,
+        updatedAt: Date.now(),
+      });
+      setDirty((d) => ({ ...d, [locale]: true }));
+      setError(null);
+      enqueueSave(locale).catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Save failed');
       });
     },
-    []
+    [commit, enqueueSave]
   );
 
   const save = useCallback(
     async (locale: string) => {
-      const payload = byLocale[locale];
-      if (!payload) return;
+      if (!byLocaleRef.current[locale]) return;
       setLoading((l) => ({ ...l, [locale]: true }));
       setError(null);
       try {
-        await persist(locale, payload);
+        await enqueueSave(locale);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed');
       } finally {
         setLoading((l) => ({ ...l, [locale]: false }));
       }
     },
-    [byLocale, persist]
+    [enqueueSave]
   );
+
+  const saveAll = useCallback(async () => {
+    const locales = Object.keys(dirty).filter((locale) => dirty[locale]);
+    await Promise.all(locales.map((locale) => enqueueSave(locale)));
+  }, [dirty, enqueueSave]);
+
+  const hasUnsavedChanges = Object.values(dirty).some(Boolean);
 
   const staleIds = useCallback(
     (locale: string): string[] => {
@@ -372,6 +419,8 @@ export function useQuizTranslations(
     editQuestion,
     setReviewed,
     save,
+    saveAll,
+    hasUnsavedChanges,
     staleIds,
     cap,
     error,
