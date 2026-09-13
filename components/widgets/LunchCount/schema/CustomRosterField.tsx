@@ -15,9 +15,7 @@ const CustomRosterFieldImpl: React.FC<CustomRenderCtx> = ({
   const roster = Array.isArray(config.roster)
     ? (config.roster as string[])
     : [];
-  // Raw in-progress text while focused; trimming/filtering per keystroke stripped every trailing
-  // blank line the moment Enter was pressed, so a controlled re-render undid the newline and the
-  // next typed name silently ran onto the previous line. Committed (trimmed/filtered) on blur only.
+  // Raw in-progress text while focused; committed (trimmed/filtered) on blur only, so a mid-typing Enter isn't stripped and undone by a controlled re-render.
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? roster.join('\n');
   return (
