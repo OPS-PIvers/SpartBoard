@@ -58,9 +58,7 @@ export const ExpectationsSettings: React.FC<{ widget: WidgetData }> = ({
   return (
     <div className="space-y-6">
       <div>
-        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-          Nexus Connections
-        </label>
+        {/* The drawer schema renders this section's heading. */}
         <div
           className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
             config.syncSoundWidget

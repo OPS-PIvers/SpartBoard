@@ -16,7 +16,7 @@ export default defineSettings<ExpectationsConfig>({
         {
           key: 'syncSoundWidget',
           type: 'custom',
-          label: 'nexusConnections',
+          label: 'soundSync',
           render: renderSettings,
         },
       ],

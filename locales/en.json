@@ -1391,7 +1391,7 @@
       "appearance": "Weather appearance"
     },
     "expectations": {
-      "nexusConnections": "Nexus connections"
+      "soundSync": "Sound meter sync"
     },
     "random": {
       "randomizerSettings": "Randomizer settings"
