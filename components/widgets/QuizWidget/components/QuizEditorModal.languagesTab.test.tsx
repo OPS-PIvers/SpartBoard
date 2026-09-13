@@ -107,7 +107,15 @@ const quiz: QuizData = {
 const bankQuiz: QuizData = {
   ...quiz,
   id: 'quiz-bank',
-  bankSlots: [{ id: 'slot-1', bankId: 'bank-1', mode: 'random', count: 3 }],
+  bankSlots: [
+    {
+      id: 'slot-1',
+      bankId: 'bank-1',
+      bankTitle: 'Bank',
+      mode: 'random',
+      count: 3,
+    },
+  ],
 };
 
 const openTab = (label: string) =>
