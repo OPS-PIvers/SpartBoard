@@ -146,8 +146,24 @@ vi.mock('./GlassCard', () => {
   return { GlassCard };
 });
 
+// Spy wrapper for AnnotationCanvas — records every canvasWidth/canvasHeight
+// pair passed to the component so a regression test can assert it matches
+// the render-clamped size, not the raw stored widget.w/widget.h.
+const { annotationCanvasSizeProps } = vi.hoisted(() => ({
+  annotationCanvasSizeProps: [] as Array<{
+    canvasWidth: number;
+    canvasHeight: number;
+  }>,
+}));
+
 vi.mock('./AnnotationCanvas', () => ({
-  AnnotationCanvas: () => <div data-testid="annotation-canvas" />,
+  AnnotationCanvas: (props: { canvasWidth: number; canvasHeight: number }) => {
+    annotationCanvasSizeProps.push({
+      canvasWidth: props.canvasWidth,
+      canvasHeight: props.canvasHeight,
+    });
+    return <div data-testid="annotation-canvas" />;
+  },
 }));
 
 // Spy wrapper for SettingsPanel — records every props object passed to the
@@ -235,6 +251,8 @@ describe('DraggableWindow', () => {
     mockGetLocalIsoDate.mockImplementation(defaultGetLocalIsoDate.current);
     // Reset SettingsPanel render spy before each test
     settingsPanelRenderProps.length = 0;
+    // Reset AnnotationCanvas size-prop spy before each test
+    annotationCanvasSizeProps.length = 0;
     // Setup default spy to return null
     activeElementSpy = vi.spyOn(document, 'activeElement', 'get');
     activeElementSpy.mockReturnValue(null);
@@ -791,6 +809,212 @@ describe('DraggableWindow', () => {
       pointerId: 1,
     });
     expect(windowEl.style.width).toBe('250px');
+  });
+
+  // WIDGET_MIN_SIZE_OVERRIDES is enforced during interactive resize (above),
+  // but a widget can also be smaller on load — e.g. a dashboard saved before
+  // an override existed or was raised. Render must clamp up to the current
+  // floor too, or the stored size renders below it and clips content.
+  it('clamps a stored size below WIDGET_MIN_SIZE_OVERRIDES up to the floor on render', () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+    const windowEl = screen.getByTestId('draggable-window');
+
+    expect(windowEl.style.width).toBe('280px');
+    expect(windowEl.style.height).toBe('300px');
+  });
+
+  it('leaves a stored size above WIDGET_MIN_SIZE_OVERRIDES untouched on render', () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 450, h: 550 });
+    const windowEl = screen.getByTestId('draggable-window');
+
+    expect(windowEl.style.width).toBe('450px');
+    expect(windowEl.style.height).toBe('550px');
+  });
+
+  // The render-time floor must NOT apply the generic 150x100 default to
+  // widget types with no explicit WIDGET_MIN_SIZE_OVERRIDES entry — otherwise
+  // an intentionally narrow/short widget (e.g. the 120px-wide Traffic Light)
+  // would be forced wider/taller than designed on every load.
+  it('does not clamp a widget type with no WIDGET_MIN_SIZE_OVERRIDES entry up to the generic default', () => {
+    renderComponent({ type: 'traffic', w: 120, h: 80 });
+    const windowEl = screen.getByTestId('draggable-window');
+
+    expect(windowEl.style.width).toBe('120px');
+    expect(windowEl.style.height).toBe('80px');
+  });
+
+  // Resize deltas must be seeded from the render-clamped size, not the raw
+  // stored size, for a widget below its WIDGET_MIN_SIZE_OVERRIDES floor —
+  // otherwise the resize math desyncs from what's on screen (see the two
+  // cases below).
+  it('grows immediately from the render-clamped size when resizing a below-floor widget', async () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+
+    const seHandleEl = document.querySelector('.cursor-se-resize');
+    expect(seHandleEl).not.toBeNull();
+    if (!seHandleEl) return;
+    const seHandle = seHandleEl as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    seHandle.setPointerCapture = vi.fn();
+    seHandle.hasPointerCapture = vi.fn().mockReturnValue(true);
+    seHandle.releasePointerCapture = vi.fn();
+
+    expect(windowEl.style.width).toBe('280px');
+
+    fireEvent.pointerDown(seHandle, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    fireEvent.pointerMove(seHandle, {
+      clientX: 210,
+      clientY: 210,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+
+    await waitFor(() => {
+      // Seeded from the clamped 280px (not the raw stored 200px): a 10px
+      // drag grows the box to 290px instead of being absorbed into a dead
+      // zone (Math.max(280, 200 + 10) would stay pinned at 280).
+      expect(windowEl.style.width).toBe('290px');
+    });
+  });
+
+  // dragState.current.w/h are seeded from the render-clamped size (above),
+  // so for a below-floor widget that alone differs from the raw stored
+  // widget.w/h — a plain click-and-release on a resize handle, with zero
+  // pointermove events, must not be mistaken for a real resize and persist
+  // the clamped size to Firestore.
+  it('does not commit a size change to a below-floor widget on a resize handle click with no movement', () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+
+    const seHandleEl = document.querySelector('.cursor-se-resize');
+    expect(seHandleEl).not.toBeNull();
+    if (!seHandleEl) return;
+    const seHandle = seHandleEl as unknown as HTMLElementWithCapture;
+
+    seHandle.setPointerCapture = vi.fn();
+    seHandle.hasPointerCapture = vi.fn().mockReturnValue(true);
+    seHandle.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(seHandle, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    // No pointerMove at all — a plain click.
+    fireEvent.pointerUp(seHandle, { pointerId: 1 });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('grows via the west handle from the render-clamped size when resizing a below-floor widget', async () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+
+    const swHandleEl = document.querySelector('.cursor-sw-resize');
+    expect(swHandleEl).not.toBeNull();
+    if (!swHandleEl) return;
+    const swHandle = swHandleEl as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    swHandle.setPointerCapture = vi.fn();
+    swHandle.hasPointerCapture = vi.fn().mockReturnValue(true);
+    swHandle.releasePointerCapture = vi.fn();
+
+    expect(windowEl.style.width).toBe('280px');
+
+    // clientX kept within RESIZE_PRIORITY_INSET of jsdom's zeroed
+    // getBoundingClientRect() so handleResizeStart's priority-zone check
+    // short-circuits before document.elementsFromPoint, which jsdom doesn't
+    // implement.
+    fireEvent.pointerDown(swHandle, {
+      clientX: 10,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    // Move left by 20px to grow via the west edge. Seeded from the raw
+    // stored 200px, `potentialW = startW - dx = 200 + 20 = 220` would still
+    // be below the 280 floor and the west-handle check would reject the
+    // resize outright — the handle stays dead until dx exceeds ~80.
+    fireEvent.pointerMove(swHandle, {
+      clientX: -10,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+
+    await waitFor(() => {
+      // Seeded from the clamped 280px: potentialW = 280 + 20 = 300.
+      expect(windowEl.style.width).toBe('300px');
+    });
+  });
+
+  // Drag world-bounds clamping (clampWidgetToWorld) must also measure
+  // against the render-clamped size, not the raw stored size — otherwise a
+  // below-floor widget (rendered wider/taller than stored) can be dragged
+  // past the world edge by the difference.
+  it('clamps drag position to world bounds using the render-clamped size for a below-floor widget', async () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200, x: 1200 });
+
+    const dragSurface = screen.getByTestId(
+      'drag-surface'
+    ) as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    dragSurface.setPointerCapture = vi.fn();
+    dragSurface.hasPointerCapture = vi.fn().mockReturnValue(true);
+    dragSurface.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(dragSurface, {
+      clientX: 0,
+      clientY: 0,
+      pointerId: 1,
+    });
+    // Pre-clamp x = 1200 + 200 = 1400, which exceeds both the resolved-size
+    // world max (worldMaxX - 280) and the raw-size world max
+    // (worldMaxX - 200) at the default 1024x768 jsdom viewport (worldMaxX =
+    // 1536 per getWorldBounds/ZOOM_MIN) — using the raw stored 200px width
+    // here would let the visually-280px-wide box sit up to 80px further
+    // right than the world bounds actually allow.
+    fireEvent.pointerMove(dragSurface, {
+      clientX: 200,
+      clientY: 0,
+      pointerId: 1,
+    });
+
+    await waitFor(() => {
+      expect(windowEl.style.left).toBe('1256px');
+    });
+  });
+
+  // AnnotationCanvas sizes its drawing bitmap from canvasWidth/canvasHeight
+  // while its <canvas> is CSS-stretched to fill the parent, which now
+  // renders at the render-clamped size — the bitmap must match, or pointer
+  // coordinates drift from the drawn strokes.
+  it('sizes the annotation canvas from the render-clamped size for a below-floor widget', () => {
+    renderComponent(
+      { type: 'blooms-taxonomy', w: 200, h: 200 },
+      <div>Content</div>,
+      <div>Settings</div>,
+      'test-widget'
+    );
+
+    fireEvent.click(screen.getByTitle('Annotate (Alt+D)'));
+
+    expect(annotationCanvasSizeProps).toContainEqual({
+      canvasWidth: 280,
+      canvasHeight: 300,
+    });
   });
 
   it('minimizes on Escape key press', () => {
