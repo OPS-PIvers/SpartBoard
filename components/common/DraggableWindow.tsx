@@ -201,14 +201,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   useSettingsDrawer = false,
 }) => {
   const { t } = useTranslation();
-  // Per-widget-type size floor — also enforced on the rendered width/height
-  // below (not just interactive resize) so a dashboard saved before an
-  // override existed or was raised doesn't render smaller than the current
-  // floor and clip its content.
+  // Interactive-resize floor: every widget type gets at least the generic
+  // 150x100 default unless it has its own WIDGET_MIN_SIZE_OVERRIDES entry.
   const effectiveMinW =
     WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
   const effectiveMinH =
     WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
+  // Render-time floor: only widget types with an EXPLICIT override are
+  // lifted up to it on load (e.g. a dashboard saved before the override
+  // existed or was raised). Left undefined for every other type so a
+  // deliberately narrow/short default or stored size (e.g. the 120px-wide
+  // `traffic` widget) is never forced up to the generic 150x100 default.
+  const renderMinW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w;
+  const renderMinH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h;
   // Mount-stable actions surface — identities never change, so dep arrays
   // listing them are trivially satisfied and never re-fire.
   const {
@@ -2197,6 +2202,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     .filter(Boolean)
     .join(' ');
 
+  const rawW =
+    shouldUseDragState && dragState.current
+      ? dragState.current.w
+      : (override?.w ?? widget.w);
+  const rawH =
+    shouldUseDragState && dragState.current
+      ? dragState.current.h
+      : (override?.h ?? widget.h);
+  const resolvedW =
+    renderMinW !== undefined ? Math.max(renderMinW, rawW) : rawW;
+  const resolvedH =
+    renderMinH !== undefined ? Math.max(renderMinH, rawH) : rawH;
+
   const content = (
     <GlassCard
       globalStyle={globalStyle}
@@ -2232,22 +2250,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           : shouldUseDragState && dragState.current
             ? dragState.current.y
             : (override?.y ?? widget.y),
-        width: isMaximized
-          ? '100vw'
-          : Math.max(
-              effectiveMinW,
-              shouldUseDragState && dragState.current
-                ? dragState.current.w
-                : (override?.w ?? widget.w)
-            ),
-        height: isMaximized
-          ? '100vh'
-          : Math.max(
-              effectiveMinH,
-              shouldUseDragState && dragState.current
-                ? dragState.current.h
-                : (override?.h ?? widget.h)
-            ),
+        width: isMaximized ? '100vw' : resolvedW,
+        height: isMaximized ? '100vh' : resolvedH,
         /* eslint-enable react-hooks/refs */
         zIndex: isMaximized ? Z_INDEX.maximized : widget.z,
         display: 'flex',

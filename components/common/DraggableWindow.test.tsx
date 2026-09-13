@@ -813,6 +813,18 @@ describe('DraggableWindow', () => {
     expect(windowEl.style.height).toBe('550px');
   });
 
+  // The render-time floor must NOT apply the generic 150x100 default to
+  // widget types with no explicit WIDGET_MIN_SIZE_OVERRIDES entry — otherwise
+  // an intentionally narrow/short widget (e.g. the 120px-wide Traffic Light)
+  // would be forced wider/taller than designed on every load.
+  it('does not clamp a widget type with no WIDGET_MIN_SIZE_OVERRIDES entry up to the generic default', () => {
+    renderComponent({ type: 'traffic', w: 120, h: 80 });
+    const windowEl = screen.getByTestId('draggable-window');
+
+    expect(windowEl.style.width).toBe('120px');
+    expect(windowEl.style.height).toBe('80px');
+  });
+
   it('minimizes on Escape key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
