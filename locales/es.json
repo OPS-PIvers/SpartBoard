@@ -2489,10 +2489,12 @@
       "backTranslationLabel": "Retrotraducción al inglés",
       "nativeLabel": "Respuesta del estudiante",
       "machineGenerated": "Generada automáticamente. Las palabras del estudiante son el registro oficial.",
-      "translatedRubricNote": "Este estudiante leyó una rúbrica traducida; califica con la rúbrica en inglés que se muestra aquí.",
+      "translatedRubricNote": "Es posible que este estudiante haya leído una rúbrica traducida; califica con la rúbrica en inglés que se muestra aquí.",
+      "saveFailed": "La traducción se muestra abajo, pero no se pudo guardar. Deberá volver a generarse la próxima vez.",
       "errors": {
         "failed": "No se pudo traducir esta respuesta. Inténtalo de nuevo.",
-        "capReached": "Se alcanzó el límite diario de traducciones. Inténtalo mañana."
+        "capReached": "Se alcanzó el límite diario de traducciones. Inténtalo mañana.",
+        "tooLong": "Esta respuesta es demasiado larga para traducirla."
       }
     }
   }

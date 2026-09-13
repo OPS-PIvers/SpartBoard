@@ -9,7 +9,10 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Languages, Loader2 } from 'lucide-react';
 import type { QuizResponseBackTranslation } from '@/types';
-import { backTranslationCacheKey } from '@/utils/backTranslationHash';
+import {
+  backTranslationCacheKey,
+  MAX_BACK_TRANSLATION_CHARS,
+} from '@/utils/backTranslationHash';
 import { requestBackTranslation } from '@/utils/backTranslationService';
 import { logError } from '@/utils/logError';
 
@@ -49,10 +52,16 @@ export const BackTranslationPanel: React.FC<BackTranslationPanelProps> = ({
   );
   const [busy, setBusy] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   const translate = useCallback(async () => {
-    setBusy(true);
     setErrorKey(null);
+    setSaveFailed(false);
+    if (text.length > MAX_BACK_TRANSLATION_CHARS) {
+      setErrorKey('errors.tooLong');
+      return;
+    }
+    setBusy(true);
     try {
       const hash = await backTranslationCacheKey(text, locale);
       const cached = cache?.[hash];
@@ -71,7 +80,12 @@ export const BackTranslationPanel: React.FC<BackTranslationPanelProps> = ({
         at: Date.now(),
       };
       setResult(entry);
-      await onSave(hash, entry);
+      try {
+        await onSave(hash, entry);
+      } catch (saveError) {
+        logError('BackTranslationPanel.onSave', saveError);
+        setSaveFailed(true);
+      }
     } catch (error) {
       logError('BackTranslationPanel', error);
       setErrorKey(
@@ -135,6 +149,11 @@ export const BackTranslationPanel: React.FC<BackTranslationPanelProps> = ({
             <p className="mt-2 text-xs italic text-slate-500">
               {tb('machineGenerated')}
             </p>
+            {saveFailed && (
+              <p className="mt-2 text-xs italic text-amber-700">
+                {tb('saveFailed')}
+              </p>
+            )}
           </div>
         </div>
       )}

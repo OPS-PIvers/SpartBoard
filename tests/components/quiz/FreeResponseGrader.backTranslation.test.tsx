@@ -246,4 +246,61 @@ describe('FreeResponseGrader — back-translation', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toMatch(/couldn't translate/i);
   });
+
+  it('sends plaintext (not rich-text markup) to the callable and hashes plaintext', async () => {
+    const html =
+      '<p>El agua <strong>se evapora</strong> rapidamente.</p><p>Segundo parrafo.</p>';
+    const plaintext = 'El agua se evapora rapidamente.\nSegundo parrafo.';
+    requestBackTranslation.mockResolvedValue({
+      text: 'The water evaporates quickly.\nSecond paragraph.',
+      model: 'm',
+    });
+    const onSave = renderGrader(
+      quizWith('free-response'),
+      responseFor(html, 'es')
+    );
+    fireEvent.click(button());
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(requestBackTranslation).toHaveBeenCalledWith(plaintext, 'es');
+    const [, hash] = onSave.mock.calls[0];
+    expect(hash).toBe(await backTranslationCacheKey(plaintext, 'es'));
+    // The markup itself must never reach the DOM as literal text.
+    expect(screen.queryByText(/<strong>/)).toBeNull();
+    expect(await screen.findByText(/El agua se evapora/)).toBeTruthy();
+  });
+
+  it('keeps a successful translation visible when the save afterward fails', async () => {
+    requestBackTranslation.mockResolvedValue({
+      text: 'The water evaporates.',
+      model: 'm',
+    });
+    const failingSave = vi.fn().mockRejectedValue(new Error('write denied'));
+    renderGrader(
+      quizWith('free-response'),
+      responseFor('El agua se evapora.', 'es'),
+      failingSave
+    );
+    fireEvent.click(button());
+
+    expect(await screen.findByText('The water evaporates.')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(await screen.findByText(/couldn't be saved/i)).toBeTruthy();
+  });
+
+  it('does not hash equal-concatenation (text, locale) pairs to the same key', async () => {
+    const a = await backTranslationCacheKey('fooe', 's');
+    const b = await backTranslationCacheKey('foo', 'es');
+    expect(a).not.toBe(b);
+  });
+
+  it('shows an inline message and never calls the callable for an over-limit answer', async () => {
+    const tooLong = '<p>' + 'a'.repeat(5001) + '</p>';
+    renderGrader(quizWith('free-response'), responseFor(tooLong, 'es'));
+    fireEvent.click(button());
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/too long/i);
+    expect(requestBackTranslation).not.toHaveBeenCalled();
+  });
 });

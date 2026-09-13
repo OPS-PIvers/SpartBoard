@@ -1,3 +1,6 @@
+/** Mirrors `MAX_BACK_TRANSLATION_CHARS` in functions/src/quizTranslation.ts — keep in sync. */
+export const MAX_BACK_TRANSLATION_CHARS = 5000;
+
 /** Cache key for one free-response back-translation (plan §6): SHA-256 hex over the answer text and its locale. */
 export async function backTranslationCacheKey(
   text: string,

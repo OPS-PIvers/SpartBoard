@@ -2677,10 +2677,12 @@
       "backTranslationLabel": "English back-translation",
       "nativeLabel": "Student's response",
       "machineGenerated": "Machine-generated. The student's own words are the record.",
-      "translatedRubricNote": "This student read a translated rubric; grade against the English rubric shown here.",
+      "translatedRubricNote": "This student may have read a translated rubric; grade against the English rubric shown here.",
+      "saveFailed": "Translation shown below, but it couldn't be saved. It will need to be re-run next time.",
       "errors": {
         "failed": "Couldn't translate this response. Try again.",
-        "capReached": "Daily translation limit reached. Try again tomorrow."
+        "capReached": "Daily translation limit reached. Try again tomorrow.",
+        "tooLong": "This response is too long to back-translate."
       }
     }
   }

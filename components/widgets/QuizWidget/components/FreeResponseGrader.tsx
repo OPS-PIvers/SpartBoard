@@ -970,6 +970,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const unplayable =
     isMedia && !isUnavailable ? takeUnplayableReason(activeTake) : null;
   const studentAnswer = textEntry?.answer ?? '';
+  // The stored answer is sanitized rich-text HTML; back-translation always
+  // operates on the plain-text projection the annotation pipeline already uses.
+  const studentAnswerPlainText = htmlToPlainText(studentAnswer);
   const answerWordCount = countWords(studentAnswer);
   const outsideWordRange =
     !isMedia && wordLimitStatus(answerWordCount, question).tone !== 'ok';
@@ -1379,8 +1382,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 )}
                 {showBackTranslation && (
                   <BackTranslationPanel
-                    key={`${targetKey}::${answerLocale}::${studentAnswer}`}
-                    text={studentAnswer}
+                    key={`${targetKey}::${answerLocale}::${studentAnswerPlainText}`}
+                    text={studentAnswerPlainText}
                     locale={answerLocale as string}
                     cache={response?.backTranslations}
                     translatedRubric={rubricCriteriaCount > 0}

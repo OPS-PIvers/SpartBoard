@@ -2489,10 +2489,12 @@
       "backTranslationLabel": "Rétrotraduction en anglais",
       "nativeLabel": "Réponse de l'élève",
       "machineGenerated": "Généré automatiquement. Les mots de l'élève font foi.",
-      "translatedRubricNote": "Cet élève a lu une grille traduite ; évaluez à partir de la grille anglaise affichée ici.",
+      "translatedRubricNote": "Cet élève a peut-être lu une grille traduite ; évaluez à partir de la grille anglaise affichée ici.",
+      "saveFailed": "La traduction est affichée ci-dessous, mais elle n'a pas pu être enregistrée. Elle devra être relancée la prochaine fois.",
       "errors": {
         "failed": "Impossible de traduire cette réponse. Réessayez.",
-        "capReached": "Limite quotidienne de traductions atteinte. Réessayez demain."
+        "capReached": "Limite quotidienne de traductions atteinte. Réessayez demain.",
+        "tooLong": "Cette réponse est trop longue pour être traduite."
       }
     }
   }
