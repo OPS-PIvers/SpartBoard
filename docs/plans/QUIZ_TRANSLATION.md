@@ -1,63 +1,69 @@
 # Quiz Translation for Multilingual Learners — Implementation Plan
 
-**Status:** Spec locked. Revised 2026-09-12 after a five-agent audit (citation accuracy, cost, UI/copy, adversarial correctness, one-shot readiness) and a grilling session with Paul. Ready to implement.
-**Ships as 6 stacked PRs (§11), not one change.** PR0 is a prerequisite that is not part of this feature.
-**Scope:** Quizzes only, **SSO-assigned quizzes only** (D15). Video activities / guided learning / mini-apps are out of v1, but the payload shape and the `StudentOverride` field generalize without a rewrite.
-**Target languages: Spanish, Somali, Hmong** (D19). All Latin-script — this narrowing removed the session-doc size risk and the token-cost blowup an earlier draft carried.
-**Prerequisite:** Read §4 in full before writing any code. §4.4 is where a naive implementation mis-grades a child.
-**Citations verified** against `48d5e2a` on 2026-09-12. Only `QuizEditorModal.tsx` had drifted from the previous revision (+2).
+**Status:** Spec locked. Revised 2026-09-13 (final pre-implementation review: citations re-verified against `b2b6ca6`, six decisions added D31–D36, §11 rewritten as self-contained per-PR briefs). Ready to implement.
+**Ships as 6 stacked PRs (§11).** PR0 is a prerequisite that is not part of this feature.
+**Scope:** Quizzes only, **SSO-assigned quizzes only** (D15). Video activities / guided learning / mini-apps are out of v1; the payload shape and the `StudentOverride` field generalize without a rewrite.
+**Target languages: Spanish, Somali, Hmong** (D19). All Latin-script.
 
-> **Do not read `docs/plans/QUIZ_READ_ALOUD.md` as a spec.** It is a pre-implementation draft whose status line still says "no code has been written"; read-aloud has since shipped and diverged from it. Read the shipped code instead: `functions/src/quizReadAloud.ts:1185-1235` (callable shape), `:506-513` (quota doc ids), `config/quizReadAloud.ts` (config-module shape), `components/admin/QuizReadAloudConfigurationPanel.tsx` (admin-panel shape), `config/featureDefaults.ts` (flag registration).
+## 0. How to use this document
+
+- **Implementing a PR:** read §0, §2, and your PR's brief in §11. Each brief names the exact sections to read, the files to touch, the tests to write, and its acceptance gate. Do not read the whole document.
+- **Every PR touching serving or grading (PR1, PR3, PR5):** §4 is mandatory, in full. §4.4–4.5 is where a naive implementation mis-grades a child.
+- **Citations** are `file:line` against commit `b2b6ca6`. Treat them as anchors, not gospel: `grep -n` the symbol first, then read the range.
+- **Do not read `docs/plans/QUIZ_READ_ALOUD.md` as a spec.** Read-aloud shipped and diverged from it. Read the shipped code instead: `functions/src/quizReadAloud.ts:1185-1235` (callable shape), `:506-513` (quota doc ids), `config/quizReadAloud.ts` (config module), `components/admin/QuizReadAloudConfigurationPanel.tsx` (admin panel), `config/featureDefaults.ts` (flag registration).
+- **Appendix A** lists approaches that were evaluated and rejected. Do not re-propose them.
+- **Comments in code:** one short line max (repo rule). Rationale from this doc goes in the PR description, not the diff.
 
 ## 1. Feature summary
 
-A student's **language** becomes a per-student accommodation, exactly like extended time, read-aloud, or hidden answer choices. A teacher (or EL coordinator) sets a student's language once on the roster; from then on every quiz that student is assigned renders in that language, with a toggle back to English.
+A student's **language** becomes a per-student accommodation, exactly like extended time, read-aloud, or hidden answer choices. A teacher (or EL coordinator) sets a student's language once on the roster; every quiz that student is assigned renders in that language, with a toggle back to English.
 
 Teachers generate translations with AI from a new **Languages** tab in the quiz editor, review and correct them, and mark them reviewed. Nothing unreviewed is ever served to a student.
 
-**Why the accommodation framing and not a student-facing language picker:** it reuses machinery that already exists end-to-end, and it means the teacher — not the 6th grader — decides.
+**Why an accommodation and not a student-facing picker:** it reuses machinery that already exists end-to-end, and the teacher — not the 6th grader — decides.
 
-**On "auditable":** the _accommodation_ is recorded and honored (it rides the pointer doc like every other override). The _translation review_ is not an attestation record — `reviewedQuestionIds` carries no reviewer identity or timestamp (D26). Do not describe the review gate as an audit trail in UI copy.
+**"Auditable" means:** the _accommodation_ is recorded and honored (it rides the pointer doc like every other override). The _translation review_ is not an attestation record — `reviewedQuestionIds` carries no reviewer identity or timestamp (D26). Do not describe the review gate as an audit trail in UI copy.
 
 ## 2. Locked decisions
 
-| #   | Decision                           | Choice                                                                                                 |
-| --- | ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| D1  | Who picks the language             | Per-student accommodation on `StudentOverride`, with a standing default on the roster (**needs PR0**)  |
-| D2  | Storage                            | Sidecar per language: separate Drive file per language, index in `QuizMetadata`                        |
-| D3  | Target languages                   | Admin-curated per-district list, seeded with D19's three                                               |
-| D4  | Review gate                        | **Review-then-publish.** Unreviewed translations are never written to a session doc                    |
-| D5  | Missing translation at assign time | Warn + one-click generate in the assign flow; teacher may proceed anyway (student gets English)        |
-| D6  | Student display                    | Translated by default, one toggle to English (§4.6 — **one control, not one per question**)            |
-| D7  | Answer side                        | Translate the answer content; **grade in English space** (§4.4). Audited byte-identical — keep it      |
-| D8  | Staleness                          | Per-question content hash; editing one question marks only that question stale in each language        |
-| D9  | What gets translated               | Question content and rubric criteria/descriptors. **Not** quiz directions (no such field) — see D27    |
-| D10 | Stimuli                            | Warning only in v1. No vision/OCR. Labels are never translated (§3.4)                                  |
-| D11 | Review surface                     | New **Languages** tab in `QuizEditorModal`, quiz owner reviews                                         |
-| D12 | Generation                         | New `translateQuizV1` Cloud Function; metered per quiz × language, one Gemini call per language        |
-| D13 | Admin gate                         | Curated list + feature toggle + monthly org cap, on the read-aloud admin surface (merged — D24)        |
-| D14 | Free-response back-translation     | Teacher-side, **explicit per-response button** (§6). Not lazy-on-open                                  |
-| D15 | Who can receive a translation      | **SSO students only.** Structurally enforced — `AssignStudentPicker.tsx:478` already disables the rest |
-| D16 | Where translations live            | **On `QuizPublicQuestion` itself** (`localized`), not a parallel session-level map (§4.2)              |
-| D17 | Source language                    | v1 requires `QuizData.language` English or absent. Generate disabled otherwise                         |
-| D18 | Response language                  | `QuizResponseAnswer.locale` stamped at submit. **Per-call field** — see §4.4                           |
-
-### 2.1 Added by the 2026-09-12 audit
-
-| #   | Decision                  | Choice                                                                                                                                  |
-| --- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| D19 | Target languages          | **Spanish (`es`), Somali (`so`), Hmong (`hmn`)**. All Latin-script. Karen is explicitly out — no Cloud Translation or TTS support       |
-| D20 | Model + cost posture      | `geminiConfig.standardModel` (`gemini-3.5-flash-lite`), `thinkingLevel: 'minimal'`, `temperature: 0.2`, hard caps. **~$68/district-yr** |
-| D21 | FIB                       | **FIB is not translated in v1.** Question stays English. No `gradeAnswer` change, no awaiting-grade routing (§4.5)                      |
-| D22 | Answer cache              | **Cache holds the English canonical value. Localization is display-only** (§4.4). The single most important decision here               |
-| D23 | Review + staleness gating | **Both gated at publish.** No hash of any kind on the session doc (§4.3). Reverses an earlier split-gate design that leaked the key     |
-| D24 | Admin surface             | **One merged "Quiz Languages" tab** — rename and extend `QuizReadAloudConfigurationPanel`                                               |
-| D25 | Read-aloud × translation  | **Suppress the speaker control on translated questions.** Target-language synthesis deferred to v2 (§4.7)                               |
-| D26 | Attestation               | `reviewedQuestionIds` stays `string[]`. No reviewer identity or timestamp                                                               |
-| D27 | Title and directions      | `QuizData` has no `directions` field — struck from D9. Translated **title** needs `QuizSession.quizTitleLocalized` (§4.2)               |
-| D28 | Spanish app chrome        | When `override.language === 'es'`, also switch the i18n language. Somali/Hmong keep the English shell                                   |
-| D29 | Bank-slot quizzes         | A quiz with `bankSlots` cannot be translated. Languages tab disabled with a reason; §10 treats it as untranslated                       |
-| D30 | Rollout                   | `quiz-translation` global feature: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`                     |
+| #   | Decision                           | Choice                                                                                                                                                                                         |
+| --- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Who picks the language             | Per-student accommodation on `StudentOverride`, with a standing default on the roster (**needs PR0**)                                                                                          |
+| D2  | Storage                            | Sidecar per language: separate Drive file per language, index in `QuizMetadata`                                                                                                                |
+| D3  | Target languages                   | Admin-curated per-district list, seeded with D19's three                                                                                                                                       |
+| D4  | Review gate                        | **Review-then-publish.** Unreviewed translations are never written to a session doc                                                                                                            |
+| D5  | Missing translation at assign time | Warn + one-click generate in the assign flow; teacher may proceed anyway (student gets English)                                                                                                |
+| D6  | Student display                    | Translated by default, one toggle to English (§4.6 — **one control, not one per question**)                                                                                                    |
+| D7  | Answer side                        | Translate the answer content; **grade in English space** (§4.5)                                                                                                                                |
+| D8  | Staleness                          | Per-question content hash; editing one question marks only that question stale in each language                                                                                                |
+| D9  | What gets translated               | Question content and rubric criteria/descriptors. Quiz **title** via `QuizSession.quizTitleLocalized` (D27). No directions field exists                                                        |
+| D10 | Stimuli                            | Warning only in v1. No vision/OCR. Labels are never translated (§3.4)                                                                                                                          |
+| D11 | Review surface                     | New **Languages** tab in `QuizEditorModal`, quiz owner reviews                                                                                                                                 |
+| D12 | Generation                         | New `translateQuizV1` Cloud Function; metered per quiz × language, one Gemini call per language                                                                                                |
+| D13 | Admin gate                         | Curated list + feature toggle + monthly org cap, on the read-aloud admin surface (merged — D24)                                                                                                |
+| D14 | Free-response back-translation     | Teacher-side, **explicit per-response button** (§6). Not lazy-on-open                                                                                                                          |
+| D15 | Who can receive a translation      | **SSO students only.** Structurally enforced — `AssignStudentPicker.tsx:478-485` already disables the rest                                                                                     |
+| D16 | Where translations live            | **On `QuizPublicQuestion` itself** (`localized`), not a parallel session-level map (§4.2)                                                                                                      |
+| D17 | Source language                    | v1 requires `QuizData.language` English or absent. Generate disabled otherwise                                                                                                                 |
+| D18 | Response language                  | `QuizResponseAnswer.locale` stamped at submit. **Per-call field** — see §4.5                                                                                                                   |
+| D19 | Target languages                   | **Spanish (`es`), Somali (`so`), Hmong (`hmn`)**. All Latin-script. Karen is out — no Cloud Translation or TTS support                                                                         |
+| D20 | Model + cost posture               | `geminiConfig.standardModel` (`gemini-3.5-flash-lite`), `thinkingLevel: 'minimal'`, `temperature: 0.2`, hard caps. **~$68/district-yr**                                                        |
+| D21 | FIB                                | **FIB is not translated in v1.** Question stays English. No `gradeAnswer` change                                                                                                               |
+| D22 | Answer cache                       | **Cache holds the English canonical value. Localization is display-only** (§4.5). The single most important decision here                                                                      |
+| D23 | Review + staleness gating          | **Both gated at publish.** No hash of any kind on the session doc (§4.3)                                                                                                                       |
+| D24 | Admin surface                      | **One merged "Quiz Languages" tab** — rename and extend `QuizReadAloudConfigurationPanel`                                                                                                      |
+| D25 | Read-aloud × translation           | **Suppress the speaker control on translated questions.** Target-language synthesis deferred to v2 (§4.7)                                                                                      |
+| D26 | Attestation                        | `reviewedQuestionIds` stays `string[]`. No reviewer identity or timestamp                                                                                                                      |
+| D27 | Title and directions               | `QuizData` has no `directions` field. Translated **title** rides `QuizSession.quizTitleLocalized` (§4.2)                                                                                       |
+| D28 | Spanish app chrome                 | When `override.language === 'es'`, also switch the i18n language **without persisting it** (D34). Somali/Hmong keep the English shell                                                          |
+| D29 | Bank-slot quizzes                  | A quiz with `bankSlots` cannot be translated. Languages tab disabled with a reason; §10 treats it as untranslated                                                                              |
+| D30 | Rollout                            | `quiz-translation` global feature: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`                                                                            |
+| D31 | Staleness storage                  | **`sourceHashes` are copied into the `QuizMetadata` index entry.** `staleCount` is recomputed from the in-memory quiz body at each metadata write. **A quiz save never writes a sidecar** (§9) |
+| D32 | Source-language index              | **`QuizMetadata.language`** is added, derived from `QuizData.language` at the same four write sites, so D17 is answerable with zero Drive calls (§10)                                          |
+| D33 | Standing default merge             | `applyDefaultOverride` **fills in `language`** on an existing per-assignment draft that lacks it. All other keys keep today's whole-object short-circuit (§3.1)                                |
+| D34 | i18n switch is ephemeral           | The D28 switch **must not write `spart_language` to localStorage** (`i18n/index.ts:36-37`). Shared Chromebooks (§4.6)                                                                          |
+| D35 | Content hash                       | SHA-256 hex, first 16 chars, over the serializer in §9. **Duplicated** in root and `functions/` (they share no modules) and pinned by one shared fixture file asserted in both Vitest projects |
+| D36 | Answer conversion boundary         | Two pure helpers, `toDisplayAnswer` / `toCanonicalAnswer` (§4.5). Cache, Firestore, and saved answers are always English; conversion happens only at the input boundary                        |
 
 ## 3. Data model
 
@@ -65,22 +71,15 @@ Teachers generate translations with AI from a new **Languages** tab in the quiz 
 
 ```ts
 export interface StudentOverride {
-  timeMultiplier?: 1.5 | 2 | 'unlimited';
-  questionIds?: string[];
-  hiddenOptionIdsByQuestion?: Record<string, string[]>;
-  rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
-  tabWarningThreshold?: number | 'off';
-  readAloud?: boolean;
-  openAt?: number;
-  closeAt?: number;
+  // …existing eight fields unchanged…
   /** BCP-47 code: 'es' | 'so' | 'hmn'. Absent = English. Must appear in the org's curated list. */
   language?: string;
 }
 ```
 
-**⚠️ It does NOT ride the existing paths for free.** The previous revision claimed it did. It does not — there are **three** closed allowlists between the roster and the student, and every one of them silently drops an unknown key:
+**It does NOT ride the existing paths for free.** There are **three** closed allowlists between the roster and the student, and each silently drops an unknown key:
 
-1. `functions/src/studentAssignmentTargets.ts:341` `sanitizeOverride()` — doc comment: _"Structural sanitizer — drops unknown keys."_ It hand-copies eight fields. Add a validated `language` branch:
+1. `functions/src/studentAssignmentTargets.ts:341` `sanitizeOverride()` — hand-copies eight fields. Add:
    ```ts
    if (
      typeof src.language === 'string' &&
@@ -88,42 +87,38 @@ export interface StudentOverride {
    )
      out.language = src.language.trim();
    ```
-   Reuse the tag regex from `functions/src/quizReadAloud.ts:516`; lift it to a shared module or duplicate it with a keep-in-sync note.
-2. `functions/src/studentAssignmentTargets.ts:142-151` — **`functions/` carries its own duplicate `StudentOverride` interface** and does not import root `types.ts`. Adding the field to `types.ts` alone produces **no type error** in `pnpm run type-check:all`, so the omission is invisible.
+   `LANGUAGE_TAG_RE` is `/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/` at `functions/src/quizReadAloud.ts:516` (accepts `hmn`). **Export it from `quizReadAloud.ts` and import it** — do not duplicate.
+2. `functions/src/studentAssignmentTargets.ts:142-151` — `functions/` carries its **own duplicate `StudentOverride` interface** and does not import root `types.ts`. Adding the field to `types.ts` alone produces **no type error** in `pnpm run type-check:all`. Add `language?: string` here too.
 3. `hooks/useRosters.ts:171` `parseStudentOverride()` — same whitelist on the Drive roster read path. Without a branch, the standing default never survives a reload.
 
-The paths that genuinely do work once those three are fixed:
+Paths that work once those three are fixed:
 
 - `ClassRoster.defaultOverridesByStudentId` (`types.ts:195`) — the standing accommodation. **No writer exists yet — that is PR0.**
-- `AssignStudentPicker.tsx:128` reads that default and applies it. Note it assigns the standing override **whole-object** and short-circuits at `:127` if a per-assignment draft already exists — so a standing `language` will not merge into an override the teacher already customized.
+- `AssignStudentPicker.tsx:121-131` `applyDefaultOverride` reads that default and applies it whole-object, short-circuiting at `:127` when a per-assignment draft already exists. **D33:** change the short-circuit so that when a draft exists, lacks `language`, and the standing default has one, the draft gains `language` only. Nothing else about the short-circuit changes.
 - `QuizAssignment.overridesBySourcedId` / `overridesByStudentUid` (`types.ts:5196`, `:5200`).
 - `StudentAssignmentPointer.override` (`types.ts:5018`).
 
-Add a `language` chip to `summarizeOverride` (`utils/studentOverrideSummary.ts`, following `readAloud` at `:68-71`) plus a `studentOverride.chip.language` key in all four locale files.
+Add a `language` chip to `summarizeOverride` (`utils/studentOverrideSummary.ts`, following `readAloud` at `:68-71`) plus `studentOverride.chip.language` in all four locale files. Decide in `utils/studentOverrideModifiedNote.ts` whether `language` counts as "modified" (yes — it changes what the student sees).
 
-**Two structural differences from every existing override.**
+**Two structural differences from every existing override:**
 
-1. **It is the first _additive_ override.** All current overrides are subtractive. Language requires content that must already exist and be published. `StudentOverride` stays true to its doc comment (_"Never stored on session docs"_) — the override carries only the language _code_; the translated payload travels on the session doc (§4).
+1. **It is the first _additive_ override.** Language requires content that must already exist and be published. `StudentOverride` stays true to its doc comment (_"Never stored on session docs"_) — the override carries only the language _code_; the translated payload travels on the session doc (§4).
+2. **It only reaches SSO students (D15)**, already enforced structurally: `components/quiz/QuizStudentApp.tsx:567` resolves the pointer doc only when `isStudentRole`; `AssignStudentPicker.tsx:478-485` disables non-SSO students with `t('assignStudentPicker.needsSso')`. No new UI prose is needed.
 
-2. **It only reaches SSO students (D15)** — and this is already enforced structurally, so it needs no new UI prose. `QuizStudentApp.tsx:567` resolves the pointer doc only when `isStudentRole`; `AssignStudentPicker.tsx:478-485` already **disables** non-SSO students with `t('assignStudentPicker.needsSso')`. A teacher cannot attach a `language` to a student who has no pointer doc.
+**Naming caution:** `QuizSession.language` **already exists** (`types.ts:3983`) and means _the quiz's read-aloud source voice_ (maintained on PLC re-sync at `useQuizAssignments.ts:2129`). Do not overload it.
 
-**Naming caution:** `QuizSession.language` **already exists** (`types.ts:3983`) and means _the quiz's read-aloud source voice_, maintained on PLC re-sync at `useQuizAssignments.ts:2129`. Do not overload it. Also, `QuizMetadata` has **no** `language` field, so D17's English-source gate cannot be answered from the Firestore library index — it needs the Drive body (see §10).
-
-### 3.2 Translation payload
+### 3.2 Translation payload (Drive sidecar)
 
 ```ts
 /** One question's translated strings. Positionally aligned with the English question. */
 export interface QuestionTranslation {
   text: string;
-  /**
-   * MC: translated choices, index-aligned with the projection's pre-shuffle
-   * array `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`.
-   */
+  /** MC: index-aligned with the projection's pre-shuffle array `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
   choices?: string[];
   /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
   matchingLeft?: string[];
   matchingRight?: string[];
-  /** Matching: index-aligned with `matchingDistractors.filter(Boolean)`. */
+  /** Matching: index-aligned with `(matchingDistractors ?? []).filter(Boolean)`. */
   matchingDistractors?: string[];
   /** Ordering: index-aligned with `correctAnswer.split('|')`. */
   orderingItems?: string[];
@@ -137,7 +132,7 @@ export interface QuizTranslation {
   locale: string;
   title: string;
   questions: Record<string, QuestionTranslation>;
-  /** Per-question hash of the English source at translation time. Drives staleness. */
+  /** Per-question hash (§9) of the English source at translation time. */
   sourceHashes: Record<string, string>;
   /** Question ids the teacher has explicitly approved. Only these are ever projected. */
   reviewedQuestionIds: string[];
@@ -147,20 +142,20 @@ export interface QuizTranslation {
 }
 ```
 
-There is no `directions` field, because `QuizData` has none (D27). `QuizData` is `{id, title, questions, stimuli?, language?, bankSlots?, order?, createdAt, updatedAt}` (`types.ts:3715-3729`).
+`QuizData` is `{id, title, questions, stimuli?, language?, bankSlots?, order?, createdAt, updatedAt}` (`types.ts:3715-3729`). There is no `directions` field.
 
-**Index alignment is the load-bearing invariant of this entire design.** Every array above must be the same length and order as the English source it mirrors. Generation must validate it server-side and reject any output that violates it.
+**Index alignment is the load-bearing invariant of this design.** Every array above must be the same length and order as the English source it mirrors. Generation validates it server-side (§5) and rejects any output that violates it.
 
-**Align against the _filtered_ arrays.** `toPublicQuestion` builds MC choices from `[q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)]` (`hooks/useQuizSession.ts:347-350`) and matching distractors from `(q.matchingDistractors ?? []).filter(Boolean)` (`:360`). Authored quizzes do contain empty entries. Define alignment against the filtered arrays in both the prompt and the validator.
+**Align against the _filtered_ arrays.** `toPublicQuestion` builds MC choices from `[q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)]` (`hooks/useQuizSession.ts:347-350`) and matching distractors from `(q.matchingDistractors ?? []).filter(Boolean)` (`:360`). Authored quizzes do contain empty entries. Define alignment against the filtered arrays in the prompt, the validator, and the hash serializer.
 
-**`rubricSnapshot` and `placeholder` are free-response only** — projected only inside the `isFreeResponseType` branch (`hooks/useQuizSession.ts:371-386`). Translating the rubric exposes nothing new: the English rubric is already public and documented as carrying no answer key (`types.ts:3895-3901`).
+**`rubricSnapshot` and `placeholder` are free-response only** — projected only inside the `isFreeResponseType` branch (`hooks/useQuizSession.ts:371-386`). The English rubric is already public and carries no answer key (`types.ts:3895-3901`).
 
-### 3.3 Storage (D2)
+### 3.3 Storage (D2, D31, D32)
 
-Translations do **not** go inline in the quiz JSON. `QuizData` is fully loaded from Drive on every editor open, every publish, and every PLC sync.
+Translations do **not** go inline in the quiz JSON (`QuizData` is fully loaded from Drive on every editor open, publish, and PLC sync).
 
 - Each `QuizTranslation` is its own Drive file alongside the quiz, loaded lazily.
-- `QuizMetadata` (`types.ts:3755`) gains a Firestore index so the library and assign flow can answer _"does a reviewed Spanish version exist?"_ with **zero Drive calls**:
+- `QuizMetadata` (`types.ts:3755`) gains a Firestore index so the library and assign flow answer _"does a reviewed, fresh Spanish version exist?"_ with **zero Drive calls**:
 
 ```ts
 export interface QuizTranslationIndexEntry {
@@ -168,73 +163,73 @@ export interface QuizTranslationIndexEntry {
   reviewedCount: number;
   staleCount: number;
   questionCount: number;
+  /** Copy of the sidecar's sourceHashes (D31). Lets staleCount be recomputed without Drive. */
+  sourceHashes: Record<string, string>;
   updatedAt: number;
 }
 // on QuizMetadata:
 translations?: Record<string, QuizTranslationIndexEntry>;
+/** Copy of QuizData.language (D32). Absent = English. */
+language?: string;
 ```
 
-**⚠️ `QuizDriveService` has no sidecar API. This is new public API, not reuse.** Its surface is `saveQuiz` / `loadQuiz` / `deleteQuizFile` / sheet and template helpers. `saveQuiz` hard-codes both the filename and the payload type (`utils/quizDriveService.ts:230-231`):
+**`QuizDriveService` has no sidecar API — this is new public API.** `saveQuiz` hard-codes filename and payload type (`utils/quizDriveService.ts:230-231`); `loadQuiz` returns `QuizData` through `normalizeQuizData`; the folder helpers (`getOrCreateFolder:181`, `getQuizFolderId:214`) are `private`. Add:
 
 ```ts
-const fileName = `${sanitizeDriveFileName(quiz.title)}.${quiz.id.slice(0, 8)}.quiz.json`;
-const content = JSON.stringify(quiz, null, 2);
+saveTranslation(quizId: string, quizTitle: string, locale: string, payload: QuizTranslation, existingFileId?: string): Promise<string /* fileId */>;
+loadTranslation(fileId: string): Promise<QuizTranslation>;
+deleteTranslation(fileId: string): Promise<void>;
 ```
 
-`loadQuiz` returns `QuizData` through `normalizeQuizData`. Both folder helpers (`getOrCreateFolder:181`, `getQuizFolderId:214`) are **`private`**. Add `saveTranslation(quizId, quizTitle, locale, payload, existingFileId?)` and `loadTranslation(fileId)`, naming the sidecar `${sanitizeDriveFileName(title)}.${id.slice(0,8)}.${locale}.tr.json` and mirroring the name-collision fallback at `:246-270`. No OAuth scope change is needed — `drive.file` (`config/firebase.ts:84`) covers app-created files, and the sidecar sits in the existing `SpartBoard/Quizzes` folder.
+Sidecar name: `${sanitizeDriveFileName(title)}.${id.slice(0,8)}.${locale}.tr.json`, mirroring the name-collision fallback at `:246-270`. No OAuth scope change: `drive.file` (`config/firebase.ts:84`) covers app-created files; the sidecar sits in the existing `SpartBoard/Quizzes` folder.
 
-**⚠️ The index is destroyed by every quiz save.** `hooks/useQuiz.ts` rebuilds `QuizMetadata` field-by-field and writes it with a **non-merging** `setDoc`, preserving only `folderId` / `sync` / `behavior`. Add `translations` to the preserve-on-omit list at **all four** sites:
+**The index is destroyed by every quiz save unless preserved.** `hooks/useQuiz.ts` rebuilds `QuizMetadata` field-by-field and writes it with a **non-merging** `setDoc`, preserving only `folderId` / `sync` / `behavior`. At **all four** sites, carry `translations` forward (with `staleCount` recomputed per §9) and write `language` from the quiz body:
 
 - `:288-316` `saveQuiz`
-- `:350-379` `pullSyncedQuiz` — **auto-fired by `hooks/usePlcAutoPullSync.ts`**, so a peer's edit wipes your index with no action from you
+- `:350-379` `pullSyncedQuiz` — auto-fired by `hooks/usePlcAutoPullSync.ts`, so a peer's edit runs this with no teacher action
 - `:434-453` `detachSyncedQuiz`
 - `:621` duplicate path
 
-Without this, a teacher who fixes one typo after a full review loses the entire index, orphans the Drive sidecars, and the Languages tab shows an empty state.
+**Write order:** Drive sidecar first, then the index; on index failure delete the sidecar (the `duplicateQuiz` precedent at `hooks/useQuiz.ts:625-637` rolls back Drive, not Firestore).
 
-**The rollback precedent runs the other way than an earlier draft claimed.** `duplicateQuiz` (`hooks/useQuiz.ts:580-640`) rolls back the **Drive file** when the Firestore write fails (`:625-637`), to avoid an orphan Drive file — it does not roll back an index. It is also the only path in that file with any rollback; `saveQuiz` has none. Write Drive first, then the index, and on index failure delete the sidecar.
+**Copy / archive / sync paths** — both real copy paths construct `QuizData` field-by-field, so a new field **silently drops** by default. Each decision is explicit:
 
-**Copy / archive / sync paths.** The two files an earlier draft named were wrong: `components/common/library/libraryDuplicate.ts` is an 80-line kebab-menu label helper with no data logic, and `functions/src/driveArchive.ts` is the Activity Wall _photo_ archiver (`grep quiz` returns nothing). The real paths are:
-
-| Path                                                          | Behavior                                                | v1 decision                                                              |
-| ------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `hooks/useQuiz.ts:580-640` duplicate                          | builds `QuizData` field-by-field                        | **carry** translations                                                   |
-| `hooks/useSyncedQuizGroups.ts:235`/`:376` PLC sync            | explicit `Pick<…>`, so a new field **drops by default** | **carry** — but see §4.4 and PR5; it is blocked at the rules layer today |
-| `components/widgets/QuizWidget/adapters/quizImportAdapter.ts` | constructs `QuizData` from CSV/Sheet                    | **drop** — already true with zero work                                   |
-
-Both real copy paths construct field-by-field, so the default for a new field is **silent drop**. That is the safe direction, and it is why each decision must be explicit.
+| Path                                                           | v1 decision                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `hooks/useQuiz.ts:580-640` duplicate                           | **carry** — copy each sidecar to a new Drive file, rebuild index entries |
+| `hooks/useSyncedQuizGroups.ts:235`/`:376` PLC sync (`Pick<…>`) | **drop in v1** — PR5 carries; blocked at the rules layer today (§11 PR5) |
+| `components/widgets/QuizWidget/adapters/quizImportAdapter.ts`  | **drop** — already true with zero work                                   |
 
 ### 3.4 Stimuli (D10) — warning only
 
-`utils/quizStimuli.ts:115` strips stimulus labels (`{ ...rest, label: '' }`) before the session doc is written, and `QuizStimulusView` never renders them — every `label` occurrence there is an `aria-label` or a caller-supplied heading. **Students never see stimulus labels — do not translate them.**
+`utils/quizStimuli.ts:115` strips stimulus labels before the session doc is written and `QuizStimulusView` never renders them. **Students never see stimulus labels — do not translate them.**
 
-Text _inside_ an image needs vision/OCR and is out of scope. Instead, add `'stimulus-text'` to the `QuizAdvisoryId` union in `utils/quizAuthoringAdvisory.ts` and emit a **counted, quiz-level** line through the existing `QuizAuthoringAdvisory` component: _"3 images may contain text that stays in English."_ It must be quiz-level, not per-question: stimuli are shared across questions via `QuizQuestion.stimulusIds` (`types.ts:3444`), so one image behind six questions would repeat the warning six times. `QuizAuthoringAdvisory` is already a single quiz-level banner (props `{ questions, shuffleQuestionsEnabled? }`), not a per-question component.
+Text _inside_ an image is out of scope. Add `'stimulus-text'` to the `QuizAdvisoryId` union in `utils/quizAuthoringAdvisory.ts` and emit one **counted, quiz-level** line through the existing `QuizAuthoringAdvisory` banner (props `{ questions, shuffleQuestionsEnabled? }`): _"3 images may contain text that stays in English."_ Quiz-level because stimuli are shared across questions via `QuizQuestion.stimulusIds` (`types.ts:3444`).
 
-**`QuizStimulus.readAloudText` is a separate gap.** Unlike `label`, it _is_ rendered to the student (`utils/quizStimuli.ts:119-135` projects it as `readAloudTextByStimulusId`; `QuizStudentApp.tsx:1776-1795` renders it in a text pane). Same for `QuestionTargetTag.label` when `showLearningTargets` is on (`useQuizAssignments.ts:728-730`). Both are teacher-authored student-visible prose. **v1 decision: out of scope, listed in §13** — but they must be named, not silently missed.
+**Two student-visible strings are deliberately out of scope and named in §13:** `QuizStimulus.readAloudText` (projected at `utils/quizStimuli.ts:119-135`, rendered at `QuizStudentApp.tsx:1776-1795`) and `QuestionTargetTag.label` when `showLearningTargets` is on (`useQuizAssignments.ts:728-730`).
 
 ## 4. Serving to students — READ THIS BEFORE CODING
 
 ### 4.1 The trap
 
-`toPublicQuestion` (`hooks/useQuizSession.ts:338`) is a hand-written allowlist with real security design behind it:
+`toPublicQuestion` (`hooks/useQuizSession.ts:338`) is a hand-written allowlist with security design behind it:
 
-- MC `choices` are **Fisher-Yates shuffled** so the correct answer's identity is unknown (`:347-350`, `Math.random()` at `:327`).
-- Matching `matchingRight` is shuffled _and_ merged with distractors (`:362-365`), and the distractor list is deliberately **not** exposed — the inline comment at `:366-368` says exposing it _"lets a student pop devtools and read off exactly which entries are wrong."_
-- Ordering `orderingItems` are shuffled (`:371`).
-- `matchingLeft` is **never** shuffled (`:358`).
+- MC `choices` are **Fisher-Yates shuffled** (`:347-350`, `Math.random()` at `:327`) so the correct answer's position is unknown.
+- Matching `matchingRight` is shuffled _and_ merged with distractors (`:362-369`); the distractor list is deliberately **not** exposed (comment at `:366-368`).
+- Ordering `orderingItems` are shuffled (`:370`).
+- `matchingLeft` is **never** shuffled (`:361`).
 - `correctAnswer` never appears.
 
-**Shipping `QuizTranslation` to the session doc as a parallel payload defeats all of it** — the translated arrays are in _source_ order, so position alone gives away the key.
+Shipping `QuizTranslation` to the session doc as a parallel payload defeats all of it — the translated arrays are in _source_ order, so position alone gives away the key.
 
-**Corollary, and it is absolute: nothing on the session doc may be a function of `correctAnswer`, `incorrectAnswers`, or `matchingDistractors`.** Not the strings, not a hash of them. A per-question content hash next to the shuffled choices is a brute-forceable oracle: 4-choice MC gives 24 candidate assignments, each cheaply hashed with the serializer that ships in the client bundle, recovering the key with certainty. FIB is a one-word dictionary attack. An earlier revision of this plan proposed exactly that; §4.3 is why it is gone.
+**Absolute rule: nothing on the session doc may be a function of `correctAnswer`, `incorrectAnswers`, or `matchingDistractors`.** Not the strings, not a hash. A per-question hash next to shuffled choices is a brute-forceable oracle (4-choice MC = 24 candidates, hashed with the serializer that ships in the client bundle).
 
 ### 4.2 The fix: translate inside the projection, through the same shuffle
 
-Translations attach to the **question object itself** (D16), not a parallel session-level map:
+Translations attach to the **question object itself** (D16):
 
 ```ts
-/** Locale-specific strings for one public question. Every array here is the
- *  same length and order as the sibling array on the question. */
+/** Locale-specific strings for one public question. Every array is the same length and order as the sibling array on the question. */
 export interface LocalizedQuestionStrings {
   text: string;
   choices?: string[];
@@ -244,67 +239,52 @@ export interface LocalizedQuestionStrings {
   placeholder?: string;
   rubricSnapshot?: Rubric;
 }
-
 // on QuizPublicQuestion:
 localized?: Record<string, LocalizedQuestionStrings>;
-// on QuizSession (D27 — session.quizTitle is a scalar with nowhere to put a translation):
+// on QuizSession (D27):
 quizTitleLocalized?: Record<string, string>;
 ```
 
-Note `LocalizedQuestionStrings` has **no `matchingDistractors`**, while `QuestionTranslation` does. The two types differ by exactly that one field and share four names, so the obvious implementation — `localized[loc] = translation.questions[qid]` — **re-exposes the distractor list the projection deliberately withholds.** Latin-script cognates across all three target languages make it trivially mappable back.
+`LocalizedQuestionStrings` has **no `matchingDistractors`**; `QuestionTranslation` does. **Never spread the sidecar entry** (`localized[loc] = translation.questions[qid]` re-exposes the distractor list). Build `localized[loc]` **field-by-field inside the same per-type branches** as the English fields. The Matching branch constructs `localized.matchingRight = permute([...translatedPairRights, ...translatedDistractors])` — concatenated in exactly the order the English merge uses (`:362-369`) _before_ permuting. `placeholder` / `rubricSnapshot` stay confined to the free-response branch.
 
-**Therefore: build `localized[loc]` field-by-field inside the same per-type branches as the English fields. Never spread the sidecar entry.** The Matching branch must construct `localized.matchingRight = permute([...translatedPairRights, ...translatedDistractors])` rather than copying a field. The same discipline keeps `placeholder` and `rubricSnapshot` confined to the free-response branch, where English already confines them.
+`toPublicQuestion` computes each shuffle permutation **once** per question, then applies it to the English array and to every locale's array.
 
-`toPublicQuestion` computes the shuffle permutation **once** per question, then applies that same permutation to the English arrays and to every locale's arrays, passing every locale through the **same allowlist**.
-
-Signatures — give these literally, they are security-critical:
+**Signatures — implement literally:**
 
 ```ts
+// hooks/useQuizSession.ts
 export function toPublicQuestion(
   q: QuizQuestion,
-  translations?: Record<string, QuestionTranslation> // locale -> payload, pre-filtered to reviewed+fresh
+  translations?: Record<string, QuestionTranslation> // locale -> this question's payload, pre-filtered to reviewed+fresh
 ): QuizPublicQuestion;
+function randomPermutation(length: number): number[]; // NEW, replaces inline fisherYatesShuffle at :324
 
-// utils/quizShuffle.ts — NEW. Must produce the identical permutation seededShuffle does today.
+// utils/quizShuffle.ts — NEW. seededShuffle (:52) becomes seededPermutation + apply; add a test that old and new agree for 200 seeds × lengths 2..8.
 export function seededPermutation(length: number, seed: string): number[];
-
-// hooks/useQuizSession.ts — NEW, replaces the inline fisherYatesShuffle at :324
-function randomPermutation(length: number): number[];
 ```
 
-`matchingRight`'s permutation is computed over the **merged** array `[...pairs.map(p => p.right), ...distractors]` (`:360-365`), so `QuestionTranslation.matchingRight` and `.matchingDistractors` must be concatenated in exactly that order _before_ permuting. That merge order is the easiest place in this design to silently misalign a matching question.
+Both wrappers gain the same `translations` argument: `toGatedPublicQuestion` (`hooks/useQuizAssignments.ts:707`) and `projectPublicQuestionForMode` (`:721`). The caller passes a per-quiz map `Record<locale, QuizTranslation>` and the wrapper selects `translation.questions[q.id]` per question, applying the reviewed+fresh filter there (§4.3).
 
-Both wrappers gain the translations argument: `toGatedPublicQuestion` (`hooks/useQuizAssignments.ts:707`) and `projectPublicQuestionForMode` (`:721`).
+**Which locales get projected:** at publish, the union of `language` across the assignment's targeted overrides — `overridesBySourcedId` is destructured from `options` at `hooks/useQuizAssignments.ts:801` and written at `:883-884`. Project only questions **both** in `reviewedQuestionIds` **and** hash-fresh.
 
-**Which locales get projected:** at publish, the union of `language` across the assignment's targeted students' overrides, available from `settings.overridesBySourcedId` at `hooks/useQuizAssignments.ts:868`. Project only questions that are **both** in `reviewedQuestionIds` and hash-fresh (§4.3).
+**Publish sites.** `toPublicQuestion` has exactly **one** production caller chain: `:709` via `toGatedPublicQuestion` → `projectPublicQuestionForMode`, reached from `:914` (create) and `:1985` (PLC re-sync). Everything else is tests.
 
-**Publish sites.** `toPublicQuestion` has exactly **one** production caller — `hooks/useQuizAssignments.ts:709` via `toGatedPublicQuestion` → `projectPublicQuestionForMode`, reached from `:914` (create) and `:1985` (PLC re-sync). Both write sites route through it, so changing it there covers every create path. Verified exhaustively; everything else is tests.
+**Loading sidecars at publish.** `toGatedPublicQuestion` is a `useCallback` with no Drive access. In `createAssignment`, before `sessionPublicQuestions` is built at `:913`, load the needed locales' sidecars with **`Promise.allSettled` in parallel** (`utils/googleDriveService.ts:92-113` `fetchWithRetry` retries once on 401 only; a 429 on one locale must not drop the others). A failed locale is dropped and logged; the student gets English (the outcome D5 already warns about). **Never block a publish.** Also write `session.quizTitleLocalized` from each loaded sidecar's `title`.
 
-**Threading translations in is step-1 work the plan must name:** `toGatedPublicQuestion` is a `useCallback` inside `useQuizAssignments` with no Drive access today. The sidecar loads must happen in `createAssignment` before `sessionPublicQuestions` is built at `:913`, as `Promise.allSettled` over the per-locale loads, in parallel:
+**Session doc size.** Each locale adds ~320 B/question; 40 questions × 3 locales ≈ 55 KB on ~16 KB English. Keep a defensive assertion on **serialized UTF-8 bytes** (`new TextEncoder().encode(JSON.stringify(session)).length`) against a ~900 KB budget, and drop locales by ascending targeted-student count if it trips.
 
-- **Failure behavior:** a Drive load failure for one locale drops that locale and publishes without it. The student gets English — the same outcome D5's advisory already warns about. Log it; never block a publish. `allSettled`, not `all`: `utils/googleDriveService.ts:92-113` `fetchWithRetry` retries only once and only on 401, with no 429 handling anywhere, so one transient rate-limit must not drop every locale.
-- **Latency:** 3 sequential Drive GETs at 300–600ms each would add ~1.5s to a 7:58am assign. Load them in parallel.
-
-**Session doc size.** With D19's Latin-script-only set this is no longer a v1 risk: each locale adds ~320 B/question, so 40 questions × 3 locales ≈ 55 KB on top of ~16 KB English — comfortable against the 1 MB cap. Keep a defensive assertion measured on **serialized UTF-8 bytes** (`new TextEncoder().encode(JSON.stringify(session)).length`) against a ~900 KB budget, and budget for the read-aloud manifest that shares the same document. Drop locales by ascending targeted-student count if it ever trips.
-
-**Egress, for the record.** Every student holds an `onSnapshot` on the whole session doc (`hooks/useQuizSession.ts:1753-1783`), and Firestore re-delivers the entire document on every write — so all locale payloads reach all 30 students, including monolingual ones. At 3 Latin locales that is roughly $45/district-year. Accepted deliberately: a hard locale cap would deny the third-language child an accommodation in a feature whose whole purpose is equity. A sibling `/quiz_sessions/{id}/locales/{locale}` doc would remove the payload from the broadcast, but it reintroduces exactly the desync D16 exists to prevent — do not.
+**Egress, accepted deliberately.** Every student's `onSnapshot` (`hooks/useQuizSession.ts:1753-1783`) delivers all locale payloads to all students: ~$45/district-year. A sibling `/quiz_sessions/{id}/locales/{locale}` doc would reintroduce exactly the desync D16 prevents — do not.
 
 ### 4.3 Review and staleness are BOTH gated at publish (D23)
 
-The projection holds the live quiz body _and_ the sidecar, so it can enforce "reviewed **and** hash-matching" in one place, with one comparison, and simply omit the locale entry otherwise.
+The projection holds the live quiz body _and_ the sidecar, so it enforces "in `reviewedQuestionIds` **and** `sourceHashes[q.id] === hash(q)`" in one comparison, omitting the locale entry otherwise.
 
-**Why not check staleness at render.** An earlier revision split the gates — review at publish, staleness at render via a `sourceHash`/`contentHash` comparison on the session doc. Three reasons it is gone:
+**No staleness check at render.** `publicQuestions` is a **frozen snapshot** — written at `:914`, touched again only by `:1985` — so a render-time comparison against a publish-time hash is a tautology, and shipping the hash violates §4.1. A question reviewed at publish serves the translation it was published with, matching the English the student reads, even if the teacher edits mid-session.
 
-1. It required shipping a hash of `correctAnswer` to the student. See §4.1.
-2. **It was a tautology.** Both values would be written at the same instant, by the same projection, from the same quiz body. `publicQuestions` is a **frozen snapshot**: written once at `:914`, never touched again except by `:1985`. The comparison can only ever be equal.
-3. The one case where a render check would earn its keep — the PLC re-sync — is the case where it cannot run (§4.4).
-
-**The frozen-snapshot property is what makes this correct.** A question reviewed at publish serves the translation it was published with, and that translation still matches the English the student is reading — even if the teacher edits the quiz mid-session. Staleness is purely an authoring-time signal.
-
-The render side is therefore a pure presence check, and `serveLocalizedQuestion()` (in `utils/quizOverrideServing.ts`, matching how `serveQuestionSubset` and `applyHiddenOptions` are already factored) is:
+Render side is a pure presence check, factored like `serveQuestionSubset` / `applyHiddenOptions`:
 
 ```ts
-// localized[locale] present -> use it; absent -> English. No hashes, no comparison.
+// utils/quizOverrideServing.ts
 export function serveLocalizedQuestion(
   q: QuizPublicQuestion,
   locale: string | undefined
@@ -313,34 +293,22 @@ export function serveLocalizedQuestion(
 
 ### 4.4 The three client transforms
 
-**A shared permutation at projection time is necessary but not sufficient.** After the session doc is written, `QuizStudentApp` applies more transforms:
+After the session doc is written, `QuizStudentApp` applies more transforms:
 
-| Transform                                 | Where                                                                  | What it does                                                                                                                                                                                                                                                                                                                                                |
-| ----------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `applyHiddenOptions`                      | `utils/quizOverrideServing.ts:32`, called at `QuizStudentApp.tsx:1749` | Filters **`choices` only** — MC-only — **by literal English text**; hidden-option values are option text, not ids (`types.ts:4994`)                                                                                                                                                                                                                         |
-| `shuffleQuestionForStudent`               | `utils/quizShuffle.ts:69`, called at `QuizStudentApp.tsx:1752`         | **Re-shuffles** `choices` / `matchingRight` / `orderingItems` with a per-student seed. On by default (`session.shuffleAnswerOptions !== false`, `QuizStudentApp.tsx:1746`)                                                                                                                                                                                  |
-| `MatchingResponseInput` word-bank shuffle | `components/quiz/MatchingResponseInput.tsx:47-54`, applied at `:249`   | A **third**, unseeded `Math.random()` shuffle on every mount. **Already locale-safe** — it permutes _indices into_ `allOptions` and `emit` dereferences through `allOptions[idx]` (`:276-287`), so the array itself is never permuted. `OrderingResponseInput` is the same shape. **Do not refactor these into `reindexChoiceArray`** — it would break them |
+| Transform                                 | Where                                                                  | What it does                                                                                                                                                                                                                                                  |
+| ----------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `applyHiddenOptions`                      | `utils/quizOverrideServing.ts:32`, called at `QuizStudentApp.tsx:1749` | Filters **`choices` only** (MC) **by literal English text** — hidden-option values are option text, not ids (`types.ts:4994`)                                                                                                                                 |
+| `shuffleQuestionForStudent`               | `utils/quizShuffle.ts:69`, called at `QuizStudentApp.tsx:1752`         | **Re-shuffles** `choices` / `matchingRight` / `orderingItems` with a per-student seed. On by default (`session.shuffleAnswerOptions !== false`, `:1746`)                                                                                                      |
+| `MatchingResponseInput` word-bank shuffle | `components/quiz/MatchingResponseInput.tsx:47-54`, applied at `:249`   | Unseeded `Math.random()` on mount. **Already locale-safe** — permutes _indices into_ `allOptions`; `emit` dereferences through `allOptions[idx]` (`:276-287`). `OrderingResponseInput` is the same shape. **Do not refactor these into `reindexChoiceArray`** |
 
-The first two each independently destroy the invariant:
+The first two each independently break the invariant (a student with `hiddenOptionIdsByQuestion` **and** `language` gets English length `n-1` against a localized length `n`; the re-shuffle permutes English only).
 
-- A student with **both** `hiddenOptionIdsByQuestion` and `language` — EL plus reduced answer choices, one of the most common accommodation pairs there is — gets an English array of length `n-1` against a localized array of length `n`.
-- The per-student re-shuffle permutes English and leaves the locale arrays in the server's order.
-
-**The fix: make index operations structural.** Add `utils/quizLocalizedArrays.ts`:
+**Fix: make index operations structural.** Add `utils/quizLocalizedArrays.ts`:
 
 ```ts
-/**
- * Re-index one choice-bearing array on a public question, applying the SAME index
- * operation to every locale's sibling array. `indices` is the new order (a permutation)
- * or a kept subset (a filter) over the current array.
- *
- * `matchingLeft` is deliberately absent from the field union: neither the projection
- * (useQuizSession.ts:358) nor shuffleQuestionForStudent (quizShuffle.ts:77-79) ever
- * permutes it, and permuting it would break the pair semantics. Do not "fix" this.
- *
- * Returns `q` unchanged when `q.localized` is absent — identity fast path, matching how
- * applyHiddenOptions already returns its input untouched. This runs per render.
- */
+/** Re-index one choice-bearing array and every locale's sibling array with the same indices
+ *  (a permutation or a kept subset). Identity fast path when q.localized is absent.
+ *  matchingLeft is deliberately excluded: nothing permutes it (useQuizSession.ts:361, quizShuffle.ts:77-79). */
 export function reindexChoiceArray(
   q: QuizPublicQuestion,
   field: 'choices' | 'matchingRight' | 'orderingItems',
@@ -348,109 +316,96 @@ export function reindexChoiceArray(
 ): QuizPublicQuestion;
 ```
 
-Then both call sites become "compute indices, call `reindexChoiceArray`": `applyHiddenOptions` computes kept indices from the English text match; `shuffleQuestionForStudent` computes a seeded index permutation via `seededPermutation`.
+Both call sites become "compute indices, call `reindexChoiceArray`": `applyHiddenOptions` computes kept indices from the English text match; `shuffleQuestionForStudent` computes a permutation via `seededPermutation`. The existing "refuse to hide the correct answer" guard (`components/widgets/QuizWidget/Widget.tsx:1575-1580`) operates on the English quiz body and stays valid.
 
-Hidden options compose cleanly with translation, because `hiddenOptionIdsByQuestion` holds **English** option text and the kept indices are computed from the English match. The existing "refuse to hide the correct answer" guard (`components/widgets/QuizWidget/Widget.tsx:1575-1580`) also stays valid — it operates on the English quiz body.
+**The PLC re-sync path cannot carry locales and must refuse (v1).** `syncAssignmentToLatest` (`hooks/useQuizAssignments.ts:1916`) sources from `pullSyncedQuizContent` (`hooks/useSyncedQuizGroups.ts:221-245`) — a **Firestore** doc with no Drive handle — then rewrites `publicQuestions` with a fresh unseeded shuffle at `:1985`. Refuse when the session carries any `localized`, mirroring the `resolvedDriveFileId` throw at `:1946`. PR5 lifts this.
 
-**The PLC re-sync path cannot carry locales, and must refuse.** `syncAssignmentToLatest` (`hooks/useQuizAssignments.ts:1952`) sources content from `pullSyncedQuizContent` (`hooks/useSyncedQuizGroups.ts:221-245`), which returns only `{title, questions, stimuli, language, behavior, version}` from a **Firestore** doc — no Drive handle, no sidecar channel. It then rewrites `publicQuestions` with a fresh unseeded shuffle (`:1985`) on a live or paused session. Left alone, a mid-week peer publish flips every EL student to English with no notice.
+### 4.5 Grading: the answer cache holds English (D22, D36)
 
-**v1: block it.** Refuse `syncAssignmentToLatest` when the session carries `localized`, mirroring the existing `resolvedDriveFileId` throw at `:1946`. PR5 lifts the restriction by giving the sync path Drive access and reusing the existing permutation instead of reshuffling.
+**MC is answered by VALUE, not index.** `QuizStudentApp.tsx:2767` is `const options = currentQuestion.choices ?? []`; `:3157` and `:3174` are `onClick={() => setCacheForCurrent(opt)}` — the option **string** goes into the cache; selection is value-compared at `:3143`; display index is reverse-derived with `options.indexOf(opt)` (`:3167`). **Do not convert MC to index-based picking** — value-keying survives re-permutation; an index would not.
 
-### 4.5 Grading: the answer cache holds English (D22)
+**`answerCache` (`QuizStudentApp.tsx:1868`, documented at `:1863-1867` as "the canonical serialized form per type") stores the English canonical value.** This matters because **five write paths reach Firestore and none has a conversion hook**:
 
-**MC is answered by VALUE, not index.** An earlier revision said _"the student picks by index"_ for MC / Matching / Ordering. That is false for the most common type. `QuizStudentApp.tsx:2766` is `const options = currentQuestion.choices ?? []`; `:3157` and `:3174` are `onClick={() => setCacheForCurrent(opt)}` — the option **string** goes into the cache. Selection is value-compared (`:3143`), React-keyed by value, and the display index is reverse-derived with `options.indexOf(opt)` (`:3164`).
+| Write path                                    | file:line                      |
+| --------------------------------------------- | ------------------------------ |
+| debounced draft autosave (500 ms, every type) | `QuizStudentApp.tsx:2263-2305` |
+| timer auto-submit                             | `QuizStudentApp.tsx:2150-2170` |
+| visibility / `beforeunload` / unmount flush   | `QuizStudentApp.tsx:2339-2393` |
+| `handleSubmit`                                | `QuizStudentApp.tsx:2490-2520` |
+| `handleSubmitAndAdvance`                      | `QuizStudentApp.tsx:2642`      |
 
-**Do not convert MC to index-based picking.** Value-keying is currently _protective_: a stored option text survives a re-permutation unharmed, whereas a stored index does not. Going index-based would **create** a mis-grade on the PLC re-sync path where none exists today.
+All five converge on `submitAnswer` (`hooks/useQuizSession.ts:2524`). `publishAssignmentScores` maps over **all** answers regardless of `status` (`hooks/useQuizAssignments.ts:2346`), so a closed-lid draft is enough to be graded. _(`types.ts:4275-4278` is stale — drafts are type-agnostic, per the effect at `QuizStudentApp.tsx:2240` and comment at `:2296-2300`.)_
 
-**So the decision is D22: `answerCache` stores the English canonical value; localization is display-only.** `answerCache` (`QuizStudentApp.tsx:1868`) is documented at `:1863-1867` as _"the canonical serialized form per type."_ Keep it exactly that, in English.
+**The conversion boundary (D36).** Add `utils/quizLocalizedAnswer.ts`:
 
-This is the decision that matters most, because **five write paths reach Firestore and none has a conversion hook**:
+```ts
+/** English canonical -> displayed form for `locale`. Identity when locale is absent or q.localized[locale] is missing. */
+export function toDisplayAnswer(
+  q: QuizPublicQuestion,
+  locale: string | undefined,
+  canonical: string
+): string;
+/** Displayed form -> English canonical. Same identity rule. */
+export function toCanonicalAnswer(
+  q: QuizPublicQuestion,
+  locale: string | undefined,
+  display: string
+): string;
+```
 
-| Write path                                        | file:line                      |
-| ------------------------------------------------- | ------------------------------ |
-| debounced draft autosave (500 ms, **every type**) | `QuizStudentApp.tsx:2263-2305` |
-| timer auto-submit                                 | `QuizStudentApp.tsx:2150-2170` |
-| visibility / `beforeunload` / unmount flush       | `QuizStudentApp.tsx:2339-2393` |
-| `handleSubmit`                                    | `QuizStudentApp.tsx:2490-2520` |
-| `handleSubmitAndAdvance`                          | `QuizStudentApp.tsx:2642`      |
+Per type, mapping is **by index between the (already lockstep) English and localized arrays on `q`**:
 
-All five converge on `submitAnswer` (`hooks/useQuizSession.ts:2524`). If the cache held the displayed string, a Somali student who places their matching chips and then simply closes the Chromebook lid would have the Somali composite graded against the English key, scored 0, published, exported to Sheets, and pushed to Google Classroom. `publishAssignmentScores` maps over **all** answers regardless of `status` (`hooks/useQuizAssignments.ts:2346`), so a draft is enough.
+- **MC** — `choices[i]` ↔ `localized.choices[i]`.
+- **Ordering** — `split('|')`, map each item, rejoin with `'|'`.
+- **Matching** — `split('|')`; each pair via `indexOf(':')` (not `split(':')`), term via `matchingLeft`, definition via `matchingRight`; rejoin.
+- **Free response / FIB** — identity.
+- On a lookup miss, try the other array (the value may already be in the target form); if still missing, return the input unchanged and `console.error` once. Never throw.
 
-_(Note `types.ts:4275-4278` is stale — it claims drafts are written-response-only. The effect at `QuizStudentApp.tsx:2240` is type-agnostic, as the comment at `:2296-2300` says.)_
+**Where the boundary sits:**
 
-**Reads that must become locale-aware** as a direct consequence:
+- **Out of an input → `toCanonicalAnswer`:** the MC `onClick` at `:3157`/`:3174`, and `StructuredQuestionInput.onChange` (which receives `emit` output from Matching/Ordering).
+- **Into a display → `toDisplayAnswer`:** `isSelected = liveAnswer === opt` (`:3143`) and the `savedAnswer` prop into `StructuredQuestionInput` (`:3379`). Both structured inputs rehydrate by string-matching against the _displayed_ array (`MatchingResponseInput.tsx:230-236`, `OrderingResponseInput.tsx:260-264`); without this a student who placed four pairs returns to **four empty drop zones** while `canSubmit` (`:3678-3691`) still accepts the English string.
+- **No change:** `savedAnswerForCurrent` seeding (`:1985-2000`) and both saved-equal short-circuits (`:2249`, `:2377`) compare English to English and stay untouched.
 
-- MC selection highlight — `:3143` `isSelected = liveAnswer === opt`
-- `savedAnswerForCurrent` seeding — `:1985-2000`
-- `StructuredQuestionInput.savedAnswer` — `:3379`
-- **both saved-equal short-circuits** — `:2249` and `:2377`. Miss these and `draft !== savedAnswerForCurrent` is permanently true for every translated student: every autosave tick and every flush re-writes the draft, and `shouldSnapshotHistory` fires each time, producing a `/history` subcollection write per keystroke.
+**Byte-identity of the English round-trip holds per type:** MC writes the English string verbatim (`gradeAnswer` normalizes anyway, `hooks/useQuizSession.ts:556-560`); Ordering items are exact substrings of `correctAnswer.split('|')` rejoined with `'|'` (`OrderingResponseInput.tsx:300-307`); Matching `terms` order equals `correctAnswer` pair order and `gradeAnswer` splits on `indexOf(':')` (`:581-596`). **This holds only while the English strings remain on the question at submit time** — `localized` rides _alongside_ English (D16), never replaces it. State it as an invariant in the code.
 
-**Hydration must be bidirectional.** Both structured inputs rehydrate by string-matching against the _displayed_ array — `MatchingResponseInput.tsx:230-236` (`allOptions.findIndex(opt => opt === def && !used.has(i))`) and `OrderingResponseInput.tsx:260-264`. With an English cache and localized display, every `findIndex` returns `-1`: a student who places all four pairs, taps Next and comes back sees **four empty drop zones** — while `canSubmit` (`:3678-3691`) still accepts the seeded English string as complete, so Submit is enabled over a visibly empty form. Specify a helper with both directions: English→locale before `savedAnswer` reaches either input, locale→English on `emit`.
+**Consequence:** results, live monitor, leaderboard, Sheets export and LMS grade push are **untouched** — `buildDistribution` buckets by `counts[ans.answer]` against English options (`monitor/monitorUtils.ts:120-137`).
 
-**Byte-identity of the English round-trip is proven per type** — this was attacked specifically and holds:
+**FIB is not translated (D21)**, so **no `gradeAnswer` change ships**, including `functions/src/plcAssessmentMath.ts:465` `gradeGroupAnswer` (a server-side reimplementation). See Appendix A for why the awaiting-grade route was unbuildable.
 
-- **MC** — the English choice string is written verbatim; `gradeAnswer` normalizes anyway (`hooks/useQuizSession.ts:556-558`).
-- **Ordering** — `orderingItems` are the exact substrings of `correctAnswer.split('|')` (`:370`), and `emit` rejoins with `'|'` (`OrderingResponseInput.tsx:300-307`). A perfect answer reconstructs `correctAnswer` byte-for-byte, so both the strict path (`:637`) and the partial-credit LIS path (`:640-646`) agree.
-- **Matching** — `matchingLeft` is never permuted, so `terms` order equals `correctAnswer` pair order. `emit` builds `${terms[i]}:${allOptions[idx]}` joined by `'|'` (`MatchingResponseInput.tsx:276-287`), and `gradeAnswer`'s left→right map (`:581-596`) splits on `indexOf(':')` rather than `split(':')` — so a definition containing a colon survives on both sides.
-- **free-response** — native text by design (§6).
+**`locale` is a PER-CALL field (D18).** `submitAnswer` spreads `priorEntry` then re-owns per-call fields (`delete newAnswer.speedBonus` `:2618`, `.isCorrect` `:2619`, `.timedOutUnderMinimum` `:2622`). `locale` joins that list, then is set from the call — set only when the student answered while a localized rendering was active; otherwise absent. Also set it in `commitRecordingTake` (`hooks/useQuizSession.ts:2808-2818`), which constructs `newAnswer` fresh: a recorded free-response answer (`QuizQuestion.recording`, `types.ts:3448-3452`) bypasses `answerCache` and §6 needs the stamp.
 
-**This holds only if the English strings are still on the question at submit time**, which is another reason `localized` rides _alongside_ the English fields (D16) and never replaces them in place. State it as an invariant.
+### 4.6 Student UI (D6, D28, D34)
 
-**Consequence, and it is the single biggest risk reduction available: results, the live monitor, the leaderboard, Sheets export and LMS grade push are genuinely untouched.** `buildDistribution` buckets MC by `counts[ans.answer]` against the English option list (`monitor/monitorUtils.ts:120-137`), so a translated student's answer lands in the correct English bar with no change at all. Take this.
+The student's language is `StudentAssignmentPointer.override.language` (`QuizStudentApp.tsx:572`). Render from `serveLocalizedQuestion(currentQuestion, activeLocale)`, falling back to English per question.
 
-**FIB is not translated in v1 (D21).** The question stays English for every student. This removes the entire awaiting-grade routing that an earlier revision scoped, and it is not a small saving — that path was unbuildable as specified:
+**One segmented control.** The question header (`:2991-3037`) already carries three children; a fourth collides at 375px. Extract the toolbar chrome from `components/quiz/readAloud/ReadAloudToolbar.tsx` into `components/quiz/StudentAccommodationBar.tsx` (same classes: `sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur` → `mx-auto flex w-full max-w-7xl items-center gap-2 px-4 py-2`, **plus `flex-wrap`** on the inner row), and change `QuizStudentApp.tsx:2953` to render it when `readAloudOn || localeOn`. The toggle is `English | {nativeLabel}` (from `QUIZ_TRANSLATION_LANGUAGES`, §7), `aria-pressed` per side, `min-h-11`, in the `ml-auto` group.
 
-- `isFreeResponseType` is `type === 'free-response'` only (`types.ts:3348-3350`), and `FreeResponseGrader.tsx:322` filters its queue on it, so a FIB could **never** be manually graded — `awaiting-grade` would be permanent.
-- `hooks/useQuizAssignments.ts:2410` writes `score: awaitingGrade ? deleteField() : score`, and `isResponseAwaitingGrade` (`quizScoreboard.ts:250`) then excludes the student from `selectPushableResponses` (`:290`) — so one translated FIB would strand the EL student's **entire quiz grade**, out of the scoreboard, the Classroom push (`utils/classroomGradePush.ts:107`) and the export's real score.
-- And it would not even suppress the red ✗: `:2378` still writes `{...a, isCorrect: result.isCorrect}` = `false`, and `isWritten` is false for FIB, so `QuizStudentApp.tsx:4523` renders a red X anyway.
+**Toggle state:** `activeLocale: string | undefined` resets to `override.language` on every question advance.
 
-So **no `gradeAnswer` change ships in v1.** That also means the nine `gradeAnswer` call sites an earlier revision listed are all out of scope — including `functions/src/plcAssessmentMath.ts:465` `gradeGroupAnswer`, a complete **server-side reimplementation** of client grading that the earlier revision never acknowledged exists and which would have silently disagreed with the teacher's own results view.
+**The toggle must not wipe in-progress work.** `MatchingResponseInput` keys placements by **left-term text** (`:213-217`) and resets on `useResetOnChange(question.id, …)` (`:264`). So:
 
-**`locale` is a PER-CALL field (D18).** `submitAnswer` builds `newAnswer` as `{...priorEntry, …}` and then explicitly re-owns per-call fields: `delete newAnswer.speedBonus` (`:2618`), `delete newAnswer.isCorrect` (`:2619`), `delete newAnswer.timedOutUnderMinimum` (`:2622`). `locale` must join that list, then be set from the call — otherwise a student who drafts in Somali, toggles to English and retypes resurrects `locale: 'so'` from the spread. Also set it positively in `commitRecordingTake` (`:2808-2818`), which constructs `newAnswer` fresh with no spread.
+1. Key `StructuredQuestionInput` on `${question.id}:${activeLocale ?? 'en'}`.
+2. The `savedAnswer` prop is `toDisplayAnswer(q, activeLocale, cacheValue)`, so remounting in the other language rehydrates from the English cache.
+3. Test: "toggling locale mid-question preserves the student's placement."
 
-**A sixth answer path exists that the plan must acknowledge:** `QuizQuestion.recording` (`types.ts:3448-3452`) turns a free-response question into an audio-capture slot; `commitRecordingTake` writes `answer: ''` plus `artifacts` and `takeIndex`, bypassing `answerCache` entirely. A translated student speaking Somali into an artifact is arguably the best accommodation in the product — stamp `locale` there so §6's button can find it.
+**Student results recap.** The surface is **`PublishedScoreReview` (`:4111`)**, not `ReviewPhase` (`:3910`, teacher-paced and unreachable for SSO students). Resolve three strings through `localized`: question text (`:4581`), the student's own answer (`:4503`, via `formatAnswerForDisplay` at `:4605-4610` — apply `toDisplayAnswer` first), and `revealedAnswers[q.id]` (`:4526`, same).
 
-### 4.6 Student UI (D6)
-
-The student's language comes from `StudentAssignmentPointer.override.language` (`QuizStudentApp.tsx:572`). Render from `serveLocalizedQuestion(currentQuestion, language)`, falling back to the English fields per question.
-
-**One segmented control, not one per question.** The question header (`:2991-3037`) already carries three children — back chevron + counter (`:2993-3009`), countdown timer (`:3010-3025`), question-type badge (`:3026-3037`) — and at 375px a fourth collides.
-
-Instead, extract the toolbar chrome from `components/quiz/readAloud/ReadAloudToolbar.tsx` into `components/quiz/StudentAccommodationBar.tsx` (same classes: `sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur` → `mx-auto flex w-full max-w-7xl items-center gap-2 px-4 py-2`), and change `QuizStudentApp.tsx:2953` to render it when `readAloudOn || localeOn`. The language toggle is a two-option segmented control — `English | {nativeLabel}` so the student can read it — `aria-pressed` per side, `min-h-11`, in the `ml-auto` group. **Add `flex-wrap` to the bar's inner row**: at 375px the three existing controls already consume ~300px of ~343px.
-
-**One control, per-question state:** the toggle resets to the student's assigned language on each question advance.
-
-**⚠️ The toggle must not wipe in-progress work.** `MatchingResponseInput` keys placements by **left-term text** (`Record<string, number|null>`, `:213-217`) and gates reset on `useResetOnChange(question.id, …)` (`:264`) — and the question id does not change when the locale toggles. A student who places 3 of 4 Somali pairs and taps "English" would find `zonePlacements[englishTerm]` undefined, all zones empty, and the chips also gone from the bank. So:
-
-1. Extend the reset key to include the active locale — key `StructuredQuestionInput` on `${question.id}:${locale}`.
-2. Round-trip the current placement through the English canonical form so nothing is lost.
-3. Test it: "toggling locale mid-question preserves the student's placement."
-
-**Student results recap.** §4.5 writes English into the response, so the review surface would show a Somali-reading student their own answer in English. The surface is **`PublishedScoreReview` (`:4111`)** — the self-paced post-publish review — **not** `ReviewPhase` (`:3910`), which is the teacher-paced between-question leaderboard and, per D15, unreachable for a translated student. Resolve three strings through `localized`: the question text (`:4581`), the student's own answer (`:4503`, displayed via `formatAnswerForDisplay` at `:4605-4610`), and `revealedAnswers[q.id]` (`:4526`).
-
-**Spanish gets the full app shell for free (D28).** Spanish is an app locale (`i18n/index.ts:10-15`), and it will be the most common accommodation by far — so when `override.language` matches an app locale, switch the i18n language too. Somali and Hmong keep the English shell; the disclosure narrows to those two.
+**Spanish app shell (D28, D34).** Spanish is an app locale (`i18n/index.ts:10-15`). When `override.language` matches an app locale, render the student app in that language. **Requirement:** the detector caches to `localStorage['spart_language']` (`i18n/index.ts:36-37`), and a plain `i18n.changeLanguage('es')` writes it, so the next user of a shared Chromebook inherits Spanish. The implementation must leave `spart_language` unchanged — pick any mechanism (restore the key synchronously after the switch, or scope the language to the student subtree), gated by the test: _after a translated student session, `localStorage.getItem('spart_language')` equals its value before the session._
 
 ### 4.7 Read-aloud × translation (D25) — suppress the speaker
 
-A student with both `readAloud: true` and `language: 'so'` currently gets translated text with English audio. **v1 suppresses the speaker control on translated questions.** When a question renders localized, pass `enabled: false` to `useQuizReadAloud` (or suppress `readAloudOn`) for it; the control returns on the English toggle. No explanatory copy — the control's absence is the message.
+When a question renders localized, pass `enabled: false` to `useQuizReadAloud` (or suppress `readAloudOn`) for it; the control returns on the English toggle. No explanatory copy.
 
-Target-language synthesis is deferred to v2, because it is a redesign of read-aloud rather than an extension. Five structural blockers, recorded so v2 starts from facts:
+This also fixes a live bug: `useQuizReadAloud.choicePart` resolves `canonical.choices.indexOf(text)` (`components/quiz/readAloud/useQuizReadAloud.ts:475-479`) against English, so localized choices get no speaker — but `{kind:'question'}` needs no lookup, so the stem would play **English audio over translated text**.
 
-1. `QuizReadAloudManifest.voice` is a **scalar** (`types.ts:3578`) — one voice per session.
-2. `files: Record<string,string>` is keyed by `partKey(questionId, part)` (`functions/src/quizReadAloud.ts:282`) with **no locale dimension**. Changing the key format breaks in-flight sessions.
-3. `prepareQuizReadAloud` resolves one `language` from `session.language` (`:799-803`) and writes the manifest as a whole-object merge (`:855-875`); the callable takes only `{ sessionId }` (`:1197-1201`) and hard-refuses students (`:1195`).
-4. `enumerateParts` (`:391-428`) reads only the top-level English fields via `resolvePartText`.
-5. `prepareReadAloudAfterTargets` runs with `deadlineMs = 40_000`, and every synthesized character meters against the single org `neural2MonthlyCapChars`.
+**Target-language synthesis is v2**, recorded so v2 starts from facts: `QuizReadAloudManifest.voice` is a scalar (`types.ts:3578`); `files` is keyed by `partKey(questionId, part)` with no locale dimension (`functions/src/quizReadAloud.ts:282`); `prepareQuizReadAloud` resolves one `language` from `session.language` (`:799-803`) and the callable takes only `{ sessionId }` (`:1197-1201`); `enumerateParts` (`:391-428`) reads only English fields; `QUIZ_READ_ALOUD_VOICES` (`config/quizReadAloud.ts:20`) has no Somali or Hmong voice and Cloud TTS offers none.
 
-**And there are no voices for two of the three target languages.** `QUIZ_READ_ALOUD_VOICES` (`config/quizReadAloud.ts:20`) covers `en-US`, `es-US`, `de-DE`, `fr-FR`; `VOICE_NAME_RE` (`functions/src/quizReadAloud.ts:515`) requires an `xx-XX-(Neural2|Standard)-[A-J]` shape that no Somali or Hmong voice can satisfy, because Cloud TTS has none.
-
-**Suppression also fixes a live bug.** Today, `useQuizReadAloud.choicePart` resolves `canonical.choices.indexOf(text)` (`components/quiz/readAloud/useQuizReadAloud.ts:475-479`) against the English canonical question, so a localized string returns `-1` → no speaker on any choice, term or item. But `{kind:'question'}` needs no text lookup, so **the question stem still plays English audio over translated text** — precisely the outcome this decision exists to prevent.
-
-## 5. Generation (D12)
+## 5. Generation (D12, D20)
 
 New Cloud Function `translateQuizV1` in `functions/src/quizTranslation.ts`, following the callable shape of `functions/src/quizReadAloud.ts:1185-1235` and the structured-output pattern of `functions/src/aiGeneration.ts`.
 
-**Registration.** One line in the `functions/src/index.ts` barrel (which documents an invariant that its exported identifier set stays stable): `export { translateQuizV1 } from './quizTranslation';`. Region is **not** per-function — it comes from `setGlobalOptions({ region: 'us-central1' })` in `functions/src/functionsInit.ts`, which the leaf module must side-effect-import. **There is no App Check anywhere in this repo — do not add it.**
+**Registration.** `functions/src/index.ts`: `export { translateQuizV1 } from './quizTranslation';`. Region comes from `setGlobalOptions` in `functions/src/functionsInit.ts` — side-effect-import it. **There is no App Check in this repo — do not add it.**
 
 ```ts
 export const translateQuizV1 = onCall(
@@ -473,94 +428,107 @@ export const translateQuizV1 = onCall(
 
 `ALLOWED_ORIGINS` imports from `./classlinkShared`. Auth checks mirror `quizReadAloud.ts:1192-1195`.
 
-**Data source.** The client sends the questions array in the callable payload and writes the sidecar itself via `QuizDriveService`. Reading Drive from the function would require the encrypted-refresh-token path in `functions/src/googleOAuth.ts`, which not every teacher has. (An earlier revision was ambiguous — §3.3 implied client-side, §5 implied server-side. It is client-side.)
-
-**Model and config (D20).** Do **not** route to `advancedModel`; this is not a reasoning task.
+**Contract.** The client sends the questions and writes the sidecar itself via `QuizDriveService` (the function has no Drive access without the encrypted-refresh-token path in `functions/src/googleOAuth.ts`, which not every teacher has).
 
 ```ts
-model: geminiConfig.standardModel, // 'gemini-3.5-flash-lite' (aiGeneration.ts:47); keeps the
-                                   // admin override at global_permissions/gemini-functions
+export interface TranslateQuizRequest {
+  quizId: string;
+  locale: string; // must be in admin_settings/quiz_translation.enabledLanguages
+  title: string;
+  sourceLanguage?: string; // QuizData.language; D17 predicate below
+  questions: QuizQuestion[]; // the FULL normalized quiz, for terminology consistency
+  questionIds?: string[]; // subset to (re)translate; absent = all + title
+}
+export interface TranslateQuizResponse {
+  title?: string; // present only when questionIds is absent
+  questions: Record<string, QuestionTranslation>;
+  sourceHashes: Record<string, string>; // §9 hash for every returned id — the function is the hash author
+  model: string;
+  outputTokens: number;
+  cap: { remaining: number; total: number }; // org monthly units
+}
+// Errors: 'resource-exhausted' with details { capRemaining: 0, capTotal }; 'failed-precondition' for D17 / disabled locale / bankSlots;
+// 'invalid-argument' for validator failure after one repair attempt (details: the validator's message).
+```
+
+**Server checks, in order:** auth → `bankSlots` absent (D29) → D17 predicate `!lang || lang.toLowerCase().startsWith('en')` (the field defaults to `'en-US'`, `config/quizReadAloud.ts:6`) → locale enabled in `admin_settings/quiz_translation` (§7; use `QUIZ_TRANSLATION_LANGUAGES` codes when the doc is absent) → quota (below) → Gemini call → validate → bill in the same transaction shape as `billSynthesis` (`quizReadAloud.ts:602-631`).
+
+**Model and config.** Do **not** route to `advancedModel`.
+
+```ts
+model: geminiConfig.standardModel,   // 'gemini-3.5-flash-lite' (aiGeneration.ts:47); honors the admin override at global_permissions/gemini-functions
 config: {
   responseMimeType: 'application/json',
   responseSchema: buildQuizTranslationResponseSchema(),
-  thinkingLevel: 'minimal',   // 3.x. The repo sets NO thinking config anywhere today, so an
-                              // admin flipping standardModel to a thinking model would
-                              // silently 2-4x output cost. Set it explicitly.
+  thinkingLevel: 'minimal',          // explicit: the repo sets no thinking config anywhere, and a thinking model would silently 2-4x output cost
   temperature: 0.2,
-  maxOutputTokens: 16384,     // whole quiz; 4096 for a stale-question batch
+  maxOutputTokens: 16384,            // 4096 when questionIds is a stale-question batch
 }
 ```
 
-Reject on `finishReason === 'MAX_TOKENS'` and surface it to the teacher: a truncated array is a **misaligned** array, which is exactly the mis-grading failure §3.2 exists to prevent. Never serve one. Parse with `parseGeminiJson` (`functions/src/parseGeminiJson.ts`), not `JSON.parse`.
+**Response schema** (Gemini structured output): `{ title: string, questions: Array<{ id: string, text: string, choices?: string[], matchingLeft?: string[], matchingRight?: string[], matchingDistractors?: string[], orderingItems?: string[], placeholder?: string, rubric?: { criteria: Array<{ name: string, descriptors: string[] }> } }> }`. Flat string arrays, same length and order as the source — the Cloud Translation `translateText` contract, adopted deliberately.
 
-**Response schema shape.** The repo already uses structured output (`buildQuizResponseSchema`, `aiGeneration.ts:1278`). Gemini's `Type.OBJECT` needs declared properties, so `questions` **cannot** be a `Record<string, …>` — it must be an **array** of `{ questionId, text, choices[], matchingLeft[], matchingRight[], matchingDistractors[], orderingItems[], placeholder, rubric }` which the function then keys by id.
+**Prompt requirements** (system instruction): target language by name and code; translate for the reading level of a K-12 student; preserve numbers, units, proper nouns, code, LaTeX and markup verbatim; keep every array the same length and order as the input; MC choices must remain mutually distinct; **never introduce `|` or `:` into matching or ordering strings**; output JSON only. Send each question as `{ id, type, text, choices: [correct, ...incorrectFiltered], matchingPairs: [{left,right}], matchingDistractors, orderingItems, placeholder, rubric }` — the model sees the pre-shuffle order, which is fine (teacher-authenticated, server-side).
 
-**Send a flat indexed array, require the same length back.** Rather than asking the model to echo a nested structure, send the translatable strings as a flat indexed array per question and require an equal-length array in reply. This makes index alignment a **length check that structurally cannot pass a misaligned payload**, eliminates the "model dropped a question id" failure mode, and cuts roughly 25% of output tokens. (Borrowed from Cloud Translation's `translateText` contract, which guarantees same-length same-order output — see §16 for why the API itself was rejected.)
+Reject on `finishReason === 'MAX_TOKENS'` — a truncated array is a **misaligned** array. Parse with `parseGeminiJson` (`functions/src/parseGeminiJson.ts`), not `JSON.parse`.
 
-**One Gemini call per quiz per language** — all questions in one request so terminology stays consistent. One metered unit. Regeneration re-translates **all stale questions for a language in a single call** ("Regenerate 6 stale questions"), not one call per question: per-question regeneration would turn a 20-question review into 60 invocations and 60 quota units, exactly the number this design claims to avoid, while re-paying the ~750-token system prompt each time.
+**One Gemini call per quiz per language.** Regeneration re-translates **all stale questions for a language in one call** via `questionIds`, never one call per question.
 
-**English source only (D17).** Refuse when `QuizData.language` is set to anything non-English. Predicate: `!lang || lang.toLowerCase().startsWith('en')` (the field defaults to `'en-US'`, `config/quizReadAloud.ts:6`, so "absent" is the common case). Disable Generate in the UI with that reason.
+**Validation is mandatory and server-side.** Do **not** reuse `validateAndBucketQuizQuestions` (`aiGeneration.ts:1443`) — it silently drops malformed items and handles no free-response fields. Write `validateQuizTranslation(source, output)` checking:
 
-**Validation is mandatory and must be server-side.** Do **not** "mirror `validateAndBucketQuizQuestions`" (`aiGeneration.ts:1443`) as an earlier revision instructed: that function **silently drops** malformed items with `continue` under per-type quotas — no reject, no retry, no error surface — and it handles only MC/FIB/Matching/Ordering, not the free-response fields this payload translates. Specify instead:
-
-- Per-field length equality against the **filtered** source arrays (`q.incorrectAnswers.filter(Boolean)`, `(q.matchingDistractors ?? []).filter(Boolean)`).
+- Per-field length equality against the **filtered** source arrays.
 - Every requested `questionId` present; no extras.
-- MC choices mutually distinct after `normalizeAnswer` — `new Set(choices).size === choices.length`. A translation that collapses two choices makes the question unanswerable, and Latin-script cognates across all three target languages make this more likely, not less.
-- `rubricSnapshot` structurally identical to the English rubric (same criteria count, same descriptor counts per criterion).
-- **No `|` or `:` introduced into any matching or ordering string.** These are the wire-format delimiters (§4.5): `emit` builds `${term}:${def}` joined by `'|'`, and `gradeAnswer`'s `splitPair` would mis-parse a translated string containing either.
-- Preserve numbers, units, proper nouns, and any LaTeX/markup verbatim; do not translate anything inside code formatting.
-- On failure: one repair attempt with the validator's complaint appended, then fail loudly. Never partial-serve.
+- MC choices mutually distinct after `normalizeAnswer` — `new Set(choices).size === choices.length`.
+- `rubric` structurally identical to the English rubric (same criteria count, same descriptor count per criterion).
+- No `|` or `:` in any matching or ordering string.
+- On failure: **one** repair attempt with the validator's complaint appended, then `invalid-argument`. Never partial-serve.
 
-**Quota (D20).**
+**Quota (D20) — hard block, checked before the Gemini call.**
 
-| Constant             | Value                                                                                                                        | Why                                                                                                    |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Teacher daily        | **40** quiz-language generations at `ai_usage/{uid}_translation_{YYYY-MM-DD}`                                                | Realistic authoring day ≤9; an EL coordinator clearing a backlog ≤30. Bounds one teacher to ~$0.32/day |
-| Org monthly (units)  | **2,000** quiz-language units at `ai_usage/global_translation_{YYYY-MM}`                                                     | ~3× realistic district peak. Worst case ~$16/month                                                     |
-| Org monthly (tokens) | **8,000,000** output tokens                                                                                                  | The cap that actually bounds money. Increment from `result.usageMetadata.candidatesTokenCount`         |
-| Enforcement          | **Hard block, `resource-exhausted`, checked before the Gemini call**, incremented in the same transaction as the teacher row | See below                                                                                              |
+| Constant             | Value                                                                         | Notes                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Teacher daily        | **40** quiz-language generations at `ai_usage/{uid}_translation_{YYYY-MM-DD}` | Bounds one teacher to ~$0.32/day                                                                                              |
+| Org monthly (units)  | **2,000** at `ai_usage/global_translation_{YYYY-MM}`                          | Default; admin-editable in `admin_settings/quiz_translation`                                                                  |
+| Org monthly (tokens) | **8,000,000** output tokens, same doc                                         | The cap that bounds money. Increment from `result.usageMetadata.candidatesTokenCount`                                         |
+| Enforcement          | `resource-exhausted`, incremented in the same transaction as the teacher row  | Read-aloud's cap **degrades** (`neural2Exhausted()`, `quizReadAloud.ts:589-600`); translation has no cheaper tier — **block** |
 
-Mirror the doc-id helpers at `quizReadAloud.ts:506-513` and the transaction shape of `billSynthesis` (`:602-631`).
-
-**⚠️ Do not literally copy read-aloud's cap behavior.** Read-aloud's cap is a _graceful degrade to a cheaper voice tier_ — `neural2Exhausted()` (`quizReadAloud.ts:589-600`) switches tiers and does not block; `grep resource-exhausted functions/src/quizReadAloud.ts` returns **zero hits**, and its teacher daily row is written but never read against a limit. Translation has **no cheaper tier to degrade to**, so "mirror the quota/cap structure" would ship an uncapped feature with a decorative counter. Block.
-
-**Meter output tokens, not just calls.** `grep -rn "usageMetadata\|totalTokenCount\|thinkingConfig\|maxOutputTokens"` across the repo returns **zero hits** — every existing AI feature counts invocations. Five lines here make a cost spike visible instead of invisible.
+Mirror the doc-id helpers at `quizReadAloud.ts:506-513`. **Meter output tokens, not just calls** — no existing AI feature does (`grep -rn usageMetadata` returns zero hits).
 
 ## 6. Free-response back-translation (D14)
 
-**An explicit per-response teacher button**, not lazy-on-open. The teacher clicks "Translate this response" on the one they cannot read; the result is cached. Cost becomes opt-in and observable, and opening a class set of 30 responses × 5 questions does not fire 150 unrequested calls.
+An **explicit per-response teacher button** in `components/widgets/QuizWidget/components/FreeResponseGrader.tsx`: "Translate this response". Native text and back-translation side by side, back-translation labeled machine-generated. **The native text is always the primary record.**
 
-`components/widgets/QuizWidget/components/FreeResponseGrader.tsx` shows the native text and the back-translation side by side, with the back-translation clearly labeled machine-generated. **The native text is always the primary record.**
-
-Scope and mechanics:
-
-- **Free-response only.** FIB is not translated in v1 (D21), so there is no non-English FIB answer to back-translate.
-- **Cache key: `sha256(answerText + locale)`**, mirroring `cacheHash` (`quizReadAloud.ts:670`) — **not** the response id. Drafts autosave and retakes exist (`takeIndex`), so a response-id key would serve a stale translation of edited text.
-- **Cache location: a teacher-only top-level key on the response, not inside `answers.*`.** `answers` is on the student write whitelist (`firestore.rules:3445`), so a student draft-autosave or retake could clobber or forge a cached translation stored there. `grading` is the precedent — deliberately excluded from the student whitelist.
-- **Quota: a separate `quizBackTranslation` key, 200/teacher/day.** Do **not** inherit `generateWithAI`'s `dailyLimit ?? 20` (`aiGeneration.ts:526-532`) — a teacher grading a class set would be locked out mid-session.
-- Cost: ~$0.0006/call on flash-lite; roughly $15/district-year at realistic volume.
-
-`components/widgets/QuizWidget/components/AnnotatedResponseView.tsx` needs **no change**: it anchors annotations to a frozen `gradingSnapshot` and explicitly never reads the live answer (header `:26-28`), so native-text anchoring is already the default. Only avoid writing a back-translation _into_ the snapshot.
-
-Second-order note worth one line in the grader: the student read a **translated** rubric while the teacher grades against the English snapshot. Intended — but `FreeResponseGrader` may optionally show the student's rubric text.
+- **Free-response only** (FIB is not translated, D21). Shown only when `answer.locale` is set and non-English.
+- **Callable:** `translateResponseV1` in the same `functions/src/quizTranslation.ts` module; request `{ text, sourceLocale }`, response `{ text, model }`. Same auth checks and model config as §5, `maxOutputTokens: 2048`.
+- **Cache key: `sha256(answerText + locale)`**, mirroring `cacheHash` (`quizReadAloud.ts:670`) — not the response id (drafts autosave and retakes exist).
+- **Cache location: a teacher-only top-level field on the response**, `backTranslations?: Record<string /*hash*/, { text: string; locale: string; model: string; at: number }>`. Never inside `answers.*`, which is on the student write whitelist (`firestore.rules:3445`). Mirror how `grading` is excluded from the student `hasOnly` (`firestore.rules:3436-3439`) and add `backTranslations` to the same exclusion; the teacher-owner write path that writes `grading` writes this too.
+- **Quota:** separate `quizBackTranslation` key, **200/teacher/day**. Do not inherit `generateWithAI`'s `dailyLimit ?? 20` (`aiGeneration.ts:526-532`).
+- `AnnotatedResponseView.tsx` needs **no change** — it anchors to a frozen `gradingSnapshot` (`:26-28`). Never write a back-translation into the snapshot.
+- Optional one-liner in the grader: the student read a **translated** rubric; the teacher grades against the English snapshot. Intended.
 
 ## 7. Admin gating (D3, D13, D24)
 
-**One merged "Quiz Languages" tab.** Rename and extend `components/admin/QuizReadAloudConfigurationPanel.tsx`, registered as its own admin tab at `components/admin/AdminSettings.tsx:142-147`:
+**One merged "Quiz Languages" tab.** Rename and extend `components/admin/QuizReadAloudConfigurationPanel.tsx`, registered at `components/admin/AdminSettings.tsx:142-147` (`{ id: 'quiz-read-aloud', label: 'Quiz Read-Aloud', … }` — change the label only; keep the id). **Not** `FeatureConfigurationPanel.tsx:690` (a negative list feeding a placeholder), **not** `FeaturePermissionsManager.tsx:946`, **not** `QuizGlobalConfig` (`types.ts:4808`, dead code).
+
+Reuse the panel's existing patterns; add no new visual vocabulary:
+
+- **Language table** (`:130-208`) → columns `Language | Offer for translation (Toggle) | Read-aloud voice`, rendering **"—"** where a language has no `QUIZ_READ_ALOUD_VOICES` entry (Somali and Hmong will).
+- **Cap + burn-down** (`:238-268`) → clone the `grid gap-4 sm:grid-cols-2` block for units and output tokens.
+- **Dirty-gated Save** (`:270-296`), draft seeded once from the first snapshot (`:74-77`).
+
+**Settings doc** `admin_settings/quiz_translation`:
 
 ```ts
-{ id: 'quiz-read-aloud', label: 'Quiz Read-Aloud', icon: Volume2, component: QuizReadAloudConfigurationPanel }
+export interface QuizTranslationSettings {
+  enabledLanguages: string[]; // codes from QUIZ_TRANSLATION_LANGUAGES
+  monthlyCapUnits: number; // default 2000
+  monthlyCapOutputTokens: number; // default 8_000_000
+  updatedAt: number;
+  updatedBy: string;
+}
 ```
 
-> **Two corrections to earlier revisions.** §7 previously said to register "alongside the existing `'quiz'` entry in `components/admin/FeatureConfigurationPanel.tsx:690`". That line is one entry in a **negative** array feeding a _"No global settings available for this widget"_ placeholder guard (`:684-705`); `grep -in quiz` over that file returns exactly that one line and there is no quiz panel in it. Separately, `VideoActivityConfigurationModal` is mounted from a third surface, `components/admin/FeaturePermissionsManager.tsx:946`. Three distinct admin surfaces were conflated in one sentence. And an even earlier draft proposed `QuizGlobalConfig` (`types.ts:4808`) — which is `{ dockDefaults? }`, referenced **nowhere in the repo**. Dead code. Ignore all three.
-
-The panel already provides every pattern needed — reuse them, add no new visual vocabulary:
-
-- **Language table** (`:130-208`) — `rounded-xl border border-slate-200 bg-white`, `thead bg-slate-50 text-xs uppercase tracking-wider text-slate-500`, label over a `block text-xs` BCP-47 tag. Extend to: `Language | Offer for translation (Toggle) | Read-aloud voice`, rendering **"—"** where a language has no `QUIZ_READ_ALOUD_VOICES` entry. That makes §7's "reconcile with `voicesByLanguage`" requirement literally visible: Somali and Hmong will show "—", which is the honest state (§4.7).
-- **Cap + burn-down** (`:238-268`) — clone the `grid gap-4 sm:grid-cols-2` block: a numeric input on the left, a "This month" `<dl>` of `flex justify-between` rows with `font-mono` values and a percentage on the right.
-- **Dirty-gated Save** (`:270-296`) with the draft seeded once from the first snapshot (`:74-77`) so later snapshots never clobber edits.
-
-**New config module.** No reusable language catalog with native labels exists — `i18n/index.ts:10-15` `SUPPORTED_LANGUAGES` covers only the four **UI** locales (wrong axis, and D3 exceeds four), and `QUIZ_READ_ALOUD_LANGUAGES` (`config/quizReadAloud.ts:9-17`) is four hard-coded entries with **no `nativeLabel` field**. Add `config/quizTranslation.ts`:
+**New config module** `config/quizTranslation.ts` (no existing catalog has native labels; `SUPPORTED_LANGUAGES` is the UI-locale axis, `QUIZ_READ_ALOUD_LANGUAGES` has no `nativeLabel`):
 
 ```ts
 export const QUIZ_TRANSLATION_FEATURE = 'quiz-translation' as const;
@@ -574,262 +542,310 @@ export const QUIZ_TRANSLATION_LANGUAGES: readonly {
   { code: 'so', label: 'Somali', nativeLabel: 'Soomaali' },
   { code: 'hmn', label: 'Hmong', nativeLabel: 'Hmoob' },
 ];
+export const QUIZ_TRANSLATION_DEFAULT_CAPS = {
+  monthlyCapUnits: 2000,
+  monthlyCapOutputTokens: 8_000_000,
+} as const;
 ```
 
-`nativeLabel` is **data** rendered to the student, never an i18n key.
+`nativeLabel` is **data** rendered to the student, never an i18n key. `functions/` needs its own copy of the codes and defaults (it imports nothing from root).
 
-**⚠️ Two `firestore.rules` carve-outs are required, and the merge does not remove either.**
+**Two `firestore.rules` carve-outs:**
 
-1. `firestore.rules:699` is `match /admin_settings/{document=**} { allow read, write: if isAdmin(); }`, with `/subjects` (`:704`) the sole teacher-readable carve-out. The teacher's Languages tab reads the curated list, so it needs the same treatment — **on a separate `admin_settings/quiz_translation` doc**, not by widening `quiz_read_aloud`, which would expose the org's TTS cap config to every teacher:
+1. `firestore.rules:699` is `match /admin_settings/{document=**} { allow read, write: if isAdmin(); }` with `/subjects` (`:704`) the only teacher-readable carve-out. Add, on a **separate** doc (never widen `quiz_read_aloud`, which holds TTS cap config):
    ```
    match /admin_settings/quiz_translation {
      allow read: if request.auth != null;
      allow write: if isAdmin();
    }
    ```
-   Merging the _writer_ into one admin panel does not make the doc _readable_. Without this the picker silently renders empty.
-2. `ai_usage` reads are uid-prefixed (`:4195-4198`), so `global_translation_{YYYY-MM}` is **unreadable by a teacher**. Do not widen that rule — it would expose every teacher's usage to every other teacher. Instead **return `{ capRemaining, capTotal }` from `translateQuizV1`**, on both success and the `resource-exhausted` error. Note that copying `QuizReadAloudConfigurationPanel.tsx:69`'s error handler (`() => setUsage({ neural2Chars: 0, … })`) into a teacher surface would render `permission-denied` as _"0 of cap used"_ — i.e. fail **open** to "plenty of budget."
+2. `ai_usage` reads are uid-prefixed (`:4192-4198`), so `global_translation_{YYYY-MM}` is unreadable by teachers. Do not widen. **`translateQuizV1` returns `cap`** on success and in the `resource-exhausted` details. Do **not** copy `QuizReadAloudConfigurationPanel.tsx:69`'s error handler (`setUsage({ neural2Chars: 0, … })`) into a teacher surface — it renders `permission-denied` as "0 of cap used."
 
-**Feature toggle** goes in `components/admin/GlobalPermissionsManager.tsx` (where `quiz-read-aloud` is registered), not in this panel.
-
-Admin copy stays hard-coded English, consistent with the entire admin tree (§14).
+**Feature toggle** registers in `components/admin/GlobalPermissionsManager.tsx` beside `quiz-read-aloud` (`:175`). Admin copy stays hard-coded English (§14).
 
 ## 8. Review UI (D11)
 
-New `'languages'` tab in `components/widgets/QuizWidget/components/QuizEditorModal.tsx`.
+New `'languages'` tab in `components/widgets/QuizWidget/components/QuizEditorModal.tsx`. **Four sites, not two:**
 
-**It is a 4-site change, not 2, and the omission fails silently.** An earlier revision said "the tab state union is at `:276-277` and the tab array at `:508`. Add to both." Current lines and the full set:
+1. `:277-279` — state union `useState<'questions' | 'stimuli' | 'settings'>`
+2. `:510` — tab strip array `(['questions', 'stimuli', 'settings'] as const)`
+3. `:548` — **contextPane** ternary chain (final `else` is Settings, `:549-558`)
+4. `:562` — **detailPane** ternary chain (final `else` blurb at `:580`)
 
-1. `:277-279` — the state union `useState<'questions' | 'stimuli' | 'settings'>`
-2. `:510` — the tab strip array `(['questions', 'stimuli', 'settings'] as const).map(...)`
-3. `:548` — the **contextPane** ternary chain, whose final `else` _is_ the Settings pane (`:549-558`)
-4. `:577` — the **detailPane** ternary chain, whose final `else` is the Settings blurb (`:578-584`)
+Adding to 1 and 2 without branches at 3 and 4 renders the Settings panel under the Languages tab **with no TypeScript error**. Labels derive from `tab.charAt(0).toUpperCase() + tab.slice(1)` (`:521`). Gate the tab on `canAccessFeature('quiz-translation')` as read-aloud does at `:247`, converting `:510` to a computed array **plus** a fallback to `'questions'` when access is revoked mid-session. `isBank` already hides the strip (`:482`, `:508`). Disable the tab with a reason when `quiz.bankSlots` is set (D29).
 
-Add `'languages'` to 1 and 2 without new branches at 3 and 4 and the Languages tab **renders the Settings panel, with no TypeScript error.**
+**Layout — two panes via `EditorWorkspace`** (`components/common/EditorWorkspace.tsx`, `contextRatio` 56):
 
-Also: labels auto-derive from `tab.charAt(0).toUpperCase() + tab.slice(1)` (`:521`), so `'languages'` renders "Languages" for free (and hard-coded, like the other three). Gating the tab on `canAccessFeature('quiz-translation')` — as read-aloud does at `:247` — requires converting `:510`'s `as const` literal to a computed array **plus** a guard so `editorTab === 'languages'` falls back to `'questions'` when access is revoked mid-session. `isBank` forces `activeTab` to `'questions'` (`:482`) and hides the strip entirely (`:508`), so question banks have no Languages tab.
+- **contextPane** — language chip row (pattern: `components/settingsModal/sections/LanguageSection.tsx:38-67`), each chip `nativeLabel` + served count; Generate button with **one** conditional disabled reason; question list with Reviewed checkbox, Stale badge, "Regenerate N stale questions". Quiz-level advisory strip (§3.4) at top, conditional.
+- **detailPane** — English / target side by side for the **selected** question, inline editing.
 
-**Layout — two panes, via the existing `EditorWorkspace` shell** (`components/common/EditorWorkspace.tsx`, default `contextRatio` 56):
+**Hook** — `hooks/useQuizTranslations.ts`, independent of the modal's `isDirty`/`handleSave` (a discarded quiz edit must not lose a translation edit; a quiz save must not push unreviewed strings):
 
-- **contextPane (56%)** — language chip row from the curated list, each chip showing `nativeLabel` and a served count (pattern: `components/settingsModal/sections/LanguageSection.tsx:38-67`); the Generate button with **one** conditional disabled reason; then the question list with a Reviewed checkbox, a Stale badge, and a "Regenerate N stale questions" affordance. The quiz-level advisory strip (§3.4) sits at the top, conditional.
-- **detailPane (44%)** — side-by-side English / target for the **selected** question only, with inline editing. Four text columns in the 56% pane of an `h-[85vh]` modal is not readable; two in 44% is.
+```ts
+export function useQuizTranslations(
+  quiz: QuizData | null,
+  metadata: QuizMetadata | null
+): {
+  byLocale: Record<string, QuizTranslation | undefined>;
+  loading: Record<string, boolean>;
+  load(locale: string): Promise<void>; // Drive read via index driveFileId
+  generate(locale: string, questionIds?: string[]): Promise<void>; // callable → merge → saveTranslation → index write
+  editQuestion(
+    locale: string,
+    questionId: string,
+    patch: Partial<QuestionTranslation>
+  ): void;
+  setReviewed(locale: string, questionId: string, reviewed: boolean): void;
+  save(locale: string): Promise<void>; // sidecar then index (§3.3 write order)
+  staleIds(locale: string): string[]; // hash(quiz.questions[i]) !== sourceHashes[id]
+  cap: { remaining: number; total: number } | null;
+  error: string | null;
+};
+```
 
-**Loading and saving.** No hook exists. Add `hooks/useQuizTranslations.ts`. Translation edits **do not** participate in the modal's `isDirty`/`handleSave`: save per-locale independently, so a translation edit cannot be lost by discarding quiz changes and a quiz save cannot push unreviewed strings.
+Editing a question's translation in the detail pane **clears it from `reviewedQuestionIds`** — the teacher re-checks it.
 
-**Copy — zero standing explanatory paragraphs.** An earlier revision asked for fifteen distinct pieces of user-facing copy, six of them always-on paragraphs on this one tab. Every remaining string is conditional, counted, or an empty state:
+**Copy — zero standing paragraphs.** Every string is conditional, counted, or an empty state:
 
-| Need                             | Form                                                                                                                                                                                                                                               | Where                                                                   |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Review progress                  | **the counter IS the disclosure** — "12 of 20 served in Español"                                                                                                                                                                                   | replaces the standing "unreviewed and stale are served in English" note |
-| Stale                            | badge only, no sentence                                                                                                                                                                                                                            | per question row                                                        |
-| Generate disabled                | **one** line, cap-reached **xor** non-English-source — never both                                                                                                                                                                                  | adjacent to the button                                                  |
-| Stimulus images                  | counted quiz-level line (§3.4)                                                                                                                                                                                                                     | `QuizAuthoringAdvisory` strip                                           |
-| "You may not read this language" | **empty state** at zero reviewed, gone on first review                                                                                                                                                                                             | detailPane empty state                                                  |
-| No language chosen yet           | empty state                                                                                                                                                                                                                                        | detailPane                                                              |
-| App chrome stays English         | ≤8 words, **only** when the code is not an app locale — so never for Spanish (D28)                                                                                                                                                                 | footnote under the picker                                               |
-| Read-aloud suppressed (§4.7)     | **nothing** — the control's absence is the message                                                                                                                                                                                                 | —                                                                       |
-| D15 SSO-only                     | **nothing here** — already structurally enforced, and `OverrideEditorRow.tsx:277-293` already discloses it for read-aloud in four words via `t('quizReadAloud.help')` ("Signed-in students only.") — reuse that key under the new language control | `OverrideEditorRow`                                                     |
-| Rubric override × language       | **nothing** — struck entirely, see §14                                                                                                                                                                                                             | —                                                                       |
-| Bank-slot quiz (D29)             | tab disabled with a reason                                                                                                                                                                                                                         | tab                                                                     |
+| Need                             | Form                                                                                                                                     | Where                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Review progress                  | the counter IS the disclosure — "12 of 20 served in Español"                                                                             | chip / header         |
+| Stale                            | badge only                                                                                                                               | question row          |
+| Generate disabled                | **one** line: cap-reached **xor** non-English-source **xor** bank-slot                                                                   | adjacent to button    |
+| Stimulus images                  | counted quiz-level line (§3.4)                                                                                                           | advisory strip        |
+| "You may not read this language" | empty state at zero reviewed; suggests routing to an EL specialist                                                                       | detailPane            |
+| No language chosen               | empty state                                                                                                                              | detailPane            |
+| App chrome stays English         | ≤8 words, **only** when the code is not an app locale (never for Spanish)                                                                | footnote under picker |
+| Read-aloud suppressed            | nothing                                                                                                                                  | —                     |
+| SSO-only                         | nothing new — reuse `t('quizReadAloud.help')` ("Signed-in students only.") under the language control in `OverrideEditorRow.tsx:277-293` | `OverrideEditorRow`   |
 
-**The review gate is procedural, and the tab should be honest about that** (D26): it stops malformed and misaligned payloads from being served; it does not stop a bad translation, because the reviewing teacher usually cannot read the target language. The zero-reviewed empty state suggests routing to an EL specialist. A shareable specialist review link is deferred to v2.
+## 9. Staleness (D8, D31, D35)
 
-## 9. Staleness (D8)
+**Definition:** question `q` is stale in locale `L` iff `hash(q) !== translations[L].sourceHashes[q.id]` (or the id is absent). It is **derived**, never stored as a list.
 
-On every quiz save, recompute a per-question content hash over the fields that feed translation (`text`, `correctAnswer`, `incorrectAnswers`, `matchingDistractors`, `placeholder`, `rubricSnapshot`), compare against each language's `sourceHashes`, and update `staleCount` in the `QuizMetadata` index plus the id list in the Drive sidecar.
+**Hash (D35):** SHA-256 hex, first 16 chars, of the serializer output. Implement twice — `utils/quizTranslationHash.ts` (client, `crypto.subtle`, async) and `functions/src/quizTranslationHash.ts` (`node:crypto`) — each with a one-line "keep in sync with …" header, and pin both with **one fixture file** `tests/fixtures/quizTranslationHash.fixture.json` (`[{ question, hash }]`, ≥1 per question type, including a legacy-shaped rubric and empty `incorrectAnswers` entries) asserted by a test in **each** Vitest project. `functions/` imports nothing from root and root Vitest excludes `functions/**` (`vitest.config.ts:41`), so the fixture is the only cross-runtime contract.
 
-Stale questions are **not projected** (§4.3) and are flagged in the Languages tab. A one-comma typo fix costs the teacher one question's re-review, not the whole quiz.
+**Serializer input:** a normalized `QuizQuestion`. Every client-held body is already normalized (`normalizeQuizData` runs at `utils/quizDriveService.ts:25` and `hooks/useSyncedQuizGroups.ts:239`; legacy `'short'`/`'essay'` → `'free-response'` at `utils/quizQuestionNormalize.ts:3-5`) and the function receives bodies from the client. Serialize as the JSON of this tuple, exactly:
 
-**One canonical serializer, imported by both runtimes.** There are two hash authors — `translateQuizV1` writes `sourceHashes`, the client recomputes on save — and no specified serialization. Divergence means either _everything reads stale forever_ (the feature silently never serves a translation, and regenerating cannot clear it) or _nothing ever reads stale_ (a translation of edited content is served to a child). Pin all of it:
+```ts
+[
+  type,
+  text,
+  correctAnswer ?? '',
+  (incorrectAnswers ?? []).filter(Boolean),
+  (matchingDistractors ?? []).filter(Boolean),
+  placeholder ?? '',
+  rubricSnapshot ? stableStringify(rubricSnapshot) : '',
+];
+```
 
-- **After `normalizeQuizData`**, on both sides. Legacy `'short'`/`'essay'` types are rewritten to `'free-response'` on read (`utils/quizQuestionNormalize.ts:3-5`), and `normalizeQuizData` runs on Drive load (`utils/quizDriveService.ts:25`) and in `pullSyncedQuizContent` (`hooks/useSyncedQuizGroups.ts:239`). Hash the raw Drive JSON on one side and the normalized form on the other and every pre-rename quiz reads stale forever.
-- **Filtered arrays** (`.filter(Boolean)`), matching §3.2's alignment contract.
-- Explicit collapse rule for `undefined` / absent / `''`, and stable key order including the nested `rubricSnapshot`.
-- Prefer making `translateQuizV1` the sole **author** and the client only a **comparator**.
+`stableStringify` = recursive key-sorted `JSON.stringify` (write ~10 lines in the same module; no dependency). `undefined`, absent and `''` collapse to `''`.
 
-**`pullSyncedQuiz` is a second staleness trigger** and "every quiz save" misses it. It **overwrites the local Drive replica** with a peer's canonical content (`hooks/useQuiz.ts:323`) and is auto-fired by `usePlcAutoPullSync` — that is not a save, and `sourceHashes` would still match pre-pull content, serving stale translations as fresh. Either hash on pull too, or decide a pull invalidates all translations for that quiz.
+**Authorship:** `translateQuizV1` **writes** `sourceHashes` (returned per id, §5). The client **compares** — on every `QuizMetadata` write site (§3.3, four sites) it recomputes `staleCount` per locale from the in-memory quiz body against `translations[L].sourceHashes`, and writes the index. **No sidecar write happens on a quiz save.** `pullSyncedQuiz` is one of the four sites, so a peer's edit updates `staleCount` correctly.
 
-**Cost:** hashing is cheap (the quiz body is already in memory at `hooks/useQuiz.ts:236`) and the hashes live in the sidecar, so there is no extra Firestore write — but it does add **one Drive write per language per save** to update `staleQuestionIds`. Write only when a hash actually changed.
+The projection (§4.3) compares against the **sidecar's** `sourceHashes` at publish, so the index is a cache, never an authority. The Languages tab computes `staleIds` the same way.
 
-## 10. Assign-time warning (D5)
+## 10. Assign-time warning (D5, D29, D32, D33)
 
-In `components/common/library/AssignStudentPicker.tsx` (which already resolves standing overrides at `:128`), cross-reference each targeted student's `override.language` against `QuizMetadata.translations`. This is **free**: `applyDefaultOverride` (`:122-133`) reads an already-loaded roster in memory, and `QuizMetadata` is already in `useQuiz`'s `onSnapshot` cache (`:176-181`). No extra reads, no Drive call.
+In `components/common/library/AssignStudentPicker.tsx`, cross-reference each targeted student's `override.language` against `QuizMetadata.translations`. **Zero extra reads:** the roster is in memory (`applyDefaultOverride`, `:121-131`) and `QuizMetadata` is in `useQuiz`'s `onSnapshot` cache (`hooks/useQuiz.ts:176-181`).
 
-When a targeted student needs a language the quiz lacks (or has only unreviewed/stale), show an inline advisory naming the student and the language, with a **Generate** action. Reuse the existing pattern at `components/widgets/QuizWidget/components/QuizManager.tsx:2158-2166` — `role="status"` + `text-xxs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5` — keyed `quizTranslation.assign.advisory.missing_one/_other`. **Never block a publish**; a teacher pushing out a bell-ringer at 7:58 will not thank us.
+When a targeted student needs a language the quiz lacks, or has only unreviewed/stale coverage (`reviewedCount - staleCount < questionCount`), show an inline advisory naming the student and language with a **Generate** action. Pattern: `components/widgets/QuizWidget/components/QuizManager.tsx:2158-2166` — `role="status"` + `text-xxs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5` — keyed `quizTranslation.assign.advisory.missing_one/_other`. **Never block a publish.**
 
-**D17's English-source check cannot be answered here.** `QuizMetadata` has **no** `language` field (`:3755-3782`), so unlike the translation-existence check this one needs the Drive body. Either accept that Generate-from-assign may fail the source check server-side and surface that, or add `language` to `QuizMetadata`. Decide explicitly.
+**D17 at assign time (D32):** read `QuizMetadata.language`; if non-English, the Generate action is disabled with the `sourceNotEnglish` reason instead of failing server-side.
 
-**Bank-slot quizzes lie to this advisory (D29).** A quiz with `bankSlots` draws its served questions from **separate bank Drive files** at assign time (`components/widgets/QuizWidget/Widget.tsx:1519-1571`), snapshotted as `resolvedDriveFileId`. Those question ids never appear in `QuizData.questions`, so a teacher who translates all 5 fixed questions of a 5-fixed + 15-drawn quiz gets `reviewedCount: 5, staleCount: 0, questionCount: 5` — **full coverage, no warning** — and the EL student receives 5 Spanish questions and 15 English ones. Treat any assignment with `bankSlots` / `resolvedDriveFileId` as untranslated regardless of the index.
+**Bank-slot quizzes (D29):** any assignment with `bankSlots` / `resolvedDriveFileId` is treated as untranslated regardless of the index — bank questions are drawn from separate Drive files (`components/widgets/QuizWidget/Widget.tsx:1519-1571`) and never appear in `QuizData.questions`, so the index would report full coverage.
 
-**Targets edited after publish never re-project.** `hooks/useAssignmentDetailActions.ts:113-170` `saveEdit` lets a teacher add students and edit overrides on a **live** assignment; it calls `setAssignmentTargets` and patches `overridesBySourcedId` and **never touches `session.publicQuestions`**. A new EL student enrolled on Tuesday and added to Friday's already-published assignment gets English permanently, with no advisory anywhere — §10's advisory lives only in `AssignStudentPicker`.
-
-Read-aloud solved this server-side: `setAssignmentTargetsV1` detects `readAloudGained` (`functions/src/studentAssignmentTargets.ts:924-927`) and fires `prepareReadAloudAfterTargets`. Translation **cannot** do that — the projection runs on the teacher's client with Drive credentials. **v1: detect the gap in the edit modal and surface the same advisory there.** Re-projection on edit is a v2 option and must reuse the existing permutation, never reshuffle.
+**Targets edited after publish never re-project.** `hooks/useAssignmentDetailActions.ts:113-170` `saveEdit` adds students and edits overrides on a **live** assignment without touching `session.publicQuestions`. Read-aloud fixes this server-side (`setAssignmentTargetsV1` detects `readAloudGained`, `functions/src/studentAssignmentTargets.ts:924-927`); translation cannot — the projection runs on the teacher's client with Drive credentials. **v1: surface the same advisory in the edit modal** when a newly added or changed target has a `language` the session's `publicQuestions[0].localized` lacks. Re-projection on edit is v2 and must reuse the existing permutation.
 
 ## 11. Build order — 6 stacked PRs
 
-This is roughly **8,500 lines across ~70 files**. For calibration, read-aloud — a strictly smaller feature with no index-alignment refactor, no grading-path change, no review UI and no sidecar storage layer — shipped as three stacked PRs. Each PR below merges green, leaves a shippable app, and is independently reviewable.
+~8,500 lines across ~70 files. Each PR merges green, leaves a shippable app, and is independently reviewable. Every PR: `pnpm run validate` before push; functions PRs also `pnpm -C functions test`; rules PRs also `pnpm run test:rules`; one `public/changelog.json` entry lands with PR3.
 
 ### PR0 — roster standing-default writer (prerequisite, not this feature)
 
-D1's headline story — _"a teacher sets a student's language once on the roster"_ — has **no writer**. `ClassRoster.defaultOverridesByStudentId` is read (`AssignStudentPicker.tsx:128`) and never written: `components/classes/RosterEditorModal.tsx` has zero references, and `hooks/useRosters.ts:381` carries the comment _"so bypass mode doesn't diverge once `defaultOverridesByStudentId` gets a writer."_
-
-Build the per-student accommodation row in the roster editor as its own PR first. It is generic infrastructure that read-aloud and extended time need too, and translation then lands on top for free.
+**Read:** §3.1 (the `defaultOverridesByStudentId` paragraph) only.
+**Why:** `ClassRoster.defaultOverridesByStudentId` is read (`AssignStudentPicker.tsx:128`) and never written; `components/classes/RosterEditorModal.tsx` has zero references; `hooks/useRosters.ts:381` says _"once `defaultOverridesByStudentId` gets a writer."_
+**Build:** a per-student accommodation row in the roster editor writing that field, using `OverrideEditorRow` for the existing eight fields. Generic infrastructure; translation lands on it.
+**Gate:** roster save → reload → standing override present; `parseStudentOverride` round-trip test.
 
 ### PR1 — override plumbing + the whole index-alignment path (dark)
 
-Types, the three allowlist fixes, `reindexChoiceArray`, `seededPermutation`, the locale-aware projection, both rewired client transforms, **and the English answer cache (D22)**.
+**Read:** §3.1, §3.2 (types only), §4 in full, §9 (hash module only).
+**Ships:** zero behavioral change for every existing user; a functions deploy.
 
-**This PR is not "types only."** §3.1's three allowlists (`sanitizeOverride`, the functions-local duplicate interface, `parseStudentOverride`) are behavior, and two of them are in `functions/` — so PR1 ships a functions change and a functions deploy.
+**Types (`types.ts`, `functions/src/studentAssignmentTargets.ts:142-151`):** `StudentOverride.language`; `QuestionTranslation`, `QuizTranslation`; `LocalizedQuestionStrings`; `QuizPublicQuestion.localized`; `QuizSession.quizTitleLocalized`; `QuizResponseAnswer.locale`.
 
-**Do not split the submit-time conversion out of this PR.** An earlier revision's gate for the projection step — _"a student picking index i in locale L produces the correct English string"_ — is **untestable without the conversion**, because no code maps a selection to a written English string until it exists. Splitting them makes the mis-grade invisible, exactly as splitting the projection from the client transforms would.
+**Allowlists (§3.1):** `sanitizeOverride` (`studentAssignmentTargets.ts:341`, export + import `LANGUAGE_TAG_RE` from `quizReadAloud.ts:516`); `parseStudentOverride` (`hooks/useRosters.ts:171`); `applyDefaultOverride` D33 merge (`AssignStudentPicker.tsx:121-131`); `summarizeOverride` chip + `studentOverrideModifiedNote`; `studentOverride.chip.language` in four locale files.
 
-Gate: a **round-trip test** with `hiddenOptionIdsByQuestion` and the seeded shuffle both active, for every answer type, plus §12's structural-identity regression. Ships with zero behavioral change for every existing user.
+**Projection (§4.2–4.3):** `randomPermutation` + locale-aware `toPublicQuestion`; `seededPermutation` in `utils/quizShuffle.ts`; `translations` argument through `toGatedPublicQuestion` / `projectPublicQuestionForMode` (callers pass `undefined` in this PR); `serveLocalizedQuestion` in `utils/quizOverrideServing.ts`; `syncAssignmentToLatest` refusal on `localized` (`useQuizAssignments.ts:1916`, beside `:1946`).
+
+**Client transforms (§4.4):** `utils/quizLocalizedArrays.ts` `reindexChoiceArray`; rewire `applyHiddenOptions` and `shuffleQuestionForStudent` onto it.
+
+**Answer boundary (§4.5, D36):** `utils/quizLocalizedAnswer.ts` `toDisplayAnswer` / `toCanonicalAnswer`; wire at the four sites named in §4.5 (`QuizStudentApp.tsx:3143`, `:3157`, `:3174`, `:3379`) with `activeLocale` hard-wired `undefined` in this PR; `locale` per-call handling in `submitAnswer` (`useQuizSession.ts:2618-2622`) and `commitRecordingTake` (`:2808-2818`).
+
+**Hash (§9):** `utils/quizTranslationHash.ts`, `functions/src/quizTranslationHash.ts`, `tests/fixtures/quizTranslationHash.fixture.json`, one test per project.
+
+**Tests (new files):** `utils/quizLocalizedArrays.test.ts` (lockstep with/without `localized`; `matchingLeft` untouched); `utils/quizShuffle.test.ts` additions (`seededPermutation` ≡ `seededShuffle`, 200 seeds); `hooks/useQuizSession.toPublicQuestion.test.ts` (no `correctAnswer`/`matchingDistractors` on any `localized` entry; identical permutation across locales; unreviewed/stale omitted; structurally identical output when `translations` is undefined); `utils/quizLocalizedAnswer.test.ts` (round-trip per type; miss fallback); `tests/components/quizStudentAnswerRoundTrip.test.tsx` — **the gate**: for MC, Matching, Ordering, with `hiddenOptionIdsByQuestion` **and** the seeded shuffle active, the English string written for a locale-L selection equals a monolingual student's for the same option; `functions/src/studentAssignmentTargets.test.ts` addition (`language` survives `sanitizeOverride`; malformed dropped); `hooks/useRosters` parse round-trip.
+
+**Gate:** round-trip test green for every answer type; full existing quiz suite untouched.
 
 ### PR2 — generation plumbing (behind the feature flag)
 
-New `QuizDriveService` sidecar API, `QuizMetadata.translations` with the four-site preservation fix, the copy-path decisions, `translateQuizV1` + validator + quota, the merged admin panel, `config/quizTranslation.ts`, the `quiz-translation` flag, both `firestore.rules` carve-outs + `tests/rules`, and the analytics id registration. With the Languages tab absent, this changes nothing for anyone.
+**Read:** §3.3, §5, §7, §9 (authorship paragraph), §17 rows marked PR2.
+**Ships:** with the Languages tab absent, changes nothing for anyone.
+
+**Storage:** `QuizDriveService.saveTranslation/loadTranslation/deleteTranslation`; `QuizMetadata.translations` + `.language` with the four-site preservation and `staleCount` recompute (`hooks/useQuiz.ts:288,350,434,621`); duplicate path carries sidecars.
+**Function:** `functions/src/quizTranslation.ts` — `translateQuizV1`, `translateResponseV1` (stub OK; PR4 wires the UI), validator, quota, `index.ts` export; `functions/src/adminAnalyticsCompute.ts:469` `'translation'` + `components/admin/Analytics/aiFeatureLabels.ts` label.
+**Config/flag:** `config/quizTranslation.ts`; `GlobalFeature` union + `config/featureDefaults.ts` (D30) + `featureDefaults.test.ts`; `GlobalPermissionsManager.tsx` entry.
+**Admin:** merged panel (§7), `AdminSettings.tsx:142-147` label.
+**Rules:** `admin_settings/quiz_translation` carve-out; `backTranslations` in the response-doc student exclusion; `tests/rules/quizTranslationSettings.test.ts`.
+**Hook:** `hooks/useQuizTranslations.ts` (§8 API) — unit-tested, not yet mounted.
+
+**Tests:** `functions/src/quizTranslation.test.ts` (validator: wrong length vs filtered source, missing id, extra id, duplicate choices, `|`/`:` introduced, rubric shape, `MAX_TOKENS`; quota block returns `cap`; D17; D29; disabled locale); `hooks/useQuiz` index-preservation test (all four sites); `quizDriveService` sidecar naming + collision; rules test (teacher read / no write; admin write).
+
+**Gate:** `pnpm run test:rules` green; `translateQuizV1` deployable; quiz save preserves a seeded `translations` entry.
 
 ### PR3 — teacher review + student serving
 
-The Languages tab, localized rendering, the accommodation bar + toggle (with the reset-key and bidirectional-hydration fixes), `PublishedScoreReview` resolution, the Spanish i18n switch, read-aloud suppression, the assign-time advisory, the post-publish-edit advisory, and the `OverrideEditorRow` language select. This is where the feature becomes real; it needs a preview-URL pass with a real SSO student, which is why it must not also carry PR1's refactor risk.
+**Read:** §4 in full (again), §3.4, §6 (button placement only), §8, §10, §14.
+**Ships:** the feature, behind `quiz-translation` (admin-only by D30). Needs a preview-URL pass with a real SSO student.
+
+**Teacher:** Languages tab (§8, four sites); `QuizAuthoringAdvisory` `'stimulus-text'`; assign advisory + Generate (§10); post-publish-edit advisory (`useAssignmentDetailActions.ts`); `OverrideEditorRow` language select; sidecar loads in `createAssignment` before `:913` + `quizTitleLocalized`; size assertion.
+**Student:** `activeLocale` state; `StudentAccommodationBar` + toggle; `serveLocalizedQuestion` rendering; `StructuredQuestionInput` key `${id}:${locale}`; `toDisplayAnswer`/`toCanonicalAnswer` receive the real `activeLocale`; `PublishedScoreReview` three strings; Spanish shell switch with D34 guard; read-aloud suppression (§4.7).
+**i18n:** all `quizTranslation.*` keys in four locale files + `tests/i18n/quizTranslationLocales.test.ts` (§14). `public/changelog.json` entry.
+
+**Tests:** hydration round-trip (place pairs, navigate away and back); toggle preserves placement; `locale` per-call (draft in `so`, toggle to English, re-answer → `locale` absent); fallback matrix (unreviewed / stale / missing locale / no `language` / PIN joiner → English, no crash); D34 (`spart_language` unchanged); read-aloud control absent on localized, present on English; bank-slot tab disabled + advisory; i18n key test.
+
+**Gate:** preview pass — an SSO student with `language: 'es'` and hidden options answers all types; teacher results show correct English answers; toggle mid-Matching keeps placements.
 
 ### PR4 — free-response back-translation
 
-Fully additive, gated on a non-English `locale` existing on a response.
+**Read:** §6.
+**Ships:** additive, only visible when a response carries a non-English `locale`.
+**Build:** `FreeResponseGrader` button + side-by-side view; `translateResponseV1` wired; `backTranslations` cache write on the teacher path; quota `quizBackTranslation` 200/day.
+**Tests:** cache hit skips the callable; edited text (new hash) re-translates; student write to `backTranslations` rejected (rules); grader keys in four locales.
 
 ### PR5 — PLC translation sync
 
-Requires a `firestore.rules` change: `/synced_quizzes/{groupId}` is schema-locked by `hasOnly(['id','version','title','questions','participants','plcId','createdAt','updatedAt','updatedBy','behavior','stimuli'])` on **both create and update** (`firestore.rules:1393-1431`), so a `translations` field is **rejected outright** today. Also needs a Drive handle on the sync path, an answer to whether locales live in the Firestore group doc (which contradicts §3.3's entire rationale) or stay in Drive, a `reviewedQuestionIds` authority rule (canonical wins), and it lifts PR1's `syncAssignmentToLatest` refusal.
+**Read:** §3.3 copy table, §4.4 PLC paragraph, §9.
+**Blocked today by rules:** `/synced_quizzes/{groupId}` is schema-locked by `hasOnly([...])` on create and update (`firestore.rules:1393-1431`); a `translations` field is rejected outright.
+**Decide in the PR:** whether locales live in the Firestore group doc (contradicts §3.3's Drive rationale) or peers each hold a Drive sidecar and sync only the index + `reviewedQuestionIds` (canonical wins). Give `syncAssignmentToLatest` Drive access and **reuse the existing permutation** instead of reshuffling, then lift PR1's refusal.
+**Tests:** rules `hasOnly` accepts `translations`; re-sync preserves `localized` alignment; canonical `reviewedQuestionIds` wins.
 
-## 12. Test plan
+## 12. Cross-cutting invariants (assert in tests, every PR that touches them)
 
-- **Round-trip correctness (highest priority):** for every answer type, with `hiddenOptionIdsByQuestion` set **and** the per-student seeded shuffle active, the English string the client writes for a locale-L selection equals what a monolingual student selecting the same option writes. This is the test that would have caught §4.4.
-- **The cache holds English:** a translated student's draft autosave, timer auto-submit, and unload flush each write the English canonical value — not the displayed string. Cover all five write paths from §4.5.
-- **Projection security:** no `correctAnswer`, no `matchingDistractors` key on any `localized` entry for any locale, and **no field on the session doc that is a function of `correctAnswer`, `incorrectAnswers` or `matchingDistractors`**; permutation identical across English and every locale; translated MC choices mutually distinct.
-- **Lockstep transforms:** `applyHiddenOptions` and `shuffleQuestionForStudent` leave English and every locale array the same length and order, with and without `localized`.
-- **Hydration round-trip:** a translated student places all Matching pairs, navigates away and back, and sees their placement intact.
-- **Locale toggle preserves work:** toggling mid-question does not clear placements (§4.6).
-- **`locale` is per-call:** drafting in Somali, toggling to English and re-answering **clears** `locale`.
-- **PLC re-sync refuses:** `syncAssignmentToLatest` throws on a session carrying `localized` (PR1) rather than silently stripping it.
-- **Index preservation:** `translations` survives `saveQuiz`, `pullSyncedQuiz`, `detachSyncedQuiz` and duplicate.
-- **Fallback matrix:** unreviewed → English; stale → English; locale missing from session → English; student with no `language` → completely unchanged; **PIN joiner → English** (D15), and does not crash on a `localized` field it never reads.
-- **Override plumbing:** `language` survives roster default → assign picker → `sanitizeOverride` → pointer doc → student client. This is the test that catches §3.1's allowlists.
-- **Staleness:** editing one question marks only that question stale, in every language; client and function hashes agree for the same quiz (cross-runtime equality).
-- **Validation:** malformed model output — wrong array length against the _filtered_ source, missing question id, collapsed duplicate choices, a `|` or `:` introduced into a matching string, `MAX_TOKENS` truncation — is rejected, not served.
-- **Quota:** per-quiz-per-language metering; org monthly cap **blocks** generation with `resource-exhausted` and surfaces `capRemaining`.
-- **Bank-slot quizzes:** the Languages tab is disabled and the assign advisory treats the quiz as untranslated (D29).
-- **Rules:** teacher reads `admin_settings/quiz_translation` but cannot write; admin writes; the pointer doc with `override.language` stays student-readable and non-writable.
-- **i18n:** `tests/i18n/quizTranslationLocales.test.ts` — every key present and non-empty in all four locales, with interpolation-placeholder and `_one`/`_other` assertions.
-- **Regression:** the full existing quiz suite passes untouched — a quiz with no translations produces a **structurally identical** session doc to today, emitting no new fields. (Not byte-identical: `toPublicQuestion` shuffles with `Math.random()`.)
+1. **Projection security:** no `correctAnswer`, no `matchingDistractors`, and no field derived from either on any `localized` entry or anywhere on the session doc.
+2. **Lockstep:** after every transform, English and every locale array have the same length and order.
+3. **English cache:** every Firestore write of an answer holds the English canonical value.
+4. **Structural identity:** a quiz with no translations produces a session doc with no new fields (not byte-identical — `Math.random()` shuffles).
+5. **Allowlists:** `language` survives roster default → picker → `sanitizeOverride` → pointer doc → student client.
+6. **Index survives** `saveQuiz`, `pullSyncedQuiz`, `detachSyncedQuiz`, duplicate.
+7. **Hash parity:** the fixture file passes in both Vitest projects.
 
 ## 13. Explicit non-goals for v1
 
-- **FIB translation (D21).** FIB questions stay English for every student.
-- **Translation for code+PIN joiners (D15).** Overrides ride SSO pointer docs.
-- **Non-English source quizzes (D17).**
-- **Bank-slot quizzes (D29).**
-- **Target-language read-aloud synthesis (D25).** Deferred to v2, scoped to locales that have voices.
-- Vision/OCR translation of text inside stimulus images (D10).
-- **`QuizStimulus.readAloudText` and `QuestionTargetTag.label`** — both teacher-authored and student-visible, both out of scope, both named here so they are not silently missed (§3.4).
-- Quiz **directions** — the field does not exist (D27).
-- Student-facing self-service language selection.
-- App UI chrome beyond `en/es/de/fr` — so Somali and Hmong students read translated questions in an English shell. Spanish gets the full shell (D28).
+- FIB translation (D21). Code+PIN joiners (D15). Non-English source quizzes (D17). Bank-slot quizzes (D29).
+- Target-language read-aloud synthesis (D25). Vision/OCR of stimulus images (D10).
+- `QuizStimulus.readAloudText` and `QuestionTargetTag.label` — student-visible, out of scope, named so they are not missed (§3.4).
+- Student self-service language selection. App chrome beyond `en/es/de/fr`.
 - Video activities, guided learning, mini-apps.
-- Specialist / PLC review routing, and a reviewer attestation record (D26) — v2.
-- Translation of teacher-facing surfaces (monitor, results, exports) — English by design (§4.5).
+- Specialist / PLC review routing and a reviewer attestation record (D26). Re-projection on post-publish target edits (§10).
+- Translation of teacher-facing surfaces (monitor, results, exports) — English by design.
+- **`rubricOverrideByQuestion` × translation — no interaction exists.** `resolveRubricForResponse` (`utils/rubricOverrideResolution.ts:22`) has one teacher-side caller (`FreeResponseGrader.tsx:427`); students render `currentQuestion.rubricSnapshot` (`QuizStudentApp.tsx:3408-3412`). No code, no UI note.
 
-## 14. Resolved open items
+## 14. Copy and i18n
 
-All three of the previous revision's open items and the §4.5 gate are now decided:
+**Structure:** one `translation` bundle across four flat files `locales/{en,de,es,fr}.json` (`i18n/index.ts:24-29`). Add a **`quizTranslation`** group, sibling to `quizReadAloud`.
 
-1. **PLC sync semantics** → translations sync, as PR5, with the `hasOnly` rules change and `reviewedQuestionIds` authoritative from the canonical doc (D-R3-1).
-2. **`rubricOverrideByQuestion` × translation** → **struck, not deferred. There is no interaction.** `resolveRubricForResponse` (`utils/rubricOverrideResolution.ts:22`) has exactly **one** caller — `FreeResponseGrader.tsx:427`, teacher-side. The student client renders `currentQuestion.rubricSnapshot` straight off the session doc (`QuizStudentApp.tsx:3408-3412`). A rubric-overridden student has **never** been shown their override; they see the session rubric, in English, today. Translation changes nothing. No code, no UI note.
-3. **Read-aloud interaction** → suppress the speaker on translated questions (D25, §4.7).
-4. **Review/staleness gating** → both at publish (D23, §4.3).
+**Which surfaces get keys:** the Languages tab, student UI, assign advisory and `OverrideEditorRow` additions **must** be keyed (their siblings are translated). **Admin copy (§7) stays hard-coded English**, like the whole admin tree.
 
-## 15. Copy and i18n
-
-The previous revision contained ~15 user-facing English sentences and never mentioned i18n — in a translation feature.
-
-**Structure:** a single `translation` bundle across four flat files, `locales/{en,de,es,fr}.json` (`i18n/index.ts:24-29`). There are **no per-namespace files**. Organized as top-level feature groups; add **`quizTranslation`**, sibling to `quizReadAloud` and `quizMediaResponse`.
-
-**Which surfaces get keys:** the repo's pattern is that student-facing and newly-built teacher surfaces are translated while older editor internals and all admin panels are not. So the Languages tab, the student UI, the assign advisory and the `OverrideEditorRow` additions **must** be keyed — each sits next to already-translated siblings, and hard-coding them would make one control in a row speak English while its neighbour speaks German. **Admin copy (§7) stays hard-coded**, consistent with the whole admin tree.
-
-**All four files, in the same PR (English placeholder values are acceptable** — `quizMediaResponse` shipped 188 of 211 keys as verbatim English copies). Keys must exist in de/es/fr or those teachers get silent `en` fallback.
-
-Key scheme — plurals as `_one`/`_other`, never `(s)`, which `tests/i18n/i18n.test.ts:73-77` asserts against:
+**All four files in the same PR** — English placeholder values are acceptable (precedent: `quizMediaResponse`). Plurals as `_one`/`_other`, never `(s)` (`tests/i18n/i18n.test.ts:73-77`).
 
 ```
-quizTranslation.label / .help (reuse quizReadAloud.help)
+quizTranslation.label
 quizTranslation.editor.{tab,pickLanguage,generate,reviewed,stale,regenerate}
 quizTranslation.editor.servedCount          "{{reviewed}} of {{total}} served in {{language}}"
 quizTranslation.editor.disabled.{capReached,sourceNotEnglish,bankSlots}
-quizTranslation.editor.chromeNote           (conditional; non-app-locale only)
+quizTranslation.editor.chromeNote
 quizTranslation.editor.empty.noLanguage.{title,body}
 quizTranslation.editor.empty.noneReviewed.{title,body}
 quizTranslation.authoring.advisory.stimulusText_one / _other
-quizTranslation.assign.advisory.missing_one / _other
-quizTranslation.student.toggle.{english,native}
+quizTranslation.assign.advisory.missing_one / _other     ({{name}}, {{language}})
+quizTranslation.student.toggle.english                   (native side is nativeLabel data)
 quizTranslation.grading.{backTranslate,backTranslationLabel,machineGenerated}
 studentOverride.language
 studentOverride.chip.language
 ```
 
-**⚠️ CI cannot catch a violation, so the plan must add the test.** `eslint.config.js` has no i18n plugin and no `no-literal-string`, so hard-coded JSX text is invisible to lint. There is **no global en↔de/es/fr parity test** — every file in `tests/i18n/` is a hand-written per-feature `REQUIRED_KEYS` list, and de/es/fr are already **164 keys behind** en with nothing flagging it. `pnpm run test:counts` guards suite counts, not key coverage.
+**CI cannot catch a missing key** — no i18n lint rule, no global parity test (de/es/fr are already 164 keys behind en). Add **`tests/i18n/quizTranslationLocales.test.ts`** modeled on `tests/i18n/quizResultsStatsLocales.test.ts`: `REQUIRED_KEYS` present and non-empty in all four locales; interpolation placeholders `{{reviewed}}` / `{{total}}` / `{{language}}` / `{{name}}` present; `_one`/`_other` pairs present.
 
-So add **`tests/i18n/quizTranslationLocales.test.ts`**, modeled line-for-line on `tests/i18n/quizResultsStatsLocales.test.ts`: `REQUIRED_KEYS` asserted present and non-empty in all four locales, plus interpolation-placeholder assertions for `{{reviewed}}` / `{{total}}` / `{{language}}` / `{{name}}` and `_one`/`_other` presence.
+## 15. Cost model
 
-## 16. Cost model
+**~$68/district-year** for 50 teachers × 30 quizzes × 3 languages. The risk is unspecified constants, not the bill — hence §5's hard caps and token metering.
 
-**~$68/district-year** for a 50-teacher district at 30 quizzes × 3 languages each. The dominant risk is not the bill; it is that constants left unspecified swing it by 55×.
+| Component                | Cost                                                                       | Notes                                                  |
+| ------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Generation               | ~$0.0095/quiz-language on `gemini-3.5-flash-lite` (~3,500 in / ~2,800 out) | ~$1.37/teacher/year incl. 1.6× regeneration            |
+| Back-translation         | ~$0.0006/call, ~$15/district-year                                          | Explicit button + hash cache (§6)                      |
+| Firestore session egress | ~$45/district-year at 3 locales                                            | Accepted (§4.2)                                        |
+| `QuizMetadata` index     | ~+650 B/quiz + ~2 KB/locale for `sourceHashes` (D31); zero extra reads     | Write only on change                                   |
+| Drive                    | $0                                                                         | 3 extra GETs on assign; `drive.file` already covers it |
+| Cloud Functions          | $0                                                                         | Within free tier                                       |
 
-| Component                | Cost                                                                                                     | Notes                                                                                                      |
-| ------------------------ | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Generation               | **~$0.0095/quiz-language** weighted across es/so/hmn on `gemini-3.5-flash-lite` (~3,500 in / ~2,800 out) | ~$1.37/teacher/year including a 1.6× regeneration factor; **$68/district-year**                            |
-| Back-translation         | ~$0.0006/call, **~$15/district-year**                                                                    | Explicit button + `sha256(answerText+locale)` cache bounds it (§6)                                         |
-| Firestore session egress | **~$45/district-year** at 3 locales                                                                      | Every student's `onSnapshot` delivers all locale payloads to all 30 students. Accepted deliberately (§4.2) |
-| `QuizMetadata` index     | ~+650 B/quiz, **zero extra reads**                                                                       | ~22% payload growth on a doc already carrying a 2,000-char `searchText`. Write only on change              |
-| Drive                    | **$0**                                                                                                   | 3 extra GETs on assign ≈ 0.04% of the 12,000/60s per-user quota; `drive.file` scope already covers it      |
-| Cloud Functions          | **$0**                                                                                                   | ~48,000 GB-s/month against a 400,000 GB-s free tier                                                        |
+**Before hard-coding caps:** a `countTokens` spike on one real quiz in es/so/hmn, and a serialized-bytes check on a real 40-question 3-locale session. Set a **$25/month budget alert on the Vertex AI SKU**, mirroring read-aloud's US$20 TTS backstop.
 
-**Alternatives evaluated and rejected**, recorded so they are not re-litigated:
+## 16. Plumbing checklist — files that are easy to miss
 
-- **Cloud Translation API v3 — 7–38× more expensive, not cheaper.** $20/1M source chars with 500k/month free; a district's 29.6M chars/year is **~$492/year** against $68 on flash-lite. It also cannot do Karen at all, and its higher-quality Translation LLM tier covers **neither Somali nor Hmong**. The intuition that the dedicated translation API must be cheaper is simply wrong at 2026 prices. **What is worth stealing is its contract** — `translateText` returns a same-length, same-order array — which §5 adopts as the flat indexed array.
-- **String-level shared translation cache — ~$34/year saved, not worth it.** Read-aloud's cache paid because the same audio is replayed ~30× per class; **a translation has no replay multiplier** — generated once per quiz-language by one teacher. §3.3's "duplicate and PLC sync carry translations" already captures most real duplication at the quiz level, for free.
-- **Context caching** — only ~750 of 3,500 input tokens are reusable, and at ~90 calls/teacher/**year** storage fees exceed the savings.
-- **Batch API (50% off)** — 24-hour turnaround is unusable for a teacher clicking Generate. Would fit a future nightly stale-question sweep; 50% of $68 is not worth building for now.
+| PR  | File                                                                            | Change                                                                      | Miss cost                                                   |
+| --- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 1   | `functions/src/studentAssignmentTargets.ts:142-151`                             | `language?: string` on the **functions-local** `StudentOverride`            | Silent; no type error                                       |
+| 1   | `functions/src/studentAssignmentTargets.ts:341`                                 | validated `language` branch in `sanitizeOverride()`                         | **Feature dead**, no error                                  |
+| 1   | `functions/src/quizReadAloud.ts:516`                                            | `export` `LANGUAGE_TAG_RE`                                                  | Duplicate regex drifts                                      |
+| 1   | `hooks/useRosters.ts:171`                                                       | `language` in `parseStudentOverride()`                                      | Standing default lost on reload                             |
+| 1   | `components/common/library/AssignStudentPicker.tsx:127`                         | D33 `language` merge into an existing draft                                 | Standing language ignored for customized students           |
+| 1   | `utils/studentOverrideSummary.ts:68-71`, `utils/studentOverrideModifiedNote.ts` | `language` chip + "modified" rule + key in four locales                     | Accommodation invisible in collapsed rows                   |
+| 1   | `tests/fixtures/quizTranslationHash.fixture.json` + a test in each project      | D35 cross-runtime hash pin                                                  | Everything reads stale forever, or nothing ever does        |
+| 2   | `hooks/useQuiz.ts:288,350,434,621`                                              | preserve `translations` (recompute `staleCount`), write `language`          | **Review work destroyed on save**                           |
+| 2   | `functions/src/index.ts`                                                        | `export { translateQuizV1, translateResponseV1 } from './quizTranslation';` | Deploy target absent                                        |
+| 2   | `firestore.rules:699`                                                           | `match /admin_settings/quiz_translation` authed-read + admin-write          | Language picker silently empty                              |
+| 2   | `firestore.rules:3436-3439`                                                     | `backTranslations` excluded from the student response whitelist             | Student can forge a back-translation                        |
+| 2   | `tests/rules/quizTranslationSettings.test.ts`                                   | new; `test:rules` is a separate CI leg                                      | Uncovered by `validate`                                     |
+| 2   | `functions/src/adminAnalyticsCompute.ts:469`                                    | `'translation'` in `GEMINI_SPECIFIC_FEATURES`                               | Usage docs parsed into a phantom uid                        |
+| 2   | `components/admin/Analytics/aiFeatureLabels.ts`                                 | matching label                                                              | File header requires sync with the above                    |
+| 2   | `types.ts` `GlobalFeature` union                                                | `'quiz-translation'`                                                        | Compile error catches this one                              |
+| 2   | `config/featureDefaults.ts` + `.test.ts`                                        | D30 entry + fail-closed assertion                                           | Gate fails unpredictably                                    |
+| 2   | `components/admin/GlobalPermissionsManager.tsx:175`                             | registry entry beside `quiz-read-aloud`                                     | Admin cannot toggle the flag                                |
+| 2   | `components/admin/AdminSettings.tsx:142-147`                                    | tab label (D24); keep the id                                                | —                                                           |
+| 2   | `config/quizTranslation.ts`                                                     | new — feature id, settings doc, languages with `nativeLabel`, default caps  | Agent reuses `SUPPORTED_LANGUAGES` or invents native labels |
+| 2   | `functions/src/quizTranslation.test.ts`                                         | new — validator, quota, D17, D29, cap                                       | —                                                           |
+| 3   | `components/widgets/QuizWidget/components/QuizEditorModal.tsx:277,510,548,562`  | all **four** tab sites                                                      | Languages tab renders Settings, no type error               |
+| 3   | `locales/{en,de,es,fr}.json` + `tests/i18n/quizTranslationLocales.test.ts`      | §14                                                                         | Untranslated UI; CI will not notice                         |
+| 3   | `public/changelog.json`                                                         | one entry (`pnpm changelog:draft` prints a draft to rewrite)                | Repo convention                                             |
+| 5   | `firestore.rules:1393-1431`                                                     | `translations` in the `/synced_quizzes` `hasOnly`                           | PLC sync write rejected                                     |
 
-Two cheap validations before hard-coding the caps: a `countTokens` spike on one real quiz in Spanish / Somali / Hmong to replace estimated multipliers with measurements, and a `JSON.stringify(sessionDoc).length` check on a real 40-question 3-locale session to confirm §4.2's byte budget. Set a **$25/month budget alert on the Vertex AI SKU**, mirroring read-aloud's US$20 TTS backstop.
+**Verified non-issues:** Drive scopes need no change (`config/firebase.ts:84`); `scripts/test-count-baseline.json` is a floor, so adding tests needs no edit; `firestore.rules` is at ~62% of the 256 KiB cap; `quiz_sessions` create/update has no field whitelist, so `localized` and `quizTitleLocalized` write freely; `QuizResponseAnswer.locale` needs no rules change (`answers` is whitelisted at `firestore.rules:3445` with no per-element schema — same reasoning as `noticeAckedAt`, `types.ts:4302-4304`); no App Check exists; `tests/e2e/` has no quiz-assign coverage to extend.
 
-## 17. Plumbing checklist — files that must change and are easy to miss
+## Appendix A — Rejected approaches (do not re-propose)
 
-| File                                                                       | Change                                                                                 | Miss cost                                                                  |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `functions/src/studentAssignmentTargets.ts:142-151`                        | `language?: string` on the **functions-local** `StudentOverride` duplicate             | Silent; no type error                                                      |
-| `functions/src/studentAssignmentTargets.ts:341`                            | validated `language` branch in `sanitizeOverride()`                                    | **Feature dead**, no error                                                 |
-| `hooks/useRosters.ts:171`                                                  | `language` in `parseStudentOverride()`                                                 | Standing default lost on reload                                            |
-| `hooks/useQuiz.ts:288,350,434,621`                                         | preserve `translations` across four non-merging `setDoc`s                              | **Review work destroyed on save**                                          |
-| `functions/src/index.ts`                                                   | `export { translateQuizV1 } from './quizTranslation';`                                 | Deploy target absent                                                       |
-| `firestore.rules`                                                          | `match /admin_settings/quiz_translation` authed-read + admin-write                     | Language picker silently empty                                             |
-| `firestore.rules:1393-1431`                                                | `translations` in the `/synced_quizzes` `hasOnly` (PR5 only)                           | PLC sync write rejected                                                    |
-| `tests/rules/quizTranslationSettings.test.ts`                              | new; `test:rules` is a separate CI leg                                                 | Uncovered by `validate`                                                    |
-| `functions/src/adminAnalyticsCompute.ts:469`                               | add `'translation'` to `GEMINI_SPECIFIC_FEATURES`                                      | Usage docs parsed into a **phantom uid** and dropped from analytics        |
-| `components/admin/Analytics/aiFeatureLabels.ts`                            | matching label                                                                         | File header requires sync with the above                                   |
-| `types.ts` `GlobalFeature` union                                           | `'quiz-translation'`                                                                   | Compile error catches this one                                             |
-| `config/featureDefaults.ts`                                                | `{ defaultAccessLevel: 'admin', defaultEnabled: true, missingDocPublic: false }` (D30) | Gate fails unpredictably                                                   |
-| `config/featureDefaults.test.ts`                                           | fail-closed assertion                                                                  | Existing per-feature pattern                                               |
-| `components/admin/GlobalPermissionsManager.tsx`                            | registry entry beside `quiz-read-aloud`                                                | Admin cannot toggle the flag                                               |
-| `components/admin/AdminSettings.tsx:142-147`                               | rename the tab label (D24)                                                             | —                                                                          |
-| `config/quizTranslation.ts`                                                | new — feature id, settings doc, `QUIZ_TRANSLATION_LANGUAGES` with `nativeLabel`        | Agent reuses `SUPPORTED_LANGUAGES` (4 UI locales) or invents native labels |
-| `utils/studentOverrideSummary.ts:68-71`                                    | `language` chip + key in all four locales                                              | Accommodation invisible in collapsed rows                                  |
-| `utils/studentOverrideModifiedNote.ts`                                     | decide whether `language` counts as "modified"                                         | Unnamed sibling of the above                                               |
-| `functions/src/quizTranslation.test.ts`                                    | new — validator, quota, D17, cap. `functions/` has its own Vitest project              | —                                                                          |
-| `locales/{en,de,es,fr}.json` + `tests/i18n/quizTranslationLocales.test.ts` | §15                                                                                    | Untranslated UI; **CI will not notice**                                    |
-| `public/changelog.json`                                                    | one entry; `pnpm changelog:draft` prints a draft to rewrite                            | Repo convention                                                            |
-
-**Verified non-issues** — stop worrying about these: Google Drive **scopes need no change** (`drive.file` covers app-created files, `config/firebase.ts:84`); `scripts/test-count-baseline.json` is a floor, so **adding** tests needs no edit; `firestore.rules` is at ~62% of the 256 KiB cap; `quiz_sessions` create/update has **no field whitelist**, so `localized` writes freely; `QuizResponseAnswer.locale` needs **no rules change** because `answers` is already whitelisted (`firestore.rules:3445`) with no per-element schema — the same reasoning already recorded for `noticeAckedAt` at `types.ts:4302-4304`; there is **no App Check** anywhere; and `tests/e2e/` has no quiz-assign coverage to extend.
+- **Parallel session-level translation map** — leaks the answer key by position (§4.1).
+- **Split gate: review at publish, staleness at render via a hash on the session doc** — ships a brute-forceable oracle of `correctAnswer`, and the comparison is a tautology on a frozen snapshot (§4.3).
+- **Spreading `translation.questions[qid]` into `localized`** — re-exposes `matchingDistractors` (§4.2).
+- **Index-based MC picking** — a stored index does not survive the PLC re-sync re-permutation; the stored string does (§4.5).
+- **Display-string answer cache** — five unhooked write paths grade a Somali composite against the English key (§4.5).
+- **FIB translation with an awaiting-grade route** — `isFreeResponseType` is `'free-response'` only (`types.ts:3348-3350`), so `FreeResponseGrader.tsx:322` could never surface a FIB; `score: deleteField()` (`useQuizAssignments.ts:2410`) plus `isResponseAwaitingGrade` (`quizScoreboard.ts:250`) would strand the student's whole grade out of the scoreboard and Classroom push; and `QuizStudentApp.tsx:4523` would still render a red ✗.
+- **Sibling `/quiz_sessions/{id}/locales/{locale}` docs** — reintroduces the desync D16 prevents.
+- **Refactoring `MatchingResponseInput` / `OrderingResponseInput` bank shuffles onto `reindexChoiceArray`** — they permute indices, not arrays, and are already safe.
+- **Mirroring `validateAndBucketQuizQuestions`** — silently drops malformed items (§5).
+- **Mirroring read-aloud's cap behavior** — it degrades to a cheaper tier; translation has none (§5).
+- **Widening `admin_settings/quiz_read_aloud` or `ai_usage` reads** — exposes TTS config / other teachers' usage (§7).
+- **Per-question regeneration calls** — 60 invocations for a 20-question review (§5).
+- **Storing a stale-id list in the sidecar and writing Drive on every quiz save** — staleness is derivable; D31.
+- **Cloud Translation API v3** — 7–38× more expensive at 2026 prices (~$492/yr vs $68), no Somali/Hmong in its LLM tier. Its same-length-array contract is adopted in §5.
+- **String-level shared translation cache** — ~$34/yr saved; no replay multiplier.
+- **Context caching / Batch API** — ~750 reusable tokens at ~90 calls/teacher/year; 24-hour batch turnaround is unusable for a Generate button.
+- **`QuizGlobalConfig`, `FeatureConfigurationPanel.tsx:690`, `libraryDuplicate.ts`, `driveArchive.ts`** — dead code or wrong subsystem; none is a hook point.
 
 ---
 
 **Grilled and locked:** 2026-09-11, extended 2026-09-12 with Paul Ivers.
-**Revised:** 2026-09-12 after a five-agent audit against `48d5e2a`. Reversed the split review/staleness gate (it shipped an answer-key oracle and a tautological check); corrected §4.5's "picks by index" (MC is answered by value); cut FIB (D21); cut target-language TTS (D25); added the English-answer-cache decision (D22), the three override allowlists, the `QuizMetadata` preservation fix, the bank-slot hole, the post-publish-targets hole, the bidirectional-hydration and toggle-reset requirements, the i18n section, the cost model, and the plumbing checklist. Resequenced into 6 stacked PRs with PR0 as a prerequisite.
+**Revised:** 2026-09-12 (five-agent audit against `48d5e2a`); 2026-09-13 (final review against `b2b6ca6`: corrected drifted citations in `useQuizAssignments.ts`, `useQuizSession.ts`, `QuizStudentApp.tsx`, `QuizEditorModal.tsx`; added D31–D36; specified the callable, settings-doc, hook, and answer-conversion contracts; rewrote §11 as per-PR briefs; moved rejected approaches to Appendix A).
