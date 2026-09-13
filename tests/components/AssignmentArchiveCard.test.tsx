@@ -168,6 +168,12 @@ describe('AssignmentArchiveCard', () => {
 
     expect(ResizeObserverSpy.instances).toHaveLength(1);
     const instance = ResizeObserverSpy.instances[0];
+    // A real ResizeObserver always fires once immediately on observe(), before any actual resize.
+    act(() => {
+      instance.callback([], instance as unknown as ResizeObserver);
+    });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
     act(() => {
       instance.callback([], instance as unknown as ResizeObserver);
     });

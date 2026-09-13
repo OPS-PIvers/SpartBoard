@@ -88,17 +88,21 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     };
   }, [open]);
 
-  // Also close on the host widget's own geometry changes — Alt+M
-  // (maximize/restore) and Alt+R (reset size) resize the widget without
-  // firing a window 'resize' event, which would otherwise leave this
-  // fixed-position portal floating over the widget's new layout.
+  // Close on the host widget's own geometry changes (Alt+M/Alt+R don't fire a window 'resize' event); skip ResizeObserver's own always-fires-once-on-observe() initial callback.
   useEffect(() => {
     if (!open) return undefined;
     const host = wrapperRef.current?.closest<HTMLElement>(
       '[data-draggable-window]'
     );
     if (!host || typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(() => setOpen(false));
+    let skippedInitial = false;
+    const observer = new ResizeObserver(() => {
+      if (!skippedInitial) {
+        skippedInitial = true;
+        return;
+      }
+      setOpen(false);
+    });
     observer.observe(host);
     return () => observer.disconnect();
   }, [open]);
