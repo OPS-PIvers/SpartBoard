@@ -95,6 +95,9 @@ import {
 } from './classlinkShared';
 import { LANGUAGE_TAG_RE } from './languageTag';
 
+/** BCP-47 practical maximum; caps an unbounded string before it reaches Firestore. */
+const LANGUAGE_TAG_MAX = 35;
+
 export const STUDENT_ASSIGNMENT_KINDS = [
   'quiz',
   'video-activity',
@@ -353,6 +356,7 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
   // list is enforced at generation and at projection, not here.
   if (
     typeof src.language === 'string' &&
+    src.language.trim().length <= LANGUAGE_TAG_MAX &&
     LANGUAGE_TAG_RE.test(src.language.trim())
   ) {
     out.language = src.language.trim();

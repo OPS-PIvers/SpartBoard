@@ -10,6 +10,7 @@ import type { LocalizedQuestionStrings, QuizPublicQuestion } from '@/types';
 type Direction = 'toDisplay' | 'toCanonical';
 
 let missReported = false;
+let ambiguityReported = false;
 
 /** Map one value across a pair of index-aligned arrays; falls back to the input. */
 function mapValue(
@@ -19,7 +20,16 @@ function mapValue(
 ): string {
   if (!english || !labels || english.length !== labels.length) return value;
   const i = english.indexOf(value);
-  if (i >= 0) return labels[i];
+  if (i >= 0) {
+    // Projection drops ambiguous locale arrays; this only fires if one slipped through.
+    if (english.lastIndexOf(value) !== i && !ambiguityReported) {
+      ambiguityReported = true;
+      console.error(
+        '[quizLocalizedAnswer] ambiguous answer value; using first match'
+      );
+    }
+    return labels[i];
+  }
   // The value may already be in the target form — accept it rather than mangle it.
   if (labels.indexOf(value) >= 0) return value;
   if (!missReported) {

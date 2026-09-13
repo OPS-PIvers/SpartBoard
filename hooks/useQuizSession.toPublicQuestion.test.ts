@@ -130,6 +130,69 @@ describe('toPublicQuestion', () => {
     expect(projected.localized?.es).toEqual({ text: 'x' });
   });
 
+  it('drops a locale MC array whose labels collapse to duplicates English does not have', () => {
+    const projected = toPublicQuestion(mc, {
+      es: { text: 'x', choices: ['Su', 'Su', 'Sus', 'Suyo'] },
+    });
+    expect(projected.localized?.es).toEqual({ text: 'x' });
+    expect(projected.choices).toHaveLength(4);
+  });
+
+  it('keeps a locale MC array whose duplicates English already has', () => {
+    const dupEnglish: QuizQuestion = {
+      ...mc,
+      correctAnswer: 'Its',
+      incorrectAnswers: ['Its', 'Their'],
+    };
+    const projected = toPublicQuestion(dupEnglish, {
+      es: { text: 'x', choices: ['Su', 'Su', 'Sus'] },
+    });
+    expect(projected.localized?.es.choices).toHaveLength(3);
+  });
+
+  it('drops both matching arrays when a translated label carries a `:` or `|`', () => {
+    const projected = toPublicQuestion(matching, {
+      es: {
+        text: 'Empareja',
+        matchingLeft: ['9:00 Mañana', 'Rana'],
+        matchingRight: ['Mamífero', 'Anfibio'],
+        matchingDistractors: ['Reptil', 'Pez'],
+      },
+    });
+    expect(projected.localized?.es).toEqual({ text: 'Empareja' });
+    expect(projected.matchingLeft).toEqual(['Dog', 'Frog']);
+  });
+
+  it('drops both matching arrays when a translated right label duplicates another', () => {
+    const projected = toPublicQuestion(matching, {
+      es: {
+        text: 'Empareja',
+        matchingLeft: ['Perro', 'Rana'],
+        matchingRight: ['Animal', 'Animal'],
+        matchingDistractors: ['Reptil', 'Pez'],
+      },
+    });
+    expect(projected.localized?.es).toEqual({ text: 'Empareja' });
+  });
+
+  it('drops translated ordering items that carry the `|` delimiter', () => {
+    const projected = toPublicQuestion(ordering, {
+      es: {
+        text: 'Ordena',
+        orderingItems: ['Uno|Dos', 'Dos', 'Tres', 'Cuatro'],
+      },
+    });
+    expect(projected.localized?.es).toEqual({ text: 'Ordena' });
+    expect(projected.orderingItems).toHaveLength(4);
+  });
+
+  it('drops translated ordering items that collapse to duplicates', () => {
+    const projected = toPublicQuestion(ordering, {
+      es: { text: 'Ordena', orderingItems: ['Uno', 'Uno', 'Tres', 'Cuatro'] },
+    });
+    expect(projected.localized?.es).toEqual({ text: 'Ordena' });
+  });
+
   it('keeps placeholder and rubric inside the free-response branch only', () => {
     const fr: QuizQuestion = {
       id: 'q-fr',

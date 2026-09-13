@@ -1999,7 +1999,8 @@ export const useQuizAssignments = (
       const sessionSnap = await getDoc(
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
       );
-      const sessionData = sessionSnap.data() as
+      // A deleted session hands back nothing; treat that as untranslated, not a throw.
+      const sessionData = sessionSnap?.data() as
         | (QuizSession & { mediaResponseEnabled?: boolean })
         | undefined;
       if (

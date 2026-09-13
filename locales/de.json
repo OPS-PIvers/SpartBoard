@@ -1936,7 +1936,7 @@
       "readAloud": "Vorlesen",
       "language": "{{language}}"
     },
-    "language": "Language"
+    "language": "Sprache"
   },
   "assignTargeting": {
     "expandAffordance": "+ Einzelne Schüler & Anpassungen",

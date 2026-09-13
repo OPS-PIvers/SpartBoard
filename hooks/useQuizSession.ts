@@ -348,6 +348,24 @@ function permuteAligned(
   return permutation.map((i) => source[i]);
 }
 
+const hasDuplicates = (a: string[]) => new Set(a).size !== a.length;
+
+/** A locale array with duplicates English lacks makes index mapping ambiguous (§4.5). */
+function introducesAmbiguity(
+  labels: string[] | undefined,
+  english: string[]
+): boolean {
+  return !!labels && hasDuplicates(labels) && !hasDuplicates(english);
+}
+
+/** Answer strings round-trip through `|` and `:`; a translated label carrying one corrupts grading. */
+function carriesDelimiter(
+  labels: string[] | undefined,
+  chars: string
+): boolean {
+  return !!labels && labels.some((s) => [...chars].some((c) => s.includes(c)));
+}
+
 /**
  * Convert a full QuizQuestion (with correctAnswer) to a student-safe
  * QuizPublicQuestion. Each shuffle permutation is computed ONCE and applied to
@@ -376,7 +394,8 @@ export function toPublicQuestion(
     base.choices = permutation.map((i) => english[i]);
     for (const [loc, tr] of entries) {
       const choices = permuteAligned(tr.choices, english.length, permutation);
-      if (choices) localized[loc].choices = choices;
+      if (choices && !introducesAmbiguity(choices, english))
+        localized[loc].choices = choices;
     }
   } else if (q.type === 'Matching') {
     // Use indexOf+slice (not split(':')) so a definition that itself contains
@@ -393,12 +412,12 @@ export function toPublicQuestion(
     const permutation = randomPermutation(englishRight.length);
     base.matchingRight = permutation.map((i) => englishRight[i]);
     for (const [loc, tr] of entries) {
+      const englishLeft = pairs.map((p) => p.left);
       const left = permuteAligned(
         tr.matchingLeft,
         pairs.length,
         pairs.map((_, i) => i)
       );
-      if (left) localized[loc].matchingLeft = left;
       // The merge order must mirror `englishRight` exactly, or every translated
       // right-hand label attaches to the wrong English definition.
       const mergedLabels = tr.matchingRight
@@ -409,7 +428,16 @@ export function toPublicQuestion(
         englishRight.length,
         permutation
       );
-      if (right) localized[loc].matchingRight = right;
+      // Dropped as a unit: a half-translated pair grid is worse than an English one.
+      const unsafeMatching =
+        carriesDelimiter(left, ':|') ||
+        carriesDelimiter(right, ':|') ||
+        introducesAmbiguity(left, englishLeft) ||
+        introducesAmbiguity(right, englishRight);
+      if (!unsafeMatching) {
+        if (left) localized[loc].matchingLeft = left;
+        if (right) localized[loc].matchingRight = right;
+      }
     }
     // Do NOT copy `distractors` onto the public payload. The shuffled
     // `matchingRight` already mixes them in; exposing the explicit list lets
@@ -424,7 +452,12 @@ export function toPublicQuestion(
         english.length,
         permutation
       );
-      if (items) localized[loc].orderingItems = items;
+      if (
+        items &&
+        !carriesDelimiter(items, '|') &&
+        !introducesAmbiguity(items, english)
+      )
+        localized[loc].orderingItems = items;
     }
   } else if (isFreeResponseType(q.type)) {
     if (q.placeholder) base.placeholder = q.placeholder;

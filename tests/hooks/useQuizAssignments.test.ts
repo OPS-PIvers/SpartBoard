@@ -991,9 +991,13 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
   const batchUpdate = vi.fn();
   const batchCommit = vi.fn();
   const mockGetDocs = getDocs as Mock;
+  // The sync path reads the assignment doc then the session doc, in that order;
+  // `clearAllMocks` does not drain a once-queue, so every test queues both.
+  const NO_SESSION_SNAP = { exists: () => false, data: () => undefined };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetDoc.mockReset();
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
@@ -1018,6 +1022,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         // no syncGroupId — copy-mode assignment
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     let outcome: Awaited<
@@ -1037,6 +1042,74 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
+  it('refuses to sync when any session publicQuestion carries a localized payload', async () => {
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            { id: 'q0', type: 'MC', text: 'Q0', timeLimit: 30 },
+            {
+              id: 'q1',
+              type: 'MC',
+              text: 'Q1',
+              timeLimit: 30,
+              localized: { es: { text: 'P1' } },
+            },
+          ],
+        }),
+      });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await expect(
+      result.current.syncAssignmentToLatest(ASSIGNMENT_ID)
+    ).rejects.toThrow(/translated questions/);
+    expect(batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('syncs normally when localized is present but empty on every question', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 5,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 4 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            { id: 'q0', type: 'MC', text: 'Q0', timeLimit: 30, localized: {} },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    expect(batchCommit).toHaveBeenCalled();
+  });
+
   it('refuses to sync an assignment built from question-bank draws', async () => {
     mockGetDoc.mockResolvedValueOnce({
       exists: () => true,
@@ -1047,6 +1120,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         resolvedDriveFileId: 'drive-resolved',
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await expect(
@@ -1082,6 +1156,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     let outcome: Awaited<
@@ -1134,6 +1209,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     // Two existing responses: one in-progress, one completed. Both should
     // be tagged with the OLD syncedVersion (3) since neither is at or
     // beyond the new version.
@@ -1228,6 +1304,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -1272,6 +1349,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 4 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -1327,6 +1405,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 4 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -1355,6 +1434,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 4 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     const refFresh = { id: 'fresh' };
     // The server-side `where('preSyncVersion', '==', 0)` query returns
     // only responses that have never been tagged — already-tagged
@@ -1405,6 +1485,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         mediaResponseEnabled: true,
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
       docs: [
         {
@@ -1448,6 +1529,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         mediaResponseEnabled: true,
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
       docs: [{ data: () => ({ answers: [{ questionId: 'q1' }] }) }],
     });

@@ -1478,6 +1478,10 @@ describe('sanitizeOverride language', () => {
     for (const bad of ['', 'not a tag!', 'e', 'toolongsubtag', 42, null, {}]) {
       expect(sanitizeOverride({ language: bad })).toBeNull();
     }
+    // Regex-valid but past the BCP-47 practical maximum of 35 chars.
+    const overlong = 'aa' + '-abcdefgh'.repeat(4);
+    expect(overlong.length).toBeGreaterThan(35);
+    expect(sanitizeOverride({ language: overlong })).toBeNull();
   });
 
   it('carries language alongside the other sanitized fields', () => {

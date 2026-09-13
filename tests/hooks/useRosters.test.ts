@@ -579,7 +579,11 @@ describe('useRosters — updateRoster', () => {
     await act(async () => {
       await expect(
         result.current.updateRoster('r1', {
-          students: [student({ id: 's1' }), student({ id: 's2' })],
+          students: [
+            student({ id: 's1' }),
+            student({ id: 's2' }),
+            student({ id: 's3' }),
+          ],
         })
       ).rejects.toThrow('Failed to save roster changes to Drive');
     });
@@ -1105,6 +1109,7 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
           defaultOverridesByStudentId: {
             s1: { language: ' es ' },
             s2: { language: 'not a tag!' },
+            s3: { language: 'aa' + '-abcdefgh'.repeat(4) },
           },
         })
       ),
@@ -1116,6 +1121,8 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     const overrides = result.current.rosters[0].defaultOverridesByStudentId;
     expect(overrides?.s1).toEqual({ language: 'es' });
     expect(overrides?.s2).toEqual({});
+    // Regex-valid but past the BCP-47 practical maximum of 35 chars.
+    expect(overrides?.s3).toEqual({});
   });
 
   it('drops malformed rubric snapshots but keeps points mode and valid ones', async () => {

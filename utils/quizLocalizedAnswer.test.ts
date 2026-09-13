@@ -118,4 +118,17 @@ describe('quizLocalizedAnswer', () => {
     };
     expect(toDisplayAnswer(q, 'es', 'Paris')).toBe('Paris');
   });
+
+  it('reports a non-injective English array and resolves to the first match', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const ambiguous: QuizPublicQuestion = {
+      ...mc,
+      choices: ['Its', 'Its', 'Their'],
+      localized: { es: { text: 'x', choices: ['Su', 'Suyo', 'Sus'] } },
+    };
+    // Defensive only: `toPublicQuestion` drops such a locale array before it ships.
+    expect(toDisplayAnswer(ambiguous, 'es', 'Its')).toBe('Su');
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });
