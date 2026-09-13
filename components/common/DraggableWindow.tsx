@@ -1089,8 +1089,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     e.preventDefault();
 
     setIsDragging(true);
-    // Initialize transient state
-    dragState.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+    // Initialize transient state. w/h seeded from the render-clamped size
+    // (see handleResizeStart) so a below-floor widget doesn't flash back to
+    // its raw stored size while the drag is in progress.
+    dragState.current = {
+      x: widget.x,
+      y: widget.y,
+      w: resolvedW,
+      h: resolvedH,
+    };
     dragDistanceRef.current = 0;
 
     // Collect group siblings for coordinated drag. Read the dashboard at
@@ -1501,12 +1508,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
 
     setIsResizing(true);
-    // Initialize transient state
-    dragState.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+    // Initialize transient state. Seed w/h from the render-clamped size
+    // (resolvedW/resolvedH), not raw widget.w/widget.h — for a widget stored
+    // below its WIDGET_MIN_SIZE_OVERRIDES floor, the box is already visually
+    // rendered at the clamped size, and seeding from the raw stored size
+    // would desync the resize math from what's on screen (dead handles).
+    dragState.current = {
+      x: widget.x,
+      y: widget.y,
+      w: resolvedW,
+      h: resolvedH,
+    };
 
     document.body.classList.add('is-dragging-widget');
-    const startW = widget.w;
-    const startH = widget.h;
+    const startW = resolvedW;
+    const startH = resolvedH;
     const startX = e.clientX;
     const startY = e.clientY;
     const startPosX = widget.x;

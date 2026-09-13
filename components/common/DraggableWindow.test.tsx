@@ -825,6 +825,92 @@ describe('DraggableWindow', () => {
     expect(windowEl.style.height).toBe('80px');
   });
 
+  // Resize deltas must be seeded from the render-clamped size, not the raw
+  // stored size, for a widget below its WIDGET_MIN_SIZE_OVERRIDES floor —
+  // otherwise the resize math desyncs from what's on screen (see the two
+  // cases below).
+  it('grows immediately from the render-clamped size when resizing a below-floor widget', async () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+
+    const seHandleEl = document.querySelector('.cursor-se-resize');
+    expect(seHandleEl).not.toBeNull();
+    if (!seHandleEl) return;
+    const seHandle = seHandleEl as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    seHandle.setPointerCapture = vi.fn();
+    seHandle.hasPointerCapture = vi.fn().mockReturnValue(true);
+    seHandle.releasePointerCapture = vi.fn();
+
+    expect(windowEl.style.width).toBe('280px');
+
+    fireEvent.pointerDown(seHandle, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    fireEvent.pointerMove(seHandle, {
+      clientX: 210,
+      clientY: 210,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+
+    await waitFor(() => {
+      // Seeded from the clamped 280px (not the raw stored 200px): a 10px
+      // drag grows the box to 290px instead of being absorbed into a dead
+      // zone (Math.max(280, 200 + 10) would stay pinned at 280).
+      expect(windowEl.style.width).toBe('290px');
+    });
+  });
+
+  it('grows via the west handle from the render-clamped size when resizing a below-floor widget', async () => {
+    renderComponent({ type: 'blooms-taxonomy', w: 200, h: 200 });
+
+    const swHandleEl = document.querySelector('.cursor-sw-resize');
+    expect(swHandleEl).not.toBeNull();
+    if (!swHandleEl) return;
+    const swHandle = swHandleEl as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    swHandle.setPointerCapture = vi.fn();
+    swHandle.hasPointerCapture = vi.fn().mockReturnValue(true);
+    swHandle.releasePointerCapture = vi.fn();
+
+    expect(windowEl.style.width).toBe('280px');
+
+    // clientX kept within RESIZE_PRIORITY_INSET of jsdom's zeroed
+    // getBoundingClientRect() so handleResizeStart's priority-zone check
+    // short-circuits before document.elementsFromPoint, which jsdom doesn't
+    // implement.
+    fireEvent.pointerDown(swHandle, {
+      clientX: 10,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    // Move left by 20px to grow via the west edge. Seeded from the raw
+    // stored 200px, `potentialW = startW - dx = 200 + 20 = 220` would still
+    // be below the 280 floor and the west-handle check would reject the
+    // resize outright — the handle stays dead until dx exceeds ~80.
+    fireEvent.pointerMove(swHandle, {
+      clientX: -10,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+
+    await waitFor(() => {
+      // Seeded from the clamped 280px: potentialW = 280 + 20 = 300.
+      expect(windowEl.style.width).toBe('300px');
+    });
+  });
+
   it('minimizes on Escape key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
