@@ -1200,6 +1200,8 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
   });
 
   it('takes the canonical choice order verbatim on an untranslated session', async () => {
+    // Pin the fresh shuffle so the assertion cannot flake on a 1-in-24 identity draw.
+    const rnd = vi.spyOn(Math, 'random').mockReturnValue(0);
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');
     (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
@@ -1251,6 +1253,13 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     );
     const patch = sessionCall?.[1] as { publicQuestions: QuizPublicQuestion[] };
     expect(patch.publicQuestions[0].choices).not.toEqual(['d', 'c', 'b', 'a']);
+    expect([...(patch.publicQuestions[0].choices ?? [])].sort()).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+    rnd.mockRestore();
   });
 
   it('keeps the served order on a translated session', async () => {
