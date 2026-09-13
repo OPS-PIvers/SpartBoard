@@ -299,9 +299,12 @@ export const AssignmentDetailPane: React.FC<{
   >(null);
   // Locales the live session actually serves — the §10 advisory's baseline.
   const [servedLocales, setServedLocales] = useState<string[] | null>(null);
-  const isQuizRow = row.kind === 'quiz';
+  const translationAvailable =
+    row.kind === 'quiz' && canAccessFeature('quiz-translation');
+  // Subscribed only when a flag needs it, so existing users open no new listener.
+  const sessionWatchNeeded = readAloudAvailable || translationAvailable;
   useEffect(() => {
-    if (!isQuizRow) return;
+    if (!sessionWatchNeeded) return;
     return onSnapshot(
       doc(db, 'quiz_sessions', row.sessionId),
       (snap) => {
@@ -321,7 +324,7 @@ export const AssignmentDetailPane: React.FC<{
         setServedLocales(null);
       }
     );
-  }, [isQuizRow, row.sessionId]);
+  }, [sessionWatchNeeded, row.sessionId]);
   // A language this edit introduces that the live session does not serve (§10).
   const postPublishLocales = useMemo(
     () =>
