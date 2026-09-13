@@ -1,6 +1,6 @@
 # Quiz Translation for Multilingual Learners — Implementation Plan
 
-**Status:** Spec locked. Revised 2026-09-13 (final pre-implementation review: citations re-verified against `b2b6ca6`, six decisions added D31–D36, §11 rewritten as self-contained per-PR briefs). Ready to implement.
+**Status:** **Shipped to `dev-paul` 2026-09-13.** PR0 #3009, PR1 #3012, PR2 #3013, PR3 #3016, PR4 #3015, PR5 #3017 — all six merged in order after internal adversarial review. The feature is live behind the admin-only `quiz-translation` flag (D30). Still outstanding: the §11 PR3 preview-URL gate (a real SSO student with `language: 'es'` and hidden options), the §15 `countTokens` spike and Vertex budget alert, and the follow-ups listed in the PR bodies. Spec history: revised 2026-09-13 (final pre-implementation review: citations re-verified against `b2b6ca6`, six decisions added D31–D36, §11 rewritten as self-contained per-PR briefs).
 **Ships as 6 stacked PRs (§11).** PR0 is a prerequisite that is not part of this feature.
 **Scope:** Quizzes only, **SSO-assigned quizzes only** (D15). Video activities / guided learning / mini-apps are out of v1; the payload shape and the `StudentOverride` field generalize without a rewrite.
 **Target languages: Spanish, Somali, Hmong** (D19). All Latin-script.
