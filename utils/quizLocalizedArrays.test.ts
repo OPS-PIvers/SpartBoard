@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { QuizPublicQuestion } from '@/types';
-import { reindexChoiceArray } from './quizLocalizedArrays';
+import {
+  alignToPreviousOrder,
+  reindexChoiceArray,
+} from './quizLocalizedArrays';
 
 const mc = (): QuizPublicQuestion => ({
   id: 'q1',
@@ -90,5 +93,52 @@ describe('reindexChoiceArray', () => {
     reindexChoiceArray(q, 'choices', [2, 1, 0]);
     expect(q.choices).toEqual(['Paris', 'London', 'Rome']);
     expect(q.localized?.es.choices).toEqual(['París', 'Londres', 'Roma']);
+  });
+});
+
+describe('alignToPreviousOrder', () => {
+  it('restores the order a live session already served, locales included', () => {
+    const previous: QuizPublicQuestion = {
+      ...mc(),
+      choices: ['Rome', 'Paris', 'London'],
+    };
+    const out = alignToPreviousOrder(mc(), previous);
+    expect(out.choices).toEqual(['Rome', 'Paris', 'London']);
+    expect(out.localized?.es.choices).toEqual(['Roma', 'París', 'Londres']);
+    expect(out.localized?.so.choices).toEqual([
+      'Rome-so',
+      'Paris-so',
+      'London-so',
+    ]);
+  });
+
+  it('keeps the fresh shuffle when the English values changed', () => {
+    const previous: QuizPublicQuestion = {
+      ...mc(),
+      choices: ['Rome', 'Paris', 'Berlin'],
+    };
+    const out = alignToPreviousOrder(mc(), previous);
+    expect(out.choices).toEqual(['Paris', 'London', 'Rome']);
+  });
+
+  it('is the identity when the session had no matching question', () => {
+    const fresh = mc();
+    expect(alignToPreviousOrder(fresh, undefined)).toBe(fresh);
+  });
+
+  it('leaves a field alone when its English array repeats a label', () => {
+    const fresh: QuizPublicQuestion = {
+      id: 'q2',
+      type: 'Ordering',
+      text: 'Order',
+      timeLimit: 0,
+      orderingItems: ['a', 'a', 'b'],
+    };
+    const out = alignToPreviousOrder(fresh, {
+      ...fresh,
+      orderingItems: ['b', 'a', 'a'],
+    });
+    // The mapping would be ambiguous, so the fresh order stands.
+    expect(out.orderingItems).toEqual(['a', 'a', 'b']);
   });
 });
