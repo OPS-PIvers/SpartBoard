@@ -984,7 +984,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const backTranslationResponseKey = response
     ? responseKeyOf(response)
     : undefined;
-  // FIB is never translated (plan D21), so only true free-response answers qualify.
+  // Back-translation grades prose, so only true free-response answers qualify.
   const showBackTranslation =
     !!onSaveBackTranslation &&
     !isMedia &&

@@ -40,6 +40,8 @@ export interface UnifiedAssignmentRow {
   /** Display titles for `classIds` (Schoology section titles), when present. */
   classPeriodByClassId?: Record<string, string>;
   targetStudents?: StudentTargetRef[];
+  /** Students skipped at assign time, so re-opening the editor shows the skip. */
+  excludedTargets?: StudentTargetRef[];
   /** Teacher's own per-student overrides, keyed by `studentTargetRefKey` (D2 "modified" marker). */
   overridesBySourcedId?: Record<string, StudentOverride>;
   /** Individually-targeted refs removed via the hub (M17 §5 D3) — kept so a
@@ -111,6 +113,7 @@ export const useUnifiedAssignments = (
       classIds: a.classIds,
       classPeriodByClassId: a.classPeriodByClassId,
       targetStudents: a.targetStudents,
+      excludedTargets: a.excludedTargets,
       overridesBySourcedId: a.overridesBySourcedId,
       removedStudentRefs: a.removedStudentRefs,
       ...(a.plc ? { plc: { id: a.plc.id, name: a.plc.name } } : {}),
@@ -135,6 +138,7 @@ export const useUnifiedAssignments = (
       classIds: a.classIds,
       classPeriodByClassId: a.classPeriodByClassId,
       targetStudents: a.targetStudents,
+      excludedTargets: a.excludedTargets,
       overridesBySourcedId: a.overridesBySourcedId,
       removedStudentRefs: a.removedStudentRefs,
     }));
@@ -153,6 +157,7 @@ export const useUnifiedAssignments = (
       sessionId: a.sessionId,
       rosterIds: a.rosterIds,
       targetStudents: a.targetStudents,
+      excludedTargets: a.excludedTargets,
       overridesBySourcedId: a.overridesBySourcedId,
       removedStudentRefs: a.removedStudentRefs,
     }));
@@ -176,6 +181,7 @@ export const useUnifiedAssignments = (
         sessionId: a.sessionId,
         rosterIds: a.rosterIds,
         targetStudents: a.targetStudents,
+        excludedTargets: a.excludedTargets,
         overridesBySourcedId: a.overridesBySourcedId,
         removedStudentRefs: a.removedStudentRefs,
       })

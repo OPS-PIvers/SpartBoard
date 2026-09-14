@@ -3944,6 +3944,8 @@ export interface QuizPublicQuestion {
 /** One question's translated strings, positionally aligned with the English question (plan §3.2). */
 export interface QuestionTranslation {
   text: string;
+  /** FIB only: the translated accepted answer. Teacher-private — never projected to students. */
+  answer?: string;
   /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
   choices?: string[];
   /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
@@ -5119,6 +5121,8 @@ export interface StudentAssignmentPointer {
   closeAt?: number;
   dueAt?: number;
   override?: StudentOverride;
+  /** Skipped by the teacher: the class channel hides this session for them. */
+  excluded?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -5191,6 +5195,11 @@ export interface QuizAssignmentSettings {
 export interface QuizAssignment extends QuizAssignmentSettings {
   /** Assignment UUID — also the sessionId. */
   id: string;
+  /**
+   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
+   * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
+   */
+  localizedFibAnswers?: Record<string, Record<string, string[]>>;
   quizId: string;
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */
@@ -5297,6 +5306,8 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
@@ -7699,6 +7710,18 @@ export interface QuizReadAloudManifest {
   timings?: Record<string, QuizReadAloudTiming[]>;
   stimulusChunks?: Record<string, string[]>;
   failedKeys?: string[];
+  /** Translated audio, keyed by translation locale; English above is never touched. */
+  localized?: Record<string, QuizReadAloudLocaleManifest>;
+  /** Why a `failed` prepare gave up, when it was not per-part synthesis. */
+  failedReason?: string;
+}
+
+/** One translated locale's slice of `session.readAloud` (same part keys, translated voice). */
+export interface QuizReadAloudLocaleManifest {
+  voice: string;
+  files: Record<string, string>;
+  timings?: Record<string, QuizReadAloudTiming[]>;
+  failedKeys?: string[];
 }
 
 export interface QuizReadAloudAdminSettings {
@@ -8635,6 +8658,8 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
@@ -8703,6 +8728,8 @@ export interface MiniAppAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
@@ -8777,6 +8804,8 @@ export interface GuidedLearningAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */

@@ -5,6 +5,10 @@ import {
   type QuizResponse,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import {
+  fibAnswersForResponse,
+  type FibGradingContext,
+} from '@/utils/quizFibAnswers';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
   applyMediaSlots,
@@ -38,7 +42,8 @@ export type QuestionGradeFn = (
 export function gradeQuestionForResponse(
   question: QuizQuestion,
   studentAnswer: string,
-  response: QuizResponse
+  response: QuizResponse,
+  fibGrading?: FibGradingContext | null
 ): GradeResult {
   const manualGrade = isFreeResponseType(question.type)
     ? readSlotGrade(response.grading, question.id)
@@ -46,8 +51,21 @@ export function gradeQuestionForResponse(
   return applyMediaSlots(
     question,
     response,
-    gradeAnswer(question, studentAnswer, manualGrade)
+    gradeAnswer(
+      question,
+      studentAnswer,
+      manualGrade,
+      fibAnswersForResponse(fibGrading, response, question.id)
+    )
   );
+}
+
+/** Bind the translated FIB answer keys so `computeQuestionStats` grades with them. */
+export function makeQuestionGradeFn(
+  fibGrading?: FibGradingContext | null
+): QuestionGradeFn {
+  return (question, studentAnswer, response) =>
+    gradeQuestionForResponse(question, studentAnswer, response, fibGrading);
 }
 
 function emptyStat(): QuestionStat {

@@ -100,6 +100,21 @@ describe('serveLocalizedQuestion', () => {
     );
   });
 
+  it('falls back to English on an empty or whitespace stem (server parity)', () => {
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a'), localized: { es: { text: '' } } },
+        'es'
+      )
+    ).toBeNull();
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a'), localized: { es: { text: '   ' } } },
+        'es'
+      )
+    ).toBeNull();
+  });
+
   it('falls back to English when the locale entry lacks the rubric snapshot', () => {
     const rubric = { id: 'r1', title: 'Essay', criteria: [] } as never;
     const question = {
@@ -138,13 +153,13 @@ describe('serveLocalizedQuestion', () => {
     expect(serveLocalizedQuestion(question, 'es')).toEqual(entry);
   });
 
-  it('never serves a FIB stem (D21)', () => {
+  it('serves a FIB stem now that FIB is translatable (PR4)', () => {
     expect(
       serveLocalizedQuestion(
         { ...q('a'), type: 'FIB', localized } as QuizPublicQuestion,
         'es'
       )
-    ).toBeNull();
+    ).toEqual(localized.es);
   });
 
   it('falls back to English when the locale entry is missing the choices', () => {

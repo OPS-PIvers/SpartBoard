@@ -1563,6 +1563,7 @@ const AssignBehaviorSummaryVA: React.FC<{
 
       <AssignTargetingSection
         rosters={rosters}
+        selectedRosterIds={pickerValue.rosterIds}
         value={targeting}
         onChange={onTargetingChange}
         kind="video-activity"

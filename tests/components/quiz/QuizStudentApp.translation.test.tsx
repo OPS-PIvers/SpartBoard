@@ -430,7 +430,7 @@ describe('QuizStudentApp — Matching placements across a locale toggle', () => 
   });
 });
 
-describe('QuizStudentApp — read-aloud x translation (D25)', () => {
+describe('QuizStudentApp — read-aloud x translation (D25 reversed)', () => {
   beforeEach(() => {
     hookState.session = buildSession({
       readAloudAll: true,
@@ -438,18 +438,45 @@ describe('QuizStudentApp — read-aloud x translation (D25)', () => {
     });
   });
 
-  it('suppresses the read-aloud controls while a question renders localized', async () => {
+  it('keeps the read-aloud controls on a Spanish rendering (voiced locale)', async () => {
     setPointer({ language: 'es', readAloud: true });
     render(<QuizStudentApp />);
     await waitFor(() =>
       expect(screen.getByText('¿Capital de Francia?')).toBeInTheDocument()
     );
     expect(
+      screen.getByRole('button', { name: READ_QUESTION })
+    ).toBeInTheDocument();
+  });
+
+  it('hides them on a locale with no TTS voice (Somali)', async () => {
+    hookState.session = buildSession({
+      readAloudAll: true,
+      language: 'en-US',
+      publicQuestions: [
+        {
+          ...QUESTIONS[0],
+          localized: {
+            so: {
+              text: 'Caasimadda Faransiiska?',
+              choices: ['Paris', 'London', 'Rome'],
+            },
+          },
+        },
+        QUESTIONS[1],
+      ],
+    });
+    setPointer({ language: 'so', readAloud: true });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('Caasimadda Faransiiska?')).toBeInTheDocument()
+    );
+    expect(
       screen.queryByRole('button', { name: READ_QUESTION })
     ).not.toBeInTheDocument();
   });
 
-  it('restores them on the English toggle', async () => {
+  it('keeps them on the English toggle', async () => {
     const user = userEvent.setup();
     setPointer({ language: 'es', readAloud: true });
     render(<QuizStudentApp />);
@@ -465,16 +492,16 @@ describe('QuizStudentApp — read-aloud x translation (D25)', () => {
   });
 });
 
-describe('QuizStudentApp — FIB is never translated (D21)', () => {
+describe('QuizStudentApp — FIB translation (PR4)', () => {
   const FIB: QuizPublicQuestion = {
     id: 'qf',
     type: 'FIB',
-    text: 'The capital of France is ___.',
+    text: 'The capital of France is ____.',
     timeLimit: 0,
-    localized: { es: { text: 'La capital de Francia es ___.' } },
+    localized: { es: { text: 'La capital de Francia es ____.' } },
   };
 
-  it('renders the English stem with no toggle', async () => {
+  it('renders the localized stem with its blanks intact', async () => {
     hookState.session = buildSession({
       publicQuestions: [FIB],
       totalQuestions: 1,
@@ -483,15 +510,26 @@ describe('QuizStudentApp — FIB is never translated (D21)', () => {
     render(<QuizStudentApp />);
     await waitFor(() =>
       expect(
-        screen.getByText('The capital of France is ___.')
+        screen.getByText('La capital de Francia es ____.')
       ).toBeInTheDocument()
     );
     expect(
-      screen.queryByText('La capital de Francia es ___.')
+      screen.queryByText('The capital of France is ____.')
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: ENGLISH_LABEL })
-    ).not.toBeInTheDocument();
+  });
+
+  it('falls back to English when the locale has no FIB entry', async () => {
+    hookState.session = buildSession({
+      publicQuestions: [{ ...FIB, localized: undefined }],
+      totalQuestions: 1,
+    });
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(
+        screen.getByText('The capital of France is ____.')
+      ).toBeInTheDocument()
+    );
   });
 });
 
@@ -566,5 +604,58 @@ describe('QuizStudentApp — recording takes carry the rendering locale', () => 
     await user.click(screen.getByRole('button', { name: 'commit-take' }));
     await waitFor(() => expect(mockCommitRecording).toHaveBeenCalled());
     expect(lastCommit()).not.toHaveProperty('locale');
+  });
+});
+
+describe('QuizStudentApp — localized FIB feedback', () => {
+  const FIB: QuizPublicQuestion = {
+    id: 'qf',
+    type: 'FIB',
+    text: 'Capital of France?',
+    timeLimit: 0,
+    localized: { es: { text: '¿Capital de Francia?' } },
+  } as QuizPublicQuestion;
+
+  beforeEach(() => {
+    hookState.session = buildSession({
+      sessionMode: 'teacher',
+      publicQuestions: [FIB],
+      totalQuestions: 1,
+      showResultToStudent: true,
+      revealedAnswers: { qf: 'Paris' },
+    });
+  });
+
+  it('shows no verdict for an answer typed in the served locale', async () => {
+    const user = userEvent.setup();
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('¿Capital de Francia?')).toBeInTheDocument()
+    );
+
+    await user.type(screen.getByRole('textbox'), 'París');
+    await user.click(screen.getByRole('button', { name: /Submit Answer/i }));
+
+    await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
+    expect(screen.queryByText('Incorrect')).not.toBeInTheDocument();
+    expect(screen.queryByText('Correct!')).not.toBeInTheDocument();
+  });
+
+  it('still grades locally when the student answers in English', async () => {
+    const user = userEvent.setup();
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('¿Capital de Francia?')).toBeInTheDocument()
+    );
+    await user.click(englishToggle());
+
+    await user.type(screen.getByRole('textbox'), 'Paris');
+    await user.click(screen.getByRole('button', { name: /Submit Answer/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Correct!')).toBeInTheDocument()
+    );
   });
 });

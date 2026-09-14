@@ -379,7 +379,7 @@ export function toPublicQuestion(
   q: QuizQuestion,
   translations?: Record<string, QuestionTranslation>
 ): QuizPublicQuestion {
-  // D21: FIB stems stay English — never seed a localized entry for them.
+  // Every type is translatable now; the guard stays so a future exclusion holds.
   const entries = isTranslatableQuestionType(q.type)
     ? Object.entries(translations ?? {})
     : [];
@@ -624,7 +624,12 @@ export function gradeAnswer(
    * `QuizResponse.grading[question.id]`. Only consulted for written
    * question types (`short`, `essay`); ignored for auto-graded types.
    */
-  manualGrade?: import('@/types').WrittenAnswerGrade
+  manualGrade?: import('@/types').WrittenAnswerGrade,
+  /**
+   * FIB only: translated accepted answers for this question, snapshotted on the
+   * assignment doc. Normalized the same way the English comparison is.
+   */
+  acceptedAnswers?: readonly string[]
 ): GradeResult {
   const max = question.points ?? 1;
   const partial = question.allowPartialCredit === true;
@@ -663,7 +668,10 @@ export function gradeAnswer(
   const given = normalizeAnswer(studentAnswer);
 
   if (question.type === 'MC' || question.type === 'FIB') {
-    const isCorrect = correct === given;
+    const isCorrect =
+      correct === given ||
+      (question.type === 'FIB' &&
+        (acceptedAnswers ?? []).some((a) => normalizeAnswer(a) === given));
     return {
       isCorrect,
       pointsEarned: isCorrect ? max : 0,
@@ -1669,9 +1677,12 @@ export interface UseQuizSessionStudentResult {
    * Returns the session's periodNames so the UI can show a period picker
    * before the student commits to joining.
    */
-  lookupSession: (
-    code: string
-  ) => Promise<{ periodNames: string[]; classIds: string[] } | null>;
+  lookupSession: (code: string) => Promise<{
+    periodNames: string[];
+    classIds: string[];
+    /** Session doc id — also the assignment id for pointer-doc lookups. */
+    sessionId: string;
+  } | null>;
   /**
    * Join a quiz session.
    *
@@ -1939,7 +1950,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const lookupSession = useCallback(
     async (
       code: string
-    ): Promise<{ periodNames: string[]; classIds: string[] } | null> => {
+    ): Promise<{
+      periodNames: string[];
+      classIds: string[];
+      sessionId: string;
+    } | null> => {
       // Populate the hook's `error` state on failure so callers' .catch
       // handlers (which only console.warn) still produce visible UI feedback.
       // Without this a network/Firestore failure during code lookup silently
@@ -1967,6 +1982,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           return bt - at;
         });
         const sessionData = joinable[0].data() as QuizSession;
+        const sessionId = joinable[0].id;
         // resolvePeriodNames normalises legacy periodName + new periodNames
         // into a typed string[], avoiding the `any[]` from Firestore's
         // DocumentData bleed-through.
@@ -1979,6 +1995,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           classIds: Array.isArray(sessionData.classIds)
             ? sessionData.classIds
             : [],
+          sessionId,
         };
       } catch (err) {
         const msg =

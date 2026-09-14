@@ -25,6 +25,8 @@ export interface SetAssignmentTargetsCallInput {
   add: StudentTargetRef[];
   remove: StudentTargetRef[];
   overridesBySourcedId: Record<string, StudentOverride | null>;
+  /** Skipped students; omitted entirely keeps the legacy fan-out. */
+  excludedTargets?: StudentTargetRef[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;
@@ -46,6 +48,8 @@ export interface SetAssignmentTargetsCallResult {
   updated?: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
+  /** Subset of `skipped` the teacher asked to SKIP; their skip did not land. */
+  skippedExclusions?: { ref: StudentTargetRef; reason: SkipReason }[];
 }
 
 export interface UseSetAssignmentTargetsResult {

@@ -48,8 +48,11 @@ import {
 } from './useSetAssignmentTargets';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
+  payloadRequiresCall,
   studentTargetRefKey,
   type AssignTargetingValue,
+  type ClassTargetingContext,
 } from '@/utils/studentTargetRef';
 import type {
   AssignmentKind,
@@ -72,6 +75,8 @@ const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
 
 export interface SaveAssignmentEditResult {
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
+  /** Subset of `skipped` whose SKIP did not land, so they still see the work. */
+  skippedExclusions: { ref: StudentTargetRef; reason: SkipReason }[];
 }
 
 export interface UseAssignmentDetailActionsResult {
@@ -81,10 +86,15 @@ export interface UseAssignmentDetailActionsResult {
   saveEdit: (
     row: UnifiedAssignmentRow,
     userId: string,
-    next: AssignTargetingValue
+    next: AssignTargetingValue,
+    classContext?: ClassTargetingContext
   ) => Promise<SaveAssignmentEditResult>;
   /** Convenience: sets `closeAt` to now, leaving targeting/overrides untouched. */
-  closeNow: (row: UnifiedAssignmentRow, userId: string) => Promise<void>;
+  closeNow: (
+    row: UnifiedAssignmentRow,
+    userId: string,
+    classContext?: ClassTargetingContext
+  ) => Promise<void>;
 }
 
 /** Reconstructs the row's current targeting value — the "previous" side of the D3 diff. */
@@ -102,6 +112,7 @@ export function assignmentRowToTargetingValue(
     targetStudents: row.targetStudents ?? [],
     targetGroupIds: [],
     overridesByKey,
+    excludedStudents: row.excludedTargets ?? [],
     openAt: row.openAt ?? undefined,
     closeAt: row.closeAt ?? undefined,
   };
@@ -114,18 +125,27 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
     async (
       row: UnifiedAssignmentRow,
       userId: string,
-      next: AssignTargetingValue
+      next: AssignTargetingValue,
+      classContext?: ClassTargetingContext
     ): Promise<SaveAssignmentEditResult> => {
       const previous = assignmentRowToTargetingValue(row);
-      const payload = buildSetAssignmentTargetsPayload(previous, next);
+      // Expand once so the assignment doc stores the same snapshot the CF fans
+      // out. Roster defaults are NOT re-applied: the stored snapshot is frozen,
+      // so a standing accommodation added later never lands retroactively.
+      const effective = classContext
+        ? expandClassTargeting(next, classContext, { useRosterDefaults: false })
+        : next;
+      const payload = buildSetAssignmentTargetsPayload(previous, effective);
 
-      const targetingChanged =
-        payload.add.length > 0 ||
-        payload.remove.length > 0 ||
-        Object.keys(payload.overridesBySourcedId).length > 0;
-      const callCf = targetingChanged || next.targetMode === 'students';
+      // A window edit must still reach the pointer docs this assignment
+      // already fanned out, or "Close now" never reaches accommodated students.
+      const hasExistingPointers =
+        (previous.targetStudents?.length ?? 0) > 0 ||
+        (previous.excludedStudents?.length ?? 0) > 0;
+      const callCf = payloadRequiresCall(payload, hasExistingPointers);
 
       let skipped: SaveAssignmentEditResult['skipped'] = [];
+      let skippedExclusions: SaveAssignmentEditResult['skipped'] = [];
       if (callCf) {
         const result = await setAssignmentTargets({
           assignmentId: row.id,
@@ -135,9 +155,13 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
           add: payload.add,
           remove: payload.remove,
           overridesBySourcedId: payload.overridesBySourcedId,
+          ...(payload.excludedTargets
+            ? { excludedTargets: payload.excludedTargets }
+            : {}),
           window: payload.window,
         });
         skipped = result.skipped;
+        skippedExclusions = result.skippedExclusions ?? [];
       }
 
       const assignmentRef = doc(
@@ -157,7 +181,7 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         updatedAt: Date.now(),
         // Client-owned sibling the CF never writes (spec §2a division of labor).
         // `targetGroupIds` is safe to replace wholesale — it isn't a nested map.
-        targetGroupIds: next.targetGroupIds,
+        targetGroupIds: effective.targetGroupIds,
       };
       // `overridesBySourcedId` is a nested map: Firestore's set-with-merge
       // recurses into maps key-by-key, so a whole-map replace here would leave
@@ -166,27 +190,43 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       // `deleteField()` any key present in `previous` but absent from `next`.
       const overrideKeys = new Set([
         ...Object.keys(previous.overridesByKey),
-        ...Object.keys(next.overridesByKey),
+        ...Object.keys(effective.overridesByKey),
       ]);
       for (const key of overrideKeys) {
         assignmentPatch[`overridesBySourcedId.${key}`] =
-          key in next.overridesByKey ? next.overridesByKey[key] : deleteField();
+          key in effective.overridesByKey
+            ? effective.overridesByKey[key]
+            : deleteField();
+      }
+      if (payload.excludedTargets) {
+        assignmentPatch.excludedTargets = payload.excludedTargets;
       }
       if (callCf) assignmentPatch.targetSkippedCount = skipped.length;
       if ('openAt' in payload.window)
-        assignmentPatch.openAt = next.openAt ?? null;
+        assignmentPatch.openAt = effective.openAt ?? null;
       if ('closeAt' in payload.window)
-        assignmentPatch.closeAt = next.closeAt ?? null;
-      if ('dueAt' in payload.window) assignmentPatch.dueAt = next.dueAt ?? null;
-      if (payload.remove.length > 0) {
-        assignmentPatch.removedStudentRefs = arrayUnion(...payload.remove);
+        assignmentPatch.closeAt = effective.closeAt ?? null;
+      if ('dueAt' in payload.window)
+        assignmentPatch.dueAt = effective.dueAt ?? null;
+      // An un-skip deletes a marker pointer; it is not a de-targeting, so it
+      // must never be archived as a removed student.
+      const unskippedKeys = new Set(
+        (payload.unskipped ?? []).map(studentTargetRefKey)
+      );
+      const deTargeted = payload.remove.filter(
+        (ref) => !unskippedKeys.has(studentTargetRefKey(ref))
+      );
+      if (deTargeted.length > 0) {
+        assignmentPatch.removedStudentRefs = arrayUnion(...deTargeted);
       }
 
       const sessionPatch: Record<string, unknown> = {};
-      if ('openAt' in payload.window) sessionPatch.openAt = next.openAt ?? null;
+      if ('openAt' in payload.window)
+        sessionPatch.openAt = effective.openAt ?? null;
       if ('closeAt' in payload.window)
-        sessionPatch.closeAt = next.closeAt ?? null;
-      if ('dueAt' in payload.window) sessionPatch.dueAt = next.dueAt ?? null;
+        sessionPatch.closeAt = effective.closeAt ?? null;
+      if ('dueAt' in payload.window)
+        sessionPatch.dueAt = effective.dueAt ?? null;
 
       const batch = writeBatch(db);
       batch.set(assignmentRef, assignmentPatch, { merge: true });
@@ -195,15 +235,24 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       }
       await batch.commit();
 
-      return { skipped };
+      return { skipped, skippedExclusions };
     },
     [setAssignmentTargets]
   );
 
   const closeNow = useCallback(
-    async (row: UnifiedAssignmentRow, userId: string): Promise<void> => {
+    async (
+      row: UnifiedAssignmentRow,
+      userId: string,
+      classContext?: ClassTargetingContext
+    ): Promise<void> => {
       const current = assignmentRowToTargetingValue(row);
-      await saveEdit(row, userId, { ...current, closeAt: Date.now() });
+      await saveEdit(
+        row,
+        userId,
+        { ...current, closeAt: Date.now() },
+        classContext
+      );
     },
     [saveEdit]
   );

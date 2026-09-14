@@ -8,7 +8,8 @@
  *
  * A trigger (not a callable) so admin-console and script deletes are covered
  * too. The deleted doc's own `targetStudents` refs are re-hashed to recover the
- * exact pointer uids, so no `/student_assignments` query is needed — which also
+ * exact pointer uids — plus `excludedTargets`, whose skip markers are pointer
+ * docs too — so no `/student_assignments` query is needed — which also
  * keeps the A3 non-goal (no cross-assignment per-student querying) intact.
  * Assignments with no `targetStudents` (every pre-M17 doc) are a no-op.
  */
@@ -21,6 +22,7 @@ import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
 import {
   STUDENT_ASSIGNMENTS_ROOT,
   STUDENT_ASSIGNMENT_ITEMS,
+  pointerRefsFromAssignment,
   targetRefsFromAssignment,
   uidForRef,
   type StudentTargetRef,
@@ -29,7 +31,7 @@ import {
 const BATCH_OP_LIMIT = 400;
 
 // Shared with the fan-out CF so both sides hash the identical ref set.
-export { targetRefsFromAssignment };
+export { targetRefsFromAssignment, pointerRefsFromAssignment };
 
 export async function deletePointersForAssignment(
   db: admin.firestore.Firestore,
@@ -59,7 +61,7 @@ async function handleAssignmentDeleted(
   assignmentId: string,
   data: Record<string, unknown> | undefined
 ): Promise<void> {
-  const refs = targetRefsFromAssignment(data);
+  const refs = pointerRefsFromAssignment(data);
   if (refs.length === 0) return;
   const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
   if (!hmacSecret) {

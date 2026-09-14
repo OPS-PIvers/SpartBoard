@@ -76,6 +76,7 @@ import {
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
 import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
+import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
@@ -113,6 +114,8 @@ import {
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
+  payloadRequiresCall,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
@@ -848,6 +851,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
   const byStudentUidRef = useRef(byStudentUid);
   byStudentUidRef.current = byStudentUid;
+  // Translated FIB answer keys + served-locale overrides for the live assignment.
+  const liveAssignment = config.activeAssignmentId
+    ? assignments.find((a) => a.id === config.activeAssignmentId)
+    : undefined;
+  const fibGradingRef = useRef<FibGradingContext>({});
+  fibGradingRef.current = {
+    answers: liveAssignment?.localizedFibAnswers ?? null,
+    overridesByStudentUid: liveAssignment?.overridesByStudentUid ?? null,
+    overridesBySourcedId: liveAssignment?.overridesBySourcedId ?? null,
+  };
 
   // ─── Callback for child components to update quiz config ────────────────────
   const handleUpdateQuizConfig = useCallback(
@@ -925,7 +938,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 const q = questions.find((qn) => qn.id === a.questionId);
                 if (q) maxAnsweredPoints += q.points ?? 1;
               }
-              const earned = getEarnedPoints(r, questions, liveSession);
+              const earned = getEarnedPoints(
+                r,
+                questions,
+                liveSession,
+                fibGradingRef.current
+              );
               // When gamification is active, show raw points to avoid >100% values
               const score = gamified
                 ? earned
@@ -964,7 +982,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             displayMode,
             pinToName,
             liveSession,
-            byStudentUidRef.current
+            byStudentUidRef.current,
+            fibGradingRef.current
           );
         }
 
@@ -1302,6 +1321,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }}
         overridesBySourcedId={activeAssignment?.overridesBySourcedId ?? null}
+        localizedFibAnswers={activeAssignment?.localizedFibAnswers ?? null}
+        overridesByStudentUid={activeAssignment?.overridesByStudentUid ?? null}
         initialExportUrl={activeAssignment?.exportUrl ?? null}
         plcSheetUrl={activeAssignment?.plc?.sheetUrl ?? null}
         onExportUrlSaved={
@@ -1464,6 +1485,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         overridesBySourcedId={
           monitorActiveAssignment?.overridesBySourcedId ?? null
         }
+        overridesByStudentUid={
+          monitorActiveAssignment?.overridesByStudentUid ?? null
+        }
+        localizedFibAnswers={
+          monitorActiveAssignment?.localizedFibAnswers ?? null
+        }
       />
     );
   }
@@ -1597,10 +1624,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             data.questions,
             targeting.overridesByKey
           );
-          const resolvedTargeting: AssignTargetingValue = {
-            ...targeting,
-            overridesByKey: hiddenOptions.overridesByKey,
-          };
+          // Snapshot the checked classes now: the hub must render what was
+          // assigned, not whatever the roster defaults say later.
+          const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+            {
+              ...targeting,
+              overridesByKey: hiddenOptions.overridesByKey,
+            },
+            { rosters, selectedRosterIds: rosterIds }
+          );
           for (const warning of hiddenOptions.warnings) {
             addToast(warning, 'warning');
           }
@@ -1769,12 +1801,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            if (resolvedTargeting.targetMode === 'students') {
+            const payload = buildSetAssignmentTargetsPayload(
+              undefined,
+              resolvedTargeting
+            );
+            if (payloadRequiresCall(payload)) {
               try {
-                const payload = buildSetAssignmentTargetsPayload(
-                  undefined,
-                  resolvedTargeting
-                );
                 const result = await setAssignmentTargets({
                   assignmentId,
                   kind: 'quiz',
@@ -1783,6 +1815,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   add: payload.add,
                   remove: payload.remove,
                   overridesBySourcedId: payload.overridesBySourcedId,
+                  ...(payload.excludedTargets
+                    ? { excludedTargets: payload.excludedTargets }
+                    : {}),
                   window: payload.window,
                 });
                 if (result.skipped.length > 0) {
@@ -1791,7 +1826,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     [assignmentId]: result.skipped,
                   }));
                   addToast(
-                    skippedTargetsToastMessage(result.skipped.length),
+                    skippedTargetsToastMessage(
+                      result.skipped.length,
+                      result.skippedExclusions?.length ?? 0
+                    ),
                     'warning'
                   );
                   // Skipped-ref durability (canonical rule) — persist the
@@ -2710,6 +2748,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // access to every question's `correctAnswer` — the session's
             // `publicQuestions` strips them for student safety.
             const target = publishingAssignment;
+            const publishFibGrading: FibGradingContext = {
+              answers: target.localizedFibAnswers ?? null,
+              overridesByStudentUid: target.overridesByStudentUid ?? null,
+              overridesBySourcedId: target.overridesBySourcedId ?? null,
+            };
             try {
               if (visibility === 'none') {
                 await unpublishAssignmentScores(target.id);
@@ -2783,7 +2826,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     ? buildQuizClassroomGradeEntries(
                         responses,
                         data.questions,
-                        mp
+                        mp,
+                        publishFibGrading
                       )
                     : [];
                 },
@@ -2791,7 +2835,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   buildQuizClassroomGradeEntries(
                     responses,
                     data.questions,
-                    quizMaxPoints(data.questions)
+                    quizMaxPoints(data.questions),
+                    publishFibGrading
                   ),
               });
               setPublishingAssignment(null);

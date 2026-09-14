@@ -71,8 +71,8 @@ vi.mock('@/hooks/useGuidedLearningSession', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useStudentAssignmentOverride', () => ({
-  useStudentAssignmentOverride: mockUseOverride,
+vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
+  useStudentAssignmentPointer: mockUseOverride,
 }));
 
 vi.mock(
@@ -159,5 +159,20 @@ describe('GuidedLearningStudentApp — pointer-override gate', () => {
     const lastCallArgs =
       mockUseOverride.mock.calls[mockUseOverride.mock.calls.length - 1];
     expect(lastCallArgs[2]).toBe(false);
+  });
+
+  it('renders the not-for-you state when the pointer marks the student excluded', async () => {
+    mockAuth.currentUser = mintUser({
+      uid: 'sso-uid-1',
+      isAnonymous: false,
+      studentRole: true,
+    });
+    mockUseOverride.mockReturnValue({ excluded: true });
+
+    render(<GuidedLearningStudentApp />);
+
+    expect(
+      await screen.findByText(/not for you|studentAssignment.excludedTitle/i)
+    ).toBeInTheDocument();
   });
 });

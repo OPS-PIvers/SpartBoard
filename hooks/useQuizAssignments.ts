@@ -35,9 +35,17 @@ import type { QuizTranslationIndexEntry } from '@/types';
 import type { TranslationLoader } from '@/utils/quizTranslationPublish';
 import {
   enforceSessionSizeBudget,
+  estimateReadAloudManifestBytes,
+  estimateReadAloudPartCount,
   loadTranslationsForPublish,
   targetedLocaleCounts,
+  SESSION_DOC_BYTE_BUDGET,
 } from '@/utils/quizTranslationPublish';
+import {
+  collectLocalizedFibAnswers,
+  fibAcceptedAnswers,
+} from '@/utils/quizFibAnswers';
+import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
@@ -103,6 +111,7 @@ import {
 } from '@/utils/quizHandRaise';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
+import { readAloudTranslationLocales } from '@/config/quizReadAloud';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
 import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 
@@ -734,7 +743,9 @@ export type QuizTranslationsByLocale = Record<string, QuizTranslation>;
 export function selectQuestionTranslations(
   questionId: string,
   translations: QuizTranslationsByLocale | undefined,
-  freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
+  freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>,
+  /** The English question, so a FIB entry missing its answer key falls back. */
+  question?: Pick<QuizQuestion, 'type' | 'text' | 'correctAnswer'>
 ): Record<string, QuestionTranslation> | undefined {
   if (!translations) return undefined;
   const out: Record<string, QuestionTranslation> = {};
@@ -743,6 +754,7 @@ export function selectQuestionTranslations(
     if (!entry) continue;
     if (!translation.reviewedQuestionIds?.includes(questionId)) continue;
     if (!freshQuestionIdsByLocale?.[locale]?.has(questionId)) continue;
+    if (question && fibTranslationIssue(question, entry)) continue;
     out[locale] = entry;
   }
   return Object.keys(out).length > 0 ? out : undefined;
@@ -816,7 +828,8 @@ export const useQuizAssignments = (
         selectQuestionTranslations(
           question.id,
           translations,
-          freshQuestionIdsByLocale
+          freshQuestionIdsByLocale,
+          question
         )
       );
       if (mediaResponseGranted || !projected.recording) return projected;
@@ -1045,6 +1058,13 @@ export const useQuizAssignments = (
         Object.keys(targetedLocaleCountByCode),
         sessionQuestions
       );
+      const localizedFibAnswers = collectLocalizedFibAnswers(
+        sessionQuestions,
+        translations.byLocale,
+        translations.freshQuestionIdsByLocale
+      );
+      if (Object.keys(localizedFibAnswers).length > 0)
+        assignment.localizedFibAnswers = localizedFibAnswers;
       const sessionPublicQuestions = sessionQuestions.map((q) =>
         projectPublicQuestionForMode(
           q,
@@ -1162,8 +1182,27 @@ export const useQuizAssignments = (
           : {}),
       };
 
+      const readAloudLocales = readAloudTranslationLocales(
+        overridesBySourcedId ?? {},
+        opts.readAloudAll === true
+      );
+      const readAloudPlanned =
+        opts.readAloudAll === true ||
+        Object.values(overridesBySourcedId ?? {}).some(
+          (o) => o?.readAloud === true
+        );
       if (Object.keys(translations.byLocale).length > 0) {
-        enforceSessionSizeBudget(session, targetedLocaleCountByCode);
+        enforceSessionSizeBudget(
+          session,
+          targetedLocaleCountByCode,
+          SESSION_DOC_BYTE_BUDGET,
+          readAloudPlanned
+            ? estimateReadAloudManifestBytes(
+                estimateReadAloudPartCount(session.publicQuestions),
+                readAloudLocales.length
+              )
+            : 0
+        );
       }
 
       const batch = writeBatch(db);
@@ -1181,11 +1220,8 @@ export const useQuizAssignments = (
       // R1: synthesize up front, billed to the teacher; the student fallback
       // covers the assign-then-start race. Override-only flags added later go
       // through `setAssignmentTargetsV1`, which re-triggers server-side.
-      const anyOverrideReadAloud = Object.values(
-        overridesBySourcedId ?? {}
-      ).some((o) => o?.readAloud === true);
-      if (opts.readAloudAll === true || anyOverrideReadAloud) {
-        prepareQuizReadAloudInBackground(assignmentId);
+      if (readAloudPlanned) {
+        prepareQuizReadAloudInBackground(assignmentId, readAloudLocales);
       }
 
       // PLC dashboard index: when this assignment opts into PLC mode,
@@ -2292,8 +2328,18 @@ export const useQuizAssignments = (
       // local copy, and rewriting that on every sync would be a
       // surprise. Sync only touches the question content + version
       // bookkeeping.
+      const syncedFibAnswers = collectLocalizedFibAnswers(
+        canonicalQuestions,
+        servedTranslations,
+        freshByLocale
+      );
       const firstBatch = writeBatch(db);
       firstBatch.update(assignmentRef, {
+        // Re-derived every sync so an edited or unreviewed answer key stops grading.
+        localizedFibAnswers:
+          Object.keys(syncedFibAnswers).length > 0
+            ? syncedFibAnswers
+            : deleteField(),
         sync: {
           groupId: assignment.sync.groupId,
           syncedVersion: canonical.version,
@@ -2369,7 +2415,15 @@ export const useQuizAssignments = (
       }
       await firstBatch.commit();
       // Rebuilt publicQuestions may carry new text; re-hash and fill the manifest.
-      if (syncReadAloud) prepareQuizReadAloudInBackground(assignmentId);
+      if (syncReadAloud)
+        prepareQuizReadAloudInBackground(
+          assignmentId,
+          readAloudTranslationLocales(
+            assignment.overridesBySourcedId ?? {},
+            (behavior?.sessionOptions ?? assignment.sessionOptions)
+              ?.readAloudAll === true
+          )
+        );
 
       // Subsequent chunks for any remaining responses.
       for (
@@ -2494,6 +2548,9 @@ export const useQuizAssignments = (
       const assignmentSnap = await getDoc(assignmentRef);
       const overridesByStudentUid = (assignmentSnap.data()
         ?.overridesByStudentUid ?? {}) as Record<string, StudentOverride>;
+      // Translated FIB answer keys snapshotted at assign time; absent on older assignments.
+      const localizedFibAnswers = (assignmentSnap.data()?.localizedFibAnswers ??
+        {}) as Record<string, Record<string, string[]>>;
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -2540,6 +2597,9 @@ export const useQuizAssignments = (
           Array.isArray(subsetIds) && subsetIds.length > 0
             ? new Set(subsetIds)
             : null;
+        // Teacher-side truth only: never the client-asserted `response.locale`.
+        const servedLocale =
+          overridesByStudentUid[data.studentUid]?.language ?? undefined;
         let pointsEarned = 0;
         let pointsMax = 0;
         // Set when any answered slot is still owed a teacher grade (ungraded
@@ -2580,7 +2640,12 @@ export const useQuizAssignments = (
           const result = applyMediaSlots(
             q,
             data,
-            gradeAnswer(q, a.answer, manualGrade)
+            gradeAnswer(
+              q,
+              a.answer,
+              manualGrade,
+              fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale)
+            )
           );
           if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (
