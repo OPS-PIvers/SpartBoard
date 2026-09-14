@@ -1242,6 +1242,7 @@ const QuizJoinFlow: React.FC<{
           currentQuestion={currentQ}
           myResponse={myResponse}
           totalQuestions={servedTotalQuestions}
+          servedLocale={myOverride?.language}
         />
       );
     }
@@ -1804,6 +1805,10 @@ const ActiveQuiz: React.FC<{
     !!assignedLocale &&
     !!currentQuestion &&
     serveLocalizedQuestion(currentQuestion, assignedLocale) !== null;
+  // A FIB answered in a translated locale is graded against the teacher's
+  // translated key, which this client never sees — no local verdict here.
+  const suppressFibVerdict =
+    currentQuestion?.type === 'FIB' && localizedStrings !== null;
 
   // Read-aloud (docs/plans/QUIZ_READ_ALOUD.md §6.2): self-paced light shell only.
   const readAloud = useQuizReadAloud({
@@ -2502,6 +2507,7 @@ const ActiveQuiz: React.FC<{
       currentRevealed &&
       submitted &&
       !isWritten &&
+      !suppressFibVerdict &&
       session.showResultToStudent &&
       answerFeedback === null
     ) {
@@ -2591,7 +2597,7 @@ const ActiveQuiz: React.FC<{
     // ─── Answer feedback & gamification ──────────────────────────────────────
     // Check if answer is correct by reading revealedAnswers from session
     // (teacher-controlled). For student-paced mode, the teacher may auto-reveal.
-    if (session.showResultToStudent) {
+    if (session.showResultToStudent && !suppressFibVerdict) {
       const revealed = session.revealedAnswers?.[currentQuestion.id];
       if (revealed) {
         // Matching answers are order-insensitive pipe-delimited sets
@@ -4049,15 +4055,31 @@ const ReviewPhase: React.FC<{
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
   /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
   totalQuestions?: number;
-}> = ({ session, currentQuestion, myResponse, totalQuestions }) => {
+  /** The accommodation language this student was served, when any. */
+  servedLocale?: string;
+}> = ({
+  session,
+  currentQuestion,
+  myResponse,
+  totalQuestions,
+  servedLocale,
+}) => {
   const gamificationEnabled = isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
     (a) => a.questionId === currentQuestion.id
   );
 
+  // A translated FIB has no client-side key; only the teacher's flag is trustworthy.
+  const localizedFib =
+    currentQuestion.type === 'FIB' &&
+    serveLocalizedQuestion(currentQuestion, servedLocale) !== null;
+
   let isCorrect: boolean | null = null;
-  if (myAnswer && revealed) {
+  if (localizedFib) {
+    isCorrect =
+      typeof myAnswer?.isCorrect === 'boolean' ? myAnswer.isCorrect : null;
+  } else if (myAnswer && revealed) {
     if (currentQuestion.type === 'Matching') {
       const correctSet = new Set(revealed.split('|').map(normalizeAnswer));
       const givenParts = myAnswer.answer.split('|').map(normalizeAnswer);

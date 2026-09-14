@@ -75,6 +75,25 @@ export interface SessionInput {
   responses: CompletedResponse[];
   /** ms when the teacher published scores; null while unpublished. */
   scorePublishedAt: number | null;
+  /** Assignment-doc FIB answer keys, `{ [questionId]: { [locale]: string[] } }`. */
+  localizedFibAnswers?: Record<string, Record<string, string[]>>;
+  /** Assignment-doc per-student overrides; only the served `language` is used here. */
+  overridesByStudentUid?: Record<string, { language?: string }>;
+}
+
+/** Accepted FIB answers for the locale the TEACHER served, never a client-asserted one. */
+export function servedFibAnswers(
+  session: Pick<SessionInput, 'localizedFibAnswers' | 'overridesByStudentUid'>,
+  studentUid: string,
+  questionId: string
+): string[] {
+  const locale = session.overridesByStudentUid?.[studentUid]?.language;
+  if (!locale) return [];
+  const answers = session.localizedFibAnswers?.[questionId]?.[locale];
+  if (!Array.isArray(answers)) return [];
+  return answers.filter(
+    (a): a is string => typeof a === 'string' && a.trim() !== ''
+  );
 }
 
 export interface ComputeInput {
@@ -465,7 +484,9 @@ function longestOrderedSubsequenceLength(
 export function gradeGroupAnswer(
   question: GroupQuestion,
   studentAnswer: string,
-  manual: ManualGrade | undefined
+  manual: ManualGrade | undefined,
+  /** FIB only: translated accepted answers for the locale served to this student. */
+  acceptedAnswers?: readonly string[]
 ): LocalGrade {
   const max = question.points;
   const attempted = hasSubmittedContent(studentAnswer);
@@ -553,7 +574,10 @@ export function gradeGroupAnswer(
       state,
     };
   }
-  const isCorrect = correct === given;
+  const isCorrect =
+    correct === given ||
+    (question.type === 'FIB' &&
+      (acceptedAnswers ?? []).some((a) => normalizeAnswer(a) === given));
   return {
     isCorrect,
     pointsEarned: isCorrect ? max : 0,
@@ -689,7 +713,10 @@ export function computeAssessmentAggregate(
         const grade = gradeGroupAnswer(
           question,
           a?.answer ?? '',
-          r.manualGrades?.[sessionQid]
+          r.manualGrades?.[sessionQid],
+          question.type === 'FIB'
+            ? servedFibAnswers(session, r.studentUid, sessionQid)
+            : undefined
         );
         if (grade.state === 'no-key' || grade.state === 'awaiting-grade') {
           gradable = false;
