@@ -912,6 +912,25 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
     expect(sessionCall[1]).toMatchObject({ blockCopyPaste: true });
   });
 
+  it('never mirrors handRaiseEnabled onto a live session doc', async () => {
+    // The gate is resolved at create time only; a later patch (e.g. a PLC
+    // sync) must not switch raise hand on inside a force-off building.
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
+        sessionOptions: { handRaiseEnabled: true, blockCopyPaste: true },
+      });
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).not.toHaveProperty('handRaiseEnabled');
+    expect(sessionCall[1]).toMatchObject({ blockCopyPaste: true });
+  });
+
   it('translates explicit-undefined plc into deleteField() so toggle-OFF actually clears the linkage', async () => {
     // Firestore is initialized with `ignoreUndefinedProperties: true`, so a
     // raw `{ plc: undefined }` patch would be silently dropped on the wire

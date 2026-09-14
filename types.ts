@@ -4907,6 +4907,7 @@ export interface QuizAttemptLedger {
 /** Global admin configuration for the Quiz widget */
 export interface QuizGlobalConfig {
   dockDefaults?: Record<string, boolean>;
+  buildingDefaults?: Record<string, QuizBuildingConfig>;
 }
 
 /** Widget configuration for the quiz widget (teacher side) */
@@ -7832,10 +7833,6 @@ export interface FeaturePermission {
 }
 
 /** `feature_permissions/quiz.config` — admin-level quiz gates, per building. */
-export interface QuizGlobalConfig {
-  buildingDefaults?: Record<string, QuizBuildingConfig>;
-}
-
 export interface QuizBuildingConfig {
   /** 'teacher-choice' (default) | 'force-on' | 'force-off' for the raise-hand button. */
   handRaiseMode?: 'teacher-choice' | 'force-on' | 'force-off';

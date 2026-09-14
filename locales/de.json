@@ -2580,6 +2580,8 @@
       "forceOnHint": "Melden ist in jedem Quiz verfügbar und Lehrkräfte können es nicht deaktivieren.",
       "forceOff": "Immer aus",
       "forceOffHint": "Melden ist in jedem Quiz für Schüler ausgeblendet."
-    }
+    },
+    "noBuildings": "Keine Gebäude konfiguriert",
+    "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen."
   }
 }

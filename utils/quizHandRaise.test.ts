@@ -37,6 +37,35 @@ describe('readQuizHandRaiseMode', () => {
     expect(readQuizHandRaiseMode(perms, 'b3')).toBe('teacher-choice');
   });
 
+  it('canonicalizes legacy building keys on both sides of the lookup', () => {
+    const perms = [
+      permission({
+        buildingDefaults: {
+          'orono-high-school': { handRaiseMode: 'force-on' },
+        },
+      }),
+    ];
+    expect(readQuizHandRaiseMode(perms, 'high')).toBe('force-on');
+    expect(readQuizHandRaiseMode(perms, ['orono-high-school'])).toBe(
+      'force-on'
+    );
+  });
+
+  it('resolves across all buildings, most restrictive first', () => {
+    const perms = [
+      permission({
+        buildingDefaults: {
+          high: { handRaiseMode: 'force-on' },
+          middle: { handRaiseMode: 'force-off' },
+        },
+      }),
+    ];
+    expect(readQuizHandRaiseMode(perms, ['high', 'middle'])).toBe('force-off');
+    expect(readQuizHandRaiseMode(perms, ['high', 'schumann'])).toBe('force-on');
+    expect(readQuizHandRaiseMode(perms, ['schumann'])).toBe('teacher-choice');
+    expect(readQuizHandRaiseMode(perms, [])).toBe(DEFAULT_QUIZ_HAND_RAISE_MODE);
+  });
+
   it('falls back to the default for an unknown stored value', () => {
     const perms = [
       permission({ buildingDefaults: { b1: { handRaiseMode: 'nonsense' } } }),

@@ -5,9 +5,11 @@ import { X, Hand, Save, Loader2, Languages, Settings2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { BuildingSelector } from './BuildingSelector';
+import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { QuizReadAloudConfigurationPanel } from './QuizReadAloudConfigurationPanel';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import { canonicalBuildingId } from '@/config/buildings';
 import { useDashboard } from '@/context/useDashboard';
 import type {
   FeaturePermission,
@@ -24,12 +26,16 @@ interface QuizConfigurationModalProps {
   isOpen: boolean;
   onClose: () => void;
   permission: FeaturePermission;
-  onSave: (updates: Partial<FeaturePermission>) => void;
+  onSave: (
+    updates: Partial<FeaturePermission>
+  ) => void | boolean | Promise<void | boolean>;
 }
 
+// Spread the stored config so sibling keys (notably `dockDefaults`, which
+// AuthContext reads as an access gate) survive a save from this modal.
 const normalizeConfig = (raw: unknown): QuizGlobalConfig => {
   const config = raw as QuizGlobalConfig | undefined;
-  return { buildingDefaults: config?.buildingDefaults ?? {} };
+  return { ...config, buildingDefaults: config?.buildingDefaults ?? {} };
 };
 
 export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
@@ -55,28 +61,45 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
     setConfig(normalizeConfig(permission.config));
   }
 
+  // useAdminBuildings() can hand back a legacy long-form id, so read and write
+  // buildingDefaults under the canonical id like every other building reader.
+  const canonicalId = selectedBuildingId
+    ? canonicalBuildingId(selectedBuildingId)
+    : '';
+  const hasBuilding = canonicalId !== '';
+
   const currentBuildingConfig: QuizBuildingConfig = useMemo(
-    () => config.buildingDefaults?.[selectedBuildingId] ?? {},
-    [config.buildingDefaults, selectedBuildingId]
+    () => (canonicalId ? (config.buildingDefaults?.[canonicalId] ?? {}) : {}),
+    [config.buildingDefaults, canonicalId]
   );
 
   const handRaiseMode =
     currentBuildingConfig.handRaiseMode ?? DEFAULT_QUIZ_HAND_RAISE_MODE;
 
   const updateBuilding = (updates: Partial<QuizBuildingConfig>) => {
+    if (!canonicalId) return;
     setConfig((prev) => ({
       ...prev,
       buildingDefaults: {
         ...prev.buildingDefaults,
-        [selectedBuildingId]: { ...currentBuildingConfig, ...updates },
+        [canonicalId]: { ...currentBuildingConfig, ...updates },
       },
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
-      onSave({ config: config as unknown as Record<string, unknown> });
+      const result = await onSave({
+        config: config as unknown as Record<string, unknown>,
+      });
+      if (result === false) {
+        addToast(
+          t('quizAdmin.saveFailed', 'Failed to save quiz configuration.'),
+          'error'
+        );
+        return;
+      }
       addToast(t('quizAdmin.saved', 'Quiz configuration saved.'), 'success');
       onClose();
     } catch (err) {
@@ -157,7 +180,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
             {t('quizAdmin.cancel', 'Cancel')}
           </button>
           <button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={saving}
             className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
           >
@@ -217,53 +240,80 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
 
         {tab === 'behavior' ? (
           <section className="space-y-4">
-            <div>
-              <SettingsLabel as="span" icon={Settings2}>
-                {t('quizAdmin.selectBuilding', 'Select building to configure')}
-              </SettingsLabel>
-              <BuildingSelector
-                selectedId={selectedBuildingId}
-                onSelect={setSelectedBuildingId}
-              />
-            </div>
-
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
-              <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                <Hand className="w-4 h-4 text-brand-blue-primary" />
-                {t('quizAdmin.handRaise.heading', 'Raise hand')}
-              </h4>
-              <p className="text-xs text-slate-500">
-                {t(
-                  'quizAdmin.handRaise.help',
-                  'Controls whether students see a Raise hand button while taking a quiz in this building.'
-                )}
-              </p>
-              <div className="space-y-2">
-                {QUIZ_HAND_RAISE_MODES.map((mode) => (
-                  <label
-                    key={mode}
-                    className="flex items-start gap-3 cursor-pointer bg-white p-3 rounded-xl border border-slate-200"
-                  >
-                    <input
-                      type="radio"
-                      name="quiz-hand-raise-mode"
-                      value={mode}
-                      checked={handRaiseMode === mode}
-                      onChange={() => updateBuilding({ handRaiseMode: mode })}
-                      className="mt-0.5 border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
-                    />
-                    <span>
-                      <span className="block text-sm font-semibold text-slate-700">
-                        {MODE_COPY[mode].label}
-                      </span>
-                      <span className="block text-xs text-slate-500">
-                        {MODE_COPY[mode].hint}
-                      </span>
-                    </span>
-                  </label>
-                ))}
+            <DockDefaultsPanel
+              config={{ dockDefaults: config.dockDefaults ?? {} }}
+              onChange={(dockDefaults) =>
+                setConfig((prev) => ({ ...prev, dockDefaults }))
+              }
+            />
+            {!hasBuilding ? (
+              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center">
+                <p className="text-sm font-semibold text-slate-700">
+                  {t('quizAdmin.noBuildings', 'No buildings configured')}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {t(
+                    'quizAdmin.noBuildingsHint',
+                    'Add a building under Organization before setting a raise-hand default.'
+                  )}
+                </p>
               </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <SettingsLabel as="span" icon={Settings2}>
+                    {t(
+                      'quizAdmin.selectBuilding',
+                      'Select building to configure'
+                    )}
+                  </SettingsLabel>
+                  <BuildingSelector
+                    selectedId={selectedBuildingId}
+                    onSelect={setSelectedBuildingId}
+                  />
+                </div>
+
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                  <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                    <Hand className="w-4 h-4 text-brand-blue-primary" />
+                    {t('quizAdmin.handRaise.heading', 'Raise hand')}
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    {t(
+                      'quizAdmin.handRaise.help',
+                      'Controls whether students see a Raise hand button while taking a quiz in this building.'
+                    )}
+                  </p>
+                  <div className="space-y-2">
+                    {QUIZ_HAND_RAISE_MODES.map((mode) => (
+                      <label
+                        key={mode}
+                        className="flex items-start gap-3 cursor-pointer bg-white p-3 rounded-xl border border-slate-200"
+                      >
+                        <input
+                          type="radio"
+                          name="quiz-hand-raise-mode"
+                          value={mode}
+                          checked={handRaiseMode === mode}
+                          onChange={() =>
+                            updateBuilding({ handRaiseMode: mode })
+                          }
+                          className="mt-0.5 border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-700">
+                            {MODE_COPY[mode].label}
+                          </span>
+                          <span className="block text-xs text-slate-500">
+                            {MODE_COPY[mode].hint}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         ) : (
           <section>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { FeaturePermission } from '@/types';
 
@@ -9,12 +9,12 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: mockAddToast }),
 }));
 
-const STABLE_BUILDINGS = [
+let mockBuildings: { id: string; name: string }[] = [
   { id: 'b1', name: 'Building One' },
   { id: 'b2', name: 'Building Two' },
 ];
 vi.mock('@/hooks/useAdminBuildings', () => ({
-  useAdminBuildings: () => STABLE_BUILDINGS,
+  useAdminBuildings: () => mockBuildings,
 }));
 
 vi.mock('@/components/admin/QuizReadAloudConfigurationPanel', () => ({
@@ -32,6 +32,10 @@ const permission: FeaturePermission = {
 
 beforeEach(() => {
   mockAddToast.mockClear();
+  mockBuildings = [
+    { id: 'b1', name: 'Building One' },
+    { id: 'b2', name: 'Building Two' },
+  ];
 });
 
 describe('QuizConfigurationModal', () => {
@@ -48,7 +52,7 @@ describe('QuizConfigurationModal', () => {
     expect(screen.getByLabelText(/Always on/)).not.toBeChecked();
   });
 
-  it('saves the selected mode under the active building', () => {
+  it('saves the selected mode under the active building', async () => {
     const onSave = vi.fn();
     const onClose = vi.fn();
     render(
@@ -61,10 +65,54 @@ describe('QuizConfigurationModal', () => {
     );
     fireEvent.click(screen.getByLabelText(/Always on/));
     fireEvent.click(screen.getByText('Save Configuration'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onSave).toHaveBeenCalledWith({
       config: { buildingDefaults: { b1: { handRaiseMode: 'force-on' } } },
     });
-    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('preserves unrelated config keys such as dockDefaults', async () => {
+    const onSave = vi.fn();
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={vi.fn()}
+        permission={{
+          ...permission,
+          config: { dockDefaults: { b1: false } },
+        }}
+        onSave={onSave}
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/Always off/));
+    fireEvent.click(screen.getByText('Save Configuration'));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave).toHaveBeenCalledWith({
+      config: {
+        dockDefaults: { b1: false },
+        buildingDefaults: { b1: { handRaiseMode: 'force-off' } },
+      },
+    });
+  });
+
+  it('reports an error and stays open when the write fails', async () => {
+    const onClose = vi.fn();
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={onClose}
+        permission={permission}
+        onSave={() => Promise.resolve(false)}
+      />
+    );
+    fireEvent.click(screen.getByText('Save Configuration'));
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Failed to save quiz configuration.',
+        'error'
+      )
+    );
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('hydrates the stored mode for the selected building', () => {
@@ -80,6 +128,24 @@ describe('QuizConfigurationModal', () => {
       />
     );
     expect(screen.getByLabelText(/Always off/)).toBeChecked();
+  });
+
+  it('shows an empty state and writes no building entry with no buildings', async () => {
+    mockBuildings = [];
+    const onSave = vi.fn();
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={vi.fn()}
+        permission={permission}
+        onSave={onSave}
+      />
+    );
+    expect(screen.getByText('No buildings configured')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Always on/)).toBeNull();
+    fireEvent.click(screen.getByText('Save Configuration'));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave).toHaveBeenCalledWith({ config: { buildingDefaults: {} } });
   });
 
   it('shows the languages panel on its tab', () => {

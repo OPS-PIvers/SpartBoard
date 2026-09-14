@@ -2580,6 +2580,8 @@
       "forceOnHint": "Levantar la mano está disponible en todos los cuestionarios y los docentes no pueden desactivarlo.",
       "forceOff": "Siempre desactivado",
       "forceOffHint": "Levantar la mano está oculto para los estudiantes en todos los cuestionarios."
-    }
+    },
+    "noBuildings": "No hay edificios configurados",
+    "noBuildingsHint": "Agregue un edificio en Organización antes de establecer un valor predeterminado para levantar la mano."
   }
 }

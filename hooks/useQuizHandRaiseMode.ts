@@ -11,9 +11,9 @@ export function useQuizHandRaiseMode(): QuizHandRaiseMode {
   // useContext rather than useAuth() so a provider-less render falls back to the default.
   const auth = useContext(AuthContext);
   const permissions = auth?.featurePermissions;
-  const buildingId = auth?.selectedBuildings?.[0];
+  const buildingIds = auth?.selectedBuildings;
   return useMemo(() => {
     if (!permissions) return DEFAULT_QUIZ_HAND_RAISE_MODE;
-    return readQuizHandRaiseMode(permissions, buildingId);
-  }, [permissions, buildingId]);
+    return readQuizHandRaiseMode(permissions, buildingIds);
+  }, [permissions, buildingIds]);
 }

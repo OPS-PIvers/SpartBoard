@@ -2580,6 +2580,8 @@
       "forceOnHint": "Lever la main est disponible dans tous les quiz et les enseignants ne peuvent pas le désactiver.",
       "forceOff": "Toujours désactivé",
       "forceOffHint": "Lever la main est masqué pour les élèves dans tous les quiz."
-    }
+    },
+    "noBuildings": "Aucun bâtiment configuré",
+    "noBuildingsHint": "Ajoutez un bâtiment dans Organisation avant de définir une valeur par défaut pour lever la main."
   }
 }

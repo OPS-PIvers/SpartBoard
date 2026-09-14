@@ -516,6 +516,20 @@ type LegacySyncLinkageShape = {
   syncedVersion?: number;
   sync?: QuizAssignmentSyncLinkage;
 };
+const HAND_RAISE_GATE_TIMEOUT_MS = 5000;
+
+/** True while a signed-in teacher's profile or feature permissions are still loading. */
+function isHandRaiseGatePending(
+  ctx: {
+    user?: unknown;
+    profileLoaded?: boolean;
+    featurePermissionsLoaded?: boolean;
+  } | null
+): boolean {
+  if (!ctx?.user) return false;
+  return ctx.profileLoaded === false || ctx.featurePermissionsLoaded === false;
+}
+
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
   o: QuizSessionOptions
@@ -547,8 +561,10 @@ function sessionOptionsToSessionPatch(
   if (o.shuffleAnswerOptions !== undefined)
     patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
-  if (o.handRaiseEnabled !== undefined)
-    patch.handRaiseEnabled = o.handRaiseEnabled;
+  // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
+  // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
+  // switch raise hand on inside a force-off building. Running sessions keep
+  // the value they were created with.
   return patch;
 }
 
@@ -754,11 +770,27 @@ export const useQuizAssignments = (
   }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
-  // Admin raise-hand gate for this teacher's building; resolved onto the session doc at assign time.
-  const handRaiseMode = readQuizHandRaiseMode(
-    authContext?.featurePermissions,
-    authContext?.selectedBuildings?.[0]
-  );
+  // Admin raise-hand gate for this teacher's buildings; resolved onto the
+  // session doc at assign time. Read through a ref so createAssignment can wait
+  // for the profile + permission snapshots instead of failing open to
+  // teacher-choice while the buildings are still unknown.
+  const authRef = useRef(authContext);
+  useEffect(() => {
+    authRef.current = authContext;
+  }, [authContext]);
+  const resolveHandRaiseMode = useCallback(async (): Promise<
+    ReturnType<typeof readQuizHandRaiseMode>
+  > => {
+    const deadline = Date.now() + HAND_RAISE_GATE_TIMEOUT_MS;
+    while (isHandRaiseGatePending(authRef.current) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    const ctx = authRef.current;
+    return readQuizHandRaiseMode(
+      ctx?.featurePermissions,
+      ctx?.selectedBuildings
+    );
+  }, []);
 
   // Ungated teachers publish the question without its recording block, so the
   // student app has nothing to mount even if it wanted to.
@@ -902,6 +934,7 @@ export const useQuizAssignments = (
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
       const now = Date.now();
+      const handRaiseMode = await resolveHandRaiseMode();
       // Freeze a compact teacher-private tag snapshot for PLC aggregate
       // recomputes. Student session projection remains governed separately by
       // `showLearningTargets`.
@@ -1186,7 +1219,12 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId, projectPublicQuestionForMode, translationLoader, handRaiseMode]
+    [
+      userId,
+      projectPublicQuestionForMode,
+      translationLoader,
+      resolveHandRaiseMode,
+    ]
   );
 
   const setStatus = useCallback(

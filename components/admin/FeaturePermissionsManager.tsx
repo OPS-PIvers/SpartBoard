@@ -215,12 +215,18 @@ export const FeaturePermissionsManager: React.FC = () => {
     setUnsavedChanges((prev) => new Set(prev).add(widgetType));
   };
 
+  // `updates` merges into the stored permission and is written in the same
+  // call, so a caller can persist without waiting for a setState round-trip.
   const savePermission = async (
-    widgetType: WidgetType | InternalToolType
+    widgetType: WidgetType | InternalToolType,
+    updates?: Partial<FeaturePermission>
   ): Promise<boolean> => {
     try {
       setSaving((prev) => new Set(prev).add(widgetType));
-      const permission = getPermission(widgetType);
+      const permission = { ...getPermission(widgetType), ...(updates ?? {}) };
+      if (updates) {
+        setPermissions((prev) => new Map(prev).set(widgetType, permission));
+      }
 
       // Firestore rejects explicit `undefined` values; "no minimum tier"
       // is modeled as an absent field, so strip it before persisting.
@@ -974,7 +980,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           isOpen={true}
           onClose={() => setActiveModalTool(null)}
           permission={getPermission('quiz')}
-          onSave={(updates) => updatePermission('quiz', updates)}
+          onSave={(updates) => savePermission('quiz', updates)}
         />
       )}
 
