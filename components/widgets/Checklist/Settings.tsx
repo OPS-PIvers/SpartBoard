@@ -13,6 +13,9 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+
+const LIST_SOURCE_OPTIONS: Array<'manual' | 'roster'> = ['manual', 'roster'];
 
 export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -71,6 +74,10 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
   const updateWidgetRef = React.useRef(updateWidget);
   // eslint-disable-next-line react-hooks/refs
   updateWidgetRef.current = updateWidget;
+
+  // Shared select handler — reused by the onClick and roving-tabindex keydown paths.
+  const selectListSource = (source: 'manual' | 'roster') =>
+    updateWidget(widget.id, { config: { ...config, mode: source } });
 
   const handleBulkChange = (text: string) => {
     setLocalText(text);
@@ -248,21 +255,28 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
         </SettingsLabel>
         <div
           className="flex bg-slate-100 p-1 rounded-xl"
-          role="group"
+          role="radiogroup"
           aria-labelledby={`checklist-list-source-label-${widget.id}`}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, LIST_SOURCE_OPTIONS, selectListSource)
+          }
         >
           <button
-            onClick={() =>
-              updateWidget(widget.id, { config: { ...config, mode: 'manual' } })
-            }
+            type="button"
+            role="radio"
+            aria-checked={mode === 'manual'}
+            tabIndex={mode === 'manual' ? 0 : -1}
+            onClick={() => selectListSource('manual')}
             className={`flex-1 py-2 text-xxs  rounded-lg transition-all ${mode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}
           >
             CUSTOM TASKS
           </button>
           <button
-            onClick={() =>
-              updateWidget(widget.id, { config: { ...config, mode: 'roster' } })
-            }
+            type="button"
+            role="radio"
+            aria-checked={mode === 'roster'}
+            tabIndex={mode === 'roster' ? 0 : -1}
+            onClick={() => selectListSource('roster')}
             className={`flex-1 py-2 text-xxs  rounded-lg transition-all ${mode === 'roster' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}
           >
             CLASS ROSTER
