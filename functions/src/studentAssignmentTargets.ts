@@ -214,6 +214,12 @@ export interface SetAssignmentTargetsInput {
    * the resulting full target set.
    */
   targetMode?: 'class' | 'students';
+  /**
+   * Students the teacher skipped. Absent (the shape every pre-existing client
+   * sends) leaves the fan-out exactly as before; present, these refs never
+   * receive a pointer doc and any pointer they already hold is deleted.
+   */
+  excludedTargets?: StudentTargetRef[];
 }
 
 // ── ref parsing / normalization ────────────────────────────────────────────
@@ -536,6 +542,10 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
       ? data.targetMode
       : undefined;
 
+  const excludedTargets = Array.isArray(data.excludedTargets)
+    ? parseRefList(data.excludedTargets, skipped)
+    : undefined;
+
   return {
     input: {
       assignmentId,
@@ -550,6 +560,7 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
         dueAt: sanitizeWindowValue(rawWindow, 'dueAt'),
       },
       targetMode,
+      ...(excludedTargets ? { excludedTargets } : {}),
     },
     skipped,
   };
@@ -664,7 +675,14 @@ export async function handleSetAssignmentTargets(
   }
 
   const ctx = await loadContext();
-  const addResult = resolveTargets(input.add, ctx, hmacSecret);
+  // Absent `excludedTargets` ⇒ an empty set ⇒ byte-identical behaviour to a
+  // client that never sends the field.
+  const excludedKeys = new Set((input.excludedTargets ?? []).map(refKey));
+  const addResult = resolveTargets(
+    input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
+    ctx,
+    hmacSecret
+  );
 
   const itemsPath = (uid: string) =>
     db
@@ -677,7 +695,7 @@ export async function handleSetAssignmentTargets(
   // minus this call's removals, plus the refs that resolved. This — not the
   // caller — is what gets persisted, so the doc always mirrors the real
   // pointer set the A2b deletion triggers re-hash.
-  const removeKeys = new Set(input.remove.map(refKey));
+  const removeKeys = new Set([...input.remove.map(refKey), ...excludedKeys]);
   const carriedByKey = new Map<string, StudentTargetRef>();
   for (const ref of targetRefsFromAssignment(assignmentSnap.data())) {
     const key = refKey(ref);
@@ -705,7 +723,11 @@ export async function handleSetAssignmentTargets(
   // uid — an unrecognized ref simply deletes nothing. A uid present in both
   // lists keeps its pointer (add wins) and never double-writes one batch.
   const removeUids = [
-    ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
+    ...new Set(
+      [...input.remove, ...(input.excludedTargets ?? [])].map((ref) =>
+        uidForRef(ref, hmacSecret)
+      )
+    ),
   ].filter((uid) => !addedUids.has(uid));
 
   // F1: an already-targeted student never appears in `add` (the client sends a
@@ -916,6 +938,9 @@ export async function handleSetAssignmentTargets(
         targetStudents: refs,
         targetMode:
           input.targetMode ?? (refs.length > 0 ? 'students' : 'class'),
+        ...(input.excludedTargets
+          ? { excludedTargets: input.excludedTargets }
+          : {}),
         ...(Object.keys(overridesByStudentUid).length > 0
           ? { overridesByStudentUid }
           : {}),

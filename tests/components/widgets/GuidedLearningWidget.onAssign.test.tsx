@@ -54,7 +54,16 @@ const ROSTER: ClassRoster = {
   driveFileId: null,
   studentCount: 1,
   createdAt: 1000,
-  students: [{ id: 'stu-1', name: 'Ada Lovelace' }],
+  defaultOverridesByStudentId: { 'stu-1': { timeMultiplier: 2 } },
+  students: [
+    {
+      id: 'stu-1',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      pin: '01',
+      classLinkSourcedId: 'SID-1',
+    },
+  ],
 } as unknown as ClassRoster;
 
 vi.mock('@/context/useDashboard', () => ({
@@ -172,10 +181,9 @@ function confirmAssign(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 }
 
+/** Checks the class whose roster carries a standing accommodation (M17 class mode). */
 function enableIndividualTargeting(dialog: HTMLElement) {
-  fireEvent.click(
-    within(dialog).getByText(/\+ individual students & overrides/i)
-  );
+  fireEvent.click(within(dialog).getByText(/period 1/i));
 }
 
 function setScheduleWindow(dialog: HTMLElement) {

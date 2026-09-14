@@ -25,6 +25,8 @@ export interface SetAssignmentTargetsCallInput {
   add: StudentTargetRef[];
   remove: StudentTargetRef[];
   overridesBySourcedId: Record<string, StudentOverride | null>;
+  /** Skipped students; omitted entirely keeps the legacy fan-out. */
+  excludedTargets?: StudentTargetRef[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;

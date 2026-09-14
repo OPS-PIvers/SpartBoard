@@ -60,6 +60,7 @@ import {
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import {
   buildSetAssignmentTargetsPayload,
+  payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
@@ -89,6 +90,7 @@ interface SetAssignmentTargetsParams {
   add: StudentTargetRef[];
   remove: StudentTargetRef[];
   overridesBySourcedId: Record<string, StudentOverride | null>;
+  excludedTargets?: StudentTargetRef[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;
@@ -410,6 +412,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   </div>
                   <AssignTargetingSection
                     rosters={rosters}
+                    selectedRosterIds={pickerValue.rosterIds}
                     value={targetingValue}
                     onChange={onTargetingChange}
                     kind="mini-app"
@@ -620,12 +623,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // Mode is locked org-wide by the admin and frozen onto the session at
       // creation. The session/assignment hooks derive `submissionsEnabled`
       // from `mode` so the two fields can never diverge.
-      // M17 B3 — individual-student targeting is orthogonal to the roster
-      // picker: `targetMode:'students'` narrows delivery to the picked
-      // students within the targeted rosters, and the Schedule window
-      // applies regardless of targeting mode (spec Decision 5/§3a-G).
-      const isIndividualTargeting =
-        assignTargetingValue.targetMode === 'students';
       // M17 E2 F1: mini-app is the one kind whose archive-row assignment id
       // differs from the session id (Quiz/VA/GL share one UUID). Generate it
       // up front so it can be written onto the session doc — the student app
@@ -678,12 +675,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // actually used individual targeting — `targetMode:'class'` never
       // touches the Cloud Function, keeping the class-wide flow's click
       // count and latency unchanged from today (spec §3a-G).
-      if (isIndividualTargeting && assignmentId) {
+      const payload = buildSetAssignmentTargetsPayload(
+        undefined,
+        assignTargetingValue,
+        { rosters, selectedRosterIds: assignPickerValue.rosterIds }
+      );
+      if (payloadRequiresCall(payload) && assignmentId) {
         try {
-          const payload = buildSetAssignmentTargetsPayload(
-            undefined,
-            assignTargetingValue
-          );
           const setAssignmentTargets = httpsCallable<
             SetAssignmentTargetsParams,
             SetAssignmentTargetsResult

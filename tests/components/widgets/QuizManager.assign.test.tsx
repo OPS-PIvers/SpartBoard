@@ -130,7 +130,26 @@ const ROSTERS: ClassRoster[] = [
     students: [],
     source: 'manual',
   } as unknown as ClassRoster,
+  {
+    id: 'r2',
+    name: 'Period 2',
+    source: 'manual',
+    defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+    students: [
+      {
+        id: 's1',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        pin: '01',
+        classLinkSourcedId: 'SID-1',
+      },
+    ],
+  } as unknown as ClassRoster,
 ];
+
+/** Checks the class whose roster carries a standing accommodation. */
+const checkAccommodatedClass = (dialog: HTMLElement) =>
+  fireEvent.click(within(dialog).getByTestId('roster-r2'));
 
 const BASE_CONFIG: QuizConfig = {
   view: 'manager',
@@ -481,6 +500,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       targetStudents: [],
       targetGroupIds: [],
       overridesByKey: {},
+      excludedStudents: [],
     });
   });
 
@@ -496,10 +516,10 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
-    // The collapsed "+ Individual students & overrides" affordance is present…
+    // The collapsed "Edit or add modifications" affordance is present…
     expect(
       within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
+        name: /edit or add modifications/i,
       })
     ).toBeInTheDocument();
     // …but the B1 picker trigger and B2 override rows are not rendered.
@@ -525,11 +545,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
-    fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
-      })
-    );
+    checkAccommodatedClass(dialog);
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     expect(onAssign).not.toHaveBeenCalled();
@@ -555,16 +571,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
-    fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
-      })
-    );
+    checkAccommodatedClass(dialog);
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const targeting = onAssign.mock.calls[0][5] as AssignTargetingValue;
-    expect(targeting.targetMode).toBe('students');
+    expect(targeting.targetMode).toBe('class');
   });
 
   it('M17 C3 F5: pacing block is fixable in-modal by switching to Self-paced', async () => {
@@ -584,11 +596,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
-    fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
-      })
-    );
+    checkAccommodatedClass(dialog);
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
     expect(onAssign).not.toHaveBeenCalled();
     await within(dialog).findByRole('alert');

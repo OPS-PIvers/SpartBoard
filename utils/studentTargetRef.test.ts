@@ -4,10 +4,13 @@ import {
   studentTargetRefKey,
   studentTargetRefEquals,
   buildSetAssignmentTargetsPayload,
+  classStudentRows,
+  expandClassTargeting,
+  payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
-import type { Student } from '@/types';
+import type { ClassRoster, Student } from '@/types';
 
 const baseStudent: Student = {
   id: 's1',
@@ -88,6 +91,7 @@ describe('buildSetAssignmentTargetsPayload', () => {
       targetStudents: [refA, refB],
       targetGroupIds: [],
       overridesByKey: { 'classlink:SID-A': { timeMultiplier: 2 } },
+      excludedStudents: [],
       openAt: 1000,
     };
     const payload = buildSetAssignmentTargetsPayload(undefined, current);
@@ -193,5 +197,143 @@ describe('buildSetAssignmentTargetsPayload', () => {
     };
     const payload = buildSetAssignmentTargetsPayload(previous, current);
     expect(payload.window).toEqual({ closeAt: 3000 });
+  });
+});
+
+const classRoster: ClassRoster = {
+  id: 'r1',
+  name: 'Period 2',
+  driveFileId: 'f1',
+  studentCount: 2,
+  createdAt: 0,
+  defaultOverridesByStudentId: { s2: { timeMultiplier: 2 } },
+  students: [
+    {
+      id: 's1',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      pin: '01',
+      classLinkSourcedId: 'SID-1',
+    },
+    {
+      id: 's2',
+      firstName: 'Grace',
+      lastName: 'Hopper',
+      pin: '02',
+      classLinkSourcedId: 'SID-2',
+    },
+    { id: 's3', firstName: 'No', lastName: 'Sso', pin: '03' },
+  ],
+};
+const classContext = { rosters: [classRoster], selectedRosterIds: ['r1'] };
+
+describe('classStudentRows', () => {
+  it('lists only individually-targetable students of the checked classes', () => {
+    const rows = classStudentRows(classContext);
+    expect(rows.map((r) => r.key)).toEqual([
+      'classlink:SID-1',
+      'classlink:SID-2',
+    ]);
+    expect(rows[1].defaultOverride).toEqual({ timeMultiplier: 2 });
+  });
+
+  it('ignores rosters that are not checked', () => {
+    expect(
+      classStudentRows({ rosters: [classRoster], selectedRosterIds: [] })
+    ).toEqual([]);
+  });
+});
+
+describe('expandClassTargeting', () => {
+  it('snapshots standing roster accommodations without leaving class mode', () => {
+    const expanded = expandClassTargeting(
+      EMPTY_ASSIGN_TARGETING_VALUE,
+      classContext
+    );
+    expect(expanded.targetMode).toBe('class');
+    expect(expanded.targetStudents).toEqual([
+      { kind: 'classlink', sourcedId: 'SID-2' },
+    ]);
+    expect(expanded.overridesByKey).toEqual({
+      'classlink:SID-2': { timeMultiplier: 2 },
+    });
+  });
+
+  it('lets an assignment-level edit win over the standing default', () => {
+    const expanded = expandClassTargeting(
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        overridesByKey: { 'classlink:SID-2': { timeMultiplier: 1.5 } },
+      },
+      classContext
+    );
+    expect(expanded.overridesByKey).toEqual({
+      'classlink:SID-2': { timeMultiplier: 1.5 },
+    });
+  });
+
+  it('switches to individual delivery and drops skipped students', () => {
+    const expanded = expandClassTargeting(
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+      },
+      classContext
+    );
+    expect(expanded.targetMode).toBe('students');
+    expect(expanded.targetStudents).toEqual([
+      { kind: 'classlink', sourcedId: 'SID-1' },
+    ]);
+    expect(expanded.overridesByKey).toEqual({});
+  });
+
+  it('leaves a legacy hand-picked value untouched', () => {
+    const legacy: AssignTargetingValue = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      targetMode: 'students',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+    };
+    expect(expandClassTargeting(legacy, classContext)).toBe(legacy);
+  });
+});
+
+describe('buildSetAssignmentTargetsPayload with a class context', () => {
+  it('emits the roster defaults as adds and overrides, with no excludedTargets', () => {
+    const payload = buildSetAssignmentTargetsPayload(
+      undefined,
+      EMPTY_ASSIGN_TARGETING_VALUE,
+      classContext
+    );
+    expect(payload.targetMode).toBe('class');
+    expect(payload.add).toEqual([{ kind: 'classlink', sourcedId: 'SID-2' }]);
+    expect(payload.overridesBySourcedId).toEqual({
+      'classlink:SID-2': { timeMultiplier: 2 },
+    });
+    expect(payload.excludedTargets).toBeUndefined();
+    expect(payloadRequiresCall(payload)).toBe(true);
+  });
+
+  it('emits excludedTargets only once a student is skipped', () => {
+    const payload = buildSetAssignmentTargetsPayload(
+      undefined,
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+      },
+      classContext
+    );
+    expect(payload.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: 'SID-2' },
+    ]);
+    expect(payload.targetMode).toBe('students');
+  });
+
+  it('skips the callable entirely for a plain class-wide assign', () => {
+    const payload = buildSetAssignmentTargetsPayload(
+      undefined,
+      EMPTY_ASSIGN_TARGETING_VALUE,
+      { rosters: [], selectedRosterIds: [] }
+    );
+    expect(payloadRequiresCall(payload)).toBe(false);
   });
 });

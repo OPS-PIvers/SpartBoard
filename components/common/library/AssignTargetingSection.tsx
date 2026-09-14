@@ -11,16 +11,17 @@
  *      Collapsed with a window already set shows a compact one-line summary
  *      so the state is never invisible (e.g. "Opens Mon 8:00 AM – Closes Fri
  *      3:00 PM").
- *   2. "Individual students & overrides" — `targetMode`. Default state
+ *   2. "Edit or add modifications" — per-student accommodations. Default state
  *      (`targetMode: 'class'`) renders NOTHING but one collapsed
  *      "+ Individual students & overrides" affordance — class-wide assign
  *      click-count is unchanged from today (spec §3a-G, B3 acceptance
- *      criterion). Expanding sets `targetMode: 'students'` and reveals the
- *      `AssignStudentPicker` trigger and the per-student `OverrideEditorRow`
- *      list. This affordance owns a SINGLE expand/collapse control (the
- *      "+ Individual…" / "Assign to whole class" pair) — it is intentionally
- *      NOT wrapped in `CollapsibleSection`, which would stack a second,
- *      independent toggle on top of it (F3 fix).
+ *      criterion). Expanding lists every student in the CHECKED CLASSES,
+ *      pre-filled from the roster's standing accommodations
+ *      (`defaultOverridesByStudentId`) and editable for this assignment only,
+ *      each with a "Skip this student" toggle. The classes decide who gets
+ *      the work; the hand-pick student list is retired (assignments already
+ *      saved with `targetMode: 'students'` still render and edit through the
+ *      legacy branch below).
  *
  * Fully controlled: the parent owns `AssignTargetingValue` and passes it
  * straight into session creation + the `setAssignmentTargetsV1` Cloud
@@ -49,7 +50,7 @@
 import React, { useId, useMemo, useState } from 'react';
 import type { AssignTranslationContext } from './AssignStudentPicker';
 import { useTranslation } from 'react-i18next';
-import { Plus, Users } from 'lucide-react';
+import { SlidersHorizontal, Users } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
 import { AssignStudentPicker } from './AssignStudentPicker';
 import {
@@ -57,13 +58,26 @@ import {
   type OverrideEditorPeer,
   type OverrideEditorQuestion,
 } from './OverrideEditorRow';
-import type { ClassRoster, Rubric, StudentOverride } from '@/types';
+import type {
+  ClassRoster,
+  Rubric,
+  StudentOverride,
+  StudentTargetRef,
+} from '@/types';
 import {
+  classStudentRows,
+  effectiveClassOverride,
   resolveStudentTargetRef,
   studentTargetRefKey,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
+  type ClassStudentRow,
 } from '@/utils/studentTargetRef';
+import {
+  isNonEnglishQuizSource,
+  uncoveredLocalesForTargets,
+} from '@/utils/quizTranslationAdvisory';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
 
 export type { AssignTargetingValue } from '@/utils/studentTargetRef';
 export { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
@@ -83,6 +97,8 @@ export interface AssignTargetingQuizContext {
 
 export interface AssignTargetingSectionProps {
   rosters: ClassRoster[];
+  /** Ids of the classes checked in `AssignClassPicker`; omitted = every roster. */
+  selectedRosterIds?: string[];
   value: AssignTargetingValue;
   onChange: (next: AssignTargetingValue) => void;
   kind: AssignTargetingKind;
@@ -187,8 +203,69 @@ function formatScheduleSummary(
   });
 }
 
+/** One class-mode student row: skip toggle + the shared override editor. */
+const ClassStudentOverrideRow: React.FC<{
+  row: ClassStudentRow;
+  override: StudentOverride;
+  hasStanding: boolean;
+  skipped: boolean;
+  onOverrideChange: (next: StudentOverride) => void;
+  onSkipChange: (skipped: boolean) => void;
+  quizMode: boolean;
+  readAloudAvailable: boolean;
+  questions: OverrideEditorQuestion[];
+  rubrics: Rubric[];
+  peers: OverrideEditorPeer[];
+}> = ({
+  row,
+  override,
+  hasStanding,
+  skipped,
+  onOverrideChange,
+  onSkipChange,
+  quizMode,
+  readAloudAvailable,
+  questions,
+  rubrics,
+  peers,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        {hasStanding && (
+          <span className="rounded-full bg-brand-blue-lighter px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-blue-dark">
+            {t('assignTargeting.standingBadge', 'Standing')}
+          </span>
+        )}
+        <label className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate-600">
+          <input
+            type="checkbox"
+            checked={skipped}
+            onChange={(e) => onSkipChange(e.target.checked)}
+          />
+          {t('assignTargeting.skipStudent', 'Skip this student')}
+        </label>
+      </div>
+      <div className={skipped ? 'opacity-50 pointer-events-none' : undefined}>
+        <OverrideEditorRow
+          studentName={row.name}
+          override={override}
+          onChange={onOverrideChange}
+          quizMode={quizMode}
+          readAloudAvailable={readAloudAvailable}
+          questions={questions}
+          rubrics={rubrics}
+          peers={peers}
+        />
+      </div>
+    </div>
+  );
+};
+
 export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   rosters,
+  selectedRosterIds,
   value,
   onChange,
   kind,
@@ -199,6 +276,8 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const openAtId = useId();
   const closeAtId = useId();
   const dueAtId = useId();
@@ -221,11 +300,62 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
     [value.targetStudents, studentIndex, t]
   );
 
+  const classRows = useMemo(
+    () =>
+      classStudentRows({
+        rosters,
+        selectedRosterIds: selectedRosterIds ?? rosters.map((r) => r.id),
+      }),
+    [rosters, selectedRosterIds]
+  );
+
+  const excludedKeys = useMemo(
+    () => new Set((value.excludedStudents ?? []).map(studentTargetRefKey)),
+    [value.excludedStudents]
+  );
+
+  // Rows the teacher has a reason to see first: a standing roster
+  // accommodation, an edit made here, or a skip. Everything else collapses.
+  const isPromoted = (row: ClassStudentRow) =>
+    !!row.defaultOverride ||
+    !!value.overridesByKey[row.key] ||
+    excludedKeys.has(row.key);
+  const promotedRows = classRows.filter(isPromoted);
+  const remainingRows = classRows.filter((row) => !isPromoted(row));
+  const visibleRows = showAll
+    ? [...promotedRows, ...remainingRows]
+    : promotedRows;
+
+  const translationAdvisory = useMemo(() => {
+    const translation = quizContext?.translation;
+    if (!translation) return [];
+    return uncoveredLocalesForTargets(
+      classRows
+        .filter((row) => !excludedKeys.has(row.key))
+        .map((row) => ({
+          name: row.name,
+          language: effectiveClassOverride(row, value.overridesByKey)?.language,
+        })),
+      translation
+    );
+  }, [classRows, excludedKeys, quizContext?.translation, value.overridesByKey]);
+
   const patch = (next: Partial<AssignTargetingValue>) =>
     onChange({ ...value, ...next });
 
   const setOverrideForKey = (key: string, override: StudentOverride) =>
     patch({ overridesByKey: { ...value.overridesByKey, [key]: override } });
+
+  const setSkipped = (ref: StudentTargetRef, skipped: boolean) => {
+    const key = studentTargetRefKey(ref);
+    patch({
+      excludedStudents: skipped
+        ? [...(value.excludedStudents ?? []), ref]
+        : (value.excludedStudents ?? []).filter(
+            (r) => studentTargetRefKey(r) !== key
+          ),
+    });
+  };
 
   const removeStudent = (key: string) => {
     const nextStudents = value.targetStudents.filter(
@@ -236,10 +366,19 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
     patch({ targetStudents: nextStudents, overridesByKey: nextOverrides });
   };
 
-  const expand = () => {
-    patch({ targetMode: 'students' });
+  const openModifications = () => {
+    setExpanded(true);
     onExpand?.();
   };
+
+  const nonEnglishSource = isNonEnglishQuizSource(
+    quizContext?.translation?.sourceLanguage
+  );
+  const translationGenerateDisabled =
+    nonEnglishSource ||
+    quizContext?.translation?.hasBankSlots === true ||
+    (quizContext?.translation?.cap?.remaining ?? 1) <= 0 ||
+    !!quizContext?.translation?.generating;
 
   // Reverting to class-wide clears targeting/overrides ONLY — the Schedule
   // affordance is fully independent of targetMode (F1 fix), so a window the
@@ -291,134 +430,244 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   // Individual students & overrides — a single expand/collapse control (the
   // "+ Individual…" / "Assign to whole class" pair below), never wrapped in a
   // second `CollapsibleSection` toggle (F3 fix).
-  const individualSection =
-    value.targetMode === 'class' ? (
-      <div className="border-t border-slate-200/70 pt-3">
+  const classSection = !expanded ? (
+    <div className="border-t border-slate-200/70 pt-3">
+      <button
+        type="button"
+        onClick={openModifications}
+        className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+      >
+        <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
+        {t('assignTargeting.expandAffordance', 'Edit or add modifications')}
+      </button>
+    </div>
+  ) : (
+    <div className="border-t border-slate-200/70 pt-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold text-brand-blue-dark">
+          {t('assignTargeting.modificationsLabel', 'Modifications')}
+        </span>
         <button
           type="button"
-          onClick={expand}
-          className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+          onClick={() => setExpanded(false)}
+          className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
         >
-          <Plus className="w-4 h-4" aria-hidden="true" />
-          {t(
-            'assignTargeting.expandAffordance',
-            '+ Individual students & overrides'
-          )}
+          {t('assignTargeting.collapse', 'Done')}
         </button>
       </div>
-    ) : (
-      <div className="border-t border-slate-200/70 pt-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-bold text-brand-blue-dark">
-            {t(
-              'assignTargeting.sectionLabel',
-              'Individual students & overrides'
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={collapse}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            {t('assignTargeting.revertToClass', 'Assign to whole class')}
-          </button>
-        </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors"
-          >
-            <Users className="w-3.5 h-3.5" aria-hidden="true" />
-            {value.targetStudents.length > 0
-              ? t('assignTargeting.editStudents', 'Edit students')
-              : t('assignTargeting.chooseStudents', 'Choose students')}
-          </button>
-          {value.targetStudents.length > 0 && (
-            <span className="text-xs text-slate-500">
-              {t('assignTargeting.selectedCount', '{{count}} selected', {
-                count: value.targetStudents.length,
-              })}
-            </span>
+      {translationAdvisory.length > 0 && (
+        <div className="space-y-1.5">
+          {translationAdvisory.map((entry) => (
+            <div
+              key={entry.locale}
+              role="status"
+              className="flex items-center gap-2 text-xxs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
+            >
+              <span className="flex-1">
+                {t('quizTranslation.assign.advisory.missing', {
+                  count: entry.names.length,
+                  others: entry.names.length - 1,
+                  name: entry.names[0],
+                  language: languageNativeLabel(entry.locale),
+                })}
+              </span>
+              {quizContext?.translation?.onGenerate && (
+                <button
+                  type="button"
+                  disabled={translationGenerateDisabled}
+                  onClick={() =>
+                    quizContext.translation?.onGenerate?.([entry.locale])
+                  }
+                  className="shrink-0 rounded-md border border-amber-500/50 px-2 py-0.5 font-bold text-amber-700 hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  {t('quizTranslation.assign.generate')}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {classRows.length === 0 ? (
+        <p className="text-xs text-slate-500">
+          {t(
+            'assignTargeting.noClassStudents',
+            'Check a class above to modify individual students.'
           )}
-        </div>
-
-        {selectedRows.length === 0 ? (
-          <p className="text-xs text-slate-500">
-            {t(
-              'assignTargeting.noStudentsYet',
-              'No students chosen yet — everyone in the class stays untargeted.'
-            )}
-          </p>
-        ) : (
+        </p>
+      ) : (
+        <>
+          {(value.excludedStudents ?? []).length > 0 && (
+            <p
+              role="status"
+              className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xxs text-amber-700"
+            >
+              {t(
+                'assignTargeting.skipNotice',
+                'Skipped students are left out of this assignment. Everyone else receives it individually, so classmates without a school sign-in will not see it on their assignments page.'
+              )}
+            </p>
+          )}
           <div className="space-y-2">
-            {selectedRows.map((row) => {
-              const peers: OverrideEditorPeer[] = selectedRows
-                .filter((r) => r.key !== row.key)
-                .map((r) => ({
-                  id: r.key,
-                  name: r.name,
-                  override: value.overridesByKey[r.key] ?? {},
-                }));
-              return (
-                <div key={row.key} className="flex items-start gap-2">
-                  <div className="flex-1">
-                    <OverrideEditorRow
-                      studentName={row.name}
-                      override={value.overridesByKey[row.key] ?? {}}
-                      onChange={(next) => setOverrideForKey(row.key, next)}
-                      quizMode={kind === 'quiz'}
-                      readAloudAvailable={readAloudAvailable}
-                      questions={quizContext?.questions ?? []}
-                      rubrics={quizContext?.rubrics ?? []}
-                      peers={peers}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeStudent(row.key)}
-                    className="mt-1 text-xs font-medium text-slate-400 hover:text-brand-red-primary transition-colors"
-                    aria-label={t(
-                      'assignTargeting.removeStudent',
-                      'Remove {{name}}',
-                      {
-                        name: row.name,
-                      }
-                    )}
-                  >
-                    {t('assignTargeting.remove', 'Remove')}
-                  </button>
-                </div>
-              );
-            })}
+            {visibleRows.map((row) => (
+              <ClassStudentOverrideRow
+                key={row.key}
+                row={row}
+                override={
+                  value.overridesByKey[row.key] ?? row.defaultOverride ?? {}
+                }
+                hasStanding={!!row.defaultOverride}
+                skipped={excludedKeys.has(row.key)}
+                onOverrideChange={(next) => setOverrideForKey(row.key, next)}
+                onSkipChange={(skipped) => setSkipped(row.ref, skipped)}
+                quizMode={kind === 'quiz'}
+                readAloudAvailable={readAloudAvailable}
+                questions={quizContext?.questions ?? []}
+                rubrics={quizContext?.rubrics ?? []}
+                peers={visibleRows
+                  .filter((peer) => peer.key !== row.key)
+                  .map((peer) => ({
+                    id: peer.key,
+                    name: peer.name,
+                    override:
+                      value.overridesByKey[peer.key] ??
+                      peer.defaultOverride ??
+                      {},
+                  }))}
+              />
+            ))}
           </div>
-        )}
+          {remainingRows.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAll(!showAll)}
+              className="text-xs font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+            >
+              {showAll
+                ? t('assignTargeting.showFewer', 'Show fewer')
+                : t('assignTargeting.showMore', 'Show {{count}} more', {
+                    count: remainingRows.length,
+                  })}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
 
-        <AssignStudentPicker
-          isOpen={pickerOpen}
-          onClose={() => setPickerOpen(false)}
-          rosters={rosters}
-          selected={value.targetStudents}
-          overridesByKey={value.overridesByKey}
-          selectedGroupIds={value.targetGroupIds}
-          translation={quizContext?.translation}
-          onConfirm={(selected, overridesByKey, groupIds) => {
-            patch({
-              targetStudents: selected,
-              overridesByKey,
-              targetGroupIds: groupIds,
-            });
-            setPickerOpen(false);
-          }}
-        />
+  // Legacy read/edit path: assignments saved before class-mode modifications
+  // still carry a hand-picked `targetMode: 'students'` set.
+  const legacySection = (
+    <div className="border-t border-slate-200/70 pt-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold text-brand-blue-dark">
+          {t('assignTargeting.sectionLabel', 'Individual students & overrides')}
+        </span>
+        <button
+          type="button"
+          onClick={collapse}
+          className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+        >
+          {t('assignTargeting.revertToClass', 'Assign to whole class')}
+        </button>
       </div>
-    );
+
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+        >
+          <Users className="w-3.5 h-3.5" aria-hidden="true" />
+          {value.targetStudents.length > 0
+            ? t('assignTargeting.editStudents', 'Edit students')
+            : t('assignTargeting.chooseStudents', 'Choose students')}
+        </button>
+        {value.targetStudents.length > 0 && (
+          <span className="text-xs text-slate-500">
+            {t('assignTargeting.selectedCount', '{{count}} selected', {
+              count: value.targetStudents.length,
+            })}
+          </span>
+        )}
+      </div>
+
+      {selectedRows.length === 0 ? (
+        <p className="text-xs text-slate-500">
+          {t(
+            'assignTargeting.noStudentsYet',
+            'No students chosen yet — everyone in the class stays untargeted.'
+          )}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {selectedRows.map((row) => {
+            const peers: OverrideEditorPeer[] = selectedRows
+              .filter((r) => r.key !== row.key)
+              .map((r) => ({
+                id: r.key,
+                name: r.name,
+                override: value.overridesByKey[r.key] ?? {},
+              }));
+            return (
+              <div key={row.key} className="flex items-start gap-2">
+                <div className="flex-1">
+                  <OverrideEditorRow
+                    studentName={row.name}
+                    override={value.overridesByKey[row.key] ?? {}}
+                    onChange={(next) => setOverrideForKey(row.key, next)}
+                    quizMode={kind === 'quiz'}
+                    readAloudAvailable={readAloudAvailable}
+                    questions={quizContext?.questions ?? []}
+                    rubrics={quizContext?.rubrics ?? []}
+                    peers={peers}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeStudent(row.key)}
+                  className="mt-1 text-xs font-medium text-slate-400 hover:text-brand-red-primary transition-colors"
+                  aria-label={t(
+                    'assignTargeting.removeStudent',
+                    'Remove {{name}}',
+                    {
+                      name: row.name,
+                    }
+                  )}
+                >
+                  {t('assignTargeting.remove', 'Remove')}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <AssignStudentPicker
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        rosters={rosters}
+        selected={value.targetStudents}
+        overridesByKey={value.overridesByKey}
+        selectedGroupIds={value.targetGroupIds}
+        translation={quizContext?.translation}
+        onConfirm={(selected, overridesByKey, groupIds) => {
+          patch({
+            targetStudents: selected,
+            overridesByKey,
+            targetGroupIds: groupIds,
+          });
+          setPickerOpen(false);
+        }}
+      />
+    </div>
+  );
 
   return (
     <div className="space-y-0">
       {scheduleSection}
-      {individualSection}
+      {value.targetMode === 'students' ? legacySection : classSection}
     </div>
   );
 };

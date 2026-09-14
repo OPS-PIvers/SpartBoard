@@ -11,6 +11,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import {
   buildSetAssignmentTargetsPayload,
+  payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
@@ -678,11 +679,12 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // (§3a-G) — a class-wide assignment, even with a Schedule window,
           // never depends on this callable, so a Cloud Functions hiccup can't
           // regress today's plain assign.
-          if (targeting.targetMode === 'students') {
-            const targetsPayload = buildSetAssignmentTargetsPayload(
-              undefined,
-              targeting
-            );
+          const targetsPayload = buildSetAssignmentTargetsPayload(
+            undefined,
+            targeting,
+            { rosters, selectedRosterIds: rosterIds }
+          );
+          if (payloadRequiresCall(targetsPayload)) {
             const runSetAssignmentTargets = async (): Promise<void> => {
               const setAssignmentTargets = httpsCallable(
                 functions,

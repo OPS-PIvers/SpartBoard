@@ -5292,6 +5292,8 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
@@ -8624,6 +8626,8 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
@@ -8692,6 +8696,8 @@ export interface MiniAppAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
@@ -8766,6 +8772,8 @@ export interface GuidedLearningAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */

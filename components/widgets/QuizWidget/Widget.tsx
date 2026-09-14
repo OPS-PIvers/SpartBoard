@@ -113,6 +113,7 @@ import {
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import {
   buildSetAssignmentTargetsPayload,
+  payloadRequiresCall,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
@@ -1767,12 +1768,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            if (resolvedTargeting.targetMode === 'students') {
+            const payload = buildSetAssignmentTargetsPayload(
+              undefined,
+              resolvedTargeting,
+              { rosters, selectedRosterIds: rosterIds }
+            );
+            if (payloadRequiresCall(payload)) {
               try {
-                const payload = buildSetAssignmentTargetsPayload(
-                  undefined,
-                  resolvedTargeting
-                );
                 const result = await setAssignmentTargets({
                   assignmentId,
                   kind: 'quiz',
@@ -1781,6 +1783,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   add: payload.add,
                   remove: payload.remove,
                   overridesBySourcedId: payload.overridesBySourcedId,
+                  ...(payload.excludedTargets
+                    ? { excludedTargets: payload.excludedTargets }
+                    : {}),
                   window: payload.window,
                 });
                 if (result.skipped.length > 0) {

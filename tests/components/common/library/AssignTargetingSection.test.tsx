@@ -14,6 +14,7 @@ const roster: ClassRoster = {
   driveFileId: 'f1',
   studentCount: 2,
   createdAt: 0,
+  defaultOverridesByStudentId: { s2: { timeMultiplier: 2 } },
   students: [
     {
       id: 's1',
@@ -41,6 +42,7 @@ const renderSection = (
   const utils = render(
     <AssignTargetingSection
       rosters={[roster]}
+      selectedRosterIds={['r1']}
       value={value}
       onChange={onChange}
       kind="quiz"
@@ -50,33 +52,81 @@ const renderSection = (
   return { onChange, ...utils };
 };
 
+const openModifications = () =>
+  fireEvent.click(screen.getByText('Edit or add modifications'));
+
 describe('AssignTargetingSection', () => {
-  it('collapsed default renders only the affordance, nothing from B1/B2', () => {
+  it('collapsed default renders only the affordance, with a single plus-free label', () => {
     renderSection();
-    expect(
-      screen.getByText('+ Individual students & overrides')
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Choose students')).not.toBeInTheDocument();
+    const affordance = screen.getByText('Edit or add modifications');
+    expect(affordance).toBeInTheDocument();
+    expect(affordance.textContent).not.toContain('+');
+    expect(screen.queryByText('Grace Hopper')).not.toBeInTheDocument();
     expect(screen.queryByText('Opens')).not.toBeInTheDocument();
   });
 
-  it('expanding sets targetMode to students', () => {
+  it('expanding fires onExpand and leaves targetMode on class', () => {
+    const onExpand = vi.fn();
+    const { onChange } = renderSection({ onExpand });
+    openModifications();
+    expect(onExpand).toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('lists students with standing accommodations first and collapses the rest', () => {
+    renderSection();
+    openModifications();
+    expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+    expect(screen.getByText('Standing')).toBeInTheDocument();
+    expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Show 1 more'));
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+  });
+
+  it('editing a roster-prefilled row writes an assignment-only override', () => {
     const { onChange } = renderSection();
-    fireEvent.click(screen.getByText('+ Individual students & overrides'));
+    openModifications();
+    fireEvent.click(screen.getByText('Grace Hopper'));
+    fireEvent.click(screen.getByText('1.5x'));
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ targetMode: 'students' })
+      expect.objectContaining({
+        targetMode: 'class',
+        overridesByKey: { 'classlink:SID-2': { timeMultiplier: 1.5 } },
+      })
     );
   });
 
-  it('expanded state shows the picker trigger, independent of the collapsed Schedule affordance', () => {
-    renderSection({
-      value: { ...EMPTY_ASSIGN_TARGETING_VALUE, targetMode: 'students' },
+  it('skipping a student records them in excludedStudents', () => {
+    const { onChange } = renderSection();
+    openModifications();
+    fireEvent.click(screen.getAllByLabelText('Skip this student')[0]);
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+      })
+    );
+  });
+
+  it('unskipping removes the student from excludedStudents', () => {
+    const { onChange } = renderSection({
+      value: {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+      },
     });
-    expect(screen.getByText('Choose students')).toBeInTheDocument();
-    // Schedule is a separate affordance, collapsed by default — expanding
-    // "Individual students" must not reveal it (F1 fix).
-    expect(screen.queryByText('Opens')).not.toBeInTheDocument();
-    expect(screen.queryByText('Closes')).not.toBeInTheDocument();
+    openModifications();
+    fireEvent.click(screen.getAllByLabelText('Skip this student')[0]);
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ excludedStudents: [] })
+    );
+  });
+
+  it('shows the class hint when no class is checked', () => {
+    renderSection({ selectedRosterIds: [] });
+    openModifications();
+    expect(
+      screen.getByText('Check a class above to modify individual students.')
+    ).toBeInTheDocument();
   });
 
   it('the Schedule affordance is independent of targetMode and renders window pickers when expanded', () => {
@@ -85,37 +135,13 @@ describe('AssignTargetingSection', () => {
     expect(screen.getByText('Opens')).toBeInTheDocument();
     expect(screen.getByText('Closes')).toBeInTheDocument();
     expect(screen.queryByText('Due')).not.toBeInTheDocument();
-    // Expanding Schedule must not touch targetMode.
-    expect(
-      screen.getByText('+ Individual students & overrides')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Edit or add modifications')).toBeInTheDocument();
   });
 
   it('showDueAt reveals the due date picker once Schedule is expanded', () => {
     renderSection({ showDueAt: true });
     fireEvent.click(screen.getByText('Schedule'));
     expect(screen.getByText('Due')).toBeInTheDocument();
-  });
-
-  it('collapsing the Individual section preserves an already-set schedule', () => {
-    const { onChange } = renderSection({
-      value: {
-        targetMode: 'students',
-        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-        targetGroupIds: [],
-        overridesByKey: {},
-        openAt: 1000,
-        closeAt: 2000,
-      },
-    });
-    fireEvent.click(screen.getByText('Assign to whole class'));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        targetMode: 'class',
-        openAt: 1000,
-        closeAt: 2000,
-      })
-    );
   });
 
   it('shows a collapsed-state summary once a schedule is set', () => {
@@ -125,97 +151,12 @@ describe('AssignTargetingSection', () => {
     expect(screen.getByText(/Opens/)).toBeInTheDocument();
   });
 
-  it('collapsing back to class clears students and overrides', () => {
-    const { onChange } = renderSection({
-      value: {
-        targetMode: 'students',
-        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-        targetGroupIds: [],
-        overridesByKey: { 'classlink:SID-1': { timeMultiplier: 2 } },
-      },
-    });
-    fireEvent.click(screen.getByText('Assign to whole class'));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        targetMode: 'class',
-        targetStudents: [],
-        overridesByKey: {},
-      })
-    );
-  });
-
-  it('renders an override row per selected student with a name resolved from rosters', () => {
-    renderSection({
-      value: {
-        targetMode: 'students',
-        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-        targetGroupIds: [],
-        overridesByKey: {},
-      },
-    });
-    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-  });
-
-  it('removing a student drops it from targetStudents and overridesByKey', () => {
-    const { onChange } = renderSection({
-      value: {
-        targetMode: 'students',
-        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-        targetGroupIds: [],
-        overridesByKey: { 'classlink:SID-1': { timeMultiplier: 2 } },
-      },
-    });
-    fireEvent.click(screen.getByLabelText('Remove Ada Lovelace'));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        targetStudents: [],
-        overridesByKey: {},
-      })
-    );
-  });
-
-  it('changing an override row updates overridesByKey using the namespaced key', () => {
-    const { onChange } = renderSection({
-      value: {
-        targetMode: 'students',
-        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-        targetGroupIds: [],
-        overridesByKey: {},
-      },
-    });
-    fireEvent.click(screen.getByText('Ada Lovelace'));
-    fireEvent.click(screen.getByText('2x'));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        overridesByKey: { 'classlink:SID-1': { timeMultiplier: 2 } },
-      })
-    );
-  });
-
-  it('opening the picker and confirming updates targetStudents and overridesByKey', () => {
-    const { onChange } = renderSection({
-      value: { ...EMPTY_ASSIGN_TARGETING_VALUE, targetMode: 'students' },
-    });
-    fireEvent.click(screen.getByText('Choose students'));
-    fireEvent.click(screen.getByText('Ada Lovelace'));
-    fireEvent.click(screen.getByText('Add students'));
-    expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-      })
-    );
-  });
-
   it('window picker changes emit epoch-ms values', () => {
-    const { onChange } = renderSection({
-      value: { ...EMPTY_ASSIGN_TARGETING_VALUE, targetMode: 'students' },
-    });
+    const { onChange } = renderSection();
     fireEvent.click(screen.getByText('Schedule'));
     const openInput = screen.getByLabelText('Opens', {
       selector: 'input',
     }) as HTMLInputElement | null;
-    // Fall back to querying by the label's sibling input if getByLabelText's
-    // implicit association via <label> wrapping doesn't resolve in jsdom.
     const input =
       openInput ??
       (screen.getByText('Opens').nextElementSibling as HTMLInputElement);
@@ -225,16 +166,43 @@ describe('AssignTargetingSection', () => {
     );
   });
 
-  it('round-trips a fully controlled value unchanged when nothing is edited', () => {
-    const value: AssignTargetingValue = {
+  describe('legacy targetMode:"students" assignments', () => {
+    const legacyValue: AssignTargetingValue = {
       targetMode: 'students',
       targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-      targetGroupIds: ['g1'],
-      overridesByKey: { 'classlink:SID-1': { timeMultiplier: 1.5 } },
-      openAt: 1000,
-      closeAt: 2000,
+      targetGroupIds: [],
+      overridesByKey: { 'classlink:SID-1': { timeMultiplier: 2 } },
+      excludedStudents: [],
     };
-    renderSection({ value });
-    expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+    it('still renders the hand-picked rows', () => {
+      renderSection({ value: legacyValue });
+      expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+      expect(screen.getByText('1 selected')).toBeInTheDocument();
+    });
+
+    it('still removes a student from targetStudents and overridesByKey', () => {
+      const { onChange } = renderSection({ value: legacyValue });
+      fireEvent.click(screen.getByLabelText('Remove Ada Lovelace'));
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({ targetStudents: [], overridesByKey: {} })
+      );
+    });
+
+    it('collapsing back to class preserves the schedule', () => {
+      const { onChange } = renderSection({
+        value: { ...legacyValue, openAt: 1000, closeAt: 2000 },
+      });
+      fireEvent.click(screen.getByText('Assign to whole class'));
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetMode: 'class',
+          targetStudents: [],
+          overridesByKey: {},
+          openAt: 1000,
+          closeAt: 2000,
+        })
+      );
+    });
   });
 });

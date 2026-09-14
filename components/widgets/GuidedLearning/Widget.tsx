@@ -47,6 +47,7 @@ import {
 } from '@/utils/resolveAssignmentTargets';
 import {
   buildSetAssignmentTargetsPayload,
+  payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
 } from '@/utils/studentTargetRef';
 import { Loader2 } from 'lucide-react';
@@ -131,6 +132,7 @@ interface SetAssignmentTargetsCallableInput {
   add: StudentTargetRef[];
   remove: StudentTargetRef[];
   overridesBySourcedId: Record<string, StudentOverride | null>;
+  excludedTargets?: StudentTargetRef[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;
@@ -525,11 +527,12 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           // depends on this callable (window fields already landed on the
           // session/assignment docs above via createSession/createAssignment),
           // so a Cloud Functions hiccup can't regress today's plain assign.
-          if (targeting.targetMode === 'students') {
-            const payload = buildSetAssignmentTargetsPayload(
-              undefined,
-              targeting
-            );
+          const payload = buildSetAssignmentTargetsPayload(
+            undefined,
+            targeting,
+            { rosters, selectedRosterIds: rosterIds }
+          );
+          if (payloadRequiresCall(payload)) {
             try {
               const callable = httpsCallable<
                 SetAssignmentTargetsCallableInput,
@@ -1357,6 +1360,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               />
               <AssignTargetingSection
                 rosters={rosters}
+                selectedRosterIds={pickerValue.rosterIds}
                 value={targetingValue}
                 onChange={setTargetingValue}
                 kind="guided-learning"

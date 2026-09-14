@@ -1939,7 +1939,15 @@
     "language": "Idioma"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Estudiantes individuales y adaptaciones",
+    "expandAffordance": "Editar o añadir adaptaciones",
+    "modificationsLabel": "Adaptaciones",
+    "collapse": "Listo",
+    "standingBadge": "Permanente",
+    "skipStudent": "Omitir a este estudiante",
+    "showMore": "Mostrar {{count}} más",
+    "showFewer": "Mostrar menos",
+    "noClassStudents": "Marca una clase arriba para adaptar a estudiantes concretos.",
+    "skipNotice": "Los estudiantes omitidos quedan fuera de esta asignación. El resto la recibe de forma individual, así que los compañeros sin inicio de sesión escolar no la verán en su página de tareas.",
     "sectionLabel": "Estudiantes individuales y adaptaciones",
     "chooseStudents": "Elegir estudiantes",
     "editStudents": "Editar estudiantes",

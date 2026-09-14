@@ -74,6 +74,7 @@ import {
 import type { BankSource } from '@/hooks/useBankSources';
 import { QuizBanksTab } from './QuizBanksTab';
 import { Toggle } from '@/components/common/Toggle';
+import { expandClassTargeting } from '@/utils/studentTargetRef';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -284,7 +285,7 @@ interface QuizManagerProps {
     /**
      * Full quiz content already loaded via `onLoadQuizData` for the B2
      * override editor (F1 fix) — present whenever the teacher expanded
-     * "+ Individual students & overrides" during this modal session. The
+     * "Edit or add modifications" during this modal session. The
      * Widget handler reuses this instead of re-fetching from Drive; `null`/
      * `undefined` means the class-wide path never needed it, so the handler
      * still fetches once itself.
@@ -1565,10 +1566,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
     // accommodations that would never take effect.
-    if (
-      assignTargeting.targetMode === 'students' &&
-      behavior.sessionMode !== 'student'
-    ) {
+    const expandedTargeting = expandClassTargeting(assignTargeting, {
+      rosters,
+      selectedRosterIds: assignOptions.picker.rosterIds,
+    });
+    const hasPerStudentWork =
+      expandedTargeting.targetMode === 'students' ||
+      Object.keys(expandedTargeting.overridesByKey).length > 0;
+    if (hasPerStudentWork && behavior.sessionMode !== 'student') {
       setTargetingPacingError(
         'Individual student targeting requires Self-paced mode. Switch Session Settings below to Self-paced, or assign to the whole class.'
       );
@@ -2114,6 +2119,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               />
               <AssignTargetingSection
                 rosters={rosters}
+                selectedRosterIds={assignOptions.picker.rosterIds}
                 value={assignTargeting}
                 onChange={(next) => {
                   setTargetingPacingError(null);

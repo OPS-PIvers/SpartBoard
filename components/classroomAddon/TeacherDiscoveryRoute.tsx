@@ -243,7 +243,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   }
 
   // Lazily fetch the selected quiz's body from Drive — only once the teacher
-  // actually opens "+ Individual students & overrides". A class-wide attach
+  // actually opens "Edit or add modifications". A class-wide attach
   // never touches this, so it still fetches exactly once (at attach time).
   const handleExpandIndividualTargeting = useCallback(() => {
     if (kind !== 'quiz' || !selectedQuizId) return;
@@ -1110,6 +1110,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               <div className="border-t border-slate-200 pt-4">
                 <AssignTargetingSection
                   rosters={rosters}
+                  selectedRosterIds={[]}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}

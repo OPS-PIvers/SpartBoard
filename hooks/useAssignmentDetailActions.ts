@@ -102,6 +102,7 @@ export function assignmentRowToTargetingValue(
     targetStudents: row.targetStudents ?? [],
     targetGroupIds: [],
     overridesByKey,
+    excludedStudents: row.excludedTargets ?? [],
     openAt: row.openAt ?? undefined,
     closeAt: row.closeAt ?? undefined,
   };
@@ -135,6 +136,9 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
           add: payload.add,
           remove: payload.remove,
           overridesBySourcedId: payload.overridesBySourcedId,
+          ...(payload.excludedTargets
+            ? { excludedTargets: payload.excludedTargets }
+            : {}),
           window: payload.window,
         });
         skipped = result.skipped;

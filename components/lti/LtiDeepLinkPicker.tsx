@@ -376,7 +376,7 @@ const LtiDeepLinkFlow: React.FC = () => {
   }
 
   // Lazily fetch the selected quiz's body from Drive — only once the teacher
-  // actually opens "+ Individual students & overrides". A class-wide add never
+  // actually opens "Edit or add modifications". A class-wide add never
   // touches this, so it still fetches exactly once (at Add time).
   const handleExpandIndividualTargeting = useCallback(() => {
     if (kind !== 'quiz' || !selectedQuizId) return;
@@ -1158,6 +1158,7 @@ const LtiDeepLinkFlow: React.FC = () => {
               <div className="border-t border-slate-200 pt-4">
                 <AssignTargetingSection
                   rosters={rosters}
+                  selectedRosterIds={[]}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}

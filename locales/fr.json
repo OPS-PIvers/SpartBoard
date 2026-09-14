@@ -1939,7 +1939,15 @@
     "language": "Langue"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Élèves individuels & aménagements",
+    "expandAffordance": "Modifier ou ajouter des aménagements",
+    "modificationsLabel": "Aménagements",
+    "collapse": "Terminé",
+    "standingBadge": "Permanent",
+    "skipStudent": "Ignorer cet élève",
+    "showMore": "Afficher {{count}} de plus",
+    "showFewer": "Afficher moins",
+    "noClassStudents": "Cochez une classe ci-dessus pour adapter des élèves individuels.",
+    "skipNotice": "Les élèves ignorés ne reçoivent pas ce devoir. Les autres le reçoivent individuellement : les camarades sans connexion scolaire ne le verront donc pas sur leur page de devoirs.",
     "sectionLabel": "Élèves individuels & aménagements",
     "chooseStudents": "Choisir des élèves",
     "editStudents": "Modifier les élèves",

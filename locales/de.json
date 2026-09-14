@@ -1939,7 +1939,15 @@
     "language": "Sprache"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Einzelne Schüler & Anpassungen",
+    "expandAffordance": "Anpassungen bearbeiten oder hinzufügen",
+    "modificationsLabel": "Anpassungen",
+    "collapse": "Fertig",
+    "standingBadge": "Dauerhaft",
+    "skipStudent": "Diese/n Schüler/in überspringen",
+    "showMore": "{{count}} weitere anzeigen",
+    "showFewer": "Weniger anzeigen",
+    "noClassStudents": "Wähle oben eine Klasse aus, um einzelne Schüler anzupassen.",
+    "skipNotice": "Übersprungene Schüler erhalten diese Aufgabe nicht. Alle anderen erhalten sie individuell, daher sehen Mitschüler ohne Schul-Anmeldung sie nicht auf ihrer Aufgabenseite.",
     "sectionLabel": "Einzelne Schüler & Anpassungen",
     "chooseStudents": "Schüler auswählen",
     "editStudents": "Schüler bearbeiten",

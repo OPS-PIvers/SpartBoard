@@ -2309,7 +2309,15 @@
     "language": "Language"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Individual students & overrides",
+    "expandAffordance": "Edit or add modifications",
+    "modificationsLabel": "Modifications",
+    "collapse": "Done",
+    "standingBadge": "Standing",
+    "skipStudent": "Skip this student",
+    "showMore": "Show {{count}} more",
+    "showFewer": "Show fewer",
+    "noClassStudents": "Check a class above to modify individual students.",
+    "skipNotice": "Skipped students are left out of this assignment. Everyone else receives it individually, so classmates without a school sign-in will not see it on their assignments page.",
     "sectionLabel": "Individual students & overrides",
     "chooseStudents": "Choose students",
     "editStudents": "Edit students",
