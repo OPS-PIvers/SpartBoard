@@ -61,11 +61,21 @@ import {
   monthlyTranslationDocId,
   teacherDailyTranslationDocId,
   translateQuiz,
+  translateQuizV1,
+  translateResponseV1,
   validateQuizTranslation,
   type QuestionTranslation,
   type TranslatableQuestion,
   type TranslationDeps,
 } from './quizTranslation';
+
+type CallableHandler = (request: {
+  auth?: { uid: string; token: { email?: string; email_verified?: boolean } };
+  data?: unknown;
+}) => Promise<unknown>;
+const translateQuizV1Handler = translateQuizV1 as unknown as CallableHandler;
+const translateResponseV1Handler =
+  translateResponseV1 as unknown as CallableHandler;
 
 type Doc = Record<string, unknown>;
 
@@ -787,5 +797,95 @@ describe('assertQuizTranslationFeature', () => {
       },
     };
     await expect(run(docs, 'teacher@x.org', 'uid-1')).resolves.toBeUndefined();
+  });
+});
+
+describe('translateQuizV1 / translateResponseV1 — caller identity verification', () => {
+  // SECURITY: email/password sign-in lets a caller self-report ANY email — request.auth.token.email
+  // alone can't prove ownership of that address. assertQuizTranslationFeature() authorizes off this
+  // email (admins/{email} lookup, betaUsers allowlist), so an unverified claim of a real admin's or
+  // beta user's address must be rejected before that check ever runs.
+  it('translateQuizV1 rejects a self-reported email that is not verified', async () => {
+    await expect(
+      translateQuizV1Handler({
+        auth: {
+          uid: 'uid-1',
+          token: { email: 'boss@x.org', email_verified: false },
+        },
+        data: {},
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Caller email must be verified.',
+    });
+  });
+
+  it('translateQuizV1 rejects a token with no email_verified claim at all', async () => {
+    await expect(
+      translateQuizV1Handler({
+        auth: { uid: 'uid-1', token: { email: 'boss@x.org' } },
+        data: {},
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Caller email must be verified.',
+    });
+  });
+
+  it('translateQuizV1 lets a verified caller past the identity gate (fails later, not on verification)', async () => {
+    await expect(
+      translateQuizV1Handler({
+        auth: {
+          uid: 'uid-1',
+          token: { email: 'boss@x.org', email_verified: true },
+        },
+        data: {},
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Quiz translation is not available for your account.',
+    });
+  });
+
+  it('translateResponseV1 rejects a self-reported email that is not verified', async () => {
+    await expect(
+      translateResponseV1Handler({
+        auth: {
+          uid: 'uid-1',
+          token: { email: 'boss@x.org', email_verified: false },
+        },
+        data: { text: 'creo que si', sourceLocale: 'es' },
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Caller email must be verified.',
+    });
+  });
+
+  it('translateResponseV1 rejects a token with no email_verified claim at all', async () => {
+    await expect(
+      translateResponseV1Handler({
+        auth: { uid: 'uid-1', token: { email: 'boss@x.org' } },
+        data: { text: 'creo que si', sourceLocale: 'es' },
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Caller email must be verified.',
+    });
+  });
+
+  it('translateResponseV1 lets a verified caller past the identity gate (fails later, not on verification)', async () => {
+    await expect(
+      translateResponseV1Handler({
+        auth: {
+          uid: 'uid-1',
+          token: { email: 'boss@x.org', email_verified: true },
+        },
+        data: { text: 'creo que si', sourceLocale: 'es' },
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Quiz translation is not available for your account.',
+    });
   });
 });
