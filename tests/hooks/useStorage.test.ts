@@ -48,6 +48,7 @@ describe('useStorage', () => {
     uploadFile: vi.fn(),
     makePublic: vi.fn(),
     deleteFile: vi.fn(),
+    trashFile: vi.fn(),
   };
 
   beforeEach(() => {
@@ -250,14 +251,14 @@ describe('useStorage', () => {
       });
 
       expect(mockDeleteObject).not.toHaveBeenCalled();
-      expect(mockDriveService.deleteFile).not.toHaveBeenCalled();
+      expect(mockDriveService.trashFile).not.toHaveBeenCalled();
     });
 
-    it('should delete file from Google Drive when URL contains a file ID', async () => {
+    it('should trash the Google Drive file when URL contains a file ID', async () => {
       mockUseGoogleDrive.mockReturnValue({
         driveService: mockDriveService,
       });
-      mockDriveService.deleteFile.mockResolvedValue(undefined);
+      mockDriveService.trashFile.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useStorage());
 
@@ -268,14 +269,33 @@ describe('useStorage', () => {
       });
 
       expect(mockDeleteObject).not.toHaveBeenCalled();
-      expect(mockDriveService.deleteFile).toHaveBeenCalledWith('abc123xyz');
+      expect(mockDriveService.trashFile).toHaveBeenCalledWith('abc123xyz');
     });
 
-    it('should delete from Drive regardless of admin status', async () => {
+    it('should trash, never permanently delete, lh3 display-image URLs', async () => {
       mockUseGoogleDrive.mockReturnValue({
         driveService: mockDriveService,
       });
-      mockDriveService.deleteFile.mockResolvedValue(undefined);
+      mockDriveService.trashFile.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useStorage());
+
+      await act(async () => {
+        await result.current.deleteFile(
+          'https://lh3.googleusercontent.com/d/lh3FileId=w400'
+        );
+      });
+
+      expect(mockDriveService.trashFile).toHaveBeenCalledWith('lh3FileId');
+      expect(mockDriveService.deleteFile).not.toHaveBeenCalled();
+      expect(mockDeleteObject).not.toHaveBeenCalled();
+    });
+
+    it('should trash from Drive regardless of admin status', async () => {
+      mockUseGoogleDrive.mockReturnValue({
+        driveService: mockDriveService,
+      });
+      mockDriveService.trashFile.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useStorage());
 
@@ -285,14 +305,14 @@ describe('useStorage', () => {
         );
       });
 
-      expect(mockDriveService.deleteFile).toHaveBeenCalledWith('admin-file-id');
+      expect(mockDriveService.trashFile).toHaveBeenCalledWith('admin-file-id');
     });
 
     it('should extract file ID from webContentLink uc?id= format', async () => {
       mockUseGoogleDrive.mockReturnValue({
         driveService: mockDriveService,
       });
-      mockDriveService.deleteFile.mockResolvedValue(undefined);
+      mockDriveService.trashFile.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useStorage());
 
@@ -303,7 +323,7 @@ describe('useStorage', () => {
       });
 
       expect(mockDeleteObject).not.toHaveBeenCalled();
-      expect(mockDriveService.deleteFile).toHaveBeenCalledWith(
+      expect(mockDriveService.trashFile).toHaveBeenCalledWith(
         'webContentFileId'
       );
     });

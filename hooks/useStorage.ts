@@ -265,11 +265,14 @@ export const useStorage = () => {
       return;
     }
 
-    // Drive-hosted URLs: attempt deletion via Drive API
+    // Drive-hosted URLs: move to Drive trash (recoverable) rather than permanently deleting
     // Parse the URL to check hostname exactly, preventing substring-spoofing attacks.
     let filePathHostname = '';
+    let filePathPathname = '';
     try {
-      filePathHostname = new URL(filePath).hostname;
+      ({ hostname: filePathHostname, pathname: filePathPathname } = new URL(
+        filePath
+      ));
     } catch {
       // filePath is not a valid URL; leave hostname empty so checks below fail safely
     }
@@ -282,12 +285,15 @@ export const useStorage = () => {
         try {
           const match =
             /\/file\/d\/([^/?#]+)/.exec(filePath) ??
-            /[?&]id=([^&#]+)/.exec(filePath);
+            /[?&]id=([^&#]+)/.exec(filePath) ??
+            (filePathHostname === 'lh3.googleusercontent.com'
+              ? /^\/d\/([^/?#=]+)/.exec(filePathPathname)
+              : null);
           if (match) {
-            await driveService.deleteFile(match[1]);
+            await driveService.trashFile(match[1]);
           }
         } catch (e) {
-          console.error('Failed to delete from Drive:', e);
+          console.error('Failed to trash Drive file:', e);
         }
       }
       return;

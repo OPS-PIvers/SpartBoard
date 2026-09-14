@@ -719,6 +719,26 @@ export class GoogleDriveService {
   }
 
   /**
+   * Move a file to the Drive trash (recoverable for 30 days).
+   */
+  async trashFile(fileId: string): Promise<void> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}`,
+      {
+        method: 'PATCH',
+        headers: this.headers,
+        body: JSON.stringify({ trashed: true }),
+      }
+    );
+
+    if (!response.ok && response.status !== 404) {
+      const error = await response.text();
+      console.error('Failed to trash Drive file:', error);
+      throw new Error('Failed to move file to Google Drive trash');
+    }
+  }
+
+  /**
    * Import a dashboard from a Google Drive file.
    */
   async importDashboard(fileId: string): Promise<Dashboard> {
