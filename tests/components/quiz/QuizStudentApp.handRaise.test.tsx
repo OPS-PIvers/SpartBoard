@@ -49,6 +49,13 @@ vi.mock('@/config/firebase', () => ({
   googleProvider: {},
 }));
 
+// View-only sessions log a pageview; stub the write so the stub `db` is fine.
+vi.mock('firebase/firestore', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('firebase/firestore')>()),
+  collection: vi.fn(() => ({})),
+  addDoc: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock('firebase/auth', () => ({
   signInAnonymously: vi.fn().mockResolvedValue(undefined),
   onAuthStateChanged: vi.fn(() => () => undefined),
@@ -164,5 +171,15 @@ describe('QuizStudentApp — raise hand gate', () => {
     expect(
       screen.getByRole('button', { name: 'Raise hand' })
     ).toBeInTheDocument();
+  });
+
+  it('hides the button on a view-only share even when handRaiseEnabled is true', async () => {
+    hookState.session = buildSession({
+      handRaiseEnabled: true,
+      mode: 'view-only',
+    });
+    render(<QuizStudentApp />);
+    await waitForQuestion();
+    expect(screen.queryByRole('button', { name: 'Raise hand' })).toBeNull();
   });
 });

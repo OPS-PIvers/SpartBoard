@@ -2952,6 +2952,9 @@
       "forceOffHint": "Raise hand is hidden from students in every quiz."
     },
     "noBuildings": "No buildings configured",
-    "noBuildingsHint": "Add a building under Organization before setting a raise-hand default."
+    "noBuildingsHint": "Add a building under Organization before setting a raise-hand default.",
+    "discardMessage": "You have unsaved changes. Are you sure you want to discard them?",
+    "discardTitle": "Discard Changes",
+    "discardConfirm": "Discard"
   }
 }

@@ -2621,6 +2621,83 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findSessionSet()).not.toHaveProperty('handRaiseEnabled');
   });
 
+  // The admin gate resolves against org membership buildings, so a teacher who
+  // clears their Profile building filter still gets their building's mode.
+  function gateWrapper(value: Partial<AuthContextType>) {
+    const GateWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(
+        AuthContext.Provider,
+        { value: value as AuthContextType },
+        children
+      );
+    GateWrapper.displayName = 'GateWrapper';
+    return GateWrapper;
+  }
+
+  const gateAuth = (
+    mode: string,
+    overrides: Partial<AuthContextType> = {}
+  ): Partial<AuthContextType> => ({
+    user: { uid: TEACHER_UID } as AuthContextType['user'],
+    profileLoaded: true,
+    featurePermissionsLoaded: true,
+    buildingIds: ['b1'],
+    selectedBuildings: [],
+    featurePermissions: [
+      {
+        widgetType: 'quiz',
+        accessLevel: 'public',
+        betaUsers: [],
+        enabled: true,
+        config: { buildingDefaults: { b1: { handRaiseMode: mode } } },
+      },
+    ] as unknown as AuthContextType['featurePermissions'],
+    ...overrides,
+  });
+
+  it('applies force-off from the membership building even with no selected buildings', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: gateWrapper(gateAuth('force-off')),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: { handRaiseEnabled: true },
+      });
+    });
+    expect(findSessionSet()).not.toHaveProperty('handRaiseEnabled');
+  });
+
+  it('applies force-on from the membership building without a teacher opt-in', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: gateWrapper(gateAuth('force-on')),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet()).toMatchObject({ handRaiseEnabled: true });
+  });
+
+  it('never enables raise hand on a view-only share, even under force-on', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: gateWrapper(gateAuth('force-on')),
+    });
+    await act(async () => {
+      await result.current.createAssignment(
+        QUIZ,
+        {
+          sessionMode: 'teacher',
+          sessionOptions: { handRaiseEnabled: true },
+        },
+        { mode: 'view-only' }
+      );
+    });
+    expect(findSessionSet()).not.toHaveProperty('handRaiseEnabled');
+  });
+
   it('mints the session with blockCopyPaste:true when the option is set', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {

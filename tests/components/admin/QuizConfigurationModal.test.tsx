@@ -9,6 +9,11 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: mockAddToast }),
 }));
 
+const mockShowConfirm = vi.fn().mockResolvedValue(true);
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: mockShowConfirm }),
+}));
+
 let mockBuildings: { id: string; name: string }[] = [
   { id: 'b1', name: 'Building One' },
   { id: 'b2', name: 'Building Two' },
@@ -32,6 +37,8 @@ const permission: FeaturePermission = {
 
 beforeEach(() => {
   mockAddToast.mockClear();
+  mockShowConfirm.mockClear();
+  mockShowConfirm.mockResolvedValue(true);
   mockBuildings = [
     { id: 'b1', name: 'Building One' },
     { id: 'b2', name: 'Building Two' },
@@ -160,5 +167,67 @@ describe('QuizConfigurationModal', () => {
     expect(screen.queryByText('Languages panel')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
     expect(screen.getByText('Languages panel')).toBeInTheDocument();
+  });
+
+  it('keeps the save footer on the languages tab', () => {
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={vi.fn()}
+        permission={permission}
+        onSave={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
+    expect(screen.getByText('Save Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('closes without a prompt when nothing was edited', async () => {
+    const onClose = vi.fn();
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={onClose}
+        permission={permission}
+        onSave={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mockShowConfirm).not.toHaveBeenCalled();
+  });
+
+  it('confirms before discarding unsaved edits', async () => {
+    const onClose = vi.fn();
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={onClose}
+        permission={permission}
+        onSave={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/Always on/));
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('stays open when the discard prompt is declined', async () => {
+    mockShowConfirm.mockResolvedValue(false);
+    const onClose = vi.fn();
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={onClose}
+        permission={permission}
+        onSave={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText(/Always off/));
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

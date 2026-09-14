@@ -2582,6 +2582,9 @@
       "forceOffHint": "Lever la main est masqué pour les élèves dans tous les quiz."
     },
     "noBuildings": "Aucun bâtiment configuré",
-    "noBuildingsHint": "Ajoutez un bâtiment dans Organisation avant de définir une valeur par défaut pour lever la main."
+    "noBuildingsHint": "Ajoutez un bâtiment dans Organisation avant de définir une valeur par défaut pour lever la main.",
+    "discardMessage": "Vous avez des modifications non enregistrées. Voulez-vous vraiment les abandonner ?",
+    "discardTitle": "Abandonner les modifications",
+    "discardConfirm": "Abandonner"
   }
 }

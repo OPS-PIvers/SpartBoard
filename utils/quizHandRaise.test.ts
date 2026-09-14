@@ -3,6 +3,7 @@ import type { FeaturePermission } from '@/types';
 import {
   DEFAULT_QUIZ_HAND_RAISE_MODE,
   readQuizHandRaiseMode,
+  resolveGateBuildingIds,
   resolveQuizHandRaiseEnabled,
 } from '@/utils/quizHandRaise';
 
@@ -63,7 +64,8 @@ describe('readQuizHandRaiseMode', () => {
     expect(readQuizHandRaiseMode(perms, ['high', 'middle'])).toBe('force-off');
     expect(readQuizHandRaiseMode(perms, ['high', 'schumann'])).toBe('force-on');
     expect(readQuizHandRaiseMode(perms, ['schumann'])).toBe('teacher-choice');
-    expect(readQuizHandRaiseMode(perms, [])).toBe(DEFAULT_QUIZ_HAND_RAISE_MODE);
+    // No building resolved: fall back to the most restrictive configured mode.
+    expect(readQuizHandRaiseMode(perms, [])).toBe('force-off');
   });
 
   it('falls back to the default for an unknown stored value', () => {
@@ -92,5 +94,57 @@ describe('resolveQuizHandRaiseEnabled', () => {
   it('force-off wins over any teacher choice', () => {
     expect(resolveQuizHandRaiseEnabled('force-off', true)).toBe(false);
     expect(resolveQuizHandRaiseEnabled('force-off', undefined)).toBe(false);
+  });
+});
+
+describe('empty building selection', () => {
+  it('resolves force-off when any configured building is force-off', () => {
+    const perms = [
+      permission({
+        buildingDefaults: {
+          b1: { handRaiseMode: 'teacher-choice' },
+          b2: { handRaiseMode: 'force-off' },
+        },
+      }),
+    ];
+    expect(readQuizHandRaiseMode(perms, [])).toBe('force-off');
+    expect(readQuizHandRaiseMode(perms, null)).toBe('force-off');
+  });
+
+  it('resolves force-on when a configured building forces it on and none off', () => {
+    const perms = [
+      permission({ buildingDefaults: { b1: { handRaiseMode: 'force-on' } } }),
+    ];
+    expect(readQuizHandRaiseMode(perms, [])).toBe('force-on');
+  });
+
+  it('stays teacher-choice when no building configures the gate', () => {
+    const perms = [permission({ buildingDefaults: {} })];
+    expect(readQuizHandRaiseMode(perms, [])).toBe('teacher-choice');
+  });
+});
+
+describe('resolveGateBuildingIds', () => {
+  it('prefers org membership buildings over the Profile filter', () => {
+    expect(resolveGateBuildingIds(['b2'], ['b1'])).toEqual(['b2']);
+  });
+
+  it('falls back to selected buildings when membership is unknown', () => {
+    expect(resolveGateBuildingIds([], ['b1'])).toEqual(['b1']);
+    expect(resolveGateBuildingIds(null, 'b1')).toEqual(['b1']);
+  });
+
+  it('returns nothing when both are empty, so the gate stays conservative', () => {
+    expect(resolveGateBuildingIds([], [])).toEqual([]);
+    expect(resolveGateBuildingIds(undefined, undefined)).toEqual([]);
+  });
+
+  it('cannot be bypassed by clearing selected buildings in Profile', () => {
+    const perms = [
+      permission({ buildingDefaults: { b2: { handRaiseMode: 'force-off' } } }),
+    ];
+    expect(
+      readQuizHandRaiseMode(perms, resolveGateBuildingIds(['b2'], []))
+    ).toBe('force-off');
   });
 });

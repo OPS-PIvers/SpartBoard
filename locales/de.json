@@ -2582,6 +2582,9 @@
       "forceOffHint": "Melden ist in jedem Quiz für Schüler ausgeblendet."
     },
     "noBuildings": "Keine Gebäude konfiguriert",
-    "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen."
+    "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen.",
+    "discardMessage": "Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?",
+    "discardTitle": "Änderungen verwerfen",
+    "discardConfirm": "Verwerfen"
   }
 }

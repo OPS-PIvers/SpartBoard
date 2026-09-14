@@ -11,6 +11,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { canonicalBuildingId } from '@/config/buildings';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import type {
   FeaturePermission,
   QuizBuildingConfig,
@@ -46,6 +47,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
+  const { showConfirm } = useDialog();
   const BUILDINGS = useAdminBuildings();
   const [tab, setTab] = useState<'behavior' | 'languages'>('behavior');
   const [saving, setSaving] = useState(false);
@@ -85,6 +87,29 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         [canonicalId]: { ...currentBuildingConfig, ...updates },
       },
     }));
+  };
+
+  const isDirty =
+    JSON.stringify(config) !==
+    JSON.stringify(normalizeConfig(permission.config));
+
+  // Same discard prompt the generic admin config modal path uses.
+  const requestClose = async () => {
+    if (isDirty) {
+      const confirmed = await showConfirm(
+        t(
+          'quizAdmin.discardMessage',
+          'You have unsaved changes. Are you sure you want to discard them?'
+        ),
+        {
+          title: t('quizAdmin.discardTitle', 'Discard Changes'),
+          variant: 'warning',
+          confirmLabel: t('quizAdmin.discardConfirm', 'Discard'),
+        }
+      );
+      if (!confirmed) return;
+    }
+    onClose();
   };
 
   const handleSave = async () => {
@@ -156,7 +181,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         </div>
       </div>
       <button
-        onClick={onClose}
+        onClick={() => void requestClose()}
         aria-label={t('quizAdmin.close', 'Close')}
         className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
       >
@@ -165,40 +190,42 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
     </div>
   );
 
-  const footer =
-    tab === 'behavior' ? (
-      <div className="flex items-center justify-between w-full">
-        <p className="text-xxs text-slate-400 font-bold uppercase tracking-widest">
-          {t('quizAdmin.building', 'Building')}:{' '}
-          {BUILDINGS.find((b) => b.id === selectedBuildingId)?.name ?? '—'}
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
-          >
-            {t('quizAdmin.cancel', 'Cancel')}
-          </button>
-          <button
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {t('quizAdmin.save', 'Save Configuration')}
-          </button>
-        </div>
+  const footer = (
+    <div className="flex items-center justify-between w-full">
+      <p className="text-xxs text-slate-400 font-bold uppercase tracking-widest">
+        {tab === 'behavior'
+          ? `${t('quizAdmin.building', 'Building')}: ${
+              BUILDINGS.find((b) => b.id === selectedBuildingId)?.name ?? '—'
+            }`
+          : ''}
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => void requestClose()}
+          className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
+        >
+          {t('quizAdmin.cancel', 'Cancel')}
+        </button>
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
+        >
+          {saving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {t('quizAdmin.save', 'Save Configuration')}
+        </button>
       </div>
-    ) : undefined;
+    </div>
+  );
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => void requestClose()}
       maxWidth="max-w-5xl"
       customHeader={header}
       footer={footer}

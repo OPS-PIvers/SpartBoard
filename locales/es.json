@@ -2582,6 +2582,9 @@
       "forceOffHint": "Levantar la mano está oculto para los estudiantes en todos los cuestionarios."
     },
     "noBuildings": "No hay edificios configurados",
-    "noBuildingsHint": "Agregue un edificio en Organización antes de establecer un valor predeterminado para levantar la mano."
+    "noBuildingsHint": "Agregue un edificio en Organización antes de establecer un valor predeterminado para levantar la mano.",
+    "discardMessage": "Tienes cambios sin guardar. ¿Seguro que quieres descartarlos?",
+    "discardTitle": "Descartar cambios",
+    "discardConfirm": "Descartar"
   }
 }

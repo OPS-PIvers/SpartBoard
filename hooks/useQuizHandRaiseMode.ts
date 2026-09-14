@@ -3,6 +3,7 @@ import { AuthContext } from '@/context/AuthContextValue';
 import {
   DEFAULT_QUIZ_HAND_RAISE_MODE,
   readQuizHandRaiseMode,
+  resolveGateBuildingIds,
   type QuizHandRaiseMode,
 } from '@/utils/quizHandRaise';
 
@@ -11,9 +12,14 @@ export function useQuizHandRaiseMode(): QuizHandRaiseMode {
   // useContext rather than useAuth() so a provider-less render falls back to the default.
   const auth = useContext(AuthContext);
   const permissions = auth?.featurePermissions;
-  const buildingIds = auth?.selectedBuildings;
+  // Membership buildings are authoritative; the Profile filter is only a fallback.
+  const membershipBuildingIds = auth?.buildingIds;
+  const selectedBuildings = auth?.selectedBuildings;
   return useMemo(() => {
     if (!permissions) return DEFAULT_QUIZ_HAND_RAISE_MODE;
-    return readQuizHandRaiseMode(permissions, buildingIds);
-  }, [permissions, buildingIds]);
+    return readQuizHandRaiseMode(
+      permissions,
+      resolveGateBuildingIds(membershipBuildingIds, selectedBuildings)
+    );
+  }, [permissions, membershipBuildingIds, selectedBuildings]);
 }

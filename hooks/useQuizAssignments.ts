@@ -98,6 +98,7 @@ import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   readQuizHandRaiseMode,
+  resolveGateBuildingIds,
   resolveQuizHandRaiseEnabled,
 } from '@/utils/quizHandRaise';
 import { getPlcMemberEmails } from '@/utils/plc';
@@ -777,6 +778,8 @@ export const useQuizAssignments = (
   // session doc at assign time. Read through a ref so createAssignment can wait
   // for the profile + permission snapshots instead of failing open to
   // teacher-choice while the buildings are still unknown.
+  // Mirrored in an effect, not during render: `react-hooks/refs` forbids
+  // render-phase ref writes (same pattern as `assignmentsRef` above).
   const authRef = useRef(authContext);
   useEffect(() => {
     authRef.current = authContext;
@@ -791,7 +794,7 @@ export const useQuizAssignments = (
     const ctx = authRef.current;
     return readQuizHandRaiseMode(
       ctx?.featurePermissions,
-      ctx?.selectedBuildings
+      resolveGateBuildingIds(ctx?.buildingIds, ctx?.selectedBuildings)
     );
   }, []);
 
@@ -937,7 +940,11 @@ export const useQuizAssignments = (
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
       const now = Date.now();
-      const handRaiseMode = await resolveHandRaiseMode();
+      // View-only shares have no live teacher, so never resolve the gate for them.
+      const isViewOnlyShare = assignmentMode === 'view-only';
+      const handRaiseMode = isViewOnlyShare
+        ? 'force-off'
+        : await resolveHandRaiseMode();
       // Freeze a compact teacher-private tag snapshot for PLC aggregate
       // recomputes. Student session projection remains governed separately by
       // `showLearningTargets`.
