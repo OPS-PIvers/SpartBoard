@@ -87,6 +87,30 @@ describe('useAssignmentDetailActions', () => {
     ).toBeNull();
   });
 
+  it('skipping a student preserves their stored override instead of deleting it', async () => {
+    const row = makeRow();
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'students',
+      targetStudents: [],
+      targetGroupIds: [],
+      overridesByKey: { 'classlink:SID-1': { timeMultiplier: 1.5 } },
+      excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+    });
+
+    const call = mockSetAssignmentTargets.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(call.remove).toEqual([]);
+    const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
+    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+      timeMultiplier: 1.5,
+    });
+    expect(assignmentPatch.removedStudentRefs).toBeUndefined();
+  });
+
   it('records the removed ref onto removedStudentRefs via arrayUnion', async () => {
     const row = makeRow();
     const { result } = renderHook(() => useAssignmentDetailActions());

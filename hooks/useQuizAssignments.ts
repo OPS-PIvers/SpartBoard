@@ -2548,6 +2548,9 @@ export const useQuizAssignments = (
       const assignmentSnap = await getDoc(assignmentRef);
       const overridesByStudentUid = (assignmentSnap.data()
         ?.overridesByStudentUid ?? {}) as Record<string, StudentOverride>;
+      // Write-once served language, kept when a student is skipped or de-targeted.
+      const servedLanguageByStudentUid = (assignmentSnap.data()
+        ?.servedLanguageByStudentUid ?? {}) as Record<string, string>;
       // Translated FIB answer keys snapshotted at assign time; absent on older assignments.
       const localizedFibAnswers = (assignmentSnap.data()?.localizedFibAnswers ??
         {}) as Record<string, Record<string, string[]>>;
@@ -2599,7 +2602,9 @@ export const useQuizAssignments = (
             : null;
         // Teacher-side truth only: never the client-asserted `response.locale`.
         const servedLocale =
-          overridesByStudentUid[data.studentUid]?.language ?? undefined;
+          overridesByStudentUid[data.studentUid]?.language ??
+          servedLanguageByStudentUid[data.studentUid] ??
+          undefined;
         let pointsEarned = 0;
         let pointsMax = 0;
         // Set when any answered slot is still owed a teacher grade (ungraded

@@ -96,6 +96,8 @@ export interface QuizLiveMonitorProps {
   localizedFibAnswers?: LocalizedFibAnswers | null;
   /** Per-student overrides keyed by pseudonym uid; names each student's served locale. */
   overridesByStudentUid?: Record<string, StudentOverride> | null;
+  /** Write-once served language per uid; grades a de-targeted student's old work. */
+  servedLanguageByStudentUid?: Record<string, string> | null;
 }
 
 type Screen =
@@ -137,14 +139,21 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     overridesBySourcedId = null,
     localizedFibAnswers = null,
     overridesByStudentUid = null,
+    servedLanguageByStudentUid = null,
   } = props;
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
       answers: localizedFibAnswers,
       overridesByStudentUid,
       overridesBySourcedId,
+      servedLanguageByStudentUid,
     }),
-    [localizedFibAnswers, overridesByStudentUid, overridesBySourcedId]
+    [
+      localizedFibAnswers,
+      overridesByStudentUid,
+      overridesBySourcedId,
+      servedLanguageByStudentUid,
+    ]
   );
 
   const { showConfirm } = useDialog();

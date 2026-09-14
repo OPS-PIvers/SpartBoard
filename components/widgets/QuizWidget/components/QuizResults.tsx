@@ -247,6 +247,8 @@ interface QuizResultsProps {
     string,
     import('@/types').StudentOverride
   > | null;
+  /** Write-once served language per uid; grades a de-targeted student's old work. */
+  servedLanguageByStudentUid?: Record<string, string> | null;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -267,6 +269,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   overridesBySourcedId,
   localizedFibAnswers = null,
   overridesByStudentUid = null,
+  servedLanguageByStudentUid = null,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
@@ -275,8 +278,14 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       answers: localizedFibAnswers,
       overridesByStudentUid,
       overridesBySourcedId,
+      servedLanguageByStudentUid,
     }),
-    [localizedFibAnswers, overridesByStudentUid, overridesBySourcedId]
+    [
+      localizedFibAnswers,
+      overridesByStudentUid,
+      overridesBySourcedId,
+      servedLanguageByStudentUid,
+    ]
   );
   const {
     ensureGoogleScope,

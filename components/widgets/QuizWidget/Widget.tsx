@@ -860,6 +860,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     answers: liveAssignment?.localizedFibAnswers ?? null,
     overridesByStudentUid: liveAssignment?.overridesByStudentUid ?? null,
     overridesBySourcedId: liveAssignment?.overridesBySourcedId ?? null,
+    servedLanguageByStudentUid:
+      liveAssignment?.servedLanguageByStudentUid ?? null,
   };
 
   // ─── Callback for child components to update quiz config ────────────────────
@@ -1323,6 +1325,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         overridesBySourcedId={activeAssignment?.overridesBySourcedId ?? null}
         localizedFibAnswers={activeAssignment?.localizedFibAnswers ?? null}
         overridesByStudentUid={activeAssignment?.overridesByStudentUid ?? null}
+        servedLanguageByStudentUid={
+          activeAssignment?.servedLanguageByStudentUid ?? null
+        }
         initialExportUrl={activeAssignment?.exportUrl ?? null}
         plcSheetUrl={activeAssignment?.plc?.sheetUrl ?? null}
         onExportUrlSaved={
@@ -1487,6 +1492,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
         overridesByStudentUid={
           monitorActiveAssignment?.overridesByStudentUid ?? null
+        }
+        servedLanguageByStudentUid={
+          monitorActiveAssignment?.servedLanguageByStudentUid ?? null
         }
         localizedFibAnswers={
           monitorActiveAssignment?.localizedFibAnswers ?? null
@@ -2752,6 +2760,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               answers: target.localizedFibAnswers ?? null,
               overridesByStudentUid: target.overridesByStudentUid ?? null,
               overridesBySourcedId: target.overridesBySourcedId ?? null,
+              servedLanguageByStudentUid:
+                target.servedLanguageByStudentUid ?? null,
             };
             try {
               if (visibility === 'none') {

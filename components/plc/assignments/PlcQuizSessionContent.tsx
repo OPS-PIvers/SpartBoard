@@ -307,6 +307,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       onUnlockResultsForStudent={unlockResultsForStudent}
       localizedFibAnswers={assignment.localizedFibAnswers ?? null}
       overridesByStudentUid={assignment.overridesByStudentUid ?? null}
+      servedLanguageByStudentUid={assignment.servedLanguageByStudentUid ?? null}
       overridesBySourcedId={assignment.overridesBySourcedId ?? null}
       initialExportUrl={assignment.exportUrl ?? null}
       plcSheetUrl={assignment.plc?.sheetUrl ?? null}

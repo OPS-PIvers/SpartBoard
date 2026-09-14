@@ -799,10 +799,29 @@ export async function handleSetAssignmentTargets(
       );
     }
   }
-  for (const uid of removeUids) overrideChangesByUid.set(uid, null);
-  for (const uid of excludedUids) overrideChangesByUid.set(uid, null);
 
   const assignmentData = assignmentSnap.data() ?? {};
+
+  // Skipping is suppression, not destruction: the stored mirror keeps the
+  // excluded student's override so already-submitted work still grades against
+  // the locale it was served in.
+  const storedExcludedUids = new Set(
+    excludedRefsFromAssignment(assignmentData).map((ref) =>
+      uidForRef(ref, hmacSecret)
+    )
+  );
+  const changedKeys = new Set([
+    ...input.add.map(refKey),
+    ...input.remove.map(refKey),
+  ]);
+  const finalExcludedUids = new Set(excludedUids);
+  for (const ref of excludedRefsFromAssignment(assignmentData)) {
+    if (changedKeys.has(refKey(ref))) continue;
+    finalExcludedUids.add(uidForRef(ref, hmacSecret));
+  }
+  // A suppressed or de-targeted student contributes no window and no audio.
+  const inactiveUids = new Set([...finalExcludedUids, ...removeUids]);
+
   const assignmentWindow = {
     openAt: numberOrNull(assignmentData.openAt),
     closeAt: numberOrNull(assignmentData.closeAt),
@@ -819,19 +838,44 @@ export async function handleSetAssignmentTargets(
   const effectiveCloseAtByUid = new Map<string, number | undefined>();
   const effectiveOverrideByUid = new Map<string, StudentOverride | null>();
   const priorOverrideByUid = new Map<string, StudentOverride | null>();
+  const storedMirrorByUid = new Map<string, StudentOverride | null>();
   const storedMirror: unknown = assignmentData.overridesByStudentUid;
   if (typeof storedMirror === 'object' && storedMirror !== null) {
     for (const [uid, value] of Object.entries(
       storedMirror as Record<string, unknown>
     )) {
       const stored = (value ?? null) as StudentOverride | null;
-      const closeAt = stored?.closeAt;
-      effectiveCloseAtByUid.set(uid, numberOrNull(closeAt) ?? undefined);
+      storedMirrorByUid.set(uid, stored);
+      // A student who was already skipped had nothing delivered or prepared,
+      // so the "gained" checks must compare against that suppressed state.
+      if (storedExcludedUids.has(uid)) priorOverrideByUid.set(uid, null);
+      else priorOverrideByUid.set(uid, stored);
+      if (inactiveUids.has(uid)) continue;
+      effectiveCloseAtByUid.set(
+        uid,
+        numberOrNull(stored?.closeAt) ?? undefined
+      );
       effectiveOverrideByUid.set(uid, stored);
-      priorOverrideByUid.set(uid, stored);
     }
   }
+  // Un-skipping without an explicit override edit still restores the preserved
+  // accommodation, so the prepare trigger sees what the student regained.
+  for (const target of admitted) {
+    if (!storedExcludedUids.has(target.uid)) continue;
+    if (target.key in input.overridesBySourcedId) continue;
+    const stored = storedMirrorByUid.get(target.uid);
+    if (stored) overrideChangesByUid.set(target.uid, stored);
+  }
+  // A skip that also edits the override still records it; delivery stays gated
+  // by the `excluded` marker, and the gained checks ignore inactive uids.
+  for (const target of excludedResult.resolved) {
+    if (!(target.key in input.overridesBySourcedId)) continue;
+    const next = input.overridesBySourcedId[target.key];
+    if (next) overrideChangesByUid.set(target.uid, next);
+  }
+  for (const uid of removeUids) overrideChangesByUid.set(uid, null);
   for (const [uid, value] of overrideChangesByUid) {
+    if (inactiveUids.has(uid)) continue;
     effectiveCloseAtByUid.set(uid, numberOrNull(value?.closeAt) ?? undefined);
     effectiveOverrideByUid.set(uid, value);
   }
@@ -849,6 +893,7 @@ export async function handleSetAssignmentTargets(
   // Under readAloudAll a language-only change still gains audio nobody prepared yet.
   const voicedLocaleGained = [...overrideChangesByUid].some(([uid, value]) => {
     if (!readAloudForAll) return false;
+    if (inactiveUids.has(uid)) return false;
     const language = value?.language;
     if (typeof language !== 'string' || !language) return false;
     if (!ttsLanguageForTranslationLocale(language)) return false;
@@ -859,7 +904,9 @@ export async function handleSetAssignmentTargets(
     effectiveCloseAtByUid.values()
   );
   const writesSessionCloseAt =
-    (input.window.closeAt !== undefined || overrideChangesByUid.size > 0) &&
+    (input.window.closeAt !== undefined ||
+      overrideChangesByUid.size > 0 ||
+      excludedUids.size > 0) &&
     desiredSessionCloseAt !== sessionCloseAtNow;
 
   // Session flag first: hiding an individually-targeted assignment from the
@@ -959,7 +1006,10 @@ export async function handleSetAssignmentTargets(
       teacherUid: callerUid,
       classId: target.classId,
       excluded: true,
-      override: admin.firestore.FieldValue.delete(),
+      ...(target.key in input.overridesBySourcedId &&
+      input.overridesBySourcedId[target.key]
+        ? { override: input.overridesBySourcedId[target.key] }
+        : {}),
       createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
     };
@@ -996,6 +1046,13 @@ export async function handleSetAssignmentTargets(
   for (const [uid, value] of overrideChangesByUid) {
     overridesByStudentUid[uid] =
       value === null ? admin.firestore.FieldValue.delete() : value;
+  }
+  // Write-once record of the language each student was served. Never cleared,
+  // so de-targeting one still grades their submitted work in the right locale.
+  const servedLanguageByStudentUid: Record<string, string> = {};
+  for (const [uid, value] of overrideChangesByUid) {
+    const language = value?.language ?? storedMirrorByUid.get(uid)?.language;
+    if (language) servedLanguageByStudentUid[uid] = language;
   }
 
   // Persisted after the pointer commit so the doc only ever claims targets
@@ -1056,6 +1113,9 @@ export async function handleSetAssignmentTargets(
         ...(Object.keys(overridesByStudentUid).length > 0
           ? { overridesByStudentUid }
           : {}),
+        ...(Object.keys(servedLanguageByStudentUid).length > 0
+          ? { servedLanguageByStudentUid }
+          : {}),
       },
       { merge: true }
     );
@@ -1076,7 +1136,12 @@ export async function handleSetAssignmentTargets(
 
   const readAloudGained =
     input.kind === 'quiz' &&
-    ([...overrideChangesByUid.values()].some((v) => v?.readAloud === true) ||
+    ([...overrideChangesByUid].some(
+      ([uid, v]) =>
+        v?.readAloud === true &&
+        !inactiveUids.has(uid) &&
+        priorOverrideByUid.get(uid)?.readAloud !== true
+    ) ||
       voicedLocaleGained);
   if (readAloudGained && onReadAloudGained) {
     await onReadAloudGained(input.sessionId, [...readAloudLocales]);
