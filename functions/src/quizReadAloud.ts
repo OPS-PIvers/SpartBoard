@@ -54,6 +54,16 @@ const DEFAULT_SETTINGS: QuizReadAloudSettings = {
   speakingRateDefault: 1.0,
 };
 
+// Mirrors config/quizReadAloud.ts. Translation locales with a Google voice; so/hmn have none.
+const TRANSLATION_TTS_LANGUAGE: Record<string, string> = { es: 'es-US' };
+
+export function ttsLanguageForTranslationLocale(
+  locale: string | undefined | null
+): string | null {
+  if (!locale) return null;
+  return TRANSLATION_TTS_LANGUAGE[locale] ?? null;
+}
+
 const PREVIEW_SENTENCES: Record<string, string> = {
   'en-US':
     'This is how your quiz will sound when it is read aloud. Which of these is a prime number?',
@@ -133,6 +143,8 @@ export type SynthesizeQuizAudioRequest =
       sessionId: string;
       questionId: string;
       part: QuizReadAloudPart;
+      /** Translation locale the student is viewing; absent = English (today's behaviour). */
+      locale?: string;
     }
   | { mode: 'preview'; language: string; voice?: string };
 
@@ -161,6 +173,9 @@ interface SessionQuestion {
   matchingRight?: unknown;
   orderingItems?: unknown;
   stimulusIds?: unknown;
+  placeholder?: unknown;
+  rubricSnapshot?: unknown;
+  localized?: unknown;
 }
 
 // ── Pure helpers (exported for tests) ──────────────────────────────────────
@@ -389,6 +404,64 @@ export function resolvePartText(
   }
 }
 
+const LOCALIZED_ARRAY_FIELDS = [
+  'choices',
+  'matchingLeft',
+  'matchingRight',
+  'orderingItems',
+] as const;
+
+/**
+ * Server mirror of `utils/quizOverrideServing.ts` serveLocalizedQuestion: the stored
+ * translation the student actually sees, or null when the view would render English.
+ */
+export function localizedSessionQuestion(
+  question: SessionQuestion,
+  locale: string
+): SessionQuestion | null {
+  if (question.type === 'FIB') return null;
+  const map = question.localized;
+  if (typeof map !== 'object' || map === null) return null;
+  const raw = (map as Record<string, unknown>)[locale];
+  if (typeof raw !== 'object' || raw === null) return null;
+  const entry = raw as Record<string, unknown>;
+  const text = typeof entry.text === 'string' ? entry.text : '';
+  if (!text) return null;
+  if (question.placeholder && !entry.placeholder) return null;
+  if (question.rubricSnapshot && !entry.rubricSnapshot) return null;
+  const out: SessionQuestion = {
+    id: question.id,
+    type: question.type,
+    text,
+    stimulusIds: question.stimulusIds,
+  };
+  for (const field of LOCALIZED_ARRAY_FIELDS) {
+    if (strings(question[field]).length === 0) continue;
+    const translated = strings(entry[field]);
+    if (translated.length === 0) return null;
+    (out as Record<string, unknown>)[field] = translated;
+  }
+  return out;
+}
+
+/** Translation locales stored on a session that have a TTS voice (currently `es`). */
+export function voicedSessionLocales(
+  session: Record<string, unknown>
+): string[] {
+  const questions = Array.isArray(session.publicQuestions)
+    ? (session.publicQuestions as SessionQuestion[])
+    : [];
+  const out = new Set<string>();
+  for (const q of questions) {
+    const map = q?.localized;
+    if (typeof map !== 'object' || map === null) continue;
+    for (const locale of Object.keys(map as Record<string, unknown>)) {
+      if (ttsLanguageForTranslationLocale(locale)) out.add(locale);
+    }
+  }
+  return [...out];
+}
+
 /** Every part of a session, keyed for the manifest (§4.0 step 3). */
 export function enumerateParts(session: Record<string, unknown>): {
   parts: EnumeratedPart[];
@@ -445,6 +518,23 @@ export function enumerateParts(session: Record<string, unknown>): {
     }
   }
   return { parts, stimulusChunks };
+}
+
+/** Parts for one translation locale. Stimulus passages are never translated, so none are listed. */
+export function enumerateLocalizedParts(
+  session: Record<string, unknown>,
+  locale: string
+): EnumeratedPart[] {
+  const questions = Array.isArray(session.publicQuestions)
+    ? (session.publicQuestions as SessionQuestion[])
+    : [];
+  const localized: SessionQuestion[] = [];
+  for (const q of questions) {
+    if (typeof q?.id !== 'string') continue;
+    const view = localizedSessionQuestion(q, locale);
+    if (view) localized.push(view);
+  }
+  return enumerateParts({ publicQuestions: localized }).parts;
 }
 
 export function normalizeSettings(raw: unknown): QuizReadAloudSettings {
@@ -544,7 +634,19 @@ export function parseSynthesizeRequest(
       'sessionId and questionId are required.'
     );
   const part = parsePart(data.part);
-  return { mode: 'student', sessionId, questionId, part };
+  const locale = typeof data.locale === 'string' ? data.locale.trim() : '';
+  if (locale && !ttsLanguageForTranslationLocale(locale))
+    throw new HttpsError(
+      'invalid-argument',
+      'That language has no read-aloud voice.'
+    );
+  return {
+    mode: 'student',
+    sessionId,
+    questionId,
+    part,
+    ...(locale ? { locale } : {}),
+  };
 }
 
 export function parsePart(raw: unknown): QuizReadAloudPart {
@@ -762,7 +864,12 @@ async function withRetry<T>(
 // ── prepareQuizReadAloudV1 ─────────────────────────────────────────────────
 
 export async function prepareQuizReadAloud(
-  input: { sessionId: string; callerUid: string },
+  input: {
+    sessionId: string;
+    callerUid: string;
+    /** New clients only; absent leaves the English-only behaviour byte-for-byte. */
+    includeTranslations?: boolean;
+  },
   deps: ReadAloudDeps,
   opts: { deadlineMs?: number } = {}
 ): Promise<PrepareQuizReadAloudResult> {
@@ -854,6 +961,66 @@ export async function prepareQuizReadAloud(
     }
   });
 
+  const localized: Record<
+    string,
+    {
+      voice: string;
+      files: Record<string, string>;
+      timings: Record<string, ReadAloudTiming[]>;
+      failedKeys: string[];
+    }
+  > = {};
+  if (input.includeTranslations) {
+    for (const locale of voicedSessionLocales(session)) {
+      const localeLanguage = ttsLanguageForTranslationLocale(locale);
+      if (!localeLanguage) continue;
+      const localeVoices = voicesForLanguage(settings, localeLanguage);
+      const entry = {
+        voice: localeVoices.neural2,
+        files: {} as Record<string, string>,
+        timings: {} as Record<string, ReadAloudTiming[]>,
+        failedKeys: [] as string[],
+      };
+      await runPool(
+        enumerateLocalizedParts(session, locale),
+        PREPARE_CONCURRENCY,
+        async (part) => {
+          if (deps.now() > deadline) {
+            entry.failedKeys.push(part.key);
+            return;
+          }
+          try {
+            const result = await withRetry(
+              () =>
+                synthesizePart(deps, {
+                  subParts: part.subParts,
+                  language: localeLanguage,
+                  teacherUid,
+                  settings,
+                }),
+              3
+            );
+            entry.files[part.key] = result.path;
+            if (result.timings) entry.timings[part.key] = result.timings;
+            if (result.cached) hits += 1;
+            else {
+              synthesized += 1;
+              chars += result.chars;
+            }
+          } catch (error) {
+            console.error('[quizReadAloud] localized part failed', {
+              key: part.key,
+              locale,
+              error,
+            });
+            entry.failedKeys.push(part.key);
+          }
+        }
+      );
+      if (Object.keys(entry.files).length > 0) localized[locale] = entry;
+    }
+  }
+
   const status: PrepareQuizReadAloudResult['status'] =
     failedKeys.length === 0
       ? 'ready'
@@ -871,6 +1038,7 @@ export async function prepareQuizReadAloud(
         timings,
         stimulusChunks,
         failedKeys,
+        ...(Object.keys(localized).length > 0 ? { localized } : {}),
       },
     },
     { merge: true }
@@ -1001,21 +1169,45 @@ export async function synthesizeQuizAudio(
   const questions = Array.isArray(session.publicQuestions)
     ? (session.publicQuestions as SessionQuestion[])
     : [];
-  const question = questions.find((q) => q?.id === request.questionId);
-  if (!question) throw new HttpsError('invalid-argument', 'Unknown question.');
+  const canonicalQuestion = questions.find((q) => q?.id === request.questionId);
+  if (!canonicalQuestion)
+    throw new HttpsError('invalid-argument', 'Unknown question.');
+  const localeLanguage = ttsLanguageForTranslationLocale(request.locale);
+  // Text always comes from the stored translation on the session doc, never from the request.
+  const question = request.locale
+    ? localizedSessionQuestion(canonicalQuestion, request.locale)
+    : canonicalQuestion;
+  if (!question)
+    throw new HttpsError(
+      'invalid-argument',
+      'No translation stored for this question.'
+    );
   const settings = await loadSettings(db);
   const language =
+    localeLanguage ??
+    (typeof session.language === 'string' && session.language
+      ? session.language
+      : settings.defaultLanguage);
+  const voices = voicesForLanguage(settings, language);
+  const sessionVoice = voicesForLanguage(
+    settings,
     typeof session.language === 'string' && session.language
       ? session.language
-      : settings.defaultLanguage;
-  const voices = voicesForLanguage(settings, language);
+      : settings.defaultLanguage
+  ).neural2;
   const nowMs = deps.now();
   const manifestBase =
     typeof session.readAloud === 'object' && session.readAloud !== null
       ? {}
-      : { status: 'partial', voice: voices.neural2 };
+      : { status: 'partial', voice: sessionVoice };
 
   if (request.part.kind === 'stimulus') {
+    // Stimulus passages are not translated, so a translated view has no stimulus audio.
+    if (request.locale)
+      throw new HttpsError(
+        'invalid-argument',
+        'Stimulus read-aloud is English only.'
+      );
     const sid = request.part.stimulusId;
     if (!strings(question.stimulusIds).includes(sid))
       throw new HttpsError(
@@ -1081,12 +1273,24 @@ export async function synthesizeQuizAudio(
     settings,
   });
   const key = partKey(request.questionId, request.part);
+  const slice = {
+    files: { [key]: result.path },
+    ...(result.timings ? { timings: { [key]: result.timings } } : {}),
+  };
   await sessionRef.set(
     {
       readAloud: {
         ...manifestBase,
-        files: { [key]: result.path },
-        ...(result.timings ? { timings: { [key]: result.timings } } : {}),
+        ...(request.locale
+          ? {
+              localized: {
+                [request.locale]: {
+                  voice: voices.neural2,
+                  ...slice,
+                },
+              },
+            }
+          : slice),
       },
     },
     { merge: true }
@@ -1200,7 +1404,11 @@ export const prepareQuizReadAloudV1 = onCall(
     if (!sessionId || sessionId.includes('/'))
       throw new HttpsError('invalid-argument', 'sessionId is required.');
     return prepareQuizReadAloud(
-      { sessionId, callerUid: request.auth.uid },
+      {
+        sessionId,
+        callerUid: request.auth.uid,
+        includeTranslations: data.includeTranslations === true,
+      },
       buildDefaultDeps(),
       {
         deadlineMs: 270_000,

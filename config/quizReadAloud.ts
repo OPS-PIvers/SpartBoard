@@ -112,6 +112,19 @@ export function normalizeQuizReadAloudSettings(
   };
 }
 
+/** Translation locale (D19 codes) → TTS language tag; codes absent here have no Google voice. */
+export const QUIZ_TRANSLATION_TTS_LANGUAGE: Readonly<Record<string, string>> = {
+  es: 'es-US',
+};
+
+/** The TTS language tag for a translated view, or null when that locale has no voice (so/hmn). */
+export function ttsLanguageForTranslationLocale(
+  locale: string | undefined | null
+): string | null {
+  if (!locale) return null;
+  return QUIZ_TRANSLATION_TTS_LANGUAGE[locale] ?? null;
+}
+
 /** `ai_usage/global_tts_{YYYY-MM}` doc id for the month containing `date`. */
 export function monthlyTtsUsageDocId(date: Date = new Date()): string {
   const y = date.getUTCFullYear();

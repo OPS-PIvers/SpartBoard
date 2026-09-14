@@ -136,6 +136,7 @@ import {
   applyTimeMultiplier,
   serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
+import { ttsLanguageForTranslationLocale } from '@/config/quizReadAloud';
 import {
   applyLocalizedStrings,
   localizedQuizTitle,
@@ -1805,15 +1806,21 @@ const ActiveQuiz: React.FC<{
     !!currentQuestion &&
     serveLocalizedQuestion(currentQuestion, assignedLocale) !== null;
 
+  // A localized rendering keeps read-aloud only where the locale has a TTS voice (so/hmn do not).
+  const readAloudLocale =
+    localizedStrings && ttsLanguageForTranslationLocale(activeLocale)
+      ? activeLocale
+      : undefined;
+
   // Read-aloud (docs/plans/QUIZ_READ_ALOUD.md §6.2): self-paced light shell only.
   const readAloud = useQuizReadAloud({
-    // D25: no speaker on a localized rendering; it returns on the English toggle.
     enabled:
       readAloudRequested === true &&
       isStudentPaced &&
-      localizedStrings === null,
+      (localizedStrings === null || readAloudLocale !== undefined),
     sessionId: session.id,
     manifest: session.readAloud,
+    locale: readAloudLocale,
     canonicalQuestions: session.publicQuestions,
     question: currentQuestion,
     nextQuestion: isStudentPaced

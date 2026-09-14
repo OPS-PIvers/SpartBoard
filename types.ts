@@ -7694,6 +7694,16 @@ export interface QuizReadAloudManifest {
   timings?: Record<string, QuizReadAloudTiming[]>;
   stimulusChunks?: Record<string, string[]>;
   failedKeys?: string[];
+  /** Translated audio, keyed by translation locale; English above is never touched. */
+  localized?: Record<string, QuizReadAloudLocaleManifest>;
+}
+
+/** One translated locale's slice of `session.readAloud` (same part keys, translated voice). */
+export interface QuizReadAloudLocaleManifest {
+  voice: string;
+  files: Record<string, string>;
+  timings?: Record<string, QuizReadAloudTiming[]>;
+  failedKeys?: string[];
 }
 
 export interface QuizReadAloudAdminSettings {

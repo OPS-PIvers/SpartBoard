@@ -10,6 +10,8 @@ export type SynthesizeQuizAudioRequest =
       sessionId: string;
       questionId: string;
       part: QuizReadAloudPart;
+      /** Translation locale being viewed; omitted for the English rendering. */
+      locale?: string;
     }
   | { mode: 'preview'; language: string; voice?: string };
 
@@ -66,10 +68,10 @@ export async function prepareQuizReadAloud(
   sessionId: string
 ): Promise<PrepareQuizReadAloudResult> {
   const callable = httpsCallable<
-    { sessionId: string },
+    { sessionId: string; includeTranslations: boolean },
     PrepareQuizReadAloudResult
   >(functions, 'prepareQuizReadAloudV1');
-  return (await callable({ sessionId })).data;
+  return (await callable({ sessionId, includeTranslations: true })).data;
 }
 
 /** Fire-and-forget prepare after an assign; failures only log (the student fallback covers them). */

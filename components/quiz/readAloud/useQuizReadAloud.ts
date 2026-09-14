@@ -14,6 +14,7 @@ import {
   resolveReadAloudUrl,
   synthesizeQuizAudio,
 } from '@/utils/quizReadAloudApi';
+import { serveLocalizedQuestion } from '@/utils/quizOverrideServing';
 import { sameReadAloudPart } from './readAloudHighlight';
 
 export const READ_ALOUD_RATES = [1, 1.25, 1.5, 0.75] as const;
@@ -73,6 +74,8 @@ interface Args {
   nextQuestion: QuizPublicQuestion | undefined;
   /** `session.readAloudTextByStimulusId`; only attached ids with text get a speaker. */
   stimulusTextById?: Record<string, string>;
+  /** Translation locale being rendered; audio then comes from the locale's manifest slice. */
+  locale?: string;
 }
 
 interface Resolved {
@@ -134,6 +137,7 @@ export function useQuizReadAloud({
   question,
   nextQuestion,
   stimulusTextById,
+  locale,
 }: Args): QuizReadAloudController {
   const [playingPart, setPlayingPart] = useState<QuizReadAloudPart | null>(
     null
@@ -159,9 +163,17 @@ export function useQuizReadAloud({
   const timingsRef = useRef<QuizReadAloudTiming[] | null>(null);
   const queueRef = useRef<QuizReadAloudPart[]>([]);
   const questionId = question?.id;
-  const canonical = useMemo(
-    () => canonicalQuestions.find((q) => q.id === questionId),
-    [canonicalQuestions, questionId]
+  // Index lookups run against the strings on screen, so a localized view resolves localized arrays.
+  const canonical = useMemo(() => {
+    const q = canonicalQuestions.find((c) => c.id === questionId);
+    if (!q || !locale) return q;
+    const entry = serveLocalizedQuestion(q, locale);
+    return entry ? { ...q, ...entry } : q;
+  }, [canonicalQuestions, questionId, locale]);
+  // Translated audio lives in its own manifest slice; English stays where it is.
+  const slice = useMemo(
+    () => (locale ? manifest?.localized?.[locale] : manifest),
+    [manifest, locale]
   );
 
   const getAudio = useCallback((): HTMLAudioElement => {
@@ -209,11 +221,11 @@ export function useQuizReadAloud({
           return { urls: await Promise.all((paths as string[]).map(urlFor)) };
         }
       } else {
-        const path = manifest?.files[key];
+        const path = slice?.files[key];
         if (path) {
           return {
             urls: [await urlFor(path)],
-            timings: manifest?.timings?.[key],
+            timings: slice?.timings?.[key],
           };
         }
       }
@@ -223,11 +235,12 @@ export function useQuizReadAloud({
         sessionId,
         questionId: qid,
         part,
+        ...(locale ? { locale } : {}),
       });
       const paths = res.chunks ?? [res.path];
       return { urls: await Promise.all(paths.map(urlFor)), timings: res.parts };
     },
-    [manifest, sessionId, urlFor]
+    [manifest, slice, locale, sessionId, urlFor]
   );
 
   const start = useCallback(
@@ -299,11 +312,13 @@ export function useQuizReadAloud({
 
   const stimulusText = useCallback(
     (stimulusId: string): string | undefined => {
+      // Stimulus passages are never translated, so a localized view offers no passage audio.
+      if (locale) return undefined;
       if (!question?.stimulusIds?.includes(stimulusId)) return undefined;
       const text = stimulusTextById?.[stimulusId]?.trim() ?? '';
       return text.length > 0 ? text : undefined;
     },
-    [question, stimulusTextById]
+    [locale, question, stimulusTextById]
   );
 
   const readQuestion = useCallback(() => {
@@ -402,14 +417,15 @@ export function useQuizReadAloud({
 
   // Prefetch the current question's parts, then the next question's.
   useEffect(() => {
-    if (!enabled || !manifest) return;
+    if (!enabled || !slice) return;
     const wanted: string[] = [];
     for (const q of [question, nextQuestion]) {
       if (!q) continue;
       for (const key of questionPartKeys(q)) {
-        const path = manifest.files[key];
+        const path = slice.files[key];
         if (path) wanted.push(path);
       }
+      if (locale || !manifest) continue;
       for (const sid of q.stimulusIds ?? []) {
         for (const k of manifest.stimulusChunks?.[sid] ?? []) {
           const path = manifest.files[k];
@@ -443,7 +459,7 @@ export function useQuizReadAloud({
     return () => {
       cancelled = true;
     };
-  }, [enabled, manifest, question, nextQuestion, urlFor]);
+  }, [enabled, manifest, slice, locale, question, nextQuestion, urlFor]);
 
   useEffect(() => () => stop(), [stop]);
 
