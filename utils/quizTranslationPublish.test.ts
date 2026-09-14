@@ -8,6 +8,8 @@ import type {
 import { hashQuestionForTranslation } from './quizTranslationHash';
 import {
   enforceSessionSizeBudget,
+  estimateReadAloudManifestBytes,
+  estimateReadAloudPartCount,
   loadTranslationsForPublish,
   targetedLocaleCounts,
 } from './quizTranslationPublish';
@@ -222,5 +224,41 @@ describe('enforceSessionSizeBudget', () => {
     enforceSessionSizeBudget(session, { es: 9, so: 1 }, 10);
     expect(session.publicQuestions[0].localized).toBeUndefined();
     expect(session.quizTitleLocalized).toBeUndefined();
+  });
+
+  it('drops a locale that only fits before the read-aloud manifest is reserved', () => {
+    const fits = build();
+    const budget = new TextEncoder().encode(JSON.stringify(fits)).length;
+    expect(enforceSessionSizeBudget(fits, { es: 9, so: 1 }, budget)).toEqual(
+      []
+    );
+
+    const session = build();
+    const dropped = enforceSessionSizeBudget(
+      session,
+      { es: 9, so: 1 },
+      budget,
+      50_000
+    );
+    expect(dropped.length).toBeGreaterThan(0);
+  });
+});
+
+describe('read-aloud manifest reservation', () => {
+  it('counts one part per stem plus every listed option', () => {
+    expect(
+      estimateReadAloudPartCount([
+        { choices: ['a', 'b'] },
+        { orderingItems: ['x', 'y', 'z'] },
+        {},
+      ])
+    ).toBe(3 + 2 + 3);
+  });
+
+  it('scales with each extra locale on top of English', () => {
+    const english = estimateReadAloudManifestBytes(10, 0);
+    expect(english).toBeGreaterThan(0);
+    expect(estimateReadAloudManifestBytes(10, 1)).toBe(english * 2);
+    expect(estimateReadAloudManifestBytes(0, 3)).toBe(0);
   });
 });

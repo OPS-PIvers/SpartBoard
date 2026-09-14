@@ -7696,6 +7696,8 @@ export interface QuizReadAloudManifest {
   failedKeys?: string[];
   /** Translated audio, keyed by translation locale; English above is never touched. */
   localized?: Record<string, QuizReadAloudLocaleManifest>;
+  /** Why a `failed` prepare gave up, when it was not per-part synthesis. */
+  failedReason?: string;
 }
 
 /** One translated locale's slice of `session.readAloud` (same part keys, translated voice). */

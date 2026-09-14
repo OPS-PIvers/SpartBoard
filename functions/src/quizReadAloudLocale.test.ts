@@ -137,7 +137,7 @@ const FIB = {
   localized: { es: { text: 'El cielo es ____.' } },
 };
 
-function makeDocs(session: Doc = {}): Record<string, Doc> {
+function makeDocs(session: Doc = {}, pointer: Doc = {}): Record<string, Doc> {
   return {
     'quiz_sessions/s1': {
       teacherUid: TEACHER,
@@ -151,6 +151,8 @@ function makeDocs(session: Doc = {}): Record<string, Doc> {
       kind: 'quiz',
       sessionId: 's1',
       teacherUid: TEACHER,
+      override: { language: 'es' },
+      ...pointer,
     },
   };
 }
@@ -342,6 +344,27 @@ describe('synthesizeQuizAudio — translated view', () => {
       )
     ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
+
+  it('refuses a locale the student is not assigned, even under readAloudAll', async () => {
+    const { deps } = makeDeps(makeDocs({}, { override: { language: 'so' } }));
+    await expect(
+      synthesizeQuizAudio({ ...req, locale: 'es' }, student, deps)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('refuses a locale when the student holds no language at all', async () => {
+    const { deps } = makeDeps(makeDocs({}, { override: {} }));
+    await expect(
+      synthesizeQuizAudio({ ...req, locale: 'es' }, student, deps)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('still serves English to a student whose language is unset', async () => {
+    const { deps } = makeDeps(makeDocs({}, { override: { readAloud: true } }));
+    await expect(
+      synthesizeQuizAudio(req, student, deps)
+    ).resolves.toMatchObject({ mimeType: 'audio/mpeg' });
+  });
 });
 
 describe('prepareQuizReadAloud — translation locale scope', () => {
@@ -385,5 +408,77 @@ describe('prepareQuizReadAloud — translation locale scope', () => {
     expect(manifest.localized).toBeUndefined();
     for (const call of synthesize.mock.calls)
       expect(call[0].voice).toBe('en-US-Neural2-F');
+  });
+
+  it('counts localized parts in the returned total', async () => {
+    const docs = makeDocs();
+    const { deps } = makeDeps(docs);
+    const english = await prepareQuizReadAloud(
+      { sessionId: 's1', callerUid: TEACHER },
+      deps
+    );
+    const docs2 = makeDocs();
+    const both = await prepareQuizReadAloud(
+      { sessionId: 's1', callerUid: TEACHER, translationLocales: ['es'] },
+      makeDeps(docs2).deps
+    );
+    expect(both.parts).toBeGreaterThan(english.parts);
+  });
+
+  it('keeps failedKeys for a locale whose every part failed and reports partial', async () => {
+    const docs = makeDocs();
+    const { deps, synthesize } = makeDeps(docs);
+    synthesize.mockImplementation((req: { languageCode: string }) =>
+      req.languageCode === 'es-US'
+        ? Promise.reject(new Error('tts down'))
+        : Promise.resolve({ audio: Buffer.from('mp3'), timepoints: [] })
+    );
+    const result = await prepareQuizReadAloud(
+      { sessionId: 's1', callerUid: TEACHER, translationLocales: ['es'] },
+      deps
+    );
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    const es = (manifest.localized as Doc).es as Doc;
+    expect(es.files).toEqual({});
+    expect((es.failedKeys as string[]).length).toBeGreaterThan(0);
+    expect(manifest.status).toBe('partial');
+    expect(result.status).toBe('partial');
+  });
+
+  it('clears the preparing status when the manifest write is rejected', async () => {
+    const docs = makeDocs();
+    const { deps } = makeDeps(docs);
+    let writes = 0;
+    const realCollection = deps.db.collection.bind(deps.db);
+    (deps.db as unknown as { collection: unknown }).collection = (
+      name: string
+    ) => {
+      const col = realCollection(name);
+      if (name !== 'quiz_sessions') return col;
+      return {
+        ...col,
+        doc: (id: string) => {
+          const ref = col.doc(id);
+          return {
+            ...ref,
+            set: (data: Doc, opts?: { merge?: boolean }) => {
+              writes += 1;
+              if (writes === 2)
+                return Promise.reject(new Error('document too large'));
+              return ref.set(data, opts);
+            },
+          };
+        },
+      };
+    };
+    const result = await prepareQuizReadAloud(
+      { sessionId: 's1', callerUid: TEACHER },
+      deps
+    );
+    expect(result.status).toBe('failed');
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest.status).toBe('failed');
+    expect(manifest.failedReason).toBe('manifest-write-failed');
+    expect(manifest.startedAt).toBeUndefined();
   });
 });

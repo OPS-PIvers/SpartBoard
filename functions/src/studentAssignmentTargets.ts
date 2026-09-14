@@ -94,6 +94,7 @@ import {
   type ClassLinkUser,
 } from './classlinkShared';
 import { LANGUAGE_TAG_RE } from './languageTag';
+import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
 
 /** BCP-47 practical maximum; caps an unbounded string before it reaches Firestore. */
 const LANGUAGE_TAG_MAX = 35;
@@ -764,6 +765,7 @@ export async function handleSetAssignmentTargets(
       : assignmentWindow.closeAt;
   const effectiveCloseAtByUid = new Map<string, number | undefined>();
   const effectiveOverrideByUid = new Map<string, StudentOverride | null>();
+  const priorOverrideByUid = new Map<string, StudentOverride | null>();
   const storedMirror: unknown = assignmentData.overridesByStudentUid;
   if (typeof storedMirror === 'object' && storedMirror !== null) {
     for (const [uid, value] of Object.entries(
@@ -773,6 +775,7 @@ export async function handleSetAssignmentTargets(
       const closeAt = stored?.closeAt;
       effectiveCloseAtByUid.set(uid, numberOrNull(closeAt) ?? undefined);
       effectiveOverrideByUid.set(uid, stored);
+      priorOverrideByUid.set(uid, stored);
     }
   }
   for (const [uid, value] of overrideChangesByUid) {
@@ -788,6 +791,14 @@ export async function handleSetAssignmentTargets(
     if (readAloudForAll || override?.readAloud === true)
       readAloudLocales.add(language);
   }
+  // Under readAloudAll a language-only change still gains audio nobody prepared yet.
+  const voicedLocaleGained = [...overrideChangesByUid].some(([uid, value]) => {
+    if (!readAloudForAll) return false;
+    const language = value?.language;
+    if (typeof language !== 'string' || !language) return false;
+    if (!ttsLanguageForTranslationLocale(language)) return false;
+    return priorOverrideByUid.get(uid)?.language !== language;
+  });
   const desiredSessionCloseAt = computeSessionCloseAt(
     assignmentCloseAt,
     effectiveCloseAtByUid.values()
@@ -955,7 +966,8 @@ export async function handleSetAssignmentTargets(
 
   const readAloudGained =
     input.kind === 'quiz' &&
-    [...overrideChangesByUid.values()].some((v) => v?.readAloud === true);
+    ([...overrideChangesByUid.values()].some((v) => v?.readAloud === true) ||
+      voicedLocaleGained);
   if (readAloudGained && onReadAloudGained) {
     await onReadAloudGained(input.sessionId, [...readAloudLocales]);
   }

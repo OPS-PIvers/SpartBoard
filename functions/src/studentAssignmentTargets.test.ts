@@ -1563,4 +1563,53 @@ describe('handleSetAssignmentTargets - read-aloud locale scope', () => {
     );
     expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
   });
+
+  it('fires on a language-only change under readAloudAll', async () => {
+    state.docs.set(`quiz_sessions/${ASSIGNMENT_ID}`, {
+      teacherUid: TEACHER_UID,
+      status: 'active',
+      readAloudAll: true,
+    });
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es' },
+        },
+      }),
+      hook
+    );
+    expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
+  });
+
+  it('does not fire on a voiceless language change under readAloudAll', async () => {
+    state.docs.set(`quiz_sessions/${ASSIGNMENT_ID}`, {
+      teacherUid: TEACHER_UID,
+      status: 'active',
+      readAloudAll: true,
+    });
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'so' },
+        },
+      }),
+      hook
+    );
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it('does not fire on a language-only change without readAloudAll', async () => {
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es' },
+        },
+      }),
+      hook
+    );
+    expect(hook).not.toHaveBeenCalled();
+  });
 });

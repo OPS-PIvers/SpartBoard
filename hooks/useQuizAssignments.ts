@@ -35,8 +35,11 @@ import type { QuizTranslationIndexEntry } from '@/types';
 import type { TranslationLoader } from '@/utils/quizTranslationPublish';
 import {
   enforceSessionSizeBudget,
+  estimateReadAloudManifestBytes,
+  estimateReadAloudPartCount,
   loadTranslationsForPublish,
   targetedLocaleCounts,
+  SESSION_DOC_BYTE_BUDGET,
 } from '@/utils/quizTranslationPublish';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
@@ -1101,8 +1104,27 @@ export const useQuizAssignments = (
           : {}),
       };
 
+      const readAloudLocales = readAloudTranslationLocales(
+        overridesBySourcedId ?? {},
+        opts.readAloudAll === true
+      );
+      const readAloudPlanned =
+        opts.readAloudAll === true ||
+        Object.values(overridesBySourcedId ?? {}).some(
+          (o) => o?.readAloud === true
+        );
       if (Object.keys(translations.byLocale).length > 0) {
-        enforceSessionSizeBudget(session, targetedLocaleCountByCode);
+        enforceSessionSizeBudget(
+          session,
+          targetedLocaleCountByCode,
+          SESSION_DOC_BYTE_BUDGET,
+          readAloudPlanned
+            ? estimateReadAloudManifestBytes(
+                estimateReadAloudPartCount(session.publicQuestions),
+                readAloudLocales.length
+              )
+            : 0
+        );
       }
 
       const batch = writeBatch(db);
@@ -1120,17 +1142,8 @@ export const useQuizAssignments = (
       // R1: synthesize up front, billed to the teacher; the student fallback
       // covers the assign-then-start race. Override-only flags added later go
       // through `setAssignmentTargetsV1`, which re-triggers server-side.
-      const anyOverrideReadAloud = Object.values(
-        overridesBySourcedId ?? {}
-      ).some((o) => o?.readAloud === true);
-      if (opts.readAloudAll === true || anyOverrideReadAloud) {
-        prepareQuizReadAloudInBackground(
-          assignmentId,
-          readAloudTranslationLocales(
-            overridesBySourcedId ?? {},
-            opts.readAloudAll === true
-          )
-        );
+      if (readAloudPlanned) {
+        prepareQuizReadAloudInBackground(assignmentId, readAloudLocales);
       }
 
       // PLC dashboard index: when this assignment opts into PLC mode,
