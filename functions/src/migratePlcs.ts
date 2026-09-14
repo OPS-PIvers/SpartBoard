@@ -548,6 +548,13 @@ export const migratePlcs = onCall(
         'Caller must have an email associated with their account.'
       );
     }
+    // Unverified claims can't prove ownership of the caller's address (email/password sign-in allows a self-reported one) — same rail as organizationUserActivity.ts / isAdmin().
+    if (request.auth.token.email_verified !== true) {
+      throw new HttpsError(
+        'permission-denied',
+        'Caller email must be verified.'
+      );
+    }
     const db = admin.firestore();
     await assertCallerIsAdmin(db, callerEmail.toLowerCase());
 
