@@ -1564,6 +1564,24 @@ describe('handleSetAssignmentTargets - read-aloud locale scope', () => {
     expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
   });
 
+  it('omits a voiceless locale from the re-prepare scope', async () => {
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true, language: 'so' },
+          [`classlink:${SOURCED_B}`]: { readAloud: true, language: 'es' },
+        },
+      }),
+      hook
+    );
+    expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
+  });
+
   it('fires on a language-only change under readAloudAll', async () => {
     state.docs.set(`quiz_sessions/${ASSIGNMENT_ID}`, {
       teacherUid: TEACHER_UID,

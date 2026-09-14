@@ -1197,9 +1197,10 @@ export async function synthesizeQuizAudio(
       'Read-aloud is not enabled for this assignment.'
     );
   // A locale is only speakable by the student actually assigned that translation.
+  // failed-precondition, not permission-denied: the client retries in English.
   if (request.locale && override.language !== request.locale)
     throw new HttpsError(
-      'permission-denied',
+      'failed-precondition',
       'That translation is not assigned to this student.'
     );
   const teacherUid =

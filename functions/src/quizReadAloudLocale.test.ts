@@ -349,11 +349,20 @@ describe('synthesizeQuizAudio — translated view', () => {
     const { deps } = makeDeps(makeDocs({}, { override: { language: 'so' } }));
     await expect(
       synthesizeQuizAudio({ ...req, locale: 'es' }, student, deps)
-    ).rejects.toMatchObject({ code: 'permission-denied' });
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
   it('refuses a locale when the student holds no language at all', async () => {
     const { deps } = makeDeps(makeDocs({}, { override: {} }));
+    await expect(
+      synthesizeQuizAudio({ ...req, locale: 'es' }, student, deps)
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+
+  it('keeps permission-denied for a student without read-aloud at all', async () => {
+    const { deps } = makeDeps(
+      makeDocs({ readAloudAll: false }, { override: { language: 'es' } })
+    );
     await expect(
       synthesizeQuizAudio({ ...req, locale: 'es' }, student, deps)
     ).rejects.toMatchObject({ code: 'permission-denied' });

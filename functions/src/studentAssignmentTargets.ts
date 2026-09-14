@@ -788,6 +788,8 @@ export async function handleSetAssignmentTargets(
   for (const override of effectiveOverrideByUid.values()) {
     const language = override?.language;
     if (typeof language !== 'string' || !language) continue;
+    // Voiceless locales (so, hmn) synthesize nothing; they must not scale the deadline.
+    if (!ttsLanguageForTranslationLocale(language)) continue;
     if (readAloudForAll || override?.readAloud === true)
       readAloudLocales.add(language);
   }

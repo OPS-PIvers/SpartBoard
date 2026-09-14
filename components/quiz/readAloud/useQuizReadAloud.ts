@@ -230,14 +230,29 @@ export function useQuizReadAloud({
         }
       }
       // R1/R14 fallback: assign-then-start race, partial manifests, pre-feature sessions.
-      const res = await synthesizeQuizAudio({
-        mode: 'student',
-        sessionId,
-        questionId: qid,
-        part,
-        // Passages are never translated, so a stimulus part stays English.
-        ...(locale && part.kind !== 'stimulus' ? { locale } : {}),
-      });
+      const useLocale = locale && part.kind !== 'stimulus' ? locale : undefined;
+      const synthesize = (withLocale: boolean) =>
+        synthesizeQuizAudio({
+          mode: 'student',
+          sessionId,
+          questionId: qid,
+          part,
+          // Passages are never translated, so a stimulus part stays English.
+          ...(withLocale && useLocale ? { locale: useLocale } : {}),
+        });
+      let res;
+      try {
+        res = await synthesize(true);
+      } catch (err) {
+        // Locale rejected server-side: fall back to English audio once.
+        if (
+          !useLocale ||
+          !(err instanceof FunctionsError) ||
+          err.code !== 'functions/failed-precondition'
+        )
+          throw err;
+        res = await synthesize(false);
+      }
       const paths = res.chunks ?? [res.path];
       return { urls: await Promise.all(paths.map(urlFor)), timings: res.parts };
     },

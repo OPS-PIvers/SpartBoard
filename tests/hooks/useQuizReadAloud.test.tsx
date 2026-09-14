@@ -16,6 +16,7 @@ vi.mock('@/utils/quizReadAloudApi', async (importOriginal) => {
   };
 });
 
+import { FunctionsError } from 'firebase/functions';
 import { synthesizeQuizAudio } from '@/utils/quizReadAloudApi';
 import { useQuizReadAloud } from '@/components/quiz/readAloud/useQuizReadAloud';
 
@@ -91,5 +92,37 @@ describe('useQuizReadAloud - locale', () => {
     expect(vi.mocked(synthesizeQuizAudio).mock.calls[0][0]).toMatchObject({
       locale: 'es',
     });
+  });
+
+  it('retries in English once when the server rejects the locale', async () => {
+    const manifest = { ...MANIFEST, localized: undefined };
+    vi.mocked(synthesizeQuizAudio)
+      .mockRejectedValueOnce(
+        new FunctionsError('failed-precondition', 'not assigned')
+      )
+      .mockResolvedValueOnce({ path: 'en.mp3' } as never);
+    const { result } = renderHook(() =>
+      useQuizReadAloud({ ...args('es'), manifest })
+    );
+    act(() => result.current.play({ kind: 'question' }));
+    await waitFor(() => expect(result.current.playingPart).not.toBeNull());
+    const calls = vi.mocked(synthesizeQuizAudio).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][0]).toMatchObject({ locale: 'es' });
+    expect(calls[1][0]).not.toHaveProperty('locale');
+    expect(result.current.enabled).toBe(true);
+  });
+
+  it('does not retry when the server denies read-aloud outright', async () => {
+    const manifest = { ...MANIFEST, localized: undefined };
+    vi.mocked(synthesizeQuizAudio).mockRejectedValue(
+      new FunctionsError('permission-denied', 'no read-aloud')
+    );
+    const { result } = renderHook(() =>
+      useQuizReadAloud({ ...args('es'), manifest })
+    );
+    act(() => result.current.play({ kind: 'question' }));
+    await waitFor(() => expect(result.current.enabled).toBe(false));
+    expect(vi.mocked(synthesizeQuizAudio)).toHaveBeenCalledTimes(1);
   });
 });
