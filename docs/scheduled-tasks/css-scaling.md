@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-09-13_
+_Last audited: 2026-09-14_
 _Last action: 2026-09-13 — MEDIUM `BloomsTaxonomy` pyramid px-ceiling fix: switched `Pyramid.tsx`'s tier height and label font-size from `min(Npx, Ycqmin)` to `clamp(floor, Ycqmin, ceiling)` (`clamp(24px, 13cqmin, 140px)` / `clamp(12px, 5cqmin, 32px)`), matching the `CatalystVisualWidget`/`ConceptWeb` precedent so the pyramid keeps growing on large/projected widgets instead of hitting its ceiling almost immediately. `tsc --noEmit`/`eslint --max-warnings 0`/`prettier --check` clean. Moved to Completed._
 
 ---
 
 ## Audit guidance — `cqmin` is not always the right answer
+
+_2026-09-14 audit note (Monday daily), delegated to a dedicated sub-agent after the branch was rebased onto `origin/dev-paul` (28 commits absorbed). Swept ~55 in-scope `Widget.tsx` front-face files (excluding `DrawingWidget`/`SeatingChart`, `skipScaling: false`; excluding `QRWidget`, the reference implementation) for the four standing anti-pattern categories. Found the codebase clean apart from two new LOW items (Webcam and Soundboard status-indicator dots, both hardcoded `w-2 h-2` — added above). No hardcoded Tailwind text-size classes, fixed `size={n}` icon props, or unbounded/uncapped hero `cqmin` values found anywhere in scope. Spot-checked `overflow-hidden` usage (30 files) — all confirmed to be visual clipping on `h-full w-full`/rounded-corner wrappers, not content truncation without `flex-1`. 2 new LOW issues found, 0 resolved this cycle._
 
 _2026-09-13 audit note (Sunday daily): Swept all 48 `Widget.tsx` front-face files for the four standing anti-pattern categories (hardcoded px on content that should scale, `max-h-[Npx]`/`max-w-[Npx]` caps, mis-tiered hardcoded `cqmin`, `overflow-hidden` without `flex-1`), with manual review of the widgets least-referenced in this journal (`BloomsTaxonomy`, `TextWidget`, `MathToolInstance`, `StarterPack`, `CustomWidget`, `Scoreboard`, `WorkSymbols`, `UrlWidget`, `HotspotImage`, `SeatingChart`, `TrafficLightWidget`). Found one new item — `BloomsTaxonomy` pyramid height/label ceiling, added below as MEDIUM. Confirmed `QuizManager.tsx`/`VideoActivityManager.tsx` are still unchanged and fully un-scaled (0 `cqmin` in either file) — the tracked "Manager/Library front-face views" MEDIUM item stays accurate as-is, not re-reported. Every other repo-wide hit resolved to an already-tracked item or an established non-bug exception (portaled/fixed-position popovers outside the container-query scope, viewport-bound import wizards, intentional user-configurable font sizes, fixed-size drag-resize touch targets). 1 new issue found, 0 resolved this cycle._
 
@@ -25,6 +27,20 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW Webcam gallery-badge status dot is a hardcoded `w-2 h-2` amid correctly-scaled sibling icons
+
+- **Detected:** 2026-09-14
+- **File:** `components/widgets/Webcam/Widget.tsx:469`
+- **Detail:** `<span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full border border-black" />` — an "unread gallery items" badge dot sits in a toolbar whose sibling `Grid` icon correctly uses `style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}`. The dot itself is fixed at 8px regardless of container size.
+- **Fix:** Per the skill's small-icon tier, use `style={{ width: 'min(8px, 2cqmin)', height: 'min(8px, 2cqmin)' }}` instead of `w-2 h-2`.
+
+### LOW Soundboard active-sound indicator dot is a hardcoded `w-2 h-2` amid correctly-scaled sibling content
+
+- **Detected:** 2026-09-14
+- **File:** `components/widgets/SoundboardWidget/Widget.tsx:440`
+- **Detail:** `<div className="absolute top-0.5 right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-white shadow-sm" />` sits among properly `cqmin`-scaled siblings (the sound-tile icon uses `max(20px, min(26px, 7cqmin))`, the label uses `max(8px, min(10px, 3cqmin))`).
+- **Fix:** Same as the Webcam finding above — express as a capped `cqmin` size rather than a Tailwind fixed class.
 
 ### LOW `MiniAppAssignModal`'s "skipped students" warning text drops to hardcoded `text-xs` amid otherwise-correct cqmin scaling
 

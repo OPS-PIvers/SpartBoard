@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-09-07_
+_Last audited: 2026-09-14_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-09-14: Full audit (Audit E1 — Monday weekly), delegated to a dedicated sub-agent, after rebasing onto `origin/dev-paul` (28 commits absorbed this cycle). Re-verified `mergeWidgetConfig()` is still the sole `Object.assign`-based merge point in `DashboardContext.tsx` (2 call sites) — the tracked `utils/widgetConfigPersistence.ts` generics follow-up is the only open item there. Cast sweep confirmed the `BuildingConfigPanel`/admin-config `Record<string, unknown>` boundary remains the highest-leverage `as unknown as` concentration (still the majority of production-code hits); `AnnouncementOverlay.tsx`, `MathToolsConfigurationPanel.tsx`, and `hooks/useVideoActivity.ts` casts re-confirmed as already-tracked class-(b) masking risks. **New LOW filed below:** four previously-untracked hooks now clearly cross the state-density filing threshold: `useQuizTranslations.ts` (12), `useGradeWriteQueue.ts` (12), `usePlcQuizActions.tsx` (8), `useOrgMediaResponses.ts` (8). The five hooks flagged as borderline on 2026-08-31 (`useSubstituteShares.ts`, `useRosters.ts`, `usePlcAutoPullSync.ts`, `useGuidedLearning.ts`, `useGlobalStyleEditor.ts`) are still at 6 each — still below the ~10 filing bar, not re-filed. Chained-`&&`/nested-ternary sweep found the same three known clusters (`DraggableWindow.tsx` resize/drag gates, `ImportWizard.tsx` html-only-import checks, `TeacherReviewRoute.tsx` grader gate) — all readability-only, already reflected in existing tracked items or too minor to file individually. Prop-drilling sweep found nothing beyond the existing `EditorModalShell.tsx` LOW note. 1 new item filed, 0 resolved, 0 moved to Completed._
 
 _2026-09-07: Full audit (Audit E1 — Monday weekly). All 20 tracked Open items re-verified present at (or near, accounting for line drift from unrelated commits) their recorded locations — zero resolved despite substantial activity in `context/DashboardContext.tsx` and annotation code since the last audit (sync/autosave fixes, undo/redo, ink-persistence work): `mergeWidgetConfig()` is still the sole merge point (2 call sites, now `:5358`/`:5474`), the `AnnotationOverlay.tsx` keyboard-event cast is still present (now `:556`), and all cast/hook-density counts on TimeTool, RandomWidget, useFirestore, ai_security, BlockRenderer, FeatureConfigurationPanel, usePlcTrash/Resources, useScreenRecord, useSpotifyWebPlayback, and the three widget-editor-state hooks are unchanged or within normal drift. (1) Zero `Object.assign` calls remain in `DashboardContext.tsx` — confirmed again, no extraction warranted. (2) Cast sweep of previously-unscanned files turned up two widening notes folded into existing items rather than filed separately (see their **Updated:** lines): the lucide icon-map cast now also appears in `NeedDoPutThen/Widget.tsx:31` and `ExpectationsWidget/Widget.tsx:146`, and the building-config `unknown`-bridge pattern now also appears in `components/admin/PdfLibraryModal.tsx:135` outside the tracked 12-panel list. (3) Hook state-density sweep found two untracked hooks above the ~10-call filing threshold that prior sweeps missed because they live in ordinary `hooks/` files with unremarkable names: `useAudioRecording.ts` (17 calls) and `useHelpResources.ts` (11 calls in the `useHelpResources` export). Both filed as new LOW items below. (4) Prop-drilling sweep sampled several new large-props-interface components (`ScheduleRow.tsx`, `FolderTree.tsx`) — both consume all their props directly (or pass them recursively to themselves), not a passthrough smell; no new items. (5) Nested-ternary/`&&`-chain sweep found no new 3+-level chains beyond what's tracked. Two new LOW items added; zero resolved; zero moved to Completed._
 
@@ -41,6 +43,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW Four more hooks cross the 6+ useState/useRef filing threshold, untracked until now
+
+- **Detected:** 2026-09-14
+- **File:** `hooks/useQuizTranslations.ts` (12), `hooks/useGradeWriteQueue.ts` (12), `hooks/usePlcQuizActions.tsx` (8), `hooks/useOrgMediaResponses.ts` (8)
+- **Detail:** Same class of state-density concern already tracked for `useAudioRecording.ts`/`useHelpResources.ts`/`useSpotifyWebPlayback.ts`/`usePlcTrash.ts`/`usePlcResources.ts`/`useQuizSession.ts`/`useVideoActivitySession.ts` — none of these four had previously crossed the filing bar. Not individually read/classified this cycle; filed for the next action pass to triage refs-vs-state and identify any collapsible groups (latest-callback refs, mutually-exclusive-guard flags) per the pattern established on the existing items above.
+- **Fix:** Next action pass: read each hook, split "external resource/connection refs" from "UI state," and only consolidate where a `useReducer` or a single `optionsRef`-style merge removes genuine duplication — do not force a rewrite where distinct refs each hold a distinct handle.
 
 ### LOW `hooks/useAudioRecording.ts` has 17 useState/useRef calls — the highest untracked hook state density in the codebase
 
