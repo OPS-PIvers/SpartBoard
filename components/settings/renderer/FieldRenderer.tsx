@@ -51,8 +51,11 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
   const labelId = `${id}-label`;
 
   const onChange = useCallback(
-    (value: unknown) => updateConfig({ [field.key]: value }),
-    [updateConfig, field.key]
+    (value: unknown) =>
+      updateConfig(
+        field.toPatch ? field.toPatch(value, ctx) : { [field.key]: value }
+      ),
+    [updateConfig, field, ctx]
   );
 
   const label =
@@ -66,7 +69,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = ({
   const visible = isFieldVisible(field, ctx);
   const disabled =
     forceDisabled || (field.disabledWhen ? field.disabledWhen(ctx) : false);
-  const value = ctx.config[field.key];
+  const value = field.readValue ? field.readValue(ctx) : ctx.config[field.key];
 
   const defaultValue = defaults ? defaults[field.key] : undefined;
   const canReset =

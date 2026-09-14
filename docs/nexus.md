@@ -67,7 +67,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Automatically changes the traffic light color based on classroom noise level so students can self-correct.
 - **Pattern**: Auto-Trigger
-- **Code**: `components/widgets/SoundWidget/Widget.tsx:143-176`, `components/widgets/SoundWidget/Settings.tsx:86-150` — config fields `autoTrafficLight` and `trafficLightThreshold` map noise levels to traffic light colors.
+- **Code**: `components/widgets/SoundWidget/Widget.tsx:143-176`, `components/widgets/SoundWidget/settings.schema.ts` — config fields `autoTrafficLight` and `trafficLightThreshold` map noise levels to traffic light colors.
 
 ### Live Sync Connections
 
@@ -97,7 +97,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Automatically adjusts noise meter sensitivity based on the current Expectations voice level.
 - **Pattern**: Live Sync
-- **Code**: `components/widgets/SoundWidget/Widget.tsx:46-82`, `components/widgets/SoundWidget/Settings.tsx:28-64` — config field `syncExpectations` reads Expectations widget's `voiceLevel` (0–4) and maps to sensitivity (5.0–0.5).
+- **Code**: `components/widgets/SoundWidget/Widget.tsx:46-82`, `components/widgets/SoundWidget/settings.schema.ts` — config field `syncExpectations` reads Expectations widget's `voiceLevel` (0–4) and maps to sensitivity (5.0–0.5).
 
 #### Weather → Recess Gear
 
@@ -227,7 +227,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Populates the Random widget's student pool from the active class roster.
 - **Pattern**: Import
-- **Code**: `components/widgets/random/RandomSettings.tsx:39-57` — config field `rosterMode: 'class'` via `RosterModeControl` component.
+- **Code**: `components/widgets/random/settings.schema.ts` — config field `rosterMode: 'class'` via the schema `rosterPicker` field.
 
 #### Classes (Roster) → Seating Chart
 
@@ -248,7 +248,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Populates checklist items from student names in the active class roster.
 - **Pattern**: Import
-- **Code**: `components/widgets/Checklist/Settings.tsx` — config field `rosterMode: 'class'` via `RosterModeControl` component.
+- **Code**: `components/widgets/Checklist/settings.schema.ts` — config field `rosterMode: 'class'` via the schema `rosterPicker` field.
 
 #### Classes (Roster) → Poll
 
@@ -262,14 +262,14 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Imports routine steps as checklist items for tracking completion during a lesson.
 - **Pattern**: Import
-- **Code**: `components/widgets/Checklist/Settings.tsx:110-144` — `importFromRoutine()` reads `customSteps` from the active Instructional Routines widget into the Checklist.
+- **Code**: `components/widgets/Checklist/settingsFields.tsx` — `importRoutine()` reads `customSteps` from the active Instructional Routines widget into the Checklist.
 
 #### Text Widget → Checklist
 
 - **Date**: pre-2026
 - **Value**: Imports text widget content as checklist items, splitting lines into individual tasks.
 - **Pattern**: Import
-- **Code**: `components/widgets/Checklist/Settings.tsx:146-202` — `importFromTextWidget()` finds Text widgets and parses HTML to plain text lines into Checklist items.
+- **Code**: `components/widgets/Checklist/settingsFields.tsx` — `importText()` finds Text widgets and parses HTML to plain text lines into Checklist items.
 
 #### Text Widget → MiniApp (Import from Notes)
 

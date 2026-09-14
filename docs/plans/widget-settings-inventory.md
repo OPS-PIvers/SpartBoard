@@ -1781,17 +1781,27 @@ Pre-migration config fixture:
 # Burndown
 
 Updated once per wave by the orchestrator (widget · wave · PR · done). Wave-2 rows retired their
-0.4 legacy snapshots in the same PR.
+0.4 legacy snapshots in the same PR. The consolidated wave-3/5 branch replaces the rejected
+whole-panel `compositeControl` shims with field-level schemas. Its ten remaining `Custom` fields
+are isolated gaps: board import actions (1), cross-widget/partner actions (2), derived roster
+sliders (2), inherited or contextual controls (3), a contextual sound multi-select (1), and a
+fixed drawing color palette (1). All standard fields and list-row labels are indexed by the
+find-a-setting filter.
 
-| Widget       | Type           | Wave | PR                        | Done |
-| ------------ | -------------- | ---- | ------------------------- | ---- |
-| Timer        | `time-tool`    | 2    | `feat/settings-drawer-w2` | yes  |
-| Note         | `text`         | 2    | `feat/settings-drawer-w2` | yes  |
-| Embed        | `embed`        | 2    | `feat/settings-drawer-w2` | yes  |
-| Clock        | `clock`        | 2    | `feat/settings-drawer-w2` | yes  |
-| Lunch        | `lunchCount`   | 2    | `feat/settings-drawer-w2` | yes  |
-| Tasks        | `checklist`    | 3    |                           |      |
-| Weather      | `weather`      | 3    |                           |      |
-| Expectations | `expectations` | 3    |                           |      |
-| Random       | `random`       | 3    |                           |      |
-| Links        | `url`          | 3    |                           |      |
+| Widget       | Type           | Wave | PR                                              | Done |
+| ------------ | -------------- | ---- | ----------------------------------------------- | ---- |
+| Timer        | `time-tool`    | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Note         | `text`         | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Embed        | `embed`        | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Clock        | `clock`        | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Lunch        | `lunchCount`   | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Tasks        | `checklist`    | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Weather      | `weather`      | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Expectations | `expectations` | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Random       | `random`       | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Links        | `url`          | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Soundboard   | `soundboard`   | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Dice         | `dice`         | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Sound Meter  | `sound`        | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Webcam       | `webcam`       | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Drawing      | `drawing`      | 5    | `codex/consolidate-field-level-widget-settings` | yes  |

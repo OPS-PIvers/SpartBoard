@@ -7,6 +7,7 @@ import { makeCtx, widget } from './testUtils';
 
 const mockUploadDisplayImage =
   vi.fn<(uid: string, file: File) => Promise<string>>();
+const mockDeleteFile = vi.fn<(url: string) => Promise<void>>();
 const authState: { user: { uid: string } | null } = { user: { uid: 'u1' } };
 const pickerState = { isConnected: false };
 
@@ -15,6 +16,7 @@ vi.mock('@/context/useAuth', () => ({
 }));
 vi.mock('@/hooks/useStorage', () => ({
   useStorage: () => ({
+    deleteFile: mockDeleteFile,
     uploadDisplayImage: mockUploadDisplayImage,
     uploadSticker: vi.fn(),
     uploadHotspotImage: vi.fn(),
@@ -69,6 +71,7 @@ function makeFile(type = 'image/png', size = 10): File {
 
 beforeEach(() => {
   mockUploadDisplayImage.mockReset();
+  mockDeleteFile.mockReset().mockResolvedValue(undefined);
   authState.user = { uid: 'u1' };
   pickerState.isConnected = false;
 });
@@ -101,6 +104,7 @@ describe('ImageUpload field', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'clearImage' }));
     expect(updateConfig).toHaveBeenCalledWith({ imageUrl: '' });
+    expect(mockDeleteFile).toHaveBeenCalledWith('https://example.com/a.png');
   });
 
   it('uploads a local file and writes the returned URL', async () => {
@@ -115,6 +119,19 @@ describe('ImageUpload field', () => {
       })
     );
     expect(mockUploadDisplayImage).toHaveBeenCalledWith('u1', file);
+  });
+
+  it('deletes the previous owned image after a successful replacement', async () => {
+    mockUploadDisplayImage.mockResolvedValue('https://cdn/new.png');
+    const updateConfig = vi.fn();
+    renderField({ imageUrl: 'https://cdn/old.png' }, updateConfig);
+    fireEvent.change(fileInput(), { target: { files: [makeFile()] } });
+    await waitFor(() =>
+      expect(mockDeleteFile).toHaveBeenCalledWith('https://cdn/old.png')
+    );
+    expect(updateConfig).toHaveBeenCalledWith({
+      imageUrl: 'https://cdn/new.png',
+    });
   });
 
   it('rejects files over 5 MB and non-images without uploading', async () => {

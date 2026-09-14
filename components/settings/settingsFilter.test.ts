@@ -42,7 +42,23 @@ const schema: WidgetSettingsSchema = {
           type: 'select',
           key: 'mode',
           label: 'Mode',
+          searchTerms: ['Behavior style'],
           options: [{ value: 'a', label: 'Font of wisdom' }],
+        },
+        {
+          type: 'list',
+          key: 'links',
+          label: 'Links',
+          row: {
+            fields: [
+              {
+                type: 'text',
+                key: 'url',
+                label: 'Destination URL',
+                searchTerms: ['Web address'],
+              },
+            ],
+          },
         },
       ],
     },
@@ -123,6 +139,18 @@ describe('filterSections', () => {
   it('does not index select option labels', () => {
     const result = filterSections(all, 'wisdom');
     expect(hasMatches(result)).toBe(false);
+  });
+
+  it('indexes explicit search terms and List row labels', () => {
+    expect(
+      filterSections(all, 'behavior style')[0].fields.map((field) => field.key)
+    ).toEqual(['mode']);
+    expect(
+      filterSections(all, 'destination')[0].fields.map((field) => field.key)
+    ).toEqual(['links']);
+    expect(
+      filterSections(all, 'web address')[0].fields.map((field) => field.key)
+    ).toEqual(['links']);
   });
 
   it('returns everything for an empty query', () => {

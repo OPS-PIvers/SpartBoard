@@ -1,51 +1,41 @@
-// Pins the manual-temperature slider's label association; dropping htmlFor/id leaves it unnamed with nothing else failing.
+import { describe, expect, it } from 'vitest';
+import type { FieldCtx } from '@/components/settings/schema/types';
+import schema from './settings.schema';
 
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { WidgetData } from '@/types';
-
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ updateWidget: vi.fn(), addToast: vi.fn() }),
-}));
-
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ featurePermissions: [] }),
-}));
-
-vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
-
-vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-  Trans: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-}));
-
-vi.mock('@/components/common/TypographySettings', () => ({
-  TypographySettings: () => null,
-}));
-
-import { WeatherSettings } from './Settings';
-
-const widget: WidgetData = {
-  id: 'weather-test-1',
-  type: 'weather',
-  x: 0,
-  y: 0,
-  w: 400,
-  h: 300,
-  z: 1,
-  flipped: true,
-  config: { isAuto: false, temperature: 70 },
+const context: FieldCtx = {
+  config: { isAuto: false, temp: 70 },
+  widget: {
+    id: 'weather-test',
+    type: 'weather',
+    x: 0,
+    y: 0,
+    w: 300,
+    h: 300,
+    z: 1,
+    flipped: false,
+    config: { isAuto: false, temp: 70 },
+  },
+  isAdmin: true,
+  canAccessFeature: () => true,
+  t: (key) => (key === 'widgets.weather.manualMode' ? 'Manual Mode' : key),
 };
 
-describe('WeatherSettings — label associations', () => {
-  it('names the manual temperature slider from its label', () => {
-    render(<WeatherSettings widget={widget} />);
+describe('Weather settings schema', () => {
+  it('uses a searchable slider for manual temperature', () => {
+    const temperature = schema.groups[0]?.fields.find(
+      (field) => field.key === 'temp'
+    );
+    expect(temperature?.type).toBe('slider');
+    expect(temperature?.visibleWhen?.(context)).toBe(true);
+  });
 
-    expect(
-      screen.getByLabelText(/widgets\.weather\.temperature/)
-    ).toHaveAttribute('type', 'range');
+  it('writes the manual location label atomically with temperature', () => {
+    const temperature = schema.groups[0]?.fields.find(
+      (field) => field.key === 'temp'
+    );
+    expect(temperature?.toPatch?.(68, context)).toEqual({
+      temp: 68,
+      locationName: 'Manual Mode',
+    });
   });
 });

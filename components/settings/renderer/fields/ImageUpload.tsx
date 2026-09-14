@@ -14,7 +14,7 @@ export const ImageUpload: React.FC<
   FieldProps<ImageUploadFieldSchema<string>>
 > = ({ field, value, onChange, id, describedBy, labelId, disabled, ctx }) => {
   const { user } = useAuth();
-  const { uploadDisplayImage } = useStorage();
+  const { deleteFile, uploadDisplayImage } = useStorage();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
@@ -22,6 +22,16 @@ export const ImageUpload: React.FC<
   const url = typeof value === 'string' ? value : '';
   const t = (leaf: string) => resolveLabel(ctx.t, ctx.widget.type, leaf);
   const busy = disabled || uploading;
+
+  const replaceUrl = (nextUrl: string) => {
+    const previousUrl = url;
+    onChange(nextUrl);
+    if (previousUrl && previousUrl !== nextUrl) {
+      void deleteFile(previousUrl).catch((err) => {
+        console.warn('[ImageUpload] Failed to delete replaced image.', err);
+      });
+    }
+  };
 
   const handleFile = async (file: File) => {
     if (inFlightRef.current) return;
@@ -41,7 +51,7 @@ export const ImageUpload: React.FC<
     setError(null);
     setUploading(true);
     try {
-      onChange(await uploadDisplayImage(user.uid, file));
+      replaceUrl(await uploadDisplayImage(user.uid, file));
     } catch (err) {
       console.error('[ImageUpload] Upload failed', err);
       setError(t('imageUploadFailed'));
@@ -89,7 +99,7 @@ export const ImageUpload: React.FC<
           <button
             type="button"
             disabled={busy}
-            onClick={() => onChange('')}
+            onClick={() => replaceUrl('')}
             aria-label={t('clearImage')}
             className="p-1.5 rounded-md text-slate-600 hover:text-brand-red-primary hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -120,7 +130,7 @@ export const ImageUpload: React.FC<
           label={t('imageFromDrive')}
           onImageAdded={(image) => {
             setError(null);
-            onChange(image.url);
+            replaceUrl(image.url);
           }}
         />
       </div>

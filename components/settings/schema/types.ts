@@ -34,10 +34,16 @@ export type FieldBase<K extends string> = {
   key: NoDots<K>;
   label: string;
   help?: string;
+  /** Additional localized leaves indexed by the find-a-setting filter. */
+  searchTerms?: ReadonlyArray<string>;
   /** Sub-heading leaf; SchemaRenderer prints it once above the first visible field that carries it. */
   section?: string;
   visibleWhen?: (ctx: FieldCtx) => boolean;
   disabledWhen?: (ctx: FieldCtx) => boolean;
+  /** Derive a displayed value when an unset config key inherits from contextual defaults. */
+  readValue?: (ctx: FieldCtx) => unknown;
+  /** Expand one field edit into an atomic patch that may update sibling config keys. */
+  toPatch?: (value: unknown, ctx: FieldCtx) => Record<string, unknown>;
 };
 
 export type FieldOption = {
@@ -52,6 +58,8 @@ export type TextField<K extends string> = FieldBase<K> & {
   type: 'text';
   placeholder?: string;
   maxLength?: number;
+  /** Normalize a completed edit without disrupting typing. */
+  normalizeOnBlur?: (value: string) => string;
 };
 
 export type TextareaField<K extends string> = FieldBase<K> & {
@@ -175,6 +183,8 @@ export type ListField<
   addLabel?: string;
   maxRows?: number;
   sortable?: boolean;
+  /** Optional row image property whose owned upload is deleted when the row is removed. */
+  cleanupImageKey?: Extract<keyof Row, string>;
 };
 
 /** Custom roots should carry `id={id}` and `aria-labelledby={labelId}` (plus `aria-describedby={describedBy}`) so FieldRenderer's label row names them. */
