@@ -64,8 +64,8 @@ describe('readQuizHandRaiseMode', () => {
     expect(readQuizHandRaiseMode(perms, ['high', 'middle'])).toBe('force-off');
     expect(readQuizHandRaiseMode(perms, ['high', 'schumann'])).toBe('force-on');
     expect(readQuizHandRaiseMode(perms, ['schumann'])).toBe('teacher-choice');
-    // No building resolved: fall back to the most restrictive configured mode.
-    expect(readQuizHandRaiseMode(perms, [])).toBe('force-off');
+    // No building resolved: the default applies, never another tenant's gate.
+    expect(readQuizHandRaiseMode(perms, [])).toBe('teacher-choice');
   });
 
   it('falls back to the default for an unknown stored value', () => {
@@ -98,7 +98,7 @@ describe('resolveQuizHandRaiseEnabled', () => {
 });
 
 describe('empty building selection', () => {
-  it('resolves force-off when any configured building is force-off', () => {
+  it('never inherits another tenant’s configured gate', () => {
     const perms = [
       permission({
         buildingDefaults: {
@@ -107,26 +107,36 @@ describe('empty building selection', () => {
         },
       }),
     ];
-    expect(readQuizHandRaiseMode(perms, [])).toBe('force-off');
-    expect(readQuizHandRaiseMode(perms, null)).toBe('force-off');
+    expect(readQuizHandRaiseMode(perms, [])).toBe('teacher-choice');
+    expect(readQuizHandRaiseMode(perms, null)).toBe('teacher-choice');
   });
 
-  it('resolves force-on when a configured building forces it on and none off', () => {
+  it('gives a no-org teacher teacher-choice even when a building forces on', () => {
     const perms = [
       permission({ buildingDefaults: { b1: { handRaiseMode: 'force-on' } } }),
     ];
-    expect(readQuizHandRaiseMode(perms, [])).toBe('force-on');
-  });
-
-  it('stays teacher-choice when no building configures the gate', () => {
-    const perms = [permission({ buildingDefaults: {} })];
     expect(readQuizHandRaiseMode(perms, [])).toBe('teacher-choice');
   });
 });
 
 describe('resolveGateBuildingIds', () => {
-  it('prefers org membership buildings over the Profile filter', () => {
-    expect(resolveGateBuildingIds(['b2'], ['b1'])).toEqual(['b2']);
+  it('unions org membership buildings with the Profile filter', () => {
+    expect(resolveGateBuildingIds(['b2'], ['b1'])).toEqual(['b2', 'b1']);
+    expect(resolveGateBuildingIds(['b1'], ['b1'])).toEqual(['b1']);
+  });
+
+  it('a permissive Profile building cannot remove a membership force-off', () => {
+    const perms = [
+      permission({
+        buildingDefaults: {
+          b1: { handRaiseMode: 'teacher-choice' },
+          b2: { handRaiseMode: 'force-off' },
+        },
+      }),
+    ];
+    expect(
+      readQuizHandRaiseMode(perms, resolveGateBuildingIds(['b2'], ['b1']))
+    ).toBe('force-off');
   });
 
   it('falls back to selected buildings when membership is unknown', () => {

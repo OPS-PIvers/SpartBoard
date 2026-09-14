@@ -2640,6 +2640,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
   ): Partial<AuthContextType> => ({
     user: { uid: TEACHER_UID } as AuthContextType['user'],
     profileLoaded: true,
+    roleResolved: true,
     featurePermissionsLoaded: true,
     buildingIds: ['b1'],
     selectedBuildings: [],
@@ -2679,6 +2680,32 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       });
     });
     expect(findSessionSet()).toMatchObject({ handRaiseEnabled: true });
+  });
+
+  it('waits for the org-membership snapshot before resolving the gate', async () => {
+    const pending = gateAuth('force-off', {
+      roleResolved: false,
+      buildingIds: [],
+    });
+    const { result, rerender } = renderHook(
+      () => useQuizAssignments(TEACHER_UID),
+      { wrapper: gateWrapper(pending) }
+    );
+    let created: Promise<unknown> | undefined;
+    await act(async () => {
+      created = result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: { handRaiseEnabled: true },
+      });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      rerender();
+      Object.assign(pending, { roleResolved: true, buildingIds: ['b1'] });
+      rerender();
+      await created;
+    });
+    expect(findSessionSet()).not.toHaveProperty('handRaiseEnabled');
   });
 
   it('never enables raise hand on a view-only share, even under force-on', async () => {

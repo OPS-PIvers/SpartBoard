@@ -12,7 +12,7 @@ export function useQuizHandRaiseMode(): QuizHandRaiseMode {
   // useContext rather than useAuth() so a provider-less render falls back to the default.
   const auth = useContext(AuthContext);
   const permissions = auth?.featurePermissions;
-  // Membership buildings are authoritative; the Profile filter is only a fallback.
+  // Gate resolves across the union of membership + Profile buildings.
   const membershipBuildingIds = auth?.buildingIds;
   const selectedBuildings = auth?.selectedBuildings;
   return useMemo(() => {

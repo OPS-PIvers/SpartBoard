@@ -22,8 +22,29 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => mockBuildings,
 }));
 
+// Stateful stub: proves the panel stays mounted (its draft survives tab switches)
+// and lets a test drive the unsaved-draft callback.
 vi.mock('@/components/admin/QuizReadAloudConfigurationPanel', () => ({
-  QuizReadAloudConfigurationPanel: () => <div>Languages panel</div>,
+  QuizReadAloudConfigurationPanel: ({
+    onDirtyChange,
+  }: {
+    onDirtyChange?: (dirty: boolean) => void;
+  }) => {
+    const [draft, setDraft] = React.useState('');
+    React.useEffect(() => {
+      onDirtyChange?.(draft !== '');
+    }, [draft, onDirtyChange]);
+    return (
+      <div>
+        <span>Languages panel</span>
+        <input
+          aria-label="panel draft"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+      </div>
+    );
+  },
 }));
 
 import { QuizConfigurationModal } from '@/components/admin/QuizConfigurationModal';
@@ -164,12 +185,12 @@ describe('QuizConfigurationModal', () => {
         onSave={vi.fn()}
       />
     );
-    expect(screen.queryByText('Languages panel')).toBeNull();
+    expect(screen.getByText('Languages panel')).not.toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
-    expect(screen.getByText('Languages panel')).toBeInTheDocument();
+    expect(screen.getByText('Languages panel')).toBeVisible();
   });
 
-  it('keeps the save footer on the languages tab', () => {
+  it('hides the footer save on the languages tab so the panel keeps its own', () => {
     render(
       <QuizConfigurationModal
         isOpen
@@ -179,8 +200,45 @@ describe('QuizConfigurationModal', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
-    expect(screen.getByText('Save Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Save Configuration')).toBeNull();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('keeps the languages draft alive across tab switches', () => {
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={vi.fn()}
+        permission={permission}
+        onSave={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
+    fireEvent.change(screen.getByLabelText('panel draft'), {
+      target: { value: 'es' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Behavior/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
+    expect(screen.getByLabelText('panel draft')).toHaveValue('es');
+  });
+
+  it('confirms before closing with an unsaved languages draft', async () => {
+    const onClose = vi.fn();
+    render(
+      <QuizConfigurationModal
+        isOpen
+        onClose={onClose}
+        permission={permission}
+        onSave={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
+    fireEvent.change(screen.getByLabelText('panel draft'), {
+      target: { value: 'es' },
+    });
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(mockShowConfirm).toHaveBeenCalled());
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('closes without a prompt when nothing was edited', async () => {

@@ -36,17 +36,20 @@ const toIdList = (
 };
 
 /**
- * The authoritative building set for the gate: the org membership buildings
- * when the teacher has any, else their self-chosen Profile filter. Membership
- * comes first so clearing `selectedBuildings` in Profile cannot dodge a
- * `force-off` building.
+ * The building set for the gate: the UNION of org-membership buildings and the
+ * teacher's Profile filter. A union means adding a permissive building can
+ * never remove a `force-off`, and clearing `selectedBuildings` in Profile
+ * cannot dodge a membership building's gate.
  */
 export const resolveGateBuildingIds = (
   membershipBuildingIds: readonly string[] | null | undefined,
   selectedBuildings: readonly string[] | string | null | undefined
 ): string[] => {
-  const membership = toIdList(membershipBuildingIds);
-  return membership.length > 0 ? membership : toIdList(selectedBuildings);
+  const union = new Set([
+    ...toIdList(membershipBuildingIds),
+    ...toIdList(selectedBuildings),
+  ]);
+  return [...union];
 };
 
 /**
@@ -54,10 +57,8 @@ export const resolveGateBuildingIds = (
  * building the teacher belongs to, most-restrictive-wins: any `force-off`
  * decides, then any `force-on`, else the teacher's choice. Mirrors the
  * multi-building `dockDefaults` gate in AuthContext, and canonicalizes stored
- * keys so legacy building ids still match.
- *
- * When NO building resolves, fall back to the most restrictive mode configured
- * for ANY building rather than failing open to teacher-choice.
+ * keys so legacy building ids still match. With no building at all (a teacher
+ * in no org), the default applies — another tenant's gate never leaks across.
  */
 export const readQuizHandRaiseMode = (
   permissions: readonly FeaturePermission[] | null | undefined,
@@ -73,12 +74,7 @@ export const readQuizHandRaiseMode = (
   const buildingDefaults = canonicalizeBuildingKeyedRecord(rawDefaults);
 
   const ids = toIdList(buildingIds);
-  if (ids.length === 0) {
-    const configured = Object.values(buildingDefaults)
-      .map((entry) => entry?.handRaiseMode)
-      .filter(isMode);
-    return mostRestrictive(configured);
-  }
+  if (ids.length === 0) return DEFAULT_QUIZ_HAND_RAISE_MODE;
 
   const modes = ids.map((id) => {
     const mode = buildingDefaults[canonicalBuildingId(id)]?.handRaiseMode;
