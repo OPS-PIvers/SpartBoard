@@ -1230,7 +1230,7 @@ describe('handleSetAssignmentTargets — session close bound', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleSetAssignmentTargets — excludedTargets', () => {
-  it('writes no pointer for an excluded student even when they are in `add`', async () => {
+  it('marks an excluded student pointer instead of targeting them', async () => {
     const result = await run(
       baseInput({
         add: [
@@ -1241,12 +1241,34 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
       })
     );
     expect(result.written).toBe(1);
-    expect(
-      state.docs.get(pointerPath(computeStudentUid(SOURCED_B, HMAC)))
-    ).toBeUndefined();
+    const excludedPointer = state.docs.get(
+      pointerPath(computeStudentUid(SOURCED_B, HMAC))
+    ) as Record<string, unknown>;
+    expect(excludedPointer.excluded).toBe(true);
+    expect(excludedPointer.override).toBeUndefined();
   });
 
-  it('deletes an excluded student existing pointer on re-assign', async () => {
+  it('keeps the class channel on for everyone else when a student is skipped', async () => {
+    await run(
+      baseInput({
+        targetMode: 'class',
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    const session = state.docs.get(`quiz_sessions/${ASSIGNMENT_ID}`) as Record<
+      string,
+      unknown
+    >;
+    expect(session.individualTargeting).toBe(false);
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.targetMode).toBe('class');
+  });
+
+  it('marks an already-targeted student pointer on re-assign', async () => {
     await run(
       baseInput({ add: [{ kind: 'classlink', sourcedId: SOURCED_A }] })
     );
@@ -1259,9 +1281,10 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
         excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
       })
     );
-    expect(
-      state.docs.get(pointerPath(computeStudentUid(SOURCED_A, HMAC)))
-    ).toBeUndefined();
+    const pointer = state.docs.get(
+      pointerPath(computeStudentUid(SOURCED_A, HMAC))
+    ) as Record<string, unknown>;
+    expect(pointer.excluded).toBe(true);
     const assignment = state.docs.get(assignmentPath()) as Record<
       string,
       unknown
@@ -1270,6 +1293,25 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
     expect(assignment.excludedTargets).toEqual([
       { kind: 'classlink', sourcedId: SOURCED_A },
     ]);
+  });
+
+  it('clears the marker when the student is re-added', async () => {
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        excludedTargets: [],
+      })
+    );
+    const pointer = state.docs.get(
+      pointerPath(computeStudentUid(SOURCED_A, HMAC))
+    ) as Record<string, unknown>;
+    expect(pointer.excluded).toBeUndefined();
   });
 
   it('leaves the assignment doc untouched when the field is absent', async () => {

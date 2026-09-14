@@ -237,6 +237,25 @@ describe('classStudentRows', () => {
     expect(rows[1].defaultOverride).toEqual({ timeMultiplier: 2 });
   });
 
+  it('merges the standing defaults of a student in two checked classes', () => {
+    const second: ClassRoster = {
+      ...classRoster,
+      id: 'r2',
+      name: 'Period 3',
+      defaultOverridesByStudentId: { s1: { readAloud: true } },
+    };
+    const rows = classStudentRows({
+      rosters: [classRoster, second],
+      selectedRosterIds: ['r1', 'r2'],
+    });
+    expect(
+      rows.find((r) => r.key === 'classlink:SID-1')?.defaultOverride
+    ).toEqual({ readAloud: true });
+    expect(
+      rows.find((r) => r.key === 'classlink:SID-2')?.defaultOverride
+    ).toEqual({ timeMultiplier: 2 });
+  });
+
   it('ignores rosters that are not checked', () => {
     expect(
       classStudentRows({ rosters: [classRoster], selectedRosterIds: [] })
@@ -272,7 +291,7 @@ describe('expandClassTargeting', () => {
     });
   });
 
-  it('switches to individual delivery and drops skipped students', () => {
+  it('keeps class mode when a student is skipped', () => {
     const expanded = expandClassTargeting(
       {
         ...EMPTY_ASSIGN_TARGETING_VALUE,
@@ -280,11 +299,27 @@ describe('expandClassTargeting', () => {
       },
       classContext
     );
-    expect(expanded.targetMode).toBe('students');
-    expect(expanded.targetStudents).toEqual([
-      { kind: 'classlink', sourcedId: 'SID-1' },
-    ]);
+    expect(expanded.targetMode).toBe('class');
+    // SID-2's standing default is dropped along with them; SID-1 has none, so
+    // nobody needs a pointer doc for accommodations.
+    expect(expanded.targetStudents).toEqual([]);
     expect(expanded.overridesByKey).toEqual({});
+    expect(expanded.excludedStudents).toEqual([
+      { kind: 'classlink', sourcedId: 'SID-2' },
+    ]);
+  });
+
+  it('prunes a skip for a student no longer in any checked class', () => {
+    const expanded = expandClassTargeting(
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'GONE' }],
+        overridesByKey: { 'classlink:GONE': { timeMultiplier: 2 } },
+      },
+      classContext
+    );
+    expect(expanded.excludedStudents).toEqual([]);
+    expect(expanded.overridesByKey['classlink:GONE']).toBeUndefined();
   });
 
   it('leaves a legacy hand-picked value untouched', () => {
@@ -325,7 +360,34 @@ describe('buildSetAssignmentTargetsPayload with a class context', () => {
     expect(payload.excludedTargets).toEqual([
       { kind: 'classlink', sourcedId: 'SID-2' },
     ]);
-    expect(payload.targetMode).toBe('students');
+    // The class channel keeps delivering to everyone else, including students
+    // with no SSO identity — the skip rides on a pointer doc instead.
+    expect(payload.targetMode).toBe('class');
+    expect(payloadRequiresCall(payload)).toBe(true);
+  });
+
+  it('removes the pointer of an un-skipped student with no override', () => {
+    const previous: AssignTargetingValue = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+    };
+    const payload = buildSetAssignmentTargetsPayload(
+      previous,
+      EMPTY_ASSIGN_TARGETING_VALUE,
+      classContext
+    );
+    expect(payload.remove).toEqual([{ kind: 'classlink', sourcedId: 'SID-1' }]);
+    expect(payload.excludedTargets).toEqual([]);
+  });
+
+  it('calls the CF for a window-only edit once pointers exist', () => {
+    const payload = buildSetAssignmentTargetsPayload(
+      { ...EMPTY_ASSIGN_TARGETING_VALUE, closeAt: 1 },
+      { ...EMPTY_ASSIGN_TARGETING_VALUE, closeAt: 2 },
+      { rosters: [], selectedRosterIds: [] }
+    );
+    expect(payloadRequiresCall(payload)).toBe(false);
+    expect(payloadRequiresCall(payload, true)).toBe(true);
   });
 
   it('skips the callable entirely for a plain class-wide assign', () => {

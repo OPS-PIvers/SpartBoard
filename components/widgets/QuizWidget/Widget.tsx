@@ -113,6 +113,7 @@ import {
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
   payloadRequiresCall,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
@@ -1596,10 +1597,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             data.questions,
             targeting.overridesByKey
           );
-          const resolvedTargeting: AssignTargetingValue = {
-            ...targeting,
-            overridesByKey: hiddenOptions.overridesByKey,
-          };
+          // Snapshot the checked classes now: the hub must render what was
+          // assigned, not whatever the roster defaults say later.
+          const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+            {
+              ...targeting,
+              overridesByKey: hiddenOptions.overridesByKey,
+            },
+            { rosters, selectedRosterIds: rosterIds }
+          );
           for (const warning of hiddenOptions.warnings) {
             addToast(warning, 'warning');
           }
@@ -1770,8 +1776,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // never silently dropped.
             const payload = buildSetAssignmentTargetsPayload(
               undefined,
-              resolvedTargeting,
-              { rosters, selectedRosterIds: rosterIds }
+              resolvedTargeting
             );
             if (payloadRequiresCall(payload)) {
               try {

@@ -1947,7 +1947,7 @@
     "showMore": "Mostrar {{count}} más",
     "showFewer": "Mostrar menos",
     "noClassStudents": "Marca una clase arriba para adaptar a estudiantes concretos.",
-    "skipNotice": "Los estudiantes omitidos quedan fuera de esta asignación. El resto la recibe de forma individual, así que los compañeros sin inicio de sesión escolar no la verán en su página de tareas.",
+    "skipNotice": "Los estudiantes omitidos no verán esta asignación. El resto de estas clases la sigue recibiendo.",
     "sectionLabel": "Estudiantes individuales y adaptaciones",
     "chooseStudents": "Elegir estudiantes",
     "editStudents": "Editar estudiantes",
@@ -1965,7 +1965,13 @@
     "scheduleSummaryOpenOnly": "Abre {{open}}",
     "scheduleSummaryCloseOnly": "Cierra {{close}}",
     "skippedToast_one": "{{count}} estudiante no pudo ser seleccionado y fue omitido.",
-    "skippedToast_other": "{{count}} estudiantes no pudieron ser seleccionados y fueron omitidos."
+    "skippedToast_other": "{{count}} estudiantes no pudieron ser seleccionados y fueron omitidos.",
+    "skipStudentNamed": "Omitir a {{name}}",
+    "summarySkipped": "{{count}} omitidos",
+    "summaryModified": "{{count}} adaptados",
+    "noSignInCount": "{{count}} estudiantes de estas clases no tienen inicio de sesión escolar y no se pueden adaptar de forma individual.",
+    "noSignInStudents": "Nadie en las clases seleccionadas tiene inicio de sesión escolar, así que no hay a quién adaptar de forma individual.",
+    "timingNotApplied": "Las sesiones dirigidas por el profesor no tienen temporizador por estudiante, así que el tiempo extra de {{names}} no se aplicará. Las demás adaptaciones sí se aplican."
   },
   "assignmentsHub": {
     "title": "Tareas",

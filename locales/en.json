@@ -2317,7 +2317,7 @@
     "showMore": "Show {{count}} more",
     "showFewer": "Show fewer",
     "noClassStudents": "Check a class above to modify individual students.",
-    "skipNotice": "Skipped students are left out of this assignment. Everyone else receives it individually, so classmates without a school sign-in will not see it on their assignments page.",
+    "skipNotice": "Skipped students will not see this assignment. Everyone else in these classes still receives it.",
     "sectionLabel": "Individual students & overrides",
     "chooseStudents": "Choose students",
     "editStudents": "Edit students",
@@ -2335,7 +2335,13 @@
     "scheduleSummaryOpenOnly": "Opens {{open}}",
     "scheduleSummaryCloseOnly": "Closes {{close}}",
     "skippedToast_one": "{{count}} student could not be targeted and was skipped.",
-    "skippedToast_other": "{{count}} students could not be targeted and were skipped."
+    "skippedToast_other": "{{count}} students could not be targeted and were skipped.",
+    "skipStudentNamed": "Skip {{name}}",
+    "summarySkipped": "{{count}} skipped",
+    "summaryModified": "{{count}} modified",
+    "noSignInCount": "{{count}} students in these classes have no school sign-in and cannot be individually modified.",
+    "noSignInStudents": "No one in the checked classes has a school sign-in, so there is nobody to modify individually.",
+    "timingNotApplied": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply."
   },
   "assignmentsHub": {
     "title": "Assignments",

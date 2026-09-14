@@ -60,6 +60,7 @@ import {
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
   payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
@@ -612,6 +613,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         rosters
       ).filter((r) => !r.loadError);
       const derived = deriveSessionTargetsFromRosters(selectedRosters);
+      // Snapshot the checked classes now; later roster edits never reshape it.
+      const expandedTargeting = expandClassTargeting(assignTargetingValue, {
+        rosters,
+        selectedRosterIds: assignPickerValue.rosterIds,
+      });
 
       // NOTE ON GATING ASYMMETRY: `mini_app_sessions` Firestore rules use
       // `passesStudentClassGateList`, which treats an empty `classIds[]` as
@@ -657,12 +663,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           assignmentName,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
-          targetMode: assignTargetingValue.targetMode,
-          targetGroupIds: assignTargetingValue.targetGroupIds,
-          overridesBySourcedId: assignTargetingValue.overridesByKey,
-          dueAt: assignTargetingValue.dueAt ?? null,
-          openAt: assignTargetingValue.openAt ?? null,
-          closeAt: assignTargetingValue.closeAt ?? null,
+          targetMode: expandedTargeting.targetMode,
+          targetGroupIds: expandedTargeting.targetGroupIds,
+          overridesBySourcedId: expandedTargeting.overridesByKey,
+          dueAt: expandedTargeting.dueAt ?? null,
+          openAt: expandedTargeting.openAt ?? null,
+          closeAt: expandedTargeting.closeAt ?? null,
         });
       } catch (archiveErr) {
         console.warn(
@@ -677,8 +683,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // count and latency unchanged from today (spec §3a-G).
       const payload = buildSetAssignmentTargetsPayload(
         undefined,
-        assignTargetingValue,
-        { rosters, selectedRosterIds: assignPickerValue.rosterIds }
+        expandedTargeting
       );
       if (payloadRequiresCall(payload) && assignmentId) {
         try {

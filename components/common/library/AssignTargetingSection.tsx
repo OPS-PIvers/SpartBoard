@@ -114,6 +114,8 @@ export interface AssignTargetingSectionProps {
    * affordance, instead of on every modal open).
    */
   onExpand?: () => void;
+  /** False hides the modifications affordance entirely (no roster resolves here). */
+  allowModifications?: boolean;
 }
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
@@ -242,6 +244,9 @@ const ClassStudentOverrideRow: React.FC<{
           <input
             type="checkbox"
             checked={skipped}
+            aria-label={t('assignTargeting.skipStudentNamed', 'Skip {{name}}', {
+              name: row.name,
+            })}
             onChange={(e) => onSkipChange(e.target.checked)}
           />
           {t('assignTargeting.skipStudent', 'Skip this student')}
@@ -273,6 +278,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   quizContext,
   readAloudAvailable = false,
   onExpand,
+  allowModifications = true,
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -300,18 +306,53 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
     [value.targetStudents, studentIndex, t]
   );
 
-  const classRows = useMemo(
-    () =>
-      classStudentRows({
-        rosters,
-        selectedRosterIds: selectedRosterIds ?? rosters.map((r) => r.id),
-      }),
-    [rosters, selectedRosterIds]
+  const effectiveRosterIds = useMemo(
+    () => selectedRosterIds ?? rosters.map((r) => r.id),
+    [selectedRosterIds, rosters]
   );
 
+  const classRows = useMemo(
+    () => classStudentRows({ rosters, selectedRosterIds: effectiveRosterIds }),
+    [rosters, effectiveRosterIds]
+  );
+
+  const anyClassChecked = effectiveRosterIds.length > 0;
+
+  // Students in the checked classes with no school sign-in: the class channel
+  // still delivers to them, but they can never carry a pointer doc.
+  const unresolvableCount = useMemo(() => {
+    const selected = new Set(effectiveRosterIds);
+    let count = 0;
+    for (const roster of rosters) {
+      if (!selected.has(roster.id)) continue;
+      for (const student of roster.students) {
+        if (!resolveStudentTargetRef(student, roster)) count += 1;
+      }
+    }
+    return count;
+  }, [rosters, effectiveRosterIds]);
+
+  // Pruned to the checked classes — an unchecked class must not keep a skip.
+  const excludedInScope = useMemo(() => {
+    const rowKeys = new Set(classRows.map((row) => row.key));
+    return (value.excludedStudents ?? []).filter((ref) =>
+      rowKeys.has(studentTargetRefKey(ref))
+    );
+  }, [value.excludedStudents, classRows]);
+
   const excludedKeys = useMemo(
-    () => new Set((value.excludedStudents ?? []).map(studentTargetRefKey)),
-    [value.excludedStudents]
+    () => new Set(excludedInScope.map(studentTargetRefKey)),
+    [excludedInScope]
+  );
+
+  const modifiedCount = useMemo(
+    () =>
+      classRows.filter(
+        (row) =>
+          !excludedKeys.has(row.key) &&
+          !!effectiveClassOverride(row, value.overridesByKey)
+      ).length,
+    [classRows, excludedKeys, value.overridesByKey]
   );
 
   // Rows the teacher has a reason to see first: a standing roster
@@ -430,6 +471,24 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   // Individual students & overrides — a single expand/collapse control (the
   // "+ Individual…" / "Assign to whole class" pair below), never wrapped in a
   // second `CollapsibleSection` toggle (F3 fix).
+  const modificationsSummary =
+    excludedInScope.length > 0 || modifiedCount > 0
+      ? [
+          excludedInScope.length > 0
+            ? t('assignTargeting.summarySkipped', '{{count}} skipped', {
+                count: excludedInScope.length,
+              })
+            : null,
+          modifiedCount > 0
+            ? t('assignTargeting.summaryModified', '{{count}} modified', {
+                count: modifiedCount,
+              })
+            : null,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : null;
+
   const classSection = !expanded ? (
     <div className="border-t border-slate-200/70 pt-3">
       <button
@@ -439,6 +498,11 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       >
         <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
         {t('assignTargeting.expandAffordance', 'Edit or add modifications')}
+        {modificationsSummary && (
+          <span className="font-medium text-slate-500">
+            {`— ${modificationsSummary}`}
+          </span>
+        )}
       </button>
     </div>
   ) : (
@@ -489,23 +553,38 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         </div>
       )}
 
-      {classRows.length === 0 ? (
+      {unresolvableCount > 0 && (
         <p className="text-xs text-slate-500">
           {t(
-            'assignTargeting.noClassStudents',
-            'Check a class above to modify individual students.'
+            'assignTargeting.noSignInCount',
+            '{{count}} students in these classes have no school sign-in and cannot be individually modified.',
+            { count: unresolvableCount }
           )}
+        </p>
+      )}
+
+      {classRows.length === 0 ? (
+        <p className="text-xs text-slate-500">
+          {anyClassChecked
+            ? t(
+                'assignTargeting.noSignInStudents',
+                'No one in the checked classes has a school sign-in, so there is nobody to modify individually.'
+              )
+            : t(
+                'assignTargeting.noClassStudents',
+                'Check a class above to modify individual students.'
+              )}
         </p>
       ) : (
         <>
-          {(value.excludedStudents ?? []).length > 0 && (
+          {excludedInScope.length > 0 && (
             <p
               role="status"
               className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xxs text-amber-700"
             >
               {t(
                 'assignTargeting.skipNotice',
-                'Skipped students are left out of this assignment. Everyone else receives it individually, so classmates without a school sign-in will not see it on their assignments page.'
+                'Skipped students will not see this assignment. Everyone else in these classes still receives it.'
               )}
             </p>
           )}
@@ -653,10 +732,14 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         selectedGroupIds={value.targetGroupIds}
         translation={quizContext?.translation}
         onConfirm={(selected, overridesByKey, groupIds) => {
+          const readded = new Set(selected.map(studentTargetRefKey));
           patch({
             targetStudents: selected,
             overridesByKey,
             targetGroupIds: groupIds,
+            excludedStudents: (value.excludedStudents ?? []).filter(
+              (ref) => !readded.has(studentTargetRefKey(ref))
+            ),
           });
           setPickerOpen(false);
         }}
@@ -667,7 +750,12 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   return (
     <div className="space-y-0">
       {scheduleSection}
-      {value.targetMode === 'students' ? legacySection : classSection}
+      {value.targetMode === 'students' &&
+      (value.excludedStudents ?? []).length === 0
+        ? legacySection
+        : allowModifications
+          ? classSection
+          : null}
     </div>
   );
 };

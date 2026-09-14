@@ -121,6 +121,73 @@ describe('AssignTargetingSection', () => {
     );
   });
 
+  it('gives each skip checkbox a per-row accessible name', () => {
+    renderSection();
+    openModifications();
+    expect(screen.getByLabelText('Skip Grace Hopper')).toBeInTheDocument();
+  });
+
+  it('summarises skips and modifications on the collapsed affordance', () => {
+    renderSection({
+      value: {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      },
+    });
+    expect(screen.getByText(/1 skipped/)).toBeInTheDocument();
+    // SID-2 carries a standing roster default, so it counts as modified.
+    expect(screen.getByText(/1 modified/)).toBeInTheDocument();
+  });
+
+  it('renders the class skip toggles for an assignment that already has skips', () => {
+    renderSection({
+      value: {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        targetMode: 'students',
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      },
+    });
+    openModifications();
+    expect(screen.getByLabelText('Skip Ada Lovelace')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /choose students/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('counts students with no school sign-in', () => {
+    const noSso: ClassRoster = {
+      ...roster,
+      students: [
+        ...roster.students,
+        { id: 's3', firstName: 'No', lastName: 'Sso', pin: '03' },
+      ],
+    };
+    renderSection({ rosters: [noSso] });
+    openModifications();
+    expect(screen.getByText(/1 students in these classes/)).toBeInTheDocument();
+  });
+
+  it('distinguishes a checked class with no SSO students from no class at all', () => {
+    const noSso: ClassRoster = {
+      ...roster,
+      defaultOverridesByStudentId: {},
+      students: [{ id: 's3', firstName: 'No', lastName: 'Sso', pin: '03' }],
+    };
+    renderSection({ rosters: [noSso] });
+    openModifications();
+    expect(
+      screen.getByText(/No one in the checked classes has a school sign-in/)
+    ).toBeInTheDocument();
+  });
+
+  it('hides the modifications affordance when no roster resolves', () => {
+    renderSection({ selectedRosterIds: [], allowModifications: false });
+    expect(
+      screen.queryByText('Edit or add modifications')
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Schedule')).toBeInTheDocument();
+  });
+
   it('shows the class hint when no class is checked', () => {
     renderSection({ selectedRosterIds: [] });
     openModifications();

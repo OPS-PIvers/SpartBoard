@@ -47,6 +47,7 @@ import {
 } from '@/utils/resolveAssignmentTargets';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
   payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
 } from '@/utils/studentTargetRef';
@@ -484,6 +485,11 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       options?: { silent?: boolean }
     ): Promise<string | null> => {
       const silent = options?.silent === true;
+      // Snapshot the checked classes now; later roster edits never reshape it.
+      const expandedTargeting = expandClassTargeting(targeting, {
+        rosters,
+        selectedRosterIds: rosterIds,
+      });
       try {
         const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
         const derived = deriveSessionTargetsFromRosters(selectedRosters);
@@ -513,11 +519,11 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               source,
               rosterIds: derived.rosterIds,
               assignmentMode,
-              targetGroupIds: targeting.targetGroupIds,
-              overridesBySourcedId: targeting.overridesByKey,
-              openAt: targeting.openAt,
-              closeAt: targeting.closeAt,
-              dueAt: targeting.dueAt,
+              targetGroupIds: expandedTargeting.targetGroupIds,
+              overridesBySourcedId: expandedTargeting.overridesByKey,
+              openAt: expandedTargeting.openAt,
+              closeAt: expandedTargeting.closeAt,
+              dueAt: expandedTargeting.dueAt,
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
@@ -529,8 +535,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           // so a Cloud Functions hiccup can't regress today's plain assign.
           const payload = buildSetAssignmentTargetsPayload(
             undefined,
-            targeting,
-            { rosters, selectedRosterIds: rosterIds }
+            expandedTargeting
           );
           if (payloadRequiresCall(payload)) {
             try {

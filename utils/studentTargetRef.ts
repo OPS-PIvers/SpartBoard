@@ -93,7 +93,7 @@ export function classStudentRows(
   ctx: ClassTargetingContext
 ): ClassStudentRow[] {
   const selected = new Set(ctx.selectedRosterIds);
-  const seen = new Set<string>();
+  const seen = new Map<string, ClassStudentRow>();
   const rows: ClassStudentRow[] = [];
   for (const roster of ctx.rosters) {
     if (!selected.has(roster.id)) continue;
@@ -101,20 +101,32 @@ export function classStudentRows(
       const ref = resolveStudentTargetRef(student, roster);
       if (!ref) continue;
       const key = studentTargetRefKey(ref);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const defaultOverride = roster.defaultOverridesByStudentId?.[student.id];
-      rows.push({
+      const raw = roster.defaultOverridesByStudentId?.[student.id];
+      const defaultOverride =
+        raw && !isEmptyStudentOverride(raw) ? raw : undefined;
+      const existing = seen.get(key);
+      if (existing) {
+        // Same student in two checked rosters: merge the standing defaults so
+        // the second roster's accommodation is not silently dropped.
+        if (defaultOverride) {
+          existing.defaultOverride = {
+            ...defaultOverride,
+            ...(existing.defaultOverride ?? {}),
+          };
+        }
+        continue;
+      }
+      const row: ClassStudentRow = {
         key,
         ref,
         studentId: student.id,
         name: `${student.firstName} ${student.lastName}`.trim(),
         rosterId: roster.id,
         rosterName: roster.name,
-        ...(defaultOverride && !isEmptyStudentOverride(defaultOverride)
-          ? { defaultOverride }
-          : {}),
-      });
+        ...(defaultOverride ? { defaultOverride } : {}),
+      };
+      seen.set(key, row);
+      rows.push(row);
     }
   }
   return rows;
@@ -143,28 +155,32 @@ export function expandClassTargeting(
 ): AssignTargetingValue {
   if (value.targetMode === 'students') return value;
   const rows = classStudentRows(ctx);
-  const excludedKeys = new Set(
-    (value.excludedStudents ?? []).map(studentTargetRefKey)
+  const rowKeys = new Set(rows.map((row) => row.key));
+  // Prune to the classes currently checked — unchecking a class must not leave
+  // a skip or an edit behind for a student who is no longer in scope.
+  const excludedStudents = (value.excludedStudents ?? []).filter((ref) =>
+    rowKeys.has(studentTargetRefKey(ref))
   );
+  const excludedKeys = new Set(excludedStudents.map(studentTargetRefKey));
   const overridesByKey: Record<string, StudentOverride> = {};
   const withOverride: StudentTargetRef[] = [];
-  const included: StudentTargetRef[] = [];
   for (const row of rows) {
     if (excludedKeys.has(row.key)) continue;
-    included.push(row.ref);
     const override = effectiveClassOverride(row, value.overridesByKey);
     if (override) {
       overridesByKey[row.key] = override;
       withOverride.push(row.ref);
     }
   }
-  const skipping = excludedKeys.size > 0;
+  // `targetMode` stays 'class': the class channel keeps delivering to everyone,
+  // including students with no SSO identity. A skip is expressed as an
+  // exclusion marker on that student's own pointer doc instead.
   return {
     ...value,
-    targetMode: skipping ? 'students' : 'class',
-    targetStudents: skipping ? included : withOverride,
+    targetMode: 'class',
+    targetStudents: withOverride,
     overridesByKey,
-    excludedStudents: value.excludedStudents ?? [],
+    excludedStudents,
   };
 }
 
@@ -272,6 +288,18 @@ export function buildSetAssignmentTargetsPayload(
   const excludedChanged =
     excluded.length > 0 || (previous?.excludedStudents?.length ?? 0) > 0;
 
+  // Un-skipping: the student left the exclusion list without joining the
+  // override set, so nothing else would clear their marker pointer. Deleting it
+  // is exactly "no overrides, no pointer"; a student who kept an override is
+  // already in `add` and gets the marker rewritten away there.
+  const excludedKeys = new Set(excluded.map(studentTargetRefKey));
+  for (const ref of previous?.excludedStudents ?? []) {
+    const key = studentTargetRefKey(ref);
+    if (excludedKeys.has(key) || currRefByKey.has(key)) continue;
+    if (remove.some((r) => studentTargetRefKey(r) === key)) continue;
+    remove.push(ref);
+  }
+
   return {
     targetMode: current.targetMode,
     add,
@@ -284,13 +312,19 @@ export function buildSetAssignmentTargetsPayload(
 
 /** True when a payload carries work for `setAssignmentTargetsV1`; class-wide no-ops skip the call. */
 export function payloadRequiresCall(
-  payload: SetAssignmentTargetsPayload
+  payload: SetAssignmentTargetsPayload,
+  /** True when the assignment already has pointer docs to keep in step. */
+  hasExistingPointers = false
 ): boolean {
+  const windowChanged = Object.keys(payload.window).length > 0;
   return (
     payload.targetMode === 'students' ||
     payload.add.length > 0 ||
     payload.remove.length > 0 ||
     Object.keys(payload.overridesBySourcedId).length > 0 ||
-    (payload.excludedTargets?.length ?? 0) > 0
+    (payload.excludedTargets?.length ?? 0) > 0 ||
+    // A window edit must still reach the pointer docs of accommodated or
+    // skipped students, which the class channel no longer drives.
+    (hasExistingPointers && windowChanged)
   );
 }

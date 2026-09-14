@@ -1947,7 +1947,7 @@
     "showMore": "Afficher {{count}} de plus",
     "showFewer": "Afficher moins",
     "noClassStudents": "Cochez une classe ci-dessus pour adapter des élèves individuels.",
-    "skipNotice": "Les élèves ignorés ne reçoivent pas ce devoir. Les autres le reçoivent individuellement : les camarades sans connexion scolaire ne le verront donc pas sur leur page de devoirs.",
+    "skipNotice": "Les élèves ignorés ne verront pas ce devoir. Les autres élèves de ces classes le reçoivent toujours.",
     "sectionLabel": "Élèves individuels & aménagements",
     "chooseStudents": "Choisir des élèves",
     "editStudents": "Modifier les élèves",
@@ -1965,7 +1965,13 @@
     "scheduleSummaryOpenOnly": "Ouvre {{open}}",
     "scheduleSummaryCloseOnly": "Ferme {{close}}",
     "skippedToast_one": "{{count}} élève n'a pas pu être ciblé et a été ignoré.",
-    "skippedToast_other": "{{count}} élèves n'ont pas pu être ciblés et ont été ignorés."
+    "skippedToast_other": "{{count}} élèves n'ont pas pu être ciblés et ont été ignorés.",
+    "skipStudentNamed": "Ignorer {{name}}",
+    "summarySkipped": "{{count}} ignorés",
+    "summaryModified": "{{count}} aménagés",
+    "noSignInCount": "{{count}} élèves de ces classes n'ont pas de connexion scolaire et ne peuvent pas être aménagés individuellement.",
+    "noSignInStudents": "Aucun élève des classes cochées n'a de connexion scolaire : il n'y a donc personne à aménager individuellement.",
+    "timingNotApplied": "Les sessions dirigées par l'enseignant n'ont pas de minuteur par élève : le temps supplémentaire de {{names}} ne s'appliquera pas. Les autres aménagements s'appliquent."
   },
   "assignmentsHub": {
     "title": "Devoirs",

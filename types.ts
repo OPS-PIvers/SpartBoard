@@ -5114,6 +5114,8 @@ export interface StudentAssignmentPointer {
   closeAt?: number;
   dueAt?: number;
   override?: StudentOverride;
+  /** Skipped by the teacher: the class channel hides this session for them. */
+  excluded?: boolean;
   createdAt: number;
   updatedAt: number;
 }

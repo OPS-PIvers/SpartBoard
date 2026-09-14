@@ -678,6 +678,11 @@ export async function handleSetAssignmentTargets(
   // Absent `excludedTargets` ⇒ an empty set ⇒ byte-identical behaviour to a
   // client that never sends the field.
   const excludedKeys = new Set((input.excludedTargets ?? []).map(refKey));
+  const excludedResult = resolveTargets(
+    input.excludedTargets ?? [],
+    ctx,
+    hmacSecret
+  );
   const addResult = resolveTargets(
     input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
     ctx,
@@ -722,13 +727,12 @@ export async function handleSetAssignmentTargets(
   // Removals are pure deletes of the caller's own fan-out, so they only need a
   // uid — an unrecognized ref simply deletes nothing. A uid present in both
   // lists keeps its pointer (add wins) and never double-writes one batch.
+  // An excluded student KEEPS a pointer doc — it carries the exclusion marker
+  // the class channel reads — so their uid must not be deleted here.
+  const excludedUids = new Set(excludedResult.resolved.map((t) => t.uid));
   const removeUids = [
-    ...new Set(
-      [...input.remove, ...(input.excludedTargets ?? [])].map((ref) =>
-        uidForRef(ref, hmacSecret)
-      )
-    ),
-  ].filter((uid) => !addedUids.has(uid));
+    ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
+  ].filter((uid) => !addedUids.has(uid) && !excludedUids.has(uid));
 
   // F1: an already-targeted student never appears in `add` (the client sends a
   // strict diff), so an override edit or a window change would otherwise never
@@ -766,6 +770,7 @@ export async function handleSetAssignmentTargets(
     }
   }
   for (const uid of removeUids) overrideChangesByUid.set(uid, null);
+  for (const uid of excludedUids) overrideChangesByUid.set(uid, null);
 
   const assignmentData = assignmentSnap.data() ?? {};
   const assignmentWindow = {
@@ -822,14 +827,20 @@ export async function handleSetAssignmentTargets(
   // write can't express on its own: `createdAt` is preserved, never rewritten,
   // and an untouched stored `override` still decides the effective window.
   const existingByUid = new Map<string, Record<string, unknown>>();
-  const readRefs = [...admitted, ...refreshTargets].map((t) =>
-    itemsPath(t.uid)
-  );
+  const existingExcludedByUid = new Map<string, Record<string, unknown>>();
+  const readRefs = [
+    ...admitted,
+    ...refreshTargets,
+    ...excludedResult.resolved,
+  ].map((t) => itemsPath(t.uid));
   for (let i = 0; i < readRefs.length; i += GET_ALL_CHUNK) {
     const snaps = await db.getAll(...readRefs.slice(i, i + GET_ALL_CHUNK));
     for (const snap of snaps) {
       const data = snap.data();
-      if (data) existingByUid.set(snap.ref.parent.parent?.id ?? '', data);
+      if (!data) continue;
+      const uid = snap.ref.parent.parent?.id ?? '';
+      existingByUid.set(uid, data);
+      if (excludedUids.has(uid)) existingExcludedByUid.set(uid, data);
     }
   }
 
@@ -875,7 +886,27 @@ export async function handleSetAssignmentTargets(
       classId: target.classId,
       createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
+      // Un-skipping a student who kept an override: drop the stale marker.
+      excluded: admin.firestore.FieldValue.delete(),
       ...mutableFields(target.key, target.uid),
+    };
+    const ref = itemsPath(target.uid);
+    ops.push((batch) => batch.set(ref, payload, { merge: true }));
+  }
+  // Skipped students: a pointer doc whose only job is to hide the session from
+  // the class channel for this one student. Writing it keeps `targetMode` on
+  // 'class', so classmates without an SSO identity still receive the work.
+  for (const target of excludedResult.resolved) {
+    const storedCreatedAt = existingExcludedByUid.get(target.uid)?.createdAt;
+    const payload: Record<string, unknown> = {
+      kind: input.kind,
+      sessionId: input.sessionId,
+      teacherUid: callerUid,
+      classId: target.classId,
+      excluded: true,
+      override: admin.firestore.FieldValue.delete(),
+      createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
+      updatedAt: now,
     };
     const ref = itemsPath(target.uid);
     ops.push((batch) => batch.set(ref, payload, { merge: true }));
@@ -973,7 +1004,12 @@ export async function handleSetAssignmentTargets(
     written: admitted.length,
     updated,
     removed: removeUids.length,
-    skipped: [...preSkipped, ...addResult.skipped, ...overLimit],
+    skipped: [
+      ...preSkipped,
+      ...addResult.skipped,
+      ...excludedResult.skipped,
+      ...overLimit,
+    ],
   };
 }
 

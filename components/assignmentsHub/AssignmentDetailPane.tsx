@@ -137,7 +137,7 @@ export const AssignmentDetailPane: React.FC<{
     setSaving(true);
     setSaveError(null);
     try {
-      const result = await saveEdit(row, user.uid, draft);
+      const result = await saveEdit(row, user.uid, draft, classContext);
       if (result.skipped.length > 0) {
         setSaveError(
           t('assignmentsHub.detail.editSkipped', {
@@ -164,7 +164,7 @@ export const AssignmentDetailPane: React.FC<{
     if (!user?.uid) return;
     setSaving(true);
     try {
-      await closeNow(row, user.uid);
+      await closeNow(row, user.uid, classContext);
     } finally {
       setSaving(false);
     }
@@ -233,6 +233,14 @@ export const AssignmentDetailPane: React.FC<{
   const matchedRosters = useMemo(
     () => rosters.filter((r) => (effectiveRosterIds ?? []).includes(r.id)),
     [rosters, effectiveRosterIds]
+  );
+
+  const classContext = useMemo(
+    () => ({
+      rosters: matchedRosters,
+      selectedRosterIds: matchedRosters.map((r) => r.id),
+    }),
+    [matchedRosters]
   );
 
   // The section ids still gate pseudonym lookups for launches that never
@@ -518,6 +526,7 @@ export const AssignmentDetailPane: React.FC<{
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
             <AssignTargetingSection
               rosters={matchedRosters}
+              selectedRosterIds={classContext.selectedRosterIds}
               value={draft}
               onChange={setDraft}
               kind={row.kind}

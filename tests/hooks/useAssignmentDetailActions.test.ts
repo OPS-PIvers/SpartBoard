@@ -162,6 +162,50 @@ describe('useAssignmentDetailActions', () => {
     expect(sessionPatch.closeAt).toBe(12345);
   });
 
+  it('calls the CF for a window edit once the assignment has pointer docs', async () => {
+    const row = makeRow({
+      targetMode: 'class',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      overridesBySourcedId: { 'classlink:SID-1': { timeMultiplier: 2 } },
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'class',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      targetGroupIds: [],
+      overridesByKey: { 'classlink:SID-1': { timeMultiplier: 2 } },
+      closeAt: 999,
+    });
+
+    expect(mockSetAssignmentTargets).toHaveBeenCalledTimes(1);
+    const call = mockSetAssignmentTargets.mock.calls[0][0] as {
+      window: Record<string, unknown>;
+    };
+    expect(call.window).toEqual({ closeAt: 999 });
+  });
+
+  it('calls the CF for a window edit when only skipped students hold pointers', async () => {
+    const row = makeRow({
+      targetMode: 'class',
+      targetStudents: [],
+      overridesBySourcedId: {},
+      excludedTargets: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'class',
+      targetStudents: [],
+      targetGroupIds: [],
+      overridesByKey: {},
+      excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+      closeAt: 999,
+    });
+
+    expect(mockSetAssignmentTargets).toHaveBeenCalledTimes(1);
+  });
+
   it('closeNow sets closeAt to now while preserving current targeting', async () => {
     const row = makeRow();
     const { result } = renderHook(() => useAssignmentDetailActions());

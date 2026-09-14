@@ -1947,7 +1947,7 @@
     "showMore": "{{count}} weitere anzeigen",
     "showFewer": "Weniger anzeigen",
     "noClassStudents": "Wähle oben eine Klasse aus, um einzelne Schüler anzupassen.",
-    "skipNotice": "Übersprungene Schüler erhalten diese Aufgabe nicht. Alle anderen erhalten sie individuell, daher sehen Mitschüler ohne Schul-Anmeldung sie nicht auf ihrer Aufgabenseite.",
+    "skipNotice": "Übersprungene Schüler/innen sehen diese Aufgabe nicht. Alle anderen in diesen Klassen erhalten sie weiterhin.",
     "sectionLabel": "Einzelne Schüler & Anpassungen",
     "chooseStudents": "Schüler auswählen",
     "editStudents": "Schüler bearbeiten",
@@ -1965,7 +1965,13 @@
     "scheduleSummaryOpenOnly": "Öffnet {{open}}",
     "scheduleSummaryCloseOnly": "Schließt {{close}}",
     "skippedToast_one": "{{count}} Schüler/in konnte nicht ausgewählt werden und wurde übersprungen.",
-    "skippedToast_other": "{{count}} Schüler/innen konnten nicht ausgewählt werden und wurden übersprungen."
+    "skippedToast_other": "{{count}} Schüler/innen konnten nicht ausgewählt werden und wurden übersprungen.",
+    "skipStudentNamed": "{{name}} überspringen",
+    "summarySkipped": "{{count}} übersprungen",
+    "summaryModified": "{{count}} angepasst",
+    "noSignInCount": "{{count}} Schüler/innen in diesen Klassen haben keine Schul-Anmeldung und können nicht einzeln angepasst werden.",
+    "noSignInStudents": "Niemand in den ausgewählten Klassen hat eine Schul-Anmeldung, daher gibt es niemanden, der einzeln angepasst werden kann.",
+    "timingNotApplied": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin."
   },
   "assignmentsHub": {
     "title": "Aufgaben",

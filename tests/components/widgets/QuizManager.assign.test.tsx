@@ -528,7 +528,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     ).not.toBeInTheDocument();
   });
 
-  it('M17 C3 F5: blocks an individually-targeted save on a non-self-paced quiz', async () => {
+  it('warns but does not block when only a standing roster default applies', async () => {
     const onAssign = vi.fn();
     renderManager(
       makeQuizMeta({
@@ -546,6 +546,37 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     });
 
     checkAccommodatedClass(dialog);
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    // Standing roster defaults are a pre-existing setting, never a block.
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('blocks a teacher-paced save once the teacher skips a student', async () => {
+    const onAssign = vi.fn();
+    renderManager(
+      makeQuizMeta({
+        behavior: { ...DEFAULT_QUIZ_BEHAVIOR, sessionMode: 'teacher' },
+      }),
+      onAssign
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+
+    checkAccommodatedClass(dialog);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /edit or add modifications/i })
+    );
+    fireEvent.click(
+      await within(dialog).findByRole('checkbox', { name: /skip ada/i })
+    );
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     expect(onAssign).not.toHaveBeenCalled();
@@ -597,6 +628,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     });
 
     checkAccommodatedClass(dialog);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /edit or add modifications/i })
+    );
+    fireEvent.click(
+      await within(dialog).findByRole('checkbox', { name: /skip ada/i })
+    );
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
     expect(onAssign).not.toHaveBeenCalled();
     await within(dialog).findByRole('alert');
