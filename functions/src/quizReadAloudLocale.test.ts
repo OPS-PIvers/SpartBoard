@@ -298,6 +298,19 @@ describe('synthesizeQuizAudio — translated view', () => {
     expect(spanish.path).not.toBe(english.path);
   });
 
+  it('writes a top-level files map on a session with no manifest yet', async () => {
+    const docs = makeDocs();
+    const { deps } = makeDeps(docs);
+    await synthesizeQuizAudio({ ...req, locale: 'es' }, student, deps);
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest.files).toEqual({});
+    expect(manifest.status).toBe('partial');
+    expect(manifest.voice).toBe('en-US-Neural2-F');
+    expect(Object.keys((manifest.localized as Doc).es as Doc)).toContain(
+      'files'
+    );
+  });
+
   it('caches per (part, locale)', async () => {
     const docs = makeDocs();
     const { deps, synthesize } = makeDeps(docs);
@@ -331,8 +344,8 @@ describe('synthesizeQuizAudio — translated view', () => {
   });
 });
 
-describe('prepareQuizReadAloud — includeTranslations gating', () => {
-  it('synthesizes English only when the flag is absent (old clients)', async () => {
+describe('prepareQuizReadAloud — translation locale scope', () => {
+  it('synthesizes English only when no locale scope is given', async () => {
     const docs = makeDocs();
     const { deps, synthesize } = makeDeps(docs);
     await prepareQuizReadAloud({ sessionId: 's1', callerUid: TEACHER }, deps);
@@ -342,11 +355,11 @@ describe('prepareQuizReadAloud — includeTranslations gating', () => {
       expect(call[0].voice).toBe('en-US-Neural2-F');
   });
 
-  it('adds a Spanish slice when the flag is set, and no so/hmn slice', async () => {
+  it('adds a Spanish slice when es is in scope, and no so/hmn slice', async () => {
     const docs = makeDocs();
     const { deps, synthesize } = makeDeps(docs);
     await prepareQuizReadAloud(
-      { sessionId: 's1', callerUid: TEACHER, includeTranslations: true },
+      { sessionId: 's1', callerUid: TEACHER, translationLocales: ['es', 'so'] },
       deps
     );
     const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
@@ -359,5 +372,18 @@ describe('prepareQuizReadAloud — includeTranslations gating', () => {
     expect(
       synthesize.mock.calls.some((c) => c[0].voice === 'es-US-Neural2-A')
     ).toBe(true);
+  });
+
+  it('never synthesizes a stored locale nobody with read-aloud holds', async () => {
+    const docs = makeDocs();
+    const { deps, synthesize } = makeDeps(docs);
+    await prepareQuizReadAloud(
+      { sessionId: 's1', callerUid: TEACHER, translationLocales: ['so'] },
+      deps
+    );
+    const manifest = docs['quiz_sessions/s1'].readAloud as Doc;
+    expect(manifest.localized).toBeUndefined();
+    for (const call of synthesize.mock.calls)
+      expect(call[0].voice).toBe('en-US-Neural2-F');
   });
 });

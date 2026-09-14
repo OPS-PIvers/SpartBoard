@@ -216,12 +216,12 @@ export function useQuizReadAloud({
       const key = readAloudPartKey(qid, part);
       if (part.kind === 'stimulus') {
         const chunkKeys = manifest?.stimulusChunks?.[part.stimulusId];
-        const paths = chunkKeys?.map((k) => manifest?.files[k]);
+        const paths = chunkKeys?.map((k) => manifest?.files?.[k]);
         if (paths && paths.length > 0 && paths.every(Boolean)) {
           return { urls: await Promise.all((paths as string[]).map(urlFor)) };
         }
       } else {
-        const path = slice?.files[key];
+        const path = slice?.files?.[key];
         if (path) {
           return {
             urls: [await urlFor(path)],
@@ -235,7 +235,8 @@ export function useQuizReadAloud({
         sessionId,
         questionId: qid,
         part,
-        ...(locale ? { locale } : {}),
+        // Passages are never translated, so a stimulus part stays English.
+        ...(locale && part.kind !== 'stimulus' ? { locale } : {}),
       });
       const paths = res.chunks ?? [res.path];
       return { urls: await Promise.all(paths.map(urlFor)), timings: res.parts };
@@ -312,13 +313,11 @@ export function useQuizReadAloud({
 
   const stimulusText = useCallback(
     (stimulusId: string): string | undefined => {
-      // Stimulus passages are never translated, so a localized view offers no passage audio.
-      if (locale) return undefined;
       if (!question?.stimulusIds?.includes(stimulusId)) return undefined;
       const text = stimulusTextById?.[stimulusId]?.trim() ?? '';
       return text.length > 0 ? text : undefined;
     },
-    [locale, question, stimulusTextById]
+    [question, stimulusTextById]
   );
 
   const readQuestion = useCallback(() => {
@@ -413,7 +412,7 @@ export function useQuizReadAloud({
     if (!enabled) return;
     if (questionId && autoRef.current) playRef.current({ kind: 'question' });
     return () => stop();
-  }, [enabled, questionId, stop]);
+  }, [enabled, questionId, locale, stop]);
 
   // Prefetch the current question's parts, then the next question's.
   useEffect(() => {
@@ -422,13 +421,13 @@ export function useQuizReadAloud({
     for (const q of [question, nextQuestion]) {
       if (!q) continue;
       for (const key of questionPartKeys(q)) {
-        const path = slice.files[key];
+        const path = slice.files?.[key];
         if (path) wanted.push(path);
       }
-      if (locale || !manifest) continue;
+      if (!manifest) continue;
       for (const sid of q.stimulusIds ?? []) {
         for (const k of manifest.stimulusChunks?.[sid] ?? []) {
-          const path = manifest.files[k];
+          const path = manifest.files?.[k];
           if (path) wanted.push(path);
         }
       }
@@ -459,7 +458,7 @@ export function useQuizReadAloud({
     return () => {
       cancelled = true;
     };
-  }, [enabled, manifest, slice, locale, question, nextQuestion, urlFor]);
+  }, [enabled, manifest, slice, question, nextQuestion, urlFor]);
 
   useEffect(() => () => stop(), [stop]);
 

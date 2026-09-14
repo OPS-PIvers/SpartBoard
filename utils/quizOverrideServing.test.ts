@@ -100,6 +100,21 @@ describe('serveLocalizedQuestion', () => {
     );
   });
 
+  it('falls back to English on an empty or whitespace stem (server parity)', () => {
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a'), localized: { es: { text: '' } } },
+        'es'
+      )
+    ).toBeNull();
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a'), localized: { es: { text: '   ' } } },
+        'es'
+      )
+    ).toBeNull();
+  });
+
   it('falls back to English when the locale entry lacks the rubric snapshot', () => {
     const rubric = { id: 'r1', title: 'Essay', criteria: [] } as never;
     const question = {

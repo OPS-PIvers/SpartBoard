@@ -98,6 +98,7 @@ import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
+import { readAloudTranslationLocales } from '@/config/quizReadAloud';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
 import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 
@@ -1123,7 +1124,13 @@ export const useQuizAssignments = (
         overridesBySourcedId ?? {}
       ).some((o) => o?.readAloud === true);
       if (opts.readAloudAll === true || anyOverrideReadAloud) {
-        prepareQuizReadAloudInBackground(assignmentId);
+        prepareQuizReadAloudInBackground(
+          assignmentId,
+          readAloudTranslationLocales(
+            overridesBySourcedId ?? {},
+            opts.readAloudAll === true
+          )
+        );
       }
 
       // PLC dashboard index: when this assignment opts into PLC mode,
@@ -2302,7 +2309,15 @@ export const useQuizAssignments = (
       }
       await firstBatch.commit();
       // Rebuilt publicQuestions may carry new text; re-hash and fill the manifest.
-      if (syncReadAloud) prepareQuizReadAloudInBackground(assignmentId);
+      if (syncReadAloud)
+        prepareQuizReadAloudInBackground(
+          assignmentId,
+          readAloudTranslationLocales(
+            assignment.overridesBySourcedId ?? {},
+            (behavior?.sessionOptions ?? assignment.sessionOptions)
+              ?.readAloudAll === true
+          )
+        );
 
       // Subsequent chunks for any remaining responses.
       for (

@@ -125,6 +125,26 @@ export function ttsLanguageForTranslationLocale(
   return QUIZ_TRANSLATION_TTS_LANGUAGE[locale] ?? null;
 }
 
+/** Voiced locales held by students flagged for read-aloud; the prepare scope. */
+export function readAloudTranslationLocales(
+  overrides:
+    | Record<
+        string,
+        { readAloud?: boolean; language?: string } | null | undefined
+      >
+    | null
+    | undefined,
+  readAloudAll?: boolean
+): string[] {
+  const out = new Set<string>();
+  for (const override of Object.values(overrides ?? {})) {
+    const locale = override?.language;
+    if (!locale || !ttsLanguageForTranslationLocale(locale)) continue;
+    if (readAloudAll === true || override?.readAloud === true) out.add(locale);
+  }
+  return [...out];
+}
+
 /** `ai_usage/global_tts_{YYYY-MM}` doc id for the month containing `date`. */
 export function monthlyTtsUsageDocId(date: Date = new Date()): string {
   const y = date.getUTCFullYear();

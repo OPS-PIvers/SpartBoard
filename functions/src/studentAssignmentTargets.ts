@@ -637,7 +637,10 @@ export async function handleSetAssignmentTargets(
   loadContext: () => Promise<TargetAuthorizationContext>,
   preSkipped: SetAssignmentTargetsResult['skipped'] = [],
   /** Runs after the commit when a quiz target gains `override.readAloud` (R1). */
-  onReadAloudGained?: (sessionId: string) => Promise<void>
+  onReadAloudGained?: (
+    sessionId: string,
+    translationLocales: string[]
+  ) => Promise<void>
 ): Promise<SetAssignmentTargetsResult> {
   const assignmentRef = db
     .collection('users')
@@ -760,17 +763,30 @@ export async function handleSetAssignmentTargets(
       ? input.window.closeAt
       : assignmentWindow.closeAt;
   const effectiveCloseAtByUid = new Map<string, number | undefined>();
+  const effectiveOverrideByUid = new Map<string, StudentOverride | null>();
   const storedMirror: unknown = assignmentData.overridesByStudentUid;
   if (typeof storedMirror === 'object' && storedMirror !== null) {
     for (const [uid, value] of Object.entries(
       storedMirror as Record<string, unknown>
     )) {
-      const closeAt = (value as StudentOverride | null)?.closeAt;
+      const stored = (value ?? null) as StudentOverride | null;
+      const closeAt = stored?.closeAt;
       effectiveCloseAtByUid.set(uid, numberOrNull(closeAt) ?? undefined);
+      effectiveOverrideByUid.set(uid, stored);
     }
   }
   for (const [uid, value] of overrideChangesByUid) {
     effectiveCloseAtByUid.set(uid, numberOrNull(value?.closeAt) ?? undefined);
+    effectiveOverrideByUid.set(uid, value);
+  }
+  // Read-aloud audio is synthesized only for locales a flagged student holds.
+  const readAloudForAll = sessionSnap.get('readAloudAll') === true;
+  const readAloudLocales = new Set<string>();
+  for (const override of effectiveOverrideByUid.values()) {
+    const language = override?.language;
+    if (typeof language !== 'string' || !language) continue;
+    if (readAloudForAll || override?.readAloud === true)
+      readAloudLocales.add(language);
   }
   const desiredSessionCloseAt = computeSessionCloseAt(
     assignmentCloseAt,
@@ -941,7 +957,7 @@ export async function handleSetAssignmentTargets(
     input.kind === 'quiz' &&
     [...overrideChangesByUid.values()].some((v) => v?.readAloud === true);
   if (readAloudGained && onReadAloudGained) {
-    await onReadAloudGained(input.sessionId);
+    await onReadAloudGained(input.sessionId, [...readAloudLocales]);
   }
 
   return {
@@ -1298,10 +1314,14 @@ export const setAssignmentTargetsV1 = onCall(
       loadContext,
       skipped,
       // Lazy so the TTS client loads only on the quiz read-aloud path.
-      async (sessionId) => {
+      async (sessionId, translationLocales) => {
         const { prepareReadAloudAfterTargets } =
           await import('./quizReadAloud');
-        await prepareReadAloudAfterTargets(sessionId, callerUid);
+        await prepareReadAloudAfterTargets(
+          sessionId,
+          callerUid,
+          translationLocales
+        );
       }
     );
   }

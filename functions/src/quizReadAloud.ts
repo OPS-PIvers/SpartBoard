@@ -867,8 +867,8 @@ export async function prepareQuizReadAloud(
   input: {
     sessionId: string;
     callerUid: string;
-    /** New clients only; absent leaves the English-only behaviour byte-for-byte. */
-    includeTranslations?: boolean;
+    /** Locales a read-aloud student actually holds; absent/empty = English only. */
+    translationLocales?: string[];
   },
   deps: ReadAloudDeps,
   opts: { deadlineMs?: number } = {}
@@ -970,8 +970,11 @@ export async function prepareQuizReadAloud(
       failedKeys: string[];
     }
   > = {};
-  if (input.includeTranslations) {
-    for (const locale of voicedSessionLocales(session)) {
+  const localeScope = new Set(input.translationLocales ?? []);
+  if (localeScope.size > 0) {
+    for (const locale of voicedSessionLocales(session).filter((l) =>
+      localeScope.has(l)
+    )) {
       const localeLanguage = ttsLanguageForTranslationLocale(locale);
       if (!localeLanguage) continue;
       const localeVoices = voicesForLanguage(settings, localeLanguage);
@@ -1051,12 +1054,15 @@ export async function prepareQuizReadAloud(
 export async function prepareReadAloudAfterTargets(
   sessionId: string,
   callerUid: string,
+  translationLocales: string[] = [],
   deadlineMs = 40_000
 ): Promise<void> {
   try {
-    await prepareQuizReadAloud({ sessionId, callerUid }, buildDefaultDeps(), {
-      deadlineMs,
-    });
+    await prepareQuizReadAloud(
+      { sessionId, callerUid, translationLocales },
+      buildDefaultDeps(),
+      { deadlineMs }
+    );
   } catch (error) {
     console.error('[quizReadAloud] prepare after targets failed', {
       sessionId,
@@ -1199,7 +1205,7 @@ export async function synthesizeQuizAudio(
   const manifestBase =
     typeof session.readAloud === 'object' && session.readAloud !== null
       ? {}
-      : { status: 'partial', voice: sessionVoice };
+      : { status: 'partial', voice: sessionVoice, files: {} };
 
   if (request.part.kind === 'stimulus') {
     // Stimulus passages are not translated, so a translated view has no stimulus audio.
@@ -1407,7 +1413,11 @@ export const prepareQuizReadAloudV1 = onCall(
       {
         sessionId,
         callerUid: request.auth.uid,
-        includeTranslations: data.includeTranslations === true,
+        translationLocales: Array.isArray(data.includeTranslations)
+          ? data.includeTranslations.filter(
+              (l): l is string => typeof l === 'string'
+            )
+          : [],
       },
       buildDefaultDeps(),
       {

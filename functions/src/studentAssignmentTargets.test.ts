@@ -1490,3 +1490,77 @@ describe('sanitizeOverride language', () => {
     ).toEqual({ language: 'so', timeMultiplier: 2 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// read-aloud re-prepare scope
+// ---------------------------------------------------------------------------
+
+describe('handleSetAssignmentTargets - read-aloud locale scope', () => {
+  const runWithHook = (
+    input: SetAssignmentTargetsInput,
+    hook: (sessionId: string, locales: string[]) => Promise<void>
+  ) =>
+    handleSetAssignmentTargets(
+      makeDb(state) as never,
+      TEACHER_UID,
+      HMAC,
+      input,
+      () => Promise.resolve(ctx()),
+      [],
+      hook
+    );
+
+  it('passes the flagged student locale to the re-prepare', async () => {
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true, language: 'es' },
+        },
+      }),
+      hook
+    );
+    expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
+  });
+
+  it('omits a locale held only by a student without read-aloud', async () => {
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true },
+          [`classlink:${SOURCED_B}`]: { language: 'es' },
+        },
+      }),
+      hook
+    );
+    expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, []);
+  });
+
+  it('includes every targeted locale when the session reads aloud for all', async () => {
+    state.docs.set(`quiz_sessions/${ASSIGNMENT_ID}`, {
+      teacherUid: TEACHER_UID,
+      status: 'active',
+      readAloudAll: true,
+    });
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true },
+          [`classlink:${SOURCED_B}`]: { language: 'es' },
+        },
+      }),
+      hook
+    );
+    expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
+  });
+});
