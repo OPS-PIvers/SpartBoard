@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { Z_INDEX } from '@/config/zIndex';
 import type {
@@ -7,6 +7,18 @@ import type {
   LibraryMenuAction,
   LibraryPrimaryAction,
 } from '@/components/common/library/types';
+
+// Captures the observed target + callback so a test can fire a resize by
+// hand — the global tests/setup.ts stub is a pure no-op and never invokes it.
+class ResizeObserverSpy {
+  static instances: ResizeObserverSpy[] = [];
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor(public callback: ResizeObserverCallback) {
+    ResizeObserverSpy.instances.push(this);
+  }
+}
 
 interface Assignment {
   id: string;
@@ -34,6 +46,11 @@ const basePrimary: LibraryPrimaryAction = {
 describe('AssignmentArchiveCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ResizeObserverSpy.instances.length = 0;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('renders with emerald styling in active mode for success tone', () => {
@@ -126,6 +143,46 @@ describe('AssignmentArchiveCard', () => {
     const accumulatedWidgetZ = 75;
     expect(menuZ).toBeGreaterThan(accumulatedWidgetZ);
     expect(menuZ).toBe(Z_INDEX.dropdown);
+  });
+
+  it('closes the overflow menu when the host widget resizes (e.g. Alt+M maximize/restore)', () => {
+    // Alt+M and Alt+R resize/reposition the widget without any pointerdown
+    // (so useClickOutside never fires) and without a window 'resize' event
+    // (so the scroll/resize listener above never fires either) — this menu
+    // is `position: fixed` and portalled to document.body, so it would
+    // otherwise keep floating at its stale, pre-resize coordinates.
+    vi.stubGlobal('ResizeObserver', ResizeObserverSpy);
+    const secondary: LibraryMenuAction[] = [
+      { id: 'edit', label: 'Edit', onClick: vi.fn() },
+    ];
+    render(
+      <div data-draggable-window="">
+        <AssignmentArchiveCard<Assignment>
+          assignment={ASSIGNMENT}
+          mode="active"
+          status={LIVE_STATUS}
+          primaryAction={{ ...basePrimary, onClick: vi.fn() }}
+          secondaryActions={secondary}
+          title={ASSIGNMENT.quizTitle}
+        />
+      </div>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    expect(ResizeObserverSpy.instances).toHaveLength(1);
+    const instance = ResizeObserverSpy.instances[0];
+    // A real ResizeObserver always fires once immediately on observe(), before any actual resize.
+    act(() => {
+      instance.callback([], instance as unknown as ResizeObserver);
+    });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    act(() => {
+      instance.callback([], instance as unknown as ResizeObserver);
+    });
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('styles destructive actions with destructive classes', () => {

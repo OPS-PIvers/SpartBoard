@@ -32,4 +32,13 @@ describe('FEATURE_DEFAULTS', () => {
     expect(entry.missingDocPublic).toBe(false);
     expect(entry.defaultMinTier).toBeUndefined();
   });
+
+  it('declares a quiz-translation entry that is admin-only and fail-closed for missing docs', () => {
+    const entry = FEATURE_DEFAULTS['quiz-translation'];
+    expect(entry).toBeDefined();
+    expect(entry.defaultAccessLevel).toBe('admin');
+    expect(entry.defaultEnabled).toBe(true);
+    expect(entry.missingDocPublic).toBe(false);
+    expect(entry.defaultMinTier).toBeUndefined();
+  });
 });

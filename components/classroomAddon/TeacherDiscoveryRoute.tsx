@@ -552,6 +552,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         overridesBySourcedId: resolvedTargeting.overridesByKey,
         openAt: resolvedTargeting.openAt ?? null,
         closeAt: resolvedTargeting.closeAt ?? null,
+        ...(selectedQuiz.translations
+          ? { translationIndex: selectedQuiz.translations }
+          : {}),
       }
     );
     append(`Assignment created (join code ${code}).`);

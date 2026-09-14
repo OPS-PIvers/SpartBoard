@@ -45,6 +45,7 @@ import { useGooglePicker } from '@/hooks/useGooglePicker';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
+  syncedTranslationsInput,
   useSyncedQuizGroupsByIds,
 } from '@/hooks/useSyncedQuizGroups';
 import {
@@ -199,6 +200,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     error: quizzesError,
     saveQuiz,
     loadQuizData,
+    loadSyncedTranslations,
     saveDriveSnapshot,
     deleteQuiz,
     duplicateQuiz,
@@ -573,6 +575,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           questions: data.questions,
           plcId,
           behavior: quizMeta.behavior,
+          // Peers cannot read the owner's drive.file sidecars, so seed the
+          // group doc with them at share time (plan §11 PR5).
+          ...syncedTranslationsInput(
+            await loadSyncedTranslations(quizMeta, {
+              title: data.title,
+              questions: data.questions,
+              stimuli: data.stimuli,
+              behavior: quizMeta.behavior,
+            })
+          ),
         });
         try {
           await attachSyncLinkage(quizMeta.id, {
@@ -617,6 +629,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [
       attachSyncLinkage,
       loadQuizData,
+      loadSyncedTranslations,
       plcs,
       user,
       banks,
@@ -1654,6 +1667,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 questions: data.questions,
                 plcId: plcLinkage.id,
                 behavior: meta.behavior,
+                ...syncedTranslationsInput(
+                  await loadSyncedTranslations(meta, {
+                    title: data.title,
+                    questions: data.questions,
+                    stimuli: data.stimuli,
+                    behavior: meta.behavior,
+                  })
+                ),
               });
               try {
                 await attachSyncLinkage(meta.id, {
@@ -1735,6 +1756,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 overridesBySourcedId: resolvedTargeting.overridesByKey,
                 openAt: resolvedTargeting.openAt ?? null,
                 closeAt: resolvedTargeting.closeAt ?? null,
+                ...(meta.translations
+                  ? { translationIndex: meta.translations }
+                  : {}),
               }
             );
 
@@ -2493,6 +2517,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <QuizEditorModal
         isOpen={!!editingQuiz}
         quiz={editingQuiz}
+        metadata={
+          editingMeta
+            ? (quizzes.find((q) => q.id === editingMeta.id) ?? null)
+            : null
+        }
         bankApi={bankApi}
         behavior={editingMeta ? getQuizBehavior(editingMeta) : undefined}
         folders={editingMeta ? quizFolders : undefined}

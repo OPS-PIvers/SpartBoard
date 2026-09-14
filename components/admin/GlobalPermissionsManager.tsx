@@ -48,6 +48,7 @@ import {
   Library,
   PanelRight,
   Volume2,
+  Languages,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -177,6 +178,13 @@ const GLOBAL_FEATURES: {
     icon: Volume2,
     description:
       'Lets teachers mark a quiz assignment, or individual signed-in students, to have questions and answer choices read aloud with a Google Cloud voice. Anonymous PIN joiners never get it. Fail-closed: until this is saved and enabled, the override checkbox, the assignment toggle and the quiz language field stay hidden. Characters are billed to the teacher who assigns; voices are set under Tools → Quiz Read-Aloud.',
+  },
+  {
+    id: 'quiz-translation',
+    label: 'Quiz translation (multilingual learners)',
+    icon: Languages,
+    description:
+      'Lets teachers generate, review and serve AI translations of a quiz for students whose roster language is set. Fail-closed: until this is saved and enabled, the Languages tab in the quiz editor stays hidden and no translated string ever reaches a student. Translations are generated with Gemini, metered per quiz and language, and only questions the teacher has explicitly marked reviewed are served. Languages and monthly caps are set under Tools \u2192 Quiz Languages.',
   },
   {
     id: 'question-bank-ai',

@@ -196,7 +196,11 @@
       "removeGroup": "Supprimer le groupe",
       "groupMemberCount_one": "{{count}} élève",
       "groupMemberCount_other": "{{count}} élèves",
-      "noStudentsToGroup": "Ajoutez d'abord des élèves."
+      "noStudentsToGroup": "Ajoutez d'abord des élèves.",
+      "accommodationsTab": "Aménagements ({{count}})",
+      "accommodationsHelp": "Ils s'appliquent automatiquement chaque fois que tu assignes un travail à cet élève. Tu peux toujours les modifier pour chaque devoir.",
+      "emptyAccommodationsTitle": "Pas encore d'élèves",
+      "emptyAccommodationsSubtitle": "Ajoute d'abord des élèves, puis définis leurs aménagements permanents."
     },
     "plcs": {
       "title": "Mes Communautés",
@@ -1929,8 +1933,10 @@
       "tabWarningsOff": "Avertissements d'onglet désactivés",
       "tabWarning": "Avertissement d'onglet : {{threshold}}",
       "windowShifted": "Fenêtre décalée",
-      "readAloud": "Lecture à voix haute"
-    }
+      "readAloud": "Lecture à voix haute",
+      "language": "{{language}}"
+    },
+    "language": "Langue"
   },
   "assignTargeting": {
     "expandAffordance": "+ Élèves individuels & aménagements",
@@ -2059,6 +2065,78 @@
     "readingHelp": "Laisser vide pour les évaluations de lecture.",
     "needsManual": "Impossible d'extraire le texte automatiquement. Collez-le ou saisissez-le ici.",
     "extractFailed": "L'extraction du texte a échoué. Réessayez."
+  },
+  "quizTranslation": {
+    "label": "Traduction",
+    "editor": {
+      "tab": "Langues",
+      "pickLanguage": "Choisir une langue",
+      "generate": "Générer la traduction",
+      "reviewed": "Vérifiée",
+      "stale": "Obsolète",
+      "regenerate_one": "Regénérer {{count}} question obsolète",
+      "regenerate_other": "Regénérer {{count}} questions obsolètes",
+      "servedCount": "{{reviewed}} sur {{total}} proposées en {{language}}",
+      "save": "Enregistrer la traduction",
+      "english": "Anglais",
+      "disabled": {
+        "capReached": "La limite mensuelle de traduction de votre établissement est atteinte.",
+        "sourceNotEnglish": "Seuls les questionnaires rédigés en anglais peuvent être traduits.",
+        "bankSlots": "Les questionnaires qui puisent dans des banques de questions ne peuvent pas être traduits.",
+        "notLoaded": "La traduction enregistrée est en cours de chargement. Réessaie dans un instant."
+      },
+      "chromeNote": "Les menus restent en anglais.",
+      "empty": {
+        "noLanguage": {
+          "title": "Aucune langue choisie",
+          "body": "Choisissez une langue ci-dessus pour commencer une traduction."
+        },
+        "noneReviewed": {
+          "title": "Rien de vérifié pour l'instant",
+          "body": "Les élèves ne voient que les questions que vous marquez comme vérifiées. Demandez à un spécialiste des langues si vous ne lisez pas cette langue."
+        },
+        "pickQuestion": {
+          "title": "Choisissez une question",
+          "body": "Sélectionnez une question à gauche pour voir l'anglais et la traduction côte à côte."
+        }
+      },
+      "error": {
+        "unloadedLocale": "La traduction enregistrée de cette langue n'est pas encore chargée. Sélectionne-la de nouveau, puis génère."
+      }
+    },
+    "authoring": {
+      "advisory": {
+        "stimulusText_one": "{{count}} image peut contenir du texte qui reste en anglais.",
+        "stimulusText_other": "{{count}} images peuvent contenir du texte qui reste en anglais."
+      }
+    },
+    "assign": {
+      "generate": "Générer",
+      "advisory": {
+        "missing_one": "{{name}} a besoin de {{language}}. Cette traduction n'est pas prête : l'anglais sera affiché.",
+        "missing_other": "{{name}} et {{others}} de plus ont besoin de traductions qui ne sont pas prêtes ({{language}}) : l'anglais sera affiché."
+      }
+    },
+    "student": {
+      "toggle": {
+        "english": "Anglais"
+      }
+    },
+    "grading": {
+      "backTranslate": "Traduire cette réponse",
+      "backTranslationLabel": "Rétrotraduction en anglais",
+      "machineGenerated": "Généré automatiquement. Les mots de l'élève font foi.",
+      "sectionLabel": "Langue de la réponse",
+      "backTranslating": "Traduction en cours…",
+      "nativeLabel": "Réponse de l'élève",
+      "translatedRubricNote": "Cet élève a peut-être lu une grille traduite ; évaluez à partir de la grille anglaise affichée ici.",
+      "saveFailed": "La traduction est affichée ci-dessous, mais elle n'a pas pu être enregistrée. Elle devra être relancée la prochaine fois.",
+      "errors": {
+        "failed": "Impossible de traduire cette réponse. Réessayez.",
+        "capReached": "Limite quotidienne de traductions atteinte. Réessayez demain.",
+        "tooLong": "Cette réponse est trop longue pour être traduite."
+      }
+    }
   },
   "quizMediaResponse": {
     "notice": {

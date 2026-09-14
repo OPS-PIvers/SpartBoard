@@ -2139,8 +2139,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const configChangedLocally =
                   lw.version !== undefined && saved.version !== undefined
                     ? lw.version !== saved.version
-                    : JSON.stringify(lw.config) !==
-                      JSON.stringify(saved.config);
+                    : stableStringify(lw.config) !==
+                      stableStringify(saved.config);
                 const layoutChangedLocally = LAYOUT_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
@@ -2150,10 +2150,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const instanceChangedLocally = INSTANCE_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
-                // Fast-path: skip JSON.stringify when both values are the
+                // Fast-path: skip stableStringify when both values are the
                 // same reference (including both undefined). When references
                 // differ, short-circuit on paths array length before falling
                 // back to deep comparison to avoid serializing large paths.
+                // Key-stable, or a reordered-but-unchanged echo reads as a local edit and clobbers a genuine remote stroke.
                 const annotationChangedLocally = (() => {
                   const la = lw.annotation;
                   const sa = saved.annotation;
@@ -2162,7 +2163,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   if (la.mode !== sa.mode) return true;
                   if ((la.paths?.length ?? 0) !== (sa.paths?.length ?? 0))
                     return true;
-                  return JSON.stringify(la) !== JSON.stringify(sa);
+                  return stableStringify(la) !== stableStringify(sa);
                 })();
 
                 return {

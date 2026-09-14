@@ -24,6 +24,9 @@ function fakeDrive(store: Map<string, QuizData>) {
     importFromGoogleSheet: vi.fn(),
     createQuizTemplate: vi.fn(),
     createVideoActivityTemplate: vi.fn(),
+    saveTranslation: vi.fn(),
+    loadTranslation: vi.fn(),
+    deleteTranslation: vi.fn(),
   };
   return { drive, saveQuiz, deleteQuizFile };
 }

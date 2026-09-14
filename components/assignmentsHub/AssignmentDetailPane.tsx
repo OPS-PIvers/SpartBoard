@@ -6,6 +6,8 @@
 // map keyed by uid since its submissions ARE keyed by the resolved pseudonym.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { newlyRequestedLocales } from '@/utils/quizTranslationAdvisory';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { QuizReadAloudManifest } from '@/types';
@@ -283,27 +285,64 @@ export const AssignmentDetailPane: React.FC<{
     ]
   );
 
+  const nameByKey = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of rosterRows) map[r.key] = r.displayName;
+    return map;
+  }, [rosterRows]);
+
   // Read-aloud manifest status (plan §6.1): only subscribed for quiz rows with the flag on.
   const readAloudAvailable =
     row.kind === 'quiz' && canAccessFeature('quiz-read-aloud');
   const [readAloudStatus, setReadAloudStatus] = useState<
     QuizReadAloudManifest['status'] | null
   >(null);
+  // Locales the live session actually serves — the §10 advisory's baseline.
+  const [servedLocales, setServedLocales] = useState<string[] | null>(null);
+  const translationAvailable =
+    row.kind === 'quiz' && canAccessFeature('quiz-translation');
+  // Subscribed only when a flag needs it, so existing users open no new listener.
+  const sessionWatchNeeded = readAloudAvailable || translationAvailable;
   useEffect(() => {
-    if (!readAloudAvailable) return;
+    if (!sessionWatchNeeded) return;
     return onSnapshot(
       doc(db, 'quiz_sessions', row.sessionId),
       (snap) => {
-        const manifest = snap.data()?.readAloud as
-          | QuizReadAloudManifest
-          | undefined;
+        const data = snap.data();
+        const manifest = data?.readAloud as QuizReadAloudManifest | undefined;
         setReadAloudStatus(manifest?.status ?? null);
+        const questions = (data?.publicQuestions ?? []) as {
+          localized?: Record<string, unknown>;
+        }[];
+        const codes = new Set<string>();
+        for (const q of questions)
+          for (const code of Object.keys(q.localized ?? {})) codes.add(code);
+        setServedLocales([...codes]);
       },
-      () => setReadAloudStatus(null)
+      () => {
+        setReadAloudStatus(null);
+        setServedLocales(null);
+      }
     );
-  }, [readAloudAvailable, row.sessionId]);
-  const readAloudLine =
-    readAloudStatus === 'preparing'
+  }, [sessionWatchNeeded, row.sessionId]);
+  // A language this edit introduces that the live session does not serve (§10).
+  const postPublishLocales = useMemo(
+    () =>
+      row.kind === 'quiz' && translationAvailable && servedLocales
+        ? newlyRequestedLocales(servedLocales, draft.overridesByKey, nameByKey)
+        : [],
+    [
+      row.kind,
+      translationAvailable,
+      servedLocales,
+      draft.overridesByKey,
+      nameByKey,
+    ]
+  );
+
+  const readAloudLine = !readAloudAvailable
+    ? null
+    : readAloudStatus === 'preparing'
       ? t('quizReadAloud.preparing', 'Preparing read-aloud…')
       : readAloudStatus === 'partial' || readAloudStatus === 'failed'
         ? t('quizReadAloud.partial', 'Some audio will load on demand.')
@@ -485,6 +524,20 @@ export const AssignmentDetailPane: React.FC<{
               showDueAt={row.kind === 'quiz'}
               readAloudAvailable={readAloudAvailable}
             />
+            {postPublishLocales.map((entry) => (
+              <p
+                key={entry.locale}
+                role="status"
+                className="text-xxs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
+              >
+                {t('quizTranslation.assign.advisory.missing', {
+                  count: entry.names.length,
+                  others: entry.names.length - 1,
+                  name: entry.names[0],
+                  language: languageNativeLabel(entry.locale),
+                })}
+              </p>
+            ))}
             {saveError && (
               <p className="text-xs font-medium text-brand-red-primary">
                 {saveError}

@@ -196,7 +196,11 @@
       "removeGroup": "Remove group",
       "groupMemberCount_one": "{{count}} student",
       "groupMemberCount_other": "{{count}} students",
-      "noStudentsToGroup": "Add students first."
+      "noStudentsToGroup": "Add students first.",
+      "accommodationsTab": "Accommodations ({{count}})",
+      "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
+      "emptyAccommodationsTitle": "No students yet",
+      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
     },
     "plcs": {
       "title": "My PLCs",
@@ -2117,8 +2121,10 @@
       "tabWarningsOff": "Tab warnings off",
       "tabWarning": "Tab warning: {{threshold}}",
       "windowShifted": "Window shifted",
-      "readAloud": "Read aloud"
-    }
+      "readAloud": "Read aloud",
+      "language": "{{language}}"
+    },
+    "language": "Language"
   },
   "assignTargeting": {
     "expandAffordance": "+ Individual students & overrides",
@@ -2247,6 +2253,78 @@
     "readingHelp": "Leave empty on reading assessments.",
     "needsManual": "Couldn't extract text automatically. Paste or type it here.",
     "extractFailed": "Text extraction failed. Try again."
+  },
+  "quizTranslation": {
+    "label": "Translation",
+    "editor": {
+      "tab": "Languages",
+      "pickLanguage": "Pick a language",
+      "generate": "Generate translation",
+      "reviewed": "Reviewed",
+      "stale": "Stale",
+      "regenerate_one": "Regenerate {{count}} stale question",
+      "regenerate_other": "Regenerate {{count}} stale questions",
+      "servedCount": "{{reviewed}} of {{total}} served in {{language}}",
+      "save": "Save translation",
+      "english": "English",
+      "disabled": {
+        "capReached": "Your school's monthly translation limit is used up.",
+        "sourceNotEnglish": "Only quizzes written in English can be translated.",
+        "bankSlots": "Quizzes that draw from question banks can't be translated.",
+        "notLoaded": "Loading this language's saved translation. Try again in a moment."
+      },
+      "chromeNote": "App menus stay in English.",
+      "empty": {
+        "noLanguage": {
+          "title": "No language chosen",
+          "body": "Pick a language above to start a translation."
+        },
+        "noneReviewed": {
+          "title": "Nothing reviewed yet",
+          "body": "Students only ever see questions you mark reviewed. Ask an EL specialist to check them if you don't read this language."
+        },
+        "pickQuestion": {
+          "title": "Pick a question",
+          "body": "Choose a question on the left to see English and the translation side by side."
+        }
+      },
+      "error": {
+        "unloadedLocale": "This language's saved translation hasn't loaded yet. Select it again, then generate."
+      }
+    },
+    "authoring": {
+      "advisory": {
+        "stimulusText_one": "{{count}} image may contain text that stays in English.",
+        "stimulusText_other": "{{count}} images may contain text that stays in English."
+      }
+    },
+    "assign": {
+      "generate": "Generate",
+      "advisory": {
+        "missing_one": "{{name}} needs {{language}}. That translation isn't ready - they'll see English.",
+        "missing_other": "{{name}} and {{others}} more need translations that aren't ready ({{language}}) - they'll see English."
+      }
+    },
+    "student": {
+      "toggle": {
+        "english": "English"
+      }
+    },
+    "grading": {
+      "backTranslate": "Translate this response",
+      "backTranslationLabel": "English back-translation",
+      "machineGenerated": "Machine-generated. The student's own words are the record.",
+      "sectionLabel": "Response language",
+      "backTranslating": "Translating…",
+      "nativeLabel": "Student's response",
+      "translatedRubricNote": "This student may have read a translated rubric; grade against the English rubric shown here.",
+      "saveFailed": "Translation shown below, but it couldn't be saved. It will need to be re-run next time.",
+      "errors": {
+        "failed": "Couldn't translate this response. Try again.",
+        "capReached": "Daily translation limit reached. Try again tomorrow.",
+        "tooLong": "This response is too long to back-translate."
+      }
+    }
   },
   "quizMediaResponse": {
     "notice": {

@@ -19,7 +19,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
-import { ClassRoster, RosterGroup, Student } from '@/types';
+import { ClassRoster, RosterGroup, Student, StudentOverride } from '@/types';
 import { auth, functions } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
 import { Modal } from '@/components/common/Modal';
@@ -125,7 +125,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     setActiveRoster,
     addToast,
   } = useDashboard();
-  const { user, selectedBuildings } = useAuth();
+  const { user, selectedBuildings, canAccessFeature } = useAuth();
   const classLinkEnabled = useClassLinkEnabled(selectedBuildings[0]);
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
@@ -391,7 +391,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const handleSaveRoster = async (
     name: string,
     students: Student[],
-    groups?: RosterGroup[]
+    groups?: RosterGroup[],
+    defaultOverridesByStudentId?: Record<string, StudentOverride>
   ) => {
     if (editingRosterId === 'new') {
       await addRoster(name, students);
@@ -400,6 +401,9 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         name,
         students,
         ...(groups !== undefined ? { groups } : {}),
+        ...(defaultOverridesByStudentId !== undefined
+          ? { defaultOverridesByStudentId }
+          : {}),
       });
     }
   };
@@ -721,6 +725,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           roster={editingRoster}
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
+          readAloudAvailable={canAccessFeature('quiz-read-aloud')}
         />
       )}
 

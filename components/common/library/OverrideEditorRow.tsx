@@ -12,12 +12,16 @@
  * per-criterion/per-question row layout and light-surface card treatment.
  */
 
-import React, { useId, useState } from 'react';
+import React, { useContext, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { AuthContext } from '@/context/AuthContextValue';
+import { isAppLocale } from '@/utils/isAppLocale';
+import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
+import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 
 export interface OverrideEditorQuestionOption {
   id: string;
@@ -57,6 +61,8 @@ export interface OverrideEditorRowProps {
   defaultExpanded?: boolean;
   /** Quiz only. Shows the "Read aloud" checkbox; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
+  /** Set false on standing-default surfaces (e.g. roster accommodations) where openAt/closeAt are absolute timestamps that must never be copied onto future assignments. */
+  allowWindowShift?: boolean;
 }
 
 /** `labelKey`/`labelDefault` are absent for the bare multiplier units (1.5x, 2x), which read the same in every locale. */
@@ -112,8 +118,20 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   peers = [],
   defaultExpanded = false,
   readAloudAvailable = false,
+  allowWindowShift = true,
 }) => {
   const { t } = useTranslation();
+  // Read via context so a provider-less host denies instead of throwing.
+  const translationAvailable =
+    useContext(AuthContext)?.canAccessFeature?.('quiz-translation') === true;
+  const { languages: enabledLanguages } =
+    useQuizTranslationSettings(translationAvailable);
+  // A student already on a now-disabled code must still render their choice.
+  const languageOptions = useMemo(() => {
+    const codes = new Set(enabledLanguages.map((l) => l.code));
+    if (override.language) codes.add(override.language);
+    return QUIZ_TRANSLATION_LANGUAGES.filter((l) => codes.has(l.code));
+  }, [enabledLanguages, override.language]);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copySourceId, setCopySourceId] = useState('');
   const tabWarningInputId = useId();
@@ -292,6 +310,38 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </div>
           )}
 
+          {quizMode && translationAvailable && (
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('studentOverride.language', 'Language')}
+              </label>
+              <select
+                value={override.language ?? ''}
+                onChange={(e) =>
+                  patch({ language: e.target.value || undefined })
+                }
+                className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-800"
+              >
+                <option value="">
+                  {t('quizTranslation.editor.english', 'English')}
+                </option>
+                {languageOptions.map((language) => (
+                  <option key={language.code} value={language.code}>
+                    {language.nativeLabel}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {t('quizReadAloud.help', 'Signed-in students only.')}
+              </p>
+              {override.language && !isAppLocale(override.language) && (
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {t('quizTranslation.editor.chromeNote')}
+                </p>
+              )}
+            </div>
+          )}
+
           {quizMode && (
             <div>
               <label
@@ -345,35 +395,37 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </div>
           )}
 
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              {t('studentOverride.windowShift', 'Window shift')}
-            </span>
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              <label className="text-xs text-slate-600">
-                {t('studentOverride.opensAt', 'Opens')}
-                <input
-                  type="datetime-local"
-                  value={msToLocalInputValue(override.openAt)}
-                  onChange={(e) =>
-                    patch({ openAt: localInputValueToMs(e.target.value) })
-                  }
-                  className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
-                />
-              </label>
-              <label className="text-xs text-slate-600">
-                {t('studentOverride.closesAt', 'Closes')}
-                <input
-                  type="datetime-local"
-                  value={msToLocalInputValue(override.closeAt)}
-                  onChange={(e) =>
-                    patch({ closeAt: localInputValueToMs(e.target.value) })
-                  }
-                  className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
-                />
-              </label>
+          {allowWindowShift && (
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('studentOverride.windowShift', 'Window shift')}
+              </span>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <label className="text-xs text-slate-600">
+                  {t('studentOverride.opensAt', 'Opens')}
+                  <input
+                    type="datetime-local"
+                    value={msToLocalInputValue(override.openAt)}
+                    onChange={(e) =>
+                      patch({ openAt: localInputValueToMs(e.target.value) })
+                    }
+                    className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
+                  />
+                </label>
+                <label className="text-xs text-slate-600">
+                  {t('studentOverride.closesAt', 'Closes')}
+                  <input
+                    type="datetime-local"
+                    value={msToLocalInputValue(override.closeAt)}
+                    onChange={(e) =>
+                      patch({ closeAt: localInputValueToMs(e.target.value) })
+                    }
+                    className="mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700"
+                  />
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           {quizMode && questions.length > 0 && (
             <div>

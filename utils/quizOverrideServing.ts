@@ -4,7 +4,13 @@
  * math is independently unit-testable.
  */
 
-import type { QuizPublicQuestion, StudentOverride } from '@/types';
+import type {
+  LocalizedQuestionStrings,
+  QuizPublicQuestion,
+  StudentOverride,
+} from '@/types';
+import { isTranslatableQuestionType } from '@/config/quizTranslation';
+import { reindexChoiceArray } from './quizLocalizedArrays';
 
 /**
  * Filter `publicQuestions` down to the student's served subset. Preserves
@@ -36,9 +42,41 @@ export function applyHiddenOptions(
   const hidden = hiddenOptionIdsByQuestion?.[question.id];
   if (!hidden || hidden.length === 0 || !question.choices) return question;
   const hiddenSet = new Set(hidden);
-  const choices = question.choices.filter((c) => !hiddenSet.has(c));
-  if (choices.length === question.choices.length) return question;
-  return { ...question, choices };
+  const kept = question.choices
+    .map((c, i) => (hiddenSet.has(c) ? -1 : i))
+    .filter((i) => i >= 0);
+  if (kept.length === question.choices.length) return question;
+  return reindexChoiceArray(question, 'choices', kept);
+}
+
+const LOCALIZED_ARRAY_FIELDS = [
+  'choices',
+  'matchingLeft',
+  'matchingRight',
+  'orderingItems',
+] as const;
+
+/**
+ * The active locale's display strings, or `null` to render English. Staleness
+ * and review are gated at publish; this rejects what would render half-English.
+ */
+export function serveLocalizedQuestion(
+  q: QuizPublicQuestion,
+  locale: string | undefined
+): LocalizedQuestionStrings | null {
+  if (!locale) return null;
+  // D21: FIB stems are never translated, so a stray entry must not be served.
+  if (!isTranslatableQuestionType(q.type)) return null;
+  const entry = q.localized?.[locale];
+  if (!entry) return null;
+  // Whole-question fallback (§4.6): a translated stem over English options is worse than English.
+  for (const field of LOCALIZED_ARRAY_FIELDS) {
+    if (q[field]?.length && !entry[field]?.length) return null;
+  }
+  // Free response: an untranslated rubric or placeholder is the same half-English mix.
+  if (q.placeholder && !entry.placeholder) return null;
+  if (q.rubricSnapshot && !entry.rubricSnapshot) return null;
+  return entry;
 }
 
 /**

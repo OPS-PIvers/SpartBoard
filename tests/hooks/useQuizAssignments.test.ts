@@ -14,6 +14,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { hashQuestionForTranslation } from '@/utils/quizTranslationHash';
 import type {
   QuizPublicQuestion,
   QuizSession,
@@ -81,6 +82,7 @@ const authMock: {
 };
 vi.mock('@/config/firebase', () => ({
   db: {},
+  isAuthBypass: false,
   get auth() {
     return authMock;
   },
@@ -991,9 +993,13 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
   const batchUpdate = vi.fn();
   const batchCommit = vi.fn();
   const mockGetDocs = getDocs as Mock;
+  // The sync path reads the assignment doc then the session doc, in that order;
+  // `clearAllMocks` does not drain a once-queue, so every test queues both.
+  const NO_SESSION_SNAP = { exists: () => false, data: () => undefined };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetDoc.mockReset();
     mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
       segs.join('/')
     );
@@ -1018,6 +1024,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         // no syncGroupId — copy-mode assignment
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     let outcome: Awaited<
@@ -1037,6 +1044,543 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(batchCommit).not.toHaveBeenCalled();
   });
 
+  it('re-projects the served locales instead of refusing (PLC re-sync)', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    const question = {
+      id: 'q1',
+      text: 'Q1',
+      type: 'MC' as const,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b', 'c', 'd'],
+      timeLimit: 30,
+    };
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'Updated Title',
+      questions: [question],
+      version: 5,
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'Titulo',
+          questions: {
+            q1: { text: 'P1', choices: ['ea', 'eb', 'ec', 'ed'] },
+          },
+          sourceHashes: { q1: await hashQuestionForTranslation(question) },
+          reviewedQuestionIds: ['q1'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'MC',
+              text: 'Q1',
+              timeLimit: 30,
+              // The order students are already answering against.
+              choices: ['c', 'a', 'd', 'b'],
+              localized: {
+                es: { text: 'P1', choices: ['ec', 'ea', 'ed', 'eb'] },
+              },
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as {
+      publicQuestions: QuizPublicQuestion[];
+      quizTitleLocalized?: Record<string, string>;
+    };
+    // Existing permutation reused, so answers already picked stay valid.
+    expect(patch.publicQuestions[0].choices).toEqual(['c', 'a', 'd', 'b']);
+    expect(patch.publicQuestions[0].localized?.es.choices).toEqual([
+      'ec',
+      'ea',
+      'ed',
+      'eb',
+    ]);
+    expect(patch.quizTitleLocalized).toEqual({ es: 'Titulo' });
+  });
+
+  it('reshuffles only the question whose English choices changed', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Q1',
+          type: 'MC' as const,
+          // 'd' replaced with 'z' — the old order cannot be reused.
+          correctAnswer: 'a',
+          incorrectAnswers: ['b', 'c', 'z'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+      // The canonical still carries the locale the session serves.
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'T es',
+          questions: { q1: { text: 'P1' } },
+          sourceHashes: {},
+          reviewedQuestionIds: ['q1'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'MC',
+              text: 'Q1',
+              timeLimit: 30,
+              choices: ['c', 'a', 'd', 'b'],
+              localized: { es: { text: 'P1' } },
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as { publicQuestions: QuizPublicQuestion[] };
+    expect([...(patch.publicQuestions[0].choices ?? [])].sort()).toEqual([
+      'a',
+      'b',
+      'c',
+      'z',
+    ]);
+  });
+
+  it('takes the canonical choice order verbatim on an untranslated session', async () => {
+    // Pin the fresh shuffle so the assertion cannot flake on a 1-in-24 identity draw.
+    const rnd = vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Q1',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b', 'c', 'd'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'MC',
+              text: 'Q1',
+              timeLimit: 30,
+              // No `localized`: the teacher's reorder must not be re-imposed.
+              choices: ['d', 'c', 'b', 'a'],
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as { publicQuestions: QuizPublicQuestion[] };
+    expect(patch.publicQuestions[0].choices).not.toEqual(['d', 'c', 'b', 'a']);
+    expect([...(patch.publicQuestions[0].choices ?? [])].sort()).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+    rnd.mockRestore();
+  });
+
+  it('keeps the served order on a translated session', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Q1',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b', 'c', 'd'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+      // The canonical still carries the locale the session serves.
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'T es',
+          questions: { q1: { text: 'P1' } },
+          sourceHashes: {},
+          reviewedQuestionIds: ['q1'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'MC',
+              text: 'Q1',
+              timeLimit: 30,
+              choices: ['d', 'c', 'b', 'a'],
+              localized: { es: { text: 'P1' } },
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as { publicQuestions: QuizPublicQuestion[] };
+    expect(patch.publicQuestions[0].choices).toEqual(['d', 'c', 'b', 'a']);
+  });
+
+  it('refuses the sync when the canonical lost a locale the session serves', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q0',
+          text: 'Q0',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            { id: 'q0', type: 'MC', text: 'Q0', timeLimit: 30 },
+          ],
+          quizTitleLocalized: { es: 'Titulo viejo' },
+        }),
+      });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await expect(
+      result.current.syncAssignmentToLatest(ASSIGNMENT_ID)
+    ).rejects.toThrow(/no longer has/);
+    // The live session is left exactly as it was.
+    expect(
+      batchUpdate.mock.calls.filter(
+        ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+      )
+    ).toHaveLength(0);
+  });
+
+  it('drops the locale entry for an unreviewed or stale question, and never leaks the answer key', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    const reviewedFresh = {
+      id: 'q1',
+      text: 'Match these',
+      type: 'Matching' as const,
+      correctAnswer: 'uno:one|dos:two',
+      incorrectAnswers: [],
+      matchingDistractors: ['three'],
+      timeLimit: 30,
+    };
+    const staleQuestion = {
+      id: 'q2',
+      text: 'Q2',
+      type: 'MC' as const,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+      timeLimit: 30,
+    };
+    const unreviewed = {
+      id: 'q3',
+      text: 'Q3',
+      type: 'MC' as const,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+      timeLimit: 30,
+    };
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [reviewedFresh, staleQuestion, unreviewed],
+      version: 5,
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'Titulo',
+          questions: {
+            q1: {
+              text: 'Empareja',
+              matchingLeft: ['un', 'deux'],
+              matchingRight: ['uno-es', 'dos-es'],
+              matchingDistractors: ['tres-es'],
+            },
+            q2: { text: 'P2', choices: ['ea', 'eb'] },
+            q3: { text: 'P3', choices: ['ea', 'eb'] },
+          },
+          sourceHashes: {
+            q1: await hashQuestionForTranslation(reviewedFresh),
+            q2: 'hash-from-an-older-body',
+            q3: await hashQuestionForTranslation(unreviewed),
+          },
+          reviewedQuestionIds: ['q1', 'q2'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'Matching',
+              text: 'Match these',
+              timeLimit: 30,
+              localized: { es: { text: 'Empareja' } },
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const questions = (
+      sessionCall?.[1] as { publicQuestions: QuizPublicQuestion[] }
+    ).publicQuestions;
+    expect(questions[0].localized?.es).toBeDefined();
+    // q2 is stale, q3 was never reviewed.
+    expect(questions[1].localized).toBeUndefined();
+    expect(questions[2].localized).toBeUndefined();
+    for (const q of questions) {
+      expect(q).not.toHaveProperty('correctAnswer');
+      expect(q).not.toHaveProperty('matchingDistractors');
+      for (const strings of Object.values(q.localized ?? {})) {
+        expect(strings).not.toHaveProperty('matchingDistractors');
+        expect(strings).not.toHaveProperty('correctAnswer');
+      }
+    }
+  });
+
+  it('adds no quizTitleLocalized to a session that serves no locales', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [
+        {
+          id: 'q0',
+          text: 'Q0',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+        },
+      ],
+      version: 5,
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'Titulo',
+          questions: { q0: { text: 'P0' } },
+          sourceHashes: { q0: 'whatever' },
+          reviewedQuestionIds: ['q0'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            { id: 'q0', type: 'MC', text: 'Q0', timeLimit: 30 },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    const patch = sessionCall?.[1] as Record<string, unknown>;
+    expect(patch).not.toHaveProperty('quizTitleLocalized');
+    expect(
+      (patch.publicQuestions as QuizPublicQuestion[])[0].localized
+    ).toBeUndefined();
+  });
+
+  it('syncs normally when localized is present but empty on every question', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 5,
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 4 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            { id: 'q0', type: 'MC', text: 'Q0', timeLimit: 30, localized: {} },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    expect(batchCommit).toHaveBeenCalled();
+  });
+
   it('refuses to sync an assignment built from question-bank draws', async () => {
     mockGetDoc.mockResolvedValueOnce({
       exists: () => true,
@@ -1047,6 +1591,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         resolvedDriveFileId: 'drive-resolved',
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await expect(
@@ -1082,6 +1627,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     let outcome: Awaited<
@@ -1134,6 +1680,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     // Two existing responses: one in-progress, one completed. Both should
     // be tagged with the OLD syncedVersion (3) since neither is at or
     // beyond the new version.
@@ -1228,6 +1775,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -1272,6 +1820,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 4 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -1327,6 +1876,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 4 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -1355,6 +1905,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         sync: { groupId: 'group-1', syncedVersion: 4 },
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     const refFresh = { id: 'fresh' };
     // The server-side `where('preSyncVersion', '==', 0)` query returns
     // only responses that have never been tagged — already-tagged
@@ -1405,6 +1956,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         mediaResponseEnabled: true,
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
       docs: [
         {
@@ -1448,6 +2000,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         mediaResponseEnabled: true,
       }),
     });
+    mockGetDoc.mockResolvedValueOnce(NO_SESSION_SNAP);
     mockGetDocs.mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({
       docs: [{ data: () => ({ answers: [{ questionId: 'q1' }] }) }],
     });

@@ -3,6 +3,7 @@ import {
   serveQuestionSubset,
   applyHiddenOptions,
   applyTimeMultiplier,
+  serveLocalizedQuestion,
 } from './quizOverrideServing';
 import type { QuizPublicQuestion } from '@/types';
 
@@ -77,5 +78,105 @@ describe('applyTimeMultiplier', () => {
 
   it('returns the input unchanged when no multiplier is set', () => {
     expect(applyTimeMultiplier(30, undefined)).toBe(30);
+  });
+});
+
+describe('serveLocalizedQuestion', () => {
+  const localized = { es: { text: '¿Capital?' } };
+
+  it('returns null when no locale is active', () => {
+    expect(
+      serveLocalizedQuestion({ ...q('a'), localized }, undefined)
+    ).toBeNull();
+  });
+
+  it('returns null when the question carries nothing for that locale', () => {
+    expect(serveLocalizedQuestion({ ...q('a'), localized }, 'so')).toBeNull();
+  });
+
+  it('returns the locale entry when present', () => {
+    expect(serveLocalizedQuestion({ ...q('a'), localized }, 'es')).toEqual(
+      localized.es
+    );
+  });
+
+  it('falls back to English when the locale entry lacks the rubric snapshot', () => {
+    const rubric = { id: 'r1', title: 'Essay', criteria: [] } as never;
+    const question = {
+      ...q('a'),
+      type: 'FR',
+      rubricSnapshot: rubric,
+      localized: { es: { text: '¿Capital?' } },
+    } as unknown as QuizPublicQuestion;
+    expect(serveLocalizedQuestion(question, 'es')).toBeNull();
+  });
+
+  it('falls back to English when the locale entry lacks the placeholder', () => {
+    const question = {
+      ...q('a'),
+      type: 'FR',
+      placeholder: 'Type here',
+      localized: { es: { text: '¿Capital?' } },
+    } as unknown as QuizPublicQuestion;
+    expect(serveLocalizedQuestion(question, 'es')).toBeNull();
+  });
+
+  it('serves a free-response locale entry that carries both', () => {
+    const rubric = { id: 'r1', title: 'Ensayo', criteria: [] } as never;
+    const entry = {
+      text: '¿Capital?',
+      placeholder: 'Escribe aquí',
+      rubricSnapshot: rubric,
+    };
+    const question = {
+      ...q('a'),
+      type: 'FR',
+      placeholder: 'Type here',
+      rubricSnapshot: rubric,
+      localized: { es: entry },
+    } as unknown as QuizPublicQuestion;
+    expect(serveLocalizedQuestion(question, 'es')).toEqual(entry);
+  });
+
+  it('never serves a FIB stem (D21)', () => {
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a'), type: 'FIB', localized } as QuizPublicQuestion,
+        'es'
+      )
+    ).toBeNull();
+  });
+
+  it('falls back to English when the locale entry is missing the choices', () => {
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a', ['Paris', 'London']), localized },
+        'es'
+      )
+    ).toBeNull();
+  });
+
+  it('serves a locale entry whose arrays are complete', () => {
+    const entry = { text: '¿Capital?', choices: ['París', 'Londres'] };
+    expect(
+      serveLocalizedQuestion(
+        { ...q('a', ['Paris', 'London']), localized: { es: entry } },
+        'es'
+      )
+    ).toEqual(entry);
+  });
+
+  it('falls back when an ordering question has no localized items', () => {
+    expect(
+      serveLocalizedQuestion(
+        {
+          ...q('a'),
+          type: 'Ordering',
+          orderingItems: ['one', 'two'],
+          localized,
+        } as QuizPublicQuestion,
+        'es'
+      )
+    ).toBeNull();
   });
 });

@@ -93,6 +93,10 @@ import {
   type ClassLinkStudent,
   type ClassLinkUser,
 } from './classlinkShared';
+import { LANGUAGE_TAG_RE } from './languageTag';
+
+/** BCP-47 practical maximum; caps an unbounded string before it reaches Firestore. */
+const LANGUAGE_TAG_MAX = 35;
 
 export const STUDENT_ASSIGNMENT_KINDS = [
   'quiz',
@@ -150,6 +154,8 @@ export interface StudentOverride {
   readAloud?: boolean;
   openAt?: number;
   closeAt?: number;
+  /** BCP-47 code. Shape-validated only — membership in the org list is enforced elsewhere. */
+  language?: string;
 }
 
 /** `undefined` = key absent (preserve stored value); `null` = explicit clear. */
@@ -345,6 +351,16 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
 
   const tm = src.timeMultiplier;
   if (tm === 1.5 || tm === 2 || tm === 'unlimited') out.timeMultiplier = tm;
+
+  // Shape only: LANGUAGE_TAG_RE accepts `zz-ZZ`. Membership in the org's enabled
+  // list is enforced at generation and at projection, not here.
+  if (
+    typeof src.language === 'string' &&
+    src.language.trim().length <= LANGUAGE_TAG_MAX &&
+    LANGUAGE_TAG_RE.test(src.language.trim())
+  ) {
+    out.language = src.language.trim();
+  }
 
   const questionIds = sanitizeStringList(
     src.questionIds,

@@ -3779,6 +3779,24 @@ export interface QuizMetadata {
    * Omitted for quizzes never manually reordered.
    */
   order?: number;
+  /**
+   * Per-locale translation index (plan §3.3). Absent on quizzes with no
+   * translation — never written as an empty object.
+   */
+  translations?: Record<string, QuizTranslationIndexEntry>;
+  /** Copy of `QuizData.language` (D32). Absent = English. */
+  language?: string;
+}
+
+/** One locale's row in `QuizMetadata.translations`; a Drive-free coverage answer (plan §3.3). */
+export interface QuizTranslationIndexEntry {
+  driveFileId: string;
+  reviewedCount: number;
+  staleCount: number;
+  questionCount: number;
+  /** Copy of the sidecar's `sourceHashes` (D31), so staleness needs no Drive read. */
+  sourceHashes: Record<string, string>;
+  updatedAt: number;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -3913,6 +3931,60 @@ export interface QuizPublicQuestion {
    * `showLearningTargets` is on; students otherwise never receive tags.
    */
   targets?: QuestionTargetTag[];
+  /**
+   * Locale strings that ride ALONGSIDE the English fields, never replacing them
+   * — the English arrays stay authoritative for every value the student writes.
+   * Absent on every untranslated question; the key is omitted, never undefined.
+   */
+  localized?: Record<string, LocalizedQuestionStrings>;
+}
+
+/** One question's translated strings, positionally aligned with the English question (plan §3.2). */
+export interface QuestionTranslation {
+  text: string;
+  /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
+  choices?: string[];
+  /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
+  matchingLeft?: string[];
+  matchingRight?: string[];
+  /** Matching: index-aligned with `(matchingDistractors ?? []).filter(Boolean)`. */
+  matchingDistractors?: string[];
+  /** Ordering: index-aligned with `correctAnswer.split('|')`. */
+  orderingItems?: string[];
+  /** Free response only. */
+  placeholder?: string;
+  /** Free response only. Structurally identical to the English `rubricSnapshot`. */
+  rubricSnapshot?: Rubric;
+}
+
+/** One language's authoring payload for a quiz, stored as a Drive sidecar (plan §3.2). */
+export interface QuizTranslation {
+  locale: string;
+  title: string;
+  questions: Record<string, QuestionTranslation>;
+  /** Per-question hash of the English source at translation time (§9). */
+  sourceHashes: Record<string, string>;
+  /** Question ids the teacher has explicitly approved. Only these are ever projected. */
+  reviewedQuestionIds: string[];
+  model: string;
+  generatedAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Locale-specific strings for one public question. Every array is the same
+ * length and order as the sibling array on the question. Note the absence of
+ * `matchingDistractors` — exposing it would tell a student which right-side
+ * entries are wrong, so never spread a `QuestionTranslation` into this (§4.2).
+ */
+export interface LocalizedQuestionStrings {
+  text: string;
+  choices?: string[];
+  matchingLeft?: string[];
+  matchingRight?: string[];
+  orderingItems?: string[];
+  placeholder?: string;
+  rubricSnapshot?: Rubric;
 }
 
 export interface QuizLeaderboardEntry {
@@ -3960,6 +4032,8 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /** D27's translated titles by BCP-47 code. Frozen with publicQuestions. */
+  quizTitleLocalized?: Record<string, string>;
   /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
   completenessModel?: number;
   /**
@@ -4299,6 +4373,12 @@ export interface QuizResponseAnswer {
   noticeAckedAt?: number;
   /** A question timeout auto-submitted this answer below the enforced `minWords`. */
   timedOutUnderMinimum?: true;
+  /**
+   * BCP-47 code the student was READING when they answered (D18). Per-call,
+   * client-asserted, display hint only — never an input to grading, scoring or
+   * routing. Absent means English; the key is omitted, never written undefined.
+   */
+  locale?: string;
 }
 
 /**
@@ -4361,6 +4441,14 @@ export interface ArtifactArchiveEntry {
  * wrote the doc — Firestore rules enforce ownership against this field
  * (not the key), since the key is no longer guaranteed to match the uid.
  */
+/** One cached machine back-translation of a student's free-response answer (plan §6). */
+export interface QuizResponseBackTranslation {
+  text: string;
+  locale: string;
+  model: string;
+  at: number;
+}
+
 export interface QuizResponse {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -4535,6 +4623,14 @@ export interface QuizResponse {
    * `gradingKey`/`parseGradingKey` in `utils/mediaGrading.ts`.
    */
   grading?: { [gradingKey: string]: WrittenAnswerGrade };
+  /**
+   * Teacher-only cache of machine back-translations of this student's own
+   * free-response answers (plan §6), keyed by `sha256(answerText + locale)`.
+   * Written through the same teacher-owner path as `grading` and excluded
+   * from the student write whitelist; never inside `answers[]`, and never
+   * copied into a `gradingSnapshot`.
+   */
+  backTranslations?: Record<string, QuizResponseBackTranslation>;
   /**
    * Server-written only (Admin SDK, via the archival callable), keyed by
    * {@link ResponseArtifact.id}. Lives outside `answers[]` for the same reason
@@ -5000,6 +5096,8 @@ export interface StudentOverride {
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
+  /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
+  language?: string;
 }
 
 /**
@@ -5255,6 +5353,11 @@ export interface SyncedQuizGroup {
   language?: string;
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
+  /**
+   * Whole translation sidecars by BCP-47 code, carried on the group doc because
+   * a peer cannot read the author's `drive.file`-scoped sidecars (plan §11 PR5).
+   */
+  translations?: Record<string, QuizTranslation>;
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -7550,8 +7653,20 @@ export type GlobalFeature =
   | 'quiz-media-response'
   | 'settings-drawer'
   | 'quiz-read-aloud'
+  /** Teacher-authored AI quiz translations for multilingual learners. */
+  | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai';
+
+/** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
+export interface QuizTranslationSettings {
+  /** Codes from `QUIZ_TRANSLATION_LANGUAGES` the district offers. */
+  enabledLanguages: string[];
+  monthlyCapUnits: number;
+  monthlyCapOutputTokens: number;
+  updatedAt: number;
+  updatedBy: string;
+}
 
 /** `admin_settings/quiz_read_aloud` — voice mapping for quiz read-aloud (docs/plans/QUIZ_READ_ALOUD.md §3). */
 /** One spoken unit of a question (docs/plans/QUIZ_READ_ALOUD.md §4.1). */

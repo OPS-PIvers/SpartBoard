@@ -171,6 +171,7 @@ interface ContextSnapshot {
   dashboards: Dashboard[];
   activeDashboard: Dashboard | null;
   updateWidget: ReturnType<typeof useDashboard>['updateWidget'];
+  updateWidgets: ReturnType<typeof useDashboard>['updateWidgets'];
   setGlobalStyle: ReturnType<typeof useDashboard>['setGlobalStyle'];
   pinBoard: ReturnType<typeof useDashboard>['pinBoard'];
   updateDashboard: ReturnType<typeof useDashboard>['updateDashboard'];
@@ -190,6 +191,7 @@ const TestConsumer: React.FC<{
       dashboards: ctx.dashboards,
       activeDashboard: ctx.activeDashboard,
       updateWidget: ctx.updateWidget,
+      updateWidgets: ctx.updateWidgets,
       setGlobalStyle: ctx.setGlobalStyle,
       pinBoard: ctx.pinBoard,
       updateDashboard: ctx.updateDashboard,
@@ -738,6 +740,105 @@ describe('DashboardContext per-widget merge', () => {
       expect(stateRef.current?.activeDashboard?.sharedGroups).toEqual([
         { id: 'group-1', name: 'Group 1' },
       ]);
+    });
+  });
+
+  it('REGRESSION: a key-reordered (not actually edited) local config does not discard a genuine remote config edit', async () => {
+    const stateRef = setup();
+
+    // No `version` field, so the merge falls back to the JSON.stringify(config) path.
+    const widgetA: WidgetData = {
+      ...makeWidget('wA', 'unused'),
+      config: { text: 'a', color: 'red' } as WidgetData['config'],
+    };
+    const initialDashboard = makeDashboard([widgetA]);
+
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // A bulk update (e.g. "copy settings to selection") wholesale-replaces
+    // config instead of merging, so it can genuinely change key order without
+    // changing any value — this must still read as "unchanged" against the
+    // baseline, the same way a Firestore-echoed reorder must.
+    await act(async () => {
+      stateRef.current?.updateWidgets([
+        { id: 'wA', changes: { config: { color: 'red', text: 'a' } } },
+      ]);
+      await Promise.resolve();
+    });
+
+    // Another device makes a real, concurrent edit to the same widget's config.
+    await pushSnapshot([
+      {
+        ...makeDashboard([
+          {
+            ...widgetA,
+            config: { text: 'a', color: 'blue' } as WidgetData['config'],
+          },
+        ]),
+        updatedAt: 2000,
+      },
+    ]);
+
+    await waitFor(() => {
+      const wA = stateRef.current?.activeDashboard?.widgets.find(
+        (w) => w.id === 'wA'
+      );
+      expect(wA?.config).toMatchObject({ color: 'blue' });
+    });
+  });
+
+  it('REGRESSION: a key-reordered (not actually edited) local annotation does not discard a genuine remote stroke', async () => {
+    const stateRef = setup();
+
+    const originalAnnotation = {
+      mode: 'window' as const,
+      paths: [{ points: [], color: 'red', width: 2 }],
+    };
+    const widgetA: WidgetData = {
+      ...makeWidget('wA', 'unused'),
+      annotation: originalAnnotation,
+    };
+    const initialDashboard = makeDashboard([widgetA]);
+
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // `annotation` is wholesale-replaced (not merged) by updateWidget, so this
+    // is a same-content, different-key-order rewrite — not a real edit.
+    await act(async () => {
+      stateRef.current?.updateWidget('wA', {
+        annotation: {
+          paths: [{ width: 2, color: 'red', points: [] }],
+          mode: 'window',
+        },
+      });
+      await Promise.resolve();
+    });
+
+    // Another device draws a genuinely new stroke on the same widget.
+    const remoteAnnotation = {
+      mode: 'window' as const,
+      paths: [{ points: [{ x: 5, y: 5 }], color: 'blue', width: 4 }],
+    };
+    await pushSnapshot([
+      {
+        ...makeDashboard([{ ...widgetA, annotation: remoteAnnotation }]),
+        updatedAt: 2000,
+      },
+    ]);
+
+    await waitFor(() => {
+      const wA = stateRef.current?.activeDashboard?.widgets.find(
+        (w) => w.id === 'wA'
+      );
+      expect(wA?.annotation).toEqual(remoteAnnotation);
     });
   });
 });

@@ -28,7 +28,16 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { auth, db, isAuthBypass } from '@/config/firebase';
+import { QuizDriveService } from '@/utils/quizDriveService';
+import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
+import type { QuizTranslationIndexEntry } from '@/types';
+import type { TranslationLoader } from '@/utils/quizTranslationPublish';
+import {
+  enforceSessionSizeBudget,
+  loadTranslationsForPublish,
+  targetedLocaleCounts,
+} from '@/utils/quizTranslationPublish';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
@@ -49,6 +58,8 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  QuestionTranslation,
+  QuizTranslation,
   QuizSessionBankSlot,
   QuizSessionMode,
   QuizSessionOptions,
@@ -87,6 +98,8 @@ import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
+import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
+import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -172,6 +185,8 @@ export interface CreateAssignmentOptions {
   closeAt?: number | null;
   /** Frozen bank pools; the session's `totalQuestions` becomes fixed + Σ count. */
   bankSlots?: QuizSessionBankSlot[];
+  /** `QuizMetadata.translations` — lets publish load sidecars with zero extra reads (§4.2). */
+  translationIndex?: Record<string, QuizTranslationIndexEntry>;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -676,6 +691,32 @@ async function allocateJoinCode(): Promise<string> {
     .padEnd(6, '0');
 }
 
+/** Per-quiz sidecars at publish, keyed by BCP-47 code. */
+export type QuizTranslationsByLocale = Record<string, QuizTranslation>;
+
+/**
+ * Review AND staleness are both gated here, at publish (§4.3): a question is
+ * projected for a locale only when the teacher reviewed it and the sidecar's
+ * recorded hash still matches the live English body. `freshQuestionIdsByLocale`
+ * is computed by the caller, which holds the quiz body and can await the hash.
+ */
+export function selectQuestionTranslations(
+  questionId: string,
+  translations: QuizTranslationsByLocale | undefined,
+  freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
+): Record<string, QuestionTranslation> | undefined {
+  if (!translations) return undefined;
+  const out: Record<string, QuestionTranslation> = {};
+  for (const [locale, translation] of Object.entries(translations)) {
+    const entry = translation.questions?.[questionId];
+    if (!entry) continue;
+    if (!translation.reviewedQuestionIds?.includes(questionId)) continue;
+    if (!freshQuestionIdsByLocale?.[locale]?.has(questionId)) continue;
+    out[locale] = entry;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export const useQuizAssignments = (
   userId: string | undefined
 ): UseQuizAssignmentsResult => {
@@ -699,14 +740,31 @@ export const useQuizAssignments = (
   // on the session doc. Read via `useContext` rather than `useAuth()` so a
   // provider-less caller denies instead of throwing.
   const authContext = useContext(AuthContext);
+  const googleAccessToken = authContext?.googleAccessToken ?? null;
+  // Drive handle for publish-time sidecar reads; null when Drive isn't connected.
+  const translationLoader = useCallback((): TranslationLoader | null => {
+    if (isAuthBypass) return userId ? new MockQuizDriveService(userId) : null;
+    return googleAccessToken ? new QuizDriveService(googleAccessToken) : null;
+  }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
 
   // Ungated teachers publish the question without its recording block, so the
   // student app has nothing to mount even if it wanted to.
   const toGatedPublicQuestion = useCallback(
-    (question: QuizQuestion): QuizPublicQuestion => {
-      const projected = toPublicQuestion(question);
+    (
+      question: QuizQuestion,
+      translations?: QuizTranslationsByLocale,
+      freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
+    ): QuizPublicQuestion => {
+      const projected = toPublicQuestion(
+        question,
+        selectQuestionTranslations(
+          question.id,
+          translations,
+          freshQuestionIdsByLocale
+        )
+      );
       if (mediaResponseGranted || !projected.recording) return projected;
       const { recording: _stripped, ...rest } = projected;
       return rest;
@@ -722,9 +780,15 @@ export const useQuizAssignments = (
     (
       question: QuizQuestion,
       mode: QuizSessionMode,
-      showLearningTargets?: boolean
+      showLearningTargets?: boolean,
+      translations?: QuizTranslationsByLocale,
+      freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
     ): QuizPublicQuestion => {
-      const gated = toGatedPublicQuestion(question);
+      const gated = toGatedPublicQuestion(
+        question,
+        translations,
+        freshQuestionIdsByLocale
+      );
       const { targets: _targets, ...withoutTargets } = gated;
       const projected = showLearningTargets ? gated : withoutTargets;
       if (mode === 'student' || !projected.recording) return projected;
@@ -802,6 +866,7 @@ export const useQuizAssignments = (
         openAt,
         closeAt,
         bankSlots,
+        translationIndex,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
@@ -910,8 +975,25 @@ export const useQuizAssignments = (
               ? 'active'
               : 'waiting';
 
+      // Translations ride the projection so locale strings share the English shuffle (§4.2).
+      // Bank-slot quizzes are never translated (D29).
+      const targetedLocaleCountByCode = hasBankSlots
+        ? {}
+        : targetedLocaleCounts(overridesBySourcedId);
+      const translations = await loadTranslationsForPublish(
+        translationLoader(),
+        translationIndex,
+        Object.keys(targetedLocaleCountByCode),
+        sessionQuestions
+      );
       const sessionPublicQuestions = sessionQuestions.map((q) =>
-        projectPublicQuestionForMode(q, mode, opts.showLearningTargets)
+        projectPublicQuestionForMode(
+          q,
+          mode,
+          opts.showLearningTargets,
+          translations.byLocale,
+          translations.freshQuestionIdsByLocale
+        )
       );
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
@@ -948,6 +1030,9 @@ export const useQuizAssignments = (
         // Read-aloud snapshot (docs/plans/QUIZ_READ_ALOUD.md §3); omitted when off.
         ...(opts.readAloudAll ? { readAloudAll: true } : {}),
         ...(quiz.language ? { language: quiz.language } : {}),
+        ...(Object.keys(translations.titleByLocale).length > 0
+          ? { quizTitleLocalized: { ...translations.titleByLocale } }
+          : {}),
         ...(Object.keys(sessionReadAloudText).length > 0
           ? { readAloudTextByStimulusId: sessionReadAloudText }
           : {}),
@@ -1014,6 +1099,10 @@ export const useQuizAssignments = (
             }
           : {}),
       };
+
+      if (Object.keys(translations.byLocale).length > 0) {
+        enforceSessionSizeBudget(session, targetedLocaleCountByCode);
+      }
 
       const batch = writeBatch(db);
       batch.set(
@@ -1083,7 +1172,7 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId, projectPublicQuestionForMode]
+    [userId, projectPublicQuestionForMode, translationLoader]
   );
 
   const setStatus = useCallback(
@@ -1948,6 +2037,27 @@ export const useQuizAssignments = (
           'This assignment was built from question-bank draws; re-assign the quiz to pick up bank changes'
         );
       }
+      // A pull rewrites publicQuestions, so the locales the session already
+      // serves must be re-projected alongside them. Read the session once here;
+      // the media-marker branch below reuses this snapshot.
+      const sessionSnap = await getDoc(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+      );
+      // A deleted session hands back nothing; treat that as untranslated, not a throw.
+      const sessionData = sessionSnap?.data() as
+        | (QuizSession & { mediaResponseEnabled?: boolean })
+        | undefined;
+      // Exactly the locales already being served — a re-sync never widens coverage.
+      const servedLocales = new Set<string>(
+        Object.keys(sessionData?.quizTitleLocalized ?? {})
+      );
+      for (const pq of sessionData?.publicQuestions ?? []) {
+        for (const locale of Object.keys(pq.localized ?? {}))
+          servedLocales.add(locale);
+      }
+      const previousById = new Map(
+        (sessionData?.publicQuestions ?? []).map((pq) => [pq.id, pq])
+      );
 
       const canonical = await pullSyncedQuizContent(assignment.sync.groupId);
       const previousSyncedVersion = assignment.sync.syncedVersion;
@@ -1981,14 +2091,48 @@ export const useQuizAssignments = (
       // doesn't have to special-case post-sync state.
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
       const canonicalQuestions = dedupeQuestionsById(canonical.questions);
-      const publicQuestions = canonicalQuestions.map((q) =>
-        projectPublicQuestionForMode(
+      // The group doc carries the sidecars themselves (plan §11 PR5), so this
+      // path needs no Drive access to re-project the served locales.
+      const servedTranslations: QuizTranslationsByLocale = {};
+      for (const [locale, payload] of Object.entries(
+        canonical.translations ?? {}
+      )) {
+        if (servedLocales.has(locale)) servedTranslations[locale] = payload;
+      }
+      // Degrading a live session is worse than refusing the sync: if the
+      // canonical no longer carries a locale the session serves, stop.
+      const missingServed = [...servedLocales].filter(
+        (locale) => !servedTranslations[locale]
+      );
+      if (missingServed.length > 0) {
+        throw new Error(
+          'This assignment carries translated questions the synced quiz no longer has; syncing would drop them. Re-assign the quiz to pick up changes.'
+        );
+      }
+      const hasServedTranslations = Object.keys(servedTranslations).length > 0;
+      const freshByLocale = hasServedTranslations
+        ? await freshQuestionIdsByLocale(canonicalQuestions, servedTranslations)
+        : undefined;
+      const publicQuestions = canonicalQuestions.map((q) => {
+        const projected = projectPublicQuestionForMode(
           q,
           sessionMode,
           (behavior?.sessionOptions ?? assignment.sessionOptions)
-            ?.showLearningTargets
-        )
-      );
+            ?.showLearningTargets,
+          hasServedTranslations ? servedTranslations : undefined,
+          freshByLocale
+        );
+        // Untranslated sessions take the canonical order verbatim so a
+        // teacher's deliberate reorder still lands; a translated session keeps
+        // the order it already served so committed answers stay valid.
+        return servedLocales.size > 0
+          ? alignToPreviousOrder(projected, previousById.get(q.id))
+          : projected;
+      });
+      const quizTitleLocalized: Record<string, string> = {};
+      for (const [locale, payload] of Object.entries(servedTranslations)) {
+        if (payload.title) quizTitleLocalized[locale] = payload.title;
+      }
       const syncHasRecording = publicQuestions.some((q) => !!q.recording);
       const canonicalStimuli = projectSessionStimuli({
         questions: canonicalQuestions,
@@ -2044,12 +2188,6 @@ export const useQuizAssignments = (
         // Absent mirror predates this field; fall back to the session doc.
         let shouldScanArtifacts = assignment.mediaResponseEnabled === true;
         if (assignment.mediaResponseEnabled === undefined) {
-          const sessionSnap = await getDoc(
-            doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
-          );
-          const sessionData = sessionSnap.data() as
-            | { mediaResponseEnabled?: boolean }
-            | undefined;
           shouldScanArtifacts =
             shouldScanArtifacts || !!sessionData?.mediaResponseEnabled;
         }
@@ -2122,6 +2260,16 @@ export const useQuizAssignments = (
           : {}),
         publicQuestions,
         totalQuestions: canonicalQuestions.length,
+        // Only touched for a session that already serves locales, so an
+        // untranslated assignment's session doc gains no new field.
+        ...(servedLocales.size > 0
+          ? {
+              quizTitleLocalized:
+                Object.keys(quizTitleLocalized).length > 0
+                  ? quizTitleLocalized
+                  : deleteField(),
+            }
+          : {}),
         // Keep the session's stimuli in lockstep with the rebuilt
         // publicQuestions; deleteField clears stale entries when the
         // canonical edit removed the last stimulus.

@@ -89,13 +89,20 @@ const EMPTY_OCCUPIED_CELLS: ReadonlySet<string> = new Set();
 const DEFAULT_MIN_W = 150;
 const DEFAULT_MIN_H = 100;
 
-// Per-widget overrides — used for widget types that intentionally need to
-// shrink smaller than the default floor (e.g. URL bookmarks meant to feel
-// like a floating icon on the board).
+// Per-widget overrides — used for widget types that intentionally need a
+// floor different from the default: either smaller (e.g. URL bookmarks meant
+// to feel like a floating icon on the board) or larger (e.g. BloomsTaxonomy's
+// pyramid, whose 6 stacked tiers each carry their own clamp() px floor and
+// would clip below the height needed to fit all six without shrinking past it).
 const WIDGET_MIN_SIZE_OVERRIDES: Partial<
   Record<WidgetType, { w: number; h: number }>
 > = {
   url: { w: 80, h: 80 },
+  // min(w,h) here must stay above ~240 so 13cqmin/5cqmin (the pyramid tier
+  // height / label formulas) clear their 24px/12px clamp() floors at the
+  // enforced minimum — otherwise the floors bind while the box is still too
+  // short to contain all 6 stacked tiers, and the bottom tier(s) clip.
+  'blooms-taxonomy': { w: 280, h: 300 },
 };
 
 const INTERACTIVE_ELEMENTS_SELECTOR =
@@ -194,6 +201,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   useSettingsDrawer = false,
 }) => {
   const { t } = useTranslation();
+  // Interactive-resize floor: every widget type gets at least the generic
+  // 150x100 default unless it has its own WIDGET_MIN_SIZE_OVERRIDES entry.
+  const effectiveMinW =
+    WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
+  const effectiveMinH =
+    WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
+  // Render-time floor: only widget types with an EXPLICIT override are
+  // lifted up to it on load (e.g. a dashboard saved before the override
+  // existed or was raised). Left undefined for every other type so a
+  // deliberately narrow/short default or stored size (e.g. the 120px-wide
+  // `traffic` widget) is never forced up to the generic 150x100 default.
+  const renderMinW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w;
+  const renderMinH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h;
   // Mount-stable actions surface — identities never change, so dep arrays
   // listing them are trivially satisfied and never re-fire.
   const {
@@ -1069,8 +1089,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     e.preventDefault();
 
     setIsDragging(true);
-    // Initialize transient state
-    dragState.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+    // Initialize transient state. w/h seeded from the render-clamped size
+    // (see handleResizeStart) so a below-floor widget doesn't flash back to
+    // its raw stored size while the drag is in progress.
+    dragState.current = {
+      x: widget.x,
+      y: widget.y,
+      w: resolvedW,
+      h: resolvedH,
+    };
     dragDistanceRef.current = 0;
 
     // Collect group siblings for coordinated drag. Read the dashboard at
@@ -1226,14 +1253,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const deltaY = (moveEvent.clientY - initialMouseY) / zoom;
 
         // Clamp the leader to world bounds so widgets can't be dragged
-        // outside the area visible at ZOOM_MIN.
+        // outside the area visible at ZOOM_MIN. Use resolvedW/resolvedH (not
+        // raw widget.w/widget.h) so a below-floor widget's world-bounds
+        // check matches the size it's actually rendered/dragged at.
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const { x: newX, y: newY } = clampWidgetToWorld(
           widget.x + deltaX,
           widget.y + deltaY,
-          widget.w,
-          widget.h,
+          resolvedW,
+          resolvedH,
           vw,
           vh
         );
@@ -1481,18 +1510,31 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
 
     setIsResizing(true);
-    // Initialize transient state
-    dragState.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+    // Initialize transient state. Seed w/h from the render-clamped size
+    // (resolvedW/resolvedH), not raw widget.w/widget.h — for a widget stored
+    // below its WIDGET_MIN_SIZE_OVERRIDES floor, the box is already visually
+    // rendered at the clamped size, and seeding from the raw stored size
+    // would desync the resize math from what's on screen (dead handles).
+    dragState.current = {
+      x: widget.x,
+      y: widget.y,
+      w: resolvedW,
+      h: resolvedH,
+    };
 
     document.body.classList.add('is-dragging-widget');
-    const startW = widget.w;
-    const startH = widget.h;
+    const startW = resolvedW;
+    const startH = resolvedH;
     const startX = e.clientX;
     const startY = e.clientY;
     const startPosX = widget.x;
     const startPosY = widget.y;
-    const minW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
-    const minH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
+    // dragState.current.w/h are seeded from the render-clamped size above
+    // (not the raw stored widget.w/h), so a below-floor widget's floor/raw
+    // difference alone would make the final commit check below look like a
+    // real change even on a plain click with zero movement. Track whether
+    // any pointermove actually fired and require it before committing.
+    let hasMoved = false;
 
     // See handleDragStart for the rationale: pointer capture routes all
     // subsequent pointer events to this element, and attaching listeners here
@@ -1530,6 +1572,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         return;
       }
 
+      hasMoved = true;
+
       if (resizeAnimationFrame !== null) {
         cancelAnimationFrame(resizeAnimationFrame);
       }
@@ -1544,21 +1588,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         let newY = startPosY;
 
         if (direction.includes('e')) {
-          newW = Math.max(minW, startW + dx);
+          newW = Math.max(effectiveMinW, startW + dx);
         }
         if (direction.includes('w')) {
           const potentialW = startW - dx;
-          if (potentialW >= minW) {
+          if (potentialW >= effectiveMinW) {
             newW = potentialW;
             newX = startPosX + dx;
           }
         }
         if (direction.includes('s')) {
-          newH = Math.max(minH, startH + dy);
+          newH = Math.max(effectiveMinH, startH + dy);
         }
         if (direction.includes('n')) {
           const potentialH = startH - dy;
-          if (potentialH >= minH) {
+          if (potentialH >= effectiveMinH) {
             newH = potentialH;
             newY = startPosY + dy;
           }
@@ -1586,8 +1630,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const wb = getWorldBounds(vw, vh);
         const availableW = Math.max(0, wb.maxX - newX);
         const availableH = Math.max(0, wb.maxY - newY);
-        newW = Math.max(Math.min(minW, availableW), Math.min(newW, availableW));
-        newH = Math.max(Math.min(minH, availableH), Math.min(newH, availableH));
+        newW = Math.max(
+          Math.min(effectiveMinW, availableW),
+          Math.min(newW, availableW)
+        );
+        newH = Math.max(
+          Math.min(effectiveMinH, availableH),
+          Math.min(newH, availableH)
+        );
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
@@ -1637,10 +1687,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // Ignore capture release errors
       }
 
-      // Commit final position/size if using direct DOM manipulation
+      // Commit final position/size if using direct DOM manipulation. Requires
+      // hasMoved — dragState.current.w/h are seeded from the render-clamped
+      // size, which alone would look like a change for a below-floor widget
+      // even on a plain click that never actually resized anything.
       if (
         !POSITION_AWARE_WIDGETS.has(widget.type) &&
         dragState.current &&
+        hasMoved &&
         (dragState.current.w !== widget.w ||
           dragState.current.h !== widget.h ||
           dragState.current.x !== widget.x ||
@@ -2178,6 +2232,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     .filter(Boolean)
     .join(' ');
 
+  const rawW =
+    shouldUseDragState && dragState.current
+      ? dragState.current.w
+      : (override?.w ?? widget.w);
+  const rawH =
+    shouldUseDragState && dragState.current
+      ? dragState.current.h
+      : (override?.h ?? widget.h);
+  const resolvedW =
+    renderMinW !== undefined ? Math.max(renderMinW, rawW) : rawW;
+  const resolvedH =
+    renderMinH !== undefined ? Math.max(renderMinH, rawH) : rawH;
+
   const content = (
     <GlassCard
       globalStyle={globalStyle}
@@ -2213,16 +2280,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           : shouldUseDragState && dragState.current
             ? dragState.current.y
             : (override?.y ?? widget.y),
-        width: isMaximized
-          ? '100vw'
-          : shouldUseDragState && dragState.current
-            ? dragState.current.w
-            : (override?.w ?? widget.w),
-        height: isMaximized
-          ? '100vh'
-          : shouldUseDragState && dragState.current
-            ? dragState.current.h
-            : (override?.h ?? widget.h),
+        width: isMaximized ? '100vw' : resolvedW,
+        height: isMaximized ? '100vh' : resolvedH,
         /* eslint-enable react-hooks/refs */
         zIndex: isMaximized ? Z_INDEX.maximized : widget.z,
         display: 'flex',
@@ -2459,8 +2518,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 paths={widget.annotation?.paths ?? []}
                 color={annotationColor}
                 width={annotationWidth}
-                canvasWidth={isMaximized ? window.innerWidth : widget.w}
-                canvasHeight={isMaximized ? window.innerHeight : widget.h}
+                /* eslint-disable react-hooks/refs -- resolvedW/resolvedH are
+                   derived from dragState.current (see the disable block
+                   above); this second, distant usage falls outside that
+                   directive's line range. */
+                canvasWidth={isMaximized ? window.innerWidth : resolvedW}
+                canvasHeight={isMaximized ? window.innerHeight : resolvedH}
+                /* eslint-enable react-hooks/refs */
                 onPathsChange={(newPaths: Path[]) => {
                   updateWidget(widget.id, {
                     annotation: {

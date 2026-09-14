@@ -1464,3 +1464,29 @@ describe('sanitizeOverride', () => {
     expect(sanitizeOverride({ nope: true })).toBeNull();
   });
 });
+
+describe('sanitizeOverride language', () => {
+  it('keeps a well-formed BCP-47 tag and trims it', () => {
+    expect(sanitizeOverride({ language: ' es ' })).toEqual({ language: 'es' });
+    expect(sanitizeOverride({ language: 'hmn' })).toEqual({ language: 'hmn' });
+    expect(sanitizeOverride({ language: 'es-US' })).toEqual({
+      language: 'es-US',
+    });
+  });
+
+  it('drops a malformed or non-string tag rather than writing it', () => {
+    for (const bad of ['', 'not a tag!', 'e', 'toolongsubtag', 42, null, {}]) {
+      expect(sanitizeOverride({ language: bad })).toBeNull();
+    }
+    // Regex-valid but past the BCP-47 practical maximum of 35 chars.
+    const overlong = 'aa' + '-abcdefgh'.repeat(4);
+    expect(overlong.length).toBeGreaterThan(35);
+    expect(sanitizeOverride({ language: overlong })).toBeNull();
+  });
+
+  it('carries language alongside the other sanitized fields', () => {
+    expect(
+      sanitizeOverride({ language: 'so', timeMultiplier: 2, bogus: 1 })
+    ).toEqual({ language: 'so', timeMultiplier: 2 });
+  });
+});

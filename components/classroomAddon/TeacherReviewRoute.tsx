@@ -327,6 +327,28 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     [sessionId]
   );
 
+  // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
+  const saveBackTranslation = useCallback<
+    NonNullable<
+      React.ComponentProps<typeof FreeResponseGrader>['onSaveBackTranslation']
+    >
+  >(
+    async (responseKey, hash, entry) => {
+      if (!sessionId) return;
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        { [`backTranslations.${hash}`]: entry }
+      );
+    },
+    [sessionId]
+  );
+
   const publish = useCallback(async () => {
     if (!sessionId || !quizData) return;
     setBusy(true);
@@ -743,6 +765,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
           teacherUid={user.uid}
           resolveTakeUrl={resolveTakeUrl}
           onSaveGrade={saveWrittenGrade}
+          onSaveBackTranslation={saveBackTranslation}
           graderMode={quizGraderMode}
           autoAdvance={quizGraderAutoAdvance}
           onGraderModeChange={(mode) =>

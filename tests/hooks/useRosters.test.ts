@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { useRosters, ROSTER_DRIVE_CONCURRENCY } from '@/hooks/useRosters';
+import { resolveStudentTargetRef } from '@/utils/studentTargetRef';
 import type { ClassRosterMeta, Student } from '@/types';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
@@ -282,6 +283,34 @@ describe('useRosters — subscription', () => {
     expect(roster.students[1].pin).toBe('02');
     expect(roster.loadError).toBeUndefined();
     expect(currentDriveService.downloadFile).toHaveBeenCalledWith('file-1');
+  });
+
+  it('keeps student email from Drive so test-class students stay targetable', async () => {
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob([
+          {
+            id: 'a',
+            firstName: 'sstudent25',
+            lastName: '',
+            pin: '01',
+            email: 'sstudent25@example.org',
+          },
+        ])
+      ),
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', { driveFileId: 'file-1', testClassId: 'mock-period-1' }),
+    ]);
+
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    const roster = result.current.rosters[0];
+    expect(roster.students[0].email).toBe('sstudent25@example.org');
+    expect(resolveStudentTargetRef(roster.students[0], roster)).toEqual({
+      kind: 'test',
+      email: 'sstudent25@example.org',
+    });
   });
 
   it('surfaces loadError and does not cache when a Drive download fails', async () => {
@@ -579,7 +608,11 @@ describe('useRosters — updateRoster', () => {
     await act(async () => {
       await expect(
         result.current.updateRoster('r1', {
-          students: [student({ id: 's1' }), student({ id: 's2' })],
+          students: [
+            student({ id: 's1' }),
+            student({ id: 's2' }),
+            student({ id: 's3' }),
+          ],
         })
       ).rejects.toThrow('Failed to save roster changes to Drive');
     });
@@ -1020,6 +1053,55 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     expect(roster.loadError).toBeUndefined();
   });
 
+  it('round-trips a standing default override written by the roster editor', async () => {
+    // PR0 writer path: updateRoster serializes defaultOverridesByStudentId into
+    // the Drive body, and a fresh load must parse the same value back out.
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [],
+          defaultOverridesByStudentId: {},
+        })
+      ),
+      updateFileContent,
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+
+    const standing = {
+      timeMultiplier: 1.5 as const,
+      readAloud: true,
+      tabWarningThreshold: 'off' as const,
+      openAt: 1_700_000_000_000,
+    };
+    await act(async () => {
+      await result.current.updateRoster('r1', {
+        students: [student({ id: 's1' })],
+        defaultOverridesByStudentId: { s1: standing },
+      });
+    });
+
+    const body = await readBlobBody(updateFileContent.mock.calls[0][1] as Blob);
+    expect(body.defaultOverridesByStudentId).toEqual({ s1: standing });
+
+    // Feed the exact serialized body back through the parse path.
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(driveBlob(body)),
+    });
+    const reload = renderHook(() => useRosters(mockUser));
+    emitSnapshot(snapHandlers.length - 1, [
+      metaDoc('r1', { driveFileId: 'file-1' }),
+    ]);
+    await waitFor(() => expect(reload.result.current.rosters).toHaveLength(1));
+    expect(
+      reload.result.current.rosters[0].defaultOverridesByStudentId
+    ).toEqual({ s1: standing });
+  });
+
   it('reads a v2 envelope, surfacing groups and default overrides', async () => {
     currentDriveService = makeDriveService({
       downloadFile: vi.fn().mockResolvedValue(
@@ -1044,6 +1126,32 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     expect(roster.defaultOverridesByStudentId).toEqual({
       s1: { timeMultiplier: 1.5, tabWarningThreshold: 'off' },
     });
+  });
+
+  it('round-trips a standing `language` and drops a malformed tag', async () => {
+    currentDriveService = makeDriveService({
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' }), student({ id: 's2' })],
+          groups: [],
+          defaultOverridesByStudentId: {
+            s1: { language: ' es ' },
+            s2: { language: 'not a tag!' },
+            s3: { language: 'aa' + '-abcdefgh'.repeat(4) },
+          },
+        })
+      ),
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    const overrides = result.current.rosters[0].defaultOverridesByStudentId;
+    expect(overrides?.s1).toEqual({ language: 'es' });
+    expect(overrides?.s2).toEqual({});
+    // Regex-valid but past the BCP-47 practical maximum of 35 chars.
+    expect(overrides?.s3).toEqual({});
   });
 
   it('drops malformed rubric snapshots but keeps points mode and valid ones', async () => {
