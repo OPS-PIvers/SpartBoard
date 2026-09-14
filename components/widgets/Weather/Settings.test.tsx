@@ -29,6 +29,19 @@ describe('Weather settings schema', () => {
     expect(temperature?.visibleWhen?.(context)).toBe(true);
   });
 
+  it('treats an unset isAuto as manual, matching the widget default', () => {
+    const mode = schema.groups[0]?.fields.find(
+      (field) => field.key === 'isAuto'
+    );
+    const unset: FieldCtx = { ...context, config: { temp: 70 } };
+    expect(mode?.readValue?.(unset)).toBe('manual');
+    expect(
+      schema.groups[0]?.fields
+        .find((field) => field.key === 'temp')
+        ?.visibleWhen?.(unset)
+    ).toBe(true);
+  });
+
   it('writes the manual location label atomically with temperature', () => {
     const temperature = schema.groups[0]?.fields.find(
       (field) => field.key === 'temp'

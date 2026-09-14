@@ -7,7 +7,7 @@ import type {
 import type { WeatherConfig } from '@/types';
 import { WeatherAutoSyncField, WeatherFeelsLikeField } from './settingsFields';
 
-const isAutomatic = (ctx: FieldCtx) => ctx.config.isAuto !== false;
+const isAutomatic = (ctx: FieldCtx) => ctx.config.isAuto === true;
 const isManual = (ctx: FieldCtx) => !isAutomatic(ctx);
 const showClothing = (ctx: FieldCtx) => ctx.config.hideClothing !== true;
 const renderFeelsLike = (ctx: CustomRenderCtx) =>
