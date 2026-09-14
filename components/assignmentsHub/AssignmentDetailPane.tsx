@@ -145,12 +145,17 @@ export const AssignmentDetailPane: React.FC<{
     try {
       const result = await saveEdit(row, user.uid, draft, classContext);
       if (result.skipped.length > 0) {
+        const base = t('assignmentsHub.detail.editSkipped', {
+          defaultValue:
+            '{{count}} student(s) could not be saved to this assignment.',
+          count: result.skipped.length,
+        });
         setSaveError(
-          t('assignmentsHub.detail.editSkipped', {
-            defaultValue:
-              '{{count}} student(s) could not be saved to this assignment.',
-            count: result.skipped.length,
-          })
+          result.skippedExclusions.length > 0
+            ? `${base} ${t('assignTargeting.skippedExclusionToast', {
+                count: result.skippedExclusions.length,
+              })}`
+            : base
         );
       } else {
         setEditing(false);

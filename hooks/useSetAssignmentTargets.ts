@@ -48,6 +48,8 @@ export interface SetAssignmentTargetsCallResult {
   updated?: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
+  /** Subset of `skipped` the teacher asked to SKIP; their skip did not land. */
+  skippedExclusions?: { ref: StudentTargetRef; reason: SkipReason }[];
 }
 
 export interface UseSetAssignmentTargetsResult {

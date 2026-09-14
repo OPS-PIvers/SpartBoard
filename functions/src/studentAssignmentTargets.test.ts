@@ -1323,6 +1323,54 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
     ).toBeUndefined();
   });
 
+  it('persists only exclusions that resolved, and reports the rest', async () => {
+    const result = await run(
+      baseInput({
+        add: [],
+        excludedTargets: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: 'NOT-MY-STUDENT' },
+        ],
+      })
+    );
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_A },
+    ]);
+    expect(result.skippedExclusions).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: 'NOT-MY-STUDENT' },
+        reason: 'not-in-teacher-classes',
+      },
+    ]);
+  });
+
+  it('carries a prior exclusion forward when a later call skips someone else', async () => {
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_B }],
+      })
+    );
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_A },
+      { kind: 'classlink', sourcedId: SOURCED_B },
+    ]);
+  });
+
   it('parses excludedTargets off the raw payload', () => {
     const { input } = parseSetAssignmentTargetsInput({
       assignmentId: ASSIGNMENT_ID,

@@ -443,3 +443,46 @@ describe('buildSetAssignmentTargetsPayload with a class context', () => {
     ).toEqual({});
   });
 });
+
+describe('expandClassTargeting re-edit ref carry-forward', () => {
+  it('keeps a stored target whose override entry was lost', () => {
+    const value = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      targetStudents: [{ kind: 'classlink' as const, sourcedId: 'SID-9' }],
+      overridesByKey: {},
+    };
+    const expanded = expandClassTargeting(
+      value,
+      { rosters: [], selectedRosterIds: [] },
+      { useRosterDefaults: false }
+    );
+    expect(expanded.targetStudents).toEqual([
+      { kind: 'classlink', sourcedId: 'SID-9' },
+    ]);
+  });
+
+  it('still drops a stored target the teacher has now skipped', () => {
+    const value = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      targetStudents: [{ kind: 'classlink' as const, sourcedId: 'SID-9' }],
+      excludedStudents: [{ kind: 'classlink' as const, sourcedId: 'SID-9' }],
+    };
+    const expanded = expandClassTargeting(
+      value,
+      { rosters: [], selectedRosterIds: [] },
+      { useRosterDefaults: false }
+    );
+    expect(expanded.targetStudents).toEqual([]);
+  });
+
+  it('does not invent targets at assign time (useRosterDefaults on)', () => {
+    const value = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      targetStudents: [{ kind: 'classlink' as const, sourcedId: 'SID-9' }],
+    };
+    expect(
+      expandClassTargeting(value, { rosters: [], selectedRosterIds: [] })
+        .targetStudents
+    ).toEqual([]);
+  });
+});

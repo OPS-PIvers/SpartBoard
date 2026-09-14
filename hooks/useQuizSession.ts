@@ -1669,9 +1669,12 @@ export interface UseQuizSessionStudentResult {
    * Returns the session's periodNames so the UI can show a period picker
    * before the student commits to joining.
    */
-  lookupSession: (
-    code: string
-  ) => Promise<{ periodNames: string[]; classIds: string[] } | null>;
+  lookupSession: (code: string) => Promise<{
+    periodNames: string[];
+    classIds: string[];
+    /** Session doc id — also the assignment id for pointer-doc lookups. */
+    sessionId: string;
+  } | null>;
   /**
    * Join a quiz session.
    *
@@ -1939,7 +1942,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const lookupSession = useCallback(
     async (
       code: string
-    ): Promise<{ periodNames: string[]; classIds: string[] } | null> => {
+    ): Promise<{
+      periodNames: string[];
+      classIds: string[];
+      sessionId: string;
+    } | null> => {
       // Populate the hook's `error` state on failure so callers' .catch
       // handlers (which only console.warn) still produce visible UI feedback.
       // Without this a network/Firestore failure during code lookup silently
@@ -1967,6 +1974,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           return bt - at;
         });
         const sessionData = joinable[0].data() as QuizSession;
+        const sessionId = joinable[0].id;
         // resolvePeriodNames normalises legacy periodName + new periodNames
         // into a typed string[], avoiding the `any[]` from Firestore's
         // DocumentData bleed-through.
@@ -1979,6 +1987,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           classIds: Array.isArray(sessionData.classIds)
             ? sessionData.classIds
             : [],
+          sessionId,
         };
       } catch (err) {
         const msg =

@@ -1966,6 +1966,8 @@
     "scheduleSummaryCloseOnly": "Cierra {{close}}",
     "skippedToast_one": "{{count}} estudiante no pudo ser seleccionado y fue omitido.",
     "skippedToast_other": "{{count}} estudiantes no pudieron ser seleccionados y fueron omitidos.",
+    "skippedExclusionToast_one": "{{count}} estudiante que omitiste todavía ve esta tarea.",
+    "skippedExclusionToast_other": "{{count}} estudiantes que omitiste todavía ven esta tarea.",
     "skipStudentNamed": "Omitir a {{name}}",
     "summarySkipped": "{{count}} omitidos",
     "summaryModified": "{{count}} adaptados",

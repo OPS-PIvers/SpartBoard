@@ -195,6 +195,12 @@ export function expandClassTargeting(
   const candidateKeys = useRosterDefaults
     ? rows.map((row) => row.key)
     : [...refByKey.keys()];
+  // On a re-edit the stored snapshot is the only record of who is targeted, so
+  // a ref it carries survives even when its override entry was lost in an
+  // earlier lossy archive write.
+  const priorTargetKeys = new Set(
+    value.targetStudents.map(studentTargetRefKey)
+  );
   const overridesByKey: Record<string, StudentOverride> = {};
   const withOverride: StudentTargetRef[] = [];
   for (const key of candidateKeys) {
@@ -207,6 +213,8 @@ export function expandClassTargeting(
       : nonEmptyOverride(value.overridesByKey[key]);
     if (override) {
       overridesByKey[key] = override;
+      withOverride.push(ref);
+    } else if (!useRosterDefaults && priorTargetKeys.has(key)) {
       withOverride.push(ref);
     }
   }

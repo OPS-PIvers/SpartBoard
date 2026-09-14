@@ -252,9 +252,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // C3. `enabled: isStudentRole` because only SSO joiners carry the
   // `studentRole` claim the Firestore rule requires; anon/PIN joiners are
   // out of scope for individual targeting (spec §6 non-goals).
+  // Keyed off the URL session id (not `session?.id`) so the exclusion marker
+  // resolves BEFORE the auto-join effect can create a response doc.
   const pointer = useStudentAssignmentPointer(
     authedUid,
-    session?.id ?? null,
+    sessionId || null,
     isStudentRole
   );
   void pointer?.override;
@@ -315,6 +317,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     if (!isStudentRole || !sessionId) return;
     if (ssoAutoJoinStartedRef.current) return;
     if (joinStatus === 'joined' || joinStatus === 'loading') return;
+    // Wait for the pointer to resolve, and never join for a skipped student.
+    if (pointer === undefined || pointer?.excluded === true) return;
     ssoAutoJoinStartedRef.current = true;
     setSsoAutoJoinError(null);
     void (async () => {
@@ -342,6 +346,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     lookupSession,
     joinSession,
     joinStatus,
+    pointer,
   ]);
 
   // Track answered question IDs for anti-skip enforcement in VideoPlayer

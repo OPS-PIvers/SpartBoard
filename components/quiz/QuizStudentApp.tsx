@@ -48,7 +48,13 @@ import {
   ListChecks,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
@@ -372,6 +378,9 @@ const QuizJoinFlow: React.FC<{
   // never took. The hook `error` is then the misleading "No submission found…",
   // so we surface the real reason (e.g. "This quiz session has already ended.").
   const [ssoTerminalError, setSsoTerminalError] = useState<string | null>(null);
+  // The teacher skipped this student. Resolved before the auto-join so no
+  // response doc is ever created for them.
+  const [ssoExcluded, setSsoExcluded] = useState(false);
 
   // SSO gate (feature-flagged). Anonymous joiners on a ClassLink-rostered
   // session are offered Google sign-in by default — which keys their response
@@ -462,6 +471,23 @@ const QuizJoinFlow: React.FC<{
 
     const run = async () => {
       try {
+        // Fail-open: a lookup failure falls through to the join below, which
+        // surfaces its own error.
+        try {
+          const info = await lookupSession(urlCode);
+          const uid = auth.currentUser?.uid;
+          if (info?.sessionId && uid) {
+            const snap = await getDoc(
+              doc(db, 'student_assignments', uid, 'items', info.sessionId)
+            );
+            if (snap.exists() && snap.data()?.excluded === true) {
+              setSsoExcluded(true);
+              return;
+            }
+          }
+        } catch {
+          // Ignore — proceed to join.
+        }
         await joinQuizSession(urlCode, undefined, undefined);
         setJoined(true);
       } catch (err) {
@@ -520,7 +546,14 @@ const QuizJoinFlow: React.FC<{
       }
     };
     void run();
-  }, [isStudentRole, urlCode, joined, joinQuizSession, subscribeForReview]);
+  }, [
+    isStudentRole,
+    urlCode,
+    joined,
+    joinQuizSession,
+    subscribeForReview,
+    lookupSession,
+  ]);
 
   // Resolve the SSO gate. SSO students skip it (the auto-join effect handles
   // them). Otherwise look up the session to learn whether it's ClassLink-
@@ -884,7 +917,7 @@ const QuizJoinFlow: React.FC<{
 
   // Teacher skipped this student: the class channel still carries the session,
   // so the exclusion marker is the only thing that can stop the activity here.
-  if (myPointer?.excluded) {
+  if (ssoExcluded || myPointer?.excluded) {
     return <AssignmentExcludedNotice />;
   }
 

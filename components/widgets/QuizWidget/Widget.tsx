@@ -1799,7 +1799,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     [assignmentId]: result.skipped,
                   }));
                   addToast(
-                    skippedTargetsToastMessage(result.skipped.length),
+                    skippedTargetsToastMessage(
+                      result.skipped.length,
+                      result.skippedExclusions?.length ?? 0
+                    ),
                     'warning'
                   );
                   // Skipped-ref durability (canonical rule) — persist the

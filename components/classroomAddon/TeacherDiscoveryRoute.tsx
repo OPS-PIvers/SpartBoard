@@ -621,7 +621,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             ...payload,
           });
           if (result.skipped.length > 0) {
-            append(skippedTargetsToastMessage(result.skipped.length));
+            append(
+              skippedTargetsToastMessage(
+                result.skipped.length,
+                result.skippedExclusions?.length ?? 0
+              )
+            );
             try {
               await setAssignmentTargetSkippedCount(
                 sessionId,
@@ -824,19 +829,25 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         );
       }
     }
+    // Expanded once: the archive doc and the CF payload must agree, or a
+    // re-edit reads back overrides the fan-out never saw.
+    const expandedTargeting = expandClassTargeting(
+      assignTargeting,
+      addonClassContext
+    );
     if (
       user?.uid &&
-      (assignTargeting.targetGroupIds.length > 0 ||
-        Object.keys(assignTargeting.overridesByKey).length > 0)
+      (expandedTargeting.targetGroupIds.length > 0 ||
+        Object.keys(expandedTargeting.overridesByKey).length > 0)
     ) {
       await setDoc(
         doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
         {
-          ...(assignTargeting.targetGroupIds.length > 0
-            ? { targetGroupIds: assignTargeting.targetGroupIds }
+          ...(expandedTargeting.targetGroupIds.length > 0
+            ? { targetGroupIds: expandedTargeting.targetGroupIds }
             : {}),
-          ...(Object.keys(assignTargeting.overridesByKey).length > 0
-            ? { overridesBySourcedId: assignTargeting.overridesByKey }
+          ...(Object.keys(expandedTargeting.overridesByKey).length > 0
+            ? { overridesBySourcedId: expandedTargeting.overridesByKey }
             : {}),
         },
         { merge: true }
@@ -847,7 +858,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     {
       const payload = buildSetAssignmentTargetsPayload(
         undefined,
-        expandClassTargeting(assignTargeting, addonClassContext)
+        expandedTargeting
       );
       if (payloadRequiresCall(payload))
         try {
@@ -871,7 +882,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             );
           }
           if (result.skipped.length > 0) {
-            append(skippedTargetsToastMessage(result.skipped.length));
+            append(
+              skippedTargetsToastMessage(
+                result.skipped.length,
+                result.skippedExclusions?.length ?? 0
+              )
+            );
           }
         } catch (targetErr) {
           // Non-fatal: the session/assignment docs already exist.

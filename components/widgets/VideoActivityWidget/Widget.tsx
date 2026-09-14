@@ -707,6 +707,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               });
               const data2 = result.data as {
                 skipped?: { ref: unknown; reason: string }[];
+                skippedExclusions?: { ref: unknown; reason: string }[];
               };
               const skippedCount = data2.skipped?.length ?? 0;
               // Durable, PII-free marker for list rows — the toast below is
@@ -724,7 +725,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 { merge: true }
               );
               if (skippedCount > 0) {
-                addToast(skippedTargetsToastMessage(skippedCount), 'info');
+                addToast(
+                  skippedTargetsToastMessage(
+                    skippedCount,
+                    data2.skippedExclusions?.length ?? 0
+                  ),
+                  'info'
+                );
               }
             };
             try {

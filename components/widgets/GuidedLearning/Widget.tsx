@@ -145,6 +145,7 @@ interface SetAssignmentTargetsCallableResult {
   written: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: string }[];
+  skippedExclusions?: { ref: StudentTargetRef; reason: string }[];
 }
 
 /**
@@ -551,7 +552,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               });
               const skippedCount = res.data.skipped?.length ?? 0;
               if (skippedCount > 0) {
-                addToast(skippedTargetsToastMessage(skippedCount), 'error');
+                addToast(
+                  skippedTargetsToastMessage(
+                    skippedCount,
+                    res.data.skippedExclusions?.length ?? 0
+                  ),
+                  'error'
+                );
                 // D3 edit-in-place must also refresh targetSkippedCount on re-assign.
                 await updateDoc(
                   doc(

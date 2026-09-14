@@ -1966,6 +1966,8 @@
     "scheduleSummaryCloseOnly": "Schließt {{close}}",
     "skippedToast_one": "{{count}} Schüler/in konnte nicht ausgewählt werden und wurde übersprungen.",
     "skippedToast_other": "{{count}} Schüler/innen konnten nicht ausgewählt werden und wurden übersprungen.",
+    "skippedExclusionToast_one": "{{count}} übersprungene/r Schüler/in sieht diese Aufgabe weiterhin.",
+    "skippedExclusionToast_other": "{{count}} übersprungene Schüler/innen sehen diese Aufgabe weiterhin.",
     "skipStudentNamed": "{{name}} überspringen",
     "summarySkipped": "{{count}} übersprungen",
     "summaryModified": "{{count}} angepasst",

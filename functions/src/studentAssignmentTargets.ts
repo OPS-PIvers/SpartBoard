@@ -179,6 +179,8 @@ export interface SetAssignmentTargetsResult {
   updated?: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
+  /** Subset of `skipped` whose ref the caller asked to SKIP, not to target. */
+  skippedExclusions?: { ref: StudentTargetRef; reason: SkipReason }[];
 }
 
 /**
@@ -279,19 +281,27 @@ export function targetRefsFromAssignment(
   return out;
 }
 
+/** The skipped-student refs the assignment doc already records. */
+export function excludedRefsFromAssignment(
+  data: Record<string, unknown> | undefined
+): StudentTargetRef[] {
+  const raw = Array.isArray(data?.excludedTargets) ? data.excludedTargets : [];
+  const refs: StudentTargetRef[] = [];
+  for (const item of raw.slice(0, MAX_STORED_TARGET_REFS)) {
+    const ref = parseRef(item);
+    if (ref) refs.push(ref);
+  }
+  return refs;
+}
+
 /** Every ref that may hold a pointer doc: targets plus skipped students. */
 export function pointerRefsFromAssignment(
   data: Record<string, unknown> | undefined
 ): StudentTargetRef[] {
-  const excludedRaw = Array.isArray(data?.excludedTargets)
-    ? data.excludedTargets
-    : [];
   const byKey = new Map<string, StudentTargetRef>();
   for (const ref of targetRefsFromAssignment(data)) byKey.set(refKey(ref), ref);
-  for (const item of excludedRaw.slice(0, MAX_STORED_TARGET_REFS)) {
-    const ref = parseRef(item);
-    if (ref) byKey.set(refKey(ref), ref);
-  }
+  for (const ref of excludedRefsFromAssignment(data))
+    byKey.set(refKey(ref), ref);
   return [...byKey.values()];
 }
 
@@ -968,6 +978,32 @@ export async function handleSetAssignmentTargets(
   // Concurrent remove+add of the SAME ref from two calls can still leave a ref
   // listed with no pointer doc (the pointer batches commit outside this tx); the
   // next edit call for that ref re-resolves it and self-heals.
+  // Only exclusions that actually landed are persisted: what the doc already
+  // recorded, minus anything this call re-targeted or un-skipped, plus the
+  // skips that resolved. An unresolved skip stays out of the doc and is
+  // reported in `skipped` instead.
+  const excludedChangeKeys = new Set([
+    ...input.add.map(refKey),
+    ...input.remove.map(refKey),
+  ]);
+  const resolvedExcludedKeys = new Set(
+    excludedResult.resolved.map((t) => t.key)
+  );
+  const resolveFinalExcluded = (
+    freshData: Record<string, unknown> | undefined
+  ): StudentTargetRef[] => {
+    const byKey = new Map<string, StudentTargetRef>();
+    for (const ref of excludedRefsFromAssignment(freshData)) {
+      const key = refKey(ref);
+      if (excludedChangeKeys.has(key) || resolvedExcludedKeys.has(key))
+        continue;
+      byKey.set(key, ref);
+    }
+    for (const target of excludedResult.resolved)
+      byKey.set(target.key, target.ref);
+    return [...byKey.values()];
+  };
+
   const finalRefs = await db.runTransaction(async (tx) => {
     const fresh = await tx.get(assignmentRef);
     const byKey = new Map<string, StudentTargetRef>();
@@ -986,7 +1022,7 @@ export async function handleSetAssignmentTargets(
         targetMode:
           input.targetMode ?? (refs.length > 0 ? 'students' : 'class'),
         ...(input.excludedTargets
-          ? { excludedTargets: input.excludedTargets }
+          ? { excludedTargets: resolveFinalExcluded(fresh.data()) }
           : {}),
         ...(Object.keys(overridesByStudentUid).length > 0
           ? { overridesByStudentUid }
@@ -1026,6 +1062,9 @@ export async function handleSetAssignmentTargets(
       ...excludedResult.skipped,
       ...overLimit,
     ],
+    ...(excludedResult.skipped.length > 0
+      ? { skippedExclusions: excludedResult.skipped }
+      : {}),
   };
 }
 

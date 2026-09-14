@@ -1966,6 +1966,8 @@
     "scheduleSummaryCloseOnly": "Ferme {{close}}",
     "skippedToast_one": "{{count}} élève n'a pas pu être ciblé et a été ignoré.",
     "skippedToast_other": "{{count}} élèves n'ont pas pu être ciblés et ont été ignorés.",
+    "skippedExclusionToast_one": "{{count}} élève que vous avez ignoré voit toujours ce devoir.",
+    "skippedExclusionToast_other": "{{count}} élèves que vous avez ignorés voient toujours ce devoir.",
     "skipStudentNamed": "Ignorer {{name}}",
     "summarySkipped": "{{count}} ignorés",
     "summaryModified": "{{count}} aménagés",

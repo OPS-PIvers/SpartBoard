@@ -2336,6 +2336,8 @@
     "scheduleSummaryCloseOnly": "Closes {{close}}",
     "skippedToast_one": "{{count}} student could not be targeted and was skipped.",
     "skippedToast_other": "{{count}} students could not be targeted and were skipped.",
+    "skippedExclusionToast_one": "{{count}} student you skipped still sees this assignment.",
+    "skippedExclusionToast_other": "{{count}} students you skipped still see this assignment.",
     "skipStudentNamed": "Skip {{name}}",
     "summarySkipped": "{{count}} skipped",
     "summaryModified": "{{count}} modified",

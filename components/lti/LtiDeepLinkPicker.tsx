@@ -709,7 +709,12 @@ const LtiDeepLinkFlow: React.FC = () => {
                 ...payload,
               });
               if (result.skipped.length > 0) {
-                setErrorMsg(skippedTargetsToastMessage(result.skipped.length));
+                setErrorMsg(
+                  skippedTargetsToastMessage(
+                    result.skipped.length,
+                    result.skippedExclusions?.length ?? 0
+                  )
+                );
                 try {
                   await setAssignmentTargetSkippedCount(
                     assignmentId,
@@ -844,15 +849,21 @@ const LtiDeepLinkFlow: React.FC = () => {
             ...(dueAt != null ? { dueAt } : {}),
           });
         }
+        // Expanded once: the archive doc and the CF payload must agree, or a
+        // re-edit reads back overrides the fan-out never saw.
+        const expandedTargeting = expandClassTargeting(
+          assignTargeting,
+          ltiClassContext
+        );
         if (user?.uid) {
           await setDoc(
             doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
             {
-              ...(assignTargeting.targetGroupIds.length > 0
-                ? { targetGroupIds: assignTargeting.targetGroupIds }
+              ...(expandedTargeting.targetGroupIds.length > 0
+                ? { targetGroupIds: expandedTargeting.targetGroupIds }
                 : {}),
-              ...(Object.keys(assignTargeting.overridesByKey).length > 0
-                ? { overridesBySourcedId: assignTargeting.overridesByKey }
+              ...(Object.keys(expandedTargeting.overridesByKey).length > 0
+                ? { overridesBySourcedId: expandedTargeting.overridesByKey }
                 : {}),
               ...(assignTargeting.openAt != null
                 ? { openAt: assignTargeting.openAt }
@@ -871,7 +882,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         {
           const payload = buildSetAssignmentTargetsPayload(
             undefined,
-            expandClassTargeting(assignTargeting, ltiClassContext)
+            expandedTargeting
           );
           if (payloadRequiresCall(payload))
             try {
@@ -895,7 +906,12 @@ const LtiDeepLinkFlow: React.FC = () => {
                 );
               }
               if (result.skipped.length > 0) {
-                setErrorMsg(skippedTargetsToastMessage(result.skipped.length));
+                setErrorMsg(
+                  skippedTargetsToastMessage(
+                    result.skipped.length,
+                    result.skippedExclusions?.length ?? 0
+                  )
+                );
               }
             } catch (targetErr) {
               // Non-fatal: the session/assignment docs already exist.

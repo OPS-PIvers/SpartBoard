@@ -75,6 +75,8 @@ const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
 
 export interface SaveAssignmentEditResult {
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
+  /** Subset of `skipped` whose SKIP did not land, so they still see the work. */
+  skippedExclusions: { ref: StudentTargetRef; reason: SkipReason }[];
 }
 
 export interface UseAssignmentDetailActionsResult {
@@ -143,6 +145,7 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       const callCf = payloadRequiresCall(payload, hasExistingPointers);
 
       let skipped: SaveAssignmentEditResult['skipped'] = [];
+      let skippedExclusions: SaveAssignmentEditResult['skipped'] = [];
       if (callCf) {
         const result = await setAssignmentTargets({
           assignmentId: row.id,
@@ -158,6 +161,7 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
           window: payload.window,
         });
         skipped = result.skipped;
+        skippedExclusions = result.skippedExclusions ?? [];
       }
 
       const assignmentRef = doc(
@@ -231,7 +235,7 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       }
       await batch.commit();
 
-      return { skipped };
+      return { skipped, skippedExclusions };
     },
     [setAssignmentTargets]
   );

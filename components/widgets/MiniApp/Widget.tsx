@@ -103,6 +103,7 @@ interface SetAssignmentTargetsResult {
   written: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: string }[];
+  skippedExclusions?: { ref: StudentTargetRef; reason: string }[];
 }
 
 // --- ASSIGN / SHARE MODAL ---
@@ -739,7 +740,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               return nameByKey.get(key) ?? key;
             });
             setSkippedStudentNames(names);
-            addToast(skippedTargetsToastMessage(names.length), 'error');
+            addToast(
+              skippedTargetsToastMessage(
+                names.length,
+                result.data.skippedExclusions?.length ?? 0
+              ),
+              'error'
+            );
           }
         } catch (targetErr) {
           console.error(
