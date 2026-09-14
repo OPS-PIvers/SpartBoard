@@ -130,7 +130,7 @@ describe('loadTranslationsForPublish', () => {
     expect(result.titleByLocale.es).toBeUndefined();
   });
 
-  it('never marks a FIB question fresh (D21)', async () => {
+  it('marks a FIB question fresh when its hash matches (PR4)', async () => {
     const fib: QuizQuestion = {
       id: 'q1',
       type: 'FIB',
@@ -146,8 +146,7 @@ describe('loadTranslationsForPublish', () => {
       ['es'],
       [fib]
     );
-    expect(result.freshQuestionIdsByLocale.es.has('q1')).toBe(false);
-    expect(result.titleByLocale.es).toBeUndefined();
+    expect(result.freshQuestionIdsByLocale.es.has('q1')).toBe(true);
   });
 
   it('is a no-op without a Drive handle', async () => {

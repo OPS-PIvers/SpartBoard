@@ -2073,6 +2073,7 @@
       "pickLanguage": "Choisir une langue",
       "generate": "Générer la traduction",
       "reviewed": "Vérifiée",
+      "answerKey": "Réponse acceptée",
       "stale": "Obsolète",
       "regenerate_one": "Regénérer {{count}} question obsolète",
       "regenerate_other": "Regénérer {{count}} questions obsolètes",

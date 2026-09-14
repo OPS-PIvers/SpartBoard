@@ -2073,6 +2073,7 @@
       "pickLanguage": "Sprache wählen",
       "generate": "Übersetzung erstellen",
       "reviewed": "Geprüft",
+      "answerKey": "Akzeptierte Antwort",
       "stale": "Veraltet",
       "regenerate_one": "{{count}} veraltete Frage neu übersetzen",
       "regenerate_other": "{{count}} veraltete Fragen neu übersetzen",

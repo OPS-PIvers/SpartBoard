@@ -117,7 +117,7 @@ export async function loadTranslationsForPublish(
     const payload = result.value;
     const fresh = new Set<string>();
     for (const q of questions) {
-      // D21: FIB never serves a translation, so it never counts as fresh.
+      // An untranslatable type never serves a translation, so it never counts as fresh.
       if (!isTranslatableQuestionType(q.type)) continue;
       if (payload.sourceHashes?.[q.id] === liveHashes.get(q.id))
         fresh.add(q.id);

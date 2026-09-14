@@ -2443,6 +2443,7 @@
       "pickLanguage": "Pick a language",
       "generate": "Generate translation",
       "reviewed": "Reviewed",
+      "answerKey": "Accepted answer",
       "stale": "Stale",
       "regenerate_one": "Regenerate {{count}} stale question",
       "regenerate_other": "Regenerate {{count}} stale questions",

@@ -379,7 +379,7 @@ export function toPublicQuestion(
   q: QuizQuestion,
   translations?: Record<string, QuestionTranslation>
 ): QuizPublicQuestion {
-  // D21: FIB stems stay English — never seed a localized entry for them.
+  // Every type is translatable now; the guard stays so a future exclusion holds.
   const entries = isTranslatableQuestionType(q.type)
     ? Object.entries(translations ?? {})
     : [];
@@ -624,7 +624,12 @@ export function gradeAnswer(
    * `QuizResponse.grading[question.id]`. Only consulted for written
    * question types (`short`, `essay`); ignored for auto-graded types.
    */
-  manualGrade?: import('@/types').WrittenAnswerGrade
+  manualGrade?: import('@/types').WrittenAnswerGrade,
+  /**
+   * FIB only: translated accepted answers for this question, snapshotted on the
+   * assignment doc. Normalized the same way the English comparison is.
+   */
+  acceptedAnswers?: readonly string[]
 ): GradeResult {
   const max = question.points ?? 1;
   const partial = question.allowPartialCredit === true;
@@ -663,7 +668,10 @@ export function gradeAnswer(
   const given = normalizeAnswer(studentAnswer);
 
   if (question.type === 'MC' || question.type === 'FIB') {
-    const isCorrect = correct === given;
+    const isCorrect =
+      correct === given ||
+      (question.type === 'FIB' &&
+        (acceptedAnswers ?? []).some((a) => normalizeAnswer(a) === given));
     return {
       isCorrect,
       pointsEarned: isCorrect ? max : 0,

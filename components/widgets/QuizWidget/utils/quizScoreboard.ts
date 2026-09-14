@@ -13,6 +13,10 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import {
+  fibAcceptedAnswers,
+  type LocalizedFibAnswers,
+} from '@/utils/quizFibAnswers';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
@@ -51,7 +55,9 @@ function streakMultiplier(consecutiveCorrect: number): number {
 export function getEarnedPoints(
   r: QuizResponse,
   questions: QuizQuestion[],
-  session?: QuizScoringSession
+  session?: QuizScoringSession,
+  /** Translated FIB answer keys from the assignment doc; absent = English only. */
+  localizedFibAnswers?: LocalizedFibAnswers | null
 ): number {
   const speedEnabled = session?.speedBonusEnabled ?? false;
   const streakEnabled = session?.streakBonusEnabled ?? false;
@@ -90,7 +96,12 @@ export function getEarnedPoints(
     const grade = applyMediaSlots(
       q,
       r,
-      gradeAnswer(q, ans.answer, manualGrade)
+      gradeAnswer(
+        q,
+        ans.answer,
+        manualGrade,
+        fibAcceptedAnswers(localizedFibAnswers, q.id)
+      )
     );
 
     // An excused question is worth 0 of 0; it must not break the streak.
@@ -152,7 +163,8 @@ export function isGamificationActive(session?: QuizScoringSession): boolean {
 export function getResponseScore(
   r: QuizResponse,
   questions: QuizQuestion[],
-  session?: QuizScoringSession
+  session?: QuizScoringSession,
+  localizedFibAnswers?: LocalizedFibAnswers | null
 ): number {
   // Deduplicate by question id before summing maxPoints so a Drive-sync
   // duplicate doesn't inflate the denominator while earned stays correct.
@@ -164,7 +176,10 @@ export function getResponseScore(
     return sum + questionPointsFor(q, r);
   }, 0);
   if (maxPoints === 0) return 0;
-  return Math.round((getEarnedPoints(r, questions, session) / maxPoints) * 100);
+  return Math.round(
+    (getEarnedPoints(r, questions, session, localizedFibAnswers) / maxPoints) *
+      100
+  );
 }
 
 /**
@@ -175,12 +190,13 @@ export function getResponseScore(
 export function getDisplayScore(
   r: QuizResponse,
   questions: QuizQuestion[],
-  session?: QuizScoringSession
+  session?: QuizScoringSession,
+  localizedFibAnswers?: LocalizedFibAnswers | null
 ): number {
   if (isGamificationActive(session)) {
-    return getEarnedPoints(r, questions, session);
+    return getEarnedPoints(r, questions, session, localizedFibAnswers);
   }
-  return getResponseScore(r, questions, session);
+  return getResponseScore(r, questions, session, localizedFibAnswers);
 }
 
 /**

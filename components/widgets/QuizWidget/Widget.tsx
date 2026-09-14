@@ -1300,6 +1300,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }}
         overridesBySourcedId={activeAssignment?.overridesBySourcedId ?? null}
+        localizedFibAnswers={activeAssignment?.localizedFibAnswers ?? null}
         initialExportUrl={activeAssignment?.exportUrl ?? null}
         plcSheetUrl={activeAssignment?.plc?.sheetUrl ?? null}
         onExportUrlSaved={
@@ -1461,6 +1462,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         overridesBySourcedId={
           monitorActiveAssignment?.overridesBySourcedId ?? null
+        }
+        localizedFibAnswers={
+          monitorActiveAssignment?.localizedFibAnswers ?? null
         }
       />
     );

@@ -3942,6 +3942,8 @@ export interface QuizPublicQuestion {
 /** One question's translated strings, positionally aligned with the English question (plan §3.2). */
 export interface QuestionTranslation {
   text: string;
+  /** FIB only: the translated accepted answer. Teacher-private — never projected to students. */
+  answer?: string;
   /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
   choices?: string[];
   /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
@@ -5186,6 +5188,11 @@ export interface QuizAssignmentSettings {
 export interface QuizAssignment extends QuizAssignmentSettings {
   /** Assignment UUID — also the sessionId. */
   id: string;
+  /**
+   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
+   * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
+   */
+  localizedFibAnswers?: Record<string, Record<string, string[]>>;
   quizId: string;
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */

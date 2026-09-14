@@ -59,7 +59,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
     () => new Set(api.translatableIds),
     [api.translatableIds]
   );
-  // D21: FIB rows are not translated, so they never appear in the review list.
+  // Only translatable rows are reviewable; FIB joined them in PR4.
   const rows = quiz.questions.filter((q) => translatableSet.has(q.id));
   const requested = useRef<Set<string>>(new Set());
   // Rehydrate a saved sidecar from Drive the first time its chip is selected.
@@ -400,6 +400,19 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
               </React.Fragment>
             );
           })}
+        {question.type === 'FIB' && (
+          <>
+            <p className="text-xxs font-semibold uppercase tracking-wider text-slate-500">
+              {t('quizTranslation.editor.answerKey')}
+            </p>
+            {row(
+              'answer',
+              question.correctAnswer,
+              entry?.answer ?? '',
+              (value) => edit({ answer: value })
+            )}
+          </>
+        )}
         {question.placeholder !== undefined &&
           row(
             'placeholder',

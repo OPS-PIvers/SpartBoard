@@ -38,6 +38,10 @@ import {
   loadTranslationsForPublish,
   targetedLocaleCounts,
 } from '@/utils/quizTranslationPublish';
+import {
+  collectLocalizedFibAnswers,
+  fibAcceptedAnswers,
+} from '@/utils/quizFibAnswers';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
@@ -986,6 +990,13 @@ export const useQuizAssignments = (
         Object.keys(targetedLocaleCountByCode),
         sessionQuestions
       );
+      const localizedFibAnswers = collectLocalizedFibAnswers(
+        sessionQuestions,
+        translations.byLocale,
+        translations.freshQuestionIdsByLocale
+      );
+      if (Object.keys(localizedFibAnswers).length > 0)
+        assignment.localizedFibAnswers = localizedFibAnswers;
       const sessionPublicQuestions = sessionQuestions.map((q) =>
         projectPublicQuestionForMode(
           q,
@@ -2427,6 +2438,9 @@ export const useQuizAssignments = (
       const assignmentSnap = await getDoc(assignmentRef);
       const overridesByStudentUid = (assignmentSnap.data()
         ?.overridesByStudentUid ?? {}) as Record<string, StudentOverride>;
+      // Translated FIB answer keys snapshotted at assign time; absent on older assignments.
+      const localizedFibAnswers = (assignmentSnap.data()?.localizedFibAnswers ??
+        {}) as Record<string, Record<string, string[]>>;
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -2513,7 +2527,12 @@ export const useQuizAssignments = (
           const result = applyMediaSlots(
             q,
             data,
-            gradeAnswer(q, a.answer, manualGrade)
+            gradeAnswer(
+              q,
+              a.answer,
+              manualGrade,
+              fibAcceptedAnswers(localizedFibAnswers, q.id)
+            )
           );
           if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (

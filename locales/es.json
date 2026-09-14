@@ -2073,6 +2073,7 @@
       "pickLanguage": "Elige un idioma",
       "generate": "Generar traducción",
       "reviewed": "Revisada",
+      "answerKey": "Respuesta aceptada",
       "stale": "Desactualizada",
       "regenerate_one": "Regenerar {{count}} pregunta desactualizada",
       "regenerate_other": "Regenerar {{count}} preguntas desactualizadas",

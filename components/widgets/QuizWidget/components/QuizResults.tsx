@@ -235,6 +235,8 @@ interface QuizResultsProps {
     string,
     import('@/types').StudentOverride
   > | null;
+  /** Translated FIB answer keys snapshotted on the assignment doc (PR4). */
+  localizedFibAnswers?: Record<string, Record<string, string[]>> | null;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -253,6 +255,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   initialExportedResponseIds,
   onExportedResponseIdsSaved,
   overridesBySourcedId,
+  localizedFibAnswers = null,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
@@ -570,7 +573,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     filteredScoreable.length > 0
       ? Math.round(
           filteredScoreable.reduce(
-            (sum, r) => sum + getDisplayScore(r, quiz.questions, session),
+            (sum, r) =>
+              sum +
+              getDisplayScore(r, quiz.questions, session, localizedFibAnswers),
             0
           ) / filteredScoreable.length
         )
@@ -1653,6 +1658,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 session?.protection?.tabWarningThreshold ?? 3
               }
               addToast={addToast}
+              localizedFibAnswers={localizedFibAnswers}
             />
           )}
         </div>
@@ -2185,6 +2191,7 @@ const StudentsScreen: React.FC<{
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   resultsTabWarningThreshold: number;
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
+  localizedFibAnswers?: Record<string, Record<string, string[]>> | null;
 }> = ({
   responses,
   questions,
@@ -2196,6 +2203,7 @@ const StudentsScreen: React.FC<{
   onUnlockResultsForStudent,
   resultsTabWarningThreshold,
   addToast,
+  localizedFibAnswers = null,
 }) => {
   const [confirmDeleteKey, setConfirmDeleteKey] =
     useState<ResponseDocKey | null>(null);
@@ -2255,18 +2263,28 @@ const StudentsScreen: React.FC<{
           const scoreA =
             (a.status === 'completed' || a.status === 'in-progress') &&
             canScoreResponse(a, questions)
-              ? getDisplayScore(a, questions, session)
+              ? getDisplayScore(a, questions, session, localizedFibAnswers)
               : -1;
           const scoreB =
             (b.status === 'completed' || b.status === 'in-progress') &&
             canScoreResponse(b, questions)
-              ? getDisplayScore(b, questions, session)
+              ? getDisplayScore(b, questions, session, localizedFibAnswers)
               : -1;
           return scoreB - scoreA;
         })
         .map((r) => {
-          const score = getDisplayScore(r, questions, session);
-          const earned = getEarnedPoints(r, questions, session);
+          const score = getDisplayScore(
+            r,
+            questions,
+            session,
+            localizedFibAnswers
+          );
+          const earned = getEarnedPoints(
+            r,
+            questions,
+            session,
+            localizedFibAnswers
+          );
           // A finished/in-progress response is only shown with a numeric
           // score once it can actually be graded — answer key loaded AND at
           // least one answer maps to a loaded question. Otherwise we render a

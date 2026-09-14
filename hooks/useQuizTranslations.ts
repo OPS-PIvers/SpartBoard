@@ -44,7 +44,7 @@ interface TranslateQuizResponse {
 }
 
 export interface UseQuizTranslations {
-  /** Question ids eligible for translation (FIB excluded, D21). */
+  /** Question ids eligible for translation. */
   translatableIds: string[];
   byLocale: Record<string, QuizTranslation | undefined>;
   loading: Record<string, boolean>;
@@ -126,7 +126,7 @@ export function useQuizTranslations(
   }, [googleAccessToken, userId]);
 
   const questions = useMemo(() => quiz?.questions ?? [], [quiz]);
-  // D21: FIB stays English, so it is never requested, hashed or counted.
+  // The translatable subset drives requests, hashing and counts.
   const translatable = useMemo(
     () => questions.filter((q) => isTranslatableQuestionType(q.type)),
     [questions]

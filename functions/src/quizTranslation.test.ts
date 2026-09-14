@@ -64,6 +64,8 @@ import {
   translateQuizV1,
   translateResponseV1,
   validateQuizTranslation,
+  tokenizeFibStem,
+  restoreFibStem,
   type QuestionTranslation,
   type TranslatableQuestion,
   type TranslationDeps,
@@ -887,5 +889,92 @@ describe('translateQuizV1 / translateResponseV1 — caller identity verification
       code: 'permission-denied',
       message: 'Quiz translation is not available for your account.',
     });
+  });
+});
+
+const fibQuestion = (): TranslatableQuestion => ({
+  id: 'q5',
+  type: 'FIB',
+  text: 'The capital of France is ____ and it sits on the ______.',
+  correctAnswer: 'Paris',
+});
+
+describe('FIB blank tokens', () => {
+  it('tokenizes and restores a stem round-trip', () => {
+    const q = fibQuestion();
+    const { text, blanks } = tokenizeFibStem(q.text ?? '');
+    expect(text).toBe(
+      'The capital of France is [[1]] and it sits on the [[2]].'
+    );
+    expect(blanks).toEqual(['____', '______']);
+    expect(restoreFibStem(text, blanks)).toBe(q.text);
+  });
+
+  it('restores blanks even when the target language reorders the tokens', () => {
+    const { blanks } = tokenizeFibStem(fibQuestion().text ?? '');
+    expect(restoreFibStem('Sobre el [[2]] está [[1]].', blanks)).toBe(
+      'Sobre el ______ está ____.'
+    );
+  });
+
+  it('accepts a translated stem that keeps every token and an answer', () => {
+    expect(
+      validateQuizTranslation([fibQuestion()], ['q5'], {
+        q5: {
+          text: 'La capital de Francia es [[1]] y está en el [[2]].',
+          answer: 'París',
+        },
+      })
+    ).toBeNull();
+  });
+
+  it('rejects a translated stem that drops a blank token', () => {
+    expect(
+      validateQuizTranslation([fibQuestion()], ['q5'], {
+        q5: { text: 'La capital de Francia es [[1]].', answer: 'París' },
+      })
+    ).toMatch(/blank token/);
+  });
+
+  it('rejects a missing translated answer', () => {
+    expect(
+      validateQuizTranslation([fibQuestion()], ['q5'], {
+        q5: { text: 'La capital de Francia es [[1]] y está en el [[2]].' },
+      })
+    ).toMatch(/accepted answer is required/);
+  });
+
+  it('translates the answer and restores the blanks end to end', async () => {
+    const generate: TranslationDeps['generate'] = vi.fn(() =>
+      Promise.resolve({
+        text: JSON.stringify({
+          title: 'Cuestionario',
+          questions: [
+            {
+              id: 'q5',
+              text: 'La capital de Francia es [[1]] y está en el [[2]].',
+              answer: 'París',
+            },
+          ],
+        }),
+        outputTokens: 30,
+      })
+    );
+    const result = await translateQuiz(
+      {
+        quizId: 'quiz-1',
+        locale: 'es',
+        title: 'Quiz',
+        questions: [fibQuestion()],
+      },
+      'teacher-1',
+      deps({ generate })
+    );
+    expect(result.questions.q5.text).toBe(
+      'La capital de Francia es ____ y está en el ______.'
+    );
+    expect(result.questions.q5.answer).toBe('París');
+    // The model sees tokens, never raw underscore runs.
+    expect(vi.mocked(generate).mock.calls[0][0].prompt).toContain('[[1]]');
   });
 });

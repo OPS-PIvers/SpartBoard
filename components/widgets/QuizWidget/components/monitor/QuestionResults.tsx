@@ -2,6 +2,10 @@ import React from 'react';
 import { Check, ChevronRight, Lock } from 'lucide-react';
 import { QuizSession, QuizData, QuizResponse, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import {
+  fibAcceptedAnswers,
+  type LocalizedFibAnswers,
+} from '@/utils/quizFibAnswers';
 import { buildDistribution } from './monitorUtils';
 
 interface QuestionResultsProps {
@@ -74,6 +78,8 @@ interface QuestionDetailProps {
   question: QuizQuestion;
   index: number;
   responses: QuizResponse[];
+  /** Translated FIB answer keys from the assignment doc; absent = English only. */
+  localizedFibAnswers?: LocalizedFibAnswers | null;
 }
 
 export const QuestionDetail: React.FC<QuestionDetailProps> = ({
@@ -81,12 +87,19 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
   question,
   index,
   responses,
+  localizedFibAnswers,
 }) => {
   const live = session.status !== 'ended';
   const { totalAnswered, rows } = buildDistribution(
     question,
     responses,
-    gradeAnswer
+    (q, a) =>
+      gradeAnswer(
+        q,
+        a,
+        undefined,
+        fibAcceptedAnswers(localizedFibAnswers, q.id)
+      )
   );
   const hasDistribution =
     question.type === 'MC' || question.type === 'FIB' || rows.length > 0;

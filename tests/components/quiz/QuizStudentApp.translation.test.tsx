@@ -465,16 +465,16 @@ describe('QuizStudentApp — read-aloud x translation (D25)', () => {
   });
 });
 
-describe('QuizStudentApp — FIB is never translated (D21)', () => {
+describe('QuizStudentApp — FIB translation (PR4)', () => {
   const FIB: QuizPublicQuestion = {
     id: 'qf',
     type: 'FIB',
-    text: 'The capital of France is ___.',
+    text: 'The capital of France is ____.',
     timeLimit: 0,
-    localized: { es: { text: 'La capital de Francia es ___.' } },
+    localized: { es: { text: 'La capital de Francia es ____.' } },
   };
 
-  it('renders the English stem with no toggle', async () => {
+  it('renders the localized stem with its blanks intact', async () => {
     hookState.session = buildSession({
       publicQuestions: [FIB],
       totalQuestions: 1,
@@ -483,15 +483,26 @@ describe('QuizStudentApp — FIB is never translated (D21)', () => {
     render(<QuizStudentApp />);
     await waitFor(() =>
       expect(
-        screen.getByText('The capital of France is ___.')
+        screen.getByText('La capital de Francia es ____.')
       ).toBeInTheDocument()
     );
     expect(
-      screen.queryByText('La capital de Francia es ___.')
+      screen.queryByText('The capital of France is ____.')
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: ENGLISH_LABEL })
-    ).not.toBeInTheDocument();
+  });
+
+  it('falls back to English when the locale has no FIB entry', async () => {
+    hookState.session = buildSession({
+      publicQuestions: [{ ...FIB, localized: undefined }],
+      totalQuestions: 1,
+    });
+    setPointer({ language: 'es' });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(
+        screen.getByText('The capital of France is ____.')
+      ).toBeInTheDocument()
+    );
   });
 });
 

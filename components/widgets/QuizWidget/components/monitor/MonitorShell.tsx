@@ -88,6 +88,8 @@ export interface QuizLiveMonitorProps {
    *  (teacher's own assignment doc), keyed by `StudentTargetRef` key — used
    *  by `RosterList` to resolve each row's effective tab-warning threshold. */
   overridesBySourcedId?: Record<string, StudentOverride> | null;
+  /** Translated FIB answer keys snapshotted on the assignment doc (PR4). */
+  localizedFibAnswers?: Record<string, Record<string, string[]>> | null;
 }
 
 type Screen =
@@ -127,6 +129,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onBack,
     hideLiveScoreboard = false,
     overridesBySourcedId = null,
+    localizedFibAnswers = null,
   } = props;
 
   const { showConfirm } = useDialog();
@@ -632,6 +635,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             question={quizData.questions[screen.index]}
             index={screen.index}
             responses={responses}
+            localizedFibAnswers={localizedFibAnswers}
           />
         )}
         {screen.name === 'code' && <JoinCodeScreen session={session} />}
