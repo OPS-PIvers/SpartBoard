@@ -870,8 +870,11 @@ export async function handleSetAssignmentTargets(
   // by the `excluded` marker, and the gained checks ignore inactive uids.
   for (const target of excludedResult.resolved) {
     if (!(target.key in input.overridesBySourcedId)) continue;
-    const next = input.overridesBySourcedId[target.key];
-    if (next) overrideChangesByUid.set(target.uid, next);
+    // Presence, not truthiness: an explicit null is a clear, not a no-op.
+    overrideChangesByUid.set(
+      target.uid,
+      input.overridesBySourcedId[target.key] ?? null
+    );
   }
   for (const uid of removeUids) overrideChangesByUid.set(uid, null);
   for (const [uid, value] of overrideChangesByUid) {
@@ -1000,16 +1003,18 @@ export async function handleSetAssignmentTargets(
   // 'class', so classmates without an SSO identity still receive the work.
   for (const target of excludedResult.resolved) {
     const storedCreatedAt = existingExcludedByUid.get(target.uid)?.createdAt;
+    // Presence, not truthiness: an explicit null clears the stored override.
+    const overrideWrite =
+      target.key in input.overridesBySourcedId
+        ? mergeWrite(input.overridesBySourcedId[target.key] ?? null)
+        : undefined;
     const payload: Record<string, unknown> = {
       kind: input.kind,
       sessionId: input.sessionId,
       teacherUid: callerUid,
       classId: target.classId,
       excluded: true,
-      ...(target.key in input.overridesBySourcedId &&
-      input.overridesBySourcedId[target.key]
-        ? { override: input.overridesBySourcedId[target.key] }
-        : {}),
+      ...(overrideWrite !== undefined ? { override: overrideWrite } : {}),
       createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
     };

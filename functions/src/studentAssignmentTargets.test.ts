@@ -1342,6 +1342,39 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
     ).toEqual({ language: 'es', readAloud: true });
   });
 
+  it('clears the mirror and pointer override when a skip sends an explicit null', async () => {
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es', readAloud: true },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: { [`classlink:${SOURCED_A}`]: null },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const pointer = state.docs.get(pointerPath(uid)) as Record<string, unknown>;
+    expect(pointer.excluded).toBe(true);
+    expect(pointer.override).toBeUndefined();
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(
+      (assignment.overridesByStudentUid as Record<string, unknown>)[uid]
+    ).toBeUndefined();
+    // The served-language remnant is write-once, so grading stays stable.
+    expect(
+      (assignment.servedLanguageByStudentUid as Record<string, unknown>)[uid]
+    ).toBe('es');
+  });
+
   it('keeps a language remnant in the mirror when a student is de-targeted', async () => {
     await run(
       baseInput({
