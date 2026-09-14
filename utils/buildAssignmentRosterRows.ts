@@ -27,6 +27,8 @@ export interface AssignmentRosterRow {
   modifiedNote: string | null;
   /** True for a student removed via the hub (M17 §5 D3) whose submitted work is retained. */
   removed: boolean;
+  /** True for a student the teacher skipped: they never received the assignment. */
+  skipped: boolean;
 }
 
 export function buildAssignmentRosterRows(params: {
@@ -42,6 +44,8 @@ export function buildAssignmentRosterRows(params: {
   statusByUid: Map<string, AssignmentStudentStatus>;
   /** Refs removed via the hub (M17 §5 D3) — surfaced as a "removed" row only when they have submitted work; otherwise they simply vanish. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Refs the teacher skipped — rendered as a distinct "Skipped" row, never counted as not-started. */
+  excludedTargets?: StudentTargetRef[];
   t: TFunction;
 }): AssignmentRosterRow[] {
   const {
@@ -54,8 +58,13 @@ export function buildAssignmentRosterRows(params: {
     pseudonyms,
     statusByUid,
     removedStudentRefs,
+    excludedTargets,
     t,
   } = params;
+
+  const excludedKeys = new Set(
+    (excludedTargets ?? []).map((ref) => studentTargetRefKey(ref))
+  );
 
   // Mini-app submissions are keyed by `assignmentPseudonym`, not `studentUid`
   // (useAssignmentPseudonyms.ts:5-13) — join through the pseudonym-keyed
@@ -86,26 +95,39 @@ export function buildAssignmentRosterRows(params: {
       ? formatStudentName(nameByDocId.get(docId)) || fallbackName
       : fallbackName;
     const override = overridesBySourcedId?.[refKey];
+    const skipped = excludedKeys.has(refKey);
     return {
       key: docId ?? refKey,
       displayName: name,
-      status: docId ? (statusByUid.get(docId) ?? 'not-started') : 'not-started',
+      // A skipped student never received the assignment, so they carry no
+      // status at all rather than a misleading "not started".
+      status: skipped
+        ? null
+        : docId
+          ? (statusByUid.get(docId) ?? 'not-started')
+          : 'not-started',
       manual: false,
-      modifiedNote: studentOverrideModifiedNote(override, totalQuestions, t),
+      modifiedNote: skipped
+        ? null
+        : studentOverrideModifiedNote(override, totalQuestions, t),
       removed: false,
+      skipped,
     };
   };
 
   const rows: AssignmentRosterRow[] = [];
+  const renderedRefKeys = new Set<string>();
 
   if (targetMode === 'students') {
     for (const ref of targetStudents) {
+      renderedRefKeys.add(studentTargetRefKey(ref));
       rows.push(rowForRef(ref, unresolvedLabel));
     }
   } else {
     for (const roster of matchedRosters) {
       for (const student of roster.students) {
         const ref = resolveStudentTargetRef(student, roster);
+        if (ref) renderedRefKeys.add(studentTargetRefKey(ref));
         const fallbackName = `${student.firstName} ${student.lastName}`.trim();
         if (!ref) {
           rows.push({
@@ -115,6 +137,7 @@ export function buildAssignmentRosterRows(params: {
             manual: true,
             modifiedNote: null,
             removed: false,
+            skipped: false,
           });
           continue;
         }
@@ -128,9 +151,13 @@ export function buildAssignmentRosterRows(params: {
   // teacher never loses sight of a graded response. A removed ref with no
   // submission simply never appears — it was never targeted from the
   // student's perspective once the pointer doc was deleted.
-  const currentKeys = new Set(
-    targetStudents.map((ref) => studentTargetRefKey(ref))
-  );
+  // Class mode already renders every roster student, so a removed ref that is
+  // still on the roster would otherwise appear twice, the second time
+  // mislabelled "Removed".
+  const currentKeys = new Set([
+    ...targetStudents.map((ref) => studentTargetRefKey(ref)),
+    ...renderedRefKeys,
+  ]);
   for (const ref of removedStudentRefs ?? []) {
     const refKey = studentTargetRefKey(ref);
     if (currentKeys.has(refKey)) continue; // re-added since removal
@@ -151,6 +178,7 @@ export function buildAssignmentRosterRows(params: {
       manual: false,
       modifiedNote: null,
       removed: true,
+      skipped: false,
     });
   }
 

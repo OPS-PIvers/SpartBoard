@@ -71,7 +71,27 @@ const addToast = vi.fn();
 const updateWidget = vi.fn();
 
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ updateWidget, addToast, rosters: [] }),
+  useDashboard: () => ({
+    updateWidget,
+    addToast,
+    rosters: [
+      {
+        id: 'r1',
+        name: 'Period 1',
+        source: 'manual',
+        defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+        students: [
+          {
+            id: 's1',
+            firstName: 'Ada',
+            lastName: 'Lovelace',
+            pin: '01',
+            classLinkSourcedId: 'SID-1',
+          },
+        ],
+      },
+    ],
+  }),
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -166,7 +186,19 @@ vi.mock('@/hooks/usePlcs', () => ({
 // Stub AssignClassPicker so roster selection is driven by checkboxes, same as
 // VideoActivityManager.assign.test.tsx.
 vi.mock('@/components/common/AssignClassPicker', () => ({
-  AssignClassPicker: () => <div data-testid="assign-class-picker" />,
+  AssignClassPicker: ({
+    onChange,
+  }: {
+    onChange: (next: { rosterIds: string[] }) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="assign-class-picker"
+      onClick={() => onChange({ rosterIds: ['r1'] })}
+    >
+      pick class
+    </button>
+  ),
 }));
 
 Object.defineProperty(navigator, 'clipboard', {
@@ -198,10 +230,9 @@ function confirmAssign(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 }
 
+/** Checks the class whose roster carries a standing accommodation (M17 class mode). */
 function enableIndividualTargeting(dialog: HTMLElement) {
-  fireEvent.click(
-    within(dialog).getByText(/\+ individual students & overrides/i)
-  );
+  fireEvent.click(within(dialog).getByTestId('assign-class-picker'));
 }
 
 beforeEach(() => {

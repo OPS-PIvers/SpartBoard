@@ -60,6 +60,8 @@ import {
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
+  payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
@@ -89,6 +91,7 @@ interface SetAssignmentTargetsParams {
   add: StudentTargetRef[];
   remove: StudentTargetRef[];
   overridesBySourcedId: Record<string, StudentOverride | null>;
+  excludedTargets?: StudentTargetRef[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;
@@ -100,6 +103,7 @@ interface SetAssignmentTargetsResult {
   written: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: string }[];
+  skippedExclusions?: { ref: StudentTargetRef; reason: string }[];
 }
 
 // --- ASSIGN / SHARE MODAL ---
@@ -410,6 +414,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   </div>
                   <AssignTargetingSection
                     rosters={rosters}
+                    selectedRosterIds={pickerValue.rosterIds}
                     value={targetingValue}
                     onChange={onTargetingChange}
                     kind="mini-app"
@@ -609,6 +614,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         rosters
       ).filter((r) => !r.loadError);
       const derived = deriveSessionTargetsFromRosters(selectedRosters);
+      // Snapshot the checked classes now; later roster edits never reshape it.
+      const expandedTargeting = expandClassTargeting(assignTargetingValue, {
+        rosters,
+        selectedRosterIds: assignPickerValue.rosterIds,
+      });
 
       // NOTE ON GATING ASYMMETRY: `mini_app_sessions` Firestore rules use
       // `passesStudentClassGateList`, which treats an empty `classIds[]` as
@@ -620,12 +630,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // Mode is locked org-wide by the admin and frozen onto the session at
       // creation. The session/assignment hooks derive `submissionsEnabled`
       // from `mode` so the two fields can never diverge.
-      // M17 B3 — individual-student targeting is orthogonal to the roster
-      // picker: `targetMode:'students'` narrows delivery to the picked
-      // students within the targeted rosters, and the Schedule window
-      // applies regardless of targeting mode (spec Decision 5/§3a-G).
-      const isIndividualTargeting =
-        assignTargetingValue.targetMode === 'students';
       // M17 E2 F1: mini-app is the one kind whose archive-row assignment id
       // differs from the session id (Quiz/VA/GL share one UUID). Generate it
       // up front so it can be written onto the session doc — the student app
@@ -660,12 +664,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           assignmentName,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
-          targetMode: assignTargetingValue.targetMode,
-          targetGroupIds: assignTargetingValue.targetGroupIds,
-          overridesBySourcedId: assignTargetingValue.overridesByKey,
-          dueAt: assignTargetingValue.dueAt ?? null,
-          openAt: assignTargetingValue.openAt ?? null,
-          closeAt: assignTargetingValue.closeAt ?? null,
+          targetMode: expandedTargeting.targetMode,
+          targetGroupIds: expandedTargeting.targetGroupIds,
+          overridesBySourcedId: expandedTargeting.overridesByKey,
+          dueAt: expandedTargeting.dueAt ?? null,
+          openAt: expandedTargeting.openAt ?? null,
+          closeAt: expandedTargeting.closeAt ?? null,
         });
       } catch (archiveErr) {
         console.warn(
@@ -678,12 +682,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // actually used individual targeting — `targetMode:'class'` never
       // touches the Cloud Function, keeping the class-wide flow's click
       // count and latency unchanged from today (spec §3a-G).
-      if (isIndividualTargeting && assignmentId) {
+      const payload = buildSetAssignmentTargetsPayload(
+        undefined,
+        expandedTargeting
+      );
+      if (payloadRequiresCall(payload) && assignmentId) {
         try {
-          const payload = buildSetAssignmentTargetsPayload(
-            undefined,
-            assignTargetingValue
-          );
           const setAssignmentTargets = httpsCallable<
             SetAssignmentTargetsParams,
             SetAssignmentTargetsResult
@@ -736,7 +740,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               return nameByKey.get(key) ?? key;
             });
             setSkippedStudentNames(names);
-            addToast(skippedTargetsToastMessage(names.length), 'error');
+            addToast(
+              skippedTargetsToastMessage(
+                names.length,
+                result.data.skippedExclusions?.length ?? 0
+              ),
+              'error'
+            );
           }
         } catch (targetErr) {
           console.error(

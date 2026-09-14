@@ -1229,6 +1229,170 @@ describe('handleSetAssignmentTargets — session close bound', () => {
 // Input parsing + override sanitization
 // ---------------------------------------------------------------------------
 
+describe('handleSetAssignmentTargets — excludedTargets', () => {
+  it('marks an excluded student pointer instead of targeting them', async () => {
+    const result = await run(
+      baseInput({
+        add: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: SOURCED_B },
+        ],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_B }],
+      })
+    );
+    expect(result.written).toBe(1);
+    const excludedPointer = state.docs.get(
+      pointerPath(computeStudentUid(SOURCED_B, HMAC))
+    ) as Record<string, unknown>;
+    expect(excludedPointer.excluded).toBe(true);
+    expect(excludedPointer.override).toBeUndefined();
+  });
+
+  it('keeps the class channel on for everyone else when a student is skipped', async () => {
+    await run(
+      baseInput({
+        targetMode: 'class',
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    const session = state.docs.get(`quiz_sessions/${ASSIGNMENT_ID}`) as Record<
+      string,
+      unknown
+    >;
+    expect(session.individualTargeting).toBe(false);
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.targetMode).toBe('class');
+  });
+
+  it('marks an already-targeted student pointer on re-assign', async () => {
+    await run(
+      baseInput({ add: [{ kind: 'classlink', sourcedId: SOURCED_A }] })
+    );
+    expect(
+      state.docs.get(pointerPath(computeStudentUid(SOURCED_A, HMAC)))
+    ).toBeDefined();
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    const pointer = state.docs.get(
+      pointerPath(computeStudentUid(SOURCED_A, HMAC))
+    ) as Record<string, unknown>;
+    expect(pointer.excluded).toBe(true);
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.targetStudents).toEqual([]);
+    expect(assignment.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_A },
+    ]);
+  });
+
+  it('clears the marker when the student is re-added', async () => {
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        excludedTargets: [],
+      })
+    );
+    const pointer = state.docs.get(
+      pointerPath(computeStudentUid(SOURCED_A, HMAC))
+    ) as Record<string, unknown>;
+    expect(pointer.excluded).toBeUndefined();
+  });
+
+  it('leaves the assignment doc untouched when the field is absent', async () => {
+    const result = await run(baseInput());
+    expect(result.written).toBe(1);
+    expect(
+      (state.docs.get(assignmentPath()) as Record<string, unknown>)
+        .excludedTargets
+    ).toBeUndefined();
+  });
+
+  it('persists only exclusions that resolved, and reports the rest', async () => {
+    const result = await run(
+      baseInput({
+        add: [],
+        excludedTargets: [
+          { kind: 'classlink', sourcedId: SOURCED_A },
+          { kind: 'classlink', sourcedId: 'NOT-MY-STUDENT' },
+        ],
+      })
+    );
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_A },
+    ]);
+    expect(result.skippedExclusions).toEqual([
+      {
+        ref: { kind: 'classlink', sourcedId: 'NOT-MY-STUDENT' },
+        reason: 'not-in-teacher-classes',
+      },
+    ]);
+  });
+
+  it('carries a prior exclusion forward when a later call skips someone else', async () => {
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_B }],
+      })
+    );
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(assignment.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_A },
+      { kind: 'classlink', sourcedId: SOURCED_B },
+    ]);
+  });
+
+  it('parses excludedTargets off the raw payload', () => {
+    const { input } = parseSetAssignmentTargetsInput({
+      assignmentId: ASSIGNMENT_ID,
+      kind: 'quiz',
+      sessionId: ASSIGNMENT_ID,
+      excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+    });
+    expect(input.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_A },
+    ]);
+  });
+
+  it('leaves excludedTargets undefined when the caller omits it', () => {
+    const { input } = parseSetAssignmentTargetsInput({
+      assignmentId: ASSIGNMENT_ID,
+      kind: 'quiz',
+      sessionId: ASSIGNMENT_ID,
+    });
+    expect(input.excludedTargets).toBeUndefined();
+  });
+});
+
 describe('parseSetAssignmentTargetsInput', () => {
   it('rejects an unknown kind', () => {
     expect(() =>

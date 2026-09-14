@@ -151,4 +151,21 @@ describe('deletePointersForAssignment', () => {
     );
     expect(deleted).toHaveLength(1);
   });
+
+  it('reaps a skipped student whose exclusion marker is the only pointer', async () => {
+    const { pointerRefsFromAssignment } =
+      await import('./studentAssignmentCleanup');
+    const refs = pointerRefsFromAssignment({
+      excludedTargets: [{ kind: 'classlink', sourcedId: 'sid-9' }],
+    });
+    await deletePointersForAssignment(
+      makeDb() as never,
+      ASSIGNMENT_ID,
+      refs,
+      HMAC
+    );
+    expect(deleted).toEqual([
+      `student_assignments/${computeStudentUid('sid-9', HMAC)}/items/${ASSIGNMENT_ID}`,
+    ]);
+  });
 });

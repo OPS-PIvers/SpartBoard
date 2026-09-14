@@ -464,9 +464,7 @@ describe('VideoActivityManager assign modal — individual targeting (M17 B3)', 
     fireEvent.click(assignBtn);
     await screen.findByRole('dialog', { name: /cell division/i });
 
-    expect(
-      screen.getByText(/\+ individual students & overrides/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/edit or add modifications/i)).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /choose students/i })
     ).not.toBeInTheDocument();
@@ -489,7 +487,7 @@ describe('VideoActivityManager assign modal — individual targeting (M17 B3)', 
     expect(targeting.targetStudents).toEqual([]);
   });
 
-  it('expanding "+ Individual students & overrides" reveals the picker trigger and sets targetMode', async () => {
+  it('expanding "Edit or add modifications" keeps the assignment class-wide', async () => {
     const onAssign = vi.fn().mockResolvedValue('session-1');
     renderManager(makeVaMeta(), onAssign);
 
@@ -497,17 +495,17 @@ describe('VideoActivityManager assign modal — individual targeting (M17 B3)', 
     fireEvent.click(assignBtn);
     await screen.findByRole('dialog', { name: /cell division/i });
 
-    fireEvent.click(screen.getByText(/\+ individual students & overrides/i));
+    fireEvent.click(screen.getByText(/edit or add modifications/i));
     expect(
-      screen.getByRole('button', { name: /choose students/i })
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: /choose students/i })
+    ).not.toBeInTheDocument();
 
     const dialog = screen.getByRole('dialog', { name: /cell division/i });
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const targeting = onAssign.mock.calls[0][3] as AssignTargetingValue;
-    expect(targeting.targetMode).toBe('students');
+    expect(targeting.targetMode).toBe('class');
   });
 
   it('mirrors the legacy due-date input onto targeting.dueAt', async () => {

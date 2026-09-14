@@ -113,6 +113,8 @@ import {
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
+  payloadRequiresCall,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
@@ -1595,10 +1597,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             data.questions,
             targeting.overridesByKey
           );
-          const resolvedTargeting: AssignTargetingValue = {
-            ...targeting,
-            overridesByKey: hiddenOptions.overridesByKey,
-          };
+          // Snapshot the checked classes now: the hub must render what was
+          // assigned, not whatever the roster defaults say later.
+          const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+            {
+              ...targeting,
+              overridesByKey: hiddenOptions.overridesByKey,
+            },
+            { rosters, selectedRosterIds: rosterIds }
+          );
           for (const warning of hiddenOptions.warnings) {
             addToast(warning, 'warning');
           }
@@ -1767,12 +1774,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            if (resolvedTargeting.targetMode === 'students') {
+            const payload = buildSetAssignmentTargetsPayload(
+              undefined,
+              resolvedTargeting
+            );
+            if (payloadRequiresCall(payload)) {
               try {
-                const payload = buildSetAssignmentTargetsPayload(
-                  undefined,
-                  resolvedTargeting
-                );
                 const result = await setAssignmentTargets({
                   assignmentId,
                   kind: 'quiz',
@@ -1781,6 +1788,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   add: payload.add,
                   remove: payload.remove,
                   overridesBySourcedId: payload.overridesBySourcedId,
+                  ...(payload.excludedTargets
+                    ? { excludedTargets: payload.excludedTargets }
+                    : {}),
                   window: payload.window,
                 });
                 if (result.skipped.length > 0) {
@@ -1789,7 +1799,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     [assignmentId]: result.skipped,
                   }));
                   addToast(
-                    skippedTargetsToastMessage(result.skipped.length),
+                    skippedTargetsToastMessage(
+                      result.skipped.length,
+                      result.skippedExclusions?.length ?? 0
+                    ),
                     'warning'
                   );
                   // Skipped-ref durability (canonical rule) — persist the

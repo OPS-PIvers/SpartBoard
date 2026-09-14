@@ -69,7 +69,11 @@ import {
   toOverrideEditorQuestions,
   type AssignTargetingValue,
 } from '@/components/common/library';
-import { buildSetAssignmentTargetsPayload } from '@/utils/studentTargetRef';
+import {
+  buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
+  payloadRequiresCall,
+} from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
@@ -321,6 +325,18 @@ const LtiDeepLinkFlow: React.FC = () => {
   // (per-student rubric swap). Both are keyed off the same first-party Google
   // session the library is; `null` before it's ready keeps them inert.
   const { rosters } = useRosters(teacherReady ? user : null);
+  // The link is the roster's stored `ltiContextId` — never the section title,
+  // which two unrelated classes can share. No match, or more than one, means
+  // there is no class to expand and the modifications panel stays hidden.
+  const ltiSelectedRosterIds = useMemo(() => {
+    if (!contextId) return [];
+    const matches = rosters.filter((r) => r.ltiContextId === contextId);
+    return matches.length === 1 ? [matches[0].id] : [];
+  }, [rosters, contextId]);
+  const ltiClassContext = useMemo(
+    () => ({ rosters, selectedRosterIds: ltiSelectedRosterIds }),
+    [rosters, ltiSelectedRosterIds]
+  );
   const { rubrics } = useRubrics(libraryUid);
   const { setAssignmentTargets } = useSetAssignmentTargets();
 
@@ -376,7 +392,7 @@ const LtiDeepLinkFlow: React.FC = () => {
   }
 
   // Lazily fetch the selected quiz's body from Drive — only once the teacher
-  // actually opens "+ Individual students & overrides". A class-wide add never
+  // actually opens "Edit or add modifications". A class-wide add never
   // touches this, so it still fetches exactly once (at Add time).
   const handleExpandIndividualTargeting = useCallback(() => {
     if (kind !== 'quiz' || !selectedQuizId) return;
@@ -593,10 +609,13 @@ const LtiDeepLinkFlow: React.FC = () => {
           quizData.questions,
           assignTargeting.overridesByKey
         );
-        const resolvedTargeting: AssignTargetingValue = {
-          ...assignTargeting,
-          overridesByKey: hiddenOptions.overridesByKey,
-        };
+        const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+          {
+            ...assignTargeting,
+            overridesByKey: hiddenOptions.overridesByKey,
+          },
+          ltiClassContext
+        );
         if (hiddenOptions.warnings.length > 0) {
           setErrorMsg(`Note: ${hiddenOptions.warnings.join(' ')}`);
         }
@@ -676,43 +695,49 @@ const LtiDeepLinkFlow: React.FC = () => {
         // Individual targeting only (§3a-G): a class-wide add never depends on
         // the callable, so a Cloud Functions hiccup can't regress today's flow.
         // Inside the once-only create block so a sign/POST retry can't re-fan.
-        if (resolvedTargeting.targetMode === 'students') {
-          try {
-            const payload = buildSetAssignmentTargetsPayload(
-              undefined,
-              resolvedTargeting
-            );
-            const result = await setAssignmentTargets({
-              assignmentId,
-              kind: 'quiz',
-              sessionId: assignmentId,
-              ...payload,
-            });
-            if (result.skipped.length > 0) {
-              setErrorMsg(skippedTargetsToastMessage(result.skipped.length));
-              try {
-                await setAssignmentTargetSkippedCount(
-                  assignmentId,
-                  result.skipped.length
+        {
+          const payload = buildSetAssignmentTargetsPayload(
+            undefined,
+            resolvedTargeting
+          );
+          if (payloadRequiresCall(payload))
+            try {
+              const result = await setAssignmentTargets({
+                assignmentId,
+                kind: 'quiz',
+                sessionId: assignmentId,
+                ...payload,
+              });
+              if (result.skipped.length > 0) {
+                setErrorMsg(
+                  skippedTargetsToastMessage(
+                    result.skipped.length,
+                    result.skippedExclusions?.length ?? 0
+                  )
                 );
-              } catch (persistErr) {
-                logError(
-                  'LtiDeepLinkFlow.setAssignmentTargetSkippedCount',
-                  persistErr,
-                  { assignmentId }
-                );
+                try {
+                  await setAssignmentTargetSkippedCount(
+                    assignmentId,
+                    result.skipped.length
+                  );
+                } catch (persistErr) {
+                  logError(
+                    'LtiDeepLinkFlow.setAssignmentTargetSkippedCount',
+                    persistErr,
+                    { assignmentId }
+                  );
+                }
               }
+            } catch (targetErr) {
+              // Non-fatal: the assignment exists and the class can still take it.
+              logError('LtiDeepLinkFlow.setAssignmentTargets', targetErr, {
+                assignmentId,
+              });
+              setErrorMsg(
+                'Added for the whole class, but individual student targeting ' +
+                  'failed to save. Adjust it from the SpartBoard assignment.'
+              );
             }
-          } catch (targetErr) {
-            // Non-fatal: the assignment exists and the class can still take it.
-            logError('LtiDeepLinkFlow.setAssignmentTargets', targetErr, {
-              assignmentId,
-            });
-            setErrorMsg(
-              'Added for the whole class, but individual student targeting ' +
-                'failed to save. Adjust it from the SpartBoard assignment.'
-            );
-          }
         }
         created = { kind: 'quiz', quizCode, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
@@ -721,6 +746,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       await signAndReturn(created, selectedQuiz.title, returnUrl);
     },
     [
+      ltiClassContext,
       selectedQuiz,
       loadQuizData,
       createAssignment,
@@ -823,15 +849,21 @@ const LtiDeepLinkFlow: React.FC = () => {
             ...(dueAt != null ? { dueAt } : {}),
           });
         }
+        // Expanded once: the archive doc and the CF payload must agree, or a
+        // re-edit reads back overrides the fan-out never saw.
+        const expandedTargeting = expandClassTargeting(
+          assignTargeting,
+          ltiClassContext
+        );
         if (user?.uid) {
           await setDoc(
             doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
             {
-              ...(assignTargeting.targetGroupIds.length > 0
-                ? { targetGroupIds: assignTargeting.targetGroupIds }
+              ...(expandedTargeting.targetGroupIds.length > 0
+                ? { targetGroupIds: expandedTargeting.targetGroupIds }
                 : {}),
-              ...(Object.keys(assignTargeting.overridesByKey).length > 0
-                ? { overridesBySourcedId: assignTargeting.overridesByKey }
+              ...(Object.keys(expandedTargeting.overridesByKey).length > 0
+                ? { overridesBySourcedId: expandedTargeting.overridesByKey }
                 : {}),
               ...(assignTargeting.openAt != null
                 ? { openAt: assignTargeting.openAt }
@@ -847,44 +879,50 @@ const LtiDeepLinkFlow: React.FC = () => {
 
         // Individual targeting only (§3a-G); inside the once-only create block
         // so a sign/POST retry can't re-fan the pointer docs.
-        if (assignTargeting.targetMode === 'students') {
-          try {
-            const payload = buildSetAssignmentTargetsPayload(
-              undefined,
-              assignTargeting
-            );
-            const result = await setAssignmentTargets({
-              assignmentId: sessionId,
-              kind: 'video-activity',
-              sessionId,
-              ...payload,
-            });
-            if (user?.uid) {
-              await setDoc(
-                doc(
-                  db,
-                  'users',
-                  user.uid,
-                  'video_activity_assignments',
-                  sessionId
-                ),
-                { targetSkippedCount: result.skipped.length },
-                { merge: true }
+        {
+          const payload = buildSetAssignmentTargetsPayload(
+            undefined,
+            expandedTargeting
+          );
+          if (payloadRequiresCall(payload))
+            try {
+              const result = await setAssignmentTargets({
+                assignmentId: sessionId,
+                kind: 'video-activity',
+                sessionId,
+                ...payload,
+              });
+              if (user?.uid) {
+                await setDoc(
+                  doc(
+                    db,
+                    'users',
+                    user.uid,
+                    'video_activity_assignments',
+                    sessionId
+                  ),
+                  { targetSkippedCount: result.skipped.length },
+                  { merge: true }
+                );
+              }
+              if (result.skipped.length > 0) {
+                setErrorMsg(
+                  skippedTargetsToastMessage(
+                    result.skipped.length,
+                    result.skippedExclusions?.length ?? 0
+                  )
+                );
+              }
+            } catch (targetErr) {
+              // Non-fatal: the session/assignment docs already exist.
+              logError('LtiDeepLinkFlow.setAssignmentTargets', targetErr, {
+                sessionId,
+              });
+              setErrorMsg(
+                'Added for the whole class, but individual student targeting ' +
+                  'failed to save. Adjust it from the SpartBoard assignment.'
               );
             }
-            if (result.skipped.length > 0) {
-              setErrorMsg(skippedTargetsToastMessage(result.skipped.length));
-            }
-          } catch (targetErr) {
-            // Non-fatal: the session/assignment docs already exist.
-            logError('LtiDeepLinkFlow.setAssignmentTargets', targetErr, {
-              sessionId,
-            });
-            setErrorMsg(
-              'Added for the whole class, but individual student targeting ' +
-                'failed to save. Adjust it from the SpartBoard assignment.'
-            );
-          }
         }
 
         created = { kind: 'va', sessionId, maxPoints, dueAt };
@@ -894,6 +932,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       await signAndReturn(created, selectedActivity.title, returnUrl);
     },
     [
+      ltiClassContext,
       selectedActivity,
       loadActivityData,
       createVideoActivityAssignment,
@@ -1158,6 +1197,8 @@ const LtiDeepLinkFlow: React.FC = () => {
               <div className="border-t border-slate-200 pt-4">
                 <AssignTargetingSection
                   rosters={rosters}
+                  selectedRosterIds={ltiSelectedRosterIds}
+                  allowModifications={ltiSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
@@ -1172,15 +1213,6 @@ const LtiDeepLinkFlow: React.FC = () => {
                     : {})}
                   onExpand={handleExpandIndividualTargeting}
                 />
-                {assignTargeting.targetMode === 'students' && (
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                    Per-student overrides reach students in a Schoology section
-                    that&apos;s linked to its ClassLink class. If this one
-                    isn&apos;t linked yet, link it from Classes in the
-                    SpartBoard sidebar. Schedule windows apply to everyone
-                    either way.
-                  </p>
-                )}
               </div>
 
               {/* PLC sharing applies to BOTH quizzes and video activities —

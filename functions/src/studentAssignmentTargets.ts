@@ -179,6 +179,8 @@ export interface SetAssignmentTargetsResult {
   updated?: number;
   removed: number;
   skipped: { ref: StudentTargetRef; reason: SkipReason }[];
+  /** Subset of `skipped` whose ref the caller asked to SKIP, not to target. */
+  skippedExclusions?: { ref: StudentTargetRef; reason: SkipReason }[];
 }
 
 /**
@@ -214,6 +216,12 @@ export interface SetAssignmentTargetsInput {
    * the resulting full target set.
    */
   targetMode?: 'class' | 'students';
+  /**
+   * Students the teacher skipped. Absent (the shape every pre-existing client
+   * sends) leaves the fan-out exactly as before; present, these refs never
+   * receive a pointer doc and any pointer they already hold is deleted.
+   */
+  excludedTargets?: StudentTargetRef[];
 }
 
 // ── ref parsing / normalization ────────────────────────────────────────────
@@ -271,6 +279,30 @@ export function targetRefsFromAssignment(
     if (ref) out.push(ref);
   }
   return out;
+}
+
+/** The skipped-student refs the assignment doc already records. */
+export function excludedRefsFromAssignment(
+  data: Record<string, unknown> | undefined
+): StudentTargetRef[] {
+  const raw = Array.isArray(data?.excludedTargets) ? data.excludedTargets : [];
+  const refs: StudentTargetRef[] = [];
+  for (const item of raw.slice(0, MAX_STORED_TARGET_REFS)) {
+    const ref = parseRef(item);
+    if (ref) refs.push(ref);
+  }
+  return refs;
+}
+
+/** Every ref that may hold a pointer doc: targets plus skipped students. */
+export function pointerRefsFromAssignment(
+  data: Record<string, unknown> | undefined
+): StudentTargetRef[] {
+  const byKey = new Map<string, StudentTargetRef>();
+  for (const ref of targetRefsFromAssignment(data)) byKey.set(refKey(ref), ref);
+  for (const ref of excludedRefsFromAssignment(data))
+    byKey.set(refKey(ref), ref);
+  return [...byKey.values()];
 }
 
 /** uid derivation per ref kind — test students namespace as `test:{emailLower}`. */
@@ -536,6 +568,10 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
       ? data.targetMode
       : undefined;
 
+  const excludedTargets = Array.isArray(data.excludedTargets)
+    ? parseRefList(data.excludedTargets, skipped)
+    : undefined;
+
   return {
     input: {
       assignmentId,
@@ -550,6 +586,7 @@ export function parseSetAssignmentTargetsInput(raw: unknown): {
         dueAt: sanitizeWindowValue(rawWindow, 'dueAt'),
       },
       targetMode,
+      ...(excludedTargets ? { excludedTargets } : {}),
     },
     skipped,
   };
@@ -664,7 +701,19 @@ export async function handleSetAssignmentTargets(
   }
 
   const ctx = await loadContext();
-  const addResult = resolveTargets(input.add, ctx, hmacSecret);
+  // Absent `excludedTargets` ⇒ an empty set ⇒ byte-identical behaviour to a
+  // client that never sends the field.
+  const excludedKeys = new Set((input.excludedTargets ?? []).map(refKey));
+  const excludedResult = resolveTargets(
+    input.excludedTargets ?? [],
+    ctx,
+    hmacSecret
+  );
+  const addResult = resolveTargets(
+    input.add.filter((ref) => !excludedKeys.has(refKey(ref))),
+    ctx,
+    hmacSecret
+  );
 
   const itemsPath = (uid: string) =>
     db
@@ -677,7 +726,7 @@ export async function handleSetAssignmentTargets(
   // minus this call's removals, plus the refs that resolved. This — not the
   // caller — is what gets persisted, so the doc always mirrors the real
   // pointer set the A2b deletion triggers re-hash.
-  const removeKeys = new Set(input.remove.map(refKey));
+  const removeKeys = new Set([...input.remove.map(refKey), ...excludedKeys]);
   const carriedByKey = new Map<string, StudentTargetRef>();
   for (const ref of targetRefsFromAssignment(assignmentSnap.data())) {
     const key = refKey(ref);
@@ -704,9 +753,12 @@ export async function handleSetAssignmentTargets(
   // Removals are pure deletes of the caller's own fan-out, so they only need a
   // uid — an unrecognized ref simply deletes nothing. A uid present in both
   // lists keeps its pointer (add wins) and never double-writes one batch.
+  // An excluded student KEEPS a pointer doc — it carries the exclusion marker
+  // the class channel reads — so their uid must not be deleted here.
+  const excludedUids = new Set(excludedResult.resolved.map((t) => t.uid));
   const removeUids = [
     ...new Set(input.remove.map((ref) => uidForRef(ref, hmacSecret))),
-  ].filter((uid) => !addedUids.has(uid));
+  ].filter((uid) => !addedUids.has(uid) && !excludedUids.has(uid));
 
   // F1: an already-targeted student never appears in `add` (the client sends a
   // strict diff), so an override edit or a window change would otherwise never
@@ -744,6 +796,7 @@ export async function handleSetAssignmentTargets(
     }
   }
   for (const uid of removeUids) overrideChangesByUid.set(uid, null);
+  for (const uid of excludedUids) overrideChangesByUid.set(uid, null);
 
   const assignmentData = assignmentSnap.data() ?? {};
   const assignmentWindow = {
@@ -800,14 +853,20 @@ export async function handleSetAssignmentTargets(
   // write can't express on its own: `createdAt` is preserved, never rewritten,
   // and an untouched stored `override` still decides the effective window.
   const existingByUid = new Map<string, Record<string, unknown>>();
-  const readRefs = [...admitted, ...refreshTargets].map((t) =>
-    itemsPath(t.uid)
-  );
+  const existingExcludedByUid = new Map<string, Record<string, unknown>>();
+  const readRefs = [
+    ...admitted,
+    ...refreshTargets,
+    ...excludedResult.resolved,
+  ].map((t) => itemsPath(t.uid));
   for (let i = 0; i < readRefs.length; i += GET_ALL_CHUNK) {
     const snaps = await db.getAll(...readRefs.slice(i, i + GET_ALL_CHUNK));
     for (const snap of snaps) {
       const data = snap.data();
-      if (data) existingByUid.set(snap.ref.parent.parent?.id ?? '', data);
+      if (!data) continue;
+      const uid = snap.ref.parent.parent?.id ?? '';
+      existingByUid.set(uid, data);
+      if (excludedUids.has(uid)) existingExcludedByUid.set(uid, data);
     }
   }
 
@@ -853,7 +912,27 @@ export async function handleSetAssignmentTargets(
       classId: target.classId,
       createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
       updatedAt: now,
+      // Un-skipping a student who kept an override: drop the stale marker.
+      excluded: admin.firestore.FieldValue.delete(),
       ...mutableFields(target.key, target.uid),
+    };
+    const ref = itemsPath(target.uid);
+    ops.push((batch) => batch.set(ref, payload, { merge: true }));
+  }
+  // Skipped students: a pointer doc whose only job is to hide the session from
+  // the class channel for this one student. Writing it keeps `targetMode` on
+  // 'class', so classmates without an SSO identity still receive the work.
+  for (const target of excludedResult.resolved) {
+    const storedCreatedAt = existingExcludedByUid.get(target.uid)?.createdAt;
+    const payload: Record<string, unknown> = {
+      kind: input.kind,
+      sessionId: input.sessionId,
+      teacherUid: callerUid,
+      classId: target.classId,
+      excluded: true,
+      override: admin.firestore.FieldValue.delete(),
+      createdAt: typeof storedCreatedAt === 'number' ? storedCreatedAt : now,
+      updatedAt: now,
     };
     const ref = itemsPath(target.uid);
     ops.push((batch) => batch.set(ref, payload, { merge: true }));
@@ -899,6 +978,32 @@ export async function handleSetAssignmentTargets(
   // Concurrent remove+add of the SAME ref from two calls can still leave a ref
   // listed with no pointer doc (the pointer batches commit outside this tx); the
   // next edit call for that ref re-resolves it and self-heals.
+  // Only exclusions that actually landed are persisted: what the doc already
+  // recorded, minus anything this call re-targeted or un-skipped, plus the
+  // skips that resolved. An unresolved skip stays out of the doc and is
+  // reported in `skipped` instead.
+  const excludedChangeKeys = new Set([
+    ...input.add.map(refKey),
+    ...input.remove.map(refKey),
+  ]);
+  const resolvedExcludedKeys = new Set(
+    excludedResult.resolved.map((t) => t.key)
+  );
+  const resolveFinalExcluded = (
+    freshData: Record<string, unknown> | undefined
+  ): StudentTargetRef[] => {
+    const byKey = new Map<string, StudentTargetRef>();
+    for (const ref of excludedRefsFromAssignment(freshData)) {
+      const key = refKey(ref);
+      if (excludedChangeKeys.has(key) || resolvedExcludedKeys.has(key))
+        continue;
+      byKey.set(key, ref);
+    }
+    for (const target of excludedResult.resolved)
+      byKey.set(target.key, target.ref);
+    return [...byKey.values()];
+  };
+
   const finalRefs = await db.runTransaction(async (tx) => {
     const fresh = await tx.get(assignmentRef);
     const byKey = new Map<string, StudentTargetRef>();
@@ -916,6 +1021,9 @@ export async function handleSetAssignmentTargets(
         targetStudents: refs,
         targetMode:
           input.targetMode ?? (refs.length > 0 ? 'students' : 'class'),
+        ...(input.excludedTargets
+          ? { excludedTargets: resolveFinalExcluded(fresh.data()) }
+          : {}),
         ...(Object.keys(overridesByStudentUid).length > 0
           ? { overridesByStudentUid }
           : {}),
@@ -948,7 +1056,15 @@ export async function handleSetAssignmentTargets(
     written: admitted.length,
     updated,
     removed: removeUids.length,
-    skipped: [...preSkipped, ...addResult.skipped, ...overLimit],
+    skipped: [
+      ...preSkipped,
+      ...addResult.skipped,
+      ...excludedResult.skipped,
+      ...overLimit,
+    ],
+    ...(excludedResult.skipped.length > 0
+      ? { skippedExclusions: excludedResult.skipped }
+      : {}),
   };
 }
 

@@ -2309,7 +2309,15 @@
     "language": "Language"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Individual students & overrides",
+    "expandAffordance": "Edit or add modifications",
+    "modificationsLabel": "Modifications",
+    "collapse": "Done",
+    "standingBadge": "Standing",
+    "skipStudent": "Skip this student",
+    "showMore": "Show {{count}} more",
+    "showFewer": "Show fewer",
+    "noClassStudents": "Check a class above to modify individual students.",
+    "skipNotice": "Skipped students will not see this assignment. Everyone else in these classes still receives it.",
     "sectionLabel": "Individual students & overrides",
     "chooseStudents": "Choose students",
     "editStudents": "Edit students",
@@ -2327,7 +2335,19 @@
     "scheduleSummaryOpenOnly": "Opens {{open}}",
     "scheduleSummaryCloseOnly": "Closes {{close}}",
     "skippedToast_one": "{{count}} student could not be targeted and was skipped.",
-    "skippedToast_other": "{{count}} students could not be targeted and were skipped."
+    "skippedToast_other": "{{count}} students could not be targeted and were skipped.",
+    "skippedExclusionToast_one": "{{count}} student you skipped still sees this assignment.",
+    "skippedExclusionToast_other": "{{count}} students you skipped still see this assignment.",
+    "skipStudentNamed": "Skip {{name}}",
+    "summarySkipped": "{{count}} skipped",
+    "summaryModified": "{{count}} modified",
+    "noSignInCount": "{{count}} students in these classes have no school sign-in and cannot be individually modified.",
+    "noSignInStudents": "No one in the checked classes has a school sign-in, so there is nobody to modify individually.",
+    "timingNotApplied": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply.",
+    "clearModifications": "Clear all modifications",
+    "noLinkedClass": "This assignment is not linked to a class you can modify here.",
+    "timingNotAppliedConfirm": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply. Click Assign again to continue.",
+    "pacingBlocked": "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications."
   },
   "assignmentsHub": {
     "title": "Assignments",
@@ -2391,7 +2411,9 @@
       "stopSharingPlc": "Stop sharing",
       "sharePlcDone": "Results now pool with {{plc}}.",
       "stopSharingPlcDone": "No longer sharing results with {{plc}}.",
-      "plcActionFailed": "Could not update PLC sharing. Try again."
+      "plcActionFailed": "Could not update PLC sharing. Try again.",
+      "skippedStatus": "Skipped",
+      "classNotResolved": "This assignment is not linked to a class you can modify here, so only the schedule can be changed."
     }
   },
   "quizResults": {
@@ -2922,5 +2944,9 @@
       "subjectsTaught": "Content areas taught",
       "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
     }
+  },
+  "studentAssignment": {
+    "excludedTitle": "This assignment is not for you",
+    "excludedBody": "Your teacher did not assign this to you. Check with them if you think this is a mistake."
   }
 }

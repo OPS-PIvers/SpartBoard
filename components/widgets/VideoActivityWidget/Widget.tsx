@@ -11,6 +11,8 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import {
   buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
+  payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
@@ -595,6 +597,11 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             rosterIds.includes(r.id)
           );
           const derived = deriveSessionTargetsFromRosters(selectedRosters);
+          // Snapshot the checked classes now; later roster edits never reshape it.
+          const expandedTargeting = expandClassTargeting(targeting, {
+            rosters,
+            selectedRosterIds: rosterIds,
+          });
           const sessionId = await createSession(
             data,
             user.uid,
@@ -657,16 +664,20 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             // never writes them; `setAssignmentTargetsV1` is the sole writer
             // (M17 §5 B3 canonical rules), avoiding a doc that claims
             // students-targeting the CF never actually persisted.
-            ...(targeting.targetGroupIds.length > 0
-              ? { targetGroupIds: targeting.targetGroupIds }
+            ...(expandedTargeting.targetGroupIds.length > 0
+              ? { targetGroupIds: expandedTargeting.targetGroupIds }
               : {}),
-            ...(Object.keys(targeting.overridesByKey).length > 0
-              ? { overridesBySourcedId: targeting.overridesByKey }
+            ...(Object.keys(expandedTargeting.overridesByKey).length > 0
+              ? { overridesBySourcedId: expandedTargeting.overridesByKey }
               : {}),
-            ...(targeting.dueAt != null ? { dueAt: targeting.dueAt } : {}),
-            ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
-            ...(targeting.closeAt != null
-              ? { closeAt: targeting.closeAt }
+            ...(expandedTargeting.dueAt != null
+              ? { dueAt: expandedTargeting.dueAt }
+              : {}),
+            ...(expandedTargeting.openAt != null
+              ? { openAt: expandedTargeting.openAt }
+              : {}),
+            ...(expandedTargeting.closeAt != null
+              ? { closeAt: expandedTargeting.closeAt }
               : {}),
           };
           await setDoc(
@@ -678,11 +689,11 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // (§3a-G) — a class-wide assignment, even with a Schedule window,
           // never depends on this callable, so a Cloud Functions hiccup can't
           // regress today's plain assign.
-          if (targeting.targetMode === 'students') {
-            const targetsPayload = buildSetAssignmentTargetsPayload(
-              undefined,
-              targeting
-            );
+          const targetsPayload = buildSetAssignmentTargetsPayload(
+            undefined,
+            expandedTargeting
+          );
+          if (payloadRequiresCall(targetsPayload)) {
             const runSetAssignmentTargets = async (): Promise<void> => {
               const setAssignmentTargets = httpsCallable(
                 functions,
@@ -696,6 +707,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               });
               const data2 = result.data as {
                 skipped?: { ref: unknown; reason: string }[];
+                skippedExclusions?: { ref: unknown; reason: string }[];
               };
               const skippedCount = data2.skipped?.length ?? 0;
               // Durable, PII-free marker for list rows — the toast below is
@@ -713,7 +725,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 { merge: true }
               );
               if (skippedCount > 0) {
-                addToast(skippedTargetsToastMessage(skippedCount), 'info');
+                addToast(
+                  skippedTargetsToastMessage(
+                    skippedCount,
+                    data2.skippedExclusions?.length ?? 0
+                  ),
+                  'info'
+                );
               }
             };
             try {
