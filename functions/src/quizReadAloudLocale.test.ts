@@ -465,7 +465,12 @@ describe('prepareQuizReadAloud — translation locale scope', () => {
               writes += 1;
               if (writes === 2)
                 return Promise.reject(new Error('document too large'));
-              return ref.set(data, opts);
+              return (
+                ref.set as unknown as (
+                  d: Doc,
+                  o?: { merge?: boolean }
+                ) => Promise<unknown>
+              )(data, opts);
             },
           };
         },
