@@ -66,6 +66,7 @@ import {
   validateQuizTranslation,
   tokenizeFibStem,
   restoreFibStem,
+  buildTranslationPrompt,
   type QuestionTranslation,
   type TranslatableQuestion,
   type TranslationDeps,
@@ -942,6 +943,35 @@ describe('FIB blank tokens', () => {
         q5: { text: 'La capital de Francia es [[1]] y está en el [[2]].' },
       })
     ).toMatch(/accepted answer is required/);
+  });
+
+  it('does not require an answer when the English FIB has none', () => {
+    expect(
+      validateQuizTranslation(
+        [{ ...fibQuestion(), correctAnswer: '  ' }],
+        ['q5'],
+        {
+          q5: { text: 'La capital de Francia es [[1]] y está en el [[2]].' },
+        }
+      )
+    ).toBeNull();
+  });
+
+  it('omits answer from the prompt payload when the English answer is blank', () => {
+    const lines = buildTranslationPrompt(
+      'Quiz',
+      [{ ...fibQuestion(), correctAnswer: '' }],
+      ['q5']
+    ).split('\n');
+    const payload = JSON.parse(lines[lines.length - 1]) as {
+      answer?: string;
+    }[];
+    expect(payload[0].answer).toBeUndefined();
+    const withAnswer = buildTranslationPrompt('Quiz', [fibQuestion()], ['q5'])
+      .split('\n')
+      .pop() as string;
+    const parsed = JSON.parse(withAnswer) as { answer?: string }[];
+    expect(parsed[0].answer).toBe('Paris');
   });
 
   it('translates the answer and restores the blanks end to end', async () => {

@@ -562,7 +562,11 @@ export function validateQuizTranslation(
       const expected = tokenizeFibStem(q.text ?? '');
       if (sortedTokens(t.text) !== sortedTokens(expected.text))
         return `Question ${id}: the translated stem must keep exactly the ${expected.blanks.length} blank token(s) from the English stem.`;
-      if (typeof t.answer !== 'string' || t.answer.trim() === '')
+      // An English FIB with no answer key has nothing to translate.
+      if (
+        (q.correctAnswer ?? '').trim() !== '' &&
+        (typeof t.answer !== 'string' || t.answer.trim() === '')
+      )
         return `Question ${id}: a translated accepted answer is required.`;
     }
 
@@ -665,7 +669,9 @@ export function buildTranslationPrompt(
       text: isFillInTheBlank(q.type)
         ? tokenizeFibStem(q.text ?? '').text
         : (q.text ?? ''),
-      ...(isFillInTheBlank(q.type) ? { answer: q.correctAnswer ?? '' } : {}),
+      ...(isFillInTheBlank(q.type) && (q.correctAnswer ?? '').trim() !== ''
+        ? { answer: q.correctAnswer }
+        : {}),
       ...(isMultipleChoice(q.type) ? { choices: filteredChoices(q) } : {}),
       ...(isMatching(q.type)
         ? {

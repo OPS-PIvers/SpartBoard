@@ -2103,6 +2103,10 @@
       },
       "error": {
         "unloadedLocale": "La traducción guardada de este idioma aún no se ha cargado. Selecciónalo de nuevo y luego genera."
+      },
+      "fib": {
+        "missingAnswer": "Añade la respuesta aceptada traducida antes de marcarla como revisada.",
+        "blankCount": "El texto traducido debe tener el mismo número de espacios (____) que la pregunta en inglés."
       }
     },
     "authoring": {

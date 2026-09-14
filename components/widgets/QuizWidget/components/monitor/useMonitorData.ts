@@ -8,6 +8,7 @@ import {
   ClassRoster,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useLtiSessionNames } from '@/hooks/useLtiSessionNames';
 import {
@@ -82,7 +83,9 @@ export function useMonitorData(
   responses: QuizResponse[],
   quizData: QuizData,
   config: QuizConfig,
-  rosters: ClassRoster[]
+  rosters: ClassRoster[],
+  /** Translated FIB answer keys + served-locale overrides from the assignment. */
+  fibGrading?: FibGradingContext | null
 ): MonitorData {
   const { orgId } = useAuth();
 
@@ -170,7 +173,7 @@ export function useMonitorData(
         const scoreable =
           r.status === 'completed' && canScoreResponse(r, quizData.questions);
         const bandScore = scoreable
-          ? getResponseScore(r, quizData.questions)
+          ? getResponseScore(r, quizData.questions, undefined, fibGrading)
           : null;
         const flags =
           r.status === 'in-progress' ? studentFlags(r, now) : NO_FLAGS;
@@ -180,7 +183,7 @@ export function useMonitorData(
           name: resolveResponseDisplayName(r, pinToName, byStudentUid),
           bandScore,
           displayScore: scoreable
-            ? getDisplayScore(r, quizData.questions, scoringConfig)
+            ? getDisplayScore(r, quizData.questions, scoringConfig, fibGrading)
             : null,
           awaitingGrade:
             scoreable && isResponseAwaitingGrade(r, quizData.questions),
@@ -204,6 +207,7 @@ export function useMonitorData(
       duplicateIds,
       now,
       session.totalQuestions,
+      fibGrading,
     ]
   );
 

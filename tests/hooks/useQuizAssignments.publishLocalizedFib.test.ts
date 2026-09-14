@@ -148,7 +148,12 @@ describe('useQuizAssignments — publish grades localized FIB answers', () => {
     };
   };
 
-  const snapshot = { localizedFibAnswers: { q0: { es: ['París'] } } };
+  // The teacher-side override is what names the served locale; the response's
+  // own `locale` field is client-asserted and must never widen grading.
+  const snapshot = {
+    localizedFibAnswers: { q0: { es: ['París'], so: ['Baariis'] } },
+    overridesByStudentUid: { 'student-1': { language: 'es' } },
+  };
 
   it('scores a translated answer correct against the snapshot', async () => {
     const patch = await publish(snapshot, 'parís');
@@ -169,5 +174,26 @@ describe('useQuizAssignments — publish grades localized FIB answers', () => {
   it('leaves older assignments without the snapshot unchanged', async () => {
     const patch = await publish({}, 'parís');
     expect(patch.score).toBe(0);
+  });
+
+  it('rejects a locale the teacher never served this student', async () => {
+    const patch = await publish(snapshot, 'Baariis');
+    expect(patch.score).toBe(0);
+  });
+
+  it('rejects a translation when no override names a served locale', async () => {
+    const patch = await publish(
+      { localizedFibAnswers: snapshot.localizedFibAnswers },
+      'parís'
+    );
+    expect(patch.score).toBe(0);
+  });
+
+  it('still accepts English when no override names a served locale', async () => {
+    const patch = await publish(
+      { localizedFibAnswers: snapshot.localizedFibAnswers },
+      'Paris'
+    );
+    expect(patch.score).toBe(100);
   });
 });

@@ -14,8 +14,8 @@ import {
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import {
-  fibAcceptedAnswers,
-  type LocalizedFibAnswers,
+  fibAnswersForResponse,
+  type FibGradingContext,
 } from '@/utils/quizFibAnswers';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
@@ -56,8 +56,8 @@ export function getEarnedPoints(
   r: QuizResponse,
   questions: QuizQuestion[],
   session?: QuizScoringSession,
-  /** Translated FIB answer keys from the assignment doc; absent = English only. */
-  localizedFibAnswers?: LocalizedFibAnswers | null
+  /** Translated FIB answer keys + the overrides that name each student's served locale. */
+  fibGrading?: FibGradingContext | null
 ): number {
   const speedEnabled = session?.speedBonusEnabled ?? false;
   const streakEnabled = session?.streakBonusEnabled ?? false;
@@ -100,7 +100,7 @@ export function getEarnedPoints(
         q,
         ans.answer,
         manualGrade,
-        fibAcceptedAnswers(localizedFibAnswers, q.id)
+        fibAnswersForResponse(fibGrading, r, q.id)
       )
     );
 
@@ -164,7 +164,7 @@ export function getResponseScore(
   r: QuizResponse,
   questions: QuizQuestion[],
   session?: QuizScoringSession,
-  localizedFibAnswers?: LocalizedFibAnswers | null
+  fibGrading?: FibGradingContext | null
 ): number {
   // Deduplicate by question id before summing maxPoints so a Drive-sync
   // duplicate doesn't inflate the denominator while earned stays correct.
@@ -177,8 +177,7 @@ export function getResponseScore(
   }, 0);
   if (maxPoints === 0) return 0;
   return Math.round(
-    (getEarnedPoints(r, questions, session, localizedFibAnswers) / maxPoints) *
-      100
+    (getEarnedPoints(r, questions, session, fibGrading) / maxPoints) * 100
   );
 }
 
@@ -191,12 +190,12 @@ export function getDisplayScore(
   r: QuizResponse,
   questions: QuizQuestion[],
   session?: QuizScoringSession,
-  localizedFibAnswers?: LocalizedFibAnswers | null
+  fibGrading?: FibGradingContext | null
 ): number {
   if (isGamificationActive(session)) {
-    return getEarnedPoints(r, questions, session, localizedFibAnswers);
+    return getEarnedPoints(r, questions, session, fibGrading);
   }
-  return getResponseScore(r, questions, session, localizedFibAnswers);
+  return getResponseScore(r, questions, session, fibGrading);
 }
 
 /**
@@ -502,7 +501,8 @@ export function buildScoreboardTeams(
   mode: 'pin' | 'name',
   pinToName: Record<string, string>,
   session?: QuizSession | null,
-  byStudentUid?: Map<string, StudentName>
+  byStudentUid?: Map<string, StudentName>,
+  fibGrading?: FibGradingContext | null
 ): ScoreboardTeam[] {
   return (
     completedResponses
@@ -512,7 +512,7 @@ export function buildScoreboardTeams(
       .filter((r) => canScoreResponse(r, questions))
       .map((r) => ({
         response: r,
-        score: getDisplayScore(r, questions, session),
+        score: getDisplayScore(r, questions, session, fibGrading),
       }))
       .sort((a, b) => b.score - a.score)
       .map(({ response, score }) => {
@@ -547,7 +547,8 @@ export function buildLiveLeaderboard(
   questions: QuizQuestion[],
   session: QuizScoringSession,
   pinToName: Record<string, string>,
-  byStudentUid?: Map<string, StudentName>
+  byStudentUid?: Map<string, StudentName>,
+  fibGrading?: FibGradingContext | null
 ): QuizLeaderboardEntry[] {
   return (
     responses
@@ -562,7 +563,7 @@ export function buildLiveLeaderboard(
         ...(response.pin ? { pin: response.pin } : {}),
         studentUid: response.studentUid,
         name: resolveResponseDisplayName(response, pinToName, byStudentUid),
-        score: getDisplayScore(response, questions, session),
+        score: getDisplayScore(response, questions, session, fibGrading),
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)

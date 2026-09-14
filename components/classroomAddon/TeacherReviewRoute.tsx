@@ -38,6 +38,7 @@ import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import {
   useQuizSessionTeacher,
   getResponseDocKey,
@@ -148,7 +149,9 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     updateAccountPreferences,
   } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
-  const { publishAssignmentScores } = useQuizAssignments(user?.uid);
+  const { assignments, publishAssignmentScores } = useQuizAssignments(
+    user?.uid
+  );
 
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -158,6 +161,18 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // so an effect is the right tool here).
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [resolvingSession, setResolvingSession] = useState(true);
+  // Served-locale-scoped FIB answer keys; empty until the assignment doc loads.
+  const fibGrading = useMemo<FibGradingContext>(() => {
+    const assignment = sessionId
+      ? (assignments ?? []).find((a) => a.id === sessionId)
+      : undefined;
+    return {
+      answers: assignment?.localizedFibAnswers ?? null,
+      overridesByStudentUid: assignment?.overridesByStudentUid ?? null,
+      overridesBySourcedId: assignment?.overridesBySourcedId ?? null,
+    };
+  }, [assignments, sessionId]);
+
   // A leftover studentRole custom-token session in the partitioned iframe has a
   // uid but is not the teacher — only a Google session may resolve the session.
   const teacherReady = isGoogleSession(user);
@@ -424,7 +439,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
         buildQuizClassroomGradeEntries(
           responses,
           questions,
-          attachment.maxPoints
+          attachment.maxPoints,
+          fibGrading
         ),
       logTag: 'ClassroomAddonTeacherReview.pushGrades',
       logContext: { sessionId },
@@ -467,6 +483,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       },
     });
   }, [
+    fibGrading,
     session,
     quizData,
     questions,
@@ -483,7 +500,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     const grades = buildQuizClassroomGradeEntries(
       responses.filter((r) => r.status === 'completed'),
       questions,
-      maxPoints
+      maxPoints,
+      fibGrading
     );
     if (grades.length === 0) {
       setStatusMsg('No completed responses to push yet.');
@@ -519,7 +537,14 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     } finally {
       setBusy(false);
     }
-  }, [session?.ltiAttachment, sessionId, quizData, questions, responses]);
+  }, [
+    session?.ltiAttachment,
+    sessionId,
+    quizData,
+    questions,
+    responses,
+    fibGrading,
+  ]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -632,7 +657,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                                 getDisplayScore(
                                   r,
                                   questions,
-                                  session ?? undefined
+                                  session ?? undefined,
+                                  fibGrading
                                 )
                               )}${scoreSuffix}`
                             : '—'}

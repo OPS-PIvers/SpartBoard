@@ -27,6 +27,7 @@ import {
   QUIZ_TRANSLATION_FEATURE,
   isTranslatableQuestionType,
 } from '@/config/quizTranslation';
+import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
 import { hashQuestionForTranslation } from '@/utils/quizTranslationHash';
@@ -365,9 +366,29 @@ export function useQuizTranslations(
     [commit, enqueueSave]
   );
 
+  // A FIB stem whose blank runs no longer match English would render a
+  // question the student cannot answer; refuse the save rather than persist it.
+  const fibBlankMismatch = useCallback(
+    (locale: string): boolean => {
+      const payload = byLocaleRef.current[locale];
+      if (!payload) return false;
+      return questions.some(
+        (q) =>
+          q.type === 'FIB' &&
+          !!payload.questions[q.id] &&
+          fibTranslationIssue(q, payload.questions[q.id]) === 'blankCount'
+      );
+    },
+    [questions]
+  );
+
   const save = useCallback(
     async (locale: string) => {
       if (!byLocaleRef.current[locale]) return;
+      if (fibBlankMismatch(locale)) {
+        setError('quizTranslation.editor.fib.blankCount');
+        return;
+      }
       setLoading((l) => ({ ...l, [locale]: true }));
       setError(null);
       try {
@@ -378,13 +399,17 @@ export function useQuizTranslations(
         setLoading((l) => ({ ...l, [locale]: false }));
       }
     },
-    [enqueueSave]
+    [enqueueSave, fibBlankMismatch]
   );
 
   const saveAll = useCallback(async () => {
     const locales = Object.keys(dirty).filter((locale) => dirty[locale]);
+    if (locales.some(fibBlankMismatch)) {
+      setError('quizTranslation.editor.fib.blankCount');
+      return;
+    }
     await Promise.all(locales.map((locale) => enqueueSave(locale)));
-  }, [dirty, enqueueSave]);
+  }, [dirty, enqueueSave, fibBlankMismatch]);
 
   const hasUnsavedChanges = Object.values(dirty).some(Boolean);
 

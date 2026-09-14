@@ -26,6 +26,7 @@ function normalizeQuestion(raw: unknown): QuestionTranslation {
   const orderingItems = strArray(r.orderingItems);
   return {
     text: str(r.text),
+    ...(typeof r.answer === 'string' ? { answer: r.answer } : {}),
     ...(choices ? { choices } : {}),
     ...(matchingLeft ? { matchingLeft } : {}),
     ...(matchingRight ? { matchingRight } : {}),

@@ -5,7 +5,10 @@ import type { QuizQuestion, QuizTranslation } from '@/types';
 import {
   collectLocalizedFibAnswers,
   fibAcceptedAnswers,
+  fibAnswersForResponse,
+  servedLocaleForResponse,
 } from './quizFibAnswers';
+import { normalizeQuizTranslation } from './quizTranslationNormalize';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 
 const fib = (): QuizQuestion =>
@@ -73,15 +76,81 @@ describe('collectLocalizedFibAnswers', () => {
 });
 
 describe('fibAcceptedAnswers', () => {
-  it('flattens every locale and drops blanks', () => {
+  const map = { q1: { es: ['París'], so: ['Baariis', ' '] } };
+
+  it('returns only the served locale, never every locale', () => {
+    expect(fibAcceptedAnswers(map, 'q1', 'es')).toEqual(['París']);
+    expect(fibAcceptedAnswers(map, 'q1', 'so')).toEqual(['Baariis']);
+  });
+
+  it('returns [] when no served locale is known', () => {
+    expect(fibAcceptedAnswers(map, 'q1', undefined)).toEqual([]);
+  });
+
+  it('returns [] for an absent map, question or locale', () => {
+    expect(fibAcceptedAnswers(undefined, 'q1', 'es')).toEqual([]);
+    expect(fibAcceptedAnswers({}, 'q1', 'es')).toEqual([]);
+    expect(fibAcceptedAnswers(map, 'q1', 'fr')).toEqual([]);
+  });
+});
+
+describe('servedLocaleForResponse / fibAnswersForResponse', () => {
+  const answers = { q1: { es: ['París'], so: ['Baariis'] } };
+  const response = { studentUid: 'uid-1', locale: 'so' } as never;
+
+  it('takes the locale from the teacher-side uid override', () => {
     expect(
-      fibAcceptedAnswers({ q1: { es: ['París'], so: ['', ' '] } }, 'q1')
+      servedLocaleForResponse(response, {
+        overridesByStudentUid: { 'uid-1': { language: 'es' } },
+      })
+    ).toBe('es');
+  });
+
+  it('ignores the client-asserted response locale', () => {
+    expect(
+      fibAnswersForResponse(
+        { answers, overridesByStudentUid: { 'uid-1': { language: 'es' } } },
+        response,
+        'q1'
+      )
     ).toEqual(['París']);
   });
 
-  it('returns [] for an absent map or question', () => {
-    expect(fibAcceptedAnswers(undefined, 'q1')).toEqual([]);
-    expect(fibAcceptedAnswers({}, 'q1')).toEqual([]);
+  it('accepts English only when no override names a locale', () => {
+    expect(fibAnswersForResponse({ answers }, response, 'q1')).toEqual([]);
+  });
+
+  it('falls back to the sourcedId override', () => {
+    expect(
+      fibAnswersForResponse(
+        { answers, overridesBySourcedId: { 's-1': { language: 'so' } } },
+        { studentUid: '', sourcedId: 's-1' } as never,
+        'q1'
+      )
+    ).toEqual(['Baariis']);
+  });
+});
+
+describe('collectLocalizedFibAnswers on normalizer output', () => {
+  it('keeps the answer a round-tripped sidecar carries', () => {
+    const roundTripped = normalizeQuizTranslation(
+      JSON.parse(JSON.stringify(sidecar()))
+    );
+    expect(roundTripped.questions.q1.answer).toBe('París');
+    expect(
+      collectLocalizedFibAnswers([fib()], { es: roundTripped }, fresh)
+    ).toEqual({ q1: { es: ['París'] } });
+  });
+
+  it('drops a locale whose translated stem lost a blank', () => {
+    const broken = sidecar({
+      questions: {
+        q1: { text: 'La capital de Francia es París.', answer: 'París' },
+      },
+    });
+    expect(collectLocalizedFibAnswers([fib()], { es: broken }, fresh)).toEqual(
+      {}
+    );
   });
 });
 
