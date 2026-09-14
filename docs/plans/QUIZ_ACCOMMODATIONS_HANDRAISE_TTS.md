@@ -49,3 +49,23 @@ Applies to every surface using `AssignTargetingSection` (Quiz, VA, GL, Mini-app,
 ## Open
 
 - Whether excluded-student count should appear on the assignment card (PII-free count already exists for skipped students).
+
+## Status (2026-09-14)
+
+All four PRs merged to dev-paul via the mass-plan-implementation run, each after three internal adversarial review/fix rounds: #3047 (PR 1), #3045 (PR 3), #3048 (PR 4), #3046 (PR 2). Integration review of the merged whole produced one follow-up, #3049. Not yet released to main. Not yet browser-verified.
+
+Design changes made during the run:
+
+- A skip keeps `targetMode: 'class'`. The Cloud Function writes the student's pointer doc with `excluded: true` and keeps their override on it (suppression, not deletion); the class channel and every student app entry path hide the work from that flag. Flipping to individual targeting was rejected: it dropped non-SSO roster students and hit the 250-ref cap. Only exclusions the CF actually resolved are persisted.
+- Hub edits treat stored targeting as a frozen snapshot (`useRosterDefaults: false`); roster defaults never apply retroactively. Class context is passed only when every roster resolves.
+- Add-on resolves its roster from `classroom_course_links`; LTI from `roster.ltiContextId`. No roster, no modifications panel.
+- Raise-hand gate lives in `feature_permissions/quiz.config.buildingDefaults`, resolved across the union of org-membership `buildingIds` and `selectedBuildings`, most restrictive wins; empty set is teacher-choice. View-only shares never enable it. Session creation waits (bounded 5 s) for profile, permissions and membership.
+- Translated FIB answer keys are snapshotted on the teacher-owned `quiz_assignments` doc as `localizedFibAnswers`; grading accepts English plus only the locale served to that student, resolved teacher-side, and refreshes on PLC sync. The sidecar normalizer carries `answer`. A FIB row with a blank translated answer cannot be reviewed and falls back to English.
+- TTS prepare scopes translation locales to students who hold read-aloud (or all voiced locales under `readAloudAll`). Stimulus passages keep English audio on localized views. A locale mismatch returns `failed-precondition` and the client retries in English. Locale slices persist their failures and get their own deadline; the manifest is counted in the session-doc byte budget.
+
+Follow-ups:
+
+- Browser verification of all four flows on the dev-paul preview (assign with a skip, hub edit, Spanish read-aloud on a translated quiz, FIB translation review + grading, admin modal + raise hand).
+- Release notes must flag raise hand default OFF for every existing quiz.
+- Check TTS cost after the first Spanish class uses read-aloud.
+- Excluded-student count on assignment cards (still open).
