@@ -42,6 +42,19 @@ describe('Weather settings schema', () => {
     ).toBe(true);
   });
 
+  it('lets secondary text color inherit the font color while unset', () => {
+    const secondary = schema.groups
+      .flatMap((group) => group.fields)
+      .find((field) => field.key === 'secondaryColor');
+    if (secondary?.type !== 'accentColor') {
+      throw new Error('secondaryColor must be an accent color field');
+    }
+    expect(
+      secondary.fallback?.({ ...context, config: { fontColor: '#ad2122' } })
+    ).toBe('#ad2122');
+    expect(secondary.fallback?.({ ...context, config: {} })).toBe('#334155');
+  });
+
   it('writes the manual location label atomically with temperature', () => {
     const temperature = schema.groups[0]?.fields.find(
       (field) => field.key === 'temp'

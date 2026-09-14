@@ -32,7 +32,12 @@ export const AccentColor: React.FC<FieldProps<AccentColorField<string>>> = ({
           hideLabel
           label={label}
           value={current}
-          fallback={DEFAULT_FALLBACK}
+          fallback={field.fallback?.(ctx) ?? DEFAULT_FALLBACK}
+          fallbackLabel={
+            field.fallbackLabel
+              ? resolveLabel(ctx.t, ctx.widget.type, field.fallbackLabel)
+              : undefined
+          }
           onChange={(color) => onChange(color)}
         />
       </fieldset>

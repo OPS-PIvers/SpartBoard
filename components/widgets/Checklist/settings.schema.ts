@@ -71,7 +71,7 @@ export default defineSettings<ChecklistConfig>({
           key: 'completedNames',
           type: 'custom',
           label: 'importTasks',
-          searchTerms: ['importRoutine', 'importText'],
+          searchTerms: ['pasteTasks', 'importRoutine', 'importText'],
           render: renderImports,
         },
       ],

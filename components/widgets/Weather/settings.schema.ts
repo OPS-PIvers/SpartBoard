@@ -103,8 +103,15 @@ export default defineSettings<WeatherConfig>({
       fields: [
         {
           key: 'secondaryColor',
-          type: 'color',
+          type: 'accentColor',
           label: 'secondaryColor',
+          // Marks the key as inherit-when-unset so validateSchema skips the missing-default warning.
+          readValue: (ctx) => ctx.config.secondaryColor,
+          fallback: (ctx) =>
+            typeof ctx.config.fontColor === 'string'
+              ? ctx.config.fontColor
+              : '#334155',
+          fallbackLabel: 'matchText',
         },
         {
           key: 'cardColor',

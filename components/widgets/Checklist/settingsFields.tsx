@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import type {
@@ -11,6 +11,29 @@ export const ChecklistImportActionsField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
   const { activeDashboard, addToast } = useDashboard();
+  const [pasted, setPasted] = useState('');
+  const pasteId = useId();
+  const pastedLines = pasted
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const addPastedTasks = () => {
+    if (pastedLines.length === 0) return;
+    const existing = (ctx.config.items as ChecklistItem[] | undefined) ?? [];
+    ctx.updateConfig({
+      items: [
+        ...existing,
+        ...pastedLines.map((text) => ({
+          id: crypto.randomUUID(),
+          text,
+          completed: false,
+        })),
+      ],
+      mode: 'manual',
+    });
+    setPasted('');
+  };
 
   const writeItems = (items: ChecklistItem[], successMessage: string) => {
     ctx.updateConfig({ items, mode: 'manual' });
@@ -79,22 +102,48 @@ export const ChecklistImportActionsField: React.FC<{
       role="group"
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
-      className="grid grid-cols-2 gap-2"
+      className="flex flex-col gap-2"
     >
+      <label
+        htmlFor={pasteId}
+        className="text-xxs font-semibold text-slate-600"
+      >
+        {ctx.t('widgetSettings.checklist.pasteTasks')}
+      </label>
+      <textarea
+        id={pasteId}
+        value={pasted}
+        onChange={(e) => setPasted(e.target.value)}
+        placeholder={ctx.t('widgetSettings.checklist.pasteTasksPlaceholder')}
+        rows={4}
+        className="w-full text-xs border border-slate-200 bg-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
       <button
         type="button"
-        onClick={importRoutine}
-        className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+        onClick={addPastedTasks}
+        disabled={pastedLines.length === 0}
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {ctx.t('widgetSettings.checklist.importRoutine')}
+        {ctx.t('widgetSettings.checklist.addPastedTasks', {
+          count: pastedLines.length,
+        })}
       </button>
-      <button
-        type="button"
-        onClick={importText}
-        className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-      >
-        {ctx.t('widgetSettings.checklist.importText')}
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={importRoutine}
+          className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+        >
+          {ctx.t('widgetSettings.checklist.importRoutine')}
+        </button>
+        <button
+          type="button"
+          onClick={importText}
+          className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+        >
+          {ctx.t('widgetSettings.checklist.importText')}
+        </button>
+      </div>
     </div>
   );
 };
