@@ -520,11 +520,14 @@ const HAND_RAISE_GATE_TIMEOUT_MS = 5000;
 
 /** True while a signed-in teacher's profile or feature permissions are still loading. */
 function isHandRaiseGatePending(
-  ctx: {
-    user?: unknown;
-    profileLoaded?: boolean;
-    featurePermissionsLoaded?: boolean;
-  } | null
+  ctx:
+    | {
+        user?: unknown;
+        profileLoaded?: boolean;
+        featurePermissionsLoaded?: boolean;
+      }
+    | null
+    | undefined
 ): boolean {
   if (!ctx?.user) return false;
   return ctx.profileLoaded === false || ctx.featurePermissionsLoaded === false;
