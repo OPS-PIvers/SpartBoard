@@ -157,12 +157,14 @@ function makeDocs(session: Doc = {}): Record<string, Doc> {
 
 function makeDeps(docs: Record<string, Doc>) {
   const files = new Map<string, { timings?: unknown }>();
-  const synthesize = vi.fn(({ ssml }: { ssml: string }) => {
-    const marks = [...ssml.matchAll(/<mark name="([^"]+)"\/>/g)].map(
-      (m, i) => ({ markName: m[1], timeSeconds: i * 1.5 })
-    );
-    return Promise.resolve({ audio: Buffer.from('mp3'), timepoints: marks });
-  });
+  const synthesize = vi.fn(
+    ({ ssml }: Parameters<ReadAloudDeps['synthesize']>[0]) => {
+      const marks = [...ssml.matchAll(/<mark name="([^"]+)"\/>/g)].map(
+        (m, i) => ({ markName: m[1], timeSeconds: i * 1.5 })
+      );
+      return Promise.resolve({ audio: Buffer.from('mp3'), timepoints: marks });
+    }
+  );
   const deps: ReadAloudDeps = {
     db: makeDb(docs),
     statFile: (path) => Promise.resolve(files.has(path) ? {} : null),
