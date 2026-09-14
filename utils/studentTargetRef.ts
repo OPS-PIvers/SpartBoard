@@ -15,7 +15,7 @@ export interface AssignTargetingValue {
   targetGroupIds: string[];
   overridesByKey: Record<string, StudentOverride>;
   /** Students the teacher skipped for this assignment; they get no pointer doc. */
-  excludedStudents: StudentTargetRef[];
+  excludedStudents?: StudentTargetRef[];
   openAt?: number;
   closeAt?: number;
   dueAt?: number;
