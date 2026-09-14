@@ -1,12 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { useWidgetHostRef } from './WidgetHostContext';
 
-// Closes a portalled, fixed-position menu when the host widget's own geometry
-// changes (Alt+M maximize/restore, Alt+R reset size, a live resize-drag) —
-// none of those fire a window 'resize' event. The host is read from
-// WidgetHostContext first (works even when this menu is itself rendered
-// inside another portal, e.g. a library Modal opened from a widget), falling
-// back to `.closest('[data-draggable-window]')` for menus with no provider.
+// Closes a portalled menu on host geometry changes (Alt+M/Alt+R/resize-drag, none fire 'resize'); WidgetHostContext first, `.closest()` fallback for providerless menus.
 export function useCloseOnHostResize(
   open: boolean,
   anchorRef: RefObject<HTMLElement | null>,

@@ -1,9 +1,6 @@
 import { createContext, useContext, type RefObject } from 'react';
 
-// Ref to the enclosing DraggableWindow's `[data-draggable-window]` host element.
-// DOM `.closest()` can't reach it from content rendered inside a portal (Modal,
-// SettingsPanel both portal to document.body), so it's threaded via context —
-// React context crosses portal boundaries even though the DOM tree doesn't.
+// Threaded via context (not DOM `.closest()`) so it still resolves for content rendered inside a portal, e.g. Modal/SettingsPanel.
 export const WidgetHostContext =
   createContext<RefObject<HTMLElement | null> | null>(null);
 
