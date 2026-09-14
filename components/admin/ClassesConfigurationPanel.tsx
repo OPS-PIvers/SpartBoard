@@ -2,6 +2,10 @@ import React from 'react';
 import { ClassesGlobalConfig, BuildingClassesDefaults } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { Toggle } from '@/components/common/Toggle';
 
@@ -15,17 +19,23 @@ export const ClassesConfigurationPanel: React.FC<
 > = ({ config, onChange }) => {
   const BUILDINGS = useAdminBuildings();
   const [activeTab, setActiveTab] = useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(activeTab);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
-  const activeConfig: BuildingClassesDefaults = buildingDefaults[activeTab] || {
-    buildingId: activeTab,
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
+  const activeConfig: BuildingClassesDefaults = buildingDefaults[
+    canonicalId
+  ] || {
+    buildingId: canonicalId,
     classLinkEnabled: true,
   };
 
   const handleUpdate = (updates: Partial<BuildingClassesDefaults>) => {
     const newBuildingDefaults = {
       ...buildingDefaults,
-      [activeTab]: {
+      [canonicalId]: {
         ...activeConfig,
         ...updates,
       },
