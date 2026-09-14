@@ -48,6 +48,7 @@ import { PdfLibraryModal } from '@/components/admin/PdfLibraryModal';
 import { VideoActivityConfigurationModal } from '@/components/admin/VideoActivityConfigurationModal';
 import { WorkSymbolsConfigurationModal } from '@/components/admin/WorkSymbolsConfigurationModal';
 import { BloomsTaxonomyConfigurationModal } from '@/components/admin/BloomsTaxonomyConfigurationModal';
+import { QuizConfigurationModal } from '@/components/admin/QuizConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -968,6 +969,15 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
+      {activeModalTool?.type === 'quiz' && (
+        <QuizConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+          permission={getPermission('quiz')}
+          onSave={(updates) => updatePermission('quiz', updates)}
+        />
+      )}
+
       {activeModalTool &&
         ![
           'blooms-taxonomy',
@@ -978,6 +988,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'miniApp',
           'music',
           'pdf',
+          'quiz',
           'specialist-schedule',
           'starter-pack',
           'stickers',

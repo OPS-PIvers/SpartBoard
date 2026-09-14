@@ -48,13 +48,17 @@ const FlagsPanel: React.FC<{
   );
 
   const inProgress = byBucket.inProgress;
+  const handRaiseOn = session.handRaiseEnabled === true;
   const hands = useMemo(
-    () => inProgress.filter((s) => s.hand != null),
-    [inProgress]
+    () => (handRaiseOn ? inProgress.filter((s) => s.hand != null) : []),
+    [inProgress, handRaiseOn]
   );
   const idle = useMemo(
-    () => inProgress.filter((s) => s.hand == null && s.idle != null),
-    [inProgress]
+    () =>
+      inProgress.filter(
+        (s) => (!handRaiseOn || s.hand == null) && s.idle != null
+      ),
+    [inProgress, handRaiseOn]
   );
 
   const handleClear = async (key: string) => {

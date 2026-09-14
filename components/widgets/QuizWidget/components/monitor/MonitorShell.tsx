@@ -590,7 +590,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             />
             <StatusBuckets
               counts={data.counts}
-              handCount={data.handCount}
+              handCount={session.handRaiseEnabled === true ? data.handCount : 0}
               idleCount={data.idleCount}
               openBucket={openBucket}
               onToggle={(key) =>

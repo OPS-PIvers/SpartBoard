@@ -2922,5 +2922,34 @@
       "subjectsTaught": "Content areas taught",
       "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
     }
+  },
+  "quizHandRaise": {
+    "label": "Allow students to raise a hand",
+    "help": "Students get a Raise hand button while taking the quiz."
+  },
+  "quizAdmin": {
+    "title": "Quiz Administration",
+    "subtitle": "Raise hand & languages",
+    "close": "Close",
+    "tabs": {
+      "behavior": "Behavior",
+      "languages": "Languages"
+    },
+    "selectBuilding": "Select building to configure",
+    "building": "Building",
+    "save": "Save Configuration",
+    "cancel": "Cancel",
+    "saved": "Quiz configuration saved.",
+    "saveFailed": "Failed to save quiz configuration.",
+    "handRaise": {
+      "heading": "Raise hand",
+      "help": "Controls whether students see a Raise hand button while taking a quiz in this building.",
+      "teacherChoice": "Teacher's choice",
+      "teacherChoiceHint": "Each teacher decides per quiz. Off unless they turn it on.",
+      "forceOn": "Always on",
+      "forceOnHint": "Raise hand is available in every quiz and teachers cannot turn it off.",
+      "forceOff": "Always off",
+      "forceOffHint": "Raise hand is hidden from students in every quiz."
+    }
   }
 }

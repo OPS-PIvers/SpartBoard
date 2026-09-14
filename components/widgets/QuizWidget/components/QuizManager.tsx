@@ -134,6 +134,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
+import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
@@ -794,6 +795,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   const { rubrics: assignRubrics } = useRubrics(userId);
   const { canAccessFeature } = useAuth();
+  const handRaiseMode = useQuizHandRaiseMode();
   const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
   // §10 assign advisory: coverage comes from the in-memory index; Generate reuses the editor hook.
   const assignTranslations = useQuizTranslations(assignQuizData, assignTarget);
@@ -2180,6 +2182,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                       setTargetingPacingError(null);
                       setAssignBehavior(next);
                     }}
+                    handRaiseMode={handRaiseMode}
                   />
                   {assignHasRecordingQuestions &&
                     assignBehavior.sessionMode !== 'student' && (

@@ -96,6 +96,10 @@ import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
+import {
+  readQuizHandRaiseMode,
+  resolveQuizHandRaiseEnabled,
+} from '@/utils/quizHandRaise';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
@@ -543,6 +547,8 @@ function sessionOptionsToSessionPatch(
   if (o.shuffleAnswerOptions !== undefined)
     patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
+  if (o.handRaiseEnabled !== undefined)
+    patch.handRaiseEnabled = o.handRaiseEnabled;
   return patch;
 }
 
@@ -748,6 +754,11 @@ export const useQuizAssignments = (
   }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
+  // Admin raise-hand gate for this teacher's building; resolved onto the session doc at assign time.
+  const handRaiseMode = readQuizHandRaiseMode(
+    authContext?.featurePermissions,
+    authContext?.selectedBuildings?.[0]
+  );
 
   // Ungated teachers publish the question without its recording block, so the
   // student app has nothing to mount even if it wanted to.
@@ -1029,6 +1040,9 @@ export const useQuizAssignments = (
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
         // Read-aloud snapshot (docs/plans/QUIZ_READ_ALOUD.md §3); omitted when off.
         ...(opts.readAloudAll ? { readAloudAll: true } : {}),
+        ...(resolveQuizHandRaiseEnabled(handRaiseMode, opts.handRaiseEnabled)
+          ? { handRaiseEnabled: true }
+          : {}),
         ...(quiz.language ? { language: quiz.language } : {}),
         ...(Object.keys(translations.titleByLocale).length > 0
           ? { quizTitleLocalized: { ...translations.titleByLocale } }
@@ -1172,7 +1186,7 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId, projectPublicQuestionForMode, translationLoader]
+    [userId, projectPublicQuestionForMode, translationLoader, handRaiseMode]
   );
 
   const setStatus = useCallback(

@@ -2580,6 +2580,28 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(session).not.toHaveProperty('language');
   });
 
+  it('writes handRaiseEnabled only when the teacher opted in', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: { handRaiseEnabled: true },
+      });
+    });
+    expect(findSessionSet()).toMatchObject({ handRaiseEnabled: true });
+  });
+
+  it('omits handRaiseEnabled when the teacher left it off', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet()).not.toHaveProperty('handRaiseEnabled');
+  });
+
   it('mints the session with blockCopyPaste:true when the option is set', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {

@@ -2552,5 +2552,34 @@
       "subjectsTaught": "Domaines enseignés",
       "subjectsTaughtDescription": "Facultatif. Choisissez vos domaines pour ouvrir le sélecteur de standards directement dessus. Laissez vide pour voir tous les domaines."
     }
+  },
+  "quizHandRaise": {
+    "label": "Autoriser les élèves à lever la main",
+    "help": "Les élèves disposent d’un bouton pour lever la main pendant le quiz."
+  },
+  "quizAdmin": {
+    "title": "Administration des quiz",
+    "subtitle": "Lever la main et langues",
+    "close": "Fermer",
+    "tabs": {
+      "behavior": "Comportement",
+      "languages": "Langues"
+    },
+    "selectBuilding": "Sélectionner l’établissement à configurer",
+    "building": "Établissement",
+    "save": "Enregistrer la configuration",
+    "cancel": "Annuler",
+    "saved": "Configuration du quiz enregistrée.",
+    "saveFailed": "Échec de l’enregistrement de la configuration du quiz.",
+    "handRaise": {
+      "heading": "Lever la main",
+      "help": "Détermine si les élèves de cet établissement voient un bouton pour lever la main pendant un quiz.",
+      "teacherChoice": "Choix de l’enseignant",
+      "teacherChoiceHint": "Chaque enseignant décide pour chaque quiz. Désactivé par défaut.",
+      "forceOn": "Toujours activé",
+      "forceOnHint": "Lever la main est disponible dans tous les quiz et les enseignants ne peuvent pas le désactiver.",
+      "forceOff": "Toujours désactivé",
+      "forceOffHint": "Lever la main est masqué pour les élèves dans tous les quiz."
+    }
   }
 }

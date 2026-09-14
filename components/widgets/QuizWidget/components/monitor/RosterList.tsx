@@ -215,7 +215,9 @@ export const RosterList: React.FC<RosterListProps> = ({
   // Board view (default): per-student hand/idle flags stay off the projected face; counts live in StatusBuckets.
   const showFlags =
     bucket === 'inProgress' && !(config.monitorBoardView ?? true);
-  const hands = showFlags ? students.filter((s) => s.hand != null) : [];
+  const handRaiseOn = session.handRaiseEnabled === true;
+  const hands =
+    showFlags && handRaiseOn ? students.filter((s) => s.hand != null) : [];
   const handKeys = new Set(hands.map((s) => s.key));
   const rest = students
     .filter((s) => !handKeys.has(s.key))
