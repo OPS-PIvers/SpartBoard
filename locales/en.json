@@ -1452,7 +1452,11 @@
       "routineImported": "Imported steps from the routine.",
       "noTextWidget": "No Text widget was found.",
       "emptyTextWidget": "The Text widgets have no usable text.",
-      "textImported": "Imported tasks from the Text widget."
+      "textImported": "Imported tasks from the Text widget.",
+      "pasteTasks": "Paste tasks (one per line)",
+      "pasteTasksPlaceholder": "Warm-up\nRead chapter 3\nExit ticket",
+      "addPastedTasks_one": "Add {{count}} task",
+      "addPastedTasks_other": "Add {{count}} tasks"
     },
     "weather": {
       "weatherMode": "Weather mode",
@@ -1479,6 +1483,7 @@
       "syncBackground": "Match the board background to weather",
       "syncBackgroundHelp": "Update the dashboard background when conditions change.",
       "secondaryColor": "Secondary text color",
+      "matchText": "Match text",
       "clothingCard": "Clothing card"
     },
     "expectations": {

@@ -236,7 +236,6 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       syncBackground: false,
       fontFamily: 'global',
       fontColor: '#334155',
-      secondaryColor: '#334155',
       cardColor: '#ffffff',
       cardOpacity: 1,
     },

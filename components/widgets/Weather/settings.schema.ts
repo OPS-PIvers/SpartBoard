@@ -103,8 +103,14 @@ export default defineSettings<WeatherConfig>({
       fields: [
         {
           key: 'secondaryColor',
-          type: 'color',
+          type: 'accentColor',
           label: 'secondaryColor',
+          readValue: (ctx) => ctx.config.secondaryColor,
+          fallback: (ctx) =>
+            typeof ctx.config.fontColor === 'string'
+              ? ctx.config.fontColor
+              : '#334155',
+          fallbackLabel: 'matchText',
         },
         {
           key: 'cardColor',

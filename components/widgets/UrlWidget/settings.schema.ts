@@ -6,14 +6,9 @@ import {
   URL_COLORS,
   URL_ICONS,
 } from './icons';
+import { normalizeUrl } from './url';
 
 type LinkRow = UrlWidgetConfig['urls'][number];
-
-const normalizeUrl = (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed === '' || /^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-};
 
 export default defineSettings<UrlWidgetConfig>({
   groups: [

@@ -111,6 +111,10 @@ export type TextSizePresetField<K extends string> = FieldBase<K> & {
 
 export type AccentColorField<K extends string> = FieldBase<K> & {
   type: 'accentColor';
+  /** Color shown while unset; derive it from config to inherit a sibling color live. */
+  fallback?: (ctx: FieldCtx) => string;
+  /** Leaf key for the clear-to-fallback swatch label. */
+  fallbackLabel?: string;
 };
 
 export type SurfaceColorField<K extends string> = FieldBase<K> & {
