@@ -1,2 +1,2 @@
 export { DiceWidget } from './Widget';
-export { DiceSettings } from './Settings';
+export { DiceSettings } from './SchemaControls';

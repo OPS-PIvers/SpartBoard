@@ -1,2 +1,2 @@
 export { SoundWidget } from './Widget';
-export { SoundSettings, SoundAppearanceSettings } from './Settings';
+export { SoundSettings, SoundAppearanceSettings } from './SchemaControls';

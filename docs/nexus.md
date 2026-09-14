@@ -67,7 +67,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Automatically changes the traffic light color based on classroom noise level so students can self-correct.
 - **Pattern**: Auto-Trigger
-- **Code**: `components/widgets/SoundWidget/Widget.tsx:143-176`, `components/widgets/SoundWidget/Settings.tsx:86-150` — config fields `autoTrafficLight` and `trafficLightThreshold` map noise levels to traffic light colors.
+- **Code**: `components/widgets/SoundWidget/Widget.tsx:143-176`, `components/widgets/SoundWidget/SchemaControls.tsx:86-150` — config fields `autoTrafficLight` and `trafficLightThreshold` map noise levels to traffic light colors.
 
 ### Live Sync Connections
 
@@ -97,7 +97,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Automatically adjusts noise meter sensitivity based on the current Expectations voice level.
 - **Pattern**: Live Sync
-- **Code**: `components/widgets/SoundWidget/Widget.tsx:46-82`, `components/widgets/SoundWidget/Settings.tsx:28-64` — config field `syncExpectations` reads Expectations widget's `voiceLevel` (0–4) and maps to sensitivity (5.0–0.5).
+- **Code**: `components/widgets/SoundWidget/Widget.tsx:46-82`, `components/widgets/SoundWidget/SchemaControls.tsx:28-64` — config field `syncExpectations` reads Expectations widget's `voiceLevel` (0–4) and maps to sensitivity (5.0–0.5).
 
 #### Weather → Recess Gear
 

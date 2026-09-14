@@ -1,2 +1,2 @@
 export { SoundboardWidget } from './Widget';
-export { SoundboardSettings } from './Settings';
+export { SoundboardSettings } from './SchemaControls';

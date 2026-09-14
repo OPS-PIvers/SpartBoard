@@ -1,2 +1,2 @@
 export { WebcamWidget } from './Widget';
-export { WebcamSettings } from './Settings';
+export { WebcamSettings } from './SchemaControls';

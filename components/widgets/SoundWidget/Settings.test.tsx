@@ -3,7 +3,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SoundSettings } from './Settings';
+import { SoundSettings } from './SchemaControls';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData } from '@/types';
 

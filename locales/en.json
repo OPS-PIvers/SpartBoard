@@ -1196,6 +1196,22 @@
     }
   },
   "widgetSettings": {
+    "soundboard": {
+      "soundSettings": "Soundboard settings"
+    },
+    "dice": {
+      "diceSettings": "Dice settings"
+    },
+    "sound": {
+      "soundSettings": "Sound meter settings",
+      "appearance": "Sound meter appearance"
+    },
+    "webcam": {
+      "cameraSettings": "Camera settings"
+    },
+    "drawing": {
+      "drawingSettings": "Drawing settings"
+    },
     "clock": {
       "format24": "24H Format",
       "showSeconds": "Show Seconds",

@@ -1,7 +1,7 @@
 /**
  * Regression (#2423 review): SurfaceColorSettings composes its aria-labels by
  * appending the word "color" to the `label` prop. Callers are inconsistent
- * about whether `label` already names a color — DiceWidget/Settings.tsx passes
+ * about whether `label` already names a color — DiceWidget/SchemaControls.tsx passes
  * "Die Color" and "Pip Color", while others pass "Surface" (the default) or
  * "Card surface". The Dice groups therefore announced:
  *

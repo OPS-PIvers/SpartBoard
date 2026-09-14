@@ -267,6 +267,13 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
 export const WIDGET_SETTINGS_SCHEMAS: Partial<
   Record<WidgetType, () => Promise<WidgetSettingsSchema>>
 > = {
+  soundboard: () =>
+    import('./SoundboardWidget/settings.schema').then((m) => m.default),
+  dice: () => import('./DiceWidget/settings.schema').then((m) => m.default),
+  sound: () => import('./SoundWidget/settings.schema').then((m) => m.default),
+  webcam: () => import('./Webcam/settings.schema').then((m) => m.default),
+  drawing: () =>
+    import('./DrawingWidget/settings.schema').then((m) => m.default),
   text: () => import('./TextWidget/settings.schema').then((m) => m.default),
   embed: () => import('./Embed/settings.schema').then((m) => m.default),
   lunchCount: () =>
