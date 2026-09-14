@@ -982,6 +982,7 @@ describe('useQuizSessionStudent — lookupSession', () => {
     expect(out).toEqual({
       periodNames: ['Period 1', 'Period 2'],
       classIds: [],
+      sessionId: 'newer',
     });
   });
 
@@ -1005,6 +1006,7 @@ describe('useQuizSessionStudent — lookupSession', () => {
     expect(out).toEqual({
       periodNames: ['Hour 1'],
       classIds: ['F33EC569', 'FB8737C8'],
+      sessionId: 'classlink',
     });
   });
 });
