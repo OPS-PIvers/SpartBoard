@@ -591,7 +591,7 @@ describe('QuizStudentApp — localized FIB feedback', () => {
 
   beforeEach(() => {
     hookState.session = buildSession({
-      sessionMode: 'live',
+      sessionMode: 'teacher',
       publicQuestions: [FIB],
       totalQuestions: 1,
       showResultToStudent: true,
