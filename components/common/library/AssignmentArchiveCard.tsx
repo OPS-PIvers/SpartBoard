@@ -28,6 +28,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
+import { useCloseOnHostResize } from '../useCloseOnHostResize';
 import type {
   AssignmentArchiveCardProps,
   LibraryBadgeTone,
@@ -136,24 +137,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
     };
   }, [open]);
 
-  // Close on the host widget's own geometry changes (Alt+M/Alt+R don't fire a window 'resize' event); skip ResizeObserver's own always-fires-once-on-observe() initial callback.
-  useEffect(() => {
-    if (!open) return;
-    const host = wrapperRef.current?.closest<HTMLElement>(
-      '[data-draggable-window]'
-    );
-    if (!host || typeof ResizeObserver === 'undefined') return;
-    let skippedInitial = false;
-    const observer = new ResizeObserver(() => {
-      if (!skippedInitial) {
-        skippedInitial = true;
-        return;
-      }
-      setOpen(false);
-    });
-    observer.observe(host);
-    return () => observer.disconnect();
-  }, [open]);
+  useCloseOnHostResize(open, wrapperRef, () => setOpen(false));
 
   if (actions.length === 0) return null;
 
