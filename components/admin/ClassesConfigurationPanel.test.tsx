@@ -4,10 +4,7 @@ import { ClassesConfigurationPanel } from './ClassesConfigurationPanel';
 import { ClassesGlobalConfig } from '@/types';
 import type { Building } from '@/config/buildings';
 
-// The panel reads its building list from useAdminBuildings(), which for a
-// real org can hand back a legacy long-form building doc id (e.g.
-// `schumann-elementary`) when that org's building record predates the
-// short-id migration — see config/buildings.ts's BUILDING_ID_ALIASES.
+// useAdminBuildings() can return a legacy long-form id — see config/buildings.ts's BUILDING_ID_ALIASES.
 const mockUseAdminBuildings = vi.fn<() => Building[]>();
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => mockUseAdminBuildings(),
@@ -21,8 +18,7 @@ describe('ClassesConfigurationPanel', () => {
   });
 
   it('finds a buildingDefaults entry keyed by the canonical id when the org building record resolves to a legacy raw id', () => {
-    // Saved config is canonically keyed ('schumann'), but this org's
-    // building doc still resolves to the legacy long-form id.
+    // Saved config is keyed canonically ('schumann') but the building doc still resolves to the legacy long-form id.
     mockUseAdminBuildings.mockReturnValue([
       {
         id: 'schumann-elementary',
@@ -45,8 +41,7 @@ describe('ClassesConfigurationPanel', () => {
       <ClassesConfigurationPanel config={config} onChange={mockOnChange} />
     );
 
-    // If the lookup missed (raw-id bug), the toggle would fall back to the
-    // default (true/checked) instead of the saved 'off' value.
+    // If the lookup missed (raw-id bug), the toggle would fall back to the default (checked) instead of the saved 'off' value.
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
   });
 
