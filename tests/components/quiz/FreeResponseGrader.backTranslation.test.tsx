@@ -133,7 +133,7 @@ describe('FreeResponseGrader — back-translation', () => {
     ).toBeNull();
     noLocale.unmount();
 
-    // FIB is never translated (plan D21) and never enters the grading queue.
+    // FIB is auto-graded, so it never enters the back-translation grading queue.
     render(
       <FreeResponseGrader
         quiz={quizWith('FIB')}

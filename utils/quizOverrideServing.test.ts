@@ -153,13 +153,13 @@ describe('serveLocalizedQuestion', () => {
     expect(serveLocalizedQuestion(question, 'es')).toEqual(entry);
   });
 
-  it('never serves a FIB stem (D21)', () => {
+  it('serves a FIB stem now that FIB is translatable (PR4)', () => {
     expect(
       serveLocalizedQuestion(
         { ...q('a'), type: 'FIB', localized } as QuizPublicQuestion,
         'es'
       )
-    ).toBeNull();
+    ).toEqual(localized.es);
   });
 
   it('falls back to English when the locale entry is missing the choices', () => {

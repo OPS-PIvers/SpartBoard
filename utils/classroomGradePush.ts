@@ -19,6 +19,7 @@
  */
 
 import { httpsCallable, type Functions } from 'firebase/functions';
+import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import {
   getEarnedPoints,
   canScoreResponse,
@@ -76,7 +77,9 @@ export interface ClassroomGradeEntry {
 export function buildQuizClassroomGradeEntries(
   responses: QuizResponse[],
   questions: QuizQuestion[],
-  maxPoints: number
+  maxPoints: number,
+  /** Translated FIB answer keys + served-locale overrides from the assignment. */
+  fibGrading?: FibGradingContext | null
 ): ClassroomGradeEntry[] {
   // Deduplicate by question id before summing — Drive-sync duplication and
   // arrayUnion races can write the same question id twice into `questions`.
@@ -109,7 +112,7 @@ export function buildQuizClassroomGradeEntries(
     .map((r) => {
       // No session arg → correctness points only (no speed/streak bonus); see
       // the function doc for why the gradebook grade excludes gamification.
-      const rawPoints = getEarnedPoints(r, questions);
+      const rawPoints = getEarnedPoints(r, questions, undefined, fibGrading);
       const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
       const currentTotal = denominatorFor(r);
       const scaled = currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;

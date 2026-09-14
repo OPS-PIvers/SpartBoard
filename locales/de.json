@@ -2095,6 +2095,7 @@
       "pickLanguage": "Sprache wählen",
       "generate": "Übersetzung erstellen",
       "reviewed": "Geprüft",
+      "answerKey": "Akzeptierte Antwort",
       "stale": "Veraltet",
       "regenerate_one": "{{count}} veraltete Frage neu übersetzen",
       "regenerate_other": "{{count}} veraltete Fragen neu übersetzen",
@@ -2124,6 +2125,10 @@
       },
       "error": {
         "unloadedLocale": "Die gespeicherte Übersetzung dieser Sprache ist noch nicht geladen. Sprache erneut auswählen und dann generieren."
+      },
+      "fib": {
+        "missingAnswer": "Ergänzen Sie die übersetzte akzeptierte Antwort, bevor Sie dies als geprüft markieren.",
+        "blankCount": "Der übersetzte Text muss genauso viele Lücken (____) enthalten wie die englische Frage."
       }
     },
     "authoring": {

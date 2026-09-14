@@ -8,7 +8,7 @@ import type {
 import { isTranslatableQuestionType } from '@/config/quizTranslation';
 import { hashQuestionForTranslation } from './quizTranslationHash';
 
-/** D21: FIB is never translated, so every index count lives in this subset. */
+/** Index counts live over the translatable subset (all types since PR4). */
 export function translatableQuestions(
   questions: QuizQuestion[]
 ): QuizQuestion[] {

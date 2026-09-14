@@ -42,6 +42,10 @@ import {
   playPodiumFanfare,
   playQuizCompleteCelebration,
 } from '@/utils/quizAudio';
+import type {
+  FibGradingContext,
+  LocalizedFibAnswers,
+} from '@/utils/quizFibAnswers';
 import {
   buildLiveLeaderboard,
   getDisplayScore,
@@ -88,6 +92,10 @@ export interface QuizLiveMonitorProps {
    *  (teacher's own assignment doc), keyed by `StudentTargetRef` key — used
    *  by `RosterList` to resolve each row's effective tab-warning threshold. */
   overridesBySourcedId?: Record<string, StudentOverride> | null;
+  /** Translated FIB answer keys snapshotted on the assignment doc (PR4). */
+  localizedFibAnswers?: LocalizedFibAnswers | null;
+  /** Per-student overrides keyed by pseudonym uid; names each student's served locale. */
+  overridesByStudentUid?: Record<string, StudentOverride> | null;
 }
 
 type Screen =
@@ -127,11 +135,28 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onBack,
     hideLiveScoreboard = false,
     overridesBySourcedId = null,
+    localizedFibAnswers = null,
+    overridesByStudentUid = null,
   } = props;
+  const fibGrading = useMemo<FibGradingContext>(
+    () => ({
+      answers: localizedFibAnswers,
+      overridesByStudentUid,
+      overridesBySourcedId,
+    }),
+    [localizedFibAnswers, overridesByStudentUid, overridesBySourcedId]
+  );
 
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
-  const data = useMonitorData(session, responses, quizData, config, rosters);
+  const data = useMonitorData(
+    session,
+    responses,
+    quizData,
+    config,
+    rosters,
+    fibGrading
+  );
 
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
@@ -187,7 +212,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         quizData.questions,
         scoringConfig,
         data.pinToName,
-        data.byStudentUid
+        data.byStudentUid,
+        fibGrading
       );
       const fingerprint = JSON.stringify(entries);
       if (fingerprint === fingerprintRef.current) return;
@@ -356,10 +382,12 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               streakBonusEnabled: session.streakBonusEnabled,
             },
             data.pinToName,
-            data.byStudentUid
+            data.byStudentUid,
+            fibGrading
           )
         : [],
     [
+      fibGrading,
       presenting,
       responses,
       quizData.questions,
@@ -632,6 +660,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             question={quizData.questions[screen.index]}
             index={screen.index}
             responses={responses}
+            fibGrading={fibGrading}
           />
         )}
         {screen.name === 'code' && <JoinCodeScreen session={session} />}
@@ -833,7 +862,12 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             .map((s) => ({
               key: s.key,
               name: s.name,
-              score: getDisplayScore(s.response, quizData.questions, session),
+              score: getDisplayScore(
+                s.response,
+                quizData.questions,
+                session,
+                fibGrading
+              ),
             }))
             .sort((a, b) => b.score - a.score)
             .slice(0, 3)

@@ -19,6 +19,8 @@ vi.mock('firebase-functions/logger', () => ({
 
 import {
   parseCompletedResponse,
+  parseLocalizedFibAnswers,
+  parseServedLanguages,
   recomputeOnePlcAssessment,
   runRecomputePlcAssessments,
   teacherNamesFromPlc,
@@ -449,5 +451,30 @@ describe('runRecomputePlcAssessments', () => {
     expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(
       NOW - 50_000
     );
+  });
+});
+
+describe('assignment-doc FIB translation inputs', () => {
+  it('keeps only non-empty string answers per locale', () => {
+    expect(
+      parseLocalizedFibAnswers({
+        q1: { es: ['cuatro', '', 7], fr: [], de: 'nope' },
+        q2: 'nope',
+        q3: { es: ['  '] },
+      })
+    ).toEqual({ q1: { es: ['cuatro'] } });
+    expect(parseLocalizedFibAnswers(null)).toBeUndefined();
+    expect(parseLocalizedFibAnswers({ q1: { es: [] } })).toBeUndefined();
+  });
+
+  it('reduces student overrides to the served language', () => {
+    expect(
+      parseServedLanguages({
+        'stu-1': { language: 'es', timeMultiplier: 1.5 },
+        'stu-2': { timeMultiplier: 2 },
+        'stu-3': null,
+      })
+    ).toEqual({ 'stu-1': { language: 'es' } });
+    expect(parseServedLanguages(undefined)).toBeUndefined();
   });
 });

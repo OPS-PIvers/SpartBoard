@@ -1126,6 +1126,75 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(patch.quizTitleLocalized).toEqual({ es: 'Titulo' });
   });
 
+  it('re-derives localizedFibAnswers on the assignment doc', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    const question = {
+      id: 'q1',
+      text: 'The capital of France is ____.',
+      type: 'FIB' as const,
+      correctAnswer: 'Paris',
+      incorrectAnswers: [],
+      timeLimit: 30,
+    };
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'Updated Title',
+      questions: [question],
+      version: 5,
+      translations: {
+        es: {
+          locale: 'es',
+          title: 'Titulo',
+          questions: {
+            q1: { text: 'La capital de Francia es ____.', answer: 'Paris' },
+          },
+          sourceHashes: { q1: await hashQuestionForTranslation(question) },
+          reviewedQuestionIds: ['q1'],
+          model: 'm',
+          generatedAt: 1,
+          updatedAt: 2,
+        },
+      },
+    });
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          id: ASSIGNMENT_ID,
+          teacherUid: TEACHER_UID,
+          sync: { groupId: 'group-1', syncedVersion: 1 },
+        }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          publicQuestions: [
+            {
+              id: 'q1',
+              type: 'FIB',
+              text: 'The capital of France is ____.',
+              timeLimit: 30,
+              localized: { es: { text: 'La capital de Francia es ____.' } },
+            },
+          ],
+        }),
+      });
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && !ref.startsWith('quiz_sessions/')
+    );
+    const patch = assignmentCall?.[1] as {
+      localizedFibAnswers?: Record<string, Record<string, string[]>>;
+    };
+    expect(patch.localizedFibAnswers).toEqual({ q1: { es: ['Paris'] } });
+  });
+
   it('reshuffles only the question whose English choices changed', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');

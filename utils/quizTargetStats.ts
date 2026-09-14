@@ -8,8 +8,10 @@ import {
   parentTagFromBenchmarkTag,
   type MasteryCutoffs,
 } from '@/utils/learningTargets';
+import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import {
   computeQuestionStats,
+  makeQuestionGradeFn,
   type QuestionStat,
 } from '@/utils/quizQuestionStats';
 
@@ -248,10 +250,13 @@ function buildGroupStats(
 export function computeTargetStats(
   questions: QuizQuestion[],
   responses: QuizResponse[],
-  cutoffs: MasteryCutoffs
+  cutoffs: MasteryCutoffs,
+  /** Translated FIB answer keys + served-locale overrides from the assignment. */
+  fibGrading?: FibGradingContext | null
 ): QuizTargetStats {
   const groups = collectGroups(questions);
-  const questionStats = computeQuestionStats(questions, responses);
+  const gradeFn = makeQuestionGradeFn(fibGrading);
+  const questionStats = computeQuestionStats(questions, responses, gradeFn);
   const servedByQuestion = countServedByQuestion(questions, responses);
   const targets = buildGroupStats(
     groups.targets,
@@ -271,7 +276,11 @@ export function computeTargetStats(
   // Untagged quiz: the grid never renders, so skip the per-response rescan.
   const byStudent = new Map<string, Map<string, StudentTargetStat>>();
   for (const response of groups.targets.size > 0 ? responses : []) {
-    const responseQuestionStats = computeQuestionStats(questions, [response]);
+    const responseQuestionStats = computeQuestionStats(
+      questions,
+      [response],
+      gradeFn
+    );
     const responseServed = countServedByQuestion(questions, [response]);
     const studentTargets = new Map<string, StudentTargetStat>();
     for (const group of groups.targets.values()) {

@@ -2465,6 +2465,7 @@
       "pickLanguage": "Pick a language",
       "generate": "Generate translation",
       "reviewed": "Reviewed",
+      "answerKey": "Accepted answer",
       "stale": "Stale",
       "regenerate_one": "Regenerate {{count}} stale question",
       "regenerate_other": "Regenerate {{count}} stale questions",
@@ -2494,6 +2495,10 @@
       },
       "error": {
         "unloadedLocale": "This language's saved translation hasn't loaded yet. Select it again, then generate."
+      },
+      "fib": {
+        "missingAnswer": "Add the translated accepted answer before marking this reviewed.",
+        "blankCount": "The translated text must use the same number of blanks (____) as the English question."
       }
     },
     "authoring": {

@@ -73,6 +73,8 @@ export interface TranslatableQuestion extends HashableQuestion {
 
 export interface QuestionTranslation {
   text: string;
+  /** FIB only: the translated accepted answer, snapshotted onto the assignment for grading. */
+  answer?: string;
   choices?: string[];
   matchingLeft?: string[];
   matchingRight?: string[];
@@ -454,6 +456,39 @@ export function parseMatchingPairs(
 export const orderingItems = (q: TranslatableQuestion): string[] =>
   (q.correctAnswer ?? '').split('|').filter(Boolean);
 
+/** A run of two or more underscores is how a FIB stem writes a blank. */
+const FIB_BLANK_RE = /_{2,}/g;
+const FIB_TOKEN_RE = /\[\[\d+\]\]/g;
+
+export const isFillInTheBlank = (type: string) => type === 'FIB';
+
+/** Replace each blank with `[[n]]` so the model cannot reflow or drop it. */
+export function tokenizeFibStem(text: string): {
+  text: string;
+  blanks: string[];
+} {
+  const blanks: string[] = [];
+  const tokenized = text.replace(FIB_BLANK_RE, (match) => {
+    blanks.push(match);
+    return `[[${blanks.length}]]`;
+  });
+  return { text: tokenized, blanks };
+}
+
+export const fibTokens = (text: string): string[] =>
+  text.match(FIB_TOKEN_RE) ?? [];
+
+/** Put the original underscore runs back; an unknown token is left as-is. */
+export function restoreFibStem(text: string, blanks: string[]): string {
+  return text.replace(FIB_TOKEN_RE, (token) => {
+    const index = Number(token.slice(2, -2));
+    return blanks[index - 1] ?? token;
+  });
+}
+
+/** Sorted token multiset, so order changes in the target language are allowed. */
+const sortedTokens = (text: string): string => fibTokens(text).sort().join(',');
+
 const normalizeAnswer = (s: string): string =>
   s.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -523,6 +558,18 @@ export function validateQuizTranslation(
         return `Question ${id}: ordering strings may not contain "|" or ":".`;
     }
 
+    if (isFillInTheBlank(q.type)) {
+      const expected = tokenizeFibStem(q.text ?? '');
+      if (sortedTokens(t.text) !== sortedTokens(expected.text))
+        return `Question ${id}: the translated stem must keep exactly the ${expected.blanks.length} blank token(s) from the English stem.`;
+      // An English FIB with no answer key has nothing to translate.
+      if (
+        (q.correctAnswer ?? '').trim() !== '' &&
+        (typeof t.answer !== 'string' || t.answer.trim() === '')
+      )
+        return `Question ${id}: a translated accepted answer is required.`;
+    }
+
     if (isFreeResponse(q.type) && q.rubricSnapshot) {
       const src = q.rubricSnapshot.criteria ?? [];
       const out = t.rubricSnapshot?.criteria ?? [];
@@ -556,6 +603,7 @@ export function buildQuizTranslationResponseSchema(): Schema {
           properties: {
             id: { type: Type.STRING },
             text: { type: Type.STRING },
+            answer: { type: Type.STRING },
             choices: stringArray,
             matchingLeft: stringArray,
             matchingRight: stringArray,
@@ -595,6 +643,8 @@ export function buildSystemInstruction(
     'Keep every array the same length and the same order as the input array it mirrors.',
     'Multiple-choice options must remain mutually distinct after translation.',
     'Never introduce the characters "|" or ":" into matching or ordering strings.',
+    'Fill-in-the-blank stems contain blank tokens like [[1]]. Reproduce every token verbatim, exactly once, adding none and dropping none; place each where the blank belongs in the target language.',
+    'For a fill-in-the-blank question also translate "answer" — the accepted answer a student types.',
     'Return JSON only, with one entry per requested question id and no extras.',
   ].join(' ');
 }
@@ -604,13 +654,24 @@ export function buildTranslationPrompt(
   source: TranslatableQuestion[],
   requestedIds: string[]
 ): string {
-  const context = source.map((q) => ({ id: q.id, type: q.type, text: q.text }));
+  const context = source.map((q) => ({
+    id: q.id,
+    type: q.type,
+    text: isFillInTheBlank(q.type)
+      ? tokenizeFibStem(q.text ?? '').text
+      : q.text,
+  }));
   const payload = source
     .filter((q) => requestedIds.includes(q.id))
     .map((q) => ({
       id: q.id,
       type: q.type,
-      text: q.text ?? '',
+      text: isFillInTheBlank(q.type)
+        ? tokenizeFibStem(q.text ?? '').text
+        : (q.text ?? ''),
+      ...(isFillInTheBlank(q.type) && (q.correctAnswer ?? '').trim() !== ''
+        ? { answer: q.correctAnswer }
+        : {}),
       ...(isMultipleChoice(q.type) ? { choices: filteredChoices(q) } : {}),
       ...(isMatching(q.type)
         ? {
@@ -659,6 +720,11 @@ function pickForType(
     return {
       text,
       ...(q.orderingItems ? { orderingItems: q.orderingItems } : {}),
+    };
+  if (isFillInTheBlank(type))
+    return {
+      text,
+      ...(typeof q.answer === 'string' ? { answer: q.answer } : {}),
     };
   if (isFreeResponse(type))
     return {
@@ -863,6 +929,16 @@ export async function translateQuiz(
       'invalid-argument',
       complaint ?? 'The translation did not match the quiz structure.'
     );
+
+  // Blanks come back as tokens; put the underscore runs back before the sidecar sees them.
+  for (const [id, entry] of Object.entries(shaped.questions)) {
+    const q = byId.get(id);
+    if (!q || !isFillInTheBlank(q.type)) continue;
+    entry.text = restoreFibStem(
+      entry.text,
+      tokenizeFibStem(q.text ?? '').blanks
+    );
+  }
 
   const sourceHashes: Record<string, string> = {};
   for (const id of requestedIds) {

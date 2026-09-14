@@ -2095,6 +2095,7 @@
       "pickLanguage": "Choisir une langue",
       "generate": "Générer la traduction",
       "reviewed": "Vérifiée",
+      "answerKey": "Réponse acceptée",
       "stale": "Obsolète",
       "regenerate_one": "Regénérer {{count}} question obsolète",
       "regenerate_other": "Regénérer {{count}} questions obsolètes",
@@ -2124,6 +2125,10 @@
       },
       "error": {
         "unloadedLocale": "La traduction enregistrée de cette langue n'est pas encore chargée. Sélectionne-la de nouveau, puis génère."
+      },
+      "fib": {
+        "missingAnswer": "Ajoutez la réponse acceptée traduite avant de marquer cette question comme relue.",
+        "blankCount": "Le texte traduit doit comporter le même nombre de blancs (____) que la question en anglais."
       }
     },
     "authoring": {

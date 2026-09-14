@@ -1,5 +1,5 @@
 // The Languages tab offers only the admin-curated languages, and its served
-// counter is stated over the translatable subset (D21 + plan §5).
+// counter is stated over the translatable subset (plan §5).
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';

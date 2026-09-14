@@ -103,6 +103,48 @@ export function teacherNamesFromPlc(
   return names;
 }
 
+/** `{ [questionId]: { [locale]: string[] } }` from the teacher-owned assignment doc. */
+export function parseLocalizedFibAnswers(
+  raw: unknown
+): Record<string, Record<string, string[]>> | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const out: Record<string, Record<string, string[]>> = {};
+  for (const [questionId, byLocale] of Object.entries(
+    raw as Record<string, unknown>
+  )) {
+    if (typeof byLocale !== 'object' || byLocale === null) continue;
+    const locales: Record<string, string[]> = {};
+    for (const [locale, answers] of Object.entries(
+      byLocale as Record<string, unknown>
+    )) {
+      if (!Array.isArray(answers)) continue;
+      const kept = answers.filter(
+        (a): a is string => typeof a === 'string' && a.trim() !== ''
+      );
+      if (kept.length > 0) locales[locale] = kept;
+    }
+    if (Object.keys(locales).length > 0) out[questionId] = locales;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Only the served `language` off each student override; the rest is irrelevant here. */
+export function parseServedLanguages(
+  raw: unknown
+): Record<string, { language?: string }> | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const out: Record<string, { language?: string }> = {};
+  for (const [uid, override] of Object.entries(
+    raw as Record<string, unknown>
+  )) {
+    if (typeof override !== 'object' || override === null) continue;
+    const language = (override as Record<string, unknown>).language;
+    if (typeof language === 'string' && language.length > 0)
+      out[uid] = { language };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 async function clearDirtyIfUnchanged(
   db: Firestore,
   ref: admin.firestore.DocumentReference,
@@ -188,6 +230,12 @@ export async function recomputeOnePlcAssessment(
       ),
       scorePublishedAt:
         typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
+      localizedFibAnswers: parseLocalizedFibAnswers(
+        assignmentData?.localizedFibAnswers
+      ),
+      overridesByStudentUid: parseServedLanguages(
+        assignmentData?.overridesByStudentUid
+      ),
     });
   }
 
