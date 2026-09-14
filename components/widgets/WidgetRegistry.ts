@@ -267,6 +267,13 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
 export const WIDGET_SETTINGS_SCHEMAS: Partial<
   Record<WidgetType, () => Promise<WidgetSettingsSchema>>
 > = {
+  soundboard: () =>
+    import('./SoundboardWidget/settings.schema').then((m) => m.default),
+  dice: () => import('./DiceWidget/settings.schema').then((m) => m.default),
+  sound: () => import('./SoundWidget/settings.schema').then((m) => m.default),
+  webcam: () => import('./Webcam/settings.schema').then((m) => m.default),
+  drawing: () =>
+    import('./DrawingWidget/settings.schema').then((m) => m.default),
   text: () => import('./TextWidget/settings.schema').then((m) => m.default),
   embed: () => import('./Embed/settings.schema').then((m) => m.default),
   lunchCount: () =>
@@ -274,29 +281,20 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   clock: () => import('./ClockWidget/settings.schema').then((m) => m.default),
   'time-tool': () =>
     import('./TimeTool/settings.schema').then((m) => m.default),
+  checklist: () => import('./Checklist/settings.schema').then((m) => m.default),
+  weather: () => import('./Weather/settings.schema').then((m) => m.default),
+  expectations: () =>
+    import('./ExpectationsWidget/settings.schema').then((m) => m.default),
+  random: () => import('./random/settings.schema').then((m) => m.default),
+  url: () => import('./UrlWidget/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
-  url: lazyNamed(() => import('./UrlWidget/Settings'), 'UrlWidgetSettings'),
-  soundboard: lazyNamed(
-    () => import('./SoundboardWidget/Settings'),
-    'SoundboardSettings'
-  ),
-  checklist: lazyNamed(() => import('./Checklist'), 'ChecklistSettings'),
-  random: lazyNamed(() => import('./random/RandomSettings'), 'RandomSettings'),
-  dice: lazyNamed(() => import('./DiceWidget'), 'DiceSettings'),
-  sound: lazyNamed(() => import('./SoundWidget'), 'SoundSettings'),
-  drawing: lazyNamed(
-    () => import('./DrawingWidget/Settings'),
-    'DrawingSettings'
-  ),
   qr: lazyNamed(() => import('./QRWidget'), 'QRSettings'),
   scoreboard: lazyNamed(() => import('./Scoreboard'), 'ScoreboardSettings'),
-  webcam: lazyNamed(() => import('./Webcam'), 'WebcamSettings'),
   calendar: lazyNamed(() => import('./Calendar/Settings'), 'CalendarSettings'),
-  weather: lazyNamed(() => import('./Weather/Settings'), 'WeatherSettings'),
   poll: lazyNamed(() => import('./PollWidget'), 'PollSettings'),
   instructionalRoutines: lazyNamed(
     () => import('./InstructionalRoutines/Settings'),
@@ -322,10 +320,6 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   ),
   smartNotebook: DefaultSettings,
   traffic: DefaultSettings,
-  expectations: lazyNamed(
-    () => import('./ExpectationsWidget'),
-    'ExpectationsSettings'
-  ),
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleSettings'),
   classes: DefaultSettings,
   recessGear: lazyNamed(
@@ -430,15 +424,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'blending-board': lazyNamed(
     () => import('./BlendingBoard/Settings'),
     'BlendingBoardAppearanceSettings'
-  ),
-  checklist: lazyNamed(
-    () => import('./Checklist'),
-    'ChecklistAppearanceSettings'
-  ),
-  sound: lazyNamed(() => import('./SoundWidget'), 'SoundAppearanceSettings'),
-  weather: lazyNamed(
-    () => import('./Weather/Settings'),
-    'WeatherAppearanceSettings'
   ),
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleAppearanceSettings'),
   calendar: lazyNamed(

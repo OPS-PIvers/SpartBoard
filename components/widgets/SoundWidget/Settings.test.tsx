@@ -1,43 +1,26 @@
-// Pins the sensitivity slider's label association; dropping htmlFor/id leaves it unnamed with nothing else failing.
+import { describe, expect, it } from 'vitest';
+import schema from './settings.schema';
 
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SoundSettings } from './Settings';
-import { useDashboard } from '@/context/useDashboard';
-import { WidgetData } from '@/types';
-
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
-
-const widget: WidgetData = {
-  id: 'sound-test-1',
-  type: 'sound',
-  x: 0,
-  y: 0,
-  w: 400,
-  h: 300,
-  z: 1,
-  flipped: true,
-  config: { sensitivity: 1 },
-};
-
-describe('SoundSettings — label associations', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      updateWidget: vi.fn(),
-      activeDashboard: { widgets: [] },
+describe('Sound Meter settings schema', () => {
+  it('exposes sensitivity as its own slider field', () => {
+    const sensitivity = schema.groups[0]?.fields.find(
+      (field) => field.key === 'sensitivity'
+    );
+    expect(sensitivity).toMatchObject({
+      type: 'slider',
+      min: 0.5,
+      max: 5,
+      step: 0.1,
     });
   });
 
-  it('names the sensitivity slider from its label', () => {
-    render(<SoundSettings widget={widget} />);
-
-    expect(screen.getByLabelText('Sensitivity')).toHaveAttribute(
-      'type',
-      'range'
+  it('uses schema partner fields for inter-widget automation', () => {
+    const partnerFields = schema.groups[0]?.fields.filter(
+      (field) => field.type === 'partnerWidget'
     );
+    expect(partnerFields?.map((field) => field.key)).toEqual([
+      'syncExpectations',
+      'autoTrafficLight',
+    ]);
   });
 });

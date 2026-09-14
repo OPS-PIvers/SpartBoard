@@ -4,12 +4,17 @@ import { SortableList } from '@/components/common/SortableList';
 import type { FieldProps } from '../FieldProps';
 import type { ListField } from '@/components/settings/schema/types';
 import { resolveLabel } from '../resolveLabel';
+import { useStorage } from '@/hooks/useStorage';
 
 type Row = Record<string, unknown>;
 
 let rowIdCounter = 0;
 
-const ListImpl: React.FC<FieldProps> = ({
+type ListImplProps = FieldProps & {
+  deleteImage?: (url: string) => void;
+};
+
+const ListImpl: React.FC<ListImplProps> = ({
   field,
   value,
   onChange,
@@ -19,6 +24,7 @@ const ListImpl: React.FC<FieldProps> = ({
   disabled,
   ctx,
   renderRow,
+  deleteImage,
 }) => {
   // Keyed by object identity, not array index, so remove/reorder can't steal another row's focus.
   const rowIds = useRef(new WeakMap<Row, string>());
@@ -55,7 +61,12 @@ const ListImpl: React.FC<FieldProps> = ({
   };
 
   const handleRemove = (index: number) => {
+    const cleanupKey = listField.cleanupImageKey;
+    const cleanupValue = cleanupKey ? rows[index]?.[cleanupKey] : undefined;
     onChange(rows.filter((_, i) => i !== index));
+    if (typeof cleanupValue === 'string' && cleanupValue) {
+      deleteImage?.(cleanupValue);
+    }
   };
 
   const handleRowChange = (index: number, nextRow: Row) => {
@@ -147,4 +158,21 @@ const ListImpl: React.FC<FieldProps> = ({
   );
 };
 
-export const List = ListImpl;
+const StorageManagedList: React.FC<FieldProps> = (props) => {
+  const { deleteFile } = useStorage();
+
+  const deleteImage = (url: string) => {
+    void deleteFile(url).catch((error) => {
+      console.warn('[SettingsList] Failed to delete removed row image.', error);
+    });
+  };
+
+  return <ListImpl {...props} deleteImage={deleteImage} />;
+};
+
+export const List: React.FC<FieldProps> = (props) =>
+  props.field.type === 'list' && props.field.cleanupImageKey ? (
+    <StorageManagedList {...props} />
+  ) : (
+    <ListImpl {...props} />
+  );

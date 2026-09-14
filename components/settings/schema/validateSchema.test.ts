@@ -129,6 +129,29 @@ describe('validateSchema', () => {
     expect(result.errors[0]).toContain('resolves to neither');
   });
 
+  it('rejects an explicit search term with no i18n key', () => {
+    const result = validateSchema(
+      'clock',
+      {
+        groups: [
+          {
+            id: 'content',
+            fields: [
+              {
+                type: 'toggle',
+                key: 'showSeconds',
+                label: 'showSeconds',
+                searchTerms: ['nope'],
+              },
+            ],
+          },
+        ],
+      },
+      base
+    );
+    expect(result.errors[0]).toContain('search term "nope"');
+  });
+
   it('warns, not errors, when defaults lack a field key', () => {
     const result = validateSchema(
       'clock',

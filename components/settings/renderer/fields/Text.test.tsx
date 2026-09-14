@@ -73,6 +73,46 @@ describe('TextField', () => {
     expect(updateConfig).toHaveBeenCalledWith({ title: 'New' });
   });
 
+  it('normalizes a completed edit on blur', () => {
+    const updateConfig = vi.fn() as UpdateConfig;
+    render(
+      <FieldRenderer
+        field={{
+          ...field,
+          normalizeOnBlur: (value) => `https://${value}`,
+        }}
+        widget={widget}
+        ctx={makeCtx({ title: 'example.com' })}
+        updateConfig={updateConfig}
+      />
+    );
+    fireEvent.blur(screen.getByRole('textbox'));
+    expect(updateConfig).toHaveBeenCalledWith({ title: 'https://example.com' });
+  });
+
+  it('reads derived values and emits an atomic patch', () => {
+    const updateConfig = vi.fn() as UpdateConfig;
+    render(
+      <FieldRenderer
+        field={{
+          ...field,
+          readValue: () => 'Inherited',
+          toPatch: (value) => ({ title: value, inherited: false }),
+        }}
+        widget={widget}
+        ctx={makeCtx({})}
+        updateConfig={updateConfig}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveValue('Inherited');
+    fireEvent.change(input, { target: { value: 'Explicit' } });
+    expect(updateConfig).toHaveBeenCalledWith({
+      title: 'Explicit',
+      inherited: false,
+    });
+  });
+
   it('honours disabled', () => {
     const disabledField: TextFieldType<string> = {
       ...field,

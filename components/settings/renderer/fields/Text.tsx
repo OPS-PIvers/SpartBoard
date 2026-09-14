@@ -15,6 +15,12 @@ export const TextField: React.FC<FieldProps<TextFieldSchema<string>>> = ({
     type="text"
     value={typeof value === 'string' ? value : ''}
     onChange={(e) => onChange(e.target.value)}
+    onBlur={(e) => {
+      const normalized = field.normalizeOnBlur?.(e.target.value);
+      if (normalized !== undefined && normalized !== e.target.value) {
+        onChange(normalized);
+      }
+    }}
     placeholder={field.placeholder}
     maxLength={field.maxLength}
     disabled={disabled}

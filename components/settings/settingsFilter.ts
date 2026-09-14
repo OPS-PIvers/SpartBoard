@@ -42,15 +42,25 @@ function buildGroupSections(
     if (!group) return [];
     const fields = group.fields
       .filter((field) => isFieldVisible(field, ctx))
-      .map((field) => ({
-        key: field.key,
-        // A partner card matches on the partner's name and its inner control's label.
-        label:
+      .map((field) => {
+        const searchableLabels = [
           field.type === 'partnerWidget'
             ? `${ctx.toolLabel?.(field.partner) ?? field.partner} ${resolve(field.control.label)}`
             : resolve(field.label),
-        field: field as Field,
-      }));
+          ...(field.searchTerms ?? []).map(resolve),
+          ...(field.type === 'list'
+            ? field.row.fields.flatMap((rowField) => [
+                resolve(rowField.label),
+                ...(rowField.searchTerms ?? []).map(resolve),
+              ])
+            : []),
+        ];
+        return {
+          key: field.key,
+          label: searchableLabels.join(' '),
+          field: field as Field,
+        };
+      });
     if (fields.length === 0) return [];
     return [{ id, title: resolve(group.title ?? `group.${id}`), fields }];
   });
