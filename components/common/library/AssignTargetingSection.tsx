@@ -324,7 +324,9 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
     });
     if (useRosterDefaults) return rows;
     // Re-edit: the stored snapshot is frozen, so standing defaults are inert.
-    return rows.map(({ defaultOverride: _ignored, ...rest }) => rest);
+    return rows.map(
+      ({ defaultOverride: _ignored, ...rest }): ClassStudentRow => rest
+    );
   }, [rosters, effectiveRosterIds, useRosterDefaults]);
 
   const anyClassChecked = effectiveRosterIds.length > 0;
