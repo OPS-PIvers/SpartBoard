@@ -57,6 +57,8 @@ export function fibAcceptedAnswers(
 export interface ServedLocaleSource {
   overridesByStudentUid?: Record<string, { language?: string }> | null;
   overridesBySourcedId?: Record<string, { language?: string }> | null;
+  /** Write-once served-language record the CF never clears; survives a de-target. */
+  servedLanguageByStudentUid?: Record<string, string> | null;
 }
 
 /**
@@ -73,6 +75,10 @@ export function servedLocaleForResponse(
     ? source.overridesByStudentUid?.[response.studentUid]?.language
     : undefined;
   if (byUid) return byUid;
+  const remembered = response.studentUid
+    ? source.servedLanguageByStudentUid?.[response.studentUid]
+    : undefined;
+  if (remembered) return remembered;
   return response.sourcedId
     ? source.overridesBySourcedId?.[response.sourcedId]?.language
     : undefined;

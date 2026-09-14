@@ -1314,6 +1314,93 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
     expect(pointer.excluded).toBeUndefined();
   });
 
+  it('keeps the mirror and pointer override when a student is skipped', async () => {
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es', readAloud: true },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const pointer = state.docs.get(pointerPath(uid)) as Record<string, unknown>;
+    expect(pointer.excluded).toBe(true);
+    expect(pointer.override).toEqual({ language: 'es', readAloud: true });
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(
+      (assignment.overridesByStudentUid as Record<string, unknown>)[uid]
+    ).toEqual({ language: 'es', readAloud: true });
+  });
+
+  it('clears the mirror and pointer override when a skip sends an explicit null', async () => {
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es', readAloud: true },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: { [`classlink:${SOURCED_A}`]: null },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const pointer = state.docs.get(pointerPath(uid)) as Record<string, unknown>;
+    expect(pointer.excluded).toBe(true);
+    expect(pointer.override).toBeUndefined();
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(
+      (assignment.overridesByStudentUid as Record<string, unknown>)[uid]
+    ).toBeUndefined();
+    // The served-language remnant is write-once, so grading stays stable.
+    expect(
+      (assignment.servedLanguageByStudentUid as Record<string, unknown>)[uid]
+    ).toBe('es');
+  });
+
+  it('keeps a language remnant in the mirror when a student is de-targeted', async () => {
+    await run(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { language: 'es', timeMultiplier: 2 },
+        },
+      })
+    );
+    await run(
+      baseInput({
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    expect(state.docs.get(pointerPath(uid))).toBeUndefined();
+    const assignment = state.docs.get(assignmentPath()) as Record<
+      string,
+      unknown
+    >;
+    expect(
+      (assignment.servedLanguageByStudentUid as Record<string, unknown>)[uid]
+    ).toBe('es');
+  });
+
   it('leaves the assignment doc untouched when the field is absent', async () => {
     const result = await run(baseInput());
     expect(result.written).toBe(1);
@@ -1744,6 +1831,60 @@ describe('handleSetAssignmentTargets - read-aloud locale scope', () => {
       hook
     );
     expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
+  });
+
+  it('stays silent while the flagged student is skipped', async () => {
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true, language: 'es' },
+        },
+      }),
+      hook
+    );
+    hook.mockClear();
+    await runWithHook(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      }),
+      hook
+    );
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it('fires again when a skipped student is restored with their override', async () => {
+    const hook = vi.fn(() => Promise.resolve());
+    await runWithHook(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true, language: 'es' },
+        },
+      }),
+      hook
+    );
+    await runWithHook(
+      baseInput({
+        add: [],
+        excludedTargets: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+      }),
+      hook
+    );
+    hook.mockClear();
+    await runWithHook(
+      baseInput({
+        add: [{ kind: 'classlink', sourcedId: SOURCED_A }],
+        excludedTargets: [],
+      }),
+      hook
+    );
+    expect(hook).toHaveBeenCalledWith(ASSIGNMENT_ID, ['es']);
+    const pointer = state.docs.get(
+      pointerPath(computeStudentUid(SOURCED_A, HMAC))
+    ) as Record<string, unknown>;
+    expect(pointer.excluded).toBeUndefined();
+    expect(pointer.override).toEqual({ readAloud: true, language: 'es' });
   });
 
   it('fires on a language-only change under readAloudAll', async () => {

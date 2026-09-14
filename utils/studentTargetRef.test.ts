@@ -300,11 +300,33 @@ describe('expandClassTargeting', () => {
       classContext
     );
     expect(expanded.targetMode).toBe('class');
-    // SID-2's standing default is dropped along with them; SID-1 has none, so
-    // nobody needs a pointer doc for accommodations.
+    // Suppression, not erasure: SID-2 leaves the delivered set but keeps the
+    // override entry so grading and an un-skip can both find it.
     expect(expanded.targetStudents).toEqual([]);
-    expect(expanded.overridesByKey).toEqual({});
+    expect(expanded.overridesByKey).toEqual({
+      'classlink:SID-2': { timeMultiplier: 2 },
+    });
     expect(expanded.excludedStudents).toEqual([
+      { kind: 'classlink', sourcedId: 'SID-2' },
+    ]);
+  });
+
+  it('suppresses a skipped student without removing or clearing their override', () => {
+    const payload = buildSetAssignmentTargetsPayload(
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        targetStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+        overridesByKey: { 'classlink:SID-2': { timeMultiplier: 2 } },
+      },
+      {
+        ...EMPTY_ASSIGN_TARGETING_VALUE,
+        excludedStudents: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+      },
+      classContext
+    );
+    expect(payload.remove).toEqual([]);
+    expect(payload.overridesBySourcedId['classlink:SID-2']).toBeUndefined();
+    expect(payload.excludedTargets).toEqual([
       { kind: 'classlink', sourcedId: 'SID-2' },
     ]);
   });

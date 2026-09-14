@@ -204,13 +204,19 @@ export function expandClassTargeting(
   const overridesByKey: Record<string, StudentOverride> = {};
   const withOverride: StudentTargetRef[] = [];
   for (const key of candidateKeys) {
-    if (excludedKeys.has(key)) continue;
     const ref = refByKey.get(key);
     if (!ref) continue;
     const row = rowByKey.get(key);
     const override = row
       ? effectiveClassOverride(row, value.overridesByKey, useRosterDefaults)
       : nonEmptyOverride(value.overridesByKey[key]);
+    // A skipped student keeps their override entry — suppression, not erasure —
+    // but never joins the delivered target set.
+    if (override && excludedKeys.has(key)) {
+      overridesByKey[key] = override;
+      continue;
+    }
+    if (excludedKeys.has(key)) continue;
     if (override) {
       overridesByKey[key] = override;
       withOverride.push(ref);
@@ -290,11 +296,19 @@ export function buildSetAssignmentTargetsPayload(
   for (const [key, ref] of currRefByKey) {
     if (!prevRefByKey.has(key)) add.push(ref);
   }
+  // A newly skipped student is suppressed, not de-targeted: `excludedTargets`
+  // carries them, and a `remove` would destroy their stored override.
+  const newlyExcludedKeys = new Set(
+    (current.excludedStudents ?? []).map(studentTargetRefKey)
+  );
   const remove: StudentTargetRef[] = [];
   for (const [key, ref] of prevRefByKey) {
-    if (!currRefByKey.has(key)) remove.push(ref);
+    if (!currRefByKey.has(key) && !newlyExcludedKeys.has(key)) remove.push(ref);
   }
 
+  const currExcludedKeys = new Set(
+    (current.excludedStudents ?? []).map(studentTargetRefKey)
+  );
   const overridesBySourcedId: Record<string, StudentOverride | null> = {};
   const allKeys = new Set([
     ...prevRefByKey.keys(),
@@ -306,9 +320,10 @@ export function buildSetAssignmentTargetsPayload(
     const prevOverride = previous?.overridesByKey[key];
     // A student no longer targeted has no current override, same as one
     // whose override was simply cleared while staying selected.
-    const currOverride = currRefByKey.has(key)
-      ? current.overridesByKey[key]
-      : undefined;
+    const currOverride =
+      currRefByKey.has(key) || currExcludedKeys.has(key)
+        ? current.overridesByKey[key]
+        : undefined;
     if (currOverride) {
       if (
         !prevOverride ||

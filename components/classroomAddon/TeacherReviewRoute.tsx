@@ -170,6 +170,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       answers: assignment?.localizedFibAnswers ?? null,
       overridesByStudentUid: assignment?.overridesByStudentUid ?? null,
       overridesBySourcedId: assignment?.overridesBySourcedId ?? null,
+      servedLanguageByStudentUid:
+        assignment?.servedLanguageByStudentUid ?? null,
     };
   }, [assignments, sessionId]);
 

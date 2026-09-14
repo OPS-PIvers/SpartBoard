@@ -106,6 +106,28 @@ describe('servedLocaleForResponse / fibAnswersForResponse', () => {
     ).toBe('es');
   });
 
+  it('falls back to the served-language remnant after a de-target', () => {
+    expect(
+      servedLocaleForResponse(response, {
+        overridesByStudentUid: {},
+        servedLanguageByStudentUid: { 'uid-1': 'es' },
+      })
+    ).toBe('es');
+  });
+
+  it('still grades a skipped student against their preserved override locale', () => {
+    expect(
+      fibAnswersForResponse(
+        {
+          answers,
+          overridesByStudentUid: { 'uid-1': { language: 'es' } },
+        },
+        response,
+        'q1'
+      )
+    ).toEqual(['París']);
+  });
+
   it('ignores the client-asserted response locale', () => {
     expect(
       fibAnswersForResponse(
