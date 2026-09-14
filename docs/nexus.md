@@ -227,7 +227,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Populates the Random widget's student pool from the active class roster.
 - **Pattern**: Import
-- **Code**: `components/widgets/random/RandomSettings.tsx:39-57` — config field `rosterMode: 'class'` via `RosterModeControl` component.
+- **Code**: `components/widgets/random/SchemaControls.tsx:39-57` — config field `rosterMode: 'class'` via `RosterModeControl` component.
 
 #### Classes (Roster) → Seating Chart
 
@@ -248,7 +248,7 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Populates checklist items from student names in the active class roster.
 - **Pattern**: Import
-- **Code**: `components/widgets/Checklist/Settings.tsx` — config field `rosterMode: 'class'` via `RosterModeControl` component.
+- **Code**: `components/widgets/Checklist/SchemaControls.tsx` — config field `rosterMode: 'class'` via `RosterModeControl` component.
 
 #### Classes (Roster) → Poll
 
@@ -262,14 +262,14 @@ Every nexus connection follows one or more of four patterns:
 - **Date**: pre-2026
 - **Value**: Imports routine steps as checklist items for tracking completion during a lesson.
 - **Pattern**: Import
-- **Code**: `components/widgets/Checklist/Settings.tsx:110-144` — `importFromRoutine()` reads `customSteps` from the active Instructional Routines widget into the Checklist.
+- **Code**: `components/widgets/Checklist/SchemaControls.tsx:110-144` — `importFromRoutine()` reads `customSteps` from the active Instructional Routines widget into the Checklist.
 
 #### Text Widget → Checklist
 
 - **Date**: pre-2026
 - **Value**: Imports text widget content as checklist items, splitting lines into individual tasks.
 - **Pattern**: Import
-- **Code**: `components/widgets/Checklist/Settings.tsx:146-202` — `importFromTextWidget()` finds Text widgets and parses HTML to plain text lines into Checklist items.
+- **Code**: `components/widgets/Checklist/SchemaControls.tsx:146-202` — `importFromTextWidget()` finds Text widgets and parses HTML to plain text lines into Checklist items.
 
 #### Text Widget → MiniApp (Import from Notes)
 
