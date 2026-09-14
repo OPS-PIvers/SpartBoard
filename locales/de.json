@@ -2580,6 +2580,40 @@
       "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
     }
   },
+  "quizHandRaise": {
+    "label": "Schülern erlauben, sich zu melden",
+    "help": "Schüler erhalten während des Quiz eine Schaltfläche zum Melden."
+  },
+  "quizAdmin": {
+    "title": "Quiz-Verwaltung",
+    "subtitle": "Melden & Sprachen",
+    "close": "Schließen",
+    "tabs": {
+      "behavior": "Verhalten",
+      "languages": "Sprachen"
+    },
+    "selectBuilding": "Schule zur Konfiguration auswählen",
+    "building": "Schule",
+    "save": "Konfiguration speichern",
+    "cancel": "Abbrechen",
+    "saved": "Quiz-Konfiguration gespeichert.",
+    "saveFailed": "Quiz-Konfiguration konnte nicht gespeichert werden.",
+    "handRaise": {
+      "heading": "Melden",
+      "help": "Legt fest, ob Schüler in dieser Schule während eines Quiz eine Schaltfläche zum Melden sehen.",
+      "teacherChoice": "Entscheidung der Lehrkraft",
+      "teacherChoiceHint": "Jede Lehrkraft entscheidet pro Quiz. Standardmäßig aus.",
+      "forceOn": "Immer an",
+      "forceOnHint": "Melden ist in jedem Quiz verfügbar und Lehrkräfte können es nicht deaktivieren.",
+      "forceOff": "Immer aus",
+      "forceOffHint": "Melden ist in jedem Quiz für Schüler ausgeblendet."
+    },
+    "noBuildings": "Keine Gebäude konfiguriert",
+    "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen.",
+    "discardMessage": "Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?",
+    "discardTitle": "Änderungen verwerfen",
+    "discardConfirm": "Verwerfen"
+  },
   "studentAssignment": {
     "excludedTitle": "Diese Aufgabe ist nicht für dich",
     "excludedBody": "Deine Lehrkraft hat dir diese Aufgabe nicht zugewiesen. Frage nach, wenn du glaubst, dass das ein Fehler ist."

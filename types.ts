@@ -3861,6 +3861,8 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   tabWarningThreshold?: number | 'off';
   /** Read aloud for every signed-in student on the assignment, not only overrides. */
   readAloudAll?: boolean;
+  /** Teacher opt-in for the student raise-hand button. Absent = off. */
+  handRaiseEnabled?: boolean;
 }
 
 /**
@@ -4055,6 +4057,8 @@ export interface QuizSession {
   stimuli?: QuizStimulus[];
   /** Snapshot of `sessionOptions.readAloudAll` at assign time; absent on pre-feature sessions. */
   readAloudAll?: boolean;
+  /** Resolved admin gate + teacher checkbox at assign time; absent = raise hand disabled. */
+  handRaiseEnabled?: boolean;
   /** Snapshot of `QuizData.language` at assign time; absent = 'en-US'. */
   language?: string;
   /** Reviewed stimulus text by id; the only stimulus text the synth function may speak (plan §3). */
@@ -4905,6 +4909,7 @@ export interface QuizAttemptLedger {
 /** Global admin configuration for the Quiz widget */
 export interface QuizGlobalConfig {
   dockDefaults?: Record<string, boolean>;
+  buildingDefaults?: Record<string, QuizBuildingConfig>;
 }
 
 /** Widget configuration for the quiz widget (teacher side) */
@@ -7848,6 +7853,12 @@ export interface FeaturePermission {
   minTier?: UserTier;
   /** Optional global configuration for the widget (e.g., API keys, target IDs). */
   config?: Record<string, unknown>;
+}
+
+/** `feature_permissions/quiz.config` — admin-level quiz gates, per building. */
+export interface QuizBuildingConfig {
+  /** 'teacher-choice' (default) | 'force-on' | 'force-off' for the raise-hand button. */
+  handRaiseMode?: 'teacher-choice' | 'force-on' | 'force-off';
 }
 
 export interface CarRiderProGlobalConfig {

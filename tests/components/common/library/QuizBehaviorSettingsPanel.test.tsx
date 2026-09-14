@@ -283,4 +283,46 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(next.sessionOptions).toMatchObject({ readAloudAll: true });
     expect(next.sessionMode).toBe(defaultValue.sessionMode);
   });
+
+  it('shows the raise-hand toggle, off by default, under teacher choice', () => {
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
+    );
+    expect(
+      screen.getByRole('switch', { name: /raise a hand/i })
+    ).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('toggling raise hand writes sessionOptions.handRaiseEnabled', () => {
+    const onChange = vi.fn();
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
+    );
+    fireEvent.click(screen.getByRole('switch', { name: /raise a hand/i }));
+    const next = onChange.mock.calls[0][0] as QuizBehaviorSettings;
+    expect(next.sessionOptions).toMatchObject({ handRaiseEnabled: true });
+  });
+
+  it('hides the raise-hand toggle when an admin forces it on or off', () => {
+    const { rerender } = render(
+      <QuizBehaviorSettingsPanel
+        value={defaultValue}
+        onChange={vi.fn()}
+        handRaiseMode="force-on"
+      />
+    );
+    expect(
+      screen.queryByRole('switch', { name: /raise a hand/i })
+    ).not.toBeInTheDocument();
+    rerender(
+      <QuizBehaviorSettingsPanel
+        value={defaultValue}
+        onChange={vi.fn()}
+        handRaiseMode="force-off"
+      />
+    );
+    expect(
+      screen.queryByRole('switch', { name: /raise a hand/i })
+    ).not.toBeInTheDocument();
+  });
 });

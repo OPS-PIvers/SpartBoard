@@ -104,6 +104,11 @@ import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
+import {
+  readQuizHandRaiseMode,
+  resolveGateBuildingIds,
+  resolveQuizHandRaiseEnabled,
+} from '@/utils/quizHandRaise';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
 import { readAloudTranslationLocales } from '@/config/quizReadAloud';
@@ -521,6 +526,28 @@ type LegacySyncLinkageShape = {
   syncedVersion?: number;
   sync?: QuizAssignmentSyncLinkage;
 };
+const HAND_RAISE_GATE_TIMEOUT_MS = 5000;
+
+/** True while a signed-in teacher's profile, org membership or permissions are still loading. */
+function isHandRaiseGatePending(
+  ctx:
+    | {
+        user?: unknown;
+        profileLoaded?: boolean;
+        roleResolved?: boolean;
+        featurePermissionsLoaded?: boolean;
+      }
+    | null
+    | undefined
+): boolean {
+  if (!ctx?.user) return false;
+  return (
+    ctx.profileLoaded === false ||
+    ctx.roleResolved === false ||
+    ctx.featurePermissionsLoaded === false
+  );
+}
+
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
   o: QuizSessionOptions
@@ -552,6 +579,10 @@ function sessionOptionsToSessionPatch(
   if (o.shuffleAnswerOptions !== undefined)
     patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
+  // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
+  // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
+  // switch raise hand on inside a force-off building. Running sessions keep
+  // the value they were created with.
   return patch;
 }
 
@@ -760,6 +791,29 @@ export const useQuizAssignments = (
   }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
+  // Admin raise-hand gate for this teacher's buildings; resolved onto the
+  // session doc at assign time. Read through a ref so createAssignment can wait
+  // for the profile + permission snapshots instead of failing open to
+  // teacher-choice while the buildings are still unknown.
+  // Mirrored in an effect, not during render: `react-hooks/refs` forbids
+  // render-phase ref writes (same pattern as `assignmentsRef` above).
+  const authRef = useRef(authContext);
+  useEffect(() => {
+    authRef.current = authContext;
+  }, [authContext]);
+  const resolveHandRaiseMode = useCallback(async (): Promise<
+    ReturnType<typeof readQuizHandRaiseMode>
+  > => {
+    const deadline = Date.now() + HAND_RAISE_GATE_TIMEOUT_MS;
+    while (isHandRaiseGatePending(authRef.current) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    const ctx = authRef.current;
+    return readQuizHandRaiseMode(
+      ctx?.featurePermissions,
+      resolveGateBuildingIds(ctx?.buildingIds, ctx?.selectedBuildings)
+    );
+  }, []);
 
   // Ungated teachers publish the question without its recording block, so the
   // student app has nothing to mount even if it wanted to.
@@ -904,6 +958,11 @@ export const useQuizAssignments = (
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
       const now = Date.now();
+      // View-only shares have no live teacher, so never resolve the gate for them.
+      const isViewOnlyShare = assignmentMode === 'view-only';
+      const handRaiseMode = isViewOnlyShare
+        ? 'force-off'
+        : await resolveHandRaiseMode();
       // Freeze a compact teacher-private tag snapshot for PLC aggregate
       // recomputes. Student session projection remains governed separately by
       // `showLearningTargets`.
@@ -1049,6 +1108,9 @@ export const useQuizAssignments = (
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
         // Read-aloud snapshot (docs/plans/QUIZ_READ_ALOUD.md §3); omitted when off.
         ...(opts.readAloudAll ? { readAloudAll: true } : {}),
+        ...(resolveQuizHandRaiseEnabled(handRaiseMode, opts.handRaiseEnabled)
+          ? { handRaiseEnabled: true }
+          : {}),
         ...(quiz.language ? { language: quiz.language } : {}),
         ...(Object.keys(translations.titleByLocale).length > 0
           ? { quizTitleLocalized: { ...translations.titleByLocale } }
@@ -1208,7 +1270,12 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId, projectPublicQuestionForMode, translationLoader]
+    [
+      userId,
+      projectPublicQuestionForMode,
+      translationLoader,
+      resolveHandRaiseMode,
+    ]
   );
 
   const setStatus = useCallback(

@@ -2580,6 +2580,40 @@
       "subjectsTaughtDescription": "Opcional. Elige las áreas de contenido que enseñas para abrir el selector de estándares en ellas. Déjalo vacío para ver todas las áreas."
     }
   },
+  "quizHandRaise": {
+    "label": "Permitir que los estudiantes levanten la mano",
+    "help": "Los estudiantes verán un botón para levantar la mano durante el cuestionario."
+  },
+  "quizAdmin": {
+    "title": "Administración de cuestionarios",
+    "subtitle": "Levantar la mano e idiomas",
+    "close": "Cerrar",
+    "tabs": {
+      "behavior": "Comportamiento",
+      "languages": "Idiomas"
+    },
+    "selectBuilding": "Selecciona la escuela que quieres configurar",
+    "building": "Escuela",
+    "save": "Guardar configuración",
+    "cancel": "Cancelar",
+    "saved": "Configuración del cuestionario guardada.",
+    "saveFailed": "No se pudo guardar la configuración del cuestionario.",
+    "handRaise": {
+      "heading": "Levantar la mano",
+      "help": "Controla si los estudiantes de esta escuela ven un botón para levantar la mano durante un cuestionario.",
+      "teacherChoice": "Decisión del docente",
+      "teacherChoiceHint": "Cada docente decide en cada cuestionario. Desactivado salvo que lo active.",
+      "forceOn": "Siempre activado",
+      "forceOnHint": "Levantar la mano está disponible en todos los cuestionarios y los docentes no pueden desactivarlo.",
+      "forceOff": "Siempre desactivado",
+      "forceOffHint": "Levantar la mano está oculto para los estudiantes en todos los cuestionarios."
+    },
+    "noBuildings": "No hay edificios configurados",
+    "noBuildingsHint": "Agregue un edificio en Organización antes de establecer un valor predeterminado para levantar la mano.",
+    "discardMessage": "Tienes cambios sin guardar. ¿Seguro que quieres descartarlos?",
+    "discardTitle": "Descartar cambios",
+    "discardConfirm": "Descartar"
+  },
   "studentAssignment": {
     "excludedTitle": "Esta tarea no es para ti",
     "excludedBody": "Tu docente no te asignó esta tarea. Consúltale si crees que es un error."

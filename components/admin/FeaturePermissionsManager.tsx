@@ -48,6 +48,7 @@ import { PdfLibraryModal } from '@/components/admin/PdfLibraryModal';
 import { VideoActivityConfigurationModal } from '@/components/admin/VideoActivityConfigurationModal';
 import { WorkSymbolsConfigurationModal } from '@/components/admin/WorkSymbolsConfigurationModal';
 import { BloomsTaxonomyConfigurationModal } from '@/components/admin/BloomsTaxonomyConfigurationModal';
+import { QuizConfigurationModal } from '@/components/admin/QuizConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -214,12 +215,18 @@ export const FeaturePermissionsManager: React.FC = () => {
     setUnsavedChanges((prev) => new Set(prev).add(widgetType));
   };
 
+  // `updates` merges into the stored permission and is written in the same
+  // call, so a caller can persist without waiting for a setState round-trip.
   const savePermission = async (
-    widgetType: WidgetType | InternalToolType
+    widgetType: WidgetType | InternalToolType,
+    updates?: Partial<FeaturePermission>
   ): Promise<boolean> => {
     try {
       setSaving((prev) => new Set(prev).add(widgetType));
-      const permission = getPermission(widgetType);
+      const permission = { ...getPermission(widgetType), ...(updates ?? {}) };
+      if (updates) {
+        setPermissions((prev) => new Map(prev).set(widgetType, permission));
+      }
 
       // Firestore rejects explicit `undefined` values; "no minimum tier"
       // is modeled as an absent field, so strip it before persisting.
@@ -968,6 +975,15 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
+      {activeModalTool?.type === 'quiz' && (
+        <QuizConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+          permission={getPermission('quiz')}
+          onSave={(updates) => savePermission('quiz', updates)}
+        />
+      )}
+
       {activeModalTool &&
         ![
           'blooms-taxonomy',
@@ -978,6 +994,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'miniApp',
           'music',
           'pdf',
+          'quiz',
           'specialist-schedule',
           'starter-pack',
           'stickers',

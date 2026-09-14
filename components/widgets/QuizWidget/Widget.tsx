@@ -144,6 +144,8 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
   streakBonusEnabled: false,
   showPodiumBetweenQuestions: false,
   soundEffectsEnabled: false,
+  // No live teacher present on a view-only share, so raising a hand goes nowhere.
+  handRaiseEnabled: false,
   // Shuffles are meaningless for view-only shares (no submissions, so no
   // student-specific rendering happens).
   shuffleQuestions: false,

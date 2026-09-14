@@ -184,7 +184,7 @@ const GLOBAL_FEATURES: {
     label: 'Quiz translation (multilingual learners)',
     icon: Languages,
     description:
-      'Lets teachers generate, review and serve AI translations of a quiz for students whose roster language is set. Fail-closed: until this is saved and enabled, the Languages tab in the quiz editor stays hidden and no translated string ever reaches a student. Translations are generated with Gemini, metered per quiz and language, and only questions the teacher has explicitly marked reviewed are served. Languages and monthly caps are set under Tools \u2192 Quiz Languages.',
+      'Lets teachers generate, review and serve AI translations of a quiz for students whose roster language is set. Fail-closed: until this is saved and enabled, the Languages tab in the quiz editor stays hidden and no translated string ever reaches a student. Translations are generated with Gemini, metered per quiz and language, and only questions the teacher has explicitly marked reviewed are served. Languages and monthly caps are set under Feature Permissions \u2192 Quiz \u2192 Languages.',
   },
   {
     id: 'question-bank-ai',

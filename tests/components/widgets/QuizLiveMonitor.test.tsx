@@ -250,6 +250,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
   it('counts hands and idle separately; board view (default) hides who they are', () => {
     const now = Date.now();
     renderMonitor({
+      session: { handRaiseEnabled: true },
       responses: [
         makeResponse({
           pin: '1111',
@@ -281,6 +282,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     const now = Date.now();
     renderMonitor({
       onClearHand,
+      session: { handRaiseEnabled: true },
       config: { monitorBoardView: false },
       responses: [
         makeResponse({
