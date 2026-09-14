@@ -43,7 +43,14 @@ vi.mock('./classlinkShared', () => ({
     resolveOrgIdForDomain(db, domain),
 }));
 
-import { runMigratePlcs } from './migratePlcs';
+import * as admin from 'firebase-admin';
+import { runMigratePlcs, migratePlcs } from './migratePlcs';
+
+type CallableHandler = (request: {
+  auth?: { uid: string; token: { email?: string; email_verified?: boolean } };
+  data?: unknown;
+}) => Promise<unknown>;
+const migratePlcsHandler = migratePlcs as unknown as CallableHandler;
 
 // ---------------------------------------------------------------------------
 // Stub Firestore
@@ -68,6 +75,8 @@ interface StubState {
   plcs: PlcFixture[];
   /** uid → /users/{uid} doc data (for displayName lookups). */
   users: Record<string, Record<string, unknown>>;
+  /** lowercased emails with a doc at /admins/{email} (existence = admin). */
+  admins?: string[];
   sets: CapturedSet[];
   commits: number;
 }
@@ -101,6 +110,13 @@ function makeDb(state: StubState) {
     if (aggMatch) {
       const plc = plcById.get(aggMatch[1]);
       return Promise.resolve({ exists: !!plc?.aggregatesMarker });
+    }
+    // /admins/{email}
+    const adminMatch = /^admins\/([^/]+)$/.exec(path);
+    if (adminMatch) {
+      return Promise.resolve({
+        exists: (state.admins ?? []).includes(adminMatch[1]),
+      });
     }
     throw new Error(`Unexpected getDoc: ${path}`);
   };
@@ -183,7 +199,7 @@ let state: StubState;
 beforeEach(() => {
   resolveOrgIdForDomain.mockReset();
   resolveOrgIdForDomain.mockResolvedValue(null);
-  state = { plcs: [], users: {}, sets: [], commits: 0 };
+  state = { plcs: [], users: {}, admins: [], sets: [], commits: 0 };
 });
 
 // ---------------------------------------------------------------------------
@@ -745,5 +761,84 @@ describe('runMigratePlcs - batching', () => {
     expect(res.scanned).toBe(2);
     expect(res.migrated).toBe(2);
     expect(state.commits).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// migratePlcs onCall wrapper — caller identity verification
+// ---------------------------------------------------------------------------
+//
+// SECURITY: an email/password account can self-report ANY email address at
+// sign-up — the ID token still carries that email with `email_verified:
+// false`. Authorizing a privileged action (this one runs arbitrary Firestore
+// writes across every PLC) off `token.email` alone lets an attacker claim a
+// real admin's address and pass the `/admins/{email}` existence check
+// without ever proving ownership of that inbox. Same rail as
+// organizationUserActivity.ts / organizationInvites.ts / isAdmin().
+describe('migratePlcs onCall wrapper - caller identity verification', () => {
+  beforeEach(() => {
+    (admin.firestore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeDb(state)
+    );
+  });
+
+  it('SECURITY: rejects a self-reported admin email that is not verified', async () => {
+    state.admins = ['admin@school.org'];
+
+    await expect(
+      migratePlcsHandler({
+        auth: {
+          uid: 'attacker-uid',
+          token: { email: 'admin@school.org', email_verified: false },
+        },
+        data: {},
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+
+    // The privileged migration must never have run.
+    expect(state.commits).toBe(0);
+  });
+
+  it('rejects a token with no email_verified claim at all', async () => {
+    state.admins = ['admin@school.org'];
+
+    await expect(
+      migratePlcsHandler({
+        auth: {
+          uid: 'attacker-uid',
+          token: { email: 'admin@school.org' },
+        },
+        data: {},
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.commits).toBe(0);
+  });
+
+  it('allows a verified admin email through to the migration', async () => {
+    state.admins = ['admin@school.org'];
+    state.plcs = [];
+
+    const res = await migratePlcsHandler({
+      auth: {
+        uid: 'real-admin-uid',
+        token: { email: 'admin@school.org', email_verified: true },
+      },
+      data: {},
+    });
+    expect(res).toMatchObject({ scanned: 0 });
+  });
+
+  it('rejects a verified non-admin email', async () => {
+    state.admins = ['admin@school.org'];
+
+    await expect(
+      migratePlcsHandler({
+        auth: {
+          uid: 'teacher-uid',
+          token: { email: 'teacher@school.org', email_verified: true },
+        },
+        data: {},
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 });

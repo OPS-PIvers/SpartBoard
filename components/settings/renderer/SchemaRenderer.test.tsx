@@ -155,6 +155,32 @@ describe('SchemaRenderer', () => {
     );
     expect(screen.getByRole('group', { name: 'Content' })).toBeInTheDocument();
   });
+
+  it('prints a repeated field.section heading only once per group, even when a differently-sectioned field interrupts the run', () => {
+    const schema: WidgetSettingsSchema = {
+      groups: [
+        {
+          id: 'behavior',
+          fields: [
+            { type: 'text', key: 'a', label: 'title', section: 'timerEnd' },
+            { type: 'text', key: 'mid', label: 'title' },
+            { type: 'text', key: 'b', label: 'title', section: 'timerEnd' },
+          ],
+        },
+      ],
+    };
+    const { container } = render(
+      <SchemaRenderer
+        schema={schema}
+        widget={widget}
+        ctx={makeCtx()}
+        updateConfig={vi.fn()}
+      />
+    );
+    expect(
+      container.querySelectorAll('[data-section="timerEnd"]')
+    ).toHaveLength(1);
+  });
 });
 
 describe('FieldRenderer', () => {

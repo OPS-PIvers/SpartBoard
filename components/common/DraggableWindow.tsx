@@ -61,6 +61,7 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { GlassCard } from './GlassCard';
 import { SettingsPanel } from './SettingsPanel';
+import { WidgetHostContext } from './WidgetHostContext';
 import {
   markSettingsClosedByGesture,
   consumeSettingsJustClosed,
@@ -2431,7 +2432,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               className="absolute inset-0 bg-white z-widget-internal-overlay animate-out fade-out duration-300 pointer-events-none isFlashing"
             />
           )}
-          {children}
+          <WidgetHostContext.Provider value={windowRef}>
+            {children}
+          </WidgetHostContext.Provider>
 
           {/* Inner edge drag zones — invisible grab strips along the inside perimeter
               so users can drag full-interactive widgets (embed, text, etc.) from within

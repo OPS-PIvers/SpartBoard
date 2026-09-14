@@ -10,6 +10,7 @@ import { MoreHorizontal, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
+import { useCloseOnHostResize } from '../useCloseOnHostResize';
 
 export interface OverflowMenuItem {
   label: string;
@@ -88,24 +89,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
     };
   }, [open]);
 
-  // Close on the host widget's own geometry changes (Alt+M/Alt+R don't fire a window 'resize' event); skip ResizeObserver's own always-fires-once-on-observe() initial callback.
-  useEffect(() => {
-    if (!open) return undefined;
-    const host = wrapperRef.current?.closest<HTMLElement>(
-      '[data-draggable-window]'
-    );
-    if (!host || typeof ResizeObserver === 'undefined') return undefined;
-    let skippedInitial = false;
-    const observer = new ResizeObserver(() => {
-      if (!skippedInitial) {
-        skippedInitial = true;
-        return;
-      }
-      setOpen(false);
-    });
-    observer.observe(host);
-    return () => observer.disconnect();
-  }, [open]);
+  useCloseOnHostResize(open, wrapperRef, () => setOpen(false));
 
   const onMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Escape') {

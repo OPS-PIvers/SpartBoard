@@ -1021,6 +1021,12 @@ export const translateQuizV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign-in required.');
     if (request.auth.token.studentRole === true)
       throw new HttpsError('permission-denied', 'Teacher account required.');
+    // Unverified claims can't prove ownership of the caller's address (email/password sign-in allows a self-reported one) — same rail as organizationUserActivity.ts / isAdmin().
+    if (request.auth.token.email_verified !== true)
+      throw new HttpsError(
+        'permission-denied',
+        'Caller email must be verified.'
+      );
     const deps = buildDefaultDeps();
     await assertQuizTranslationFeature(
       deps.db,
@@ -1048,6 +1054,12 @@ export const translateResponseV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign-in required.');
     if (request.auth.token.studentRole === true)
       throw new HttpsError('permission-denied', 'Teacher account required.');
+    // Unverified claims can't prove ownership of the caller's address (email/password sign-in allows a self-reported one) — same rail as organizationUserActivity.ts / isAdmin().
+    if (request.auth.token.email_verified !== true)
+      throw new HttpsError(
+        'permission-denied',
+        'Caller email must be verified.'
+      );
     const data = (request.data ?? {}) as Record<string, unknown>;
     const text = typeof data.text === 'string' ? data.text.trim() : '';
     const sourceLocale =

@@ -327,7 +327,9 @@ vi.mock('firebase-admin', () => {
       bucket: vi.fn(() => mockStorageBucket),
     })),
     auth: vi.fn(() => ({
-      verifyIdToken: vi.fn().mockResolvedValue({ email: 'admin@school.org' }),
+      verifyIdToken: vi
+        .fn()
+        .mockResolvedValue({ email: 'admin@school.org', email_verified: true }),
       listUsers: vi.fn().mockImplementation(() => {
         const users = mockFirestoreState.users.map((u) => ({
           uid: u.id,
@@ -1784,7 +1786,9 @@ describe('adminAnalytics', () => {
     const adminMock = (await import('firebase-admin')) as any;
     const originalAuth = adminMock.auth;
     adminMock.auth = vi.fn(() => ({
-      verifyIdToken: vi.fn().mockResolvedValue({ email: 'alice@org-a.com' }),
+      verifyIdToken: vi
+        .fn()
+        .mockResolvedValue({ email: 'alice@org-a.com', email_verified: true }),
       listUsers: vi.fn().mockResolvedValue({ users: [], pageToken: undefined }),
       getUsers: vi.fn().mockResolvedValue({ users: [] }),
     }));

@@ -57,7 +57,8 @@ export const adminAnalytics = onRequest(
     try {
       const idToken = authHeader.split('Bearer ')[1];
       const decodedToken = await admin.auth().verifyIdToken(idToken);
-      if (!decodedToken.email) {
+      // Unverified claims can't prove ownership of the caller's address (email/password sign-in allows a self-reported one) — same rail as organizationUserActivity.ts / isAdmin().
+      if (!decodedToken.email || decodedToken.email_verified !== true) {
         res.status(401).json({ error: 'unauthenticated', requestId });
         return;
       }

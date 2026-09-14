@@ -2425,6 +2425,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // A real remote change invalidates local undo history for that board.
+        // stableStringify so a Firestore key-order echo doesn't read as a change and wrongly clear history.
         const nextActive = newDashboards.find(
           (d) => d.id === activeIdRef.current
         );
@@ -2432,8 +2433,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           nextActive &&
           currentActive &&
           nextActive !== currentActive &&
-          JSON.stringify(nextActive.widgets) !==
-            JSON.stringify(currentActive.widgets)
+          stableStringify(nextActive.widgets) !==
+            stableStringify(currentActive.widgets)
         ) {
           widgetHistoryRef.current.delete(nextActive.id);
         }

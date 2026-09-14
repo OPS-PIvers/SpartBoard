@@ -64,31 +64,36 @@ export const SchemaRenderer: React.FC<SchemaRendererProps> = ({
               {title}
             </SettingsLabel>
             <div className="divide-y divide-slate-100">
-              {visibleFields.map((field, index) => {
-                const previous = index > 0 ? visibleFields[index - 1] : null;
-                const startsSection =
-                  field.section !== undefined &&
-                  field.section !== previous?.section;
-                return (
-                  <React.Fragment key={field.key}>
-                    {startsSection && field.section && (
-                      <p
-                        data-section={field.section}
-                        className="pt-3 pb-1 text-xxs font-bold uppercase tracking-wider text-slate-600"
-                      >
-                        {resolveLabel(ctx.t, widget.type, field.section)}
-                      </p>
-                    )}
-                    <FieldRenderer
-                      field={field}
-                      widget={widget}
-                      ctx={ctx}
-                      updateConfig={updateConfig}
-                      defaults={defaults}
-                    />
-                  </React.Fragment>
-                );
-              })}
+              {(() => {
+                const printedSections = new Set<string>();
+                return visibleFields.map((field) => {
+                  const startsSection =
+                    field.section !== undefined &&
+                    !printedSections.has(field.section);
+                  if (startsSection && field.section) {
+                    printedSections.add(field.section);
+                  }
+                  return (
+                    <React.Fragment key={field.key}>
+                      {startsSection && field.section && (
+                        <p
+                          data-section={field.section}
+                          className="pt-3 pb-1 text-xxs font-bold uppercase tracking-wider text-slate-600"
+                        >
+                          {resolveLabel(ctx.t, widget.type, field.section)}
+                        </p>
+                      )}
+                      <FieldRenderer
+                        field={field}
+                        widget={widget}
+                        ctx={ctx}
+                        updateConfig={updateConfig}
+                        defaults={defaults}
+                      />
+                    </React.Fragment>
+                  );
+                });
+              })()}
             </div>
           </section>
         );
