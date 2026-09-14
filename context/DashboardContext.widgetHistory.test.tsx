@@ -354,6 +354,32 @@ describe('DashboardContext widget undo/redo', () => {
     expect(stateRef.current?.canUndo).toBe(false);
   });
 
+  it('preserves undo history on a remote echo that reorders widget keys without changing content', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
+    act(() => stateRef.current?.updateWidget('w1', { x: 999 }));
+    expect(stateRef.current?.canUndo).toBe(true);
+
+    // Let the local-edit window and save debounce pass.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    const current = stateRef.current?.activeDashboard?.widgets[0];
+    if (!current) throw new Error('missing widget');
+    // Firestore does not preserve field insertion order — same content, every key reinserted in reverse order.
+    const currentAsRecord = current as unknown as Record<string, unknown>;
+    const reordered = Object.keys(current)
+      .reverse()
+      .reduce<Record<string, unknown>>((acc, k) => {
+        acc[k] = currentAsRecord[k];
+        return acc;
+      }, {}) as unknown as WidgetData;
+
+    await pushSnapshot([makeDashboard([reordered])]);
+    expect(stateRef.current?.canUndo).toBe(true);
+  });
+
   it('does not record a no-op layer move over the previous entry', async () => {
     const stateRef = setup();
     await settleSnapshot(stateRef, [
