@@ -10,6 +10,8 @@ export type SynthesizeQuizAudioRequest =
       sessionId: string;
       questionId: string;
       part: QuizReadAloudPart;
+      /** Translation locale being viewed; omitted for the English rendering. */
+      locale?: string;
     }
   | { mode: 'preview'; language: string; voice?: string };
 
@@ -63,20 +65,29 @@ export async function synthesizeQuizAudio(
 }
 
 export async function prepareQuizReadAloud(
-  sessionId: string
+  sessionId: string,
+  /** Translation locales held by read-aloud students; nothing else is synthesized. */
+  translationLocales: string[] = []
 ): Promise<PrepareQuizReadAloudResult> {
   const callable = httpsCallable<
-    { sessionId: string },
+    { sessionId: string; includeTranslations: string[] },
     PrepareQuizReadAloudResult
   >(functions, 'prepareQuizReadAloudV1');
-  return (await callable({ sessionId })).data;
+  return (
+    await callable({ sessionId, includeTranslations: translationLocales })
+  ).data;
 }
 
 /** Fire-and-forget prepare after an assign; failures only log (the student fallback covers them). */
-export function prepareQuizReadAloudInBackground(sessionId: string): void {
-  void prepareQuizReadAloud(sessionId).catch((err: unknown) => {
-    console.warn('[quizReadAloud] prepare failed', err);
-  });
+export function prepareQuizReadAloudInBackground(
+  sessionId: string,
+  translationLocales: string[] = []
+): void {
+  void prepareQuizReadAloud(sessionId, translationLocales).catch(
+    (err: unknown) => {
+      console.warn('[quizReadAloud] prepare failed', err);
+    }
+  );
 }
 
 /** R9: manifest paths open through the Storage SDK; no signed URLs. */

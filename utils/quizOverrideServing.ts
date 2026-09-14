@@ -69,6 +69,8 @@ export function serveLocalizedQuestion(
   if (!isTranslatableQuestionType(q.type)) return null;
   const entry = q.localized?.[locale];
   if (!entry) return null;
+  // An empty stem is a half-translation; the server rejects it too.
+  if (!entry.text?.trim()) return null;
   // Whole-question fallback (§4.6): a translated stem over English options is worse than English.
   for (const field of LOCALIZED_ARRAY_FIELDS) {
     if (q[field]?.length && !entry[field]?.length) return null;

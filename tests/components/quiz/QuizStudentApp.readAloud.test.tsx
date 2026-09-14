@@ -295,6 +295,44 @@ describe('QuizStudentApp — read-aloud eligibility', () => {
     ).toBeInTheDocument();
   });
 
+  it('asks for Spanish audio and reads the locale manifest slice on a translated view', async () => {
+    const api = await import('@/utils/quizReadAloudApi');
+    const synthesize = vi.mocked(api.synthesizeQuizAudio);
+    synthesize.mockResolvedValue({
+      path: 'p.mp3',
+      mimeType: 'audio/mpeg',
+      chars: 5,
+      cached: false,
+    });
+    pointerState.current = pointer({ readAloud: true, language: 'es' });
+    hookState.session = buildSession({
+      publicQuestions: [
+        {
+          ...QUESTIONS[0],
+          localized: {
+            es: { text: '¿Cuánto es 2 + 2?', choices: ['3', '4', '5', '22'] },
+          },
+        },
+        QUESTIONS[1],
+      ],
+    });
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('¿Cuánto es 2 + 2?')).toBeInTheDocument()
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: /^(Read question|Leer pregunta)$/,
+      })
+    );
+    await waitFor(() => expect(synthesize).toHaveBeenCalled());
+    expect(synthesize.mock.calls[0][0]).toMatchObject({
+      mode: 'student',
+      locale: 'es',
+    });
+  });
+
   it('puts a speaker beside every matching term and definition', async () => {
     pointerState.current = pointer({ readAloud: true, questionIds: ['q2'] });
     render(<QuizStudentApp />);

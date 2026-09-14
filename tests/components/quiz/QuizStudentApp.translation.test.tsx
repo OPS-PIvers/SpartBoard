@@ -430,7 +430,7 @@ describe('QuizStudentApp — Matching placements across a locale toggle', () => 
   });
 });
 
-describe('QuizStudentApp — read-aloud x translation (D25)', () => {
+describe('QuizStudentApp — read-aloud x translation (D25 reversed)', () => {
   beforeEach(() => {
     hookState.session = buildSession({
       readAloudAll: true,
@@ -438,18 +438,45 @@ describe('QuizStudentApp — read-aloud x translation (D25)', () => {
     });
   });
 
-  it('suppresses the read-aloud controls while a question renders localized', async () => {
+  it('keeps the read-aloud controls on a Spanish rendering (voiced locale)', async () => {
     setPointer({ language: 'es', readAloud: true });
     render(<QuizStudentApp />);
     await waitFor(() =>
       expect(screen.getByText('¿Capital de Francia?')).toBeInTheDocument()
     );
     expect(
+      screen.getByRole('button', { name: READ_QUESTION })
+    ).toBeInTheDocument();
+  });
+
+  it('hides them on a locale with no TTS voice (Somali)', async () => {
+    hookState.session = buildSession({
+      readAloudAll: true,
+      language: 'en-US',
+      publicQuestions: [
+        {
+          ...QUESTIONS[0],
+          localized: {
+            so: {
+              text: 'Caasimadda Faransiiska?',
+              choices: ['Paris', 'London', 'Rome'],
+            },
+          },
+        },
+        QUESTIONS[1],
+      ],
+    });
+    setPointer({ language: 'so', readAloud: true });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(screen.getByText('Caasimadda Faransiiska?')).toBeInTheDocument()
+    );
+    expect(
       screen.queryByRole('button', { name: READ_QUESTION })
     ).not.toBeInTheDocument();
   });
 
-  it('restores them on the English toggle', async () => {
+  it('keeps them on the English toggle', async () => {
     const user = userEvent.setup();
     setPointer({ language: 'es', readAloud: true });
     render(<QuizStudentApp />);
