@@ -30,7 +30,8 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
-import { useStudentAssignmentOverride } from '@/hooks/useStudentAssignmentOverride';
+import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
+import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { VideoActivityQuestion, VideoActivitySession } from '@/types';
 import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 import { VideoPlayer } from './VideoPlayer';
@@ -251,12 +252,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // C3. `enabled: isStudentRole` because only SSO joiners carry the
   // `studentRole` claim the Firestore rule requires; anon/PIN joiners are
   // out of scope for individual targeting (spec §6 non-goals).
-  const pointerOverride = useStudentAssignmentOverride(
+  const pointer = useStudentAssignmentPointer(
     authedUid,
     session?.id ?? null,
     isStudentRole
   );
-  void pointerOverride;
+  void pointer?.override;
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
@@ -591,6 +592,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     return (
       <ErrorScreen message="Invalid activity link. Please ask your teacher for the correct URL." />
     );
+  }
+
+  // Teacher skipped this student for this assignment.
+  if (pointer?.excluded) {
+    return <AssignmentExcludedNotice />;
   }
 
   // ── Period selection step (multi-period sessions) ────────────────────────

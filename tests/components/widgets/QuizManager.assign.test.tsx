@@ -528,7 +528,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     ).not.toBeInTheDocument();
   });
 
-  it('warns but does not block when only a standing roster default applies', async () => {
+  it('confirms, then assigns, when only a standing roster default applies', async () => {
     const onAssign = vi.fn();
     renderManager(
       makeQuizMeta({
@@ -548,9 +548,16 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     checkAccommodatedClass(dialog);
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
-    // Standing roster defaults are a pre-existing setting, never a block.
-    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    // First click surfaces the timing warning by name and holds the assign.
+    expect(onAssign).not.toHaveBeenCalled();
+    expect(await within(dialog).findByRole('status')).toHaveTextContent(
+      /extended time for .*will not apply/i
+    );
+    // Never an error: a standing default is a pre-existing setting, not a block.
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
   });
 
   it('blocks a teacher-paced save once the teacher skips a student', async () => {
@@ -581,7 +588,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
 
     expect(onAssign).not.toHaveBeenCalled();
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-      /requires Self-paced mode/i
+      /require Self-paced mode/i
     );
   });
 

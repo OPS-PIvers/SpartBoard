@@ -279,6 +279,22 @@ export function targetRefsFromAssignment(
   return out;
 }
 
+/** Every ref that may hold a pointer doc: targets plus skipped students. */
+export function pointerRefsFromAssignment(
+  data: Record<string, unknown> | undefined
+): StudentTargetRef[] {
+  const excludedRaw = Array.isArray(data?.excludedTargets)
+    ? data.excludedTargets
+    : [];
+  const byKey = new Map<string, StudentTargetRef>();
+  for (const ref of targetRefsFromAssignment(data)) byKey.set(refKey(ref), ref);
+  for (const item of excludedRaw.slice(0, MAX_STORED_TARGET_REFS)) {
+    const ref = parseRef(item);
+    if (ref) byKey.set(refKey(ref), ref);
+  }
+  return [...byKey.values()];
+}
+
 /** uid derivation per ref kind — test students namespace as `test:{emailLower}`. */
 export function uidForRef(ref: StudentTargetRef, hmacSecret: string): string {
   return ref.kind === 'classlink'

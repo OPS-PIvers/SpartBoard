@@ -78,6 +78,7 @@ import {
   classStudentRows,
   studentTargetRefKey,
 } from '@/utils/studentTargetRef';
+import { isEmptyStudentOverride } from '@/utils/rosterDefaultOverrides';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -1565,16 +1566,22 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       )
     : undefined;
 
+  const assignClassRows = useMemo(
+    () =>
+      classStudentRows({
+        rosters,
+        selectedRosterIds: assignOptions.picker.rosterIds,
+      }),
+    [rosters, assignOptions.picker.rosterIds]
+  );
+
   // Standing roster defaults carrying extended time: teacher-paced sessions
   // have no per-student timer, so these will not apply (a warning, not a block).
   const timingOnlyDefaultNames = useMemo(() => {
     const excluded = new Set(
       (assignTargeting.excludedStudents ?? []).map(studentTargetRefKey)
     );
-    return classStudentRows({
-      rosters,
-      selectedRosterIds: assignOptions.picker.rosterIds,
-    })
+    return assignClassRows
       .filter(
         (row) =>
           !excluded.has(row.key) &&
@@ -1583,8 +1590,29 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       )
       .map((row) => row.name);
   }, [
-    rosters,
-    assignOptions.picker.rosterIds,
+    assignClassRows,
+    assignTargeting.excludedStudents,
+    assignTargeting.overridesByKey,
+  ]);
+
+  // Work the teacher expressed FOR THIS assignment: a hand-picked list, a skip,
+  // or a non-empty edit on a student still in a checked class. An override
+  // toggled on and back off leaves an empty object and must not count.
+  const explicitTargetingWork = useMemo(() => {
+    if (assignTargeting.targetMode === 'students') return true;
+    const rowKeys = new Set(assignClassRows.map((row) => row.key));
+    if (
+      (assignTargeting.excludedStudents ?? []).some((ref) =>
+        rowKeys.has(studentTargetRefKey(ref))
+      )
+    )
+      return true;
+    return Object.entries(assignTargeting.overridesByKey).some(
+      ([key, override]) => rowKeys.has(key) && !isEmptyStudentOverride(override)
+    );
+  }, [
+    assignClassRows,
+    assignTargeting.targetMode,
     assignTargeting.excludedStudents,
     assignTargeting.overridesByKey,
   ]);
@@ -1598,23 +1626,28 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
     // diverge per student). Block the save rather than silently assigning
     // accommodations that would never take effect.
-    // Only work the teacher expressed FOR THIS assignment blocks: a skip, a
-    // hand-picked list, or an edit they made in this dialog. Standing roster
-    // defaults are a pre-existing setting and must never block the assign.
-    const explicitWork =
-      assignTargeting.targetMode === 'students' ||
-      (assignTargeting.excludedStudents ?? []).length > 0 ||
-      Object.keys(assignTargeting.overridesByKey).length > 0;
-    if (explicitWork && behavior.sessionMode !== 'student') {
+    // Standing roster defaults are a pre-existing setting and never block.
+    if (explicitTargetingWork && behavior.sessionMode !== 'student') {
       setTargetingPacingError(
-        'Individual student targeting requires Self-paced mode. Switch Session Settings below to Self-paced, or assign to the whole class.'
+        t('assignTargeting.pacingBlocked', {
+          defaultValue:
+            "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications.",
+        })
       );
       return;
     }
     setTargetingPacingError(null);
-    setTargetingTimingWarning(
-      behavior.sessionMode === 'student' ? null : timingOnlyDefaultNames
-    );
+    // Confirm step, not a toast that dies with the modal: extended time cannot
+    // apply in a teacher-paced session, so the teacher acknowledges it first.
+    if (
+      behavior.sessionMode !== 'student' &&
+      timingOnlyDefaultNames.length > 0 &&
+      !targetingTimingWarning
+    ) {
+      setTargetingTimingWarning(timingOnlyDefaultNames);
+      return;
+    }
+    setTargetingTimingWarning(null);
     // Guard against stale rosterIds — rosters can be deleted or fail to load
     // (`loadError`) between the teacher's last assignment and the current one.
     // A roster without students can't produce a joinable session, so treat
@@ -1656,6 +1689,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setTargetingPacingError(null);
+    setTargetingTimingWarning(null);
     setAssignQuizData(null);
     setAssignDestination('spartboard');
   };
@@ -2201,9 +2235,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   role="status"
                   className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700"
                 >
-                  {t('assignTargeting.timingNotApplied', {
+                  {t('assignTargeting.timingNotAppliedConfirm', {
                     defaultValue:
-                      'Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply.',
+                      'Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply. Click Assign again to continue.',
                     names: targetingTimingWarning.join(', '),
                   })}
                 </p>

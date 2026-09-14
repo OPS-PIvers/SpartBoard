@@ -116,6 +116,10 @@ export interface AssignTargetingSectionProps {
   onExpand?: () => void;
   /** False hides the modifications affordance entirely (no roster resolves here). */
   allowModifications?: boolean;
+  /** False when the host has no class picker (the hub), changing the empty-state copy. */
+  canPickClasses?: boolean;
+  /** False on a re-edit: standing roster accommodations must not apply retroactively. */
+  useRosterDefaults?: boolean;
 }
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
@@ -279,6 +283,8 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   readAloudAvailable = false,
   onExpand,
   allowModifications = true,
+  canPickClasses = true,
+  useRosterDefaults = true,
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -311,10 +317,15 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
     [selectedRosterIds, rosters]
   );
 
-  const classRows = useMemo(
-    () => classStudentRows({ rosters, selectedRosterIds: effectiveRosterIds }),
-    [rosters, effectiveRosterIds]
-  );
+  const classRows = useMemo(() => {
+    const rows = classStudentRows({
+      rosters,
+      selectedRosterIds: effectiveRosterIds,
+    });
+    if (useRosterDefaults) return rows;
+    // Re-edit: the stored snapshot is frozen, so standing defaults are inert.
+    return rows.map(({ defaultOverride: _ignored, ...rest }) => rest);
+  }, [rosters, effectiveRosterIds, useRosterDefaults]);
 
   const anyClassChecked = effectiveRosterIds.length > 0;
 
@@ -366,6 +377,35 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   const visibleRows = showAll
     ? [...promotedRows, ...remainingRows]
     : promotedRows;
+
+  // Grouped by class so a multi-class assign never mixes two sections into one
+  // undifferentiated list; last name orders each section.
+  const groupedRows = new Map<string, ClassStudentRow[]>();
+  for (const row of visibleRows) {
+    const existing = groupedRows.get(row.rosterName);
+    if (existing) existing.push(row);
+    else groupedRows.set(row.rosterName, [row]);
+  }
+  const visibleGroups = [...groupedRows.entries()].map(
+    ([rosterName, groupRows]) => ({
+      rosterName,
+      rows: [...groupRows].sort(
+        (a, b) =>
+          a.lastName.localeCompare(b.lastName) || a.name.localeCompare(b.name)
+      ),
+    })
+  );
+
+  const multiClass = visibleGroups.length > 1;
+
+  // Drops every edit and skip this dialog made — the control the pacing error
+  // tells the teacher to reach for.
+  const clearModifications = () =>
+    patch({
+      targetStudents: [],
+      overridesByKey: {},
+      excludedStudents: [],
+    });
 
   const translationAdvisory = useMemo(() => {
     const translation = quizContext?.translation;
@@ -511,13 +551,27 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         <span className="text-sm font-bold text-brand-blue-dark">
           {t('assignTargeting.modificationsLabel', 'Modifications')}
         </span>
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
-        >
-          {t('assignTargeting.collapse', 'Done')}
-        </button>
+        <div className="flex items-center gap-3">
+          {(modifiedCount > 0 || excludedInScope.length > 0) && (
+            <button
+              type="button"
+              onClick={clearModifications}
+              className="text-xs font-medium text-slate-500 hover:text-brand-red-primary transition-colors"
+            >
+              {t(
+                'assignTargeting.clearModifications',
+                'Clear all modifications'
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            {t('assignTargeting.collapse', 'Done')}
+          </button>
+        </div>
       </div>
 
       {translationAdvisory.length > 0 && (
@@ -570,10 +624,15 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
                 'assignTargeting.noSignInStudents',
                 'No one in the checked classes has a school sign-in, so there is nobody to modify individually.'
               )
-            : t(
-                'assignTargeting.noClassStudents',
-                'Check a class above to modify individual students.'
-              )}
+            : canPickClasses
+              ? t(
+                  'assignTargeting.noClassStudents',
+                  'Check a class above to modify individual students.'
+                )
+              : t(
+                  'assignTargeting.noLinkedClass',
+                  'This assignment is not linked to a class you can modify here.'
+                )}
         </p>
       ) : (
         <>
@@ -588,33 +647,44 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
               )}
             </p>
           )}
-          <div className="space-y-2">
-            {visibleRows.map((row) => (
-              <ClassStudentOverrideRow
-                key={row.key}
-                row={row}
-                override={
-                  value.overridesByKey[row.key] ?? row.defaultOverride ?? {}
-                }
-                hasStanding={!!row.defaultOverride}
-                skipped={excludedKeys.has(row.key)}
-                onOverrideChange={(next) => setOverrideForKey(row.key, next)}
-                onSkipChange={(skipped) => setSkipped(row.ref, skipped)}
-                quizMode={kind === 'quiz'}
-                readAloudAvailable={readAloudAvailable}
-                questions={quizContext?.questions ?? []}
-                rubrics={quizContext?.rubrics ?? []}
-                peers={visibleRows
-                  .filter((peer) => peer.key !== row.key)
-                  .map((peer) => ({
-                    id: peer.key,
-                    name: peer.name,
-                    override:
-                      value.overridesByKey[peer.key] ??
-                      peer.defaultOverride ??
-                      {},
-                  }))}
-              />
+          <div className="space-y-3">
+            {visibleGroups.map((group) => (
+              <div key={group.rosterName} className="space-y-2">
+                {multiClass && (
+                  <p className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+                    {group.rosterName}
+                  </p>
+                )}
+                {group.rows.map((row) => (
+                  <ClassStudentOverrideRow
+                    key={row.key}
+                    row={row}
+                    override={
+                      value.overridesByKey[row.key] ?? row.defaultOverride ?? {}
+                    }
+                    hasStanding={!!row.defaultOverride}
+                    skipped={excludedKeys.has(row.key)}
+                    onOverrideChange={(next) =>
+                      setOverrideForKey(row.key, next)
+                    }
+                    onSkipChange={(skipped) => setSkipped(row.ref, skipped)}
+                    quizMode={kind === 'quiz'}
+                    readAloudAvailable={readAloudAvailable}
+                    questions={quizContext?.questions ?? []}
+                    rubrics={quizContext?.rubrics ?? []}
+                    peers={visibleRows
+                      .filter((peer) => peer.key !== row.key)
+                      .map((peer) => ({
+                        id: peer.key,
+                        name: peer.name,
+                        override:
+                          value.overridesByKey[peer.key] ??
+                          peer.defaultOverride ??
+                          {},
+                      }))}
+                  />
+                ))}
+              </div>
             ))}
           </div>
           {remainingRows.length > 0 && (

@@ -270,4 +270,90 @@ describe('useAssignmentDetailActions', () => {
       __deleteField: true,
     });
   });
+
+  it('un-skipping deletes the marker pointer without archiving a removed ref', async () => {
+    const row = makeRow({
+      targetMode: 'class',
+      targetStudents: [],
+      overridesBySourcedId: {},
+      excludedTargets: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'class',
+      targetStudents: [],
+      targetGroupIds: [],
+      overridesByKey: {},
+      excludedStudents: [],
+    });
+
+    const call = mockSetAssignmentTargets.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(call.remove).toEqual([{ kind: 'classlink', sourcedId: 'SID-2' }]);
+    const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
+    expect(assignmentPatch.removedStudentRefs).toBeUndefined();
+  });
+
+  it('a class edit with unresolved rosters (no classContext) keeps the stored pointers', async () => {
+    const row = makeRow({
+      targetMode: 'class',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      overridesBySourcedId: { 'classlink:SID-1': { timeMultiplier: 1.5 } },
+      excludedTargets: [{ kind: 'classlink', sourcedId: 'SID-2' }],
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.closeNow(row, 'teacher-1');
+
+    const call = mockSetAssignmentTargets.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(call.remove).toEqual([]);
+    expect(call.excludedTargets).toEqual([
+      { kind: 'classlink', sourcedId: 'SID-2' },
+    ]);
+    expect(call.overridesBySourcedId).toEqual({});
+  });
+
+  it('"Close now" with the class unchanged emits a window-only payload', async () => {
+    const row = makeRow({
+      targetMode: 'class',
+      targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      overridesBySourcedId: { 'classlink:SID-1': { timeMultiplier: 1.5 } },
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+
+    await result.current.closeNow(row, 'teacher-1', {
+      rosters: [
+        {
+          id: 'r1',
+          name: 'Period 2',
+          students: [
+            {
+              id: 's1',
+              firstName: 'Ada',
+              lastName: 'Byron',
+              classLinkSourcedId: 'SID-1',
+            },
+          ],
+          // Added to the roster AFTER this assignment: must not apply now.
+          defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+        },
+      ] as never,
+      selectedRosterIds: ['r1'],
+    });
+
+    const call = mockSetAssignmentTargets.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(call.add).toEqual([]);
+    expect(call.remove).toEqual([]);
+    expect(call.overridesBySourcedId).toEqual({});
+    expect(Object.keys(call.window as object)).toEqual(['closeAt']);
+  });
 });

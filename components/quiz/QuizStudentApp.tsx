@@ -154,6 +154,7 @@ import {
   listOpenQuestions,
 } from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
+import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import {
   getScoreSuffix,
@@ -880,6 +881,12 @@ const QuizJoinFlow: React.FC<{
   // must always enter their PIN manually.
   // (If you want URL-based pin support: ?code=XXXXXX&pin=01 is an option for
   // future work, but not implemented here to avoid leaking PINs in URL logs.)
+
+  // Teacher skipped this student: the class channel still carries the session,
+  // so the exclusion marker is the only thing that can stop the activity here.
+  if (myPointer?.excluded) {
+    return <AssignmentExcludedNotice />;
+  }
 
   // Period selection step — shown to anon joiners when the session declares
   // any class periods. SSO joiners skip this and join via the auto-join effect.

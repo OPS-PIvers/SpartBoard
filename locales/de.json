@@ -1971,7 +1971,11 @@
     "summaryModified": "{{count}} angepasst",
     "noSignInCount": "{{count}} Schüler/innen in diesen Klassen haben keine Schul-Anmeldung und können nicht einzeln angepasst werden.",
     "noSignInStudents": "Niemand in den ausgewählten Klassen hat eine Schul-Anmeldung, daher gibt es niemanden, der einzeln angepasst werden kann.",
-    "timingNotApplied": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin."
+    "timingNotApplied": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin.",
+    "clearModifications": "Alle Anpassungen löschen",
+    "noLinkedClass": "Diese Aufgabe ist mit keiner Klasse verknüpft, die du hier anpassen kannst.",
+    "timingNotAppliedConfirm": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin. Klicke erneut auf Zuweisen, um fortzufahren.",
+    "pacingBlocked": "Einzelne Schüleranpassungen erfordern den selbstgesteuerten Modus. Stelle die Sitzungseinstellungen unten auf Selbstgesteuert um oder nutze „Alle Anpassungen löschen“ unter „Anpassungen bearbeiten oder hinzufügen“."
   },
   "assignmentsHub": {
     "title": "Aufgaben",
@@ -2035,7 +2039,9 @@
       "stopSharingPlc": "Teilen beenden",
       "sharePlcDone": "Die Ergebnisse fließen jetzt in {{plc}} ein.",
       "stopSharingPlcDone": "Ergebnisse werden nicht mehr mit {{plc}} geteilt.",
-      "plcActionFailed": "PLC-Freigabe konnte nicht aktualisiert werden. Bitte erneut versuchen."
+      "plcActionFailed": "PLC-Freigabe konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+      "skippedStatus": "Übersprungen",
+      "classNotResolved": "Diese Aufgabe ist mit keiner Klasse verknüpft, die du hier anpassen kannst; nur der Zeitplan ist änderbar."
     }
   },
   "quizResults": {
@@ -2566,5 +2572,9 @@
       "subjectsTaught": "Unterrichtete Fachbereiche",
       "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
     }
+  },
+  "studentAssignment": {
+    "excludedTitle": "Diese Aufgabe ist nicht für dich",
+    "excludedBody": "Deine Lehrkraft hat dir diese Aufgabe nicht zugewiesen. Frage nach, wenn du glaubst, dass das ein Fehler ist."
   }
 }

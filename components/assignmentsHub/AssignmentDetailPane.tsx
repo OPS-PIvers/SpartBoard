@@ -57,7 +57,13 @@ const RosterRow: React.FC<{ row: AssignmentRosterRow }> = ({ row }) => {
           <p className="text-xs text-slate-400">{row.modifiedNote}</p>
         )}
       </div>
-      {row.removed ? (
+      {row.skipped ? (
+        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+          {t('assignmentsHub.detail.skippedStatus', {
+            defaultValue: 'Skipped',
+          })}
+        </span>
+      ) : row.removed ? (
         <span className="shrink-0 text-xs font-medium text-slate-400">
           {t('assignmentsHub.detail.removedStatus', {
             defaultValue: 'Removed — work retained',
@@ -235,12 +241,22 @@ export const AssignmentDetailPane: React.FC<{
     [rosters, effectiveRosterIds]
   );
 
+  // Only treat this as a class-mode edit when EVERY roster resolved. A roster
+  // that failed to load would otherwise look like an empty class and wipe the
+  // pointer docs the assignment already fanned out.
+  const rostersFullyResolved =
+    matchedRosters.length > 0 &&
+    matchedRosters.length === (effectiveRosterIds ?? []).length;
+
   const classContext = useMemo(
-    () => ({
-      rosters: matchedRosters,
-      selectedRosterIds: matchedRosters.map((r) => r.id),
-    }),
-    [matchedRosters]
+    () =>
+      rostersFullyResolved
+        ? {
+            rosters: matchedRosters,
+            selectedRosterIds: matchedRosters.map((r) => r.id),
+          }
+        : undefined,
+    [matchedRosters, rostersFullyResolved]
   );
 
   // The section ids still gate pseudonym lookups for launches that never
@@ -277,6 +293,7 @@ export const AssignmentDetailPane: React.FC<{
         pseudonyms,
         statusByUid,
         removedStudentRefs: row.removedStudentRefs,
+        excludedTargets: row.excludedTargets,
         t,
       }),
     [
@@ -289,6 +306,7 @@ export const AssignmentDetailPane: React.FC<{
       pseudonyms,
       statusByUid,
       row.removedStudentRefs,
+      row.excludedTargets,
       t,
     ]
   );
@@ -365,6 +383,7 @@ export const AssignmentDetailPane: React.FC<{
       manual: 0,
     };
     for (const r of rosterRows) {
+      if (r.skipped) continue;
       if (r.manual) c.manual += 1;
       else c[r.status ?? 'not-started'] += 1;
     }
@@ -526,13 +545,24 @@ export const AssignmentDetailPane: React.FC<{
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
             <AssignTargetingSection
               rosters={matchedRosters}
-              selectedRosterIds={classContext.selectedRosterIds}
+              selectedRosterIds={classContext?.selectedRosterIds ?? []}
+              allowModifications={!!classContext}
+              canPickClasses={false}
+              useRosterDefaults={false}
               value={draft}
               onChange={setDraft}
               kind={row.kind}
               showDueAt={row.kind === 'quiz'}
               readAloudAvailable={readAloudAvailable}
             />
+            {!classContext && (
+              <p className="text-xs text-slate-500">
+                {t('assignmentsHub.detail.classNotResolved', {
+                  defaultValue:
+                    'This assignment is not linked to a class you can modify here, so only the schedule can be changed.',
+                })}
+              </p>
+            )}
             {postPublishLocales.map((entry) => (
               <p
                 key={entry.locale}

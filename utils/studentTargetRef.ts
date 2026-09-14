@@ -78,6 +78,8 @@ export interface ClassStudentRow {
   ref: StudentTargetRef;
   studentId: string;
   name: string;
+  /** Sort key for the per-class list. */
+  lastName: string;
   rosterId: string;
   rosterName: string;
   /** Standing roster accommodation, if the teacher set one for this student. */
@@ -121,6 +123,7 @@ export function classStudentRows(
         ref,
         studentId: student.id,
         name: `${student.firstName} ${student.lastName}`.trim(),
+        lastName: student.lastName ?? '',
         rosterId: roster.id,
         rosterName: roster.name,
         ...(defaultOverride ? { defaultOverride } : {}),
@@ -132,14 +135,24 @@ export function classStudentRows(
   return rows;
 }
 
+/** Drops an override that carries no actual accommodation. */
+function nonEmptyOverride(
+  override: StudentOverride | undefined
+): StudentOverride | undefined {
+  return override && !isEmptyStudentOverride(override) ? override : undefined;
+}
+
 /** The override actually served to a class-mode student: teacher edit wins over the standing default. */
 export function effectiveClassOverride(
   row: ClassStudentRow,
-  overridesByKey: Record<string, StudentOverride>
+  overridesByKey: Record<string, StudentOverride>,
+  /** False on a re-edit: a roster default added later must not apply retroactively. */
+  useRosterDefaults = true
 ): StudentOverride | undefined {
   const explicit = overridesByKey[row.key];
-  const resolved = explicit ?? row.defaultOverride;
-  return resolved && !isEmptyStudentOverride(resolved) ? resolved : undefined;
+  return nonEmptyOverride(
+    explicit ?? (useRosterDefaults ? row.defaultOverride : undefined)
+  );
 }
 
 /**
@@ -149,27 +162,52 @@ export function effectiveClassOverride(
  * pointer docs only carry accommodations. A skip is the one case that needs
  * individual delivery, since the class channel cannot hide a single student.
  */
+export interface ExpandClassTargetingOptions {
+  /** False for re-edits: standing roster defaults must not apply retroactively. */
+  useRosterDefaults?: boolean;
+}
+
 export function expandClassTargeting(
   value: AssignTargetingValue,
-  ctx: ClassTargetingContext
+  ctx: ClassTargetingContext,
+  options: ExpandClassTargetingOptions = {}
 ): AssignTargetingValue {
   if (value.targetMode === 'students') return value;
+  const useRosterDefaults = options.useRosterDefaults !== false;
   const rows = classStudentRows(ctx);
-  const rowKeys = new Set(rows.map((row) => row.key));
-  // Prune to the classes currently checked — unchecking a class must not leave
-  // a skip or an edit behind for a student who is no longer in scope.
-  const excludedStudents = (value.excludedStudents ?? []).filter((ref) =>
-    rowKeys.has(studentTargetRefKey(ref))
-  );
+  const rowByKey = new Map(rows.map((row) => [row.key, row] as const));
+  // Refs the stored snapshot already carries survive even when the roster no
+  // longer lists the student, so a re-edit never orphans their pointer doc.
+  const refByKey = new Map<string, StudentTargetRef>();
+  for (const ref of value.targetStudents)
+    refByKey.set(studentTargetRefKey(ref), ref);
+  for (const ref of value.excludedStudents ?? [])
+    refByKey.set(studentTargetRefKey(ref), ref);
+  for (const row of rows) refByKey.set(row.key, row.ref);
+  // Pruning to the checked classes only makes sense at assign time, where
+  // unchecking a class must drop its skips; a re-edit has no class picker.
+  const excludedStudents = useRosterDefaults
+    ? (value.excludedStudents ?? []).filter((ref) =>
+        rowByKey.has(studentTargetRefKey(ref))
+      )
+    : (value.excludedStudents ?? []);
   const excludedKeys = new Set(excludedStudents.map(studentTargetRefKey));
+  const candidateKeys = useRosterDefaults
+    ? rows.map((row) => row.key)
+    : [...refByKey.keys()];
   const overridesByKey: Record<string, StudentOverride> = {};
   const withOverride: StudentTargetRef[] = [];
-  for (const row of rows) {
-    if (excludedKeys.has(row.key)) continue;
-    const override = effectiveClassOverride(row, value.overridesByKey);
+  for (const key of candidateKeys) {
+    if (excludedKeys.has(key)) continue;
+    const ref = refByKey.get(key);
+    if (!ref) continue;
+    const row = rowByKey.get(key);
+    const override = row
+      ? effectiveClassOverride(row, value.overridesByKey, useRosterDefaults)
+      : nonEmptyOverride(value.overridesByKey[key]);
     if (override) {
-      overridesByKey[row.key] = override;
-      withOverride.push(row.ref);
+      overridesByKey[key] = override;
+      withOverride.push(ref);
     }
   }
   // `targetMode` stays 'class': the class channel keeps delivering to everyone,
@@ -198,6 +236,8 @@ export interface SetAssignmentTargetsPayload {
   overridesBySourcedId: Record<string, StudentOverride | null>;
   /** Omitted entirely when nothing is skipped — absence keeps the legacy fan-out. */
   excludedTargets?: StudentTargetRef[];
+  /** Subset of `remove` that is only an un-skip, never a de-targeting. */
+  unskipped?: StudentTargetRef[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;
@@ -221,10 +261,11 @@ const WINDOW_FIELDS = ['openAt', 'closeAt', 'dueAt'] as const;
 export function buildSetAssignmentTargetsPayload(
   previous: AssignTargetingValue | undefined,
   currentValue: AssignTargetingValue,
-  classContext?: ClassTargetingContext
+  classContext?: ClassTargetingContext,
+  options?: ExpandClassTargetingOptions
 ): SetAssignmentTargetsPayload {
   const current = classContext
-    ? expandClassTargeting(currentValue, classContext)
+    ? expandClassTargeting(currentValue, classContext, options)
     : currentValue;
   const prevRefByKey = new Map(
     (previous?.targetStudents ?? []).map(
@@ -293,11 +334,13 @@ export function buildSetAssignmentTargetsPayload(
   // is exactly "no overrides, no pointer"; a student who kept an override is
   // already in `add` and gets the marker rewritten away there.
   const excludedKeys = new Set(excluded.map(studentTargetRefKey));
+  const unskipped: StudentTargetRef[] = [];
   for (const ref of previous?.excludedStudents ?? []) {
     const key = studentTargetRefKey(ref);
     if (excludedKeys.has(key) || currRefByKey.has(key)) continue;
     if (remove.some((r) => studentTargetRefKey(r) === key)) continue;
     remove.push(ref);
+    unskipped.push(ref);
   }
 
   return {
@@ -306,6 +349,7 @@ export function buildSetAssignmentTargetsPayload(
     remove,
     overridesBySourcedId,
     ...(excludedChanged ? { excludedTargets: excluded } : {}),
+    ...(unskipped.length > 0 ? { unskipped } : {}),
     window,
   };
 }

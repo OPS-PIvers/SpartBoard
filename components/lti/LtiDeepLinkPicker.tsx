@@ -325,16 +325,14 @@ const LtiDeepLinkFlow: React.FC = () => {
   // (per-student rubric swap). Both are keyed off the same first-party Google
   // session the library is; `null` before it's ready keeps them inert.
   const { rosters } = useRosters(teacherReady ? user : null);
-  // The Schoology section carries no roster id, so the only link we can make
-  // is by section title. Without a match there is no class to expand into
-  // students and the modifications panel stays hidden.
+  // The link is the roster's stored `ltiContextId` — never the section title,
+  // which two unrelated classes can share. No match, or more than one, means
+  // there is no class to expand and the modifications panel stays hidden.
   const ltiSelectedRosterIds = useMemo(() => {
-    const title = contextTitle?.trim().toLowerCase();
-    if (!title) return [];
-    return rosters
-      .filter((r) => r.name.trim().toLowerCase() === title)
-      .map((r) => r.id);
-  }, [rosters, contextTitle]);
+    if (!contextId) return [];
+    const matches = rosters.filter((r) => r.ltiContextId === contextId);
+    return matches.length === 1 ? [matches[0].id] : [];
+  }, [rosters, contextId]);
   const ltiClassContext = useMemo(
     () => ({ rosters, selectedRosterIds: ltiSelectedRosterIds }),
     [rosters, ltiSelectedRosterIds]

@@ -127,9 +127,11 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       classContext?: ClassTargetingContext
     ): Promise<SaveAssignmentEditResult> => {
       const previous = assignmentRowToTargetingValue(row);
-      // Expand once so the assignment doc stores the same snapshot the CF fans out.
+      // Expand once so the assignment doc stores the same snapshot the CF fans
+      // out. Roster defaults are NOT re-applied: the stored snapshot is frozen,
+      // so a standing accommodation added later never lands retroactively.
       const effective = classContext
-        ? expandClassTargeting(next, classContext)
+        ? expandClassTargeting(next, classContext, { useRosterDefaults: false })
         : next;
       const payload = buildSetAssignmentTargetsPayload(previous, effective);
 
@@ -202,8 +204,16 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         assignmentPatch.closeAt = effective.closeAt ?? null;
       if ('dueAt' in payload.window)
         assignmentPatch.dueAt = effective.dueAt ?? null;
-      if (payload.remove.length > 0) {
-        assignmentPatch.removedStudentRefs = arrayUnion(...payload.remove);
+      // An un-skip deletes a marker pointer; it is not a de-targeting, so it
+      // must never be archived as a removed student.
+      const unskippedKeys = new Set(
+        (payload.unskipped ?? []).map(studentTargetRefKey)
+      );
+      const deTargeted = payload.remove.filter(
+        (ref) => !unskippedKeys.has(studentTargetRefKey(ref))
+      );
+      if (deTargeted.length > 0) {
+        assignmentPatch.removedStudentRefs = arrayUnion(...deTargeted);
       }
 
       const sessionPatch: Record<string, unknown> = {};
