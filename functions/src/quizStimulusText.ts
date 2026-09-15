@@ -222,10 +222,7 @@ export async function extractStimulusReadAloudText(
   // Quota is charged only once OCR can actually run within the deadline.
   const remaining = OCR_DEADLINE_MS - (deps.now() - startedAt);
   if (remaining <= 0) return { text: '', source: 'needs-manual' };
-  // Unverified claims can't prove ownership of the address (email/password
-  // sign-in allows a self-reported one) — an unverified email must never reach
-  // chargeOcrQuota's admins/{email} bypass, or a spoofed admin address would
-  // grant an uncapped OCR daily quota.
+  // An unverified (self-reported) email must never reach the admin bypass.
   await deps.chargeOcr(caller.uid, caller.emailVerified ? caller.email : null);
   let outcome: Awaited<ReturnType<typeof withDeadline<string>>>;
   try {
@@ -396,8 +393,7 @@ export function buildDefaultExtractDeps(): ExtractDeps {
       let email: string | null = null;
       try {
         const user = await admin.auth().getUser(teacherUid);
-        // Same unverified-email rule as chargeOcr: an unproven address must
-        // not reach isGlobalFeatureGranted's admins/{email} bypass.
+        // Same unverified-email rule as chargeOcr — see above.
         email = user.emailVerified ? (user.email ?? null) : null;
       } catch {
         email = null;
