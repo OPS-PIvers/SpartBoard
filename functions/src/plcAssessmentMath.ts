@@ -431,8 +431,9 @@ export interface LocalGrade {
   state: LocalGradeState;
 }
 
+// Mirrors hooks/useQuizSession.ts normalizeAnswer.
 const normalizeAnswer = (s: string): string =>
-  s.trim().toLowerCase().replace(/\s+/g, ' ');
+  s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
 
 function hasSubmittedContent(answer: string): boolean {
   let stripped = answer ?? '';

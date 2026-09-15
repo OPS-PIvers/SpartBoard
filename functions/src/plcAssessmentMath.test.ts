@@ -730,6 +730,15 @@ describe('localized FIB grading', () => {
     );
   });
 
+  it('treats ё and е as the same letter in a Russian key', () => {
+    expect(
+      gradeGroupAnswer(fib, 'Четыре ёлки', undefined, ['четыре елки']).isCorrect
+    ).toBe(true);
+    expect(
+      gradeGroupAnswer(fib, 'четыре елки', undefined, ['Четыре Ёлки']).isCorrect
+    ).toBe(true);
+  });
+
   it('scopes accepted answers to the served locale only', () => {
     const input = {
       localizedFibAnswers: { q2: { es: ['cuatro'], fr: ['quatre'] } },

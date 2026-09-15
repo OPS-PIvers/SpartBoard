@@ -47,12 +47,14 @@ const DEFAULT_SETTINGS: QuizReadAloudSettings = {
     'es-US': 'es-US-Neural2-A',
     'de-DE': 'de-DE-Neural2-F',
     'fr-FR': 'fr-FR-Neural2-A',
+    'ru-RU': 'ru-RU-Wavenet-A',
   },
   standardVoicesByLanguage: {
     'en-US': 'en-US-Standard-H',
     'es-US': 'es-US-Standard-A',
     'de-DE': 'de-DE-Standard-F',
     'fr-FR': 'fr-FR-Standard-A',
+    'ru-RU': 'ru-RU-Standard-A',
   },
   defaultLanguage: DEFAULT_QUIZ_LANGUAGE,
   neural2MonthlyCapChars: 900_000,
@@ -68,6 +70,8 @@ const PREVIEW_SENTENCES: Record<string, string> = {
     'So klingt dein Quiz, wenn es vorgelesen wird. Welche dieser Zahlen ist eine Primzahl?',
   'fr-FR':
     'Voici comment votre quiz sonnera lorsqu’il sera lu à voix haute. Lequel de ces nombres est premier ?',
+  'ru-RU':
+    'Так будет звучать ваш тест, когда его прочитают вслух. Какое из этих чисел простое?',
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -598,7 +602,7 @@ export function teacherDailyDocId(teacherUid: string, nowMs: number): string {
   return `${teacherUid}_tts_${new Date(nowMs).toISOString().slice(0, 10)}`;
 }
 
-const VOICE_NAME_RE = /^[a-z]{2,3}-[A-Z]{2}-(Neural2|Standard)-[A-J]$/;
+const VOICE_NAME_RE = /^[a-z]{2,3}-[A-Z]{2}-(Neural2|Wavenet|Standard)-[A-J]$/;
 
 export function parseSynthesizeRequest(
   raw: unknown

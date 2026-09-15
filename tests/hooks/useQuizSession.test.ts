@@ -41,6 +41,11 @@ describe('normalizeAnswer', () => {
   it('returns empty string for all-whitespace input', () => {
     expect(normalizeAnswer('   \t\n ')).toBe('');
   });
+
+  it('folds ё and Ё to е so Russian answers match either spelling', () => {
+    expect(normalizeAnswer('Ёлка')).toBe(normalizeAnswer('елка'));
+    expect(normalizeAnswer('ещё')).toBe('еще');
+  });
 });
 
 describe('servedSnapshotPatch', () => {

@@ -46,6 +46,7 @@ export const QUIZ_TRANSLATION_LANGUAGES: readonly {
   { code: 'es', label: 'Spanish' },
   { code: 'so', label: 'Somali' },
   { code: 'hmn', label: 'Hmong' },
+  { code: 'ru', label: 'Russian' },
 ];
 export const DEFAULT_MONTHLY_CAP_UNITS = 2000;
 export const DEFAULT_MONTHLY_CAP_OUTPUT_TOKENS = 8_000_000;
@@ -489,8 +490,9 @@ export function restoreFibStem(text: string, blanks: string[]): string {
 /** Sorted token multiset, so order changes in the target language are allowed. */
 const sortedTokens = (text: string): string => fibTokens(text).sort().join(',');
 
+// Mirrors hooks/useQuizSession.ts normalizeAnswer.
 const normalizeAnswer = (s: string): string =>
-  s.trim().toLowerCase().replace(/\s+/g, ' ');
+  s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
 
 const isMatching = (type: string) => type === 'Matching';
 const isOrdering = (type: string) => type === 'Ordering';

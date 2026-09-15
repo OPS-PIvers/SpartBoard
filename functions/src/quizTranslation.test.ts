@@ -228,6 +228,13 @@ describe('validateQuizTranslation', () => {
     expect(result).toMatch(/not mutually distinct/);
   });
 
+  it('rejects Russian MC choices that differ only by ё/е', () => {
+    const result = validateQuizTranslation([mcQuestion()], ['q1'], {
+      q1: { text: 'x', choices: ['Всё', 'Все', 'Ничего'] },
+    });
+    expect(result).toMatch(/not mutually distinct/);
+  });
+
   it('rejects "|" or ":" introduced into matching strings', () => {
     const result = validateQuizTranslation([matchingQuestion()], ['q2'], {
       q2: {

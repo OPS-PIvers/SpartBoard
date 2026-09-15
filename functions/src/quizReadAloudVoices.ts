@@ -1,5 +1,8 @@
 // Mirrors config/quizReadAloud.ts. Translation locales with a Google voice; so/hmn have none.
-const TRANSLATION_TTS_LANGUAGE: Record<string, string> = { es: 'es-US' };
+const TRANSLATION_TTS_LANGUAGE: Record<string, string> = {
+  es: 'es-US',
+  ru: 'ru-RU',
+};
 
 /** The TTS language tag for a translated view, or null when that locale has no voice. */
 export function ttsLanguageForTranslationLocale(
