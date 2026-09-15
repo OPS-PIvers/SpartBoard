@@ -109,10 +109,10 @@ describe('settings surface exclusivity (§4.5)', () => {
 
   it('writes the shared close signal from the floating panel close path', () => {
     renderWindow(false);
-    expect(wasSettingsJustClosed()).toBe(false);
+    expect(wasSettingsJustClosed('w1')).toBe(false);
     const close = screen.getByLabelText('Close settings');
     fireEvent.click(close);
-    expect(wasSettingsJustClosed()).toBe(true);
+    expect(wasSettingsJustClosed('w1')).toBe(true);
     expect(updateWidget).toHaveBeenCalledWith('w1', { flipped: false });
   });
 
