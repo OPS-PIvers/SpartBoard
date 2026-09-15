@@ -506,9 +506,9 @@ export function toPublicQuestion(
 
 // ─── Grading ──────────────────────────────────────────────────────────────────
 
-/** Normalize an answer string for comparison (collapse whitespace, lowercase). */
+/** Normalize an answer string for comparison (collapse whitespace, lowercase, ё → е). */
 export const normalizeAnswer = (s: string) =>
-  s.trim().toLowerCase().replace(/\s+/g, ' ');
+  s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
 
 /**
  * Length of the longest subsequence of `given` whose items appear in

@@ -18,6 +18,7 @@ export const QUIZ_TRANSLATION_LANGUAGES: readonly {
   { code: 'es', label: 'Spanish', nativeLabel: 'Español' },
   { code: 'so', label: 'Somali', nativeLabel: 'Soomaali' },
   { code: 'hmn', label: 'Hmong', nativeLabel: 'Hmoob' },
+  { code: 'ru', label: 'Russian', nativeLabel: 'Русский' },
 ];
 
 export const QUIZ_TRANSLATION_DEFAULT_CAPS = {

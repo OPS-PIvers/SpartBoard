@@ -190,8 +190,9 @@ const student = { uid: STUDENT, email: null, studentRole: true };
 beforeEach(() => vi.clearAllMocks());
 
 describe('translation locale → voice', () => {
-  it('maps es to the existing es-US voice entry and nothing else', () => {
+  it('maps es and ru to their voice entries and nothing else', () => {
     expect(ttsLanguageForTranslationLocale('es')).toBe('es-US');
+    expect(ttsLanguageForTranslationLocale('ru')).toBe('ru-RU');
     expect(ttsLanguageForTranslationLocale('so')).toBeNull();
     expect(ttsLanguageForTranslationLocale('hmn')).toBeNull();
     expect(ttsLanguageForTranslationLocale(undefined)).toBeNull();
@@ -246,6 +247,9 @@ describe('parseSynthesizeRequest — locale', () => {
   it('accepts a voiced locale and omits the field when absent', () => {
     expect(parseSynthesizeRequest({ ...base, locale: 'es' })).toMatchObject({
       locale: 'es',
+    });
+    expect(parseSynthesizeRequest({ ...base, locale: 'ru' })).toMatchObject({
+      locale: 'ru',
     });
     expect(parseSynthesizeRequest(base)).not.toHaveProperty('locale');
   });

@@ -5,7 +5,7 @@ export const QUIZ_READ_ALOUD_FEATURE = 'quiz-read-aloud' as const;
 export const QUIZ_READ_ALOUD_SETTINGS_DOC = 'quiz_read_aloud';
 export const DEFAULT_QUIZ_LANGUAGE = 'en-US';
 
-/** The app's four UI locales; other BCP-47 tags are typed in by hand. */
+/** The app's four UI locales plus voiced translation languages; other BCP-47 tags are typed in by hand. */
 export const QUIZ_READ_ALOUD_LANGUAGES: readonly {
   tag: string;
   label: string;
@@ -14,9 +14,10 @@ export const QUIZ_READ_ALOUD_LANGUAGES: readonly {
   { tag: 'es-US', label: 'Spanish (US)' },
   { tag: 'de-DE', label: 'German' },
   { tag: 'fr-FR', label: 'French' },
+  { tag: 'ru-RU', label: 'Russian' },
 ];
 
-/** Cloud TTS voice names per language, Neural2 first and Standard second. */
+/** Cloud TTS voice names per language, premium first and Standard second; ru-RU has WaveNet, not Neural2. */
 export const QUIZ_READ_ALOUD_VOICES: Record<
   string,
   { neural2: string[]; standard: string[] }
@@ -49,6 +50,10 @@ export const QUIZ_READ_ALOUD_VOICES: Record<
       (v) => `fr-FR-Standard-${v}`
     ),
   },
+  'ru-RU': {
+    neural2: ['A', 'B', 'C', 'D', 'E'].map((v) => `ru-RU-Wavenet-${v}`),
+    standard: ['A', 'B', 'C', 'D', 'E'].map((v) => `ru-RU-Standard-${v}`),
+  },
 };
 
 export const DEFAULT_QUIZ_READ_ALOUD_SETTINGS: QuizReadAloudAdminSettings = {
@@ -57,12 +62,14 @@ export const DEFAULT_QUIZ_READ_ALOUD_SETTINGS: QuizReadAloudAdminSettings = {
     'es-US': 'es-US-Neural2-A',
     'de-DE': 'de-DE-Neural2-F',
     'fr-FR': 'fr-FR-Neural2-A',
+    'ru-RU': 'ru-RU-Wavenet-A',
   },
   standardVoicesByLanguage: {
     'en-US': 'en-US-Standard-H',
     'es-US': 'es-US-Standard-A',
     'de-DE': 'de-DE-Standard-F',
     'fr-FR': 'fr-FR-Standard-A',
+    'ru-RU': 'ru-RU-Standard-A',
   },
   defaultLanguage: DEFAULT_QUIZ_LANGUAGE,
   neural2MonthlyCapChars: 900_000,
@@ -115,6 +122,7 @@ export function normalizeQuizReadAloudSettings(
 /** Translation locale (D19 codes) → TTS language tag; codes absent here have no Google voice. */
 export const QUIZ_TRANSLATION_TTS_LANGUAGE: Readonly<Record<string, string>> = {
   es: 'es-US',
+  ru: 'ru-RU',
 };
 
 /** The TTS language tag for a translated view, or null when that locale has no voice (so/hmn). */

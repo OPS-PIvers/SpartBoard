@@ -345,6 +345,13 @@ describe('request parsing', () => {
       mode: 'preview',
       language: 'es-US',
     });
+    expect(
+      parseSynthesizeRequest({
+        mode: 'preview',
+        language: 'ru-RU',
+        voice: 'ru-RU-Wavenet-A',
+      })
+    ).toEqual({ mode: 'preview', language: 'ru-RU', voice: 'ru-RU-Wavenet-A' });
   });
 
   it('rejects bad parts, voices and modes', () => {
