@@ -316,6 +316,48 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     expect(rows[0].override).toEqual({ timeMultiplier: 2 });
   });
 
+  it('hides a class-channel session from a student whose pointer is marked excluded', async () => {
+    const rig = makeSnapshotRig();
+    makeGetDocRig();
+    rig.setDocs('quiz_sessions', [
+      {
+        id: 'q-skipped',
+        data: {
+          quizTitle: 'Class Quiz',
+          classIds: ['c1'],
+          status: 'active',
+          createdAt: 100,
+        },
+      },
+    ]);
+    rig.setDocs('student_assignments/student-a/items', [
+      {
+        id: 'q-skipped',
+        data: {
+          kind: 'quiz',
+          sessionId: 'q-skipped',
+          teacherUid: 't1',
+          classId: 'c1',
+          excluded: true,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'], studentUid: 'student-a' })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+    });
+
+    expect(
+      result.current.assignments.filter((a) => a.sessionId === 'q-skipped')
+    ).toHaveLength(0);
+  });
+
   it('removes an already-rendered class-channel row when individualTargeting arrives late (no pointer for this student)', async () => {
     const rig = makeSnapshotRig();
     makeGetDocRig();

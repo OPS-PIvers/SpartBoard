@@ -111,6 +111,8 @@ export function makeQuizSession(
     publicQuestions: quizPublicQuestions(),
     periodNames: ['Period 3'],
     tabWarningsEnabled: true,
+    // Keeps the harness's raised-hand fixture reachable under the new gate.
+    handRaiseEnabled: true,
   };
 }
 

@@ -145,13 +145,33 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       visualStyle: 'flash',
     },
   },
-  dice: { w: 240, h: 240, config: { count: 1 } },
+  dice: {
+    w: 240,
+    h: 240,
+    config: { count: 1, diceColor: '#ffffff', dotColor: '#1e293b' },
+  },
   sound: {
     w: 300,
     h: 300,
-    config: { sensitivity: 1, visual: 'thermometer' },
+    config: {
+      sensitivity: 1,
+      visual: 'thermometer',
+      autoTrafficLight: false,
+      trafficLightThreshold: 4,
+      syncExpectations: false,
+    },
   },
-  drawing: { w: 400, h: 350, config: { paths: [] } },
+  drawing: {
+    w: 400,
+    h: 350,
+    config: {
+      paths: [],
+      width: 4,
+      customColors: ['#1e293b', '#ef4444', '#f59e0b', '#10b981', '#3b82f6'],
+      background: 'blank',
+      shapeFill: false,
+    },
+  },
   qr: { w: 200, h: 250, config: { showUrl: false } satisfies QRConfig },
   embed: {
     w: 480,
@@ -186,6 +206,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       zoomLevel: 1,
       isMirrored: true,
+      autoSendToNotes: false,
     },
   },
   scoreboard: {
@@ -196,7 +217,12 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   expectations: {
     w: 320,
     h: 350,
-    config: { voiceLevel: null, workMode: null, interactionMode: null },
+    config: {
+      voiceLevel: null,
+      workMode: null,
+      interactionMode: null,
+      syncSoundWidget: false,
+    },
   },
   weather: {
     w: 250,
@@ -205,6 +231,9 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       temp: 72,
       condition: 'sunny',
       isAuto: true,
+      showFeelsLike: false,
+      hideClothing: false,
+      syncBackground: false,
       fontFamily: 'global',
       fontColor: '#334155',
       cardColor: '#ffffff',

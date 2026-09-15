@@ -3861,6 +3861,8 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   tabWarningThreshold?: number | 'off';
   /** Read aloud for every signed-in student on the assignment, not only overrides. */
   readAloudAll?: boolean;
+  /** Teacher opt-in for the student raise-hand button. Absent = off. */
+  handRaiseEnabled?: boolean;
 }
 
 /**
@@ -3942,6 +3944,8 @@ export interface QuizPublicQuestion {
 /** One question's translated strings, positionally aligned with the English question (plan §3.2). */
 export interface QuestionTranslation {
   text: string;
+  /** FIB only: the translated accepted answer. Teacher-private — never projected to students. */
+  answer?: string;
   /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
   choices?: string[];
   /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
@@ -4053,6 +4057,8 @@ export interface QuizSession {
   stimuli?: QuizStimulus[];
   /** Snapshot of `sessionOptions.readAloudAll` at assign time; absent on pre-feature sessions. */
   readAloudAll?: boolean;
+  /** Resolved admin gate + teacher checkbox at assign time; absent = raise hand disabled. */
+  handRaiseEnabled?: boolean;
   /** Snapshot of `QuizData.language` at assign time; absent = 'en-US'. */
   language?: string;
   /** Reviewed stimulus text by id; the only stimulus text the synth function may speak (plan §3). */
@@ -4903,6 +4909,7 @@ export interface QuizAttemptLedger {
 /** Global admin configuration for the Quiz widget */
 export interface QuizGlobalConfig {
   dockDefaults?: Record<string, boolean>;
+  buildingDefaults?: Record<string, QuizBuildingConfig>;
 }
 
 /** Widget configuration for the quiz widget (teacher side) */
@@ -5114,6 +5121,8 @@ export interface StudentAssignmentPointer {
   closeAt?: number;
   dueAt?: number;
   override?: StudentOverride;
+  /** Skipped by the teacher: the class channel hides this session for them. */
+  excluded?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -5186,6 +5195,11 @@ export interface QuizAssignmentSettings {
 export interface QuizAssignment extends QuizAssignmentSettings {
   /** Assignment UUID — also the sessionId. */
   id: string;
+  /**
+   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
+   * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
+   */
+  localizedFibAnswers?: Record<string, Record<string, string[]>>;
   quizId: string;
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */
@@ -5292,10 +5306,14 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
   overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Write-once served language per pseudonym uid; survives a de-target so old work still grades. */
+  servedLanguageByStudentUid?: Record<string, string>;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
@@ -7694,6 +7712,18 @@ export interface QuizReadAloudManifest {
   timings?: Record<string, QuizReadAloudTiming[]>;
   stimulusChunks?: Record<string, string[]>;
   failedKeys?: string[];
+  /** Translated audio, keyed by translation locale; English above is never touched. */
+  localized?: Record<string, QuizReadAloudLocaleManifest>;
+  /** Why a `failed` prepare gave up, when it was not per-part synthesis. */
+  failedReason?: string;
+}
+
+/** One translated locale's slice of `session.readAloud` (same part keys, translated voice). */
+export interface QuizReadAloudLocaleManifest {
+  voice: string;
+  files: Record<string, string>;
+  timings?: Record<string, QuizReadAloudTiming[]>;
+  failedKeys?: string[];
 }
 
 export interface QuizReadAloudAdminSettings {
@@ -7825,6 +7855,12 @@ export interface FeaturePermission {
   minTier?: UserTier;
   /** Optional global configuration for the widget (e.g., API keys, target IDs). */
   config?: Record<string, unknown>;
+}
+
+/** `feature_permissions/quiz.config` — admin-level quiz gates, per building. */
+export interface QuizBuildingConfig {
+  /** 'teacher-choice' (default) | 'force-on' | 'force-off' for the raise-hand button. */
+  handRaiseMode?: 'teacher-choice' | 'force-on' | 'force-off';
 }
 
 export interface CarRiderProGlobalConfig {
@@ -8624,10 +8660,14 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
   overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Write-once served language per pseudonym uid; survives a de-target so old work still grades. */
+  servedLanguageByStudentUid?: Record<string, string>;
   /** Plain, PII-free count of refs `setAssignmentTargetsV1` could not target
    *  (M17 §5 B3 canonical rules) — durable "N skipped" marker for list rows,
    *  distinct from the ephemeral toast shown at assign time. */
@@ -8692,10 +8732,14 @@ export interface MiniAppAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
   overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Write-once served language per pseudonym uid; survives a de-target so old work still grades. */
+  servedLanguageByStudentUid?: Record<string, string>;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
@@ -8766,10 +8810,14 @@ export interface GuidedLearningAssignment {
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Students skipped at assign time — no pointer doc is written for them. */
+  excludedTargets?: StudentTargetRef[];
   /** Same overrides keyed by pseudonym uid (written ONLY by `setAssignmentTargetsV1`)
    *  so teacher-side scoring can match response docs. Owner-read-only doc only —
    *  never mirrored onto a session or any shared surface (spec §2a). */
   overridesByStudentUid?: Record<string, StudentOverride>;
+  /** Write-once served language per pseudonym uid; survives a de-target so old work still grades. */
+  servedLanguageByStudentUid?: Record<string, string>;
   /** Optional due date (ms epoch), display metadata within the open/close window. */
   dueAt?: number | null;
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */

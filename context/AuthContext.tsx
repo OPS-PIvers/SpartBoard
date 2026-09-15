@@ -320,6 +320,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [featurePermissions, setFeaturePermissions] = useState<
     FeaturePermission[]
   >([]);
+  const [featurePermissionsLoaded, setFeaturePermissionsLoaded] =
+    useState(isAuthBypass);
   const [globalPermissions, setGlobalPermissions] = useState<
     GlobalFeaturePermission[]
   >([]);
@@ -1453,9 +1455,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           permissions.push(doc.data() as FeaturePermission);
         });
         setFeaturePermissions(permissions);
+        setFeaturePermissionsLoaded(true);
       },
       (error) => {
         console.error('Error loading feature permissions:', error);
+        // Unblock gate readers that wait on this snapshot.
+        setFeaturePermissionsLoaded(true);
       }
     );
 
@@ -3002,6 +3007,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         userRoles,
         appSettings,
         featurePermissions,
+        featurePermissionsLoaded,
         globalPermissions,
         updateAppSettings,
         canAccessWidget,

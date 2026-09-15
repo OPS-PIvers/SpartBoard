@@ -23,7 +23,14 @@
  *        - Quiz → `/classroom-addon/student?code=<code>`
  *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
-import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, functions } from '@/config/firebase';
@@ -48,7 +55,11 @@ import {
   toOverrideEditorQuestions,
   type AssignTargetingValue,
 } from '@/components/common/library';
-import { buildSetAssignmentTargetsPayload } from '@/utils/studentTargetRef';
+import {
+  buildSetAssignmentTargetsPayload,
+  expandClassTargeting,
+  payloadRequiresCall,
+} from '@/utils/studentTargetRef';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
@@ -221,6 +232,38 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
+  // The SpartBoard roster this Google course is linked to. Without one there
+  // is no class to expand into students, so the modifications panel is hidden.
+  const [linkedRosterId, setLinkedRosterId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!courseId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'classroom_course_links', courseId));
+        const rosterId = snap.exists()
+          ? (snap.data().rosterId as string | undefined)
+          : undefined;
+        if (!cancelled) setLinkedRosterId(rosterId ?? null);
+      } catch {
+        if (!cancelled) setLinkedRosterId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
+  const addonSelectedRosterIds = useMemo(
+    () =>
+      linkedRosterId && rosters.some((r) => r.id === linkedRosterId)
+        ? [linkedRosterId]
+        : [],
+    [linkedRosterId, rosters]
+  );
+  const addonClassContext = useMemo(
+    () => ({ rosters, selectedRosterIds: addonSelectedRosterIds }),
+    [rosters, addonSelectedRosterIds]
+  );
   // Full quiz content backing the per-student override editor (question
   // subset / MC-option hider). Loaded lazily on first expand, cached per quiz.
   const [targetingQuizData, setTargetingQuizData] = useState<QuizData | null>(
@@ -243,7 +286,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   }
 
   // Lazily fetch the selected quiz's body from Drive — only once the teacher
-  // actually opens "+ Individual students & overrides". A class-wide attach
+  // actually opens "Edit or add modifications". A class-wide attach
   // never touches this, so it still fetches exactly once (at attach time).
   const handleExpandIndividualTargeting = useCallback(() => {
     if (kind !== 'quiz' || !selectedQuizId) return;
@@ -476,10 +519,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       Array.isArray(quizData?.questions) ? quizData.questions : [],
       assignTargeting.overridesByKey
     );
-    const resolvedTargeting: AssignTargetingValue = {
-      ...assignTargeting,
-      overridesByKey: hiddenOptions.overridesByKey,
-    };
+    const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+      {
+        ...assignTargeting,
+        overridesByKey: hiddenOptions.overridesByKey,
+      },
+      addonClassContext
+    );
     for (const warning of hiddenOptions.warnings) {
       append(`Note: ${warning}`);
     }
@@ -561,43 +607,49 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
     // Individual targeting only (§3a-G): a class-wide attach never depends on
     // the callable, so a Cloud Functions hiccup can't regress today's flow.
-    if (resolvedTargeting.targetMode === 'students') {
-      try {
-        const payload = buildSetAssignmentTargetsPayload(
-          undefined,
-          resolvedTargeting
-        );
-        const result = await setAssignmentTargets({
-          assignmentId: sessionId,
-          kind: 'quiz',
-          sessionId,
-          ...payload,
-        });
-        if (result.skipped.length > 0) {
-          append(skippedTargetsToastMessage(result.skipped.length));
-          try {
-            await setAssignmentTargetSkippedCount(
-              sessionId,
-              result.skipped.length
+    {
+      const payload = buildSetAssignmentTargetsPayload(
+        undefined,
+        resolvedTargeting
+      );
+      if (payloadRequiresCall(payload))
+        try {
+          const result = await setAssignmentTargets({
+            assignmentId: sessionId,
+            kind: 'quiz',
+            sessionId,
+            ...payload,
+          });
+          if (result.skipped.length > 0) {
+            append(
+              skippedTargetsToastMessage(
+                result.skipped.length,
+                result.skippedExclusions?.length ?? 0
+              )
             );
-          } catch (persistErr) {
-            logError(
-              'TeacherDiscoveryRoute.setAssignmentTargetSkippedCount',
-              persistErr,
-              { sessionId }
-            );
+            try {
+              await setAssignmentTargetSkippedCount(
+                sessionId,
+                result.skipped.length
+              );
+            } catch (persistErr) {
+              logError(
+                'TeacherDiscoveryRoute.setAssignmentTargetSkippedCount',
+                persistErr,
+                { sessionId }
+              );
+            }
           }
+        } catch (targetErr) {
+          // Non-fatal: the assignment exists and the class can still take it.
+          logError('TeacherDiscoveryRoute.setAssignmentTargets', targetErr, {
+            sessionId,
+          });
+          append(
+            'Note: individual student targeting failed to save. The assignment ' +
+              'is still available to the whole class.'
+          );
         }
-      } catch (targetErr) {
-        // Non-fatal: the assignment exists and the class can still take it.
-        logError('TeacherDiscoveryRoute.setAssignmentTargets', targetErr, {
-          sessionId,
-        });
-        append(
-          'Note: individual student targeting failed to save. The assignment ' +
-            'is still available to the whole class.'
-        );
-      }
     }
 
     // Pass the quiz total so the Classroom attachment's maxPoints matches the
@@ -655,6 +707,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
     }
   }, [
+    addonClassContext,
     append,
     selectedQuiz,
     googleAccessToken,
@@ -776,19 +829,25 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         );
       }
     }
+    // Expanded once: the archive doc and the CF payload must agree, or a
+    // re-edit reads back overrides the fan-out never saw.
+    const expandedTargeting = expandClassTargeting(
+      assignTargeting,
+      addonClassContext
+    );
     if (
       user?.uid &&
-      (assignTargeting.targetGroupIds.length > 0 ||
-        Object.keys(assignTargeting.overridesByKey).length > 0)
+      (expandedTargeting.targetGroupIds.length > 0 ||
+        Object.keys(expandedTargeting.overridesByKey).length > 0)
     ) {
       await setDoc(
         doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
         {
-          ...(assignTargeting.targetGroupIds.length > 0
-            ? { targetGroupIds: assignTargeting.targetGroupIds }
+          ...(expandedTargeting.targetGroupIds.length > 0
+            ? { targetGroupIds: expandedTargeting.targetGroupIds }
             : {}),
-          ...(Object.keys(assignTargeting.overridesByKey).length > 0
-            ? { overridesBySourcedId: assignTargeting.overridesByKey }
+          ...(Object.keys(expandedTargeting.overridesByKey).length > 0
+            ? { overridesBySourcedId: expandedTargeting.overridesByKey }
             : {}),
         },
         { merge: true }
@@ -796,38 +855,50 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     }
 
     // Individual targeting only (§3a-G).
-    if (assignTargeting.targetMode === 'students') {
-      try {
-        const payload = buildSetAssignmentTargetsPayload(
-          undefined,
-          assignTargeting
-        );
-        const result = await setAssignmentTargets({
-          assignmentId: sessionId,
-          kind: 'video-activity',
-          sessionId,
-          ...payload,
-        });
-        if (user?.uid) {
-          await setDoc(
-            doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
-            { targetSkippedCount: result.skipped.length },
-            { merge: true }
+    {
+      const payload = buildSetAssignmentTargetsPayload(
+        undefined,
+        expandedTargeting
+      );
+      if (payloadRequiresCall(payload))
+        try {
+          const result = await setAssignmentTargets({
+            assignmentId: sessionId,
+            kind: 'video-activity',
+            sessionId,
+            ...payload,
+          });
+          if (user?.uid) {
+            await setDoc(
+              doc(
+                db,
+                'users',
+                user.uid,
+                'video_activity_assignments',
+                sessionId
+              ),
+              { targetSkippedCount: result.skipped.length },
+              { merge: true }
+            );
+          }
+          if (result.skipped.length > 0) {
+            append(
+              skippedTargetsToastMessage(
+                result.skipped.length,
+                result.skippedExclusions?.length ?? 0
+              )
+            );
+          }
+        } catch (targetErr) {
+          // Non-fatal: the session/assignment docs already exist.
+          logError('TeacherDiscoveryRoute.setAssignmentTargets', targetErr, {
+            sessionId,
+          });
+          append(
+            'Note: individual student targeting failed to save. The activity ' +
+              'is still available to the whole class.'
           );
         }
-        if (result.skipped.length > 0) {
-          append(skippedTargetsToastMessage(result.skipped.length));
-        }
-      } catch (targetErr) {
-        // Non-fatal: the session/assignment docs already exist.
-        logError('TeacherDiscoveryRoute.setAssignmentTargets', targetErr, {
-          sessionId,
-        });
-        append(
-          'Note: individual student targeting failed to save. The activity ' +
-            'is still available to the whole class.'
-        );
-      }
     }
 
     // Pass the activity total so the Classroom attachment's maxPoints matches
@@ -885,6 +956,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
     }
   }, [
+    addonClassContext,
     append,
     selectedActivity,
     googleAccessToken,
@@ -1110,6 +1182,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               <div className="border-t border-slate-200 pt-4">
                 <AssignTargetingSection
                   rosters={rosters}
+                  selectedRosterIds={addonSelectedRosterIds}
+                  allowModifications={addonSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}

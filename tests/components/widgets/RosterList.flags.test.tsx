@@ -42,9 +42,14 @@ const session = {
   quizId: 'q1',
   teacherUid: 't1',
   classIds: [],
+  handRaiseEnabled: true,
 } as unknown as QuizSession;
 
-function renderRoster(config: Partial<QuizConfig>, onClearHand = vi.fn()) {
+function renderRoster(
+  config: Partial<QuizConfig>,
+  onClearHand = vi.fn(),
+  sessionOverride: QuizSession = session
+) {
   render(
     <RosterList
       bucket="inProgress"
@@ -53,7 +58,7 @@ function renderRoster(config: Partial<QuizConfig>, onClearHand = vi.fn()) {
         makeStudent('Idle Kid', { idle: 4 }),
         makeStudent('Busy Kid', {}),
       ]}
-      session={session}
+      session={sessionOverride}
       config={config as QuizConfig}
       isGamified={false}
       onUpdateConfig={vi.fn()}
@@ -84,6 +89,17 @@ describe('RosterList — hand vs idle flags', () => {
     // Idle stays a quiet badge on the normal row, never an alert block.
     expect(screen.getByLabelText('Idle 4 min')).toBeInTheDocument();
     expect(screen.getAllByTestId('hand-row')).toHaveLength(1);
+  });
+
+  it('hides the hands section when the session has raise hand disabled', () => {
+    renderRoster({ monitorBoardView: false }, vi.fn(), {
+      ...session,
+      handRaiseEnabled: false,
+    } as QuizSession);
+    expect(screen.queryByTestId('hand-row')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
+    // The student is still listed, just without the hand treatment.
+    expect(screen.getByText('Hand Kid')).toBeInTheDocument();
   });
 });
 

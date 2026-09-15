@@ -255,9 +255,9 @@ describe('QuizStudentApp — SSO studentRole auto-join', () => {
     expect(screen.queryByText(/Select Your Class/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Which class period/i)).not.toBeInTheDocument();
 
-    // And lookupSession is never consulted on the SSO path — that lookup
-    // belonged to PR #1438's model and was deliberately removed.
-    expect(mockLookupSession).not.toHaveBeenCalled();
+    // lookupSession now resolves only the assignment id for the skip check;
+    // classPeriod is still never derived from it on the SSO path.
+    expect(mockLookupSession).toHaveBeenCalledWith('ABC123');
   });
 
   it('does not auto-join when the user is anonymous (anon PIN flow renders the join form instead)', async () => {

@@ -14,6 +14,7 @@
  */
 import { QuizData, QuizQuestion, QuizTranslation } from '@/types';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
+import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
 
 const STORAGE_PREFIX = 'mock_quiz_drive';
 
@@ -82,7 +83,7 @@ export class MockQuizDriveService implements QuizDriveLike {
       return Promise.reject(
         new Error('Translation file not found in mock drive')
       );
-    return Promise.resolve(JSON.parse(raw) as QuizTranslation);
+    return Promise.resolve(normalizeQuizTranslation(JSON.parse(raw)));
   }
 
   deleteTranslation(fileId: string): Promise<void> {

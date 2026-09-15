@@ -4,7 +4,7 @@ import {
   serializeQuestionForHash,
   hashQuestionForTranslation,
 } from './quizTranslationHash';
-import fixture from '../tests/fixtures/quizTranslationHash.fixture.json';
+import fixture from '@/tests/fixtures/quizTranslationHash.fixture.json';
 
 interface FixtureCase {
   name: string;

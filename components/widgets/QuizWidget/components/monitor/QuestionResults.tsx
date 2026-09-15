@@ -2,6 +2,11 @@ import React from 'react';
 import { Check, ChevronRight, Lock } from 'lucide-react';
 import { QuizSession, QuizData, QuizResponse, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import {
+  fibAcceptedAnswers,
+  servedLocaleForResponse,
+  type FibGradingContext,
+} from '@/utils/quizFibAnswers';
 import { buildDistribution } from './monitorUtils';
 
 interface QuestionResultsProps {
@@ -74,6 +79,8 @@ interface QuestionDetailProps {
   question: QuizQuestion;
   index: number;
   responses: QuizResponse[];
+  /** Translated FIB answer keys + served-locale overrides; absent = English only. */
+  fibGrading?: FibGradingContext | null;
 }
 
 export const QuestionDetail: React.FC<QuestionDetailProps> = ({
@@ -81,12 +88,33 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
   question,
   index,
   responses,
+  fibGrading,
 }) => {
   const live = session.status !== 'ended';
+  // A distribution row aggregates one answer string across students, so it is
+  // marked correct when it matches English or a locale actually served to a
+  // student who typed it.
+  const localesByAnswer = new Map<string, Set<string>>();
+  for (const r of responses) {
+    const ans = r.answers.find((a) => a.questionId === question.id);
+    const locale = servedLocaleForResponse(r, fibGrading);
+    if (!ans || !locale) continue;
+    const set = localesByAnswer.get(ans.answer) ?? new Set<string>();
+    set.add(locale);
+    localesByAnswer.set(ans.answer, set);
+  }
   const { totalAnswered, rows } = buildDistribution(
     question,
     responses,
-    gradeAnswer
+    (q, a) =>
+      gradeAnswer(
+        q,
+        a,
+        undefined,
+        [...(localesByAnswer.get(a) ?? [])].flatMap((locale) =>
+          fibAcceptedAnswers(fibGrading?.answers, q.id, locale)
+        )
+      )
   );
   const hasDistribution =
     question.type === 'MC' || question.type === 'FIB' || rows.length > 0;

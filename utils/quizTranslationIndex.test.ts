@@ -1,5 +1,5 @@
-// D21: every index count lives in the translatable subset, so a FIB question
-// must never make a fully reviewed locale read as uncovered forever.
+// Index counts live in the translatable subset, which since PR4 includes FIB:
+// an untranslated FIB question keeps the locale uncovered until it is translated.
 
 import { describe, it, expect } from 'vitest';
 import type { QuizQuestion, QuizTranslation } from '@/types';
@@ -41,21 +41,40 @@ const payload = (sourceHashes: Record<string, string>): QuizTranslation =>
   }) as QuizTranslation;
 
 describe('quizTranslationIndex over the translatable subset', () => {
-  it('never reports an untranslatable FIB question as stale', async () => {
+  it('reports a FIB question with no sidecar hash as stale', async () => {
     const stale = await staleQuestionIds([mc, fib], {
       q1: await hashQuestionForTranslation(mc),
     });
-    expect(stale).toEqual([]);
+    expect(stale).toEqual(['q2']);
   });
 
-  it('counts only translatable questions, so a reviewed MC covers the locale', async () => {
+  it('counts FIB in the denominator, so an MC-only translation is uncovered', async () => {
     const entry = await buildTranslationIndexEntry(
       'file-es',
       payload({ q1: await hashQuestionForTranslation(mc) }),
       [mc, fib]
     );
-    expect(entry.questionCount).toBe(1);
+    expect(entry.questionCount).toBe(2);
     expect(entry.reviewedCount).toBe(1);
+    expect(entry.staleCount).toBe(1);
+    expect(isLocaleCovered('es', { index: { es: entry } })).toBe(false);
+  });
+
+  it('covers the locale once the FIB question is translated too', async () => {
+    const full = {
+      ...payload({
+        q1: await hashQuestionForTranslation(mc),
+        q2: await hashQuestionForTranslation(fib),
+      }),
+      questions: {
+        q1: { text: '¿Cuál es primo?' },
+        q2: { text: 'La capital es ___.', answer: 'París' },
+      },
+      reviewedQuestionIds: ['q1', 'q2'],
+    } as QuizTranslation;
+    const entry = await buildTranslationIndexEntry('file-es', full, [mc, fib]);
+    expect(entry.questionCount).toBe(2);
+    expect(entry.reviewedCount).toBe(2);
     expect(entry.staleCount).toBe(0);
     expect(isLocaleCovered('es', { index: { es: entry } })).toBe(true);
   });
@@ -66,7 +85,7 @@ describe('quizTranslationIndex over the translatable subset', () => {
       payload({ q1: 'old-hash' }),
       [mc, fib]
     );
-    expect(entry.staleCount).toBe(1);
+    expect(entry.staleCount).toBe(2);
     expect(isLocaleCovered('es', { index: { es: entry } })).toBe(false);
   });
 
@@ -84,7 +103,7 @@ describe('quizTranslationIndex over the translatable subset', () => {
       },
       [mc, fib]
     );
-    expect(next?.es.questionCount).toBe(1);
-    expect(next?.es.staleCount).toBe(0);
+    expect(next?.es.questionCount).toBe(2);
+    expect(next?.es.staleCount).toBe(1);
   });
 });

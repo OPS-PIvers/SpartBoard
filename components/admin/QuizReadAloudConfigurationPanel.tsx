@@ -52,7 +52,14 @@ const readAloudTagForCode = (code: string): string | undefined =>
     ({ tag }) => tag.split('-')[0].toLowerCase() === code.toLowerCase()
   )?.tag;
 
-export const QuizReadAloudConfigurationPanel: React.FC = () => {
+interface QuizReadAloudConfigurationPanelProps {
+  /** Notifies the host modal when this panel holds an unsaved draft. */
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
+export const QuizReadAloudConfigurationPanel: React.FC<
+  QuizReadAloudConfigurationPanelProps
+> = ({ onDirtyChange }) => {
   const { user } = useAuth();
   const [saved, setSaved] = useState<QuizReadAloudAdminSettings | null>(null);
   const [draft, setDraft] = useState<QuizReadAloudAdminSettings>(
@@ -151,6 +158,10 @@ export const QuizReadAloudConfigurationPanel: React.FC = () => {
   const readAloudDirty = saved !== null && !settingsEqual(draft, saved);
 
   const dirty = readAloudDirty || translationDirty;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   const toggleTranslationLanguage = (code: string, enabled: boolean) =>
     setTranslationDraft((d) => ({

@@ -35,9 +35,17 @@ import type { QuizTranslationIndexEntry } from '@/types';
 import type { TranslationLoader } from '@/utils/quizTranslationPublish';
 import {
   enforceSessionSizeBudget,
+  estimateReadAloudManifestBytes,
+  estimateReadAloudPartCount,
   loadTranslationsForPublish,
   targetedLocaleCounts,
+  SESSION_DOC_BYTE_BUDGET,
 } from '@/utils/quizTranslationPublish';
+import {
+  collectLocalizedFibAnswers,
+  fibAcceptedAnswers,
+} from '@/utils/quizFibAnswers';
+import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
@@ -96,8 +104,14 @@ import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
+import {
+  readQuizHandRaiseMode,
+  resolveGateBuildingIds,
+  resolveQuizHandRaiseEnabled,
+} from '@/utils/quizHandRaise';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
+import { readAloudTranslationLocales } from '@/config/quizReadAloud';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
 import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 
@@ -512,6 +526,28 @@ type LegacySyncLinkageShape = {
   syncedVersion?: number;
   sync?: QuizAssignmentSyncLinkage;
 };
+const HAND_RAISE_GATE_TIMEOUT_MS = 5000;
+
+/** True while a signed-in teacher's profile, org membership or permissions are still loading. */
+function isHandRaiseGatePending(
+  ctx:
+    | {
+        user?: unknown;
+        profileLoaded?: boolean;
+        roleResolved?: boolean;
+        featurePermissionsLoaded?: boolean;
+      }
+    | null
+    | undefined
+): boolean {
+  if (!ctx?.user) return false;
+  return (
+    ctx.profileLoaded === false ||
+    ctx.roleResolved === false ||
+    ctx.featurePermissionsLoaded === false
+  );
+}
+
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
   o: QuizSessionOptions
@@ -543,6 +579,10 @@ function sessionOptionsToSessionPatch(
   if (o.shuffleAnswerOptions !== undefined)
     patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
   if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
+  // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
+  // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
+  // switch raise hand on inside a force-off building. Running sessions keep
+  // the value they were created with.
   return patch;
 }
 
@@ -703,7 +743,9 @@ export type QuizTranslationsByLocale = Record<string, QuizTranslation>;
 export function selectQuestionTranslations(
   questionId: string,
   translations: QuizTranslationsByLocale | undefined,
-  freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>
+  freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>,
+  /** The English question, so a FIB entry missing its answer key falls back. */
+  question?: Pick<QuizQuestion, 'type' | 'text' | 'correctAnswer'>
 ): Record<string, QuestionTranslation> | undefined {
   if (!translations) return undefined;
   const out: Record<string, QuestionTranslation> = {};
@@ -712,6 +754,7 @@ export function selectQuestionTranslations(
     if (!entry) continue;
     if (!translation.reviewedQuestionIds?.includes(questionId)) continue;
     if (!freshQuestionIdsByLocale?.[locale]?.has(questionId)) continue;
+    if (question && fibTranslationIssue(question, entry)) continue;
     out[locale] = entry;
   }
   return Object.keys(out).length > 0 ? out : undefined;
@@ -748,6 +791,29 @@ export const useQuizAssignments = (
   }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
+  // Admin raise-hand gate for this teacher's buildings; resolved onto the
+  // session doc at assign time. Read through a ref so createAssignment can wait
+  // for the profile + permission snapshots instead of failing open to
+  // teacher-choice while the buildings are still unknown.
+  // Mirrored in an effect, not during render: `react-hooks/refs` forbids
+  // render-phase ref writes (same pattern as `assignmentsRef` above).
+  const authRef = useRef(authContext);
+  useEffect(() => {
+    authRef.current = authContext;
+  }, [authContext]);
+  const resolveHandRaiseMode = useCallback(async (): Promise<
+    ReturnType<typeof readQuizHandRaiseMode>
+  > => {
+    const deadline = Date.now() + HAND_RAISE_GATE_TIMEOUT_MS;
+    while (isHandRaiseGatePending(authRef.current) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    const ctx = authRef.current;
+    return readQuizHandRaiseMode(
+      ctx?.featurePermissions,
+      resolveGateBuildingIds(ctx?.buildingIds, ctx?.selectedBuildings)
+    );
+  }, []);
 
   // Ungated teachers publish the question without its recording block, so the
   // student app has nothing to mount even if it wanted to.
@@ -762,7 +828,8 @@ export const useQuizAssignments = (
         selectQuestionTranslations(
           question.id,
           translations,
-          freshQuestionIdsByLocale
+          freshQuestionIdsByLocale,
+          question
         )
       );
       if (mediaResponseGranted || !projected.recording) return projected;
@@ -891,6 +958,11 @@ export const useQuizAssignments = (
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
       const now = Date.now();
+      // View-only shares have no live teacher, so never resolve the gate for them.
+      const isViewOnlyShare = assignmentMode === 'view-only';
+      const handRaiseMode = isViewOnlyShare
+        ? 'force-off'
+        : await resolveHandRaiseMode();
       // Freeze a compact teacher-private tag snapshot for PLC aggregate
       // recomputes. Student session projection remains governed separately by
       // `showLearningTargets`.
@@ -986,6 +1058,13 @@ export const useQuizAssignments = (
         Object.keys(targetedLocaleCountByCode),
         sessionQuestions
       );
+      const localizedFibAnswers = collectLocalizedFibAnswers(
+        sessionQuestions,
+        translations.byLocale,
+        translations.freshQuestionIdsByLocale
+      );
+      if (Object.keys(localizedFibAnswers).length > 0)
+        assignment.localizedFibAnswers = localizedFibAnswers;
       const sessionPublicQuestions = sessionQuestions.map((q) =>
         projectPublicQuestionForMode(
           q,
@@ -1029,6 +1108,9 @@ export const useQuizAssignments = (
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
         // Read-aloud snapshot (docs/plans/QUIZ_READ_ALOUD.md §3); omitted when off.
         ...(opts.readAloudAll ? { readAloudAll: true } : {}),
+        ...(resolveQuizHandRaiseEnabled(handRaiseMode, opts.handRaiseEnabled)
+          ? { handRaiseEnabled: true }
+          : {}),
         ...(quiz.language ? { language: quiz.language } : {}),
         ...(Object.keys(translations.titleByLocale).length > 0
           ? { quizTitleLocalized: { ...translations.titleByLocale } }
@@ -1100,8 +1182,27 @@ export const useQuizAssignments = (
           : {}),
       };
 
+      const readAloudLocales = readAloudTranslationLocales(
+        overridesBySourcedId ?? {},
+        opts.readAloudAll === true
+      );
+      const readAloudPlanned =
+        opts.readAloudAll === true ||
+        Object.values(overridesBySourcedId ?? {}).some(
+          (o) => o?.readAloud === true
+        );
       if (Object.keys(translations.byLocale).length > 0) {
-        enforceSessionSizeBudget(session, targetedLocaleCountByCode);
+        enforceSessionSizeBudget(
+          session,
+          targetedLocaleCountByCode,
+          SESSION_DOC_BYTE_BUDGET,
+          readAloudPlanned
+            ? estimateReadAloudManifestBytes(
+                estimateReadAloudPartCount(session.publicQuestions),
+                readAloudLocales.length
+              )
+            : 0
+        );
       }
 
       const batch = writeBatch(db);
@@ -1119,11 +1220,8 @@ export const useQuizAssignments = (
       // R1: synthesize up front, billed to the teacher; the student fallback
       // covers the assign-then-start race. Override-only flags added later go
       // through `setAssignmentTargetsV1`, which re-triggers server-side.
-      const anyOverrideReadAloud = Object.values(
-        overridesBySourcedId ?? {}
-      ).some((o) => o?.readAloud === true);
-      if (opts.readAloudAll === true || anyOverrideReadAloud) {
-        prepareQuizReadAloudInBackground(assignmentId);
+      if (readAloudPlanned) {
+        prepareQuizReadAloudInBackground(assignmentId, readAloudLocales);
       }
 
       // PLC dashboard index: when this assignment opts into PLC mode,
@@ -1172,7 +1270,12 @@ export const useQuizAssignments = (
 
       return { id: assignmentId, code };
     },
-    [userId, projectPublicQuestionForMode, translationLoader]
+    [
+      userId,
+      projectPublicQuestionForMode,
+      translationLoader,
+      resolveHandRaiseMode,
+    ]
   );
 
   const setStatus = useCallback(
@@ -2225,8 +2328,18 @@ export const useQuizAssignments = (
       // local copy, and rewriting that on every sync would be a
       // surprise. Sync only touches the question content + version
       // bookkeeping.
+      const syncedFibAnswers = collectLocalizedFibAnswers(
+        canonicalQuestions,
+        servedTranslations,
+        freshByLocale
+      );
       const firstBatch = writeBatch(db);
       firstBatch.update(assignmentRef, {
+        // Re-derived every sync so an edited or unreviewed answer key stops grading.
+        localizedFibAnswers:
+          Object.keys(syncedFibAnswers).length > 0
+            ? syncedFibAnswers
+            : deleteField(),
         sync: {
           groupId: assignment.sync.groupId,
           syncedVersion: canonical.version,
@@ -2302,7 +2415,15 @@ export const useQuizAssignments = (
       }
       await firstBatch.commit();
       // Rebuilt publicQuestions may carry new text; re-hash and fill the manifest.
-      if (syncReadAloud) prepareQuizReadAloudInBackground(assignmentId);
+      if (syncReadAloud)
+        prepareQuizReadAloudInBackground(
+          assignmentId,
+          readAloudTranslationLocales(
+            assignment.overridesBySourcedId ?? {},
+            (behavior?.sessionOptions ?? assignment.sessionOptions)
+              ?.readAloudAll === true
+          )
+        );
 
       // Subsequent chunks for any remaining responses.
       for (
@@ -2427,6 +2548,12 @@ export const useQuizAssignments = (
       const assignmentSnap = await getDoc(assignmentRef);
       const overridesByStudentUid = (assignmentSnap.data()
         ?.overridesByStudentUid ?? {}) as Record<string, StudentOverride>;
+      // Write-once served language, kept when a student is skipped or de-targeted.
+      const servedLanguageByStudentUid = (assignmentSnap.data()
+        ?.servedLanguageByStudentUid ?? {}) as Record<string, string>;
+      // Translated FIB answer keys snapshotted at assign time; absent on older assignments.
+      const localizedFibAnswers = (assignmentSnap.data()?.localizedFibAnswers ??
+        {}) as Record<string, Record<string, string[]>>;
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -2473,6 +2600,11 @@ export const useQuizAssignments = (
           Array.isArray(subsetIds) && subsetIds.length > 0
             ? new Set(subsetIds)
             : null;
+        // Teacher-side truth only: never the client-asserted `response.locale`.
+        const servedLocale =
+          overridesByStudentUid[data.studentUid]?.language ??
+          servedLanguageByStudentUid[data.studentUid] ??
+          undefined;
         let pointsEarned = 0;
         let pointsMax = 0;
         // Set when any answered slot is still owed a teacher grade (ungraded
@@ -2513,7 +2645,12 @@ export const useQuizAssignments = (
           const result = applyMediaSlots(
             q,
             data,
-            gradeAnswer(q, a.answer, manualGrade)
+            gradeAnswer(
+              q,
+              a.answer,
+              manualGrade,
+              fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale)
+            )
           );
           if (result.state === 'awaiting-grade') awaitingGrade = true;
           if (

@@ -33,7 +33,8 @@ import {
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
-import { useStudentAssignmentOverride } from '@/hooks/useStudentAssignmentOverride';
+import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
+import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 
@@ -233,12 +234,12 @@ const StudentExperience: React.FC<{
   // Firestore rules require the `studentRole` claim to read this doc, so the
   // read is gated on `isStudentRole` — anonymous/PIN joiners (the majority of
   // GL traffic) never attempt it, avoiding a permission-denied on every join.
-  const pointerOverride = useStudentAssignmentOverride(
+  const pointer = useStudentAssignmentPointer(
     isStudentRole ? anonymousUid : null,
     sessionId || null,
     isStudentRole && !isViewOnly
   );
-  const timeMultiplier = pointerOverride?.timeMultiplier;
+  const timeMultiplier = pointer?.override?.timeMultiplier;
 
   const startedAt = React.useRef<number>(0);
   useEffect(() => {
@@ -303,6 +304,8 @@ const StudentExperience: React.FC<{
   if (loading) return <FullPageLoader />;
   if (error) return <ErrorScreen message={error} />;
   if (!session) return <ErrorScreen message="Session not found." />;
+  // Teacher skipped this student for this assignment.
+  if (pointer?.excluded) return <AssignmentExcludedNotice />;
 
   // Response-listener failure on a submissions-mode session — we can't
   // safely show the start screen (a returning student would silently

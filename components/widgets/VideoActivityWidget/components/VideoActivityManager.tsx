@@ -813,9 +813,20 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-brand-blue-primary gap-2">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        <span className="text-sm font-medium">Loading activities…</span>
+      <div
+        className="flex items-center justify-center h-full text-brand-blue-primary"
+        style={{ gap: 'min(8px, 2cqmin)' }}
+      >
+        <Loader2
+          className="animate-spin"
+          style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+        />
+        <span
+          className="font-medium"
+          style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+        >
+          Loading activities…
+        </span>
       </div>
     );
   }
@@ -835,7 +846,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         <button
           type="button"
           onClick={onNew}
-          className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors px-4 py-2 text-sm"
+          className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors"
+          style={{
+            padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+            fontSize: 'min(14px, 5.5cqmin)',
+          }}
         >
           Create Activity
         </button>
@@ -848,17 +863,32 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     (useExternalDnd || Boolean(onReorderActivities)) && !selectionMode;
 
   const renderLibraryTab = (): React.ReactElement => (
-    <div className="flex h-full min-h-0 gap-3">
+    <div className="flex h-full min-h-0" style={{ gap: 'min(12px, 3cqmin)' }}>
       <div className="flex-1 min-w-0 flex flex-col">
         {error && (
-          <div className="mb-3 flex items-center gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <div
+            className="flex items-center rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 font-medium text-brand-red-dark"
+            style={{
+              marginBottom: 'min(12px, 3cqmin)',
+              gap: 'min(8px, 2cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(14px, 5.5cqmin)',
+            }}
+          >
+            <AlertCircle
+              className="shrink-0"
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+              aria-hidden="true"
+            />
             {error}
           </div>
         )}
 
         {selectionMode && selection.count > 0 && (
-          <div className="mb-3">
+          <div style={{ marginBottom: 'min(12px, 3cqmin)' }}>
             <BulkActionBar
               count={selection.count}
               onClear={() => selection.clear()}
@@ -1027,9 +1057,20 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   ): React.ReactElement => {
     if (assignmentsLoading) {
       return (
-        <div className="flex items-center justify-center py-10 text-brand-blue-primary gap-2">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm font-medium">Loading assignments…</span>
+        <div
+          className="flex items-center justify-center text-brand-blue-primary"
+          style={{ padding: 'min(40px, 10cqmin) 0', gap: 'min(8px, 2cqmin)' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+          />
+          <span
+            className="font-medium"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
+            Loading assignments…
+          </span>
         </div>
       );
     }
@@ -1264,17 +1305,27 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                   setSelectionMode(true);
                 }
               }}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+              className={`inline-flex items-center rounded-lg font-bold uppercase tracking-wider transition-colors ${
                 selectionMode
                   ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
                   : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
               }`}
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                fontSize: 'min(11px, 4cqmin)',
+              }}
               aria-pressed={selectionMode}
               title={
                 selectionMode ? 'Exit selection mode' : 'Enter selection mode'
               }
             >
-              <CheckSquare className="h-3.5 w-3.5" />
+              <CheckSquare
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
               {selectionMode ? 'Cancel' : 'Select'}
             </button>
           ) : undefined
@@ -1512,6 +1563,7 @@ const AssignBehaviorSummaryVA: React.FC<{
 
       <AssignTargetingSection
         rosters={rosters}
+        selectedRosterIds={pickerValue.rosterIds}
         value={targeting}
         onChange={onTargetingChange}
         kind="video-activity"
@@ -1592,7 +1644,10 @@ const VideoActivityPreviewPaneContent: React.FC<{
     ? extractYouTubeId(activity.youtubeUrl)
     : null;
   return (
-    <div className="flex flex-col gap-3 text-sm text-slate-700">
+    <div
+      className="flex flex-col text-slate-700"
+      style={{ gap: 'min(12px, 3cqmin)', fontSize: 'min(14px, 5.5cqmin)' }}
+    >
       {youtubeId ? (
         <img
           src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
@@ -1601,11 +1656,14 @@ const VideoActivityPreviewPaneContent: React.FC<{
           loading="lazy"
         />
       ) : (
-        <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+        <div
+          className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-400"
+          style={{ fontSize: 'min(11px, 4cqmin)' }}
+        >
           No video preview
         </div>
       )}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2" style={{ gap: 'min(12px, 3cqmin)' }}>
         <VAStat label="Questions" value={String(activity.questionCount)} />
         {created && <VAStat label="Created" value={created} />}
         {updated && <VAStat label="Last updated" value={updated} />}
@@ -1618,10 +1676,24 @@ const VAStat: React.FC<{ label: string; value: string }> = ({
   label,
   value,
 }) => (
-  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-    <div className="text-xxs font-bold uppercase tracking-wider text-slate-400">
+  <div
+    className="rounded-lg border border-slate-200 bg-white"
+    style={{ padding: 'min(8px, 2cqmin) min(12px, 3cqmin)' }}
+  >
+    <div
+      className="font-bold uppercase tracking-wider text-slate-400"
+      style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+    >
       {label}
     </div>
-    <div className="text-sm font-semibold text-slate-800 mt-0.5">{value}</div>
+    <div
+      className="font-semibold text-slate-800"
+      style={{
+        fontSize: 'min(14px, 5.5cqmin)',
+        marginTop: 'min(2px, 0.5cqmin)',
+      }}
+    >
+      {value}
+    </div>
   </div>
 );

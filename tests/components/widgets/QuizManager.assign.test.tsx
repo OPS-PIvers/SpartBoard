@@ -130,7 +130,26 @@ const ROSTERS: ClassRoster[] = [
     students: [],
     source: 'manual',
   } as unknown as ClassRoster,
+  {
+    id: 'r2',
+    name: 'Period 2',
+    source: 'manual',
+    defaultOverridesByStudentId: { s1: { timeMultiplier: 2 } },
+    students: [
+      {
+        id: 's1',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        pin: '01',
+        classLinkSourcedId: 'SID-1',
+      },
+    ],
+  } as unknown as ClassRoster,
 ];
+
+/** Checks the class whose roster carries a standing accommodation. */
+const checkAccommodatedClass = (dialog: HTMLElement) =>
+  fireEvent.click(within(dialog).getByTestId('roster-r2'));
 
 const BASE_CONFIG: QuizConfig = {
   view: 'manager',
@@ -481,6 +500,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       targetStudents: [],
       targetGroupIds: [],
       overridesByKey: {},
+      excludedStudents: [],
     });
   });
 
@@ -496,10 +516,10 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
-    // The collapsed "+ Individual students & overrides" affordance is present…
+    // The collapsed "Edit or add modifications" affordance is present…
     expect(
       within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
+        name: /edit or add modifications/i,
       })
     ).toBeInTheDocument();
     // …but the B1 picker trigger and B2 override rows are not rendered.
@@ -508,7 +528,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     ).not.toBeInTheDocument();
   });
 
-  it('M17 C3 F5: blocks an individually-targeted save on a non-self-paced quiz', async () => {
+  it('confirms, then assigns, when only a standing roster default applies', async () => {
     const onAssign = vi.fn();
     renderManager(
       makeQuizMeta({
@@ -525,16 +545,50 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
+    checkAccommodatedClass(dialog);
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+
+    // First click surfaces the timing warning by name and holds the assign.
+    expect(onAssign).not.toHaveBeenCalled();
+    expect(await within(dialog).findByRole('status')).toHaveTextContent(
+      /extended time for .*will not apply/i
+    );
+    // Never an error: a standing default is a pre-existing setting, not a block.
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+  });
+
+  it('blocks a teacher-paced save once the teacher skips a student', async () => {
+    const onAssign = vi.fn();
+    renderManager(
+      makeQuizMeta({
+        behavior: { ...DEFAULT_QUIZ_BEHAVIOR, sessionMode: 'teacher' },
+      }),
+      onAssign
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
     fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
-      })
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+
+    checkAccommodatedClass(dialog);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /edit or add modifications/i })
+    );
+    fireEvent.click(
+      await within(dialog).findByRole('checkbox', { name: /skip ada/i })
     );
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     expect(onAssign).not.toHaveBeenCalled();
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-      /requires Self-paced mode/i
+      /require Self-paced mode/i
     );
   });
 
@@ -555,16 +609,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
-    fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
-      })
-    );
+    checkAccommodatedClass(dialog);
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const targeting = onAssign.mock.calls[0][5] as AssignTargetingValue;
-    expect(targeting.targetMode).toBe('students');
+    expect(targeting.targetMode).toBe('class');
   });
 
   it('M17 C3 F5: pacing block is fixable in-modal by switching to Self-paced', async () => {
@@ -584,10 +634,12 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
       name: /chapter 5 review/i,
     });
 
+    checkAccommodatedClass(dialog);
     fireEvent.click(
-      within(dialog).getByRole('button', {
-        name: /\+ Individual students & overrides/i,
-      })
+      within(dialog).getByRole('button', { name: /edit or add modifications/i })
+    );
+    fireEvent.click(
+      await within(dialog).findByRole('checkbox', { name: /skip ada/i })
     );
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
     expect(onAssign).not.toHaveBeenCalled();

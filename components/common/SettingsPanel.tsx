@@ -20,6 +20,7 @@ import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
 import { useHelpItemsForWidget } from '@/hooks/useHelpResources';
 import { requestOpenHelp } from '@/components/help/helpCenterState';
+import { WidgetHostContext } from './WidgetHostContext';
 
 interface SettingsPanelProps {
   widget: WidgetData;
@@ -317,7 +318,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           {activeTab === 'settings' && (
             <div className="px-5 py-4">
               {shouldRenderSettings && settings ? (
-                settings
+                <WidgetHostContext.Provider value={widgetRef}>
+                  {settings}
+                </WidgetHostContext.Provider>
               ) : (
                 <div className="text-slate-500 italic text-sm">
                   Standard settings available.
@@ -331,13 +334,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div className="px-5 py-4 flex flex-col gap-4">
               {/* Widget-specific appearance settings */}
               {shouldRenderSettings && appearanceSettings && (
-                <>
+                <WidgetHostContext.Provider value={widgetRef}>
                   <div>{appearanceSettings}</div>
                   <WidgetBackgroundSettings
                     widget={widget}
                     updateWidget={updateWidget}
                   />
-                </>
+                </WidgetHostContext.Provider>
               )}
 
               {/* Universal Style Settings (only if no custom appearance settings) */}

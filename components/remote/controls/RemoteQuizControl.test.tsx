@@ -49,6 +49,7 @@ const session = {
   totalQuestions: 5,
   classIds: [],
   periodNames: [],
+  handRaiseEnabled: true,
 } as unknown as QuizSession;
 
 function response(uid: string, extra: Partial<QuizResponse>): QuizResponse {

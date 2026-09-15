@@ -1196,6 +1196,56 @@
     }
   },
   "widgetSettings": {
+    "soundboard": {
+      "availableSounds": "Available sounds",
+      "availableSoundsHelp": "Choose which sounds appear as buttons on the board.",
+      "soundButtons": "Sound buttons",
+      "noSounds": "No sounds are configured for this building. Contact an administrator."
+    },
+    "dice": {
+      "count": "Number of dice",
+      "oneDie": "1 die",
+      "dice2": "2 dice",
+      "dice3": "3 dice",
+      "dice4": "4 dice",
+      "dice5": "5 dice",
+      "dice6": "6 dice",
+      "diceColor": "Die color",
+      "dotColor": "Pip color"
+    },
+    "sound": {
+      "syncExpectations": "Sync with Expectations",
+      "addExpectationsHelp": "Add an Expectations widget to adjust sensitivity from the selected voice level.",
+      "sensitivity": "Sensitivity",
+      "autoTrafficLight": "Control Traffic Light automatically",
+      "addTrafficHelp": "Add a Traffic Light widget to change its color automatically.",
+      "trafficLightThreshold": "Trigger red light at",
+      "thresholdQuiet": "Quiet",
+      "thresholdLow": "Low",
+      "thresholdMedium": "Medium",
+      "thresholdHigh": "High",
+      "visual": "Visual mode",
+      "visualMeter": "Meter",
+      "visualGauge": "Gauge",
+      "visualGraph": "Graph",
+      "visualPopcorn": "Popcorn"
+    },
+    "webcam": {
+      "autoSendToNotes": "Send OCR text to Notes automatically",
+      "autoSendToNotesHelp": "Convert captured text into a Notes widget immediately."
+    },
+    "drawing": {
+      "colorPresets": "Color presets",
+      "presetColor": "Preset color",
+      "brushThickness": "Brush thickness",
+      "background": "Background",
+      "backgroundBlank": "Blank",
+      "backgroundGrid": "Grid",
+      "backgroundLines": "Lines",
+      "backgroundDots": "Dots",
+      "shapeFill": "Fill shapes",
+      "shapeFillHelp": "Fill rectangles and ellipses with the current color."
+    },
     "clock": {
       "format24": "24H Format",
       "showSeconds": "Show Seconds",
@@ -1381,6 +1431,138 @@
       "styleMinimal": "Minimal",
       "themeColor": "Color Palette",
       "glow": "Glow"
+    },
+    "checklist": {
+      "listSource": "List source",
+      "customTasks": "Custom tasks",
+      "classRoster": "Class roster",
+      "tasks": "Tasks",
+      "task": "Task",
+      "addTask": "Add task",
+      "rosterSource": "Roster source",
+      "firstNames": "First names",
+      "lastNames": "Last names",
+      "firstNamesPlaceholder": "One first name per line",
+      "lastNamesPlaceholder": "One last name per line",
+      "importTasks": "Import tasks",
+      "importRoutine": "Import routine",
+      "importText": "Import Text widget",
+      "noRoutine": "No Instructional Routines widget was found.",
+      "emptyRoutine": "The active routine has no steps to import.",
+      "routineImported": "Imported steps from the routine.",
+      "noTextWidget": "No Text widget was found.",
+      "emptyTextWidget": "The Text widgets have no usable text.",
+      "textImported": "Imported tasks from the Text widget.",
+      "pasteTasks": "Paste tasks (one per line)",
+      "pasteTasksPlaceholder": "Warm-up\nRead chapter 3\nExit ticket",
+      "addPastedTasks_one": "Add {{count}} task",
+      "addPastedTasks_other": "Add {{count}} tasks"
+    },
+    "weather": {
+      "weatherMode": "Weather mode",
+      "manual": "Manual",
+      "automatic": "Automatic",
+      "temperature": "Temperature (°F)",
+      "condition": "Condition",
+      "sunny": "Sunny",
+      "cloudy": "Cloudy",
+      "rainy": "Rainy",
+      "snowy": "Snowy",
+      "windy": "Windy",
+      "automaticWeather": "Automatic weather",
+      "weatherSource": "Weather source",
+      "openWeather": "OpenWeather",
+      "cityZip": "City or ZIP code",
+      "useLocation": "Use current location",
+      "refreshWeather": "Refresh weather",
+      "refreshCity": "Refresh city",
+      "showFeelsLike": "Prioritize feels-like temperature",
+      "showFeelsLikeHelp": "Use the feels-like temperature for clothing recommendations.",
+      "hideClothing": "Hide clothing recommendations",
+      "hideClothingHelp": "Hide the suggested clothing card from the widget.",
+      "syncBackground": "Match the board background to weather",
+      "syncBackgroundHelp": "Update the dashboard background when conditions change.",
+      "secondaryColor": "Secondary text color",
+      "matchText": "Match text",
+      "clothingCard": "Clothing card"
+    },
+    "expectations": {
+      "soundSync": "Sound meter sync",
+      "soundSyncHelp": "Adjust Sound Meter sensitivity from the selected voice level.",
+      "autoAdjustSoundMeter": "Auto-adjust Sound Meter"
+    },
+    "random": {
+      "rosterSource": "Roster source",
+      "firstNames": "First names",
+      "lastNames": "Last names",
+      "firstNamesPlaceholder": "One first name per line",
+      "lastNamesPlaceholder": "One last name per line",
+      "customRosterActions": "Custom roster actions",
+      "importClass": "Import active class",
+      "clearNames": "Clear custom names",
+      "clearNamesConfirm": "Clear all custom student data?",
+      "clearNamesTitle": "Clear student data",
+      "clear": "Clear",
+      "operationMode": "Operation mode",
+      "pickOne": "Pick one",
+      "shuffle": "Shuffle",
+      "groups": "Groups",
+      "jigsaw": "Jigsaw",
+      "soundEffects": "Sound effects",
+      "soundEffectsHelp": "Play a ticking sound during the selection animation.",
+      "autoStartTimer": "Start Timer automatically",
+      "addTimerHelp": "Add a Timer widget to start it automatically when a winner is picked.",
+      "animationStyle": "Animation style",
+      "styleStandard": "Standard",
+      "styleWheel": "Wheel",
+      "styleSlots": "Slots",
+      "groupSize": "Group size",
+      "homeGroupCount": "Number of home groups",
+      "expertGroupCount": "Number of expert groups",
+      "sendToStations": "Send groups to Stations",
+      "stations": "Stations",
+      "addStations": "Add a Stations widget to the board first.",
+      "generateGroupsFirst": "Generate groups before sending them to Stations.",
+      "replaceStationsConfirm": "The Stations widget already has {{count}} stations. Replace them?",
+      "replaceStationsTitle": "Replace existing stations?",
+      "replace": "Replace",
+      "groupsSent": "Sent {{count}} groups to Stations."
+    },
+    "url": {
+      "links": "Links",
+      "addLink": "Add link",
+      "url": "URL",
+      "urlPlaceholder": "https://example.com",
+      "title": "Title",
+      "titlePlaceholder": "Link title",
+      "shape": "Shape",
+      "rectangle": "Rectangle",
+      "circle": "Circle",
+      "iconLabel": "Icon",
+      "backgroundColor": "Background color",
+      "backgroundImage": "Background image",
+      "icon": {
+        "external-link": "External link",
+        "globe": "Globe",
+        "link": "Link",
+        "book": "Book",
+        "video": "Video",
+        "image": "Image",
+        "file": "File",
+        "music": "Music",
+        "game": "Game",
+        "school": "School",
+        "calendar": "Calendar",
+        "mail": "Mail",
+        "news": "News",
+        "star": "Star",
+        "heart": "Heart",
+        "pen": "Draw",
+        "calc": "Calculator",
+        "science": "Science",
+        "map": "Map",
+        "camera": "Camera"
+      }
     }
   },
   "widgetWindow": {
@@ -2127,7 +2309,15 @@
     "language": "Language"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Individual students & overrides",
+    "expandAffordance": "Edit or add modifications",
+    "modificationsLabel": "Modifications",
+    "collapse": "Done",
+    "standingBadge": "Standing",
+    "skipStudent": "Skip this student",
+    "showMore": "Show {{count}} more",
+    "showFewer": "Show fewer",
+    "noClassStudents": "Check a class above to modify individual students.",
+    "skipNotice": "Skipped students will not see this assignment. Everyone else in these classes still receives it.",
     "sectionLabel": "Individual students & overrides",
     "chooseStudents": "Choose students",
     "editStudents": "Edit students",
@@ -2145,7 +2335,19 @@
     "scheduleSummaryOpenOnly": "Opens {{open}}",
     "scheduleSummaryCloseOnly": "Closes {{close}}",
     "skippedToast_one": "{{count}} student could not be targeted and was skipped.",
-    "skippedToast_other": "{{count}} students could not be targeted and were skipped."
+    "skippedToast_other": "{{count}} students could not be targeted and were skipped.",
+    "skippedExclusionToast_one": "{{count}} student you skipped still sees this assignment.",
+    "skippedExclusionToast_other": "{{count}} students you skipped still see this assignment.",
+    "skipStudentNamed": "Skip {{name}}",
+    "summarySkipped": "{{count}} skipped",
+    "summaryModified": "{{count}} modified",
+    "noSignInCount": "{{count}} students in these classes have no school sign-in and cannot be individually modified.",
+    "noSignInStudents": "No one in the checked classes has a school sign-in, so there is nobody to modify individually.",
+    "timingNotApplied": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply.",
+    "clearModifications": "Clear all modifications",
+    "noLinkedClass": "This assignment is not linked to a class you can modify here.",
+    "timingNotAppliedConfirm": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply. Click Assign again to continue.",
+    "pacingBlocked": "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications."
   },
   "assignmentsHub": {
     "title": "Assignments",
@@ -2209,7 +2411,9 @@
       "stopSharingPlc": "Stop sharing",
       "sharePlcDone": "Results now pool with {{plc}}.",
       "stopSharingPlcDone": "No longer sharing results with {{plc}}.",
-      "plcActionFailed": "Could not update PLC sharing. Try again."
+      "plcActionFailed": "Could not update PLC sharing. Try again.",
+      "skippedStatus": "Skipped",
+      "classNotResolved": "This assignment is not linked to a class you can modify here, so only the schedule can be changed."
     }
   },
   "quizResults": {
@@ -2261,6 +2465,7 @@
       "pickLanguage": "Pick a language",
       "generate": "Generate translation",
       "reviewed": "Reviewed",
+      "answerKey": "Accepted answer",
       "stale": "Stale",
       "regenerate_one": "Regenerate {{count}} stale question",
       "regenerate_other": "Regenerate {{count}} stale questions",
@@ -2290,6 +2495,10 @@
       },
       "error": {
         "unloadedLocale": "This language's saved translation hasn't loaded yet. Select it again, then generate."
+      },
+      "fib": {
+        "missingAnswer": "Add the translated accepted answer before marking this reviewed.",
+        "blankCount": "The translated text must use the same number of blanks (____) as the English question."
       }
     },
     "authoring": {
@@ -2740,5 +2949,43 @@
       "subjectsTaught": "Content areas taught",
       "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
     }
+  },
+  "quizHandRaise": {
+    "label": "Allow students to raise a hand",
+    "help": "Students get a Raise hand button while taking the quiz."
+  },
+  "quizAdmin": {
+    "title": "Quiz Administration",
+    "subtitle": "Raise hand & languages",
+    "close": "Close",
+    "tabs": {
+      "behavior": "Behavior",
+      "languages": "Languages"
+    },
+    "selectBuilding": "Select building to configure",
+    "building": "Building",
+    "save": "Save Configuration",
+    "cancel": "Cancel",
+    "saved": "Quiz configuration saved.",
+    "saveFailed": "Failed to save quiz configuration.",
+    "handRaise": {
+      "heading": "Raise hand",
+      "help": "Controls whether students see a Raise hand button while taking a quiz in this building.",
+      "teacherChoice": "Teacher's choice",
+      "teacherChoiceHint": "Each teacher decides per quiz. Off unless they turn it on.",
+      "forceOn": "Always on",
+      "forceOnHint": "Raise hand is available in every quiz and teachers cannot turn it off.",
+      "forceOff": "Always off",
+      "forceOffHint": "Raise hand is hidden from students in every quiz."
+    },
+    "noBuildings": "No buildings configured",
+    "noBuildingsHint": "Add a building under Organization before setting a raise-hand default.",
+    "discardMessage": "You have unsaved changes. Are you sure you want to discard them?",
+    "discardTitle": "Discard Changes",
+    "discardConfirm": "Discard"
+  },
+  "studentAssignment": {
+    "excludedTitle": "This assignment is not for you",
+    "excludedBody": "Your teacher did not assign this to you. Check with them if you think this is a mistake."
   }
 }

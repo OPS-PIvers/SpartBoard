@@ -1939,7 +1939,15 @@
     "language": "Langue"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Élèves individuels & aménagements",
+    "expandAffordance": "Modifier ou ajouter des aménagements",
+    "modificationsLabel": "Aménagements",
+    "collapse": "Terminé",
+    "standingBadge": "Permanent",
+    "skipStudent": "Ignorer cet élève",
+    "showMore": "Afficher {{count}} de plus",
+    "showFewer": "Afficher moins",
+    "noClassStudents": "Cochez une classe ci-dessus pour adapter des élèves individuels.",
+    "skipNotice": "Les élèves ignorés ne verront pas ce devoir. Les autres élèves de ces classes le reçoivent toujours.",
     "sectionLabel": "Élèves individuels & aménagements",
     "chooseStudents": "Choisir des élèves",
     "editStudents": "Modifier les élèves",
@@ -1957,7 +1965,19 @@
     "scheduleSummaryOpenOnly": "Ouvre {{open}}",
     "scheduleSummaryCloseOnly": "Ferme {{close}}",
     "skippedToast_one": "{{count}} élève n'a pas pu être ciblé et a été ignoré.",
-    "skippedToast_other": "{{count}} élèves n'ont pas pu être ciblés et ont été ignorés."
+    "skippedToast_other": "{{count}} élèves n'ont pas pu être ciblés et ont été ignorés.",
+    "skippedExclusionToast_one": "{{count}} élève que vous avez ignoré voit toujours ce devoir.",
+    "skippedExclusionToast_other": "{{count}} élèves que vous avez ignorés voient toujours ce devoir.",
+    "skipStudentNamed": "Ignorer {{name}}",
+    "summarySkipped": "{{count}} ignorés",
+    "summaryModified": "{{count}} aménagés",
+    "noSignInCount": "{{count}} élèves de ces classes n'ont pas de connexion scolaire et ne peuvent pas être aménagés individuellement.",
+    "noSignInStudents": "Aucun élève des classes cochées n'a de connexion scolaire : il n'y a donc personne à aménager individuellement.",
+    "timingNotApplied": "Les sessions dirigées par l'enseignant n'ont pas de minuteur par élève : le temps supplémentaire de {{names}} ne s'appliquera pas. Les autres aménagements s'appliquent.",
+    "clearModifications": "Effacer toutes les modifications",
+    "noLinkedClass": "Ce devoir n'est lié à aucune classe que tu peux modifier ici.",
+    "timingNotAppliedConfirm": "Les sessions guidées par l'enseignant n'ont pas de minuteur par élève : le temps supplémentaire pour {{names}} ne s'appliquera pas. Les autres aménagements restent actifs. Clique à nouveau sur Attribuer pour continuer.",
+    "pacingBlocked": "Les modifications individuelles nécessitent le mode Autonome. Passe les paramètres de session en Autonome, ou utilise « Effacer toutes les modifications » sous Modifier ou ajouter des modifications."
   },
   "assignmentsHub": {
     "title": "Devoirs",
@@ -2021,7 +2041,9 @@
       "stopSharingPlc": "Arrêter le partage",
       "sharePlcDone": "Les résultats sont désormais regroupés avec {{plc}}.",
       "stopSharingPlcDone": "Les résultats ne sont plus partagés avec {{plc}}.",
-      "plcActionFailed": "Impossible de mettre à jour le partage. Réessayez."
+      "plcActionFailed": "Impossible de mettre à jour le partage. Réessayez.",
+      "skippedStatus": "Ignoré",
+      "classNotResolved": "Ce devoir n'est lié à aucune classe que tu peux modifier ici ; seul le calendrier est modifiable."
     }
   },
   "quizResults": {
@@ -2073,6 +2095,7 @@
       "pickLanguage": "Choisir une langue",
       "generate": "Générer la traduction",
       "reviewed": "Vérifiée",
+      "answerKey": "Réponse acceptée",
       "stale": "Obsolète",
       "regenerate_one": "Regénérer {{count}} question obsolète",
       "regenerate_other": "Regénérer {{count}} questions obsolètes",
@@ -2102,6 +2125,10 @@
       },
       "error": {
         "unloadedLocale": "La traduction enregistrée de cette langue n'est pas encore chargée. Sélectionne-la de nouveau, puis génère."
+      },
+      "fib": {
+        "missingAnswer": "Ajoutez la réponse acceptée traduite avant de marquer cette question comme relue.",
+        "blankCount": "Le texte traduit doit comporter le même nombre de blancs (____) que la question en anglais."
       }
     },
     "authoring": {
@@ -2552,5 +2579,43 @@
       "subjectsTaught": "Domaines enseignés",
       "subjectsTaughtDescription": "Facultatif. Choisissez vos domaines pour ouvrir le sélecteur de standards directement dessus. Laissez vide pour voir tous les domaines."
     }
+  },
+  "quizHandRaise": {
+    "label": "Autoriser les élèves à lever la main",
+    "help": "Les élèves disposent d’un bouton pour lever la main pendant le quiz."
+  },
+  "quizAdmin": {
+    "title": "Administration des quiz",
+    "subtitle": "Lever la main et langues",
+    "close": "Fermer",
+    "tabs": {
+      "behavior": "Comportement",
+      "languages": "Langues"
+    },
+    "selectBuilding": "Sélectionner l’établissement à configurer",
+    "building": "Établissement",
+    "save": "Enregistrer la configuration",
+    "cancel": "Annuler",
+    "saved": "Configuration du quiz enregistrée.",
+    "saveFailed": "Échec de l’enregistrement de la configuration du quiz.",
+    "handRaise": {
+      "heading": "Lever la main",
+      "help": "Détermine si les élèves de cet établissement voient un bouton pour lever la main pendant un quiz.",
+      "teacherChoice": "Choix de l’enseignant",
+      "teacherChoiceHint": "Chaque enseignant décide pour chaque quiz. Désactivé par défaut.",
+      "forceOn": "Toujours activé",
+      "forceOnHint": "Lever la main est disponible dans tous les quiz et les enseignants ne peuvent pas le désactiver.",
+      "forceOff": "Toujours désactivé",
+      "forceOffHint": "Lever la main est masqué pour les élèves dans tous les quiz."
+    },
+    "noBuildings": "Aucun bâtiment configuré",
+    "noBuildingsHint": "Ajoutez un bâtiment dans Organisation avant de définir une valeur par défaut pour lever la main.",
+    "discardMessage": "Vous avez des modifications non enregistrées. Voulez-vous vraiment les abandonner ?",
+    "discardTitle": "Abandonner les modifications",
+    "discardConfirm": "Abandonner"
+  },
+  "studentAssignment": {
+    "excludedTitle": "Ce devoir n'est pas pour toi",
+    "excludedBody": "Ton enseignant ne t'a pas attribué ce devoir. Demande-lui si tu penses qu'il s'agit d'une erreur."
   }
 }

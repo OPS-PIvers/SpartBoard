@@ -16,6 +16,48 @@ import { hashQuestionForTranslation } from './quizTranslationHash';
 /** Serialized-UTF-8 ceiling; Firestore's hard limit is 1 MiB. */
 export const SESSION_DOC_BYTE_BUDGET = 900_000;
 
+/** Storage path + timing rows for one manifest part, rounded up. */
+export const READ_ALOUD_MANIFEST_BYTES_PER_PART = 260;
+
+/** Parts the read-aloud manifest will hold: one stem plus every listed option. */
+export function estimateReadAloudPartCount(
+  questions: readonly {
+    choices?: unknown;
+    matchingLeft?: unknown;
+    matchingRight?: unknown;
+    orderingItems?: unknown;
+  }[]
+): number {
+  const len = (value: unknown): number =>
+    Array.isArray(value) ? value.length : 0;
+  return questions.reduce(
+    (total, q) =>
+      total +
+      1 +
+      len(q.choices) +
+      len(q.matchingLeft) +
+      len(q.matchingRight) +
+      len(q.orderingItems),
+    0
+  );
+}
+
+/**
+ * Bytes `session.readAloud` will add after the publish write. The manifest is
+ * written by the server outside this budget, so reserve it here or the session
+ * fits at publish time and blows the 1 MiB limit once audio is prepared.
+ */
+export function estimateReadAloudManifestBytes(
+  partCount: number,
+  localeCount: number
+): number {
+  return (
+    partCount *
+    READ_ALOUD_MANIFEST_BYTES_PER_PART *
+    (1 + Math.max(0, localeCount))
+  );
+}
+
 export interface PublishTranslations {
   byLocale: Record<string, QuizTranslation>;
   freshQuestionIdsByLocale: Record<string, ReadonlySet<string>>;
@@ -117,7 +159,7 @@ export async function loadTranslationsForPublish(
     const payload = result.value;
     const fresh = new Set<string>();
     for (const q of questions) {
-      // D21: FIB never serves a translation, so it never counts as fresh.
+      // An untranslatable type never serves a translation, so it never counts as fresh.
       if (!isTranslatableQuestionType(q.type)) continue;
       if (payload.sourceHashes?.[q.id] === liveHashes.get(q.id))
         fresh.add(q.id);
@@ -167,7 +209,9 @@ export function enforceSessionSizeBudget<
 >(
   session: T,
   targetedCountByLocale: Record<string, number>,
-  budget: number = SESSION_DOC_BYTE_BUDGET
+  budget: number = SESSION_DOC_BYTE_BUDGET,
+  /** Bytes a later write (the read-aloud manifest) will add to the same doc. */
+  reservedBytes = 0
 ): string[] {
   const dropped: string[] = [];
   const present = new Set<string>();
@@ -183,7 +227,7 @@ export function enforceSessionSizeBudget<
         a.localeCompare(b)
     );
   for (const locale of order) {
-    if (byteLength(session) <= budget) break;
+    if (byteLength(session) + reservedBytes <= budget) break;
     stripLocale(session, locale);
     dropped.push(locale);
   }

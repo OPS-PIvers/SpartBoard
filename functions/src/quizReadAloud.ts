@@ -20,6 +20,9 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import './functionsInit';
 import { LANGUAGE_TAG_RE } from './languageTag';
+import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
+
+export { ttsLanguageForTranslationLocale };
 
 type Firestore = admin.firestore.Firestore;
 
@@ -31,6 +34,8 @@ export const DEFAULT_QUIZ_LANGUAGE = 'en-US';
 export const MAX_PART_CHARS = 5000;
 export const STIMULUS_CHUNK_BYTES = 4500;
 export const PREPARE_CONCURRENCY = 8;
+/** Ceiling for the post-targets prepare; `setAssignmentTargetsV1` times out at 120s. */
+export const AFTER_TARGETS_MAX_DEADLINE_MS = 90_000;
 /** A `preparing` manifest older than this is considered abandoned and re-run. */
 export const PREPARING_STALE_MS = 3 * 60 * 1000;
 const WHOLE_BREAK = '<break time="600ms"/>';
@@ -133,6 +138,8 @@ export type SynthesizeQuizAudioRequest =
       sessionId: string;
       questionId: string;
       part: QuizReadAloudPart;
+      /** Translation locale the student is viewing; absent = English (today's behaviour). */
+      locale?: string;
     }
   | { mode: 'preview'; language: string; voice?: string };
 
@@ -161,6 +168,9 @@ interface SessionQuestion {
   matchingRight?: unknown;
   orderingItems?: unknown;
   stimulusIds?: unknown;
+  placeholder?: unknown;
+  rubricSnapshot?: unknown;
+  localized?: unknown;
 }
 
 // ── Pure helpers (exported for tests) ──────────────────────────────────────
@@ -389,6 +399,64 @@ export function resolvePartText(
   }
 }
 
+const LOCALIZED_ARRAY_FIELDS = [
+  'choices',
+  'matchingLeft',
+  'matchingRight',
+  'orderingItems',
+] as const;
+
+/**
+ * Server mirror of `utils/quizOverrideServing.ts` serveLocalizedQuestion: the stored
+ * translation the student actually sees, or null when the view would render English.
+ */
+export function localizedSessionQuestion(
+  question: SessionQuestion,
+  locale: string
+): SessionQuestion | null {
+  if (question.type === 'FIB') return null;
+  const map = question.localized;
+  if (typeof map !== 'object' || map === null) return null;
+  const raw = (map as Record<string, unknown>)[locale];
+  if (typeof raw !== 'object' || raw === null) return null;
+  const entry = raw as Record<string, unknown>;
+  const text = typeof entry.text === 'string' ? entry.text : '';
+  if (!text) return null;
+  if (question.placeholder && !entry.placeholder) return null;
+  if (question.rubricSnapshot && !entry.rubricSnapshot) return null;
+  const out: SessionQuestion = {
+    id: question.id,
+    type: question.type,
+    text,
+    stimulusIds: question.stimulusIds,
+  };
+  for (const field of LOCALIZED_ARRAY_FIELDS) {
+    if (strings(question[field]).length === 0) continue;
+    const translated = strings(entry[field]);
+    if (translated.length === 0) return null;
+    (out as Record<string, unknown>)[field] = translated;
+  }
+  return out;
+}
+
+/** Translation locales stored on a session that have a TTS voice (currently `es`). */
+export function voicedSessionLocales(
+  session: Record<string, unknown>
+): string[] {
+  const questions = Array.isArray(session.publicQuestions)
+    ? (session.publicQuestions as SessionQuestion[])
+    : [];
+  const out = new Set<string>();
+  for (const q of questions) {
+    const map = q?.localized;
+    if (typeof map !== 'object' || map === null) continue;
+    for (const locale of Object.keys(map as Record<string, unknown>)) {
+      if (ttsLanguageForTranslationLocale(locale)) out.add(locale);
+    }
+  }
+  return [...out];
+}
+
 /** Every part of a session, keyed for the manifest (§4.0 step 3). */
 export function enumerateParts(session: Record<string, unknown>): {
   parts: EnumeratedPart[];
@@ -445,6 +513,23 @@ export function enumerateParts(session: Record<string, unknown>): {
     }
   }
   return { parts, stimulusChunks };
+}
+
+/** Parts for one translation locale. Stimulus passages are never translated, so none are listed. */
+export function enumerateLocalizedParts(
+  session: Record<string, unknown>,
+  locale: string
+): EnumeratedPart[] {
+  const questions = Array.isArray(session.publicQuestions)
+    ? (session.publicQuestions as SessionQuestion[])
+    : [];
+  const localized: SessionQuestion[] = [];
+  for (const q of questions) {
+    if (typeof q?.id !== 'string') continue;
+    const view = localizedSessionQuestion(q, locale);
+    if (view) localized.push(view);
+  }
+  return enumerateParts({ publicQuestions: localized }).parts;
 }
 
 export function normalizeSettings(raw: unknown): QuizReadAloudSettings {
@@ -544,7 +629,19 @@ export function parseSynthesizeRequest(
       'sessionId and questionId are required.'
     );
   const part = parsePart(data.part);
-  return { mode: 'student', sessionId, questionId, part };
+  const locale = typeof data.locale === 'string' ? data.locale.trim() : '';
+  if (locale && !ttsLanguageForTranslationLocale(locale))
+    throw new HttpsError(
+      'invalid-argument',
+      'That language has no read-aloud voice.'
+    );
+  return {
+    mode: 'student',
+    sessionId,
+    questionId,
+    part,
+    ...(locale ? { locale } : {}),
+  };
 }
 
 export function parsePart(raw: unknown): QuizReadAloudPart {
@@ -762,7 +859,12 @@ async function withRetry<T>(
 // ── prepareQuizReadAloudV1 ─────────────────────────────────────────────────
 
 export async function prepareQuizReadAloud(
-  input: { sessionId: string; callerUid: string },
+  input: {
+    sessionId: string;
+    callerUid: string;
+    /** Locales a read-aloud student actually holds; absent/empty = English only. */
+    translationLocales?: string[];
+  },
   deps: ReadAloudDeps,
   opts: { deadlineMs?: number } = {}
 ): Promise<PrepareQuizReadAloudResult> {
@@ -814,6 +916,11 @@ export async function prepareQuizReadAloud(
     { merge: true }
   );
 
+  const localeScope = new Set(input.translationLocales ?? []);
+  const scopedLocales =
+    localeScope.size > 0
+      ? voicedSessionLocales(session).filter((l) => localeScope.has(l))
+      : [];
   const { parts, stimulusChunks } = enumerateParts(session);
   const files: Record<string, string> = {};
   const timings: Record<string, ReadAloudTiming[]> = {};
@@ -821,9 +928,11 @@ export async function prepareQuizReadAloud(
   let synthesized = 0;
   let chars = 0;
   let hits = 0;
-  const deadline = opts.deadlineMs
-    ? nowMs + opts.deadlineMs
+  // Each pass gets its own slice so a locale can never eat the English budget.
+  const sliceMs = opts.deadlineMs
+    ? opts.deadlineMs / (1 + scopedLocales.length)
     : Number.POSITIVE_INFINITY;
+  const deadline = opts.deadlineMs ? nowMs + sliceMs : Number.POSITIVE_INFINITY;
 
   await runPool(parts, PREPARE_CONCURRENCY, async (part) => {
     if (deps.now() > deadline) {
@@ -854,41 +963,140 @@ export async function prepareQuizReadAloud(
     }
   });
 
-  const status: PrepareQuizReadAloudResult['status'] =
+  const localized: Record<
+    string,
+    {
+      voice: string;
+      files: Record<string, string>;
+      timings: Record<string, ReadAloudTiming[]>;
+      failedKeys: string[];
+    }
+  > = {};
+  let localizedParts = 0;
+  for (const locale of scopedLocales) {
+    const localeLanguage = ttsLanguageForTranslationLocale(locale);
+    if (!localeLanguage) continue;
+    const localeVoices = voicesForLanguage(settings, localeLanguage);
+    const entry = {
+      voice: localeVoices.neural2,
+      files: {} as Record<string, string>,
+      timings: {} as Record<string, ReadAloudTiming[]>,
+      failedKeys: [] as string[],
+    };
+    const localeParts = enumerateLocalizedParts(session, locale);
+    localizedParts += localeParts.length;
+    const localeDeadline =
+      sliceMs === Number.POSITIVE_INFINITY
+        ? Number.POSITIVE_INFINITY
+        : deps.now() + sliceMs;
+    await runPool(localeParts, PREPARE_CONCURRENCY, async (part) => {
+      if (deps.now() > localeDeadline) {
+        entry.failedKeys.push(part.key);
+        return;
+      }
+      try {
+        const result = await withRetry(
+          () =>
+            synthesizePart(deps, {
+              subParts: part.subParts,
+              language: localeLanguage,
+              teacherUid,
+              settings,
+            }),
+          3
+        );
+        entry.files[part.key] = result.path;
+        if (result.timings) entry.timings[part.key] = result.timings;
+        if (result.cached) hits += 1;
+        else {
+          synthesized += 1;
+          chars += result.chars;
+        }
+      } catch (error) {
+        console.error('[quizReadAloud] localized part failed', {
+          key: part.key,
+          locale,
+          error,
+        });
+        entry.failedKeys.push(part.key);
+      }
+    });
+    // Persisted even when every part failed, so `failedKeys` survives the write.
+    if (Object.keys(entry.files).length > 0 || entry.failedKeys.length > 0)
+      localized[locale] = entry;
+  }
+
+  const localizedFailed = Object.values(localized).some(
+    (entry) => entry.failedKeys.length > 0
+  );
+  const englishStatus: PrepareQuizReadAloudResult['status'] =
     failedKeys.length === 0
       ? 'ready'
       : Object.keys(files).length > 0
         ? 'partial'
         : 'failed';
-  await sessionRef.set(
-    {
-      readAloud: {
-        status,
-        voice: voices.neural2,
-        preparedAt: deps.now(),
-        startedAt: admin.firestore.FieldValue.delete(),
-        files,
-        timings,
-        stimulusChunks,
-        failedKeys,
+  const status: PrepareQuizReadAloudResult['status'] =
+    englishStatus === 'ready' && localizedFailed ? 'partial' : englishStatus;
+  const totalParts = parts.length + localizedParts;
+  try {
+    await sessionRef.set(
+      {
+        readAloud: {
+          status,
+          voice: voices.neural2,
+          preparedAt: deps.now(),
+          startedAt: admin.firestore.FieldValue.delete(),
+          files,
+          timings,
+          stimulusChunks,
+          failedKeys,
+          ...(Object.keys(localized).length > 0 ? { localized } : {}),
+        },
       },
-    },
-    { merge: true }
-  );
+      { merge: true }
+    );
+  } catch (error) {
+    // An oversize manifest must not leave the session stuck on `preparing`.
+    console.error('[quizReadAloud] manifest write failed', {
+      sessionId: input.sessionId,
+      error,
+    });
+    await sessionRef.set(
+      {
+        readAloud: {
+          status: 'failed',
+          failedReason: 'manifest-write-failed',
+          preparedAt: deps.now(),
+          startedAt: admin.firestore.FieldValue.delete(),
+        },
+      },
+      { merge: true }
+    );
+    await recordCacheHits(db, hits, nowMs);
+    return { status: 'failed', parts: totalParts, synthesized, chars };
+  }
   await recordCacheHits(db, hits, nowMs);
-  return { status, parts: parts.length, synthesized, chars };
+  return { status, parts: totalParts, synthesized, chars };
 }
 
 /** Best-effort re-prepare after `setAssignmentTargetsV1` flags a student (R1); never throws. */
 export async function prepareReadAloudAfterTargets(
   sessionId: string,
   callerUid: string,
+  translationLocales: string[] = [],
   deadlineMs = 40_000
 ): Promise<void> {
+  // Each extra locale is another synthesis pass; stay inside the 120s caller timeout.
+  const scaled = Math.min(
+    deadlineMs * (1 + translationLocales.length),
+    AFTER_TARGETS_MAX_DEADLINE_MS
+  );
   try {
-    await prepareQuizReadAloud({ sessionId, callerUid }, buildDefaultDeps(), {
-      deadlineMs,
-    });
+    await prepareQuizReadAloud(
+      { sessionId, callerUid, translationLocales },
+      buildDefaultDeps(),
+      { deadlineMs: scaled }
+    );
   } catch (error) {
     console.error('[quizReadAloud] prepare after targets failed', {
       sessionId,
@@ -988,6 +1196,13 @@ export async function synthesizeQuizAudio(
       'permission-denied',
       'Read-aloud is not enabled for this assignment.'
     );
+  // A locale is only speakable by the student actually assigned that translation.
+  // failed-precondition, not permission-denied: the client retries in English.
+  if (request.locale && override.language !== request.locale)
+    throw new HttpsError(
+      'failed-precondition',
+      'That translation is not assigned to this student.'
+    );
   const teacherUid =
     typeof session.teacherUid === 'string' ? session.teacherUid : '';
   if (!teacherUid)
@@ -1001,21 +1216,45 @@ export async function synthesizeQuizAudio(
   const questions = Array.isArray(session.publicQuestions)
     ? (session.publicQuestions as SessionQuestion[])
     : [];
-  const question = questions.find((q) => q?.id === request.questionId);
-  if (!question) throw new HttpsError('invalid-argument', 'Unknown question.');
+  const canonicalQuestion = questions.find((q) => q?.id === request.questionId);
+  if (!canonicalQuestion)
+    throw new HttpsError('invalid-argument', 'Unknown question.');
+  const localeLanguage = ttsLanguageForTranslationLocale(request.locale);
+  // Text always comes from the stored translation on the session doc, never from the request.
+  const question = request.locale
+    ? localizedSessionQuestion(canonicalQuestion, request.locale)
+    : canonicalQuestion;
+  if (!question)
+    throw new HttpsError(
+      'invalid-argument',
+      'No translation stored for this question.'
+    );
   const settings = await loadSettings(db);
   const language =
+    localeLanguage ??
+    (typeof session.language === 'string' && session.language
+      ? session.language
+      : settings.defaultLanguage);
+  const voices = voicesForLanguage(settings, language);
+  const sessionVoice = voicesForLanguage(
+    settings,
     typeof session.language === 'string' && session.language
       ? session.language
-      : settings.defaultLanguage;
-  const voices = voicesForLanguage(settings, language);
+      : settings.defaultLanguage
+  ).neural2;
   const nowMs = deps.now();
   const manifestBase =
     typeof session.readAloud === 'object' && session.readAloud !== null
       ? {}
-      : { status: 'partial', voice: voices.neural2 };
+      : { status: 'partial', voice: sessionVoice, files: {} };
 
   if (request.part.kind === 'stimulus') {
+    // Stimulus passages are not translated, so a translated view has no stimulus audio.
+    if (request.locale)
+      throw new HttpsError(
+        'invalid-argument',
+        'Stimulus read-aloud is English only.'
+      );
     const sid = request.part.stimulusId;
     if (!strings(question.stimulusIds).includes(sid))
       throw new HttpsError(
@@ -1081,12 +1320,24 @@ export async function synthesizeQuizAudio(
     settings,
   });
   const key = partKey(request.questionId, request.part);
+  const slice = {
+    files: { [key]: result.path },
+    ...(result.timings ? { timings: { [key]: result.timings } } : {}),
+  };
   await sessionRef.set(
     {
       readAloud: {
         ...manifestBase,
-        files: { [key]: result.path },
-        ...(result.timings ? { timings: { [key]: result.timings } } : {}),
+        ...(request.locale
+          ? {
+              localized: {
+                [request.locale]: {
+                  voice: voices.neural2,
+                  ...slice,
+                },
+              },
+            }
+          : slice),
       },
     },
     { merge: true }
@@ -1200,7 +1451,15 @@ export const prepareQuizReadAloudV1 = onCall(
     if (!sessionId || sessionId.includes('/'))
       throw new HttpsError('invalid-argument', 'sessionId is required.');
     return prepareQuizReadAloud(
-      { sessionId, callerUid: request.auth.uid },
+      {
+        sessionId,
+        callerUid: request.auth.uid,
+        translationLocales: Array.isArray(data.includeTranslations)
+          ? data.includeTranslations.filter(
+              (l): l is string => typeof l === 'string'
+            )
+          : [],
+      },
       buildDefaultDeps(),
       {
         deadlineMs: 270_000,

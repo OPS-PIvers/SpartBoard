@@ -7,6 +7,12 @@ import { FieldRenderer } from '../FieldRenderer';
 import { List } from './List';
 
 let capturedOnReorder: ((next: unknown[]) => void) | undefined;
+const mockDeleteFile = vi.fn<(url: string) => Promise<void>>();
+
+vi.mock('@/hooks/useStorage', () => ({
+  useStorage: () => ({ deleteFile: mockDeleteFile }),
+}));
+
 vi.mock('@/components/common/SortableList', () => ({
   SortableList: (props: {
     items: unknown[];
@@ -142,6 +148,24 @@ describe('List field', () => {
     );
     fireEvent.click(screen.getAllByRole('button', { name: 'removeRow' })[0]);
     expect(updateConfig).toHaveBeenCalledWith({ items: [{ label: 'b' }] });
+  });
+
+  it('deletes an owned row image after removing the row', () => {
+    mockDeleteFile.mockResolvedValue(undefined);
+    const updateConfig = vi.fn();
+    render(
+      <FieldRenderer
+        field={{ ...field, cleanupImageKey: 'imageUrl' }}
+        widget={widget}
+        ctx={makeCtx({
+          items: [{ label: 'a', imageUrl: 'https://cdn/image.png' }],
+        })}
+        updateConfig={updateConfig}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'removeRow' }));
+    expect(updateConfig).toHaveBeenCalledWith({ items: [] });
+    expect(mockDeleteFile).toHaveBeenCalledWith('https://cdn/image.png');
   });
 
   it('disables the add button once maxRows is reached', () => {

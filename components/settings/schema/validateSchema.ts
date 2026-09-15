@@ -130,9 +130,17 @@ export function validateSchema<C = Record<string, unknown>>(
           `${type}: help "${field.help}" resolves to neither widgetSettings.${type}.${field.help} nor widgetSettings.common.${field.help}`
         );
       }
+      for (const searchTerm of field.searchTerms ?? []) {
+        if (!resolves(catalog, type, searchTerm)) {
+          errors.push(
+            `${type}: search term "${searchTerm}" resolves to neither widgetSettings.${type}.${searchTerm} nor widgetSettings.common.${searchTerm}`
+          );
+        }
+      }
       if (
         field.type !== 'custom' &&
         field.type !== 'partnerWidget' &&
+        field.readValue === undefined &&
         defaults &&
         !(field.key in defaults) &&
         !field.key.includes('.')
@@ -170,6 +178,13 @@ export function validateSchema<C = Record<string, unknown>>(
             errors.push(
               `${prefix} help "${rowField.help}" resolves to neither widgetSettings.${type}.${rowField.help} nor widgetSettings.common.${rowField.help}`
             );
+          }
+          for (const searchTerm of rowField.searchTerms ?? []) {
+            if (!resolves(catalog, type, searchTerm)) {
+              errors.push(
+                `${prefix} search term "${searchTerm}" resolves to neither widgetSettings.${type}.${searchTerm} nor widgetSettings.common.${searchTerm}`
+              );
+            }
           }
         }
       }

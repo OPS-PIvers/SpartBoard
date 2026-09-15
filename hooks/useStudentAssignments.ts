@@ -571,6 +571,7 @@ export function useStudentAssignments({
     if (isAuthBypass) return;
     const toFetch: Array<[string, StudentAssignmentPointer]> = [];
     for (const [assignmentId, pointer] of Object.entries(pointerItems)) {
+      if (pointer.excluded) continue;
       const rawKey = `${pointer.kind}:${pointer.sessionId}`;
       if (rawByKindSession.has(rawKey)) continue;
       if (Object.prototype.hasOwnProperty.call(hydratedSessions, assignmentId))
@@ -882,6 +883,11 @@ export function useStudentAssignments({
     // /dueAt/override, session wins title/status/content (the spread base).
     for (const [assignmentId, pointer] of Object.entries(pointerItems)) {
       const rawKey = `${pointer.kind}:${pointer.sessionId}`;
+      // Teacher skipped this student: hide the session the class channel served.
+      if (pointer.excluded) {
+        merged.delete(rawKey);
+        continue;
+      }
       const fromRaw = rawByKindSession.get(rawKey);
       const fromHydration = Object.prototype.hasOwnProperty.call(
         hydratedSessions,

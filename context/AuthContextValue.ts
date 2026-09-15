@@ -29,6 +29,8 @@ export interface AuthContextType {
   userRoles: UserRolesConfig | null;
   appSettings: AppSettings | null;
   featurePermissions: FeaturePermission[];
+  /** True once the feature_permissions snapshot has delivered at least once */
+  featurePermissionsLoaded: boolean;
   globalPermissions: GlobalFeaturePermission[];
   updateAppSettings: (updates: Partial<AppSettings>) => Promise<void>;
   /**

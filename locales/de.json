@@ -1939,7 +1939,15 @@
     "language": "Sprache"
   },
   "assignTargeting": {
-    "expandAffordance": "+ Einzelne Schüler & Anpassungen",
+    "expandAffordance": "Anpassungen bearbeiten oder hinzufügen",
+    "modificationsLabel": "Anpassungen",
+    "collapse": "Fertig",
+    "standingBadge": "Dauerhaft",
+    "skipStudent": "Diese/n Schüler/in überspringen",
+    "showMore": "{{count}} weitere anzeigen",
+    "showFewer": "Weniger anzeigen",
+    "noClassStudents": "Wähle oben eine Klasse aus, um einzelne Schüler anzupassen.",
+    "skipNotice": "Übersprungene Schüler/innen sehen diese Aufgabe nicht. Alle anderen in diesen Klassen erhalten sie weiterhin.",
     "sectionLabel": "Einzelne Schüler & Anpassungen",
     "chooseStudents": "Schüler auswählen",
     "editStudents": "Schüler bearbeiten",
@@ -1957,7 +1965,19 @@
     "scheduleSummaryOpenOnly": "Öffnet {{open}}",
     "scheduleSummaryCloseOnly": "Schließt {{close}}",
     "skippedToast_one": "{{count}} Schüler/in konnte nicht ausgewählt werden und wurde übersprungen.",
-    "skippedToast_other": "{{count}} Schüler/innen konnten nicht ausgewählt werden und wurden übersprungen."
+    "skippedToast_other": "{{count}} Schüler/innen konnten nicht ausgewählt werden und wurden übersprungen.",
+    "skippedExclusionToast_one": "{{count}} übersprungene/r Schüler/in sieht diese Aufgabe weiterhin.",
+    "skippedExclusionToast_other": "{{count}} übersprungene Schüler/innen sehen diese Aufgabe weiterhin.",
+    "skipStudentNamed": "{{name}} überspringen",
+    "summarySkipped": "{{count}} übersprungen",
+    "summaryModified": "{{count}} angepasst",
+    "noSignInCount": "{{count}} Schüler/innen in diesen Klassen haben keine Schul-Anmeldung und können nicht einzeln angepasst werden.",
+    "noSignInStudents": "Niemand in den ausgewählten Klassen hat eine Schul-Anmeldung, daher gibt es niemanden, der einzeln angepasst werden kann.",
+    "timingNotApplied": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin.",
+    "clearModifications": "Alle Anpassungen löschen",
+    "noLinkedClass": "Diese Aufgabe ist mit keiner Klasse verknüpft, die du hier anpassen kannst.",
+    "timingNotAppliedConfirm": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin. Klicke erneut auf Zuweisen, um fortzufahren.",
+    "pacingBlocked": "Einzelne Schüleranpassungen erfordern den selbstgesteuerten Modus. Stelle die Sitzungseinstellungen unten auf Selbstgesteuert um oder nutze „Alle Anpassungen löschen“ unter „Anpassungen bearbeiten oder hinzufügen“."
   },
   "assignmentsHub": {
     "title": "Aufgaben",
@@ -2021,7 +2041,9 @@
       "stopSharingPlc": "Teilen beenden",
       "sharePlcDone": "Die Ergebnisse fließen jetzt in {{plc}} ein.",
       "stopSharingPlcDone": "Ergebnisse werden nicht mehr mit {{plc}} geteilt.",
-      "plcActionFailed": "PLC-Freigabe konnte nicht aktualisiert werden. Bitte erneut versuchen."
+      "plcActionFailed": "PLC-Freigabe konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+      "skippedStatus": "Übersprungen",
+      "classNotResolved": "Diese Aufgabe ist mit keiner Klasse verknüpft, die du hier anpassen kannst; nur der Zeitplan ist änderbar."
     }
   },
   "quizResults": {
@@ -2073,6 +2095,7 @@
       "pickLanguage": "Sprache wählen",
       "generate": "Übersetzung erstellen",
       "reviewed": "Geprüft",
+      "answerKey": "Akzeptierte Antwort",
       "stale": "Veraltet",
       "regenerate_one": "{{count}} veraltete Frage neu übersetzen",
       "regenerate_other": "{{count}} veraltete Fragen neu übersetzen",
@@ -2102,6 +2125,10 @@
       },
       "error": {
         "unloadedLocale": "Die gespeicherte Übersetzung dieser Sprache ist noch nicht geladen. Sprache erneut auswählen und dann generieren."
+      },
+      "fib": {
+        "missingAnswer": "Ergänzen Sie die übersetzte akzeptierte Antwort, bevor Sie dies als geprüft markieren.",
+        "blankCount": "Der übersetzte Text muss genauso viele Lücken (____) enthalten wie die englische Frage."
       }
     },
     "authoring": {
@@ -2552,5 +2579,43 @@
       "subjectsTaught": "Unterrichtete Fachbereiche",
       "subjectsTaughtDescription": "Optional. Wählen Sie Ihre Fachbereiche, damit die Standardauswahl direkt dort öffnet. Leer lassen, um alle Fachbereiche zu sehen."
     }
+  },
+  "quizHandRaise": {
+    "label": "Schülern erlauben, sich zu melden",
+    "help": "Schüler erhalten während des Quiz eine Schaltfläche zum Melden."
+  },
+  "quizAdmin": {
+    "title": "Quiz-Verwaltung",
+    "subtitle": "Melden & Sprachen",
+    "close": "Schließen",
+    "tabs": {
+      "behavior": "Verhalten",
+      "languages": "Sprachen"
+    },
+    "selectBuilding": "Schule zur Konfiguration auswählen",
+    "building": "Schule",
+    "save": "Konfiguration speichern",
+    "cancel": "Abbrechen",
+    "saved": "Quiz-Konfiguration gespeichert.",
+    "saveFailed": "Quiz-Konfiguration konnte nicht gespeichert werden.",
+    "handRaise": {
+      "heading": "Melden",
+      "help": "Legt fest, ob Schüler in dieser Schule während eines Quiz eine Schaltfläche zum Melden sehen.",
+      "teacherChoice": "Entscheidung der Lehrkraft",
+      "teacherChoiceHint": "Jede Lehrkraft entscheidet pro Quiz. Standardmäßig aus.",
+      "forceOn": "Immer an",
+      "forceOnHint": "Melden ist in jedem Quiz verfügbar und Lehrkräfte können es nicht deaktivieren.",
+      "forceOff": "Immer aus",
+      "forceOffHint": "Melden ist in jedem Quiz für Schüler ausgeblendet."
+    },
+    "noBuildings": "Keine Gebäude konfiguriert",
+    "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen.",
+    "discardMessage": "Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?",
+    "discardTitle": "Änderungen verwerfen",
+    "discardConfirm": "Verwerfen"
+  },
+  "studentAssignment": {
+    "excludedTitle": "Diese Aufgabe ist nicht für dich",
+    "excludedBody": "Deine Lehrkraft hat dir diese Aufgabe nicht zugewiesen. Frage nach, wenn du glaubst, dass das ein Fehler ist."
   }
 }

@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { render, screen, fireEvent, within, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { ChecklistWidget } from './Widget';
-import { ChecklistSettings } from './Settings';
+import { ChecklistImportActionsField } from './settingsFields';
+import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 import {
@@ -32,6 +33,34 @@ vi.mock('lucide-react', () => ({
 
 const mockUpdateWidget = vi.fn();
 const mockAddToast = vi.fn();
+const mockUpdateConfig = vi.fn();
+
+const importTranslations: Record<string, string> = {
+  'widgetSettings.checklist.importRoutine': 'Import routine',
+  'widgetSettings.checklist.importText': 'Import Text widget',
+  'widgetSettings.checklist.noRoutine':
+    'No Instructional Routines widget was found.',
+  'widgetSettings.checklist.emptyRoutine':
+    'The active routine has no steps to import.',
+  'widgetSettings.checklist.routineImported':
+    'Imported steps from the routine.',
+  'widgetSettings.checklist.noTextWidget': 'No Text widget was found.',
+  'widgetSettings.checklist.emptyTextWidget':
+    'The Text widgets have no usable text.',
+  'widgetSettings.checklist.textImported':
+    'Imported tasks from the Text widget.',
+};
+
+const importCtx = (): CustomRenderCtx => ({
+  config: mockWidget.config as Record<string, unknown>,
+  widget: mockWidget,
+  isAdmin: true,
+  canAccessFeature: () => true,
+  t: (key) => importTranslations[key] ?? key,
+  updateConfig: mockUpdateConfig,
+  id: 'checklist-imports',
+  labelId: 'checklist-imports-label',
+});
 
 const mockWidget: WidgetData = {
   id: 'checklist-1',
@@ -266,93 +295,6 @@ describe('ChecklistWidget', () => {
   });
 });
 
-describe('ChecklistSettings debounced save', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-    (useDashboard as unknown as Mock).mockReturnValue(defaultContext);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('persists typed text via updateWidget after the 500 ms debounce', () => {
-    render(<ChecklistSettings widget={mockWidget} />);
-    const textarea = screen.getByPlaceholderText('Enter tasks here...');
-
-    fireEvent.change(textarea, { target: { value: 'Buy milk\nWrite tests' } });
-
-    // Not yet called — still within debounce window
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(500);
-    });
-
-    expect(mockUpdateWidget).toHaveBeenCalledOnce();
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'checklist-1',
-      expect.objectContaining({
-        config: expect.objectContaining({
-          items: expect.arrayContaining([
-            expect.objectContaining({ text: 'Buy milk', completed: false }),
-            expect.objectContaining({ text: 'Write tests', completed: false }),
-          ]),
-        }),
-      })
-    );
-  });
-
-  it('debounces rapid keystrokes — only one save fires after the delay', () => {
-    render(<ChecklistSettings widget={mockWidget} />);
-    const textarea = screen.getByPlaceholderText('Enter tasks here...');
-
-    fireEvent.change(textarea, { target: { value: 'A' } });
-    vi.advanceTimersByTime(100);
-    fireEvent.change(textarea, { target: { value: 'AB' } });
-    vi.advanceTimersByTime(100);
-    fireEvent.change(textarea, { target: { value: 'ABC' } });
-
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(500);
-    });
-
-    expect(mockUpdateWidget).toHaveBeenCalledOnce();
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'checklist-1',
-      expect.objectContaining({
-        config: expect.objectContaining({
-          items: [expect.objectContaining({ text: 'ABC' })],
-        }),
-      })
-    );
-  });
-
-  it('skips the save when typed text matches existing items (no-op)', () => {
-    const widgetWithItems = {
-      ...mockWidget,
-      config: {
-        ...mockWidget.config,
-        items: [{ id: 'x', text: 'Existing', completed: false }],
-      } as ChecklistConfig,
-    };
-    render(<ChecklistSettings widget={widgetWithItems} />);
-    const textarea = screen.getByPlaceholderText('Enter tasks here...');
-
-    // Type the exact same text that's already persisted
-    fireEvent.change(textarea, { target: { value: 'Existing' } });
-
-    act(() => {
-      vi.advanceTimersByTime(500);
-    });
-
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-  });
-});
-
 describe('ChecklistSettings Nexus Connection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -360,23 +302,21 @@ describe('ChecklistSettings Nexus Connection', () => {
   });
 
   it('imports steps from active Instructional Routine', () => {
-    render(<ChecklistSettings widget={mockWidget} />);
-
-    const importSection = screen
-      .getByText('Import Routine')
-      .closest('.bg-indigo-50');
-    expect(importSection).not.toBeNull();
-    if (importSection) {
-      const importButton = within(importSection as HTMLElement).getByRole(
-        'button',
-        { name: /Sync Routine/i }
-      );
-      fireEvent.click(importButton);
-    }
+    render(<ChecklistImportActionsField ctx={importCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import routine' }));
 
     expect(mockAddToast).toHaveBeenCalledWith(
-      'Imported steps from Routine!',
+      'Imported steps from the routine.',
       'success'
+    );
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'manual',
+        items: [
+          expect.objectContaining({ text: 'Step 1', completed: false }),
+          expect.objectContaining({ text: 'Step 2', completed: false }),
+        ],
+      })
     );
   });
 
@@ -397,34 +337,20 @@ describe('ChecklistSettings Nexus Connection', () => {
       addToast: mockAddToast,
     });
 
-    render(<ChecklistSettings widget={mockWidget} />);
-
-    const importSection = screen
-      .getByText('Import from Text Widget')
-      .closest('.bg-emerald-50');
-    expect(importSection).not.toBeNull();
-    if (importSection) {
-      const importButton = within(importSection as HTMLElement).getByRole(
-        'button',
-        { name: /Sync Text/i }
-      );
-      fireEvent.click(importButton);
-    }
+    render(<ChecklistImportActionsField ctx={importCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import Text widget' }));
 
     expect(mockAddToast).toHaveBeenCalledWith(
-      'Imported tasks from Text widget!',
+      'Imported tasks from the Text widget.',
       'success'
     );
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'checklist-1',
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        config: expect.objectContaining({
-          items: expect.arrayContaining([
-            expect.objectContaining({ text: 'Task 1' }),
-            expect.objectContaining({ text: 'Task 2' }),
-            expect.objectContaining({ text: 'Task 3' }),
-          ]),
-        }),
+        items: expect.arrayContaining([
+          expect.objectContaining({ text: 'Task 1' }),
+          expect.objectContaining({ text: 'Task 2' }),
+          expect.objectContaining({ text: 'Task 3' }),
+        ]),
       })
     );
   });
@@ -438,21 +364,13 @@ describe('ChecklistSettings Nexus Connection', () => {
       addToast: mockAddToast,
     });
 
-    render(<ChecklistSettings widget={mockWidget} />);
+    render(<ChecklistImportActionsField ctx={importCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import Text widget' }));
 
-    const importSection = screen
-      .getByText('Import from Text Widget')
-      .closest('.bg-emerald-50');
-    expect(importSection).not.toBeNull();
-    if (importSection) {
-      const importButton = within(importSection as HTMLElement).getByRole(
-        'button',
-        { name: /Sync Text/i }
-      );
-      fireEvent.click(importButton);
-    }
-
-    expect(mockAddToast).toHaveBeenCalledWith('No Text widget found!', 'error');
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'No Text widget was found.',
+      'error'
+    );
   });
 
   it('shows info if active Text widget is empty', () => {
@@ -472,25 +390,14 @@ describe('ChecklistSettings Nexus Connection', () => {
       addToast: mockAddToast,
     });
 
-    render(<ChecklistSettings widget={mockWidget} />);
-
-    const importSection = screen
-      .getByText('Import from Text Widget')
-      .closest('.bg-emerald-50');
-    expect(importSection).not.toBeNull();
-    if (importSection) {
-      const importButton = within(importSection as HTMLElement).getByRole(
-        'button',
-        { name: /Sync Text/i }
-      );
-      fireEvent.click(importButton);
-    }
+    render(<ChecklistImportActionsField ctx={importCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import Text widget' }));
 
     expect(mockAddToast).toHaveBeenCalledWith(
-      'All Text widgets are empty or have no usable text.',
+      'The Text widgets have no usable text.',
       'info'
     );
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
+    expect(mockUpdateConfig).not.toHaveBeenCalled();
   });
 
   it('shows error if no Instructional Routine widget exists', () => {
@@ -502,18 +409,14 @@ describe('ChecklistSettings Nexus Connection', () => {
       },
     });
 
-    render(<ChecklistSettings widget={mockWidget} />);
-
-    const importButton = within(
-      screen.getByText('Import Routine').closest('.bg-indigo-50') as HTMLElement
-    ).getByRole('button', { name: /Sync/i });
-    fireEvent.click(importButton);
+    render(<ChecklistImportActionsField ctx={importCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import routine' }));
 
     expect(mockAddToast).toHaveBeenCalledWith(
-      'No Instructional Routines widget found!',
+      'No Instructional Routines widget was found.',
       'error'
     );
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
+    expect(mockUpdateConfig).not.toHaveBeenCalled();
   });
 
   it('shows info if Instructional Routine has no steps', () => {
@@ -530,17 +433,13 @@ describe('ChecklistSettings Nexus Connection', () => {
       },
     });
 
-    render(<ChecklistSettings widget={mockWidget} />);
-
-    const importButton = within(
-      screen.getByText('Import Routine').closest('.bg-indigo-50') as HTMLElement
-    ).getByRole('button', { name: /Sync/i });
-    fireEvent.click(importButton);
+    render(<ChecklistImportActionsField ctx={importCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import routine' }));
 
     expect(mockAddToast).toHaveBeenCalledWith(
-      'Active routine has no steps to import.',
+      'The active routine has no steps to import.',
       'info'
     );
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
+    expect(mockUpdateConfig).not.toHaveBeenCalled();
   });
 });

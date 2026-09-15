@@ -21,6 +21,10 @@ import { gradeAnswer } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
+import {
+  fibAnswersForResponse,
+  type FibGradingContext,
+} from '@/utils/quizFibAnswers';
 import { computeQuestionStats } from '@/utils/quizQuestionStats';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
 import { normalizeQuizData } from '@/utils/quizQuestionNormalize';
@@ -36,18 +40,27 @@ import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
  * Defined at module scope so it has stable identity — `buildResultsSheetData`
  * is allocation-sensitive on big PLC exports.
  */
-function quizGradeFnWithManualGrades(
-  question: QuizQuestion,
-  studentAnswer: string,
-  response?: QuizResponse
-) {
-  const manualGrade =
-    isFreeResponseType(question.type) && response
-      ? readSlotGrade(response.grading, question.id)
-      : undefined;
-  const base = gradeAnswer(question, studentAnswer, manualGrade);
-  return response ? applyMediaSlots(question, response, base) : base;
+function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
+  return (
+    question: QuizQuestion,
+    studentAnswer: string,
+    response?: QuizResponse
+  ) => {
+    const manualGrade =
+      isFreeResponseType(question.type) && response
+        ? readSlotGrade(response.grading, question.id)
+        : undefined;
+    const base = gradeAnswer(
+      question,
+      studentAnswer,
+      manualGrade,
+      response ? fibAnswersForResponse(fibGrading, response, question.id) : []
+    );
+    return response ? applyMediaSlots(question, response, base) : base;
+  };
 }
+
+const quizGradeFnWithManualGrades = makeQuizGradeFn(null);
 
 /** A stalled Drive GET must never hold a publish open (§4.2). */
 const TRANSLATION_FETCH_TIMEOUT_MS = 15000;
@@ -677,12 +690,15 @@ export class QuizDriveService {
       pinToName?: Record<string, string>;
       byStudentUid?: Map<string, { givenName: string; familyName: string }>;
       teacherName?: string;
+      fibGrading?: FibGradingContext | null;
     }
   ): { headers: string[]; dataRows: string[][] } {
     return buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
       responses,
       questions,
-      quizGradeFnWithManualGrades,
+      options?.fibGrading
+        ? makeQuizGradeFn(options.fibGrading)
+        : quizGradeFnWithManualGrades,
       options
     );
   }
@@ -713,6 +729,7 @@ export class QuizDriveService {
       pinToName?: Record<string, string>;
       byStudentUid?: Map<string, { givenName: string; familyName: string }>;
       teacherName?: string;
+      fibGrading?: FibGradingContext | null;
     }
   ): Promise<string> {
     const ownerName =
@@ -797,13 +814,19 @@ export class QuizDriveService {
         studentAnswer: string,
         response?: QuizResponse
       ) => import('@/types').GradeResult;
+      /** Translated FIB answer keys + served-locale overrides (quiz only). */
+      fibGrading?: FibGradingContext | null;
     }
   ): Promise<string> {
     // Quiz's grader threads per-response manual grades through for
     // `short` / `essay` types; callers that pass their own `gradeFn`
     // (Video Activity) opt out automatically since their wrapper ignores
     // the optional third argument.
-    const gradeFn = options?.gradeFn ?? quizGradeFnWithManualGrades;
+    const gradeFn =
+      options?.gradeFn ??
+      (options?.fibGrading
+        ? makeQuizGradeFn(options.fibGrading)
+        : quizGradeFnWithManualGrades);
     const { headers, dataRows } = buildResultsSheetDataShared<
       QuizQuestion,
       QuizResponse

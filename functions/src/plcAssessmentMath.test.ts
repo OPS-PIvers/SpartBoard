@@ -6,6 +6,7 @@ import {
   gradeGroupAnswer,
   resolveGroupQuestions,
   selectRepresentativeAnswers,
+  servedFibAnswers,
   type CompletedResponse,
   type GroupQuestion,
   type RawAnswer,
@@ -703,5 +704,63 @@ describe('standard-level rollup', () => {
     expect(agg.perTarget.map((r) => r.targetId).sort()).toEqual(
       [benchmark.id, parent.id].sort()
     );
+  });
+});
+
+describe('localized FIB grading', () => {
+  const fib: GroupQuestion = {
+    id: 'q2',
+    text: 'Two plus two?',
+    type: 'FIB',
+    points: 1,
+    choices: [],
+    correctAnswer: 'four',
+    allowPartialCredit: false,
+    rubricCriterionIds: [],
+    targets: [],
+  };
+
+  it('accepts the translated key for the locale the teacher served', () => {
+    expect(gradeGroupAnswer(fib, 'cuatro', undefined).isCorrect).toBe(false);
+    expect(
+      gradeGroupAnswer(fib, 'cuatro', undefined, ['cuatro']).isCorrect
+    ).toBe(true);
+    expect(gradeGroupAnswer(fib, 'four', undefined, ['cuatro']).isCorrect).toBe(
+      true
+    );
+  });
+
+  it('scopes accepted answers to the served locale only', () => {
+    const input = {
+      localizedFibAnswers: { q2: { es: ['cuatro'], fr: ['quatre'] } },
+      overridesByStudentUid: { 'stu-1': { language: 'es' } },
+    };
+    expect(servedFibAnswers(input, 'stu-1', 'q2')).toEqual(['cuatro']);
+    expect(servedFibAnswers(input, 'stu-2', 'q2')).toEqual([]);
+    expect(servedFibAnswers({}, 'stu-1', 'q2')).toEqual([]);
+  });
+
+  it('scores a Spanish FIB answer for the student served Spanish', () => {
+    const responses = [
+      response([answer('q2', 'cuatro')], { studentUid: 'stu-1' }),
+      response([answer('q2', 'cuatro')], { studentUid: 'stu-2' }),
+    ];
+    const base = session('s1', 't1', responses, [publicQuestions[1]]);
+    const payload = computeAssessmentAggregate({
+      assessmentId: 'a1',
+      title: 'T',
+      kind: 'quiz',
+      groupQuestions: [fib],
+      sessions: [
+        {
+          ...base,
+          localizedFibAnswers: { q2: { es: ['cuatro'] } },
+          overridesByStudentUid: { 'stu-1': { language: 'es' } },
+        },
+      ],
+    });
+    const q = payload.perQuestion.find((r) => r.questionId === 'q2');
+    expect(q?.graded).toBe(2);
+    expect(q?.correct).toBe(1);
   });
 });

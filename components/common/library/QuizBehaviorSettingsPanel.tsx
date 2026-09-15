@@ -18,6 +18,10 @@ import { User, Zap, Clock } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import type { QuizBehaviorSettings, QuizSessionMode } from '@/types';
 import {
+  DEFAULT_QUIZ_HAND_RAISE_MODE,
+  type QuizHandRaiseMode,
+} from '@/utils/quizHandRaise';
+import {
   TAB_WARNING_THRESHOLD_MIN,
   TAB_WARNING_THRESHOLD_MAX,
   DEFAULT_TAB_WARNING_THRESHOLD,
@@ -37,6 +41,8 @@ export interface QuizBehaviorSettingsPanelProps {
   modeLocked?: boolean;
   /** Shows the "Read aloud" toggle; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
+  /** Admin raise-hand gate; the checkbox is hidden unless this is 'teacher-choice'. */
+  handRaiseMode?: QuizHandRaiseMode;
 }
 
 const MODES_BASE: Omit<AssignModeOption, 'disabled'>[] = [
@@ -137,7 +143,13 @@ const TabWarningThresholdRow: React.FC<{
 
 export const QuizBehaviorSettingsPanel: React.FC<
   QuizBehaviorSettingsPanelProps
-> = ({ value, onChange, modeLocked = false, readAloudAvailable = false }) => {
+> = ({
+  value,
+  onChange,
+  modeLocked = false,
+  readAloudAvailable = false,
+  handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
+}) => {
   const { t } = useTranslation();
   const modes: AssignModeOption[] = MODES_BASE.map((m) => ({
     ...m,
@@ -241,6 +253,28 @@ export const QuizBehaviorSettingsPanel: React.FC<
         }
         trailingSlot={
           <>
+            {handRaiseMode === 'teacher-choice' && (
+              <ToggleRow
+                label={t(
+                  'quizHandRaise.label',
+                  'Allow students to raise a hand'
+                )}
+                checked={value.sessionOptions.handRaiseEnabled ?? false}
+                onChange={(v) =>
+                  onChange({
+                    ...value,
+                    sessionOptions: {
+                      ...value.sessionOptions,
+                      handRaiseEnabled: v,
+                    },
+                  })
+                }
+                hint={t(
+                  'quizHandRaise.help',
+                  'Students get a Raise hand button while taking the quiz.'
+                )}
+              />
+            )}
             {readAloudAvailable && (
               <ToggleRow
                 label={t('quizReadAloud.label', 'Read aloud')}

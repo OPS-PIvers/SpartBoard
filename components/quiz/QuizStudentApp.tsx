@@ -48,7 +48,13 @@ import {
   ListChecks,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
@@ -136,6 +142,7 @@ import {
   applyTimeMultiplier,
   serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
+import { ttsLanguageForTranslationLocale } from '@/config/quizReadAloud';
 import {
   applyLocalizedStrings,
   localizedQuizTitle,
@@ -154,6 +161,7 @@ import {
   listOpenQuestions,
 } from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
+import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import {
   getScoreSuffix,
@@ -371,6 +379,9 @@ const QuizJoinFlow: React.FC<{
   // never took. The hook `error` is then the misleading "No submission found…",
   // so we surface the real reason (e.g. "This quiz session has already ended.").
   const [ssoTerminalError, setSsoTerminalError] = useState<string | null>(null);
+  // The teacher skipped this student. Resolved before the auto-join so no
+  // response doc is ever created for them.
+  const [ssoExcluded, setSsoExcluded] = useState(false);
 
   // SSO gate (feature-flagged). Anonymous joiners on a ClassLink-rostered
   // session are offered Google sign-in by default — which keys their response
@@ -461,6 +472,23 @@ const QuizJoinFlow: React.FC<{
 
     const run = async () => {
       try {
+        // Fail-open: a lookup failure falls through to the join below, which
+        // surfaces its own error.
+        try {
+          const info = await lookupSession(urlCode);
+          const uid = auth.currentUser?.uid;
+          if (info?.sessionId && uid) {
+            const snap = await getDoc(
+              doc(db, 'student_assignments', uid, 'items', info.sessionId)
+            );
+            if (snap.exists() && snap.data()?.excluded === true) {
+              setSsoExcluded(true);
+              return;
+            }
+          }
+        } catch {
+          // Ignore — proceed to join.
+        }
         await joinQuizSession(urlCode, undefined, undefined);
         setJoined(true);
       } catch (err) {
@@ -519,7 +547,14 @@ const QuizJoinFlow: React.FC<{
       }
     };
     void run();
-  }, [isStudentRole, urlCode, joined, joinQuizSession, subscribeForReview]);
+  }, [
+    isStudentRole,
+    urlCode,
+    joined,
+    joinQuizSession,
+    subscribeForReview,
+    lookupSession,
+  ]);
 
   // Resolve the SSO gate. SSO students skip it (the auto-join effect handles
   // them). Otherwise look up the session to learn whether it's ClassLink-
@@ -880,6 +915,12 @@ const QuizJoinFlow: React.FC<{
   // must always enter their PIN manually.
   // (If you want URL-based pin support: ?code=XXXXXX&pin=01 is an option for
   // future work, but not implemented here to avoid leaking PINs in URL logs.)
+
+  // Teacher skipped this student: the class channel still carries the session,
+  // so the exclusion marker is the only thing that can stop the activity here.
+  if (ssoExcluded || myPointer?.excluded) {
+    return <AssignmentExcludedNotice />;
+  }
 
   // Period selection step — shown to anon joiners when the session declares
   // any class periods. SSO joiners skip this and join via the auto-join effect.
@@ -1242,6 +1283,7 @@ const QuizJoinFlow: React.FC<{
           currentQuestion={currentQ}
           myResponse={myResponse}
           totalQuestions={servedTotalQuestions}
+          servedLocale={myOverride?.language}
         />
       );
     }
@@ -1804,16 +1846,26 @@ const ActiveQuiz: React.FC<{
     !!assignedLocale &&
     !!currentQuestion &&
     serveLocalizedQuestion(currentQuestion, assignedLocale) !== null;
+  // A FIB answered in a translated locale is graded against the teacher's
+  // translated key, which this client never sees — no local verdict here.
+  const suppressFibVerdict =
+    currentQuestion?.type === 'FIB' && localizedStrings !== null;
+
+  // A localized rendering keeps read-aloud only where the locale has a TTS voice (so/hmn do not).
+  const readAloudLocale =
+    localizedStrings && ttsLanguageForTranslationLocale(activeLocale)
+      ? activeLocale
+      : undefined;
 
   // Read-aloud (docs/plans/QUIZ_READ_ALOUD.md §6.2): self-paced light shell only.
   const readAloud = useQuizReadAloud({
-    // D25: no speaker on a localized rendering; it returns on the English toggle.
     enabled:
       readAloudRequested === true &&
       isStudentPaced &&
-      localizedStrings === null,
+      (localizedStrings === null || readAloudLocale !== undefined),
     sessionId: session.id,
     manifest: session.readAloud,
+    locale: readAloudLocale,
     canonicalQuestions: session.publicQuestions,
     question: currentQuestion,
     nextQuestion: isStudentPaced
@@ -2502,6 +2554,7 @@ const ActiveQuiz: React.FC<{
       currentRevealed &&
       submitted &&
       !isWritten &&
+      !suppressFibVerdict &&
       session.showResultToStudent &&
       answerFeedback === null
     ) {
@@ -2591,7 +2644,7 @@ const ActiveQuiz: React.FC<{
     // ─── Answer feedback & gamification ──────────────────────────────────────
     // Check if answer is correct by reading revealedAnswers from session
     // (teacher-controlled). For student-paced mode, the teacher may auto-reveal.
-    if (session.showResultToStudent) {
+    if (session.showResultToStudent && !suppressFibVerdict) {
       const revealed = session.revealedAnswers?.[currentQuestion.id];
       if (revealed) {
         // Matching answers are order-insensitive pipe-delimited sets
@@ -3722,21 +3775,24 @@ const ActiveQuiz: React.FC<{
           )}
 
           {/* Raise hand */}
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={() => void handleToggleHand()}
-              disabled={handBusy}
-              aria-pressed={handRaised}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
-                handRaised
-                  ? 'bg-brand-red-primary border-brand-red-primary text-white'
-                  : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
-              }`}
-            >
-              <Hand className="w-4 h-4" aria-hidden />
-              {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
-            </button>
-          </div>
+          {session.handRaiseEnabled === true &&
+            session.mode !== 'view-only' && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={() => void handleToggleHand()}
+                  disabled={handBusy}
+                  aria-pressed={handRaised}
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
+                    handRaised
+                      ? 'bg-brand-red-primary border-brand-red-primary text-white'
+                      : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
+                  }`}
+                >
+                  <Hand className="w-4 h-4" aria-hidden />
+                  {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
+                </button>
+              </div>
+            )}
         </div>
       </div>
     </div>
@@ -4049,15 +4105,31 @@ const ReviewPhase: React.FC<{
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
   /** Served-subset denominator (M17 C3, §3a-F); defaults to the session total. */
   totalQuestions?: number;
-}> = ({ session, currentQuestion, myResponse, totalQuestions }) => {
+  /** The accommodation language this student was served, when any. */
+  servedLocale?: string;
+}> = ({
+  session,
+  currentQuestion,
+  myResponse,
+  totalQuestions,
+  servedLocale,
+}) => {
   const gamificationEnabled = isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
     (a) => a.questionId === currentQuestion.id
   );
 
+  // A translated FIB has no client-side key; only the teacher's flag is trustworthy.
+  const localizedFib =
+    currentQuestion.type === 'FIB' &&
+    serveLocalizedQuestion(currentQuestion, servedLocale) !== null;
+
   let isCorrect: boolean | null = null;
-  if (myAnswer && revealed) {
+  if (localizedFib) {
+    isCorrect =
+      typeof myAnswer?.isCorrect === 'boolean' ? myAnswer.isCorrect : null;
+  } else if (myAnswer && revealed) {
     if (currentQuestion.type === 'Matching') {
       const correctSet = new Set(revealed.split('|').map(normalizeAnswer));
       const givenParts = myAnswer.answer.split('|').map(normalizeAnswer);

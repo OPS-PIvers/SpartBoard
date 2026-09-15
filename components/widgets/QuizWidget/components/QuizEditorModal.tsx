@@ -31,6 +31,7 @@ import type { UseQuestionBanksResult } from '@/hooks/useQuestionBanks';
 import type { BankContent } from '@/utils/questionBanks';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
+import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QuizBehaviorSettingsPanel } from '@/components/common/library/QuizBehaviorSettingsPanel';
 import {
   QuizAiOverlay,
@@ -256,6 +257,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const isBank = mode === 'bank';
   const aiEnabled = aiAllowed ?? canAccessFeature('gemini-functions');
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
+  const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
 
   const editorState = useQuizEditorState({
@@ -605,6 +607,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                 value={behavior}
                 onChange={setBehavior}
                 readAloudAvailable={readAloudAvailable}
+                handRaiseMode={handRaiseMode}
               />
             </div>
           )}

@@ -5,6 +5,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Globe } from 'lucide-react';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { getUrlIcon, DEFAULT_URL_COLOR } from './icons';
+import { toSafeLinkHref } from './url';
 
 const getDisplayLabel = (title?: string, url?: string) => {
   const trimmedTitle = title?.trim();
@@ -101,13 +102,12 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       )}
                       <button
                         type="button"
-                        onClick={() =>
-                          window.open(
-                            urlItem.url,
-                            '_blank',
-                            'noopener,noreferrer'
-                          )
-                        }
+                        onClick={() => {
+                          const href = toSafeLinkHref(urlItem.url);
+                          if (href) {
+                            window.open(href, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
                         aria-label={`Open ${label}`}
                         className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer text-left transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset"
                       >

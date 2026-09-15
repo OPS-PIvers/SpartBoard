@@ -18,6 +18,7 @@ const mockAuth: AuthContextType = {
   userRoles: null,
   appSettings: null,
   featurePermissions: [],
+  featurePermissionsLoaded: true,
   globalPermissions: [],
   updateAppSettings: () => Promise.resolve(),
   canAccessWidget: () => true, // Allow everything in student view

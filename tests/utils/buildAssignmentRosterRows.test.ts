@@ -275,4 +275,54 @@ describe('buildAssignmentRosterRows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].removed).toBe(false);
   });
+
+  it('marks a skipped student and gives them no status at all', () => {
+    const sso = makeStudent({ id: 's1', classLinkSourcedId: 'SID-1' });
+    const roster = makeRoster({ students: [sso] });
+
+    const rows = buildAssignmentRosterRows({
+      kind: 'quiz',
+      targetMode: 'class',
+      targetStudents: [],
+      matchedRosters: [roster],
+      overridesBySourcedId: { 'classlink:SID-1': { timeMultiplier: 2 } },
+      totalQuestions: null,
+      pseudonyms: emptyMaps(),
+      statusByUid: new Map(),
+      excludedTargets: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      t,
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].skipped).toBe(true);
+    expect(rows[0].status).toBeNull();
+    expect(rows[0].modifiedNote).toBeNull();
+  });
+
+  it('never renders a second "Removed" row for a student still on the roster', () => {
+    const sso = makeStudent({ id: 's1', classLinkSourcedId: 'SID-1' });
+    const roster = makeRoster({ students: [sso] });
+    const pseudonyms = emptyMaps();
+    pseudonyms.targetRefKeyByStudentUid.set('uid-1', 'classlink:SID-1');
+    pseudonyms.byStudentUid.set('uid-1', {
+      givenName: 'Alex',
+      familyName: 'Doe',
+    });
+
+    const rows = buildAssignmentRosterRows({
+      kind: 'quiz',
+      targetMode: 'class',
+      targetStudents: [],
+      matchedRosters: [roster],
+      overridesBySourcedId: undefined,
+      totalQuestions: null,
+      pseudonyms,
+      statusByUid: new Map([['uid-1', 'submitted']]),
+      removedStudentRefs: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+      t,
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].removed).toBe(false);
+  });
 });

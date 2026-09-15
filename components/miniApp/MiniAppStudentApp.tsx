@@ -37,6 +37,7 @@ import {
   Flag,
 } from 'lucide-react';
 import { auth, db, functions } from '@/config/firebase';
+import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { logError } from '@/utils/logError';
 import {
   MiniAppSession,
@@ -232,6 +233,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   const [timeMultiplier, setTimeMultiplier] = useState<
     number | 'unlimited' | undefined
   >(undefined);
+  const [excluded, setExcluded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const loadOverride = async () => {
@@ -246,6 +248,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
         );
         if (cancelled || !snap.exists()) return;
         const pointer = snap.data() as StudentAssignmentPointer;
+        setExcluded(pointer.excluded === true);
         const multiplier = pointer.override?.timeMultiplier;
         if (multiplier !== undefined) setTimeMultiplier(multiplier);
       } catch {
@@ -455,6 +458,9 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
     const timeout = window.setTimeout(() => setStatus({ kind: 'idle' }), 2500);
     return () => window.clearTimeout(timeout);
   }, [status]);
+
+  // Teacher skipped this student for this assignment.
+  if (excluded) return <AssignmentExcludedNotice />;
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-900 flex flex-col">

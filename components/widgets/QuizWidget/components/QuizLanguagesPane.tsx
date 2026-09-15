@@ -12,6 +12,7 @@ import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 import { isNonEnglishSource } from '@/utils/quizTranslationSource';
 import { isAppLocale } from '@/utils/isAppLocale';
 import type { UseQuizTranslations } from '@/hooks/useQuizTranslations';
+import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 
 export interface QuizLanguagesPaneProps {
@@ -59,7 +60,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
     () => new Set(api.translatableIds),
     [api.translatableIds]
   );
-  // D21: FIB rows are not translated, so they never appear in the review list.
+  // Only translatable rows are reviewable; FIB joined them in PR4.
   const rows = quiz.questions.filter((q) => translatableSet.has(q.id));
   const requested = useRef<Set<string>>(new Set());
   // Rehydrate a saved sidecar from Drive the first time its chip is selected.
@@ -213,6 +214,12 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                 question.id
               );
               const isStale = staleSet.has(question.id);
+              // A FIB with no translated answer key (or the wrong number of
+              // blanks) would publish a stem students can't be graded against.
+              const blocker = fibTranslationIssue(
+                question,
+                payload.questions[question.id]
+              );
               const selected = selectedQuestionId === question.id;
               return (
                 <li key={question.id}>
@@ -235,7 +242,8 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                     <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xxs font-bold text-slate-600">
                       <input
                         type="checkbox"
-                        checked={reviewed}
+                        checked={reviewed && !blocker}
+                        disabled={!!blocker}
                         onChange={(e) =>
                           api.setReviewed(
                             selectedLocale,
@@ -243,7 +251,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                             e.target.checked
                           )
                         }
-                        className="h-4 w-4 accent-brand-blue-primary"
+                        className="h-4 w-4 accent-brand-blue-primary disabled:cursor-not-allowed"
                       />
                       {t('quizTranslation.editor.reviewed')}
                     </label>
@@ -253,6 +261,14 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                       </span>
                     )}
                   </div>
+                  {blocker && (
+                    <p
+                      role="status"
+                      className="mt-1 px-2.5 text-xxs text-brand-red-primary"
+                    >
+                      {t(`quizTranslation.editor.fib.${blocker}`)}
+                    </p>
+                  )}
                 </li>
               );
             })}
@@ -400,6 +416,19 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
               </React.Fragment>
             );
           })}
+        {question.type === 'FIB' && (
+          <>
+            <p className="text-xxs font-semibold uppercase tracking-wider text-slate-500">
+              {t('quizTranslation.editor.answerKey')}
+            </p>
+            {row(
+              'answer',
+              question.correctAnswer,
+              entry?.answer ?? '',
+              (value) => edit({ answer: value })
+            )}
+          </>
+        )}
         {question.placeholder !== undefined &&
           row(
             'placeholder',

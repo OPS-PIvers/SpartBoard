@@ -78,6 +78,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { FreeResponseGrader } from './FreeResponseGrader';
 import {
   computeQuestionStats,
+  makeQuestionGradeFn,
   type QuestionStat,
 } from '@/utils/quizQuestionStats';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
@@ -113,6 +114,10 @@ import { Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_MASTERY_CUTOFFS } from '@/utils/learningTargets';
 import { computeTargetStats } from '@/utils/quizTargetStats';
+import type {
+  FibGradingContext,
+  LocalizedFibAnswers,
+} from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
 
 /**
@@ -235,6 +240,15 @@ interface QuizResultsProps {
     string,
     import('@/types').StudentOverride
   > | null;
+  /** Translated FIB answer keys snapshotted on the assignment doc (PR4). */
+  localizedFibAnswers?: LocalizedFibAnswers | null;
+  /** Per-student overrides keyed by pseudonym uid; names each student's served locale. */
+  overridesByStudentUid?: Record<
+    string,
+    import('@/types').StudentOverride
+  > | null;
+  /** Write-once served language per uid; grades a de-targeted student's old work. */
+  servedLanguageByStudentUid?: Record<string, string> | null;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -253,9 +267,26 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   initialExportedResponseIds,
   onExportedResponseIdsSaved,
   overridesBySourcedId,
+  localizedFibAnswers = null,
+  overridesByStudentUid = null,
+  servedLanguageByStudentUid = null,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
+  const fibGrading = useMemo<FibGradingContext>(
+    () => ({
+      answers: localizedFibAnswers,
+      overridesByStudentUid,
+      overridesBySourcedId,
+      servedLanguageByStudentUid,
+    }),
+    [
+      localizedFibAnswers,
+      overridesByStudentUid,
+      overridesBySourcedId,
+      servedLanguageByStudentUid,
+    ]
+  );
   const {
     ensureGoogleScope,
     user,
@@ -570,7 +601,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     filteredScoreable.length > 0
       ? Math.round(
           filteredScoreable.reduce(
-            (sum, r) => sum + getDisplayScore(r, quiz.questions, session),
+            (sum, r) =>
+              sum + getDisplayScore(r, quiz.questions, session, fibGrading),
             0
           ) / filteredScoreable.length
         )
@@ -587,9 +619,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       computeTargetStats(
         quiz.questions,
         filteredResponses,
-        DEFAULT_MASTERY_CUTOFFS
+        DEFAULT_MASTERY_CUTOFFS,
+        fibGrading
       ),
-    [quiz.questions, filteredResponses]
+    [quiz.questions, filteredResponses, fibGrading]
   );
   // A quiz can contain tagged pool questions that no attempt happened to
   // draw. Keep the drill-down hidden until at least one tagged question was
@@ -633,7 +666,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         mode,
         pinToName,
         session,
-        byStudentUid
+        byStudentUid,
+        fibGrading
       );
 
       // buildScoreboardTeams drops responses that can't be scored yet (answer
@@ -679,6 +713,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       }
     },
     [
+      fibGrading,
       filteredCompleted,
       quiz.questions,
       pinToName,
@@ -822,6 +857,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         // that pre-date per-assignment sheets and still mirror the URL on
         // widget config.
         plcSheetUrl: assignmentPlcSheetUrl ?? config.plcSheetUrl,
+        fibGrading,
       };
       let url: string;
       try {
@@ -959,6 +995,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           teacherName: config.teacherName,
           plcMode: false,
           plcSheetUrl: undefined,
+          fibGrading,
         }
       );
       setExportError((prev) =>
@@ -1037,6 +1074,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         teacherName: config.teacherName,
         plcMode: true,
         plcSheetUrl: exportUrl,
+        fibGrading,
       };
       let regeneratedSheet = false;
       try {
@@ -1225,7 +1263,12 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       requestToken: () =>
         requestClassroomTeacherToken(user?.email ?? undefined),
       buildGrades: () =>
-        buildQuizClassroomGradeEntries(completed, quiz.questions, maxPoints),
+        buildQuizClassroomGradeEntries(
+          completed,
+          quiz.questions,
+          maxPoints,
+          fibGrading
+        ),
       confirm: () =>
         showConfirm(
           `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
@@ -1266,16 +1309,18 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     return buildQuizClassroomGradeEntries(
       completed,
       quiz.questions,
-      quizMaxPoints(quiz.questions)
+      quizMaxPoints(quiz.questions),
+      fibGrading
     );
-  }, [ltiAttachment, completed, quiz.questions]);
+  }, [ltiAttachment, completed, quiz.questions, fibGrading]);
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
     const maxPoints = quizMaxPoints(quiz.questions);
     const grades = buildQuizClassroomGradeEntries(
       completed,
       quiz.questions,
-      maxPoints
+      maxPoints,
+      fibGrading
     );
     if (grades.length === 0) {
       addToast('No completed responses to push yet.', 'info');
@@ -1593,6 +1638,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 completed={filteredCompleted}
                 questions={quiz.questions}
                 session={session}
+                fibGrading={fibGrading}
               />
 
               {/* Drill-down rows */}
@@ -1629,6 +1675,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
             <QuestionsScreen
               questions={quiz.questions}
               responses={filteredResponses}
+              fibGrading={fibGrading}
             />
           )}
           {effectiveScreen === 'targets' && hasTargetResults && (
@@ -1653,6 +1700,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 session?.protection?.tabWarningThreshold ?? 3
               }
               addToast={addToast}
+              fibGrading={fibGrading}
             />
           )}
         </div>
@@ -1900,7 +1948,8 @@ const ScoreDistribution: React.FC<{
   completed: QuizResponse[];
   questions: QuizQuestion[];
   session?: import('@/types').QuizSession | null;
-}> = ({ completed, questions, session }) => {
+  fibGrading?: FibGradingContext | null;
+}> = ({ completed, questions, session, fibGrading }) => {
   // ⚡ Bolt: Pre-calculate scores for all completed responses once
   // This avoids calculating `getResponseScore` inside the `buckets.map` filter
   // which was O(B*R*Q), changing it to O(R*Q + B*R).
@@ -1909,8 +1958,8 @@ const ScoreDistribution: React.FC<{
   const completedScores = React.useMemo(() => {
     return completed
       .filter((r) => canScoreResponse(r, questions))
-      .map((r) => getResponseScore(r, questions, session));
-  }, [completed, questions, session]);
+      .map((r) => getResponseScore(r, questions, session, fibGrading));
+  }, [completed, questions, session, fibGrading]);
 
   return (
     <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
@@ -1985,11 +2034,17 @@ const EMPTY_QUESTION_STAT: QuestionStat = {
 const QuestionsScreen: React.FC<{
   questions: QuizData['questions'];
   responses: QuizResponse[];
-}> = ({ questions, responses }) => {
+  fibGrading?: FibGradingContext | null;
+}> = ({ questions, responses, fibGrading }) => {
   const { t } = useTranslation();
   const questionStats = React.useMemo(
-    () => computeQuestionStats(questions, responses),
-    [responses, questions]
+    () =>
+      computeQuestionStats(
+        questions,
+        responses,
+        makeQuestionGradeFn(fibGrading)
+      ),
+    [responses, questions, fibGrading]
   );
 
   return (
@@ -2185,6 +2240,7 @@ const StudentsScreen: React.FC<{
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   resultsTabWarningThreshold: number;
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
+  fibGrading?: FibGradingContext | null;
 }> = ({
   responses,
   questions,
@@ -2196,6 +2252,7 @@ const StudentsScreen: React.FC<{
   onUnlockResultsForStudent,
   resultsTabWarningThreshold,
   addToast,
+  fibGrading = null,
 }) => {
   const [confirmDeleteKey, setConfirmDeleteKey] =
     useState<ResponseDocKey | null>(null);
@@ -2255,18 +2312,18 @@ const StudentsScreen: React.FC<{
           const scoreA =
             (a.status === 'completed' || a.status === 'in-progress') &&
             canScoreResponse(a, questions)
-              ? getDisplayScore(a, questions, session)
+              ? getDisplayScore(a, questions, session, fibGrading)
               : -1;
           const scoreB =
             (b.status === 'completed' || b.status === 'in-progress') &&
             canScoreResponse(b, questions)
-              ? getDisplayScore(b, questions, session)
+              ? getDisplayScore(b, questions, session, fibGrading)
               : -1;
           return scoreB - scoreA;
         })
         .map((r) => {
-          const score = getDisplayScore(r, questions, session);
-          const earned = getEarnedPoints(r, questions, session);
+          const score = getDisplayScore(r, questions, session, fibGrading);
+          const earned = getEarnedPoints(r, questions, session, fibGrading);
           // A finished/in-progress response is only shown with a numeric
           // score once it can actually be graded — answer key loaded AND at
           // least one answer maps to a loaded question. Otherwise we render a

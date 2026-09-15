@@ -80,7 +80,7 @@ function convert(
       })
       .join('|');
   }
-  // Free response and FIB are never translated (D21) — identity.
+  // Free response and FIB carry no index-aligned arrays — identity.
   return value;
 }
 

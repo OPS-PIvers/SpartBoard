@@ -32,4 +32,14 @@ describe('normalizeQuizTranslation', () => {
     expect(out.sourceHashes).toEqual({});
     expect(out.reviewedQuestionIds).toEqual([]);
   });
+  it('carries a FIB answer through, and drops a non-string one', () => {
+    const out = normalizeQuizTranslation({
+      questions: {
+        q1: { text: 'La capital es ____.', answer: 'París' },
+        q2: { text: 'x', answer: 7 },
+      },
+    });
+    expect(out.questions.q1.answer).toBe('París');
+    expect(out.questions.q2.answer).toBeUndefined();
+  });
 });
