@@ -56,8 +56,12 @@ import {
 
 type Doc = Record<string, unknown>;
 
+// Keys that would walk up the prototype chain instead of writing an own property.
+const UNSAFE_MERGE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 const deepMerge = (target: Doc, patch: Doc): Doc => {
   for (const [k, v] of Object.entries(patch)) {
+    if (UNSAFE_MERGE_KEYS.has(k)) continue;
     if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
       const inc = (v as Record<symbol, unknown>)[INCREMENT];
       if (typeof inc === 'number') {
