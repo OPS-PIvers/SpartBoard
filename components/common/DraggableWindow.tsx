@@ -1082,7 +1082,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // Close settings panel on drag start to prevent position desync
     // (panel position is based on widget.x/y which don't update during DOM-level drag)
     if (widget.flipped) {
-      markSettingsClosedByGesture();
+      markSettingsClosedByGesture(widget.id);
       updateWidget(widget.id, { flipped: false });
     }
 
@@ -1506,7 +1506,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Close settings panel on resize start to prevent position desync
     if (widget.flipped) {
-      markSettingsClosedByGesture();
+      markSettingsClosedByGesture(widget.id);
       updateWidget(widget.id, { flipped: false });
     }
 
@@ -2043,7 +2043,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // If you add a new Escape branch here, mirror it in handleKeyDown and vice-versa.
         if (showConfirm) {
           setShowConfirm(false);
-        } else if (!consumeSettingsJustClosed()) {
+        } else if (!consumeSettingsJustClosed(widget.id)) {
           // Wrapped (rather than an early empty `else if` branch) so a new
           // sub-case added below is mechanically guarded by the ref check —
           // SettingsPanel's own Escape handler already closed the panel in
@@ -3519,7 +3519,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 !canvasState.isActiveBoardReadOnly &&
                 canvasState.activeDashboard !== null
               ) {
-                markSettingsJustClosed();
+                markSettingsJustClosed(widget.id);
               }
               updateWidget(widget.id, { flipped: false });
             }}

@@ -199,7 +199,7 @@ describe('SettingsDrawerHost read-only board', () => {
     fireEvent.click(screen.getByTestId('settings-drawer-close'));
     expect(harness.updateWidget).not.toHaveBeenCalled();
     expect(drawer()).toBeNull();
-    expect(wasSettingsJustClosed()).toBe(true);
+    expect(wasSettingsJustClosed('w1')).toBe(true);
   });
 });
 

@@ -43,8 +43,11 @@ vi.mock('./quizMediaArchive', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 
+import * as admin from 'firebase-admin';
+import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {
   assertFetchableUrl,
+  buildDefaultExtractDeps,
   chargeOcrQuota,
   extractStimulusReadAloudText,
   fetchPublicUrl,
@@ -134,7 +137,12 @@ function makeDeps(over: Partial<ExtractDeps> = {}) {
   return { deps, advance: (ms: number) => (now += ms) };
 }
 
-const teacher = { uid: 't1', email: 't@school.org', studentRole: false };
+const teacher = {
+  uid: 't1',
+  email: 't@school.org',
+  emailVerified: true,
+  studentRole: false,
+};
 const pdfReq = {
   stimulusId: 's1',
   type: 'pdf' as const,
@@ -342,6 +350,16 @@ describe('extractStimulusReadAloudText', () => {
     ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
 
+  it('SECURITY: never passes an unverified self-reported email to the OCR admin quota bypass', async () => {
+    const { deps } = makeDeps();
+    await extractStimulusReadAloudText(
+      imgReq,
+      { ...teacher, email: 'admin@school.org', emailVerified: false },
+      deps
+    );
+    expect(deps.chargeOcr).toHaveBeenCalledWith('t1', null);
+  });
+
   it('propagates an exhausted OCR quota before calling Gemini', async () => {
     const { deps } = makeDeps({
       chargeOcr: () =>
@@ -430,6 +448,32 @@ describe('fetchPublicUrl', () => {
     await expect(
       fetchPublicUrl('https://example.com/a.png', missing)
     ).rejects.toThrow(/404/);
+  });
+});
+
+describe('buildDefaultExtractDeps isFeatureGranted', () => {
+  it('SECURITY: never passes an unverified account email to isGlobalFeatureGranted', async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      email: 'admin@school.org',
+      emailVerified: false,
+    });
+    vi.mocked(admin.auth).mockReturnValue({ getUser } as never);
+    await buildDefaultExtractDeps().isFeatureGranted('t1');
+    const call = vi.mocked(isGlobalFeatureGranted).mock.calls[0];
+    expect(call[2]).toBeNull();
+    expect(call[3]).toBe('t1');
+  });
+
+  it('passes a verified account email through', async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      email: 'teacher@school.org',
+      emailVerified: true,
+    });
+    vi.mocked(admin.auth).mockReturnValue({ getUser } as never);
+    await buildDefaultExtractDeps().isFeatureGranted('t1');
+    const call = vi.mocked(isGlobalFeatureGranted).mock.calls[0];
+    expect(call[2]).toBe('teacher@school.org');
+    expect(call[3]).toBe('t1');
   });
 });
 

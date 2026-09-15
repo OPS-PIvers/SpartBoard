@@ -172,6 +172,29 @@ describe('buildSetAssignmentTargetsPayload', () => {
     expect(payload.overridesBySourcedId).toEqual({});
   });
 
+  it('omits the key when an override round-trips through Firestore with reordered keys', () => {
+    // Firestore commonly echoes an object's keys back alphabetized; a raw
+    // JSON.stringify comparison would read that as a real change.
+    const previous: AssignTargetingValue = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      targetMode: 'students',
+      targetStudents: [refA],
+      overridesByKey: {
+        'classlink:SID-A': { language: 'es', readAloud: true },
+      },
+    };
+    const current: AssignTargetingValue = {
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      targetMode: 'students',
+      targetStudents: [refA],
+      overridesByKey: {
+        'classlink:SID-A': { readAloud: true, language: 'es' },
+      },
+    };
+    const payload = buildSetAssignmentTargetsPayload(previous, current);
+    expect(payload.overridesBySourcedId).toEqual({});
+  });
+
   it('emits an explicit null for a window field that is cleared, and omits an unchanged one', () => {
     const previous: AssignTargetingValue = {
       ...EMPTY_ASSIGN_TARGETING_VALUE,

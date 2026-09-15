@@ -261,7 +261,7 @@ describe('Escape after a settings close reads settingsCloseSignal (§4.5)', () =
   it('does nothing after the drawer closed (flag on)', () => {
     renderWindow(true);
     // The host writes the shared signal from its own close handler.
-    markSettingsJustClosed();
+    markSettingsJustClosed('w1');
     pressEscape();
     expect(updateWidget).not.toHaveBeenCalled();
   });
@@ -278,5 +278,68 @@ describe('Escape after a settings close reads settingsCloseSignal (§4.5)', () =
     renderWindow(true);
     pressEscape();
     expect(updateWidget).toHaveBeenCalledWith('w1', { flipped: false });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The close signal is module-level (§4.5) — it must not leak across widgets.
+// ---------------------------------------------------------------------------
+
+describe('settingsCloseSignal is scoped per widget (cross-widget isolation)', () => {
+  beforeEach(() => {
+    updateWidget.mockClear();
+    resetSettingsCloseSignal();
+  });
+
+  it("does not swallow Escape on a different widget after this widget's settings closed", () => {
+    const widget2 = { ...widget, id: 'w2', flipped: false } as WidgetData;
+    const twoWidgetContext = {
+      ...context,
+      activeDashboard: {
+        ...context.activeDashboard,
+        widgets: [widget, widget2],
+      },
+    } as unknown as DashboardContextValue;
+
+    render(
+      <DashboardContext.Provider value={twoWidgetContext}>
+        <DraggableWindow
+          widget={widget}
+          useSettingsDrawer={false}
+          title="W1"
+          globalStyle={globalStyle}
+        >
+          <div>W1 content</div>
+        </DraggableWindow>
+        <DraggableWindow
+          widget={widget2}
+          useSettingsDrawer={false}
+          title="W2"
+          globalStyle={globalStyle}
+        >
+          <div>W2 content</div>
+        </DraggableWindow>
+      </DashboardContext.Provider>
+    );
+
+    // Close w1's floating settings panel — writes the shared signal.
+    fireEvent.click(screen.getByLabelText('Close settings'));
+    expect(updateWidget).toHaveBeenCalledWith('w1', { flipped: false });
+    updateWidget.mockClear();
+
+    // Escape now targets w2 (e.g. the teacher just brought it to front).
+    // w1's just-closed settings must not suppress w2's own Escape action.
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('widget-keyboard-action', {
+          detail: { widgetId: 'w2', key: 'Escape', shiftKey: false },
+        })
+      );
+    });
+
+    expect(updateWidget).toHaveBeenCalledWith('w2', {
+      minimized: true,
+      flipped: false,
+    });
   });
 });
