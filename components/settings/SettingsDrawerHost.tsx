@@ -295,7 +295,13 @@ export const SettingsDrawerHost: React.FC = () => {
   const isSheet = placement.placement === 'bottom';
 
   const closedByGestureRef = useRef(false);
-  if (!open && !closedByGestureRef.current && wasSettingsClosedByGesture()) {
+  const gestureCheckId = widget?.id ?? activeWidgetId;
+  if (
+    !open &&
+    !closedByGestureRef.current &&
+    gestureCheckId &&
+    wasSettingsClosedByGesture(gestureCheckId)
+  ) {
     closedByGestureRef.current = true;
   } else if (open && closedByGestureRef.current) {
     closedByGestureRef.current = false;
@@ -377,7 +383,7 @@ export const SettingsDrawerHost: React.FC = () => {
 
   const handleClose = useCallback(() => {
     if (!widgetId) return;
-    markSettingsJustClosed();
+    markSettingsJustClosed(widgetId);
     if (readOnly) {
       dispatch({ type: 'close', suppressId: widgetId });
       return;
