@@ -36,6 +36,8 @@ type Firestore = admin.firestore.Firestore;
 
 export const QUIZ_TRANSLATION_SETTINGS_DOC = 'quiz_translation';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
+// Mirrors aiGeneration.ts DEFAULT_ADVANCED_MODEL.
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
 const VERTEX_LOCATION = 'global';
 
 // Mirrors config/quizTranslation.ts; functions cannot import the root package.
@@ -634,14 +636,36 @@ export function buildQuizTranslationResponseSchema(): Schema {
   } as Schema;
 }
 
+/** Per-language conventions appended to the system instruction. */
+export const TRANSLATION_LOCALE_NOTES: Readonly<Record<string, string>> = {
+  es: 'Use neutral Latin American Spanish familiar to students in US schools, with “ ” quotation marks throughout.',
+  so: 'Use standard Somali Latin-script orthography as used in Somali-language schooling.',
+  hmn: 'Use White Hmong (Hmoob Dawb) in the Romanized Popular Alphabet.',
+  ru: 'Use standard Russian school vocabulary: a US high school is «старшая школа», a test is «тест» or «проверочная работа», cheating is «списывание», fabrication is «фальсификация», helping others cheat is «помощь другим в нарушениях» (not «пособничество»), and a student’s full name is «имя и фамилия». Write ё wherever it belongs and use «ёлочки» quotation marks.',
+};
+
 export function buildSystemInstruction(
   locale: string,
   languageLabel: string
 ): string {
+  const note = TRANSLATION_LOCALE_NOTES[locale];
   return [
-    `You translate K-12 quiz content into ${languageLabel} (BCP-47 code "${locale}").`,
-    'Translate for the reading level of a K-12 student.',
-    'Preserve numbers, units, proper nouns, code, LaTeX and markup verbatim.',
+    `You are an experienced K-12 teacher and professional translator who writes classroom assessments in ${languageLabel}.`,
+    `Translate an English quiz into ${languageLabel} (BCP-47 code "${locale}") for students who are still learning English.`,
+    // Quality
+    `Translate meaning, not words. Write what a native ${languageLabel}-speaking teacher would put on a test: natural, clear, grade-appropriate wording with the everyday school vocabulary students know. Avoid literal calques and legal or technical register.`,
+    'Render US school terms (grade levels, high school, assessments, academic integrity) with their usual equivalents in that language.',
+    'Students read the source materials (articles, passages, videos) in English. Every title of an article, section, book or video, and every phrase the English puts in quotation marks, is something students must find there: write your translation followed by the original English in parentheses.',
+    'Preserve every qualifier and hedge exactly (may, might, probably, appear to, some, many, most, all, only, not). They often decide which answer is correct.',
+    'Keep the full meaning of every answer choice; never shorten, merge or generalize a choice.',
+    'When a question asks what an English word or phrase means, keep that word or phrase in English inside quotation marks and translate everything else, including the answer choices.',
+    'Write personal names in the target script with standard transliteration, followed by the original spelling in parentheses the first time each appears in a question; in Latin-script languages keep names unchanged. Brand and product names (for example YouTube, Meta) stay as written.',
+    'Use the established name for organizations, laws, places and historical events when that language has one, rather than translating the English words.',
+    'Keep the assessment fair: add no hints or explanations, do not simplify away the concept being tested, keep answer choices parallel in grammar and length, and never make the correct choice easier to spot than the distractors.',
+    'Use the target language’s quotation marks and punctuation, and proofread for spelling and grammar.',
+    ...(note ? [note] : []),
+    // Structure
+    'Preserve numbers, units, code, LaTeX and markup verbatim.',
     'Keep every array the same length and the same order as the input array it mirrors.',
     'Multiple-choice options must remain mutually distinct after translation.',
     'Never introduce the characters "|" or ":" into matching or ordering strings.',
@@ -856,7 +880,7 @@ export async function translateQuiz(
   const label =
     QUIZ_TRANSLATION_LANGUAGES.find((l) => l.code === request.locale)?.label ??
     request.locale;
-  const model = await resolveStandardModel(deps.db);
+  const model = await resolveTranslationModel(deps.db);
   const systemInstruction = buildSystemInstruction(request.locale, label);
   const basePrompt = buildTranslationPrompt(
     request.title,
@@ -1035,18 +1059,31 @@ function vertexClientOptions(): GoogleGenAIOptions {
   return { vertexai: true, project, location: VERTEX_LOCATION };
 }
 
-/** Honors the admin override at `global_permissions/gemini-functions` (D20). */
-export async function resolveStandardModel(db: Firestore): Promise<string> {
+async function resolveConfiguredModel(
+  db: Firestore,
+  key: 'standardModel' | 'advancedModel',
+  fallback: string
+): Promise<string> {
   try {
     const doc = await db
       .collection('global_permissions')
       .doc('gemini-functions')
       .get();
-    const cfg = doc.data()?.config as { standardModel?: string } | undefined;
-    return normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL;
+    const cfg = doc.data()?.config as Record<string, string> | undefined;
+    return normalizeModelName(cfg?.[key]) ?? fallback;
   } catch {
-    return DEFAULT_STANDARD_MODEL;
+    return fallback;
   }
+}
+
+/** Honors the admin override at `global_permissions/gemini-functions` (D20). */
+export function resolveStandardModel(db: Firestore): Promise<string> {
+  return resolveConfiguredModel(db, 'standardModel', DEFAULT_STANDARD_MODEL);
+}
+
+/** Quiz translation uses the advanced model: flash-lite output was too literal for students. */
+export function resolveTranslationModel(db: Firestore): Promise<string> {
+  return resolveConfiguredModel(db, 'advancedModel', DEFAULT_ADVANCED_MODEL);
 }
 
 function buildDefaultDeps(): TranslationDeps {
@@ -1068,17 +1105,20 @@ function buildDefaultDeps(): TranslationDeps {
           systemInstruction,
           responseMimeType: 'application/json',
           ...(responseSchema ? { responseSchema } : {}),
-          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+          // Flash models reject MINIMAL; LOW is accepted by lite and flash alike.
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           temperature: 0.2,
           maxOutputTokens,
         },
       });
+      const usage = result.usageMetadata;
       return {
         text: result.text,
         finishReason: result.candidates?.[0]?.finishReason as
           | string
           | undefined,
-        outputTokens: result.usageMetadata?.candidatesTokenCount ?? 0,
+        outputTokens:
+          (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
       };
     },
   };
@@ -1089,7 +1129,7 @@ function buildDefaultDeps(): TranslationDeps {
 export const translateQuizV1 = onCall(
   {
     memory: '512MiB',
-    timeoutSeconds: 120,
+    timeoutSeconds: 300,
     maxInstances: 10,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',

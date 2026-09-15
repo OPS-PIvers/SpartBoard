@@ -34,6 +34,8 @@ import { hashQuestionForTranslation } from '@/utils/quizTranslationHash';
 import { buildTranslationIndexEntry } from '@/utils/quizTranslationIndex';
 
 const QUIZZES_COLLECTION = 'quizzes';
+/** Matches `translateQuizV1` timeoutSeconds; a full quiz plus its repair retry can pass the 70s default. */
+const TRANSLATE_CALL_TIMEOUT_MS = 300_000;
 
 interface TranslateQuizResponse {
   title?: string;
@@ -263,7 +265,7 @@ export function useQuizTranslations(
         const callable = httpsCallable<
           Record<string, unknown>,
           TranslateQuizResponse
-        >(functions, 'translateQuizV1');
+        >(functions, 'translateQuizV1', { timeout: TRANSLATE_CALL_TIMEOUT_MS });
         const { data } = await callable({
           quizId: quiz.id,
           locale,
