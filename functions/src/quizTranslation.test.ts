@@ -67,6 +67,7 @@ import {
   tokenizeFibStem,
   restoreFibStem,
   buildTranslationPrompt,
+  buildSystemInstruction,
   type QuestionTranslation,
   type TranslatableQuestion,
   type TranslationDeps,
@@ -304,6 +305,35 @@ describe('translateQuiz', () => {
     expect(
       docs[`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]
     ).toMatchObject({ count: 1 });
+  });
+
+  it('translates with the advanced model, honoring the admin override', async () => {
+    const generate = vi.fn(() =>
+      Promise.resolve({
+        text: JSON.stringify({ questions: [{ id: 'q1', ...goodMc() }] }),
+        outputTokens: 10,
+      })
+    );
+    const byDefault = await translateQuiz(
+      baseRequest(),
+      'teacher-1',
+      deps({ generate })
+    );
+    expect(byDefault.model).toBe('gemini-3.7-flash');
+    const overridden = await translateQuiz(baseRequest(), 'teacher-1', {
+      ...deps({
+        docs: {
+          'global_permissions/gemini-functions': {
+            config: {
+              standardModel: 'gemini-3.5-flash-lite',
+              advancedModel: 'gemini-3.8-flash',
+            },
+          },
+        },
+      }),
+      generate,
+    });
+    expect(overridden.model).toBe('gemini-3.8-flash');
   });
 
   it('omits the title when only a stale subset is regenerated', async () => {
@@ -554,6 +584,15 @@ describe('translateResponse', () => {
           })
         ),
     });
+
+  it('keeps back-translation on the standard model', async () => {
+    const result = await translateResponse(
+      { text: 'creo que si', sourceLocale: 'es' },
+      'teacher-1',
+      backDeps({})
+    );
+    expect(result.model).toBe('gemini-3.5-flash-lite');
+  });
 
   it('never spends the org quiz-translation cap', async () => {
     const docs: Record<string, Doc> = {};
@@ -962,6 +1001,19 @@ describe('FIB blank tokens', () => {
         }
       )
     ).toBeNull();
+  });
+
+  it('adds the per-language note only for that locale and keeps the structural rules', () => {
+    const ru = buildSystemInstruction('ru', 'Russian');
+    const es = buildSystemInstruction('es', 'Spanish');
+    expect(ru).toContain('старшая школа');
+    expect(es).not.toContain('старшая школа');
+    expect(es).toContain('Latin American Spanish');
+    for (const prompt of [ru, es, buildSystemInstruction('xx', 'Other')]) {
+      expect(prompt).toContain('original English in parentheses');
+      expect(prompt).toContain('Reproduce every token verbatim');
+      expect(prompt).toContain('Return JSON only');
+    }
   });
 
   it('omits answer from the prompt payload when the English answer is blank', () => {
