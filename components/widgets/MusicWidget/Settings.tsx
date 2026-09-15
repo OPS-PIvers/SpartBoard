@@ -133,6 +133,24 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Web Playback SDK don't expose the same hooks.
   const syncDisabled = isCuratedSpotify || source === 'personal';
 
+  // Shared select handlers — reused by both onClick and the radiogroup
+  // roving-tabindex keydown handler (handleRadioGroupKeyDown) below.
+  const selectSource = (value: MusicSource) =>
+    // updateWidget merges partial config into existing state in
+    // DashboardContext, so only the changed keys are passed.
+    updateWidget(widget.id, {
+      config: {
+        source: value,
+        // Disable Time-Tool sync when switching to Spotify-based source.
+        ...(value === 'personal' && config.syncWithTimeTool
+          ? { syncWithTimeTool: false }
+          : {}),
+      },
+    });
+
+  const selectLayout = (value: MusicLayout) =>
+    updateWidget(widget.id, { config: { layout: value } });
+
   return (
     <div className="space-y-5">
       {/* ── Source selector (gated behind personal-spotify feature) ── */}
@@ -143,8 +161,15 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </SettingsLabel>
           <div
             className="grid grid-cols-2 gap-2"
-            role="group"
+            role="radiogroup"
             aria-labelledby={sourceLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(
+                e,
+                SOURCE_OPTIONS.map((opt) => opt.value),
+                selectSource
+              )
+            }
           >
             {SOURCE_OPTIONS.map((opt) => {
               const isActive = source === opt.value;
@@ -153,19 +178,10 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() =>
-                    // updateWidget merges partial config into existing state
-                    // in DashboardContext, so only the changed keys are passed.
-                    updateWidget(widget.id, {
-                      config: {
-                        source: opt.value,
-                        // Disable Time-Tool sync when switching to Spotify-based source.
-                        ...(opt.value === 'personal' && config.syncWithTimeTool
-                          ? { syncWithTimeTool: false }
-                          : {}),
-                      },
-                    })
-                  }
+                  role="radio"
+                  aria-checked={isActive}
+                  tabIndex={isActive ? 0 : -1}
+                  onClick={() => selectSource(opt.value)}
                   title={opt.description}
                   className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-left ${
                     isActive
@@ -195,19 +211,26 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </SettingsLabel>
         <div
           className="grid grid-cols-3 gap-2"
-          role="group"
+          role="radiogroup"
           aria-labelledby={layoutLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(
+              e,
+              LAYOUT_OPTIONS.map((opt) => opt.value),
+              selectLayout
+            )
+          }
         >
           {LAYOUT_OPTIONS.map((opt) => {
             const isActive = layout === opt.value;
             return (
               <button
                 key={opt.value}
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { layout: opt.value },
-                  })
-                }
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => selectLayout(opt.value)}
                 title={opt.description}
                 className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all text-center ${
                   isActive
