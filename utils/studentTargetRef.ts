@@ -7,6 +7,7 @@ import type {
   StudentTargetRef,
 } from '@/types';
 import { isEmptyStudentOverride } from '@/utils/rosterDefaultOverrides';
+import { stableStringify } from '@/utils/stableStringify';
 
 /** Default 'class'-mode value for `AssignTargetingSection` (spec §5 B3). */
 export interface AssignTargetingValue {
@@ -327,7 +328,7 @@ export function buildSetAssignmentTargetsPayload(
     if (currOverride) {
       if (
         !prevOverride ||
-        JSON.stringify(prevOverride) !== JSON.stringify(currOverride)
+        stableStringify(prevOverride) !== stableStringify(currOverride)
       ) {
         overridesBySourcedId[key] = currOverride;
       }
