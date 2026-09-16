@@ -29,8 +29,12 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
-import { FONT_COLORS } from '@/config/fonts';
-import { HIGHLIGHT_PALETTE, STICKY_NOTE_COLORS } from '@/config/colors';
+import { STICKY_NOTE_COLORS } from '@/config/colors';
+import {
+  HIGHLIGHT_COLOR_SWATCHES,
+  FONT_COLOR_PRESETS,
+  type ColorPreset,
+} from '@/config/widgetAppearance';
 import { useDialog } from '@/context/useDialog';
 import { ensureTopLevelBlocks } from '@/utils/contentEditableBlocks';
 import { toggleList } from '@/utils/contentEditableLists';
@@ -175,6 +179,68 @@ const MenuButton: React.FC<{
     </div>
   );
 };
+
+const STICKY_SWATCHES: readonly ColorPreset[] = Object.entries(
+  STICKY_NOTE_COLORS
+).map(([name, hex]) => ({
+  hex,
+  name: name.charAt(0).toUpperCase() + name.slice(1),
+}));
+
+const SWATCH_CLASS =
+  'w-6 h-6 rounded-full border transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
+
+const SwatchSection: React.FC<{
+  label: string;
+  swatches: readonly ColorPreset[];
+  customLabel: string;
+  onPick: (color: string) => void;
+  noneLabel?: string;
+  selected?: string;
+}> = ({ label, swatches, customLabel, onPick, noneLabel, selected }) => (
+  <div>
+    <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+      {label}
+    </div>
+    <div className="flex flex-wrap gap-1.5 p-1">
+      {noneLabel && (
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onPick('transparent')}
+          className={`${SWATCH_CLASS} border-slate-200 flex items-center justify-center`}
+          title={noneLabel}
+          aria-label={noneLabel}
+        >
+          <div className="w-px h-3.5 bg-red-500 rotate-45" />
+        </button>
+      )}
+      {swatches.map((s) => (
+        <button
+          key={s.hex}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onPick(s.hex)}
+          className={`${SWATCH_CLASS} ${selected === s.hex ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
+          style={{ backgroundColor: s.hex }}
+          title={s.name}
+          aria-label={`${label}: ${s.name}`}
+        />
+      ))}
+      <label
+        className={`${SWATCH_CLASS} border-dashed border-slate-300 cursor-pointer flex items-center justify-center`}
+        title={customLabel}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        <Plus className="w-3 h-3 text-slate-400" aria-hidden="true" />
+        <input
+          type="color"
+          className="sr-only"
+          aria-label={customLabel}
+          onChange={(e) => onPick(e.target.value)}
+        />
+      </label>
+    </div>
+  </div>
+);
 
 /** Walk a Range and return the text nodes intersecting it. The start and end
  *  text nodes are split if the range only partially covers them, so the
@@ -811,7 +877,39 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     []
   );
 
-  const stickyColors = Object.values(STICKY_NOTE_COLORS);
+  const renderColorSections = (close: () => void) => (
+    <>
+      <SwatchSection
+        label="Font Color"
+        swatches={FONT_COLOR_PRESETS}
+        customLabel="Custom font color"
+        onPick={(c) => {
+          runInlineStyleCommand('foreColor', c);
+          close();
+        }}
+      />
+      <SwatchSection
+        label="Highlight"
+        swatches={HIGHLIGHT_COLOR_SWATCHES}
+        customLabel="Custom highlight color"
+        noneLabel="No highlight"
+        onPick={(c) => {
+          runInlineStyleCommand('hiliteColor', c);
+          close();
+        }}
+      />
+      <SwatchSection
+        label="Background"
+        swatches={STICKY_SWATCHES}
+        customLabel="Custom background color"
+        selected={bgColor}
+        onPick={(c) => {
+          onBgColorChange(c);
+          close();
+        }}
+      />
+    </>
+  );
 
   return (
     <div
@@ -1180,140 +1278,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           }}
         >
           <div className="w-56 p-1.5 space-y-1.5 max-h-80 overflow-y-auto custom-scrollbar">
-            {/* Font Color */}
-            <div>
-              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                Font Color
-              </div>
-              <div className="grid grid-cols-7 gap-1 p-1">
-                {FONT_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      runInlineStyleCommand('foreColor', c);
-                      setShowColorMenu(false);
-                    }}
-                    className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                    style={{ backgroundColor: c }}
-                    title={c}
-                  />
-                ))}
-                <label
-                  className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
-                  title="Custom color"
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  <span className="text-[8px] text-slate-400 font-bold leading-none">
-                    +
-                  </span>
-                  <input
-                    type="color"
-                    className="sr-only"
-                    aria-label="Custom font color"
-                    onChange={(e) => {
-                      runInlineStyleCommand('foreColor', e.target.value);
-                      setShowColorMenu(false);
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="h-px bg-slate-100" />
-
-            {/* Highlight */}
-            <div>
-              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                Highlight
-              </div>
-              <div className="grid grid-cols-7 gap-1 p-1">
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    runInlineStyleCommand('hiliteColor', 'transparent');
-                    setShowColorMenu(false);
-                  }}
-                  className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
-                  title="None"
-                >
-                  <div className="w-px h-3 bg-red-500 rotate-45" />
-                </button>
-                {HIGHLIGHT_PALETTE.map((c) => (
-                  <button
-                    key={c}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      runInlineStyleCommand('hiliteColor', c);
-                      setShowColorMenu(false);
-                    }}
-                    className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                    style={{ backgroundColor: c }}
-                    title={c}
-                  />
-                ))}
-                <label
-                  className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
-                  title="Custom highlight color"
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  <span className="text-[8px] text-slate-400 font-bold leading-none">
-                    +
-                  </span>
-                  <input
-                    type="color"
-                    className="sr-only"
-                    aria-label="Custom highlight color"
-                    onChange={(e) => {
-                      runInlineStyleCommand('hiliteColor', e.target.value);
-                      setShowColorMenu(false);
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="h-px bg-slate-100" />
-
-            {/* Background */}
-            <div>
-              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                Background
-              </div>
-              <div className="grid grid-cols-7 gap-1 p-1">
-                {stickyColors.map((c) => (
-                  <button
-                    key={c}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onBgColorChange(c);
-                      setShowColorMenu(false);
-                    }}
-                    className={`w-5 h-5 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
-                    style={{ backgroundColor: c }}
-                    title={c}
-                  />
-                ))}
-                <label
-                  className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
-                  title="Custom background color"
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  <span className="text-[8px] text-slate-400 font-bold leading-none">
-                    +
-                  </span>
-                  <input
-                    type="color"
-                    className="sr-only"
-                    aria-label="Custom background color"
-                    onChange={(e) => {
-                      onBgColorChange(e.target.value);
-                      setShowColorMenu(false);
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
+            {renderColorSections(() => setShowColorMenu(false))}
           </div>
         </MenuButton>
       </div>
@@ -1536,131 +1501,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             {/* Colors section — shown when colors group is hidden */}
             {visibleCount <= 5 && (
               <div className="space-y-1.5">
-                <div>
-                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                    Font Color
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 p-1">
-                    {FONT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          runInlineStyleCommand('foreColor', c);
-                          setShowOverflowMenu(false);
-                        }}
-                        className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: c }}
-                        title={c}
-                      />
-                    ))}
-                    <label
-                      className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
-                      title="Custom color"
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <span className="text-[8px] text-slate-400 font-bold leading-none">
-                        +
-                      </span>
-                      <input
-                        type="color"
-                        className="sr-only"
-                        aria-label="Custom font color"
-                        onChange={(e) => {
-                          runInlineStyleCommand('foreColor', e.target.value);
-                          setShowOverflowMenu(false);
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                    Highlight
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 p-1">
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        runInlineStyleCommand('hiliteColor', 'transparent');
-                        setShowOverflowMenu(false);
-                      }}
-                      className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
-                      title="No Highlight"
-                    >
-                      <div className="w-px h-3 bg-red-500 rotate-45" />
-                    </button>
-                    {HIGHLIGHT_PALETTE.map((c) => (
-                      <button
-                        key={c}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          runInlineStyleCommand('hiliteColor', c);
-                          setShowOverflowMenu(false);
-                        }}
-                        className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: c }}
-                        title={c}
-                      />
-                    ))}
-                    <label
-                      className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
-                      title="Custom highlight color"
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <span className="text-[8px] text-slate-400 font-bold leading-none">
-                        +
-                      </span>
-                      <input
-                        type="color"
-                        className="sr-only"
-                        aria-label="Custom highlight color"
-                        onChange={(e) => {
-                          runInlineStyleCommand('hiliteColor', e.target.value);
-                          setShowOverflowMenu(false);
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                    Background
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 p-1">
-                    {stickyColors.map((c) => (
-                      <button
-                        key={c}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          onBgColorChange(c);
-                          setShowOverflowMenu(false);
-                        }}
-                        className={`w-5 h-5 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
-                        style={{ backgroundColor: c }}
-                        title={c}
-                      />
-                    ))}
-                    <label
-                      className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
-                      title="Custom background color"
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <span className="text-[8px] text-slate-400 font-bold leading-none">
-                        +
-                      </span>
-                      <input
-                        type="color"
-                        className="sr-only"
-                        aria-label="Custom background color"
-                        onChange={(e) => {
-                          onBgColorChange(e.target.value);
-                          setShowOverflowMenu(false);
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
+                {renderColorSections(() => setShowOverflowMenu(false))}
               </div>
             )}
 

@@ -144,13 +144,13 @@ describe('SettingsDrawer chrome', () => {
     });
     fireEvent.click(screen.getByRole('tab', { name: 'Style' }));
     expect(screen.getByText('legacy style body')).toBeVisible();
-    expect(screen.getByText('Window transparency (Global)')).toBeVisible();
+    expect(screen.getByText('Window transparency')).toBeVisible();
   });
 
   it('renders exactly one background control on the Style tab', () => {
     renderDrawer();
     fireEvent.click(screen.getByRole('tab', { name: 'Style' }));
-    expect(screen.getAllByText('Background Color')).toHaveLength(1);
+    expect(screen.getAllByText('Window background')).toHaveLength(1);
   });
 
   it('moves focus and selection to the next tab on ArrowRight, matching the shared tablist pattern', () => {
@@ -161,7 +161,7 @@ describe('SettingsDrawer chrome', () => {
     fireEvent.keyDown(settingsTab, { key: 'ArrowRight' });
     expect(styleTab).toHaveFocus();
     expect(styleTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('Window transparency (Global)')).toBeVisible();
+    expect(screen.getByText('Window transparency')).toBeVisible();
   });
 
   it('wraps from the last tab to the first on ArrowRight and keeps only the active tab tabbable', () => {

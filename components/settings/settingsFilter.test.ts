@@ -104,12 +104,18 @@ describe('buildStyleSections', () => {
       'cardColor',
     ]);
     expect(sections[2].atomic).toBe(true);
-    expect(sections[2].fields).toHaveLength(4);
+    // Window font is dropped because the Content tier already owns fontFamily.
+    expect(sections[2].fields.map((f) => f.key)).toEqual([
+      'style.windowBackground',
+      'style.windowTransparency',
+      'style.windowTextSize',
+    ]);
   });
 
-  it('still emits the Window tier for a legacy widget', () => {
+  it('still emits the full Window tier for a legacy widget', () => {
     const sections = buildStyleSections(null, ctx, resolve);
     expect(sections.map((s) => s.id)).toEqual(['window']);
+    expect(sections[0].fields).toHaveLength(4);
   });
 });
 
@@ -119,9 +125,9 @@ describe('filterSections', () => {
     ...buildStyleSections(schema, ctx, resolve),
   ];
 
-  it('matches across both tabs at once', () => {
+  it('matches the Content-tier font without a redundant Window font', () => {
     const result = filterSections(all, 'font');
-    expect(result.map((s) => s.id)).toEqual(['style', 'window']);
+    expect(result.map((s) => s.id)).toEqual(['style']);
     expect(result[0].fields.map((f) => f.key)).toEqual(['fontFamily']);
   });
 
@@ -129,7 +135,7 @@ describe('filterSections', () => {
     const result = filterSections(all, 'windowTransparency');
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('window');
-    expect(result[0].fields).toHaveLength(4);
+    expect(result[0].fields).toHaveLength(3);
   });
 
   it('does not match fields hidden by visibleWhen', () => {

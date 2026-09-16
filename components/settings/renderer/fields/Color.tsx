@@ -2,7 +2,11 @@ import React from 'react';
 import type { ColorField } from '@/components/settings/schema/types';
 import type { FieldProps } from '../FieldProps';
 import { ColorPresetPicker } from '@/components/common/ColorPresetPicker';
-import { TEXT_COLOR_SWATCHES, ColorPreset } from '@/config/widgetAppearance';
+import {
+  FONT_COLOR_PRESETS,
+  TEXT_COLOR_SWATCHES,
+  ColorPreset,
+} from '@/config/widgetAppearance';
 import { resolveLabel } from '../resolveLabel';
 
 const TRANSPARENT = 'transparent';
@@ -22,7 +26,9 @@ export const Color: React.FC<FieldProps<ColorField<string>>> = ({
   const presets: readonly ColorPreset[] =
     field.presets && field.presets.length > 0
       ? field.presets.map((hex) => ({ name: hex, hex }))
-      : TEXT_COLOR_SWATCHES;
+      : ctx.surface === 'drawer'
+        ? FONT_COLOR_PRESETS
+        : TEXT_COLOR_SWATCHES;
   const current = typeof value === 'string' ? value : undefined;
   const isTransparent = current === TRANSPARENT;
   const fallback = presets[0]?.hex ?? '#000000';
