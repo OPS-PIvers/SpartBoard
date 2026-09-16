@@ -841,4 +841,42 @@ describe('DashboardContext per-widget merge', () => {
       expect(wA?.annotation).toEqual(remoteAnnotation);
     });
   });
+
+  it('REGRESSION: an unsaved config edit made via updateWidgets survives a stale snapshot echo', async () => {
+    const stateRef = setup();
+
+    // Versioned widget, matching a real board that has already synced once.
+    const widgetA: WidgetData = {
+      ...makeWidget('wA', 'original'),
+      version: 1,
+    };
+    const initialDashboard = makeDashboard([widgetA]);
+
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // A real, unsaved content edit via the bulk updater (e.g. a multi-select
+    // batch action), the same API DraggableWindow/GroupBoundingBox use for
+    // other fields.
+    await act(async () => {
+      stateRef.current?.updateWidgets([
+        { id: 'wA', changes: { config: { text: 'edited-locally' } } },
+      ]);
+      await Promise.resolve();
+    });
+
+    // A snapshot echoes back the pre-edit, still-version-1 state — the normal
+    // autosave round trip, not a concurrent edit from another device.
+    await pushSnapshot([{ ...makeDashboard([widgetA]), updatedAt: 2000 }]);
+
+    await waitFor(() => {
+      const wA = stateRef.current?.activeDashboard?.widgets.find(
+        (w) => w.id === 'wA'
+      );
+      expect(wA?.config).toMatchObject({ text: 'edited-locally' });
+    });
+  });
 });

@@ -5888,6 +5888,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const changes = updateMap.get(w.id);
               if (!changes) return w;
               const merged = { ...w, ...changes };
+              // Config is wholesale-replaced (not merged) here, same as the
+              // comparison below: bump version so the onSnapshot merge's
+              // configChangedLocally check and serializeDashboard's autosave
+              // signature (both version-gated once a widget has one) see this
+              // edit — otherwise it reads as unchanged and a stale snapshot
+              // echo silently discards it before it is ever saved.
+              if (
+                'config' in changes &&
+                stableStringify(w.config) !== stableStringify(changes.config)
+              ) {
+                merged.version = (w.version ?? 1) + 1;
+              }
               const isResize = 'w' in changes || 'h' in changes;
               // Flip-only batches must not re-derive proportional bounds (plan §4.9).
               if (!isResize && !('x' in changes) && !('y' in changes))
