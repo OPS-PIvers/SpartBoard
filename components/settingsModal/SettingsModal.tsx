@@ -21,17 +21,20 @@ import {
   PanelBottom,
   Palette,
   Settings,
+  Shapes,
   SlidersHorizontal,
   UserCircle,
   X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useGlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
+import { useAuth } from '@/context/useAuth';
 import { ProfileSection } from './sections/ProfileSection';
 import { AppearanceSection } from './sections/AppearanceSection';
 import { DockSection } from './sections/DockSection';
 import { BehaviorSection } from './sections/BehaviorSection';
 import { LanguageSection } from './sections/LanguageSection';
+import { WidgetDefaultsSection } from './sections/WidgetDefaultsSection';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 export type SettingsSectionId =
@@ -39,6 +42,7 @@ export type SettingsSectionId =
   | 'appearance'
   | 'dock'
   | 'behavior'
+  | 'widgetDefaults'
   | 'language';
 
 interface SettingsModalProps {
@@ -75,6 +79,12 @@ const SECTIONS: readonly SectionConfig[] = [
     labelKey: 'sidebar.nav.preferences',
     fallback: 'Behavior',
     icon: SlidersHorizontal,
+  },
+  {
+    id: 'widgetDefaults',
+    labelKey: 'settings.widgetDefaults.title',
+    fallback: 'Widget defaults',
+    icon: Shapes,
   },
   {
     id: 'language',
@@ -118,6 +128,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const editor = useGlobalStyleEditor();
+  const { canAccessFeature } = useAuth();
+  // Explicit widget defaults ship with the settings drawer (D28).
+  const sections = canAccessFeature('settings-drawer')
+    ? SECTIONS
+    : SECTIONS.filter((s) => s.id !== 'widgetDefaults');
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection);
   // Mobile only: the drill-in list (true) vs. the selected panel (false). The
   // rail is always visible on md+, so this flag is inert there.
@@ -135,7 +150,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const label = (s: SectionConfig) =>
     t(s.labelKey, { defaultValue: s.fallback });
-  const activeConfig = SECTIONS.find((s) => s.id === activeSection);
+  const activeConfig = sections.find((s) => s.id === activeSection);
   const mobileTitle =
     !showMobileMenu && activeConfig
       ? label(activeConfig)
@@ -153,6 +168,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         return <DockSection editor={editor} />;
       case 'behavior':
         return <BehaviorSection />;
+      case 'widgetDefaults':
+        return <WidgetDefaultsSection />;
       case 'language':
         return <LanguageSection />;
     }
@@ -218,7 +235,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             })}
             className="hidden md:flex flex-col md:w-[76px] lg:w-56 shrink-0 bg-slate-50 border-r border-slate-200 overflow-y-auto p-2 gap-0.5"
           >
-            {SECTIONS.map((section) => (
+            {sections.map((section) => (
               <RailTab
                 key={section.id}
                 id={section.id}
@@ -235,7 +252,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* Mobile drill-in list */}
             <div className={`md:hidden ${showMobileMenu ? 'block' : 'hidden'}`}>
               <div className="flex flex-col py-2">
-                {SECTIONS.map((section) => (
+                {sections.map((section) => (
                   <button
                     key={section.id}
                     onClick={() => {
@@ -260,7 +277,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             {/* Section panel (md+ always; mobile when a section is selected) */}
             <div className={`${!showMobileMenu ? 'block' : 'hidden md:block'}`}>
-              {SECTIONS.map(
+              {sections.map(
                 (section) =>
                   activeSection === section.id && (
                     <div

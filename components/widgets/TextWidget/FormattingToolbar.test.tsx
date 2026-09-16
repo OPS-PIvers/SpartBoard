@@ -2,7 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { FormattingToolbar } from './FormattingToolbar';
-import { FONT_COLORS } from '@/config/fonts';
+import { FONT_COLOR_PRESETS } from '@/config/widgetAppearance';
+import { Z_INDEX } from '@/config/zIndex';
 
 // Mock useDialog
 const mockShowPrompt = vi.fn();
@@ -111,6 +112,8 @@ describe('FormattingToolbar', () => {
       .closest('[data-widget-portal]') as HTMLElement;
     expect(menu).toHaveClass('z-popover-menu');
     expect(menu).not.toHaveClass('z-dropdown');
+    // The widget chrome bar can overlap the menu, so the menu layer must clear it.
+    expect(Z_INDEX.popoverMenu).toBeGreaterThan(Z_INDEX.toolMenu);
     // Positioned fixed from the first render so it never flashes at 0,0.
     expect(menu.style.position).toBe('fixed');
   });
@@ -350,15 +353,15 @@ describe('FormattingToolbar', () => {
     render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
 
     // Pick two different palette entries — resilient to palette changes.
-    const firstColor = FONT_COLORS[0];
-    const secondColor = FONT_COLORS[FONT_COLORS.length - 1];
+    const firstColor = FONT_COLOR_PRESETS[0].name;
+    const secondColor = FONT_COLOR_PRESETS[FONT_COLOR_PRESETS.length - 1].name;
     expect(firstColor).not.toBe(secondColor);
 
     // Open the Colors menu and click first color, then second.
     fireEvent.click(screen.getByTitle('Colors'));
-    fireEvent.click(screen.getByTitle(firstColor));
+    fireEvent.click(screen.getByLabelText(`Font Color: ${firstColor}`));
     fireEvent.click(screen.getByTitle('Colors'));
-    fireEvent.click(screen.getByTitle(secondColor));
+    fireEvent.click(screen.getByLabelText(`Font Color: ${secondColor}`));
 
     const colorSpans = editor.querySelectorAll<HTMLElement>(
       'span[style*="color"]'
@@ -506,12 +509,38 @@ describe('FormattingToolbar', () => {
     expect(screen.getByText('Background')).toBeInTheDocument();
   });
 
+  it('offers five font and highlight presets plus a custom picker', () => {
+    render(<FormattingToolbar {...defaultProps} />);
+    fireEvent.click(screen.getByTitle('Colors'));
+    expect(screen.getAllByLabelText(/^Font Color: /)).toHaveLength(5);
+    expect(screen.getAllByLabelText(/^Highlight: /)).toHaveLength(5);
+    expect(screen.getByLabelText('Custom font color')).toBeInTheDocument();
+    expect(screen.getByLabelText('Custom highlight color')).toBeInTheDocument();
+    expect(screen.getByLabelText('No highlight')).toBeInTheDocument();
+  });
+
   it('calls onBgColorChange when background color swatch is clicked', () => {
     render(<FormattingToolbar {...defaultProps} />);
     fireEvent.click(screen.getByTitle('Colors'));
-    const swatches = screen.getAllByTitle('#fef9c3');
-    fireEvent.click(swatches[swatches.length - 1]);
+    fireEvent.click(screen.getByLabelText('Background: Yellow'));
     expect(mockOnBgColorChange).toHaveBeenCalledWith('#fef9c3');
+  });
+
+  it('drops note background and vertical alignment when the drawer owns them', () => {
+    const {
+      verticalAlign: _va,
+      onVerticalAlignChange: _onVa,
+      bgColor: _bg,
+      onBgColorChange: _onBg,
+      ...selectionOnly
+    } = defaultProps;
+    render(<FormattingToolbar {...selectionOnly} />);
+    fireEvent.click(screen.getByTitle('Colors'));
+    expect(screen.getAllByLabelText(/^Font Color: /)).toHaveLength(5);
+    expect(screen.queryByLabelText('Background: Yellow')).toBeNull();
+    fireEvent.click(screen.getByTitle('Alignment & Layout'));
+    expect(screen.getByTitle('Align Left')).toBeInTheDocument();
+    expect(screen.queryByTitle('Align Top')).toBeNull();
   });
 
   it('wraps the selected blocks in a <ul> when the bulleted-list button is clicked', () => {

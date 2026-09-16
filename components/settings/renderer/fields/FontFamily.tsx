@@ -2,6 +2,7 @@ import React from 'react';
 import type { FontFamilyField } from '@/components/settings/schema/types';
 import type { FieldProps } from '../FieldProps';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { FontSelect } from '@/components/common/FontSelect';
 
 type FontFamilyShimConfig = { fontFamily?: string };
 
@@ -13,6 +14,7 @@ export const FontFamily: React.FC<FieldProps<FontFamilyField<string>>> = ({
   describedBy,
   labelId,
   disabled,
+  ctx,
 }) => {
   const shimConfig: FontFamilyShimConfig = {
     fontFamily: typeof value === 'string' ? value : undefined,
@@ -20,6 +22,22 @@ export const FontFamily: React.FC<FieldProps<FontFamilyField<string>>> = ({
   const updateConfigShim = (patch: Partial<FontFamilyShimConfig>) => {
     onChange(patch.fontFamily);
   };
+
+  if (ctx.surface === 'drawer') {
+    return (
+      <div id={id}>
+        <FontSelect
+          value={typeof value === 'string' ? value : 'global'}
+          onChange={(fontId) =>
+            onChange(fontId === 'global' ? undefined : fontId)
+          }
+          labelId={labelId}
+          describedBy={describedBy}
+          disabled={disabled}
+        />
+      </div>
+    );
+  }
 
   return (
     <div id={id}>

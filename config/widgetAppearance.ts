@@ -1,4 +1,5 @@
 import { FONT_COLORS } from '@/config/fonts';
+import { STICKY_NOTE_COLORS } from '@/config/colors';
 import type { TextSizePreset } from '@/types';
 
 export const TEXT_SIZE_PRESETS = [
@@ -30,6 +31,14 @@ export const TEXT_COLOR_SWATCHES: readonly ColorPreset[] = [
   { name: 'Brand red', hex: '#ad2122' },
 ];
 
+export const HIGHLIGHT_COLOR_SWATCHES: readonly ColorPreset[] = [
+  { name: 'Yellow', hex: '#fde047' },
+  { name: 'Green', hex: '#86efac' },
+  { name: 'Blue', hex: '#7dd3fc' },
+  { name: 'Pink', hex: '#f9a8d4' },
+  { name: 'Orange', hex: '#fdba74' },
+];
+
 export const FRAME_BACKGROUND_PRESETS: readonly ColorPreset[] = [
   { name: 'White', hex: '#ffffff' },
   { name: 'Slate', hex: '#f8fafc' },
@@ -37,6 +46,31 @@ export const FRAME_BACKGROUND_PRESETS: readonly ColorPreset[] = [
   { name: 'Graphite', hex: '#334155' },
   { name: 'Charcoal', hex: '#0f172a' },
 ];
+
+// Drawer + Text toolbar sets; TEXT_COLOR_SWATCHES / FRAME_BACKGROUND_PRESETS stay frozen for the legacy panel until wave 10.
+export const FONT_COLOR_PRESETS: readonly ColorPreset[] = [
+  { name: 'Black', hex: '#000000' },
+  { name: 'White', hex: '#ffffff' },
+  { name: 'Red', hex: '#dc2626' },
+  { name: 'Blue', hex: '#2563eb' },
+  { name: 'Green', hex: '#15803d' },
+];
+
+export const WINDOW_BACKGROUND_PRESETS: readonly ColorPreset[] = [
+  { name: 'White', hex: '#ffffff' },
+  { name: 'Charcoal', hex: '#1e293b' },
+  { name: 'Yellow', hex: '#fef9c3' },
+  { name: 'Blue', hex: '#dbeafe' },
+  { name: 'Green', hex: '#dcfce7' },
+];
+
+// Sticky-note tints for the Text widget's note color (toolbar + drawer).
+export const NOTE_COLOR_PRESETS: readonly ColorPreset[] = Object.entries(
+  STICKY_NOTE_COLORS
+).map(([name, hex]) => ({
+  hex,
+  name: name.charAt(0).toUpperCase() + name.slice(1),
+}));
 
 // Full 28-color palette, still used by widgets with their own inline swatch grids.
 export const TEXT_COLOR_PRESETS = FONT_COLORS;

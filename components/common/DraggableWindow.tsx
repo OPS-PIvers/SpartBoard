@@ -72,7 +72,8 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useHasOpenModal } from './modalStore';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
-import { COLOR_HEX_TO_NAME, WIDGET_PALETTE } from '@/config/colors';
+import { PenColorSwatches } from '@/components/common/PenColorSwatches';
+import { WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
@@ -2540,25 +2541,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 }}
               />
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
-                <div
+                <PenColorSwatches
+                  variant="window"
+                  value={annotationColor}
+                  onSelect={setAnnotationColor}
                   className="flex items-center gap-1 px-1"
-                  role="group"
-                  aria-label="Select annotation color"
-                >
-                  {WIDGET_PALETTE.slice(0, 5).map((c) => (
-                    <button
-                      key={c}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAnnotationColor(c);
-                      }}
-                      aria-label={`Select annotation color ${COLOR_HEX_TO_NAME[c] ?? c}`}
-                      aria-pressed={annotationColor === c}
-                      className={`relative w-5 h-5 rounded-full border border-slate-100 transition-transform touch-target-expand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${annotationColor === c ? 'scale-125 ring-2 ring-slate-400 z-10' : 'hover:scale-110'}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                />
                 <div className="w-px h-4 bg-slate-300 mx-1" />
                 <IconButton
                   onClick={(e) => {

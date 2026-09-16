@@ -2444,6 +2444,15 @@
     "clearConfirmAction": "Effacer",
     "chromeInertHint": "Choisissez Sélectionner pour réutiliser le dock"
   },
+  "penColors": {
+    "group": "Couleurs du stylo",
+    "preset": "Couleur du stylo {{index}}",
+    "editHint": "Clic droit ou appui long pour la modifier",
+    "custom": "Couleur personnalisée",
+    "change": "Modifier la couleur {{index}}",
+    "reset": "Réinitialiser les couleurs du stylo",
+    "done": "Terminé"
+  },
   "helpCenter": {
     "title": "Aide",
     "widgetHelp": "Guides pour ce widget",

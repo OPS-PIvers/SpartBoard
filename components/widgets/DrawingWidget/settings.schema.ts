@@ -1,16 +1,8 @@
-import React from 'react';
 import { defineSettings } from '@/components/settings/schema/defineSettings';
-import type {
-  CustomRenderCtx,
-  FieldCtx,
-} from '@/components/settings/schema/types';
+import type { FieldCtx } from '@/components/settings/schema/types';
 import type { DrawingBackground, DrawingConfig } from '@/types';
 import { migrateDrawingConfig } from '@/utils/migrateDrawingConfig';
 import { DRAWING_DEFAULTS } from './constants';
-import { DrawingColorPaletteField } from './settingsFields';
-
-const renderColorPalette = (ctx: CustomRenderCtx) =>
-  React.createElement(DrawingColorPaletteField, { ctx });
 
 const readBackground = (ctx: FieldCtx) => {
   const config = ctx.config as DrawingConfig;
@@ -47,14 +39,6 @@ export default defineSettings<DrawingConfig>({
     {
       id: 'display',
       fields: [
-        // schema-gap: fixedColorPalette
-        {
-          key: 'customColors',
-          type: 'custom',
-          label: 'colorPresets',
-          searchTerms: ['presetColor'],
-          render: renderColorPalette,
-        },
         {
           key: 'width',
           type: 'slider',

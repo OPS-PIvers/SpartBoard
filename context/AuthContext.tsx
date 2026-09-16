@@ -14,6 +14,8 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth';
 import {
+  FieldPath,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -97,6 +99,7 @@ import {
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
+import { normalizePenColors } from '@/utils/penColors';
 
 // The operator's own organization. Two narrow uses remain after dynamic
 // org resolution shipped:
@@ -346,6 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [materialsPreferences, setMaterialsPreferences] =
     useState<MaterialsPreferences>({});
+  const [penColors, setPenColors] = useState<string[] | null>(null);
   // Initialise from i18n.language. If i18n.init() hasn't resolved its async
   // language detection yet, the useEffect below will sync the state once it fires.
   const [language, setLanguageState] = useState<string>(
@@ -426,6 +430,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const materialsPrefsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const penColorsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const widgetPresetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const migratedConfigsForUidRef = useRef<string | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
@@ -1659,6 +1664,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setSavedWidgetConfigs({});
       setSavedWidgetPresets({});
       setCustomMaterials([]);
+      setPenColors(null);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
       setDockPositionState('bottom');
@@ -1796,6 +1802,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               ? (data.materialsPreferences as MaterialsPreferences)
               : {}
           );
+          setPenColors(normalizePenColors(data.penColors));
 
           // Decide setupCompleted. The wizard writes `setupCompleted: true` on
           // finish, so any of the following counts as "already set up":
@@ -2455,6 +2462,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  // Explicit "Save as my default" (D28): replaces the type's entry so keys dropped from it stop applying.
+  const saveWidgetDefault = useCallback(
+    (type: WidgetType, config: Partial<WidgetConfig>) => {
+      const filtered = pickAppearanceKeys(config);
+      if (widgetConfigTimeoutRef.current) {
+        clearTimeout(widgetConfigTimeoutRef.current);
+      }
+      setSavedWidgetConfigs((prev) => {
+        const next = { ...prev };
+        if (Object.keys(filtered).length > 0) next[type] = filtered;
+        else delete next[type];
+        return next;
+      });
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      const path = new FieldPath('savedWidgetConfigs', type);
+      setDoc(
+        doc(db, 'users', user.uid, 'userProfile', 'profile'),
+        { savedWidgetConfigs: { [type]: filtered } },
+        { mergeFields: [path] }
+      ).catch((error) => {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving widget default:', error);
+        }
+      });
+    },
+    [user]
+  );
+
   // Explicit "save as preset" libraries (Stations sets, Hotspot Image items).
   // Account-wide on purpose, which is why they are kept apart from the
   // appearance defaults above rather than filtered through the allowlist.
@@ -2530,6 +2566,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         ).catch((error) => {
           if (myToken === writeTokenRef.current) {
             console.error('Error saving materials preferences:', error);
+          }
+        });
+      }, 1000);
+    },
+    [user]
+  );
+
+  const savePenColors = useCallback(
+    (colors: string[] | null) => {
+      const next = colors === null ? null : normalizePenColors(colors);
+      if (colors !== null && next === null) return;
+      setPenColors(next);
+      if (penColorsTimeoutRef.current) {
+        clearTimeout(penColorsTimeoutRef.current);
+      }
+      penColorsTimeoutRef.current = setTimeout(() => {
+        if (!user || isAuthBypass) return;
+        const myToken = ++writeTokenRef.current;
+        setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { penColors: next ?? deleteField() },
+          { merge: true }
+        ).catch((error) => {
+          if (myToken === writeTokenRef.current) {
+            console.error('Error saving pen colors:', error);
           }
         });
       }, 1000);
@@ -3143,12 +3204,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,
+        saveWidgetDefault,
         savedWidgetPresets,
         saveWidgetPreset,
         customMaterials,
         saveCustomMaterials,
         materialsPreferences,
         saveMaterialsPreferences,
+        penColors,
+        savePenColors,
         profileLoaded,
         setupCompleted,
         completeSetup,

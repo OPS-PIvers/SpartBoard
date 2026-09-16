@@ -7320,7 +7320,7 @@ export interface WidgetData {
   // Universal style properties
   /** Frame background: a hex color, or a legacy `bg-*` Tailwind class on older boards */
   backgroundColor?: string;
-  fontFamily?: 'sans' | 'serif' | 'mono' | 'handwritten' | 'comic';
+  fontFamily?: GlobalFontFamily;
   baseTextSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl';
 }
 
@@ -7411,6 +7411,8 @@ export interface UserProfile {
    * wrongly persisted globally can be recovered if a teacher asks.
    */
   savedWidgetConfigsPreV2?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /** Teacher's 5 pen color presets, shared by the whiteboard and both annotation toolbars. */
+  penColors?: string[];
   /** True after the user has completed the first-time setup wizard */
   setupCompleted?: boolean;
   /**

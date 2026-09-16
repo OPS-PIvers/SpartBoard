@@ -167,7 +167,6 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       paths: [],
       width: 4,
-      customColors: ['#1e293b', '#ef4444', '#f59e0b', '#10b981', '#3b82f6'],
       background: 'blank',
       shapeFill: false,
     },

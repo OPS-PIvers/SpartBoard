@@ -12,6 +12,7 @@ const setGlobalStyle = vi.fn();
 const updateAccountPreferences = vi.fn();
 const setLanguage = vi.fn();
 const addToast = vi.fn();
+const drawerFlag = { on: false };
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -26,6 +27,10 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     dockPosition: 'bottom',
+    canAccessFeature: (id: string) => id === 'settings-drawer' && drawerFlag.on,
+    savedWidgetConfigs: {},
+    saveWidgetDefault: vi.fn(),
+    featurePermissions: [],
     updateAccountPreferences,
     disableCloseConfirmation: false,
     remoteControlEnabled: false,
@@ -75,6 +80,7 @@ describe('SettingsModal', () => {
     setGlobalStyle.mockClear();
     updateAccountPreferences.mockClear();
     setLanguage.mockClear();
+    drawerFlag.on = false;
   });
 
   it('renders a rail tab for every section', () => {
@@ -84,6 +90,17 @@ describe('SettingsModal', () => {
     expect(screen.getByRole('tab', { name: 'Dock' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Behavior' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Language' })).toBeInTheDocument();
+  });
+
+  it('shows Widget defaults only for settings-drawer users', () => {
+    const { unmount } = render(<SettingsModal onClose={vi.fn()} />);
+    expect(screen.queryByRole('tab', { name: 'Widget defaults' })).toBeNull();
+    unmount();
+    drawerFlag.on = true;
+    render(<SettingsModal onClose={vi.fn()} />);
+    expect(
+      screen.getByRole('tab', { name: 'Widget defaults' })
+    ).toBeInTheDocument();
   });
 
   it('defaults to the Profile section', () => {

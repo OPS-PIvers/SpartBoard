@@ -23,6 +23,7 @@ const authMock = {
   selectedBuildings: [],
   savedWidgetConfigs: {},
   saveWidgetConfig: vi.fn(),
+  canAccessFeature: vi.fn((_feature: string) => false),
   refreshGoogleToken: vi.fn(),
   googleAccessToken: null,
   remoteControlEnabled: true,
@@ -443,5 +444,47 @@ describe('DashboardContext widget undo/redo', () => {
 
     act(() => stateRef.current?.undoWidgets('dash-1'));
     expect(widgetIds(stateRef)).toEqual(['w1', 'w2']);
+  });
+});
+
+describe('DashboardContext appearance defaults', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    authMock.saveWidgetConfig.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    authMock.canAccessFeature.mockImplementation(() => false);
+    vi.useRealTimers();
+  });
+
+  const editFontColor = (stateRef: { current: ContextSnapshot | null }) =>
+    act(() =>
+      stateRef.current?.updateWidget('w1', {
+        config: { fontColor: '#ffffff' } as WidgetData['config'],
+      })
+    );
+
+  it('auto-saves appearance edits as the default for flag-off users', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
+    editFontColor(stateRef);
+    expect(authMock.saveWidgetConfig).toHaveBeenCalledWith('text', {
+      fontColor: '#ffffff',
+    });
+  });
+
+  it('leaves defaults alone for settings-drawer users, who save them explicitly (D28)', async () => {
+    authMock.canAccessFeature.mockImplementation(
+      (feature) => feature === 'settings-drawer'
+    );
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
+    editFontColor(stateRef);
+    expect(stateRef.current?.activeDashboard?.widgets[0].config).toMatchObject({
+      fontColor: '#ffffff',
+    });
+    expect(authMock.saveWidgetConfig).not.toHaveBeenCalled();
   });
 });

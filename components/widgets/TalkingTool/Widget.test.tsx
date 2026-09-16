@@ -75,6 +75,9 @@ const mockAuthContext = (
   saveWidgetConfig: () => {
     /* mock */
   },
+  saveWidgetDefault: () => {
+    /* mock */
+  },
   savedWidgetPresets: {},
   saveWidgetPreset: () => {
     /* mock */
@@ -85,6 +88,10 @@ const mockAuthContext = (
   },
   materialsPreferences: {},
   saveMaterialsPreferences: () => {
+    /* mock */
+  },
+  penColors: null,
+  savePenColors: () => {
     /* mock */
   },
   profileLoaded: true,

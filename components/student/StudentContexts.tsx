@@ -72,6 +72,9 @@ const mockAuth: AuthContextType = {
   saveWidgetConfig: () => {
     // No-op
   },
+  saveWidgetDefault: () => {
+    // No-op
+  },
   savedWidgetPresets: {},
   saveWidgetPreset: () => {
     // No-op
@@ -80,6 +83,10 @@ const mockAuth: AuthContextType = {
   saveCustomMaterials: () => Promise.resolve(),
   materialsPreferences: {},
   saveMaterialsPreferences: () => {
+    // No-op
+  },
+  penColors: null,
+  savePenColors: () => {
     // No-op
   },
   profileLoaded: true,
@@ -390,7 +397,6 @@ const mockDashboard: DashboardContextValue = {
     objects: [],
     color: '#000000',
     width: 4,
-    customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
     activeTool: 'pen',
     shapeFill: false,
   },

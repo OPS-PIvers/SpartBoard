@@ -194,6 +194,8 @@ export interface AuthContextType {
    * whole config object.
    */
   saveWidgetConfig: (type: WidgetType, config: Partial<WidgetConfig>) => void;
+  /** Replace a widget type's appearance default outright (explicit "Save as my default"); immediate write. */
+  saveWidgetDefault: (type: WidgetType, config: Partial<WidgetConfig>) => void;
   /** Opt-in preset libraries the teacher explicitly saved, by widget type */
   savedWidgetPresets: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** Save an explicit preset library account-wide (debounced Firestore write) */
@@ -206,6 +208,10 @@ export interface AuthContextType {
   materialsPreferences: MaterialsPreferences;
   /** Replace the Materials preferences (debounced Firestore write) */
   saveMaterialsPreferences: (preferences: MaterialsPreferences) => void;
+  /** Teacher's 5 pen presets shared by every pen toolbar; null = use building/app defaults */
+  penColors: string[] | null;
+  /** Replace the pen presets, or pass null to reset (debounced Firestore write) */
+  savePenColors: (colors: string[] | null) => void;
   /** True once the profile Firestore fetch has resolved (success or error) */
   profileLoaded: boolean;
   /** True after the user completes the first-time setup wizard */
