@@ -71,8 +71,13 @@ describe('drawer-surface field presentations', () => {
     }
   });
 
-  it('uses sticky-note presets for a bgColor field in the drawer', () => {
-    renderField({ type: 'color', key: 'bgColor', label: 'label' });
+  it('uses named presets a field passes explicitly', () => {
+    renderField({
+      type: 'color',
+      key: 'bgColor',
+      label: 'label',
+      presets: NOTE_COLOR_PRESETS,
+    });
     for (const preset of NOTE_COLOR_PRESETS) {
       expect(
         screen.getByRole('radio', { name: new RegExp(`${preset.name}$`) })
