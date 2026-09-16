@@ -133,6 +133,37 @@ const emptySummary = (): SyncSummary => ({
   budgetExhausted: false,
 });
 
+/**
+ * Swap in the reconciled students and drop group memberships and standing
+ * overrides pointing at students who are gone. Mirrors
+ * `pruneRosterFileContent` in `hooks/useRosters.ts`, whose own comment names a
+ * ClassLink re-sync as the case it exists for — dangling ids silently shrink
+ * select-all targeting.
+ */
+export function pruneRosterContent(
+  content: RosterFileContent,
+  students: SyncStudent[]
+): RosterFileContent {
+  const validIds = new Set(students.map((s) => s.id));
+  const defaultOverridesByStudentId: Record<string, unknown> = {};
+  for (const [studentId, override] of Object.entries(
+    content.defaultOverridesByStudentId ?? {}
+  )) {
+    if (validIds.has(studentId)) {
+      defaultOverridesByStudentId[studentId] = override;
+    }
+  }
+  return {
+    ...content,
+    students,
+    groups: (content.groups ?? []).map((g) => ({
+      ...g,
+      studentIds: g.studentIds.filter((id) => validIds.has(id)),
+    })),
+    defaultOverridesByStudentId,
+  };
+}
+
 /** True when the thrown error is the OAuth layer saying "teacher must re-consent". */
 function isNeedsConsent(err: unknown): boolean {
   const details = (err as { details?: { reason?: string } } | null)?.details;
@@ -276,7 +307,10 @@ async function syncOneRoster(
     return;
   }
 
-  if (result.added.length === 0 && result.removed.length === 0) {
+  // Gate on `changed`, not on added/removed: a by-name re-link stamps a stable
+  // sourcedId that makes the NEXT sync survive a rename, and dropping it would
+  // silently defeat that.
+  if (!result.changed) {
     summary.unchanged += 1;
     return;
   }
@@ -308,8 +342,7 @@ async function syncOneRoster(
     `${c.firstName} ${c.lastName}`.trim();
 
   await deps.writeRosterFile(token, driveFileId, {
-    ...content,
-    students: result.students,
+    ...pruneRosterContent(content, result.students),
     lastSync: {
       at: deps.now(),
       added: result.added.map(describe),

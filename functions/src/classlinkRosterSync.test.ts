@@ -257,6 +257,63 @@ describe('runClassLinkRosterSync', () => {
     ]);
   });
 
+  // Nobody joined or left, but the re-link stamps a stable sourcedId. Skipping
+  // this write would leave the roster re-linking from scratch every night and
+  // never surviving an upstream rename.
+  it('writes a re-link that adds and removes nobody', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01')],
+        [up('s1', 'Ada')]
+      ),
+    ]);
+
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    expect(out.synced).toBe(1);
+    expect(out.unchanged).toBe(0);
+    const file = harness.written.get('file-users/u1/rosters/r1');
+    expect(file?.students[0].classLinkSourcedId).toBe('s1');
+    expect(file?.lastSync).toEqual({ at: 1_000_000, added: [], removed: [] });
+  });
+
+  // Group memberships and standing overrides pointing at a departed student
+  // would otherwise dangle and silently shrink select-all targeting.
+  it('prunes group and override references to removed students', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1'), student('Alan', '02', 's2')],
+        [up('s1', 'Ada')]
+      ),
+    ]);
+    harness.deps.readRosterFile = () =>
+      Promise.resolve({
+        content: {
+          students: [student('Ada', '01', 's1'), student('Alan', '02', 's2')],
+          groups: [
+            { id: 'g1', name: 'Reds', studentIds: ['id-Ada', 'id-Alan'] },
+          ],
+          defaultOverridesByStudentId: {
+            'id-Ada': { extraTime: true },
+            'id-Alan': { extraTime: true },
+          },
+        },
+        driveVersion: 'v1',
+      });
+
+    await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    const file = harness.written.get('file-users/u1/rosters/r1');
+    expect(file?.groups?.[0].studentIds).toEqual(['id-Ada']);
+    expect(Object.keys(file?.defaultOverridesByStudentId ?? {})).toEqual([
+      'id-Ada',
+    ]);
+  });
+
   it('writes nothing when the roster already matches', async () => {
     harness = buildHarness([
       classlinkRoster(

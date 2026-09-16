@@ -44,6 +44,15 @@ export interface ReconcileResult {
   matched: number;
   /** Matched by name and upgraded to a stable sourcedId link this run. */
   linked: number;
+  /** Existing rows that gained an email from upstream this run. */
+  emailBackfilled: number;
+  /**
+   * Whether `students` differs from `existing` at all. Callers must gate their
+   * write on this, not on added/removed: a re-link or an email backfill mutates
+   * the roster without adding or removing anyone, and dropping it would throw
+   * away the stable sourcedId that makes the NEXT sync survive a rename.
+   */
+  changed: boolean;
   /** Set when the result was refused; `students` is then the input unchanged. */
   blocked?: ReconcileBlock;
 }
@@ -125,6 +134,8 @@ export function reconcileClassLinkStudents(
       removed: [],
       matched: 0,
       linked: 0,
+      emailBackfilled: 0,
+      changed: false,
       blocked: 'empty-upstream',
     };
   }
@@ -148,6 +159,7 @@ export function reconcileClassLinkStudents(
   const added: ReconcileChange[] = [];
   let matched = 0;
   let linked = 0;
+  let emailBackfilled = 0;
 
   for (const cls of upstream) {
     const sourcedIndex = bySourcedId.get(cls.sourcedId);
@@ -156,6 +168,7 @@ export function reconcileClassLinkStudents(
       matched += 1;
       if (cls.email && !result[sourcedIndex].email) {
         result[sourcedIndex] = { ...result[sourcedIndex], email: cls.email };
+        emailBackfilled += 1;
       }
       continue;
     }
@@ -175,6 +188,7 @@ export function reconcileClassLinkStudents(
     if (nameMatchIndex !== undefined) {
       consumed.add(nameMatchIndex);
       linked += 1;
+      if (cls.email && !result[nameMatchIndex].email) emailBackfilled += 1;
       result[nameMatchIndex] = {
         ...result[nameMatchIndex],
         classLinkSourcedId: cls.sourcedId,
@@ -219,6 +233,8 @@ export function reconcileClassLinkStudents(
       removed: [],
       matched: 0,
       linked: 0,
+      emailBackfilled: 0,
+      changed: false,
       blocked: 'mass-removal',
     };
   }
@@ -235,5 +251,11 @@ export function reconcileClassLinkStudents(
     })),
     matched,
     linked,
+    emailBackfilled,
+    changed:
+      added.length > 0 ||
+      departing.length > 0 ||
+      linked > 0 ||
+      emailBackfilled > 0,
   };
 }

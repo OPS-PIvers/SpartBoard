@@ -84,6 +84,47 @@ describe('reconcileClassLinkStudents — additive half (mirrors the client merge
     expect(out.students).toHaveLength(2);
   });
 
+  // A re-link adds nobody and removes nobody, but it stamps the stable
+  // sourcedId that lets the NEXT sync survive an upstream rename. Callers gate
+  // their write on `changed`, so this must report it.
+  it('reports changed for a re-link that adds and removes nobody', () => {
+    const out = reconcileClassLinkStudents(
+      [local('Ada', 'Lovelace', { pin: '01' })],
+      [upstream('s1', 'Ada', 'Lovelace')]
+    );
+
+    expect(out.added).toEqual([]);
+    expect(out.removed).toEqual([]);
+    expect(out.linked).toBe(1);
+    expect(out.changed).toBe(true);
+  });
+
+  it('reports changed for an email backfill alone', () => {
+    const out = reconcileClassLinkStudents(
+      [local('Ada', 'Lovelace', { pin: '01', classLinkSourcedId: 's1' })],
+      [upstream('s1', 'Ada', 'Lovelace', 'ada@example.com')]
+    );
+
+    expect(out.emailBackfilled).toBe(1);
+    expect(out.changed).toBe(true);
+  });
+
+  it('reports unchanged when the roster already matches exactly', () => {
+    const out = reconcileClassLinkStudents(
+      [
+        local('Ada', 'Lovelace', {
+          pin: '01',
+          classLinkSourcedId: 's1',
+          email: 'ada@example.com',
+        }),
+      ],
+      [upstream('s1', 'Ada', 'Lovelace', 'ada@example.com')]
+    );
+
+    expect(out.changed).toBe(false);
+    expect(out.emailBackfilled).toBe(0);
+  });
+
   it('backfills a missing email but never overwrites one', () => {
     const out = reconcileClassLinkStudents(
       [
