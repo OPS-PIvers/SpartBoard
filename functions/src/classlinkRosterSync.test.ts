@@ -105,7 +105,10 @@ function buildHarness(rosters: FakeRoster[]) {
     },
     fetchClassStudents: (classId) => {
       const r = rosters.find((x) => x.data.classlinkClassId === classId);
-      return Promise.resolve(r ? r.upstream : []);
+      return Promise.resolve({
+        students: r ? r.upstream : [],
+        complete: true,
+      });
     },
     readRosterFile: (_token, fileId) => {
       const r = byFile.get(fileId);
@@ -355,6 +358,28 @@ describe('runClassLinkRosterSync', () => {
     expect(out.conflicts).toBe(1);
     expect(out.synced).toBe(0);
     expect(harness.written.size).toBe(0);
+  });
+
+  // A truncated page reads as a mass departure of students who never left.
+  // Both breakers can miss it, so it has to be refused before the reconcile.
+  it('refuses to reconcile a possibly-truncated upstream list', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1'), student('Alan', '02', 's2')],
+        [up('s1', 'Ada')]
+      ),
+    ]);
+    harness.deps.fetchClassStudents = () =>
+      Promise.resolve({ students: [up('s1', 'Ada')], complete: false });
+
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    expect(out.skippedTruncated).toBe(1);
+    expect(out.removed).toBe(0);
+    expect(harness.written.size).toBe(0);
+    expect(harness.updated.size).toBe(0);
   });
 
   it('records a blocked reconcile without writing', async () => {

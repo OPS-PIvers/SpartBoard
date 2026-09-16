@@ -54,6 +54,9 @@ const MAX_ROSTERS_PER_RUN = 500;
 const RUN_BUDGET_MS = 8 * 60 * 1000;
 /** Matches `PIN_INDEX_MAX_ENTRIES` in studentIdentity.ts. */
 const PIN_INDEX_MAX_ENTRIES = 200;
+/** OneRoster paging. 10 x 200 is far past any real class section. */
+const ONEROSTER_PAGE_LIMIT = 200;
+const ONEROSTER_MAX_PAGES = 10;
 
 export interface RosterFileContent {
   students: SyncStudent[];
@@ -74,7 +77,14 @@ export interface SyncSettings {
 
 export interface ClassLinkSyncDeps {
   getAccessToken: (uid: string) => Promise<string>;
-  fetchClassStudents: (classId: string) => Promise<ClassLinkStudent[]>;
+  /**
+   * `complete: false` means the upstream list may be truncated. Because this
+   * job REMOVES students absent from the response, a partial page must never
+   * be reconciled — it would read as a mass departure of real students.
+   */
+  fetchClassStudents: (
+    classId: string
+  ) => Promise<{ students: ClassLinkStudent[]; complete: boolean }>;
   readRosterFile: (
     accessToken: string,
     fileId: string
@@ -101,6 +111,7 @@ export interface SyncSummary {
   removed: number;
   skippedNoGrant: number;
   skippedNoFile: number;
+  skippedTruncated: number;
   blocked: Record<ReconcileBlock, number>;
   conflicts: number;
   errors: number;
@@ -115,6 +126,7 @@ const emptySummary = (): SyncSummary => ({
   removed: 0,
   skippedNoGrant: 0,
   skippedNoFile: 0,
+  skippedTruncated: 0,
   blocked: { 'empty-upstream': 0, 'mass-removal': 0 },
   conflicts: 0,
   errors: 0,
@@ -239,12 +251,23 @@ async function syncOneRoster(
   }
 
   const upstream = await deps.fetchClassStudents(classId);
+  if (!upstream.complete) {
+    summary.skippedTruncated += 1;
+    console.warn(
+      `[classlinkRosterSync] ${rosterSnap.ref.path}: upstream list may be truncated; skipping`
+    );
+    return;
+  }
+
   const { content, driveVersion } = await deps.readRosterFile(
     token,
     driveFileId
   );
 
-  const result = reconcileClassLinkStudents(content.students, upstream);
+  const result = reconcileClassLinkStudents(
+    content.students,
+    upstream.students
+  );
   if (result.blocked) {
     summary.blocked[result.blocked] += 1;
     console.warn(
@@ -370,12 +393,39 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
       const url = `${tenantUrl}${ONEROSTER_BASE}/classes/${encodeURIComponent(
         classId
       )}/students`;
-      const headers = getOAuthHeaders(url, {}, 'GET', clientId, clientSecret);
-      const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
-        headers,
-        timeout: API_TIMEOUT_MS,
-      });
-      return res.data.users ?? [];
+      const students: ClassLinkStudent[] = [];
+
+      for (let page = 0; page < ONEROSTER_MAX_PAGES; page += 1) {
+        // OneRoster signs the query string, so the same params must go to
+        // both the signature and the request.
+        const params = {
+          limit: String(ONEROSTER_PAGE_LIMIT),
+          offset: String(page * ONEROSTER_PAGE_LIMIT),
+        };
+        const headers = getOAuthHeaders(
+          url,
+          params,
+          'GET',
+          clientId,
+          clientSecret
+        );
+        const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
+          params,
+          headers,
+          timeout: API_TIMEOUT_MS,
+        });
+        const batch = res.data.users ?? [];
+        students.push(...batch);
+        // A short page is the end of the list — the only positive proof we
+        // have that nothing was withheld.
+        if (batch.length < ONEROSTER_PAGE_LIMIT) {
+          return { students, complete: true };
+        }
+      }
+
+      // Still full pages at the cap: we cannot prove we saw the whole class,
+      // so report it incomplete rather than removing against a partial list.
+      return { students, complete: false };
     },
 
     readRosterFile: async (accessToken, fileId) => {
@@ -471,6 +521,7 @@ export const classlinkRosterSync = onSchedule(
         `scanned=${summary.scanned} synced=${summary.synced} ` +
         `unchanged=${summary.unchanged} +${summary.added}/-${summary.removed} ` +
         `noGrant=${summary.skippedNoGrant} noFile=${summary.skippedNoFile} ` +
+        `truncated=${summary.skippedTruncated} ` +
         `blocked=${JSON.stringify(summary.blocked)} ` +
         `conflicts=${summary.conflicts} errors=${summary.errors} ` +
         `budgetExhausted=${summary.budgetExhausted}`

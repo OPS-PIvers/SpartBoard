@@ -1016,6 +1016,11 @@ export const useRosters = (user: User | null) => {
           defaultOverridesByStudentId:
             defaultOverridesByStudentId ??
             previousContent.defaultOverridesByStudentId,
+          // Forwarded explicitly: a teacher edit must not erase the nightly
+          // sync's record of what it last changed.
+          ...(previousContent.lastSync
+            ? { lastSync: previousContent.lastSync }
+            : {}),
         });
 
         // Optimistically update cache
