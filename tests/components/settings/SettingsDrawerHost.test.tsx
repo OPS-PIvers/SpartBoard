@@ -37,6 +37,9 @@ vi.mock('@/context/useAuth', () => ({
     canAccessFeature: (id: string) =>
       id === 'settings-drawer' ? flagOn : true,
     featurePermissions: [],
+    selectedBuildings: [],
+    savedWidgetConfigs: {},
+    saveWidgetDefault: vi.fn(),
     dockPosition: 'bottom',
     settingsDrawerWidth: 400,
     updateUserPreference,

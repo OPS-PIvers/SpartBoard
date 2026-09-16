@@ -382,6 +382,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetConfig,
+    canAccessFeature,
     materialsPreferences,
     profileLoaded,
     setupCompleted,
@@ -5706,6 +5707,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [activeId, addToast, recordHistory, undoWidgets]);
 
+  // Read through a ref so updateWidget stays mount-stable when permissions load; optional call tolerates partial auth mocks.
+  const explicitDefaultsRef = useRef(false);
+  explicitDefaultsRef.current = canAccessFeature?.('settings-drawer') ?? false;
+
   const updateWidget = useCallback(
     (
       id: string,
@@ -5774,8 +5779,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
           // Save appearance globally so new instances inherit the styling.
           // saveWidgetConfig keeps only APPEARANCE_CONFIG_KEYS — content stays
-          // on this board.
-          if (updates.config) {
+          // on this board. Drawer users save defaults explicitly instead (D28).
+          if (updates.config && !explicitDefaultsRef.current) {
             saveWidgetConfig(widgetType, updates.config);
           }
 

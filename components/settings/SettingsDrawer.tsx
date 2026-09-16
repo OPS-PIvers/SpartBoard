@@ -30,6 +30,8 @@ import type {
   WidgetSettingsSchema,
 } from './schema/types';
 import { WindowStyleTier } from './schema/windowStyle';
+import { StyleDefaultsFooter } from './StyleDefaultsFooter';
+import { computeStyleDefaults } from './styleDefaults';
 import {
   buildSchemaSections,
   buildStyleSections,
@@ -66,6 +68,13 @@ export type SettingsDrawerProps = {
   canAccessWidget?: (type: WidgetType) => boolean;
   toolLabel?: (type: WidgetType) => string;
   defaults?: Record<string, unknown>;
+  /** Layers behind "my default" (D28); omit to hide the Style-tab defaults footer. */
+  styleDefaults?: {
+    widgetDefaults?: Record<string, unknown>;
+    buildingConfig?: Record<string, unknown>;
+    saved?: Record<string, unknown>;
+    onSave: (config: Record<string, unknown>) => void;
+  };
   /** The focus hook (1b.2) targets this heading on open. */
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
 };
@@ -100,6 +109,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
   canAccessWidget,
   toolLabel,
   defaults,
+  styleDefaults,
   headingRef,
 }) => {
   const { t } = useTranslation();
@@ -339,6 +349,19 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
   const sectionHeading =
     'text-xxs font-black text-slate-700 uppercase tracking-widest mb-2';
 
+  const styleDefaultsState = useMemo(
+    () =>
+      styleDefaults
+        ? computeStyleDefaults(
+            config,
+            styleDefaults.widgetDefaults,
+            styleDefaults.buildingConfig,
+            styleDefaults.saved
+          )
+        : null,
+    [config, styleDefaults]
+  );
+
   let body: React.ReactNode;
   if (isFiltering) {
     body = hasMatches(filtered) ? (
@@ -423,6 +446,15 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
           <div className={sectionHeading}>{resolve('style.windowTier')}</div>
           {windowTier}
         </section>
+        {styleDefaults && styleDefaultsState && (
+          <StyleDefaultsFooter
+            state={styleDefaultsState}
+            widgetName={toolLabel?.(widget.type) ?? title}
+            onSave={() => styleDefaults.onSave(styleDefaultsState.toSave)}
+            onReset={() => updateConfig(styleDefaultsState.resetPatch)}
+            t={t}
+          />
+        )}
       </div>
     );
   }

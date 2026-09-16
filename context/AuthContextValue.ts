@@ -194,6 +194,8 @@ export interface AuthContextType {
    * whole config object.
    */
   saveWidgetConfig: (type: WidgetType, config: Partial<WidgetConfig>) => void;
+  /** Replace a widget type's appearance default outright (explicit "Save as my default"); immediate write. */
+  saveWidgetDefault: (type: WidgetType, config: Partial<WidgetConfig>) => void;
   /** Opt-in preset libraries the teacher explicitly saved, by widget type */
   savedWidgetPresets: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** Save an explicit preset library account-wide (debounced Firestore write) */

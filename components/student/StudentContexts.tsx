@@ -72,6 +72,9 @@ const mockAuth: AuthContextType = {
   saveWidgetConfig: () => {
     // No-op
   },
+  saveWidgetDefault: () => {
+    // No-op
+  },
   savedWidgetPresets: {},
   saveWidgetPreset: () => {
     // No-op

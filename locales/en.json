@@ -1335,6 +1335,12 @@
       "rosterStudentCount_other": "{{count}} students",
       "partner": {
         "add": "Add {{name}} widget"
+      },
+      "defaults": {
+        "matches": "Matches your default for new {{name}} widgets.",
+        "differs": "Differs from your default for new {{name}} widgets.",
+        "save": "Save as my default",
+        "reset": "Reset to my default"
       }
     },
     "lunchCount": {

@@ -6,7 +6,7 @@ import type { Field } from '@/components/settings/schema/types';
 import {
   FONT_COLOR_PRESETS,
   TEXT_COLOR_SWATCHES,
-  WINDOW_BACKGROUND_PRESETS,
+  NOTE_COLOR_PRESETS,
 } from '@/config/widgetAppearance';
 import { makeCtx, widget } from './testUtils';
 
@@ -71,9 +71,9 @@ describe('drawer-surface field presentations', () => {
     }
   });
 
-  it('uses background presets for a bgColor field in the drawer', () => {
+  it('uses sticky-note presets for a bgColor field in the drawer', () => {
     renderField({ type: 'color', key: 'bgColor', label: 'label' });
-    for (const preset of WINDOW_BACKGROUND_PRESETS) {
+    for (const preset of NOTE_COLOR_PRESETS) {
       expect(
         screen.getByRole('radio', { name: new RegExp(`${preset.name}$`) })
       ).toBeInTheDocument();

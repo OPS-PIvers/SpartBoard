@@ -5,7 +5,7 @@ import { ColorPresetPicker } from '@/components/common/ColorPresetPicker';
 import {
   FONT_COLOR_PRESETS,
   TEXT_COLOR_SWATCHES,
-  WINDOW_BACKGROUND_PRESETS,
+  NOTE_COLOR_PRESETS,
   ColorPreset,
 } from '@/config/widgetAppearance';
 import { resolveLabel } from '../resolveLabel';
@@ -32,7 +32,7 @@ export const Color: React.FC<FieldProps<ColorField<string>>> = ({
       : ctx.surface !== 'drawer'
         ? TEXT_COLOR_SWATCHES
         : field.key === 'bgColor'
-          ? WINDOW_BACKGROUND_PRESETS
+          ? NOTE_COLOR_PRESETS
           : FONT_COLOR_PRESETS;
   const current = typeof value === 'string' ? value : undefined;
   const isTransparent = current === TRANSPARENT;
