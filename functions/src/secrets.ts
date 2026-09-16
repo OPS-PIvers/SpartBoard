@@ -17,3 +17,11 @@ export const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
 );
 export const GOOGLE_OAUTH_CLIENT_ID = defineSecret('GOOGLE_OAUTH_CLIENT_ID');
+// The other two legs of the offline-grant trio. Any function that calls
+// `refreshGoogleAccessTokenForUid` must bind all three.
+export const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret(
+  'GOOGLE_OAUTH_CLIENT_SECRET'
+);
+export const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
+  'GOOGLE_OAUTH_REFRESH_TOKEN_KEY'
+);

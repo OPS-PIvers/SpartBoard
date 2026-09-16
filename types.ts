@@ -113,6 +113,24 @@ export interface Student {
 }
 
 /**
+ * What the nightly ClassLink sync changed, as stored in the roster's Drive
+ * file. Holds student names, so it must never be copied onto the Firestore
+ * roster doc — see `RosterSyncCounts` for the Firestore-safe half.
+ */
+export interface RosterSyncSummary {
+  at: number;
+  added: string[];
+  removed: string[];
+}
+
+/** The PII-free half of a sync summary, safe for the Firestore roster doc. */
+export interface RosterSyncCounts {
+  at: number;
+  addedCount: number;
+  removedCount: number;
+}
+
+/**
  * Shape of the Firestore roster document — contains NO student PII.
  * Student names/PII live exclusively in a Google Drive file (driveFileId).
  */
@@ -158,6 +176,8 @@ export interface ClassRosterMeta {
   classlinkOrgId?: string;
   /** Epoch ms of the last ClassLink import or merge for this roster. */
   classlinkSyncedAt?: number;
+  /** Counts from the last nightly sync. Names stay in Drive (`lastSync`). */
+  classlinkSyncSummary?: RosterSyncCounts;
   /**
    * Google Classroom `courseId` this ClassLink roster is linked to, set via the
    * "Link to Google Classroom" action. Mirrors the canonical mapping stored at
