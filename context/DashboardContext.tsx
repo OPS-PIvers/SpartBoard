@@ -5888,6 +5888,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const changes = updateMap.get(w.id);
               if (!changes) return w;
               const merged = { ...w, ...changes };
+              // Bump version so version-gated dirty checks (onSnapshot merge, autosave) see this config edit.
+              if (
+                'config' in changes &&
+                stableStringify(w.config) !== stableStringify(changes.config)
+              ) {
+                merged.version = (w.version ?? 1) + 1;
+              }
               const isResize = 'w' in changes || 'h' in changes;
               // Flip-only batches must not re-derive proportional bounds (plan §4.9).
               if (!isResize && !('x' in changes) && !('y' in changes))
