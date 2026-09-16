@@ -99,7 +99,6 @@ export interface AnnotationState {
   objects: DrawableObject[];
   color: string;
   width: number;
-  customColors: string[];
   /** Active drawing tool. Defaults to `'pen'`. */
   activeTool: ShapeTool;
   /** Fill rectangles/ellipses with the current color when true. */

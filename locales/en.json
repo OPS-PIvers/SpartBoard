@@ -2830,6 +2830,15 @@
     "clearConfirmAction": "Clear",
     "chromeInertHint": "Pick Select to use the dock again"
   },
+  "penColors": {
+    "group": "Pen colors",
+    "preset": "Pen color {{index}}",
+    "editHint": "Right-click or long-press to change",
+    "custom": "Custom color",
+    "change": "Change color {{index}}",
+    "reset": "Reset pen colors",
+    "done": "Done"
+  },
   "helpCenter": {
     "title": "Help",
     "widgetHelp": "Guides for this widget",

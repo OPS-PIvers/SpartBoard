@@ -15,6 +15,7 @@ import {
 } from 'firebase/auth';
 import {
   FieldPath,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -98,6 +99,7 @@ import {
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
+import { normalizePenColors } from '@/utils/penColors';
 
 // The operator's own organization. Two narrow uses remain after dynamic
 // org resolution shipped:
@@ -347,6 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [materialsPreferences, setMaterialsPreferences] =
     useState<MaterialsPreferences>({});
+  const [penColors, setPenColors] = useState<string[] | null>(null);
   // Initialise from i18n.language. If i18n.init() hasn't resolved its async
   // language detection yet, the useEffect below will sync the state once it fires.
   const [language, setLanguageState] = useState<string>(
@@ -427,6 +430,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const materialsPrefsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const penColorsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const widgetPresetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const migratedConfigsForUidRef = useRef<string | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
@@ -1660,6 +1664,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setSavedWidgetConfigs({});
       setSavedWidgetPresets({});
       setCustomMaterials([]);
+      setPenColors(null);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
       setDockPositionState('bottom');
@@ -1797,6 +1802,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               ? (data.materialsPreferences as MaterialsPreferences)
               : {}
           );
+          setPenColors(normalizePenColors(data.penColors));
 
           // Decide setupCompleted. The wizard writes `setupCompleted: true` on
           // finish, so any of the following counts as "already set up":
@@ -2567,6 +2573,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  const savePenColors = useCallback(
+    (colors: string[] | null) => {
+      const next = colors === null ? null : normalizePenColors(colors);
+      if (colors !== null && next === null) return;
+      setPenColors(next);
+      if (penColorsTimeoutRef.current) {
+        clearTimeout(penColorsTimeoutRef.current);
+      }
+      penColorsTimeoutRef.current = setTimeout(() => {
+        if (!user || isAuthBypass) return;
+        const myToken = ++writeTokenRef.current;
+        setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { penColors: next ?? deleteField() },
+          { merge: true }
+        ).catch((error) => {
+          if (myToken === writeTokenRef.current) {
+            console.error('Error saving pen colors:', error);
+          }
+        });
+      }, 1000);
+    },
+    [user]
+  );
+
   const RECENT_CAP = 12;
 
   const toggleFavoriteBackground = useCallback(
@@ -3180,6 +3211,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         saveCustomMaterials,
         materialsPreferences,
         saveMaterialsPreferences,
+        penColors,
+        savePenColors,
         profileLoaded,
         setupCompleted,
         completeSetup,

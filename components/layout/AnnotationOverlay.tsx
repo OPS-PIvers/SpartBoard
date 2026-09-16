@@ -57,6 +57,7 @@ import { useSelection } from '@/components/widgets/DrawingWidget/useSelection';
 import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
 import { applyTextWrapOnResize } from '@/components/widgets/DrawingWidget/renderers/text';
 import { Button } from '@/components/common/Button';
+import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { extractTextWithGemini } from '@/utils/ai';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
@@ -95,14 +96,12 @@ const FALLBACK_ANNOTATION_STATE: {
   objects: DrawableObject[];
   color: string;
   width: number;
-  customColors: string[];
   activeTool: ShapeTool;
   shapeFill: boolean;
 } = {
   objects: [],
   color: STANDARD_COLORS.slate,
   width: DRAWING_DEFAULTS.WIDTH,
-  customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
   activeTool: DRAWING_DEFAULTS.ACTIVE_TOOL,
   shapeFill: DRAWING_DEFAULTS.SHAPE_FILL,
 };
@@ -699,7 +698,7 @@ export const AnnotationOverlay: React.FC = () => {
 
   if (!shouldRender || !portalTarget || !canvasTarget) return null;
 
-  const { color, width, customColors, objects, activeTool } = annotationState;
+  const { color, width, objects, activeTool } = annotationState;
   const isErasing = activeTool === 'eraser';
 
   // Passive (toolbar closed or viewer): ink paints but never takes pointer.
@@ -802,24 +801,17 @@ export const AnnotationOverlay: React.FC = () => {
             </div>
 
             <div
-              className={`flex gap-1 bg-slate-100 p-1 rounded-lg transition-opacity ${
+              className={`transition-opacity ${
                 isErasing ? 'opacity-50 pointer-events-none' : ''
               }`}
               aria-hidden={isErasing}
             >
-              {customColors.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => updateAnnotationState({ color: c })}
-                  className={`w-7 h-7 rounded-md transition-all ${
-                    color === c
-                      ? 'scale-110 shadow-sm ring-2 ring-indigo-500'
-                      : 'hover:scale-105'
-                  }`}
-                  style={{ backgroundColor: c }}
-                  aria-label={`Color ${c}`}
-                />
-              ))}
+              <PenColorSwatches
+                variant="annotation"
+                value={color}
+                onSelect={(c) => updateAnnotationState({ color: c })}
+                className="flex gap-1 bg-slate-100 p-1 rounded-lg"
+              />
             </div>
 
             {/* Width slider */}

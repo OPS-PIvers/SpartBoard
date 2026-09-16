@@ -106,7 +106,6 @@ const baseState = (
   objects: [],
   color: '#000000',
   width: 4,
-  customColors: ['#000000', '#ff0000', '#00ff00', '#0000ff'],
   activeTool: 'pen',
   shapeFill: false,
   ...overrides,

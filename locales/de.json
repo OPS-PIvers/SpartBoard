@@ -2444,6 +2444,15 @@
     "clearConfirmAction": "Löschen",
     "chromeInertHint": "Wähle „Auswahl“, um das Dock wieder zu nutzen"
   },
+  "penColors": {
+    "group": "Stiftfarben",
+    "preset": "Stiftfarbe {{index}}",
+    "editHint": "Rechtsklick oder lange drücken zum Ändern",
+    "custom": "Eigene Farbe",
+    "change": "Farbe {{index}} ändern",
+    "reset": "Stiftfarben zurücksetzen",
+    "done": "Fertig"
+  },
   "helpCenter": {
     "title": "Hilfe",
     "widgetHelp": "Anleitungen für dieses Widget",

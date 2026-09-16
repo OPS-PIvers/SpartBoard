@@ -208,6 +208,10 @@ export interface AuthContextType {
   materialsPreferences: MaterialsPreferences;
   /** Replace the Materials preferences (debounced Firestore write) */
   saveMaterialsPreferences: (preferences: MaterialsPreferences) => void;
+  /** Teacher's 5 pen presets shared by every pen toolbar; null = use building/app defaults */
+  penColors: string[] | null;
+  /** Replace the pen presets, or pass null to reset (debounced Firestore write) */
+  savePenColors: (colors: string[] | null) => void;
   /** True once the profile Firestore fetch has resolved (success or error) */
   profileLoaded: boolean;
   /** True after the user completes the first-time setup wizard */

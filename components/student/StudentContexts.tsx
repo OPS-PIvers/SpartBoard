@@ -85,6 +85,10 @@ const mockAuth: AuthContextType = {
   saveMaterialsPreferences: () => {
     // No-op
   },
+  penColors: null,
+  savePenColors: () => {
+    // No-op
+  },
   profileLoaded: true,
   setupCompleted: true,
   completeSetup: async () => {
@@ -393,7 +397,6 @@ const mockDashboard: DashboardContextValue = {
     objects: [],
     color: '#000000',
     width: 4,
-    customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
     activeTool: 'pen',
     shapeFill: false,
   },

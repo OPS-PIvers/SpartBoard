@@ -40,7 +40,6 @@ describe('consolidated field-level widget settings migration', () => {
     expect(customFields.map((field) => field.key).sort()).toEqual(
       [
         'completedNames',
-        'customColors',
         'lastResult',
         'lastSync',
         'numExpertGroups',

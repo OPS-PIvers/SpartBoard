@@ -4,6 +4,7 @@ import { DrawingWidget } from './Widget';
 import { WidgetData, DrawingConfig, DrawableObject } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { DEFAULT_PEN_COLORS } from '@/utils/penColors';
 
 /**
  * Phase 2 PR 2.3 helper — every updateWidget(...) payload now carries the
@@ -153,7 +154,6 @@ describe('DrawingWidget', () => {
       color: '#000000',
       width: 4,
       objects: [],
-      customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
     } as DrawingConfig,
   };
 
@@ -272,11 +272,11 @@ describe('DrawingWidget', () => {
     // toolbar redesign). Open it by clicking the already-active Arrow tool
     // button — that toggles the popover open without changing activeTool.
     fireEvent.click(getByLabelText('Arrow'));
-    fireEvent.click(getByLabelText('Color #ff0000'));
+    fireEvent.click(getByLabelText('Pen color 3'));
     const lastCall =
       mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
     const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
-    expect(cfg.color).toBe('#ff0000');
+    expect(cfg.color).toBe(DEFAULT_PEN_COLORS[2]);
     // activeTool stays as it was — the color click did not flip it back to pen.
     expect(cfg.activeTool).toBe('arrow');
   });

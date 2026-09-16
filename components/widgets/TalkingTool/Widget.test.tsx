@@ -90,6 +90,10 @@ const mockAuthContext = (
   saveMaterialsPreferences: () => {
     /* mock */
   },
+  penColors: null,
+  savePenColors: () => {
+    /* mock */
+  },
   profileLoaded: true,
   setupCompleted: true,
   completeSetup: async () => {

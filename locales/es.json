@@ -2444,6 +2444,15 @@
     "clearConfirmAction": "Borrar",
     "chromeInertHint": "Elige Seleccionar para volver a usar el dock"
   },
+  "penColors": {
+    "group": "Colores del lápiz",
+    "preset": "Color del lápiz {{index}}",
+    "editHint": "Haz clic derecho o mantén pulsado para cambiarlo",
+    "custom": "Color personalizado",
+    "change": "Cambiar color {{index}}",
+    "reset": "Restablecer colores del lápiz",
+    "done": "Listo"
+  },
   "helpCenter": {
     "title": "Ayuda",
     "widgetHelp": "Guías para este widget",

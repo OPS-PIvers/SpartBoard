@@ -47,6 +47,7 @@ import { hitTestObject, isObjectEnclosedByPolygon } from './hitTest';
 import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
+import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
@@ -118,7 +119,6 @@ export const DrawingWidget: React.FC<{
     width = DRAWING_DEFAULTS.WIDTH,
     pages,
     currentPage,
-    customColors = DRAWING_DEFAULTS.CUSTOM_COLORS,
     activeTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
     eraserMode = DRAWING_DEFAULTS.ERASER_MODE,
     shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
@@ -199,7 +199,6 @@ export const DrawingWidget: React.FC<{
   // `+` custom-color button. We click the input programmatically rather than
   // rendering it visibly because the native swatch UI looks out of place
   // inside the dark popover.
-  const customColorInputRef = useRef<HTMLInputElement>(null);
   // Snapshot of the TextObject currently being edited via TextEditorOverlay.
   // Stored locally (not in config.objects) until commit, so the editor can
   // position itself off the snapshot without round-tripping through Firestore.
@@ -1363,21 +1362,6 @@ export const DrawingWidget: React.FC<{
         </div>
       </div>
 
-      {/* Hidden input that backs the `+` custom-color button in the tool
-          popover. Lives on the toolbar (always mounted) so its click handler
-          and value stay stable across popover open/close cycles. */}
-      <input
-        ref={customColorInputRef}
-        type="color"
-        value={color}
-        onChange={(e) => setColor(e.target.value)}
-        // sr-only keeps the input in the accessibility tree (label
-        // announces correctly) while hiding it visually.
-        className="sr-only"
-        aria-label="Custom color"
-        tabIndex={-1}
-      />
-
       {/* Per-tool options popover (color swatches + stroke width slider).
           Portalled into document.body so the widget's `overflow-hidden`
           shell can't clip it — same pattern as the export popover. */}
@@ -1439,45 +1423,14 @@ export const DrawingWidget: React.FC<{
               </div>
             )}
 
-            {/* Color row — hidden when the eraser popover is showing
-                (eraser ignores stroke color). `justify-between` spreads the
-                5 swatches + custom button across the full popover width so
-                the row visually aligns edge-to-edge with the slider row
-                below it (no awkward trailing gap on the right). */}
+            {/* Color row — hidden for the eraser, which ignores stroke color. */}
             {toolPopover !== 'eraser' && (
-              <div className="flex items-center justify-between mb-3">
-                {customColors.map((c) => {
-                  const isActive = color === c;
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setColor(c)}
-                      className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-                        isActive
-                          ? 'ring-2 ring-white scale-110 shadow-sm'
-                          : 'ring-1 ring-white/20 hover:scale-110'
-                      }`}
-                      style={{ backgroundColor: c }}
-                      aria-label={`Color ${c}`}
-                      title={`Color ${c}`}
-                    />
-                  );
-                })}
-                {/* Custom color trigger — opens the native color picker via
-                    the hidden input on the toolbar. */}
-                <button
-                  type="button"
-                  onClick={() => customColorInputRef.current?.click()}
-                  className="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800/60 ring-1 ring-white/20 text-slate-300 hover:bg-slate-700/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                  title="Custom color"
-                  aria-label="Pick a custom color"
-                >
-                  <span className="text-lg leading-none" aria-hidden>
-                    +
-                  </span>
-                </button>
-              </div>
+              <PenColorSwatches
+                variant="whiteboard"
+                value={color}
+                onSelect={setColor}
+                className="flex items-center justify-between mb-3"
+              />
             )}
 
             {/* Stroke width slider — full 1–80px range, matched to the
