@@ -954,7 +954,9 @@ export const getPseudonymsForAssignmentV1 = onCall(
 // only opaque hashes and ids.
 
 const PIN_INDEX_SUBCOLLECTION = 'pin_index';
-const PIN_INDEX_MAX_ENTRIES = 200;
+/** Exported so the nightly sync caps its entries at the same value rather
+ *  than mirroring the literal and silently drifting from it. */
+export const PIN_INDEX_MAX_ENTRIES = 200;
 
 /**
  * Mirror of `encodeResponseKeySegment` in `useQuizSession.ts`. Duplicated
@@ -1090,7 +1092,35 @@ export const commitRosterPinIndexV1 = onCall(
     if (!rosterSnap.exists) {
       throw new HttpsError('not-found', 'Roster not found.');
     }
-    const rosterData = rosterSnap.data() ?? {};
+    const result = await reconcileRosterPinIndex(
+      db,
+      rosterRef,
+      rosterSnap.data() ?? {},
+      entries,
+      hmacSecret
+    );
+    return { ...result, skippedMalformed };
+  }
+);
+
+/**
+ * Write the `pin_index` sidecar for a roster and delete entries no longer
+ * desired. Extracted from `commitRosterPinIndexV1` so the nightly ClassLink
+ * sync can reconcile the same sidecar with no teacher in the request — a
+ * removed student whose entry survived would still pass the PIN→SSO gate.
+ */
+export async function reconcileRosterPinIndex(
+  db: admin.firestore.Firestore,
+  rosterRef: admin.firestore.DocumentReference,
+  rosterData: admin.firestore.DocumentData,
+  entries: readonly CommitRosterPinIndexEntry[],
+  hmacSecret: string
+): Promise<{
+  wrote: number;
+  deleted: number;
+  skippedReason?: 'no-classlink-class-id';
+}> {
+  {
     const classlinkClassId =
       typeof rosterData.classlinkClassId === 'string' &&
       rosterData.classlinkClassId.length > 0
@@ -1112,7 +1142,6 @@ export const commitRosterPinIndexV1 = onCall(
       return {
         wrote: 0,
         deleted: 0,
-        skippedMalformed,
         skippedReason: 'no-classlink-class-id' as const,
       };
     }
@@ -1166,9 +1195,9 @@ export const commitRosterPinIndexV1 = onCall(
     }
 
     await batch.commit();
-    return { wrote, deleted, skippedMalformed };
+    return { wrote, deleted };
   }
-);
+}
 
 interface PinLoginRequestData {
   kind?: unknown;

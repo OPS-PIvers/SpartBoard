@@ -3037,6 +3037,7 @@ describe('index barrel — deployed export set', () => {
   const EXPECTED_EXPORTS = [
     // ClassLink roster
     'getClassLinkRosterV1',
+    'classlinkRosterSync',
     // AI generation + test-only validators/introspection
     'generateWithAI',
     'generateVideoActivity',

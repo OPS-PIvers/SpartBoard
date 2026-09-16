@@ -590,6 +590,46 @@ describe('useRosters — updateRoster', () => {
     expect(result.current.rosters[0].students[1].pin).toBe('02');
   });
 
+  // The nightly ClassLink sync records what it added/removed in the roster's
+  // Drive file (names can't go on the PII-free Firestore doc). A teacher edit
+  // must carry that block through instead of silently erasing it.
+  it('preserves the sync summary through a teacher edit', async () => {
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    const lastSync = {
+      at: 123,
+      added: ['Zoe Quinn'],
+      removed: ['Alan Turing'],
+    };
+    currentDriveService = makeDriveService({
+      updateFileContent,
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [],
+          defaultOverridesByStudentId: {},
+          lastSync,
+        })
+      ),
+    });
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', { driveFileId: 'file-1', studentCount: 1 }),
+    ]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.updateRoster('r1', {
+        students: [student({ id: 's1' }), student({ id: 's2', pin: '' })],
+      });
+    });
+
+    const body = (await readBlobBody(
+      updateFileContent.mock.calls[0][1] as Blob
+    )) as RosterFileBody & { lastSync?: unknown };
+    expect(body.lastSync).toEqual(lastSync);
+  });
+
   it('reverts the optimistic update and throws when the Drive upload fails', async () => {
     currentDriveService = makeDriveService({
       downloadFile: vi

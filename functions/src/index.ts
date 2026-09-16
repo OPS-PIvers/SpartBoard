@@ -18,6 +18,7 @@
 
 // ── ClassLink roster (teacher-side OneRoster import) ───────────────────────
 export { getClassLinkRosterV1 } from './classlinkRoster';
+export { classlinkRosterSync } from './classlinkRosterSync';
 
 // ── AI generation (Gemini): quiz / video-activity / guided-learning / etc. ─
 // Includes the test-only validator + cache-introspection re-exports the test
