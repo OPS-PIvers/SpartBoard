@@ -38,7 +38,9 @@
     "selectBoard": "Select board",
     "selectCollection": "Select collection",
     "boardList": "All boards",
-    "manageAllBoards": "Manage all boards…",
+    "manageAllBoards": "Manage all boards",
+    "renameBoard": "Rename board",
+    "movedTo": "Moved to “{{name}}”",
     "pinned": "Pinned"
   },
   "boardZoom": {
@@ -1921,7 +1923,9 @@
   },
   "collectionSwitcher": {
     "title": "Switch Collection",
-    "root": "No Collection"
+    "root": "No Collection",
+    "renameCollection": "Rename collection",
+    "renameFailed": "Failed to rename Collection"
   },
   "boardsModal": {
     "title": "Boards & Collections",

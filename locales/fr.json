@@ -37,7 +37,9 @@
     "next": "Tableau suivant",
     "selectBoard": "Sélectionner un tableau",
     "boardList": "Tous les tableaux",
-    "manageAllBoards": "Gérer tous les tableaux…",
+    "manageAllBoards": "Gérer tous les tableaux",
+    "renameBoard": "Renommer le tableau",
+    "movedTo": "Déplacé vers « {{name}} »",
     "pinned": "Épinglé",
     "selectCollection": "Sélectionner une collection"
   },
@@ -1551,7 +1553,9 @@
   },
   "collectionSwitcher": {
     "title": "Changer de collection",
-    "root": "Aucune collection"
+    "root": "Aucune collection",
+    "renameCollection": "Renommer la collection",
+    "renameFailed": "Impossible de renommer la Collection"
   },
   "boardsModal": {
     "title": "Tableaux et Collections",

@@ -1,14 +1,27 @@
-import { type FC, useMemo, useEffect, useRef } from 'react';
+import { type FC, useMemo, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Folder, Home } from 'lucide-react';
+import { Folder, Home, Pencil, Plus } from 'lucide-react';
 import type { Collection } from '@/types';
+import { InlineNameInput, RowActionButton } from './boardNavMenuParts';
+import {
+  MENU_HEADER_CLASS,
+  MENU_PANEL_CLASS,
+  ROW_ACTIONS_CLASS,
+  flattenCollections,
+  moveFocusWithinRow,
+  refocusIfLost,
+} from './boardNavMenu';
 
 interface CollectionSwitcherMenuProps {
   collections: Collection[];
   activeCollectionId: string | null;
   onSelect: (collectionId: string | null) => void;
   onClose: () => void;
+  /** Enables the inline rename action on each Collection row. */
+  onRename?: (collectionId: string, name: string) => void;
+  /** Enables the "New Collection" row at the bottom of the menu. */
+  onCreate?: (name: string) => void;
 }
 
 /**
@@ -23,33 +36,19 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
   activeCollectionId,
   onSelect,
   onClose,
+  onRename,
+  onCreate,
 }) => {
   const { t } = useTranslation();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
-  // itemRefs[0] = root button, itemRefs[1..n] = Collection buttons in flat order.
+  // itemRefs[0] = root button, itemRefs[1..n] = Collection buttons in flat
+  // order, itemRefs[n + 1] = "New Collection" (when onCreate is provided).
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const flat = useMemo(() => {
-    const childrenByParent = new Map<string | null, Collection[]>();
-    for (const c of collections) {
-      const bucket = childrenByParent.get(c.parentCollectionId) ?? [];
-      bucket.push(c);
-      childrenByParent.set(c.parentCollectionId, bucket);
-    }
-    for (const bucket of childrenByParent.values()) {
-      bucket.sort((a, b) => a.order - b.order);
-    }
-    const out: { c: Collection; depth: number }[] = [];
-    const walk = (parent: string | null, depth: number) => {
-      const kids = childrenByParent.get(parent) ?? [];
-      for (const k of kids) {
-        out.push({ c: k, depth });
-        walk(k.id, depth + 1);
-      }
-    };
-    walk(null, 0);
-    return out;
-  }, [collections]);
+  const flat = useMemo(() => flattenCollections(collections), [collections]);
 
   // Auto-focus the active collection item exactly once when the submenu mounts.
   // Empty deps array is intentional: this is mount-time focus seeding, not a
@@ -67,23 +66,26 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Use the known item count as the upper bound. `itemRefs.current` is
+  // index-keyed and not pruned when Collections change, so its `.length` can
+  // overshoot the last live entry.
+  const lastIdx = flat.length + (onCreate ? 1 : 0);
+
   const focusItem = (idx: number) => {
-    const total = 1 + flat.length;
-    if (total === 0) return;
+    const total = lastIdx + 1;
     const wrapped = ((idx % total) + total) % total;
     itemRefs.current[wrapped]?.focus();
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const active = document.activeElement;
     const focused = itemRefs.current.findIndex(
-      (el) => el === document.activeElement
+      (el, i) =>
+        i <= lastIdx &&
+        !!el &&
+        (el === active ||
+          (!!active && !!el.closest('[data-menu-row]')?.contains(active)))
     );
-    // Use the known flat item count as the upper bound. `itemRefs.current`
-    // is index-keyed and not pruned when Collections change, so its
-    // `.length` can overshoot the last live entry — pressing End on a
-    // stale ref array would focus a `null` slot. `flat.length` (plus
-    // the root button at index 0) gives the correct last index.
-    const lastIdx = flat.length;
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
@@ -99,6 +101,22 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         e.preventDefault();
         focusItem(focused < 0 ? lastIdx : focused - 1);
         break;
+      case 'ArrowRight':
+        moveFocusWithinRow(e, 1);
+        break;
+      case 'ArrowLeft':
+        moveFocusWithinRow(e, -1);
+        break;
+      case 'F2': {
+        const id = active
+          ?.closest<HTMLElement>('[data-collection-id]')
+          ?.getAttribute('data-collection-id');
+        if (id && onRename) {
+          e.preventDefault();
+          setEditingId(id);
+        }
+        break;
+      }
       case 'Home':
         e.preventDefault();
         focusItem(0);
@@ -114,16 +132,24 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     }
   };
 
+  const itemClass = (isActive: boolean) =>
+    `w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+      isActive
+        ? 'bg-brand-blue-primary text-white'
+        : 'text-white/80 hover:bg-white/10'
+    }`;
+
   return (
     <div
+      ref={menuRef}
       role="menu"
       onKeyDown={handleKeyDown}
       aria-label={t('collectionSwitcher.title', {
         defaultValue: 'Switch Collection',
       })}
-      className="absolute bottom-full left-0 mb-2 w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl py-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
+      className={MENU_PANEL_CLASS}
     >
-      <div className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40">
+      <div className={MENU_HEADER_CLASS}>
         {t('collectionSwitcher.title', { defaultValue: 'Switch Collection' })}
       </div>
       <button
@@ -135,43 +161,127 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
           onSelect(null);
           onClose();
         }}
-        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
-          activeCollectionId === null
-            ? 'bg-brand-blue-primary text-white'
-            : 'text-white/80 hover:bg-white/10'
-        }`}
+        className={itemClass(activeCollectionId === null)}
       >
         <Home className="w-3.5 h-3.5 flex-shrink-0" />
         {t('collectionSwitcher.root', { defaultValue: 'No Collection' })}
       </button>
       {flat.map(({ c, depth }, index) => {
         const isActive = activeCollectionId === c.id;
+        if (editingId === c.id && onRename) {
+          return (
+            <InlineNameInput
+              key={c.id}
+              initialValue={c.name}
+              placeholder={t('boardsModal.newCollectionPrompt', {
+                defaultValue: 'Collection name',
+              })}
+              ariaLabel={t('collectionSwitcher.renameCollection', {
+                defaultValue: 'Rename collection',
+              })}
+              commitOnBlur
+              onCommit={(name) => {
+                setEditingId(null);
+                onRename(c.id, name);
+                refocusIfLost(
+                  menuRef.current,
+                  `[data-collection-id="${c.id}"] [role="menuitem"]`
+                );
+              }}
+              onCancel={() => {
+                setEditingId(null);
+                refocusIfLost(
+                  menuRef.current,
+                  `[data-collection-id="${c.id}"] [role="menuitem"]`
+                );
+              }}
+            />
+          );
+        }
         return (
-          <button
+          <div
             key={c.id}
-            ref={(el) => {
-              itemRefs.current[index + 1] = el;
-            }}
-            role="menuitem"
-            onClick={() => {
-              onSelect(c.id);
-              onClose();
-            }}
-            style={{ paddingLeft: `${0.75 + depth * 1}rem` }}
-            className={`w-full flex items-center gap-2 pr-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+            data-menu-row
+            data-collection-id={c.id}
+            className={`group flex items-center transition-colors ${
               isActive
                 ? 'bg-brand-blue-primary text-white'
                 : 'text-white/80 hover:bg-white/10'
             }`}
           >
-            <Folder
-              className="w-3.5 h-3.5 flex-shrink-0"
-              style={c.color ? { color: c.color } : undefined}
-            />
-            <span className="truncate">{c.name}</span>
-          </button>
+            <button
+              ref={(el) => {
+                itemRefs.current[index + 1] = el;
+              }}
+              role="menuitem"
+              onClick={() => {
+                onSelect(c.id);
+                onClose();
+              }}
+              style={{ paddingLeft: `${0.75 + depth * 1}rem` }}
+              className={`min-w-0 flex-1 flex items-center gap-2 pr-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+                isActive ? 'bg-brand-blue-primary text-white' : 'text-white/80'
+              }`}
+            >
+              <Folder
+                className="w-3.5 h-3.5 flex-shrink-0"
+                style={c.color ? { color: c.color } : undefined}
+              />
+              <span className="truncate">{c.name}</span>
+            </button>
+            {onRename && (
+              <div className={ROW_ACTIONS_CLASS}>
+                <RowActionButton
+                  icon={Pencil}
+                  label={t('collectionSwitcher.renameCollection', {
+                    defaultValue: 'Rename collection',
+                  })}
+                  onClick={() => setEditingId(c.id)}
+                />
+              </div>
+            )}
+          </div>
         );
       })}
+      {onCreate && (
+        <div className="mt-1 border-t border-white/10 pt-1">
+          {isCreating ? (
+            <InlineNameInput
+              placeholder={t('boardsModal.newCollectionPrompt', {
+                defaultValue: 'Collection name',
+              })}
+              ariaLabel={t('boardsModal.newCollection', {
+                defaultValue: 'New Collection',
+              })}
+              commitOnBlur={false}
+              onCommit={(name) => {
+                setIsCreating(false);
+                onCreate(name);
+                refocusIfLost(menuRef.current, '[data-new-collection]');
+              }}
+              onCancel={() => {
+                setIsCreating(false);
+                refocusIfLost(menuRef.current, '[data-new-collection]');
+              }}
+            />
+          ) : (
+            <button
+              ref={(el) => {
+                itemRefs.current[flat.length + 1] = el;
+              }}
+              role="menuitem"
+              data-new-collection
+              onClick={() => setIsCreating(true)}
+              className={itemClass(false)}
+            >
+              <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+              {t('boardsModal.newCollection', {
+                defaultValue: 'New Collection',
+              })}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

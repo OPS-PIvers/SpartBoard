@@ -62,15 +62,32 @@ const mockContext = (
     dashboard('d1', 'A'),
     dashboard('d2', 'B'),
   ];
+  const actions = {
+    createNewDashboard: vi.fn().mockResolvedValue('new-id'),
+    renameDashboard: vi.fn().mockResolvedValue(undefined),
+    moveBoardToCollection: vi.fn().mockResolvedValue(undefined),
+    addToast: vi.fn(),
+    createCollection: vi.fn().mockResolvedValue('c-new'),
+    renameCollection: vi.fn().mockResolvedValue(undefined),
+  };
   useDashboardMock.mockReturnValue({
     dashboards,
     activeDashboard: over.active ?? dashboards[0],
     loadDashboard: over.loadDashboard ?? vi.fn(),
     setActiveCollectionId: over.setActiveCollectionId ?? vi.fn(),
+    createNewDashboard: actions.createNewDashboard,
+    renameDashboard: actions.renameDashboard,
+    moveBoardToCollection: actions.moveBoardToCollection,
+    addToast: actions.addToast,
     annotationActive: over.annotationActive ?? false,
     annotationState: { activeTool: over.annotationTool ?? 'select' },
-    collectionsApi: { collections: over.collections ?? [] },
+    collectionsApi: {
+      collections: over.collections ?? [],
+      createCollection: actions.createCollection,
+      renameCollection: actions.renameCollection,
+    },
   });
+  return actions;
 };
 
 describe('BoardNavFab', () => {
@@ -187,8 +204,8 @@ describe('BoardNavFab', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /select board/i })
       );
-      expect(screen.getByRole('menuitem', { name: /A/ })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /B/ })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'A' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'B' })).toBeInTheDocument();
     });
 
     it('no longer contains a "Switch Collection…" item', async () => {
@@ -216,7 +233,7 @@ describe('BoardNavFab', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /select board/i })
       );
-      await userEvent.click(screen.getByRole('menuitem', { name: /B/ }));
+      await userEvent.click(screen.getByRole('menuitem', { name: 'B' }));
       expect(loadDashboard).toHaveBeenCalledWith('d2');
     });
 
@@ -266,7 +283,7 @@ describe('BoardNavFab', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /select board/i })
       );
-      const item = screen.getByRole('menuitem', { name: /A/ });
+      const item = screen.getByRole('menuitem', { name: 'A' });
       expect(document.activeElement).toBe(item);
 
       const windowKeydownSpy = vi.fn();
@@ -277,6 +294,136 @@ describe('BoardNavFab', () => {
       } finally {
         window.removeEventListener('keydown', windowKeydownSpy);
       }
+    });
+  });
+
+  describe('inline board management', () => {
+    const openBoards = () =>
+      userEvent.click(screen.getByRole('button', { name: /select board/i }));
+
+    it('creates a board in the active collection from the New Board row', async () => {
+      const actions = mockContext();
+      render(<BoardNavFab />);
+      await openBoards();
+      await userEvent.click(
+        screen.getByRole('menuitem', { name: 'New Board' })
+      );
+      await userEvent.type(
+        screen.getByRole('textbox', { name: 'New Board' }),
+        'Science{Enter}'
+      );
+      expect(actions.createNewDashboard).toHaveBeenCalledWith(
+        'Science',
+        undefined,
+        { collectionId: null }
+      );
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('cancels New Board on Escape without closing the menu', async () => {
+      const actions = mockContext();
+      render(<BoardNavFab />);
+      await openBoards();
+      await userEvent.click(
+        screen.getByRole('menuitem', { name: 'New Board' })
+      );
+      await userEvent.type(
+        screen.getByRole('textbox', { name: 'New Board' }),
+        'Draft{Escape}'
+      );
+      expect(actions.createNewDashboard).not.toHaveBeenCalled();
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: 'New Board' })
+      ).toBeInTheDocument();
+    });
+
+    it('renames a board inline from the pencil action', async () => {
+      const actions = mockContext();
+      render(<BoardNavFab />);
+      await openBoards();
+      await userEvent.click(
+        screen.getAllByRole('button', { name: 'Rename board' })[0]
+      );
+      const input = screen.getByRole('textbox', { name: 'Rename board' });
+      expect(input).toHaveValue('A');
+      await userEvent.clear(input);
+      await userEvent.type(input, 'Alpha{Enter}');
+      expect(actions.renameDashboard).toHaveBeenCalledWith('d1', 'Alpha');
+    });
+
+    it('opens rename for the focused board on F2', async () => {
+      mockContext();
+      render(<BoardNavFab />);
+      await openBoards();
+      await userEvent.keyboard('{F2}');
+      expect(screen.getByRole('textbox', { name: 'Rename board' })).toHaveValue(
+        'A'
+      );
+    });
+
+    it('moves a board into a collection from the folder action', async () => {
+      const actions = mockContext({ collections: [collection('c1', 'Math')] });
+      render(<BoardNavFab />);
+      await openBoards();
+      await userEvent.click(
+        screen.getAllByRole('button', { name: 'Move to Collection' })[0]
+      );
+      expect(
+        screen.getByRole('menuitemradio', { name: /no collection/i })
+      ).toHaveAttribute('aria-checked', 'true');
+      await userEvent.click(
+        screen.getByRole('menuitemradio', { name: 'Math' })
+      );
+      expect(actions.moveBoardToCollection).toHaveBeenCalledWith('d1', 'c1');
+      expect(actions.addToast).toHaveBeenCalledWith('Moved to “Math”');
+    });
+
+    it('creates a collection from the move view and files the board into it', async () => {
+      const actions = mockContext({ collections: [collection('c1', 'Math')] });
+      render(<BoardNavFab />);
+      await openBoards();
+      await userEvent.click(
+        screen.getAllByRole('button', { name: 'Move to Collection' })[0]
+      );
+      await userEvent.click(
+        screen.getByRole('menuitem', { name: 'New Collection' })
+      );
+      await userEvent.type(
+        screen.getByRole('textbox', { name: 'New Collection' }),
+        'Art{Enter}'
+      );
+      expect(actions.createCollection).toHaveBeenCalledWith('Art', null);
+      await vi.waitFor(() =>
+        expect(actions.moveBoardToCollection).toHaveBeenCalledWith(
+          'd1',
+          'c-new'
+        )
+      );
+    });
+
+    it('wires collection rename and create into the collection menu', async () => {
+      const actions = mockContext({ collections: [collection('c1', 'Math')] });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select collection/i })
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Rename collection' })
+      );
+      const input = screen.getByRole('textbox', { name: 'Rename collection' });
+      await userEvent.clear(input);
+      await userEvent.type(input, 'Algebra{Enter}');
+      expect(actions.renameCollection).toHaveBeenCalledWith('c1', 'Algebra');
+
+      await userEvent.click(
+        screen.getByRole('menuitem', { name: 'New Collection' })
+      );
+      await userEvent.type(
+        screen.getByRole('textbox', { name: 'New Collection' }),
+        'Art{Enter}'
+      );
+      expect(actions.createCollection).toHaveBeenCalledWith('Art', null);
     });
   });
 
@@ -292,7 +439,7 @@ describe('BoardNavFab', () => {
       );
       const items = screen.getAllByRole('menuitem');
       const labels = items.map((el) => el.textContent?.trim());
-      expect(labels[labels.length - 1]).toMatch(/manage all boards/i);
+      expect(labels[labels.length - 1]).toBe('Manage all boards');
     });
 
     it('opens BoardsModal and closes the menu when clicked', async () => {

@@ -7,24 +7,41 @@ import {
   useState,
   type FC,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
   ChevronRight,
   Folder,
+  FolderInput,
   LayoutGrid,
+  Pencil,
   Pin,
+  Plus,
   Settings,
   Star,
 } from 'lucide-react';
+import type { Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
 import { FAB_BASE } from './fabClasses';
 import { BoardBreadcrumb } from './BoardBreadcrumb';
 import { CollectionSwitcherMenu } from './CollectionSwitcherMenu';
+import { MoveBoardMenu } from './MoveBoardMenu';
+import { InlineNameInput, RowActionButton } from './boardNavMenuParts';
+import {
+  MENU_HEADER_CLASS,
+  MENU_PANEL_CLASS,
+  ROW_ACTIONS_CLASS,
+  moveFocusWithinRow,
+  refocusIfLost,
+} from './boardNavMenu';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
+
+const boardItemSelector = (id: string) =>
+  `[data-board-id="${id}"] [role="menuitem"]`;
 
 export const BoardNavFab: FC = () => {
   const { t } = useTranslation();
@@ -33,9 +50,13 @@ export const BoardNavFab: FC = () => {
     activeDashboard,
     loadDashboard,
     setActiveCollectionId,
+    createNewDashboard,
+    renameDashboard,
+    moveBoardToCollection,
+    addToast,
     annotationActive,
     annotationState,
-    collectionsApi: { collections },
+    collectionsApi: { collections, createCollection, renameCollection },
   } = useDashboard();
   // A pen/shape tool is armed: ink, not this FAB, owns the pointer.
   const inkingOwnsPointer =
@@ -43,6 +64,9 @@ export const BoardNavFab: FC = () => {
   const [isBoardsMenuOpen, setIsBoardsMenuOpen] = useState(false);
   const [isCollectionMenuOpen, setIsCollectionMenuOpen] = useState(false);
   const [isBoardsModalOpen, setIsBoardsModalOpen] = useState(false);
+  const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
+  const [movingBoardId, setMovingBoardId] = useState<string | null>(null);
+  const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const boardsTriggerRef = useRef<HTMLButtonElement>(null);
   const collectionsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -83,11 +107,13 @@ export const BoardNavFab: FC = () => {
   // Slot layout in itemRefs:
   //   [0 .. pinnedBoards.length - 1]                              pinned items
   //   [pinnedBoards.length .. pinnedBoards.length + n - 1]         in-collection items
-  //   [pinnedBoards.length + n]                                    "Manage all boards…"
+  //   [pinnedBoards.length + n]                                    "New Board"
+  //   [pinnedBoards.length + n + 1]                                "Manage all boards"
   // Keep this offset in one named constant so the render, keyboard nav,
   // and focus-on-open all agree.
   const collectionSlotStart = pinnedBoards.length;
-  const manageSlot = pinnedBoards.length + boardsInCollection.length;
+  const newBoardSlot = pinnedBoards.length + boardsInCollection.length;
+  const manageSlot = newBoardSlot + 1;
   const totalMenuItems = manageSlot + 1;
 
   const showCollectionsButton = collections.length >= 1;
@@ -97,15 +123,26 @@ export const BoardNavFab: FC = () => {
   // always-on breadcrumb pill becomes transient.
   const showFabRow = dashboards.length > 1 || collections.length > 0;
 
-  const closeBoardsMenu = useCallback((returnFocus = true) => {
-    setIsBoardsMenuOpen(false);
-    if (returnFocus) boardsTriggerRef.current?.focus();
+  const resetBoardsMenuModes = useCallback(() => {
+    setEditingBoardId(null);
+    setMovingBoardId(null);
+    setIsCreatingBoard(false);
   }, []);
+
+  const closeBoardsMenu = useCallback(
+    (returnFocus = true) => {
+      setIsBoardsMenuOpen(false);
+      resetBoardsMenuModes();
+      if (returnFocus) boardsTriggerRef.current?.focus();
+    },
+    [resetBoardsMenuModes]
+  );
 
   const handleClickOutside = useCallback(() => {
     setIsBoardsMenuOpen(false);
     setIsCollectionMenuOpen(false);
-  }, []);
+    resetBoardsMenuModes();
+  }, [resetBoardsMenuModes]);
 
   useClickOutside(containerRef, handleClickOutside);
 
@@ -155,9 +192,67 @@ export const BoardNavFab: FC = () => {
     itemRefs.current[wrapped]?.focus();
   };
 
+  const handleCreateBoard = async (name: string) => {
+    closeBoardsMenu();
+    // createNewDashboard switches to the new board and toasts on failure.
+    try {
+      await createNewDashboard(name, undefined, {
+        collectionId: activeCollectionId,
+      });
+    } catch {
+      /* already toasted */
+    }
+  };
+
+  const handleMoveBoard = async (
+    board: Dashboard,
+    collectionId: string | null,
+    collectionName: string
+  ) => {
+    setMovingBoardId(null);
+    refocusIfLost(containerRef.current, boardItemSelector(board.id));
+    if ((board.collectionId ?? null) === collectionId) return;
+    try {
+      await moveBoardToCollection(board.id, collectionId);
+      addToast(
+        t('boardNav.movedTo', {
+          name: collectionName,
+          defaultValue: 'Moved to “{{name}}”',
+        })
+      );
+    } catch {
+      /* moveBoardToCollection rolls back and toasts */
+    }
+  };
+
+  const handleCreateCollectionAndMove = async (
+    board: Dashboard,
+    name: string
+  ) => {
+    let newId: string;
+    try {
+      newId = await createCollection(name, null);
+    } catch {
+      addToast(
+        t('boardsModal.createCollectionFailed', {
+          defaultValue: 'Failed to create Collection',
+        }),
+        'error'
+      );
+      return;
+    }
+    await handleMoveBoard(board, newId, name);
+  };
+
   const handleMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const active = document.activeElement;
+    // Row action buttons count as their row's slot for up/down navigation.
     const focusedIdx = itemRefs.current.findIndex(
-      (el) => el === document.activeElement
+      (el, i) =>
+        i < totalMenuItems &&
+        !!el &&
+        (el === active ||
+          (!!active && !!el.closest('[data-menu-row]')?.contains(active)))
     );
     switch (e.key) {
       case 'Escape':
@@ -174,6 +269,22 @@ export const BoardNavFab: FC = () => {
         e.preventDefault();
         focusItem(focusedIdx < 0 ? manageSlot : focusedIdx - 1);
         break;
+      case 'ArrowRight':
+        moveFocusWithinRow(e, 1);
+        break;
+      case 'ArrowLeft':
+        moveFocusWithinRow(e, -1);
+        break;
+      case 'F2': {
+        const id = active
+          ?.closest<HTMLElement>('[data-board-id]')
+          ?.getAttribute('data-board-id');
+        if (id) {
+          e.preventDefault();
+          setEditingBoardId(id);
+        }
+        break;
+      }
       case 'Home':
         e.preventDefault();
         focusItem(0);
@@ -187,6 +298,89 @@ export const BoardNavFab: FC = () => {
         break;
     }
   };
+
+  const renderBoardRow = (
+    db: Dashboard,
+    slot: number,
+    leadingIcon: ReactNode,
+    keyPrefix = ''
+  ) => {
+    const isActive = activeDashboard?.id === db.id;
+    if (editingBoardId === db.id) {
+      return (
+        <InlineNameInput
+          key={`${keyPrefix}${db.id}`}
+          initialValue={db.name}
+          placeholder={t('boardsModal.newBoardPrompt', {
+            defaultValue: 'Board name',
+          })}
+          ariaLabel={t('boardNav.renameBoard', {
+            defaultValue: 'Rename board',
+          })}
+          commitOnBlur
+          onCommit={(name) => {
+            setEditingBoardId(null);
+            void renameDashboard(db.id, name);
+            refocusIfLost(containerRef.current, boardItemSelector(db.id));
+          }}
+          onCancel={() => {
+            setEditingBoardId(null);
+            refocusIfLost(containerRef.current, boardItemSelector(db.id));
+          }}
+        />
+      );
+    }
+    return (
+      <div
+        key={`${keyPrefix}${db.id}`}
+        data-menu-row
+        data-board-id={db.id}
+        className={`group flex items-center transition-colors ${
+          isActive
+            ? 'bg-brand-blue-primary text-white'
+            : 'text-white/80 hover:bg-white/10'
+        }`}
+      >
+        <button
+          ref={(el) => {
+            itemRefs.current[slot] = el;
+          }}
+          role="menuitem"
+          onClick={() => {
+            loadDashboard(db.id);
+            closeBoardsMenu();
+          }}
+          className="min-w-0 flex-1 flex items-center gap-2 pl-3 pr-1 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+        >
+          {leadingIcon}
+          <span className="truncate">{db.name}</span>
+        </button>
+        <div className={ROW_ACTIONS_CLASS}>
+          <RowActionButton
+            icon={Pencil}
+            label={t('boardNav.renameBoard', { defaultValue: 'Rename board' })}
+            onClick={() => setEditingBoardId(db.id)}
+          />
+          <RowActionButton
+            icon={FolderInput}
+            label={t('boardsModal.moveTitle', {
+              defaultValue: 'Move to Collection',
+            })}
+            onClick={() => setMovingBoardId(db.id)}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const favoriteIconClass = (db: Dashboard) =>
+    activeDashboard?.id === db.id
+      ? 'fill-white text-white'
+      : 'fill-amber-400 text-amber-400';
+
+  const movingBoard = movingBoardId
+    ? (dashboards.find((d) => d.id === movingBoardId) ?? null)
+    : null;
 
   const activeName = activeDashboard?.name ?? '';
   const boardListLabel = t('boardNav.boardList', {
@@ -217,10 +411,51 @@ export const BoardNavFab: FC = () => {
             setIsCollectionMenuOpen(false);
             requestAnimationFrame(() => collectionsTriggerRef.current?.focus());
           }}
+          onRename={(id, name) => {
+            renameCollection(id, name).catch(() =>
+              addToast(
+                t('collectionSwitcher.renameFailed', {
+                  defaultValue: 'Failed to rename Collection',
+                }),
+                'error'
+              )
+            );
+          }}
+          onCreate={(name) => {
+            createCollection(name, null).catch(() =>
+              addToast(
+                t('boardsModal.createCollectionFailed', {
+                  defaultValue: 'Failed to create Collection',
+                }),
+                'error'
+              )
+            );
+          }}
         />
       )}
 
-      {isBoardsMenuOpen && !isCollectionMenuOpen && (
+      {isBoardsMenuOpen && !isCollectionMenuOpen && movingBoard && (
+        <MoveBoardMenu
+          boardName={movingBoard.name}
+          currentCollectionId={movingBoard.collectionId ?? null}
+          collections={collections}
+          onMove={(collectionId, collectionName) => {
+            void handleMoveBoard(movingBoard, collectionId, collectionName);
+          }}
+          onCreateCollection={(name) => {
+            void handleCreateCollectionAndMove(movingBoard, name);
+          }}
+          onBack={() => {
+            setMovingBoardId(null);
+            refocusIfLost(
+              containerRef.current,
+              boardItemSelector(movingBoard.id)
+            );
+          }}
+        />
+      )}
+
+      {isBoardsMenuOpen && !isCollectionMenuOpen && !movingBoard && (
         <div
           role="menu"
           // Fall back to an inline aria-label when the in-collection section
@@ -235,43 +470,23 @@ export const BoardNavFab: FC = () => {
                 }),
               })}
           onKeyDown={handleMenuKeyDown}
-          className="absolute bottom-full left-0 mb-2 w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl py-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
+          className={MENU_PANEL_CLASS}
         >
           {pinnedBoards.length > 0 && (
             <>
-              <div className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40">
+              <div className={MENU_HEADER_CLASS}>
                 {t('boardNav.pinned', { defaultValue: 'Pinned' })}
               </div>
-              {pinnedBoards.map((db, idx) => {
-                const isActive = activeDashboard?.id === db.id;
-                return (
-                  <button
-                    key={`pinned-${db.id}`}
-                    ref={(el) => {
-                      itemRefs.current[idx] = el;
-                    }}
-                    role="menuitem"
-                    onClick={() => {
-                      loadDashboard(db.id);
-                      closeBoardsMenu();
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
-                      isActive
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'text-white/80 hover:bg-white/10'
-                    }`}
-                  >
-                    <Pin
-                      className={`w-3 h-3 flex-shrink-0 ${
-                        isActive
-                          ? 'fill-white text-white'
-                          : 'fill-amber-400 text-amber-400'
-                      }`}
-                    />
-                    <span className="truncate">{db.name}</span>
-                  </button>
-                );
-              })}
+              {pinnedBoards.map((db, idx) =>
+                renderBoardRow(
+                  db,
+                  idx,
+                  <Pin
+                    className={`w-3 h-3 flex-shrink-0 ${favoriteIconClass(db)}`}
+                  />,
+                  'pinned-'
+                )
+              )}
               {boardsInCollection.length > 0 && (
                 <div className="my-1 border-t border-white/10" />
               )}
@@ -279,62 +494,71 @@ export const BoardNavFab: FC = () => {
           )}
 
           {boardsInCollection.length > 0 && (
-            <div
-              id={headerId}
-              className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40"
-            >
+            <div id={headerId} className={MENU_HEADER_CLASS}>
               {boardListLabel}
             </div>
           )}
-          {boardsInCollection.map((db, idx) => {
-            const isActive = activeDashboard?.id === db.id;
-            const slot = collectionSlotStart + idx;
-            return (
+          {boardsInCollection.map((db, idx) =>
+            renderBoardRow(
+              db,
+              collectionSlotStart + idx,
+              db.isDefault ? (
+                <Star
+                  className={`w-3.5 h-3.5 flex-shrink-0 ${favoriteIconClass(db)}`}
+                />
+              ) : null
+            )
+          )}
+          <div className="mt-1 border-t border-white/10 pt-1">
+            {isCreatingBoard ? (
+              <InlineNameInput
+                placeholder={t('boardsModal.newBoardPrompt', {
+                  defaultValue: 'Board name',
+                })}
+                ariaLabel={t('boardsModal.newBoard', {
+                  defaultValue: 'New Board',
+                })}
+                commitOnBlur={false}
+                onCommit={(name) => {
+                  setIsCreatingBoard(false);
+                  void handleCreateBoard(name);
+                }}
+                onCancel={() => {
+                  setIsCreatingBoard(false);
+                  refocusIfLost(containerRef.current, '[data-new-board]');
+                }}
+              />
+            ) : (
               <button
-                key={db.id}
                 ref={(el) => {
-                  itemRefs.current[slot] = el;
+                  itemRefs.current[newBoardSlot] = el;
                 }}
                 role="menuitem"
-                onClick={() => {
-                  loadDashboard(db.id);
-                  closeBoardsMenu();
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
-                  isActive
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'text-white/80 hover:bg-white/10'
-                }`}
+                data-new-board
+                onClick={() => setIsCreatingBoard(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
               >
-                {db.isDefault && (
-                  <Star
-                    className={`w-3.5 h-3.5 flex-shrink-0 ${
-                      isActive
-                        ? 'fill-white text-white'
-                        : 'fill-amber-400 text-amber-400'
-                    }`}
-                  />
-                )}
-                <span className="truncate">{db.name}</span>
+                <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                {t('boardsModal.newBoard', { defaultValue: 'New Board' })}
               </button>
-            );
-          })}
-          <button
-            ref={(el) => {
-              itemRefs.current[manageSlot] = el;
-            }}
-            role="menuitem"
-            onClick={() => {
-              setIsBoardsModalOpen(true);
-              closeBoardsMenu(false);
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 mt-1 text-left text-sm text-white/80 hover:bg-white/10 border-t border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
-          >
-            <Settings className="w-3.5 h-3.5 flex-shrink-0" />
-            {t('boardNav.manageAllBoards', {
-              defaultValue: 'Manage all boards…',
-            })}
-          </button>
+            )}
+            <button
+              ref={(el) => {
+                itemRefs.current[manageSlot] = el;
+              }}
+              role="menuitem"
+              onClick={() => {
+                setIsBoardsModalOpen(true);
+                closeBoardsMenu(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+            >
+              <Settings className="w-3.5 h-3.5 flex-shrink-0" />
+              {t('boardNav.manageAllBoards', {
+                defaultValue: 'Manage all boards',
+              })}
+            </button>
+          </div>
         </div>
       )}
 
@@ -362,6 +586,7 @@ export const BoardNavFab: FC = () => {
             type="button"
             onClick={() => {
               setIsBoardsMenuOpen(false);
+              resetBoardsMenuModes();
               setIsCollectionMenuOpen((v) => !v);
             }}
             aria-label={t('boardNav.selectCollection', {
@@ -382,6 +607,7 @@ export const BoardNavFab: FC = () => {
           type="button"
           onClick={() => {
             setIsCollectionMenuOpen(false);
+            resetBoardsMenuModes();
             setIsBoardsMenuOpen((v) => !v);
           }}
           aria-label={t('boardNav.selectBoard', {
