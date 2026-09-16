@@ -2258,7 +2258,7 @@ const StudentsScreen: React.FC<{
     useState<ResponseDocKey | null>(null);
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
   const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
-  const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
+  const maxPoints = quizMaxPoints(questions);
   const gamified = isGamificationActive(session);
 
   // Mirror QuizLiveMonitor.handleUnlockResultsForStudent — same toast copy
