@@ -26,7 +26,9 @@ export const Color: React.FC<FieldProps<ColorField<string>>> = ({
   const label = resolveLabel(ctx.t, ctx.widget.type, field.label);
   const presets: readonly ColorPreset[] =
     field.presets && field.presets.length > 0
-      ? field.presets.map((hex) => ({ name: hex, hex }))
+      ? field.presets.map((preset) =>
+          typeof preset === 'string' ? { name: preset, hex: preset } : preset
+        )
       : ctx.surface !== 'drawer'
         ? TEXT_COLOR_SWATCHES
         : field.key === 'bgColor'

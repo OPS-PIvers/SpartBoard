@@ -29,10 +29,10 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
-import { STICKY_NOTE_COLORS } from '@/config/colors';
 import {
   HIGHLIGHT_COLOR_SWATCHES,
   FONT_COLOR_PRESETS,
+  NOTE_COLOR_PRESETS,
   type ColorPreset,
 } from '@/config/widgetAppearance';
 import { useDialog } from '@/context/useDialog';
@@ -42,12 +42,13 @@ import { toggleList } from '@/utils/contentEditableLists';
 interface FormattingToolbarProps {
   editorRef: React.RefObject<HTMLDivElement | null>;
   configFontSize: number;
-  verticalAlign: 'top' | 'center' | 'bottom';
-  onVerticalAlignChange: (value: 'top' | 'center' | 'bottom') => void;
   suppressInputRef: React.MutableRefObject<boolean>;
   onContentChange: () => void;
-  bgColor: string;
-  onBgColorChange: (color: string) => void;
+  // Whole-note controls; omitted when the settings drawer owns them (D27).
+  verticalAlign?: 'top' | 'center' | 'bottom';
+  onVerticalAlignChange?: (value: 'top' | 'center' | 'bottom') => void;
+  bgColor?: string;
+  onBgColorChange?: (color: string) => void;
 }
 
 /** Number of priority-ranked groups in the toolbar. Used by the responsive
@@ -179,13 +180,6 @@ const MenuButton: React.FC<{
     </div>
   );
 };
-
-const STICKY_SWATCHES: readonly ColorPreset[] = Object.entries(
-  STICKY_NOTE_COLORS
-).map(([name, hex]) => ({
-  hex,
-  name: name.charAt(0).toUpperCase() + name.slice(1),
-}));
 
 const SWATCH_CLASS =
   'w-6 h-6 rounded-full border transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
@@ -898,16 +892,18 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           close();
         }}
       />
-      <SwatchSection
-        label="Background"
-        swatches={STICKY_SWATCHES}
-        customLabel="Custom background color"
-        selected={bgColor}
-        onPick={(c) => {
-          onBgColorChange(c);
-          close();
-        }}
-      />
+      {onBgColorChange && (
+        <SwatchSection
+          label="Background"
+          swatches={NOTE_COLOR_PRESETS}
+          customLabel="Custom background color"
+          selected={bgColor}
+          onPick={(c) => {
+            onBgColorChange(c);
+            close();
+          }}
+        />
+      )}
     </>
   );
 
@@ -1174,49 +1170,53 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
               </div>
             </div>
 
-            <div className="h-px bg-slate-100" />
+            {onVerticalAlignChange && (
+              <>
+                <div className="h-px bg-slate-100" />
 
-            {/* Vertical */}
-            <div>
-              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                Vertical
-              </div>
-              <div className="flex gap-0.5">
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onVerticalAlignChange('top');
-                    setShowAlignMenu(false);
-                  }}
-                  className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
-                  title="Align Top"
-                >
-                  <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onVerticalAlignChange('center');
-                    setShowAlignMenu(false);
-                  }}
-                  className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
-                  title="Align Middle"
-                >
-                  <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onVerticalAlignChange('bottom');
-                    setShowAlignMenu(false);
-                  }}
-                  className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
-                  title="Align Bottom"
-                >
-                  <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+                {/* Vertical */}
+                <div>
+                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                    Vertical
+                  </div>
+                  <div className="flex gap-0.5">
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onVerticalAlignChange('top');
+                        setShowAlignMenu(false);
+                      }}
+                      className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="Align Top"
+                    >
+                      <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onVerticalAlignChange('center');
+                        setShowAlignMenu(false);
+                      }}
+                      className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="Align Middle"
+                    >
+                      <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onVerticalAlignChange('bottom');
+                        setShowAlignMenu(false);
+                      }}
+                      className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="Align Bottom"
+                    >
+                      <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="h-px bg-slate-100" />
 
@@ -1439,39 +1439,43 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   >
                     <AlignRight className="w-3.5 h-3.5 text-slate-600" />
                   </button>
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onVerticalAlignChange('top');
-                      setShowOverflowMenu(false);
-                    }}
-                    className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
-                    title="Align Top"
-                  >
-                    <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onVerticalAlignChange('center');
-                      setShowOverflowMenu(false);
-                    }}
-                    className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
-                    title="Align Middle"
-                  >
-                    <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onVerticalAlignChange('bottom');
-                      setShowOverflowMenu(false);
-                    }}
-                    className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
-                    title="Align Bottom"
-                  >
-                    <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
-                  </button>
+                  {onVerticalAlignChange && (
+                    <>
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          onVerticalAlignChange('top');
+                          setShowOverflowMenu(false);
+                        }}
+                        className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
+                        title="Align Top"
+                      >
+                        <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          onVerticalAlignChange('center');
+                          setShowOverflowMenu(false);
+                        }}
+                        className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
+                        title="Align Middle"
+                      >
+                        <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          onVerticalAlignChange('bottom');
+                          setShowOverflowMenu(false);
+                        }}
+                        className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
+                        title="Align Bottom"
+                      >
+                        <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {

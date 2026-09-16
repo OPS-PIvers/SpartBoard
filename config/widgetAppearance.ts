@@ -1,4 +1,5 @@
 import { FONT_COLORS } from '@/config/fonts';
+import { STICKY_NOTE_COLORS } from '@/config/colors';
 import type { TextSizePreset } from '@/types';
 
 export const TEXT_SIZE_PRESETS = [
@@ -62,6 +63,14 @@ export const WINDOW_BACKGROUND_PRESETS: readonly ColorPreset[] = [
   { name: 'Blue', hex: '#dbeafe' },
   { name: 'Green', hex: '#dcfce7' },
 ];
+
+// Sticky-note tints for the Text widget's note color (toolbar + drawer).
+export const NOTE_COLOR_PRESETS: readonly ColorPreset[] = Object.entries(
+  STICKY_NOTE_COLORS
+).map(([name, hex]) => ({
+  hex,
+  name: name.charAt(0).toUpperCase() + name.slice(1),
+}));
 
 // Full 28-color palette, still used by widgets with their own inline swatch grids.
 export const TEXT_COLOR_PRESETS = FONT_COLORS;
