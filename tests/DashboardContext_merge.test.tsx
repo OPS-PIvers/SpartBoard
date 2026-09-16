@@ -858,9 +858,7 @@ describe('DashboardContext per-widget merge', () => {
     );
     await pushSnapshot([initialDashboard]);
 
-    // A real, unsaved content edit via the bulk updater (e.g. a multi-select
-    // batch action), the same API DraggableWindow/GroupBoundingBox use for
-    // other fields.
+    // A real, unsaved content edit via the bulk updater.
     await act(async () => {
       stateRef.current?.updateWidgets([
         { id: 'wA', changes: { config: { text: 'edited-locally' } } },
@@ -868,8 +866,7 @@ describe('DashboardContext per-widget merge', () => {
       await Promise.resolve();
     });
 
-    // A snapshot echoes back the pre-edit, still-version-1 state — the normal
-    // autosave round trip, not a concurrent edit from another device.
+    // A snapshot echoes back the pre-edit, still-version-1 state.
     await pushSnapshot([{ ...makeDashboard([widgetA]), updatedAt: 2000 }]);
 
     await waitFor(() => {

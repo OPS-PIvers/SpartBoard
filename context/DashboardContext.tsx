@@ -5888,12 +5888,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const changes = updateMap.get(w.id);
               if (!changes) return w;
               const merged = { ...w, ...changes };
-              // Config is wholesale-replaced (not merged) here, same as the
-              // comparison below: bump version so the onSnapshot merge's
-              // configChangedLocally check and serializeDashboard's autosave
-              // signature (both version-gated once a widget has one) see this
-              // edit — otherwise it reads as unchanged and a stale snapshot
-              // echo silently discards it before it is ever saved.
+              // Bump version so version-gated dirty checks (onSnapshot merge, autosave) see this config edit.
               if (
                 'config' in changes &&
                 stableStringify(w.config) !== stableStringify(changes.config)
