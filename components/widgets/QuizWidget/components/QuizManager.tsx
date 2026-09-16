@@ -1862,7 +1862,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     );
     return (
       <span className="flex items-center gap-2">
-        <span className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded px-1.5 text-[10px] uppercase">
+        <span
+          className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded uppercase"
+          style={{
+            paddingInline: 'min(6px, 1.5cqmin)',
+            fontSize: 'min(10px, 3.5cqmin)',
+          }}
+        >
           {quiz.questionCount} Qs
         </span>
         <span>
@@ -1921,12 +1927,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               <button
                 type="button"
                 onClick={() => setTargetsModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
+                className="inline-flex items-center rounded-lg bg-white/70 font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                  fontSize: 'min(11px, 4cqmin)',
+                }}
                 title={t('learningTargets.personal.title', {
                   defaultValue: 'My learning targets',
                 })}
               >
-                <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                <Target
+                  style={{
+                    width: 'min(14px, 3.5cqmin)',
+                    height: 'min(14px, 3.5cqmin)',
+                  }}
+                  aria-hidden="true"
+                />
                 {t('learningTargets.personal.button', {
                   defaultValue: 'Targets',
                 })}
@@ -1941,17 +1958,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     setSelectionMode(true);
                   }
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                className={`inline-flex items-center rounded-lg font-bold uppercase tracking-wider transition-colors ${
                   selectionMode
                     ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
                     : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
                 }`}
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                  fontSize: 'min(11px, 4cqmin)',
+                }}
                 aria-pressed={selectionMode}
                 title={
                   selectionMode ? 'Exit selection mode' : 'Enter selection mode'
                 }
               >
-                <CheckSquare className="h-3.5 w-3.5" />
+                <CheckSquare
+                  style={{
+                    width: 'min(14px, 3.5cqmin)',
+                    height: 'min(14px, 3.5cqmin)',
+                  }}
+                />
                 {selectionMode ? 'Cancel' : 'Select'}
               </button>
             </>
@@ -2011,9 +2038,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         toolbarSlot={toolbar}
         filterSidebarSlot={folderSidebarSlot}
       >
-        <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary gap-3 py-10">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <span className="text-sm font-medium">Loading quizzes…</span>
+        <div
+          className="flex flex-col items-center justify-center h-full text-brand-blue-primary"
+          style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
+          />
+          <span
+            className="font-medium"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
+            Loading quizzes…
+          </span>
         </div>
       </LibraryShell>
     );
@@ -2433,31 +2471,62 @@ const LibraryTabContent: React.FC<{
           <button
             type="button"
             onClick={onImport}
-            className="flex items-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95 px-5 py-2.5 text-sm"
+            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95"
+            style={{
+              gap: 'min(8px, 2cqmin)',
+              padding: 'min(10px, 2.5cqmin) min(20px, 5cqmin)',
+              fontSize: 'min(14px, 5.5cqmin)',
+            }}
           >
-            <Plus className="w-4 h-4" />
+            <Plus
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+            />
             Start Importing
           </button>
         }
       />
     ) : (
-      <div className="text-sm font-medium text-slate-500 py-8 text-center">
+      <div
+        className="font-medium text-slate-500 text-center"
+        style={{
+          fontSize: 'min(14px, 5.5cqmin)',
+          padding: 'min(32px, 8cqmin) 0',
+        }}
+      >
         No quizzes match your search.
       </div>
     );
 
   return (
-    <div className="flex h-full min-h-0 gap-3">
+    <div className="flex h-full min-h-0" style={{ gap: 'min(12px, 3cqmin)' }}>
       <div className="flex-1 min-w-0 flex flex-col">
         {error && (
-          <div className="mb-4 flex items-center gap-2 bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl text-brand-red-dark px-3 py-2 text-sm font-medium">
-            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <div
+            className="flex items-center bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl text-brand-red-dark font-medium"
+            style={{
+              marginBottom: 'min(16px, 4cqmin)',
+              gap: 'min(8px, 2cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(14px, 5.5cqmin)',
+            }}
+          >
+            <AlertCircle
+              className="shrink-0"
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+              aria-hidden="true"
+            />
             {error}
           </div>
         )}
 
         {selectionMode && selection.count > 0 && (
-          <div className="mb-3">
+          <div style={{ marginBottom: 'min(12px, 3cqmin)' }}>
             <BulkActionBar
               count={selection.count}
               onClear={() => selection.clear()}
@@ -2570,14 +2639,23 @@ const QuizPreviewPaneContent: React.FC<{ quiz: QuizMetadata }> = ({ quiz }) => {
     ? new Date(quiz.updatedAt).toLocaleDateString()
     : null;
   return (
-    <div className="flex flex-col gap-3 text-sm text-slate-700">
-      <div className="grid grid-cols-2 gap-3">
+    <div
+      className="flex flex-col text-slate-700"
+      style={{ gap: 'min(12px, 3cqmin)', fontSize: 'min(14px, 5.5cqmin)' }}
+    >
+      <div className="grid grid-cols-2" style={{ gap: 'min(12px, 3cqmin)' }}>
         <Stat label="Questions" value={String(quiz.questionCount)} />
         {created && <Stat label="Created" value={created} />}
         {updated && <Stat label="Last updated" value={updated} />}
         {quiz.sync && <Stat label="Sync group" value="Active" />}
       </div>
-      <p className="text-xxs text-slate-500 leading-relaxed mt-1">
+      <p
+        className="text-slate-500 leading-relaxed"
+        style={{
+          fontSize: 'min(10px, 3.5cqmin)',
+          marginTop: 'min(4px, 1cqmin)',
+        }}
+      >
         Open the editor to see questions, or use “Full preview” to walk through
         this quiz the way students will.
       </p>
@@ -2586,11 +2664,25 @@ const QuizPreviewPaneContent: React.FC<{ quiz: QuizMetadata }> = ({ quiz }) => {
 };
 
 const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-    <div className="text-xxs font-bold uppercase tracking-wider text-slate-400">
+  <div
+    className="rounded-lg border border-slate-200 bg-white"
+    style={{ padding: 'min(8px, 2cqmin) min(12px, 3cqmin)' }}
+  >
+    <div
+      className="font-bold uppercase tracking-wider text-slate-400"
+      style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+    >
       {label}
     </div>
-    <div className="text-sm font-semibold text-slate-800 mt-0.5">{value}</div>
+    <div
+      className="font-semibold text-slate-800"
+      style={{
+        fontSize: 'min(14px, 5.5cqmin)',
+        marginTop: 'min(2px, 0.5cqmin)',
+      }}
+    >
+      {value}
+    </div>
   </div>
 );
 
@@ -2642,9 +2734,17 @@ const AssignmentsList: React.FC<{
 }) => {
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center flex-1 text-brand-blue-primary/60 gap-3 py-10">
-        <Loader2 className="w-7 h-7 animate-spin" />
-        <span className="text-sm">Loading assignments…</span>
+      <div
+        className="flex flex-col items-center justify-center flex-1 text-brand-blue-primary/60"
+        style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
+      >
+        <Loader2
+          className="animate-spin"
+          style={{ width: 'min(28px, 7cqmin)', height: 'min(28px, 7cqmin)' }}
+        />
+        <span style={{ fontSize: 'min(14px, 5.5cqmin)' }}>
+          Loading assignments…
+        </span>
       </div>
     );
   }
@@ -2770,8 +2870,13 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   // only — the join code, class targeting, and live-radio dot all relate to
   // submissions plumbing that doesn't apply. Submissions show the full row.
   const dateChip = (
-    <span className="inline-flex items-center gap-0.5">
-      <Calendar className="w-3 h-3" />
+    <span
+      className="inline-flex items-center"
+      style={{ gap: 'min(2px, 0.5cqmin)' }}
+    >
+      <Calendar
+        style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+      />
       {new Date(a.createdAt).toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
@@ -2794,37 +2899,68 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
         {dateChip}
         {urlLive && <span className="font-mono tracking-wider">{a.code}</span>}
         {noPeriods ? (
-          <span className="font-semibold text-amber-600 truncate max-w-[120px]">
+          <span
+            className="font-semibold text-amber-600 truncate"
+            style={{ maxWidth: 'min(120px, 30cqmin)' }}
+          >
             No classes
           </span>
         ) : periodLabel != null ? (
-          <span className="font-semibold truncate max-w-[120px]">
+          <span
+            className="font-semibold truncate"
+            style={{ maxWidth: 'min(120px, 30cqmin)' }}
+          >
             {periodLabel}
           </span>
         ) : null}
         {status.tone === 'success' && (
           <span className="inline-flex items-center">
-            <Radio className="w-3 h-3" />
+            <Radio
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
           </span>
         )}
         {syncBadge && (
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+            className={`inline-flex items-center rounded-full font-bold uppercase tracking-wider ${
               syncBadge.tone === 'warn'
                 ? 'bg-amber-100 text-amber-700'
                 : 'bg-blue-100 text-blue-700'
             }`}
+            style={{
+              gap: 'min(4px, 1cqmin)',
+              padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+              fontSize: 'min(10px, 3.5cqmin)',
+            }}
           >
-            <Cloud className="w-2.5 h-2.5" />
+            <Cloud
+              style={{
+                width: 'min(10px, 2.5cqmin)',
+                height: 'min(10px, 2.5cqmin)',
+              }}
+            />
             {syncBadge.label}
           </span>
         )}
         {skippedCount > 0 && (
           <span
             title={`${skippedCount} student${skippedCount === 1 ? '' : 's'} could not be individually targeted`}
-            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700"
+            className="inline-flex items-center rounded-full font-bold uppercase tracking-wider bg-amber-100 text-amber-700"
+            style={{
+              gap: 'min(4px, 1cqmin)',
+              padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+              fontSize: 'min(10px, 3.5cqmin)',
+            }}
           >
-            <AlertTriangle className="w-2.5 h-2.5" />
+            <AlertTriangle
+              style={{
+                width: 'min(10px, 2.5cqmin)',
+                height: 'min(10px, 2.5cqmin)',
+              }}
+            />
             {skippedCount} skipped
           </span>
         )}
