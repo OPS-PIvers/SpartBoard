@@ -138,6 +138,20 @@ export interface AuthContextType {
    */
   connectGoogleDrive: () => Promise<void>;
   /**
+   * True when the user is signed in and Drive-connected but has NO server-side
+   * refresh token, so their Drive access survives only as long as the browser's
+   * Google session. Probed once per browser session; drives the one-time
+   * `DriveOfflineGrantCard` prompt. False while unknown or already granted.
+   */
+  offlineGrantMissing: boolean;
+  /**
+   * Run the GIS auth-code flow to capture a server-side refresh token, which is
+   * the only renewal path that survives Google-session expiry. Must be called
+   * from a real user gesture — it opens a consent popup. Resolves true when a
+   * grant was stored. Never throws.
+   */
+  captureOfflineGrant: () => Promise<boolean>;
+  /**
    * Ensure the shared Google access token carries an on-demand sensitive
    * scope (`spreadsheets`, `calendar.readonly`) that is NOT requested at login
    * under Path B (docs/wide-distro-plan.md).
