@@ -42,6 +42,20 @@ export const UNIVERSAL_STYLE_FIELDS: Partial<Record<AppearanceKey, Field>> = {
   },
 };
 
+/** True when the widget's own Content tier sets font or text size, making the matching Window control redundant. */
+export function contentTierOverrides(
+  styleKeys: ReadonlyArray<AppearanceKey> | undefined
+): { font: boolean; textSize: boolean } {
+  const keys = new Set(styleKeys ?? []);
+  return {
+    font: keys.has('fontFamily'),
+    textSize:
+      keys.has('textSizePreset') ||
+      keys.has('fontSize') ||
+      keys.has('scaleMultiplier'),
+  };
+}
+
 /** Resolves a schema's `styleKeys` to the Content-tier fields the drawer renders. */
 export function resolveStyleFields(
   styleKeys: ReadonlyArray<AppearanceKey> | undefined

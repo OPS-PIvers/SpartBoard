@@ -1,7 +1,12 @@
-import type { Field, FieldCtx, WidgetSettingsSchema } from './schema/types';
+import type {
+  AppearanceKey,
+  Field,
+  FieldCtx,
+  WidgetSettingsSchema,
+} from './schema/types';
 import { TAB_GROUPS, isFieldVisible, type GroupId } from './schema/types';
 import { WINDOW_STYLE_LABELS } from './schema/windowStyle';
-import { resolveStyleFields } from './schema/styleKeys';
+import { contentTierOverrides, resolveStyleFields } from './schema/styleKeys';
 
 export type IndexedField = {
   /** Schema/style fields carry the field; Window-tier rows are label-only. */
@@ -76,6 +81,18 @@ export function buildSchemaSections(
 }
 
 /** Style-tab sections: the widget's `display` group, the Content tier (declared `styleKeys`), then the Window tier. */
+/** Window-tier labels minus controls the widget's Content tier already covers. */
+export function windowStyleLabels(
+  styleKeys: ReadonlyArray<AppearanceKey> | undefined
+): ReadonlyArray<(typeof WINDOW_STYLE_LABELS)[number]> {
+  const overrides = contentTierOverrides(styleKeys);
+  return WINDOW_STYLE_LABELS.filter(
+    (leaf) =>
+      !(leaf === 'style.windowFont' && overrides.font) &&
+      !(leaf === 'style.windowTextSize' && overrides.textSize)
+  );
+}
+
 export function buildStyleSections(
   schema: WidgetSettingsSchema | null | undefined,
   ctx: FieldCtx,
@@ -105,7 +122,7 @@ export function buildStyleSections(
     id: 'window',
     title: resolve('style.windowTier'),
     atomic: true,
-    fields: WINDOW_STYLE_LABELS.map((leaf) => ({
+    fields: windowStyleLabels(schema?.styleKeys).map((leaf) => ({
       key: leaf,
       label: resolve(leaf),
     })),

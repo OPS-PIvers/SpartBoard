@@ -37,7 +37,9 @@
     "next": "Tableau suivant",
     "selectBoard": "Sélectionner un tableau",
     "boardList": "Tous les tableaux",
-    "manageAllBoards": "Gérer tous les tableaux…",
+    "manageAllBoards": "Gérer tous les tableaux",
+    "renameBoard": "Renommer le tableau",
+    "movedTo": "Déplacé vers « {{name}} »",
     "pinned": "Épinglé",
     "selectCollection": "Sélectionner une collection"
   },
@@ -1551,7 +1553,9 @@
   },
   "collectionSwitcher": {
     "title": "Changer de collection",
-    "root": "Aucune collection"
+    "root": "Aucune collection",
+    "renameCollection": "Renommer la collection",
+    "renameFailed": "Impossible de renommer la Collection"
   },
   "boardsModal": {
     "title": "Tableaux et Collections",
@@ -2439,6 +2443,15 @@
     "clearConfirmTitle": "Effacer les annotations",
     "clearConfirmAction": "Effacer",
     "chromeInertHint": "Choisissez Sélectionner pour réutiliser le dock"
+  },
+  "penColors": {
+    "group": "Couleurs du stylo",
+    "preset": "Couleur du stylo {{index}}",
+    "editHint": "Clic droit ou appui long pour la modifier",
+    "custom": "Couleur personnalisée",
+    "change": "Modifier la couleur {{index}}",
+    "reset": "Réinitialiser les couleurs du stylo",
+    "done": "Terminé"
   },
   "helpCenter": {
     "title": "Aide",

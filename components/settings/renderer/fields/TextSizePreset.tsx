@@ -2,6 +2,8 @@ import React from 'react';
 import type { TextSizePresetField } from '@/components/settings/schema/types';
 import type { FieldProps } from '../FieldProps';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
+import { StepSlider } from '@/components/common/StepSlider';
+import { TEXT_SIZE_PRESETS, presetFromScale } from '@/config/widgetAppearance';
 import type { TextSizePreset as TextSizePresetValue } from '@/types';
 
 type TextSizePresetShimConfig = {
@@ -23,6 +25,27 @@ export const TextSizePreset: React.FC<
   const updateConfigShim = (patch: Partial<TextSizePresetShimConfig>) => {
     onChange(patch.textSizePreset);
   };
+
+  if (ctx.surface === 'drawer') {
+    return (
+      <div id={id}>
+        <StepSlider
+          steps={TEXT_SIZE_PRESETS.map((p) => ({
+            value: p.id,
+            label: p.label,
+          }))}
+          value={
+            shimConfig.textSizePreset ??
+            presetFromScale(shimConfig.scaleMultiplier ?? 1)
+          }
+          onChange={(preset) => onChange(preset)}
+          labelId={labelId}
+          describedBy={describedBy}
+          disabled={disabled}
+        />
+      </div>
+    );
+  }
 
   return (
     <div id={id}>

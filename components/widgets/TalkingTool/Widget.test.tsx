@@ -65,12 +65,17 @@ const mockAuthContext = (
   },
   refreshGoogleToken: () => Promise.resolve(null),
   connectGoogleDrive: () => Promise.resolve(),
+  offlineGrantMissing: false,
+  captureOfflineGrant: () => Promise.resolve(false),
   ensureGoogleScope: () => Promise.resolve(null),
   disconnectGoogleDrive: async () => {
     /* mock */
   },
   savedWidgetConfigs: {},
   saveWidgetConfig: () => {
+    /* mock */
+  },
+  saveWidgetDefault: () => {
     /* mock */
   },
   savedWidgetPresets: {},
@@ -83,6 +88,10 @@ const mockAuthContext = (
   },
   materialsPreferences: {},
   saveMaterialsPreferences: () => {
+    /* mock */
+  },
+  penColors: null,
+  savePenColors: () => {
     /* mock */
   },
   profileLoaded: true,

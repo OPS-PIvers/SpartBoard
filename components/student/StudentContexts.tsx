@@ -65,9 +65,14 @@ const mockAuth: AuthContextType = {
   connectGoogleDrive: async () => {
     // No-op in student view
   },
+  offlineGrantMissing: false,
+  captureOfflineGrant: () => Promise.resolve(false),
   ensureGoogleScope: () => Promise.resolve(null),
   savedWidgetConfigs: {},
   saveWidgetConfig: () => {
+    // No-op
+  },
+  saveWidgetDefault: () => {
     // No-op
   },
   savedWidgetPresets: {},
@@ -78,6 +83,10 @@ const mockAuth: AuthContextType = {
   saveCustomMaterials: () => Promise.resolve(),
   materialsPreferences: {},
   saveMaterialsPreferences: () => {
+    // No-op
+  },
+  penColors: null,
+  savePenColors: () => {
     // No-op
   },
   profileLoaded: true,
@@ -388,7 +397,6 @@ const mockDashboard: DashboardContextValue = {
     objects: [],
     color: '#000000',
     width: 4,
-    customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
     activeTool: 'pen',
     shapeFill: false,
   },

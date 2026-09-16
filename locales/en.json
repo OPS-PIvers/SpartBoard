@@ -38,7 +38,9 @@
     "selectBoard": "Select board",
     "selectCollection": "Select collection",
     "boardList": "All boards",
-    "manageAllBoards": "Manage all boards…",
+    "manageAllBoards": "Manage all boards",
+    "renameBoard": "Rename board",
+    "movedTo": "Moved to “{{name}}”",
     "pinned": "Pinned"
   },
   "boardZoom": {
@@ -1290,8 +1292,8 @@
         "windowTransparency": "Window transparency",
         "windowFont": "Window font",
         "windowTextSize": "Window text size",
-        "globalSuffix": "(Global)",
-        "resetTransparency": "Reset transparency to global default",
+        "boardDefault": "Board default",
+        "resetTransparency": "Reset transparency to board default",
         "transparencyPercent": "Transparency percentage",
         "frameColorSolidHint": "A frame background color stays solid. Set it to Default to use this slider.",
         "fontFamily": "Font",
@@ -1303,7 +1305,8 @@
         "fontSize": "Font size",
         "textColor": "Text color",
         "titleColor": "Title color",
-        "scaleMultiplier": "Scale"
+        "scaleMultiplier": "Scale",
+        "layout": "Layout"
       },
       "dockedLeft": "Settings panel docked to the left of the board",
       "dockedRight": "Settings panel docked to the right of the board",
@@ -1333,6 +1336,12 @@
       "rosterStudentCount_other": "{{count}} students",
       "partner": {
         "add": "Add {{name}} widget"
+      },
+      "defaults": {
+        "matches": "Matches your default for new {{name}} widgets.",
+        "differs": "Differs from your default for new {{name}} widgets.",
+        "save": "Save as my default",
+        "reset": "Reset to my default"
       }
     },
     "lunchCount": {
@@ -1368,7 +1377,16 @@
       "rosterPlaceholder": "Enter one student per line..."
     },
     "text": {
-      "templates": "Templates"
+      "templates": "Templates",
+      "note": "Note",
+      "noteColor": "Note color",
+      "verticalAlign": "Vertical alignment",
+      "alignTop": "Top",
+      "alignMiddle": "Middle",
+      "alignBottom": "Bottom",
+      "style": {
+        "bgColor": "Note color"
+      }
     },
     "embed": {
       "flaggedNotice": "This site is currently flagged as non-embeddable. A \"New Tab\" button will be shown to users instead.",
@@ -1921,7 +1939,9 @@
   },
   "collectionSwitcher": {
     "title": "Switch Collection",
-    "root": "No Collection"
+    "root": "No Collection",
+    "renameCollection": "Rename collection",
+    "renameFailed": "Failed to rename Collection"
   },
   "boardsModal": {
     "title": "Boards & Collections",
@@ -2810,6 +2830,15 @@
     "clearConfirmAction": "Clear",
     "chromeInertHint": "Pick Select to use the dock again"
   },
+  "penColors": {
+    "group": "Pen colors",
+    "preset": "Pen color {{index}}",
+    "editHint": "Right-click or long-press to change",
+    "custom": "Custom color",
+    "change": "Change color {{index}}",
+    "reset": "Reset pen colors",
+    "done": "Done"
+  },
   "helpCenter": {
     "title": "Help",
     "widgetHelp": "Guides for this widget",
@@ -2948,6 +2977,14 @@
       "noGrades": "No grades selected — standards and widgets show every grade.",
       "subjectsTaught": "Content areas taught",
       "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
+    },
+    "widgetDefaults": {
+      "title": "Widget defaults",
+      "description": "The look new widgets start with. Save one from a widget’s Style tab. Clearing a default does not change widgets already on your boards.",
+      "empty": "No widget defaults yet. Open a widget’s settings, go to Style, and choose Save as my default.",
+      "clearAll": "Clear",
+      "remove": "Remove {{setting}} from {{name}}",
+      "clearLabel": "Clear {{name}} default"
     }
   },
   "quizHandRaise": {

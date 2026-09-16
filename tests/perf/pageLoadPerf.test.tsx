@@ -300,7 +300,6 @@ const { dashboardValue } = vi.hoisted(() => {
       objects: [],
       color: '#000',
       width: 2,
-      customColors: [],
       activeTool: 'pen',
       shapeFill: false,
     },

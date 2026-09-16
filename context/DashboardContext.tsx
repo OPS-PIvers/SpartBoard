@@ -382,6 +382,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetConfig,
+    canAccessFeature,
     materialsPreferences,
     profileLoaded,
     setupCompleted,
@@ -620,7 +621,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   >(() => ({
     color: STANDARD_COLORS.slate,
     width: DRAWING_DEFAULTS.WIDTH,
-    customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
     activeTool: DRAWING_DEFAULTS.ACTIVE_TOOL,
     shapeFill: DRAWING_DEFAULTS.SHAPE_FILL,
   }));
@@ -5706,6 +5706,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [activeId, addToast, recordHistory, undoWidgets]);
 
+  // Read through a ref so updateWidget stays mount-stable when permissions load; optional call tolerates partial auth mocks.
+  const explicitDefaultsRef = useRef(false);
+  explicitDefaultsRef.current = canAccessFeature?.('settings-drawer') ?? false;
+
   const updateWidget = useCallback(
     (
       id: string,
@@ -5774,8 +5778,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
           // Save appearance globally so new instances inherit the styling.
           // saveWidgetConfig keeps only APPEARANCE_CONFIG_KEYS — content stays
-          // on this board.
-          if (updates.config) {
+          // on this board. Drawer users save defaults explicitly instead (D28).
+          if (updates.config && !explicitDefaultsRef.current) {
             saveWidgetConfig(widgetType, updates.config);
           }
 
@@ -6430,19 +6434,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   > | null>(null);
 
   const openAnnotation = useCallback(() => {
-    // Seed from admin building defaults for width + color palette.
-    // `color` is not configurable at the admin level — keep the user's
-    // previously-chosen color across sessions.
+    // Seed width from admin building defaults; the color palette comes from
+    // usePenColors and the chosen color carries across sessions.
     const adminConfig = getAdminBuildingConfig('drawing') as {
       width?: number;
-      customColors?: string[];
     };
     setAnnotationLocalState((prev) => ({
       color: prev.color,
       width: adminConfig.width ?? DRAWING_DEFAULTS.WIDTH,
-      customColors: adminConfig.customColors ?? [
-        ...DRAWING_DEFAULTS.CUSTOM_COLORS,
-      ],
       activeTool: prev.activeTool,
       shapeFill: prev.shapeFill,
     }));

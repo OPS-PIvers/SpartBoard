@@ -16,6 +16,7 @@ import {
   ClassRoster,
   ClassRosterMeta,
   RosterGroup,
+  RosterSyncSummary,
   RubricSnapshot,
   Student,
   StudentOverride,
@@ -137,6 +138,12 @@ interface RosterFileContent {
   students: Student[];
   groups: RosterGroup[];
   defaultOverridesByStudentId: Record<string, StudentOverride>;
+  /**
+   * What the nightly ClassLink sync last changed. Written server-side and
+   * carried through read/prune/write untouched — it holds student names, so it
+   * lives here rather than on the PII-free Firestore roster doc.
+   */
+  lastSync?: RosterSyncSummary;
 }
 
 const emptyRosterFileExtras = (): Pick<
@@ -249,6 +256,26 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
  * (v2, M17 A4). Always returns the v2-shaped in-memory content; the writer
  * (`uploadRosterFileToDrive`) always re-serializes as v2 on next save.
  */
+/**
+ * Reads the nightly sync's change summary off a Drive roster body. Returns a
+ * spreadable partial so an absent or malformed block simply contributes
+ * nothing rather than writing `lastSync: undefined` into the file.
+ */
+function parseSyncSummary(raw: unknown): { lastSync?: RosterSyncSummary } {
+  if (!raw || typeof raw !== 'object') return {};
+  const s = raw as Record<string, unknown>;
+  const isNameList = (v: unknown): v is string[] =>
+    Array.isArray(v) && v.every((n) => typeof n === 'string');
+  if (
+    typeof s.at !== 'number' ||
+    !isNameList(s.added) ||
+    !isNameList(s.removed)
+  ) {
+    return {};
+  }
+  return { lastSync: { at: s.at, added: s.added, removed: s.removed } };
+}
+
 function parseRosterFileBody(parsed: unknown): RosterFileContent {
   if (Array.isArray(parsed)) {
     const students = parsed
@@ -279,7 +306,12 @@ function parseRosterFileBody(parsed: unknown): RosterFileContent {
           if (override) defaultOverridesByStudentId[studentId] = override;
         }
       }
-      return { students, groups, defaultOverridesByStudentId };
+      return {
+        students,
+        groups,
+        defaultOverridesByStudentId,
+        ...parseSyncSummary(body.lastSync),
+      };
     }
   }
   throw new Error(
@@ -306,7 +338,14 @@ function pruneRosterFileContent(content: RosterFileContent): RosterFileContent {
     if (validIds.has(studentId))
       defaultOverridesByStudentId[studentId] = override;
   }
-  return { students: content.students, groups, defaultOverridesByStudentId };
+  return {
+    students: content.students,
+    groups,
+    defaultOverridesByStudentId,
+    // Carried verbatim: a teacher save must not erase the nightly sync's
+    // record of what it changed.
+    ...(content.lastSync ? { lastSync: content.lastSync } : {}),
+  };
 }
 
 /**
@@ -977,6 +1016,11 @@ export const useRosters = (user: User | null) => {
           defaultOverridesByStudentId:
             defaultOverridesByStudentId ??
             previousContent.defaultOverridesByStudentId,
+          // Forwarded explicitly: a teacher edit must not erase the nightly
+          // sync's record of what it last changed.
+          ...(previousContent.lastSync
+            ? { lastSync: previousContent.lastSync }
+            : {}),
         });
 
         // Optimistically update cache

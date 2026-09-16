@@ -12,6 +12,7 @@ import { DialogProvider } from './context/DialogContext';
 import { DialogContainer } from './components/common/DialogContainer';
 import { UpdateNotification } from './components/layout/UpdateNotification';
 import { DriveDisconnectBanner } from './components/common/DriveDisconnectBanner';
+import { DriveOfflineGrantCard } from './components/common/DriveOfflineGrantCard';
 import { SchoologyLinkNudge } from './components/classes/SchoologyLinkNudge';
 import { isConfigured, isAuthBypass } from './config/firebase';
 import { StudentProvider } from './components/student/StudentContexts';
@@ -478,6 +479,7 @@ const AppContent: React.FC = () => {
       <DashboardView />
       <UpdateNotification />
       <DriveDisconnectBanner />
+      <DriveOfflineGrantCard />
       <SchoologyLinkNudge />
       {isPlcRoute && plcParsed && (
         <Suspense fallback={<FullPageLoader />}>

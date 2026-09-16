@@ -14,6 +14,8 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth';
 import {
+  FieldPath,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -97,6 +99,7 @@ import {
 import { deriveUserTier, meetsMinTier } from '@/utils/userTier';
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
+import { normalizePenColors } from '@/utils/penColors';
 
 // The operator's own organization. Two narrow uses remain after dynamic
 // org resolution shipped:
@@ -200,6 +203,9 @@ const MOCK_TIME = new Date().toISOString(); // Fixed time at module load
 
 const GOOGLE_ACCESS_TOKEN_KEY = 'spart_google_access_token';
 const GOOGLE_TOKEN_EXPIRY_KEY = 'spart_google_token_expiry';
+// Session-scoped so the grant probe costs one callable per browser session,
+// not one per reload.
+const OFFLINE_GRANT_PROBED_KEY = 'spart_offline_grant_probed';
 const GOOGLE_TOKEN_TTL_MS = 3600 * 1000; // 1 hour (Google's default access token lifetime)
 const GOOGLE_TOKEN_CHECK_INTERVAL_MS = 60 * 1000; // How often to poll for expiry
 const GOOGLE_TOKEN_REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // Refresh this far before expiry
@@ -290,6 +296,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // In bypass mode, start with no user until anonymous Firebase auth completes.
   // This keeps `user.uid` consistent with `request.auth.uid` for Firestore rules.
   const [user, setUser] = useState<User | null>(null);
+  // Stays false until the session probe proves a grant is absent, so the
+  // one-time card never flashes while the answer is still unknown.
+  const [offlineGrantMissing, setOfflineGrantMissing] = useState(false);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(
     () => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
@@ -340,6 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [materialsPreferences, setMaterialsPreferences] =
     useState<MaterialsPreferences>({});
+  const [penColors, setPenColors] = useState<string[] | null>(null);
   // Initialise from i18n.language. If i18n.init() hasn't resolved its async
   // language detection yet, the useEffect below will sync the state once it fires.
   const [language, setLanguageState] = useState<string>(
@@ -420,6 +430,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const materialsPrefsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const penColorsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const widgetPresetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const migratedConfigsForUidRef = useRef<string | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
@@ -813,6 +824,105 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await refreshGoogleToken(false);
     }
   }, [refreshGoogleToken]);
+
+  /**
+   * Capture a server-side refresh token via the auth-code flow.
+   *
+   * `connectGoogleDrive` deliberately tries a silent GIS re-mint first, which
+   * SUCCEEDS for a user whose Google session is alive — and a silent re-mint
+   * never yields a refresh_token. So a user who has an access token but no
+   * grant can never acquire one through that path. This goes straight to the
+   * code flow, which is the only call that captures the refresh leg.
+   */
+  const captureOfflineGrant = useCallback(async (): Promise<boolean> => {
+    if (isAuthBypass) return false;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+      | string
+      | undefined;
+    if (!clientId) return false;
+
+    const outcome = await requestAndExchangeAuthCode(
+      clientId,
+      user?.email ?? undefined,
+      // Same union rule as the refresh chain: a grant captured without the
+      // on-demand scopes would re-strip Sheets/Calendar on every backend
+      // refresh.
+      Array.from(onDemandScopesRef.current)
+    );
+
+    if (outcome.kind === 'success') {
+      const { accessToken, expiresIn } = outcome.result;
+      const expiryMs = Date.now() + (expiresIn || 3600) * 1000;
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, accessToken);
+      localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
+      setGoogleAccessToken(accessToken);
+      // `hasRefreshToken: false` means Google treated this as a re-authorization
+      // and withheld the refresh leg. The card must stay so the user can retry
+      // rather than silently believing they are covered.
+      if (outcome.result.hasRefreshToken) {
+        setOfflineGrantMissing(false);
+        return true;
+      }
+      logError(
+        'AuthContext.captureOfflineGrant.noRefreshToken',
+        new Error('Exchange succeeded but Google withheld the refresh_token.')
+      );
+      return false;
+    }
+
+    if (outcome.kind === 'error') {
+      logError('AuthContext.captureOfflineGrant', new Error(outcome.reason));
+    } else if (outcome.kind === 'needs-consent') {
+      logError(
+        'AuthContext.captureOfflineGrant.needsConsent',
+        new Error(`needs-consent: ${outcome.cause}`)
+      );
+    }
+    return false;
+  }, [user?.email]);
+
+  // Probe ONCE per browser session whether a server-side grant exists. The
+  // silent refresh chain can't answer this: it only reaches the backend when
+  // GIS fails, so a user with a live Google session never exercises that leg.
+  // Skipped while Drive is disconnected — DriveDisconnectBanner owns that case
+  // and its reconnect already routes through the code flow.
+  useEffect(() => {
+    if (isAuthBypass || !user || !googleAccessToken) return;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+      | string
+      | undefined;
+    if (!clientId) return;
+
+    try {
+      if (sessionStorage.getItem(OFFLINE_GRANT_PROBED_KEY)) return;
+    } catch {
+      // sessionStorage unavailable (private mode) — probe anyway; the cost is
+      // one extra callable per reload, not a broken flow.
+    }
+
+    // Claim the session BEFORE awaiting: a googleAccessToken change while the
+    // probe is in flight re-runs this effect, and a flag set afterwards would
+    // not yet be there to stop the second call.
+    try {
+      sessionStorage.setItem(OFFLINE_GRANT_PROBED_KEY, '1');
+    } catch {
+      // Non-fatal; see above.
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const outcome = await refreshAccessTokenViaBackend();
+      if (cancelled) return;
+      // Only `needs-consent` proves absence. A transient `error` must NOT
+      // surface the card — prompting for consent on a network blip would train
+      // teachers to dismiss a prompt that matters.
+      if (outcome.status === 'needs-consent') setOfflineGrantMissing(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, googleAccessToken]);
 
   /**
    * Ensure the shared Google access token carries an on-demand sensitive scope
@@ -1554,6 +1664,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setSavedWidgetConfigs({});
       setSavedWidgetPresets({});
       setCustomMaterials([]);
+      setPenColors(null);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
       setDockPositionState('bottom');
@@ -1691,6 +1802,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               ? (data.materialsPreferences as MaterialsPreferences)
               : {}
           );
+          setPenColors(normalizePenColors(data.penColors));
 
           // Decide setupCompleted. The wizard writes `setupCompleted: true` on
           // finish, so any of the following counts as "already set up":
@@ -2350,6 +2462,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  // Explicit "Save as my default" (D28): replaces the type's entry so keys dropped from it stop applying.
+  const saveWidgetDefault = useCallback(
+    (type: WidgetType, config: Partial<WidgetConfig>) => {
+      const filtered = pickAppearanceKeys(config);
+      if (widgetConfigTimeoutRef.current) {
+        clearTimeout(widgetConfigTimeoutRef.current);
+      }
+      setSavedWidgetConfigs((prev) => {
+        const next = { ...prev };
+        if (Object.keys(filtered).length > 0) next[type] = filtered;
+        else delete next[type];
+        return next;
+      });
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      const path = new FieldPath('savedWidgetConfigs', type);
+      setDoc(
+        doc(db, 'users', user.uid, 'userProfile', 'profile'),
+        { savedWidgetConfigs: { [type]: filtered } },
+        { mergeFields: [path] }
+      ).catch((error) => {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving widget default:', error);
+        }
+      });
+    },
+    [user]
+  );
+
   // Explicit "save as preset" libraries (Stations sets, Hotspot Image items).
   // Account-wide on purpose, which is why they are kept apart from the
   // appearance defaults above rather than filtered through the allowlist.
@@ -2425,6 +2566,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         ).catch((error) => {
           if (myToken === writeTokenRef.current) {
             console.error('Error saving materials preferences:', error);
+          }
+        });
+      }, 1000);
+    },
+    [user]
+  );
+
+  const savePenColors = useCallback(
+    (colors: string[] | null) => {
+      const next = colors === null ? null : normalizePenColors(colors);
+      if (colors !== null && next === null) return;
+      setPenColors(next);
+      if (penColorsTimeoutRef.current) {
+        clearTimeout(penColorsTimeoutRef.current);
+      }
+      penColorsTimeoutRef.current = setTimeout(() => {
+        if (!user || isAuthBypass) return;
+        const myToken = ++writeTokenRef.current;
+        setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { penColors: next ?? deleteField() },
+          { merge: true }
+        ).catch((error) => {
+          if (myToken === writeTokenRef.current) {
+            console.error('Error saving pen colors:', error);
           }
         });
       }, 1000);
@@ -3020,6 +3186,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         canAccessQuizMediaResponse: canAccessQuizMediaResponseBound,
         signInWithGoogle,
         signOut,
+        offlineGrantMissing,
+        captureOfflineGrant,
         selectedBuildings,
         userGradeLevels,
         setSelectedBuildings,
@@ -3036,12 +3204,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,
+        saveWidgetDefault,
         savedWidgetPresets,
         saveWidgetPreset,
         customMaterials,
         saveCustomMaterials,
         materialsPreferences,
         saveMaterialsPreferences,
+        penColors,
+        savePenColors,
         profileLoaded,
         setupCompleted,
         completeSetup,

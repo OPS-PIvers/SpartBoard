@@ -20,6 +20,8 @@ export type FieldCtx = {
   /** Dock-facing widget name (admin displayName override, else the TOOLS label). */
   toolLabel?: (type: WidgetType) => string;
   t: TranslateFn;
+  /** Set by the drawer only; fields pick drawer presentations (dropdowns, sliders, new presets) while the legacy panel stays frozen. */
+  surface?: 'drawer';
 };
 
 /** Mount-stable config writer handed to `Custom.render`. */
@@ -97,7 +99,8 @@ export type SliderField<K extends string> = FieldBase<K> & {
 
 export type ColorField<K extends string> = FieldBase<K> & {
   type: 'color';
-  presets?: ReadonlyArray<string>;
+  /** Bare hexes, or named presets so swatches get readable accessible names. */
+  presets?: ReadonlyArray<string | { name: string; hex: string }>;
   allowTransparent?: boolean;
 };
 

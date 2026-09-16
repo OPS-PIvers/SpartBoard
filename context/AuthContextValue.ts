@@ -138,6 +138,20 @@ export interface AuthContextType {
    */
   connectGoogleDrive: () => Promise<void>;
   /**
+   * True when the user is signed in and Drive-connected but has NO server-side
+   * refresh token, so their Drive access survives only as long as the browser's
+   * Google session. Probed once per browser session; drives the one-time
+   * `DriveOfflineGrantCard` prompt. False while unknown or already granted.
+   */
+  offlineGrantMissing: boolean;
+  /**
+   * Run the GIS auth-code flow to capture a server-side refresh token, which is
+   * the only renewal path that survives Google-session expiry. Must be called
+   * from a real user gesture — it opens a consent popup. Resolves true when a
+   * grant was stored. Never throws.
+   */
+  captureOfflineGrant: () => Promise<boolean>;
+  /**
    * Ensure the shared Google access token carries an on-demand sensitive
    * scope (`spreadsheets`, `calendar.readonly`) that is NOT requested at login
    * under Path B (docs/wide-distro-plan.md).
@@ -180,6 +194,8 @@ export interface AuthContextType {
    * whole config object.
    */
   saveWidgetConfig: (type: WidgetType, config: Partial<WidgetConfig>) => void;
+  /** Replace a widget type's appearance default outright (explicit "Save as my default"); immediate write. */
+  saveWidgetDefault: (type: WidgetType, config: Partial<WidgetConfig>) => void;
   /** Opt-in preset libraries the teacher explicitly saved, by widget type */
   savedWidgetPresets: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** Save an explicit preset library account-wide (debounced Firestore write) */
@@ -192,6 +208,10 @@ export interface AuthContextType {
   materialsPreferences: MaterialsPreferences;
   /** Replace the Materials preferences (debounced Firestore write) */
   saveMaterialsPreferences: (preferences: MaterialsPreferences) => void;
+  /** Teacher's 5 pen presets shared by every pen toolbar; null = use building/app defaults */
+  penColors: string[] | null;
+  /** Replace the pen presets, or pass null to reset (debounced Firestore write) */
+  savePenColors: (colors: string[] | null) => void;
   /** True once the profile Firestore fetch has resolved (success or error) */
   profileLoaded: boolean;
   /** True after the user completes the first-time setup wizard */
