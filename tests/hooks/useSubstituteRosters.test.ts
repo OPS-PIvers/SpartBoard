@@ -93,6 +93,21 @@ describe('useSubstituteRosters', () => {
     expect(result.current.status).toBe('locked');
   });
 
+  it('keeps the rosters the sub picked when others stay unreadable', async () => {
+    const shared: SubstituteShareRoster[] = [
+      ...SHARED,
+      { id: 'r2', name: 'Period 2', driveFileId: 'file-2' },
+    ];
+    downloadFile.mockImplementation((fileId: string) =>
+      fileId === 'file-1'
+        ? Promise.resolve(rosterBlob())
+        : Promise.reject(new Error('404'))
+    );
+    const { result } = renderHook(() => useSubstituteRosters(shared));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.rosters.map((r) => r.id)).toEqual(['r1']);
+  });
+
   it('reports an error when the picked file still fails to load', async () => {
     downloadFile.mockRejectedValue(new Error('404'));
     const { result } = renderHook(() => useSubstituteRosters(SHARED));

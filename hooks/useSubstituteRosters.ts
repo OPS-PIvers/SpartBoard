@@ -35,8 +35,8 @@ async function downloadSharedRosters(
   drive: GoogleDriveService,
   shared: SubstituteShareRoster[]
 ): Promise<ClassRoster[]> {
-  return Promise.all(
-    shared.map(async (meta) => {
+  const results = await Promise.allSettled(
+    shared.map(async (meta): Promise<ClassRoster> => {
       const blob = await drive.downloadFile(meta.driveFileId);
       const content = parseRosterFileBody(JSON.parse(await blob.text()));
       const students = assignPins(content.students);
@@ -52,6 +52,15 @@ async function downloadSharedRosters(
       };
     })
   );
+  // drive.file only covers files the sub picked, so keep whichever ones loaded.
+  const loaded = results.flatMap((r) =>
+    r.status === 'fulfilled' ? [r.value] : []
+  );
+  if (loaded.length === 0) {
+    const failure = results.find((r) => r.status === 'rejected');
+    throw failure?.reason ?? new Error('No shared rosters could be loaded');
+  }
+  return loaded;
 }
 
 /** Loads a substitute share's roster files from the sub's own Drive access. */
