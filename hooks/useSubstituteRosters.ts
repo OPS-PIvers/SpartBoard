@@ -70,8 +70,12 @@ export function useSubstituteRosters(
   const { googleAccessToken, refreshGoogleToken, ensureGoogleScope } =
     useAuth();
   const { openPicker } = useGooglePicker();
-  const shared = sharedRosters ?? EMPTY_SHARED;
-  const key = shared.map((r) => `${r.id}:${r.driveFileId}`).join(',');
+  const incoming = sharedRosters ?? EMPTY_SHARED;
+  const key = incoming.map((r) => `${r.id}:${r.driveFileId}`).join(',');
+  // Share snapshots re-create the array; hold one reference per key so Drive isn't re-hit.
+  const [stable, setStable] = useState({ key, shared: incoming });
+  if (stable.key !== key) setStable({ key, shared: incoming });
+  const shared = stable.key === key ? stable.shared : incoming;
   const [result, setResult] = useState<RosterResult | null>(null);
   const current = result?.key === key ? result : null;
 

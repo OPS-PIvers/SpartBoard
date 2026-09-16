@@ -26,6 +26,7 @@ import {
   DrawingPage,
   UserProfile,
   SubstituteShareDriveGrant,
+  SubstituteShareRoster,
   ROOT_COLLECTION_KEY,
   Collection,
   CollectionSubstituteShareInput,
@@ -367,6 +368,18 @@ const getDashboardSaveState = (d: Dashboard) => ({
     ) as Record<MergedDashboardField, string>,
   },
 });
+
+// Only rosters with a landed Drive grant are loadable by the sub; share docs are immutable.
+function grantedRosters(
+  rosters: SubstituteShareRoster[] | undefined,
+  grants: SubstituteShareDriveGrant[]
+): SubstituteShareRoster[] | undefined {
+  const grantedFileIds = new Set(grants.map((g) => g.fileId));
+  const granted = (rosters ?? []).filter((r) =>
+    grantedFileIds.has(r.driveFileId)
+  );
+  return granted.length > 0 ? granted : undefined;
+}
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -1855,7 +1868,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         buildingId: input.buildingId,
         subEmails: input.subEmails,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
-        sharedRosters: driveSharingRequested ? input.sharedRosters : undefined,
+        sharedRosters: grantedRosters(input.sharedRosters, driveGrants),
         hostDisplayName: hostName,
       });
 
@@ -4194,7 +4207,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         hostUid: user.uid,
         hostDisplayName: user.displayName,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
-        sharedRosters: driveSharingRequested ? input.sharedRosters : undefined,
+        sharedRosters: grantedRosters(input.sharedRosters, driveGrants),
       });
 
       // Surface partial Drive-grant failures so the host can retry / hand-share

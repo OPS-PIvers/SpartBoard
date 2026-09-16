@@ -67,6 +67,18 @@ describe('useSubstituteRosters', () => {
     expect(openPicker).not.toHaveBeenCalled();
   });
 
+  it('does not re-download when a share snapshot re-creates the same rosters', async () => {
+    downloadFile.mockResolvedValue(rosterBlob());
+    const { result, rerender } = renderHook(
+      ({ shared }) => useSubstituteRosters(shared),
+      { initialProps: { shared: SHARED } }
+    );
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    rerender({ shared: SHARED.map((r) => ({ ...r })) });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(downloadFile).toHaveBeenCalledTimes(1);
+  });
+
   it('locks when the file is unreadable, then loads after the Picker grant', async () => {
     downloadFile.mockRejectedValueOnce(new Error('404'));
     const { result } = renderHook(() => useSubstituteRosters(SHARED));
