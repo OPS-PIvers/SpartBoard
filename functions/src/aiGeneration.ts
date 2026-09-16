@@ -385,14 +385,7 @@ async function getCachedAdminStatus(
   return isAdmin;
 }
 
-/**
- * Caller admin status, gated on `email_verified`. An email/password account
- * can self-report any address at sign-up, so `token.email` alone can't prove
- * ownership — and `getCachedAdminStatus()` treats a matching `admins/{email}`
- * doc as an admin bypass (elevated AI usage quota), so an unverified email
- * must never reach it. Same rail as resolveOrgForUser.ts / isAdmin() /
- * quizStimulusText.ts's chargeOcr email-verified gate.
- */
+// Caller admin status, gated on email_verified so a self-reported email can't reach the admin-bypass lookup.
 async function resolveCallerIsAdmin(
   db: admin.firestore.Firestore,
   token: { email?: string; email_verified?: boolean }

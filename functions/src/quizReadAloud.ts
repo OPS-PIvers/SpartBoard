@@ -1421,9 +1421,7 @@ export function buildDefaultDeps(): ReadAloudDeps {
       let email: string | null = null;
       try {
         const user = await admin.auth().getUser(teacherUid);
-        // Same unverified-email rule as chargeOcr — see quizStimulusText.ts.
-        // isGlobalFeatureGranted() treats a matching `admins/{email}` doc as
-        // an admin bypass, so an unverified email must never reach it.
+        // Unverified email must never reach the admins/{email} bypass lookup (same rail as quizStimulusText.ts's chargeOcr).
         email = user.emailVerified ? (user.email ?? null) : null;
       } catch {
         email = null;

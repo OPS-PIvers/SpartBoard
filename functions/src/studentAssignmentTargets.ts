@@ -1470,7 +1470,7 @@ export const setAssignmentTargetsV1 = onCall(
     if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
-    // Unverified claims can't prove ownership of the caller's address (email/password sign-in allows a self-reported one) — same rail as resolveOrgForUser.ts / isAdmin(). teacherEmail drives org + test-class-authority resolution below, so an unverified spoof would let an attacker claim a real domain admin's org membership.
+    // teacherEmail drives org/test-class resolution below, so it must be verified (same rail as isAdmin()).
     if (request.auth.token.email_verified !== true) {
       throw new HttpsError(
         'permission-denied',
