@@ -140,11 +140,27 @@ function seedLiveToken(): void {
   localStorage.setItem(EXPIRY_KEY, String(Date.now() + 2 * HOUR));
 }
 
+// A GIS stub that SUCCEEDS. Without a working initTokenClient the refresh
+// chain treats GIS as unavailable and falls through to its backend leg — the
+// same callable the probe uses — so any ambient refresh would be indistinguish-
+// able from a probe and the call counts below would be meaningless.
+function stubWorkingGis(): void {
+  const initTokenClient = vi.fn(
+    (config: {
+      callback: (r: { access_token?: string; expires_in?: string }) => void;
+    }) => ({
+      requestAccessToken: () =>
+        config.callback({ access_token: 'gis-token', expires_in: '3600' }),
+    })
+  );
+  vi.stubGlobal('google', { accounts: { oauth2: { initTokenClient } } });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   sessionStorage.clear();
-  vi.stubGlobal('google', { accounts: { oauth2: {} } });
+  stubWorkingGis();
   vi.stubEnv(
     'VITE_GOOGLE_CLIENT_ID',
     'test-client-id.apps.googleusercontent.com'
@@ -194,10 +210,30 @@ describe('AuthContext — offline grant probe', () => {
     expect(getCtx().offlineGrantMissing).toBe(false);
   });
 
-  it('skips the probe entirely while Drive is disconnected', async () => {
+  // While Drive is disconnected, DriveDisconnectBanner owns the recovery and
+  // its reconnect already routes through the code flow. The card must stay
+  // down even though the backend would report a missing grant — asserted on
+  // the flag rather than call counts, since a disconnected app legitimately
+  // calls the same backend leg trying to recover a token.
+  it('keeps the card down while Drive is disconnected', async () => {
+    // GIS declines too, so nothing can mint a token mid-test and flip the
+    // precondition the probe depends on.
+    vi.stubGlobal('google', {
+      accounts: {
+        oauth2: {
+          initTokenClient: vi.fn((config: { error_callback: () => void }) => ({
+            requestAccessToken: () => config.error_callback(),
+          })),
+        },
+      },
+    });
+    vi.mocked(refreshAccessTokenViaBackend).mockResolvedValue({
+      status: 'needs-consent',
+      cause: 'no-stored-token',
+    });
     await mountSignedIn();
 
-    expect(refreshAccessTokenViaBackend).not.toHaveBeenCalled();
+    expect(getCtx().googleAccessToken).toBeNull();
     expect(getCtx().offlineGrantMissing).toBe(false);
   });
 
