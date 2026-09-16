@@ -21,25 +21,24 @@ This is a native replacement for Quizlet-style vocabulary practice. Teachers bui
   - **Languages**: `QUIZ_READ_ALOUD_LANGUAGES` (`config/quizReadAloud.ts:9`): en-US, es-US, de-DE, fr-FR, ru-RU, plus typed BCP-47 tags.
   - **Public reads without auth**: the only precedent is `short_links` (`firestore.rules:746`, `allow get: if true`).
   - **Iframes**: `firebase.json` sets no `X-Frame-Options`; `frame-ancestors` is set only on `/activity/**`, `/classroom-addon/**` and `/lti/**`. Other routes can already be framed.
-  - **Teacher copy links**: `shared_quizzes` / `/share/quiz/{id}`. **PLC libraries**: `plcs/{plcId}/quizzes`.
   - **Functions can't import root code.** Shared logic is mirrored with a comment, e.g. `functions/src/quizReadAloud.ts:43`.
 
 ## 2. Decisions (locked 2026-09-16)
 
 ### 2.1 Sets and authoring
 
-| #   | Decision      | Choice                                                                                                                                                                                                                                                        |
-| --- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | Name          | **Flashcards.** Widget type `flashcards`, public route `/flashcards/{shareId}`.                                                                                                                                                                               |
-| Q2  | Language      | **Per side**: `termLanguage` and `definitionLanguage` (BCP-47). The char bar, article rules and future Speak key off the side being answered.                                                                                                                 |
-| Q3  | Language list | **Same list as quiz read-aloud** (`QUIZ_READ_ALOUD_LANGUAGES`) plus a typed BCP-47 tag.                                                                                                                                                                       |
-| Q4  | Card content  | **Text only** in v1: `term`, `definition`. No images, no audio.                                                                                                                                                                                               |
-| Q5  | Storage       | **Firestore only.** Cards stored inline on the set doc. No Drive.                                                                                                                                                                                             |
-| Q6  | Authoring     | **Row editor** (Tab across, Enter adds a row, drag to reorder), **paste import** (auto-detects tab / comma / space-dash-space / custom separators, live preview; covers Quizlet export) and **Google Sheets / CSV** via ImportWizard. No AI generation in v1. |
-| Q7  | Board role    | **Library + Present.** Front face = set library; **Present** shows big flashcards on the board for whole-class review.                                                                                                                                        |
-| Q8  | Present mode  | **Flashcards only, no marks.** Flip, arrows, shuffle, default side, counter. Nothing saved.                                                                                                                                                                   |
-| Q9  | Organization  | **Folders**, a **teacher copy link**, and a **PLC shared library** in v1.                                                                                                                                                                                     |
-| Q10 | PLC behavior  | **Copy into my library.** A PLC library lists sets; "Add to my library" makes an independent editable copy. No live sync, no PLC aggregate data.                                                                                                              |
+| #   | Decision          | Choice                                                                                                                                                                                                                                                        |
+| --- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | Name              | **Flashcards.** Widget type `flashcards`, public route `/flashcards/{shareId}`.                                                                                                                                                                               |
+| Q2  | Language          | **Per side**: `termLanguage` and `definitionLanguage` (BCP-47). The char bar, article rules and future Speak key off the side being answered.                                                                                                                 |
+| Q3  | Language list     | **Same list as quiz read-aloud** (`QUIZ_READ_ALOUD_LANGUAGES`) plus a typed BCP-47 tag.                                                                                                                                                                       |
+| Q4  | Card content      | **Text only** in v1: `term`, `definition`. No images, no audio.                                                                                                                                                                                               |
+| Q5  | Storage           | **Firestore only.** Cards stored inline on the set doc. No Drive.                                                                                                                                                                                             |
+| Q6  | Authoring         | **Row editor** (Tab across, Enter adds a row, drag to reorder), **paste import** (auto-detects tab / comma / space-dash-space / custom separators, live preview; covers Quizlet export) and **Google Sheets / CSV** via ImportWizard. No AI generation in v1. |
+| Q7  | Board role        | **Library + Present.** Front face = set library; **Present** shows big flashcards on the board for whole-class review.                                                                                                                                        |
+| Q8  | Present mode      | **Flashcards only, no marks.** Flip, arrows, shuffle, default side, counter. Nothing saved.                                                                                                                                                                   |
+| Q9  | Organization      | **Folders** in v1. Teacher copy link and PLC shared library **deferred to v2** (§10).                                                                                                                                                                         |
+| Q10 | PLC behavior (v2) | **Copy into my library** when built: a PLC library lists sets; "Add to my library" makes an independent editable copy. No live sync.                                                                                                                          |
 
 ### 2.2 Public link
 
@@ -76,12 +75,12 @@ This is a native replacement for Quizlet-style vocabulary practice. Teachers bui
 
 ### 2.5 Test mode
 
-| #   | Decision | Choice                                                                                                                                                               |
-| --- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q29 | Types    | **One checkbox per type**: Multiple choice / Matching / Fill in the blank. All on by default, at least one required. FIB uses the Write input, char bar and matcher. |
-| Q30 | Matching | **Each pair counts as 1 question.** Blocks have 4–6 pairs.                                                                                                           |
-| Q31 | Count    | **Steps of 5, capped at the deck size**, with a final "All (N)" step. Sets under 5 cards show "All" only. MC needs ≥4 cards; below that, MC is disabled with a note. |
-| Q32 | Flow     | **One page → Submit → review**: score, each missed item with its correct answer, **Retake missed only**, **New test**. No per-question feedback before submitting.   |
+| #   | Decision      | Choice                                                                                                                                                                                     |
+| --- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Q29 | Types         | **One checkbox per type**: Multiple choice / Fill in the blank. Both on by default, at least one required. FIB uses the Write input, char bar and matcher. Matching is **deferred to v2**. |
+| Q30 | Matching (v2) | When built, **each pair counts as 1 question**, in blocks of 4–6 pairs. `FlashcardTestType` gains `'matching'` then.                                                                       |
+| Q31 | Count         | **Steps of 5, capped at the deck size**, with a final "All (N)" step. Sets under 5 cards show "All" only. MC needs ≥4 cards; below that, MC is disabled with a note.                       |
+| Q32 | Flow          | **One page → Submit → review**: score, each missed item with its correct answer, **Retake missed only**, **New test**. No per-question feedback before submitting.                         |
 
 ### 2.6 Assignments
 
@@ -129,7 +128,7 @@ export interface FlashcardSet {
 
 export type FlashcardMode = 'flashcards' | 'write' | 'test'; // 'speak' in v2
 export type FlashcardSide = 'term' | 'definition';
-export type FlashcardTestType = 'mc' | 'matching' | 'fib';
+export type FlashcardTestType = 'mc' | 'fib'; // 'matching' in v2
 
 export interface FlashcardModeSettings {
   showFirst: FlashcardSide;
@@ -201,16 +200,14 @@ Widget config (`config/widgetDefaults.ts`): `{ view: 'library' | 'present', pres
 
 ### 3.1 Collections and rules
 
-| Path                                             | Read                                                              | Write                                                                                                                                                                      |
-| ------------------------------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users/{uid}/flashcard_sets/{setId}`             | owner                                                             | owner                                                                                                                                                                      |
-| `users/{uid}/flashcard_folders/{id}`             | owner                                                             | owner (via `useFolders`)                                                                                                                                                   |
-| `users/{uid}/flashcard_assignments/{id}`         | owner                                                             | owner                                                                                                                                                                      |
-| `public_flashcard_sets/{shareId}`                | `get: if true`; no `list`                                         | create/update/delete: non-student signed-in user whose uid equals `teacherUid`; key allowlist                                                                              |
-| `shared_flashcard_sets/{shareId}` (teacher copy) | signed-in non-student                                             | owner                                                                                                                                                                      |
-| `plcs/{plcId}/flashcard_sets/{id}`               | PLC members                                                       | PLC members create; author or PLC admin delete                                                                                                                             |
-| `flashcard_sessions/{id}`                        | teacher; SSO student whose `classIds` claim intersects `classIds` | teacher                                                                                                                                                                    |
-| `flashcard_sessions/{id}/progress/{studentUid}`  | that student; session teacher                                     | that student, only while `submittedAt` is absent and `now < closeAt`; key allowlist excludes `submittedAt`/`score`/`total`/`answerLog`/`flags`; teacher may delete (Reset) |
+| Path                                            | Read                                                              | Write                                                                                                                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users/{uid}/flashcard_sets/{setId}`            | owner                                                             | owner                                                                                                                                                                      |
+| `users/{uid}/flashcard_folders/{id}`            | owner                                                             | owner (via `useFolders`)                                                                                                                                                   |
+| `users/{uid}/flashcard_assignments/{id}`        | owner                                                             | owner                                                                                                                                                                      |
+| `public_flashcard_sets/{shareId}`               | `get: if true`; no `list`                                         | create/update/delete: non-student signed-in user whose uid equals `teacherUid`; key allowlist                                                                              |
+| `flashcard_sessions/{id}`                       | teacher; SSO student whose `classIds` claim intersects `classIds` | teacher                                                                                                                                                                    |
+| `flashcard_sessions/{id}/progress/{studentUid}` | that student; session teacher                                     | that student, only while `submittedAt` is absent and `now < closeAt`; key allowlist excludes `submittedAt`/`score`/`total`/`answerLog`/`flags`; teacher may delete (Reset) |
 
 Keep the new rules short: the 256 KiB cap applies to the stripped rules text. Validate with the Firebase MCP rules validator. Rules tests run in CI only (the local emulator crashes).
 
@@ -285,7 +282,6 @@ Uppercase comes from Shift or ⇧, except ß.
 
 - Generated from a seeded RNG over the pool.
 - MC: 4 options, distractors drawn from the same side of other cards.
-- Matching: blocks of 4–6 pairs, click-to-pair with keyboard support.
 - FIB: the Write input.
 - One scrolling page with a sticky question nav and Submit, then review.
 
@@ -293,11 +289,10 @@ Uppercase comes from Shift or ⇧, except ß.
 
 - `/flashcards/{shareId}`: no providers.
 - `/flashcards/a/{assignmentId}`: `StudentAuthProvider → RequireStudentAuth`.
-- `/share/flashcards/{id}`: teacher copy, under `AuthProvider`.
 
 **Widget** (`components/widgets/Flashcards/`):
 
-- Library view: `LibraryShell` with New set, Import, folders, and a per-set menu (Edit, Present, Share link, Copy link for teachers, Share to PLC, Assign, Assignments).
+- Library view: `LibraryShell` with New set, Import, folders, and a per-set menu (Edit, Present, Share link, Assign, Assignments).
 - Editor: full-height panel with title, two language selects, the row editor, and a Paste import drawer.
 - Present view: `FlashcardPlayer` in Flashcards mode with a `MemoryAdapter`, plus a back-to-library control.
 - Settings follow the schema settings drawer pattern (`docs/plans/WIDGET_SETTINGS_DRAWER.md`).
@@ -339,8 +334,14 @@ Dev-branch pushes deploy functions to the shared prod project. Everything here i
 2. **Study engine + public link + Present**: `flashcardSchedule.ts`, `flashcardMatch.ts` + case table, char bars, `FlashcardPlayer` with all three modes, `LocalAdapter` / `MemoryAdapter`, `public_flashcard_sets` rules + publish on save + revoke, Share modal (link + embed), `/flashcards/{shareId}` route, Present view.
 3. **Assignments, student side**: `flashcard_sessions` + progress rules, Assign modal (Check/Study), `TrackedAdapter`, `/flashcards/a/{id}` route, pointer / `KIND_CONFIG` / hub kind additions, `setAssignmentTargetsV1` kind, `submitFlashcardCheckV1` + functions matcher mirror, locked-settings gear, post-submit results, closed-Study banner.
 4. **Teacher results**: Study aggregate + period filter + grid + hardest cards + test history; Check score table + flags + `resolveFlashcardFlagV1` + Reset + Publish scores; Study live-card rewrite on set save (query `flashcard_sessions` by `teacherUid`, `setId`, `kind == 'study'`, `status == 'active'` — add the index).
-5. **Teacher copy link + PLC library**: `shared_flashcard_sets` + `/share/flashcards/{id}`, `plcs/{plcId}/flashcard_sets` + "Add to my library".
 
 ## 10. Out of scope (v1)
 
-Speak mode (pronunciation engine: `docs/multilingual-pronunciation-engine.md`), images and audio on cards, TTS, AI set generation, QR and mode-locked links, Google Classroom / Schoology posting, char bars beyond es/fr/de, live-synced PLC sets, cross-assignment progress carry-over, student × card heatmap.
+**Deferred to v2 (decided 2026-09-16):**
+
+- **Speak mode**: builds on `docs/multilingual-pronunciation-engine.md`; the mode picker already takes a list.
+- **Test mode Matching**: pair-counting and block size per Q30; click-to-pair with keyboard support; server grading validates pairs against session cards.
+- **Teacher copy link**: `shared_flashcard_sets/{shareId}` (signed-in non-student read, owner write) + `/share/flashcards/{id}` under `AuthProvider`, following `shared_quizzes` / `/share/quiz/{id}`.
+- **PLC shared library**: `plcs/{plcId}/flashcard_sets/{id}` (members read/create; author or PLC admin delete) + "Add to my library" copy, following `plcs/{plcId}/quizzes`.
+
+**Not planned for v1 or v2 yet:** images and audio on cards, TTS, AI set generation, QR and mode-locked links, Google Classroom / Schoology posting, char bars beyond es/fr/de, live-synced PLC sets, cross-assignment progress carry-over, student × card heatmap.
