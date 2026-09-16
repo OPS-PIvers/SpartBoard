@@ -168,6 +168,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       canAccessWidget,
       toolLabel,
       t,
+      surface: 'drawer' as const,
     }),
     [config, widget, isAdmin, canAccessFeature, canAccessWidget, toolLabel, t]
   );
@@ -331,6 +332,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       updateWidget={updateWidget}
       globalStyle={globalStyle}
       t={t}
+      styleKeys={schema?.styleKeys}
     />
   );
 

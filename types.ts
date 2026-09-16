@@ -7320,7 +7320,7 @@ export interface WidgetData {
   // Universal style properties
   /** Frame background: a hex color, or a legacy `bg-*` Tailwind class on older boards */
   backgroundColor?: string;
-  fontFamily?: 'sans' | 'serif' | 'mono' | 'handwritten' | 'comic';
+  fontFamily?: GlobalFontFamily;
   baseTextSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl';
 }
 

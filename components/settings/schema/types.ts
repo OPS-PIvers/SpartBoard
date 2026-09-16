@@ -20,6 +20,8 @@ export type FieldCtx = {
   /** Dock-facing widget name (admin displayName override, else the TOOLS label). */
   toolLabel?: (type: WidgetType) => string;
   t: TranslateFn;
+  /** Set by the drawer only; fields pick drawer presentations (dropdowns, sliders, new presets) while the legacy panel stays frozen. */
+  surface?: 'drawer';
 };
 
 /** Mount-stable config writer handed to `Custom.render`. */

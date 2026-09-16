@@ -30,12 +30,37 @@ export const TEXT_COLOR_SWATCHES: readonly ColorPreset[] = [
   { name: 'Brand red', hex: '#ad2122' },
 ];
 
+export const HIGHLIGHT_COLOR_SWATCHES: readonly ColorPreset[] = [
+  { name: 'Yellow', hex: '#fde047' },
+  { name: 'Green', hex: '#86efac' },
+  { name: 'Blue', hex: '#7dd3fc' },
+  { name: 'Pink', hex: '#f9a8d4' },
+  { name: 'Orange', hex: '#fdba74' },
+];
+
 export const FRAME_BACKGROUND_PRESETS: readonly ColorPreset[] = [
   { name: 'White', hex: '#ffffff' },
   { name: 'Slate', hex: '#f8fafc' },
   { name: 'Stone', hex: '#f5f5f4' },
   { name: 'Graphite', hex: '#334155' },
   { name: 'Charcoal', hex: '#0f172a' },
+];
+
+// Drawer + Text toolbar sets; TEXT_COLOR_SWATCHES / FRAME_BACKGROUND_PRESETS stay frozen for the legacy panel until wave 10.
+export const FONT_COLOR_PRESETS: readonly ColorPreset[] = [
+  { name: 'Black', hex: '#000000' },
+  { name: 'White', hex: '#ffffff' },
+  { name: 'Red', hex: '#dc2626' },
+  { name: 'Blue', hex: '#2563eb' },
+  { name: 'Green', hex: '#15803d' },
+];
+
+export const WINDOW_BACKGROUND_PRESETS: readonly ColorPreset[] = [
+  { name: 'White', hex: '#ffffff' },
+  { name: 'Charcoal', hex: '#1e293b' },
+  { name: 'Yellow', hex: '#fef9c3' },
+  { name: 'Blue', hex: '#dbeafe' },
+  { name: 'Green', hex: '#dcfce7' },
 ];
 
 // Full 28-color palette, still used by widgets with their own inline swatch grids.
