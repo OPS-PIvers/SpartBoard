@@ -321,6 +321,9 @@ export const useSharedCollection = () => {
         ...(input.driveGrants && input.driveGrants.length > 0
           ? { driveGrants: input.driveGrants }
           : {}),
+        ...(input.sharedRosters && input.sharedRosters.length > 0
+          ? { sharedRosters: input.sharedRosters }
+          : {}),
       };
 
       if (isAuthBypass) {

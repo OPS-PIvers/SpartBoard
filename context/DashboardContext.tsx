@@ -1792,7 +1792,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // the revoke if other active shares still reference it.
       const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
-      const fileIds = input.rosterDriveFileIds ?? [];
+      const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
       const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
       // Track failed pairs so the caller can warn the host — without this,
       // a partial network failure would silently produce a share doc with
@@ -1855,6 +1855,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         buildingId: input.buildingId,
         subEmails: input.subEmails,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
+        sharedRosters: driveSharingRequested ? input.sharedRosters : undefined,
         hostDisplayName: hostName,
       });
 
@@ -4136,7 +4137,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // refcounting skip a revoke that another active share still depends on.
       const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
-      const fileIds = input.rosterDriveFileIds ?? [];
+      const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
       const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
       const failedPairs: Array<{ email: string; fileId: string }> = [];
 
@@ -4193,6 +4194,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         hostUid: user.uid,
         hostDisplayName: user.displayName,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
+        sharedRosters: driveSharingRequested ? input.sharedRosters : undefined,
       });
 
       // Surface partial Drive-grant failures so the host can retry / hand-share
