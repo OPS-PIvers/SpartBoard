@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import type { GlobalStyle, WidgetData } from '@/types';
+import type { GlobalFontFamily, GlobalStyle, WidgetData } from '@/types';
 import { ColorPresetPicker } from '@/components/common/ColorPresetPicker';
 import {
   WINDOW_BACKGROUND_PRESETS,
@@ -135,10 +135,7 @@ export const WindowStyleTier: React.FC<WindowStyleTierProps> = ({
                 fontFamily:
                   fontId === 'global'
                     ? undefined
-                    : (fontId.replace(
-                        /^font-/,
-                        ''
-                      ) as WidgetData['fontFamily']),
+                    : (fontId.replace(/^font-/, '') as GlobalFontFamily),
               })
             }
           />
