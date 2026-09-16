@@ -31,6 +31,7 @@ function setupGapiMock() {
  */
 let lastDocsViewArg: string | undefined;
 let lastDocsViewInstance: Record<string, Mock> | undefined;
+let lastBuilderInstance: Record<string, Mock> | undefined;
 
 function setupPickerMock(
   action: 'picked' | 'cancel',
@@ -49,6 +50,8 @@ function setupPickerMock(
       'setTitle',
       'setDeveloperKey',
       'setAppId',
+      'setFileIds',
+      'enableFeature',
     ];
     for (const m of methods) {
       obj[m] = vi.fn().mockReturnValue(obj);
@@ -59,6 +62,7 @@ function setupPickerMock(
   const docsViewInstance = chainable();
   const builderInstance = chainable();
   lastDocsViewInstance = docsViewInstance;
+  lastBuilderInstance = builderInstance;
   lastDocsViewArg = undefined;
 
   // setCallback captures the picker response callback, build().setVisible() invokes it
@@ -93,6 +97,7 @@ function setupPickerMock(
         SPREADSHEETS: 'spreadsheets',
       },
       DocsViewMode: { LIST: 'list' },
+      Feature: { MULTISELECT_ENABLED: 'multiselect' },
       // Must use function() — not arrow — so `new` works
       DocsView: function DocsView(viewId: string) {
         lastDocsViewArg = viewId;
@@ -246,6 +251,36 @@ describe('useGooglePicker', () => {
     // subfolders (the app files quizzes under SpartBoard/Quizzes/) — the fix
     // for the review comment that flagged the flat sheets-mode list.
     expect(lastDocsViewInstance?.setIncludeFolders).toHaveBeenCalledWith(true);
+  });
+
+  it('restricts the view to fileIds and allows picking all of them', async () => {
+    setupGapiMock();
+    setupPickerMock('picked', {
+      id: 'roster-a',
+      name: 'Period 1',
+      mimeType: 'application/json',
+    });
+    const { useGooglePicker } = await import('@/hooks/useGooglePicker');
+    const { result } = renderHook(() => useGooglePicker());
+
+    await vi.advanceTimersByTimeAsync(300);
+    await result.current.openPicker({
+      fileIds: ['roster-a', 'roster-b'],
+      title: 'Select the class list to load',
+    });
+
+    expect(lastDocsViewArg).toBe('docs');
+    expect(lastDocsViewInstance?.setFileIds).toHaveBeenCalledWith(
+      'roster-a,roster-b'
+    );
+    expect(lastDocsViewInstance?.setMimeTypes).not.toHaveBeenCalled();
+    expect(lastBuilderInstance?.setMaxItems).toHaveBeenCalledWith(2);
+    expect(lastBuilderInstance?.enableFeature).toHaveBeenCalledWith(
+      'multiselect'
+    );
+    expect(lastBuilderInstance?.setTitle).toHaveBeenCalledWith(
+      'Select the class list to load'
+    );
   });
 
   it('dynamically injects gapi script tag when picker is opened', async () => {

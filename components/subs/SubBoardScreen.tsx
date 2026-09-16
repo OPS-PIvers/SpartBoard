@@ -17,14 +17,16 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, Users } from 'lucide-react';
 import { SubProfileToolbar } from './SubProfileToolbar';
 import { teacherCardAccent, teacherInitials } from './subsView';
 import { useSubstituteShare } from '@/hooks/useSubstituteShares';
+import { useSubstituteRosters } from '@/hooks/useSubstituteRosters';
 import { SubsDashboardProvider } from './SubsDashboardProvider';
 import { useSubsControl } from './SubsControlContext';
 import { SubBoardCanvas } from './SubBoardCanvas';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
+import type { SubRosterStatus } from '@/hooks/useSubstituteRosters';
 
 interface SubBoardScreenProps {
   shareId: string;
@@ -41,6 +43,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 }) => {
   const { share, loading, error, permissionDeniedLikelyExpired } =
     useSubstituteShare(shareId, buildingId);
+  const rosterState = useSubstituteRosters(share?.sharedRosters);
   const [expired, setExpired] = useState(false);
   // permission-denied on a substitute share means expiry — same path as locally-detected expiry.
   const isExpired = expired || permissionDeniedLikelyExpired;
@@ -89,7 +92,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
   }
 
   return (
-    <SubsDashboardProvider share={share}>
+    <SubsDashboardProvider share={share} rosterState={rosterState}>
       <SubBoardScreenContent
         share={share}
         onBackToDirectory={onBackToDirectory}
@@ -116,7 +119,7 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
   onBackToDirectory,
   onChangeBuilding,
 }) => {
-  const { resetWidgets } = useSubsControl();
+  const { resetWidgets, rosterStatus, loadRosters } = useSubsControl();
   // Mirror the provider's resetKey locally so SubBoardCanvas re-mounts
   // widgets on reset. The provider calls onResetKeyChange but we drive
   // it from here so a SubBoardCanvas key bump is guaranteed.
@@ -148,15 +151,55 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
         onChangeBuilding={onChangeBuilding}
       />
 
-      <div className="fixed top-4 right-4 z-40 hidden md:flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-[11px] text-white/80 pointer-events-none">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        Substitute view — widgets are locked in place
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        <RosterLoadButton
+          status={rosterStatus}
+          onLoad={() => void loadRosters()}
+        />
+        <div className="hidden md:flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-[11px] text-white/80 pointer-events-none">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Substitute view — widgets are locked in place
+        </div>
       </div>
 
       <main className="absolute inset-0 pt-20">
         <SubBoardCanvas resetKey={resetKey} />
       </main>
     </div>
+  );
+};
+
+const RosterLoadButton: React.FC<{
+  status: SubRosterStatus;
+  onLoad: () => void;
+}> = ({ status, onLoad }) => {
+  if (status === 'none' || status === 'ready') return null;
+  if (status === 'checking' || status === 'loading') {
+    return (
+      <div
+        role="status"
+        className="flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-xs text-white/80"
+      >
+        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+        Loading class list…
+      </div>
+    );
+  }
+  const failed = status === 'error';
+  const Icon = failed ? AlertCircle : Users;
+  return (
+    <button
+      type="button"
+      onClick={onLoad}
+      className={`flex items-center gap-2 rounded-full backdrop-blur-xl border px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-black/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+        failed
+          ? 'bg-amber-500/25 hover:bg-amber-500/35 border-amber-300/40'
+          : 'bg-white/15 hover:bg-white/25 border-white/25'
+      }`}
+    >
+      <Icon className="w-3.5 h-3.5" aria-hidden />
+      {failed ? "Couldn't load class list — try again" : 'Load class list'}
+    </button>
   );
 };
 

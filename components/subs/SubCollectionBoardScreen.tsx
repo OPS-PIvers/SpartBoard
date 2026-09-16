@@ -15,6 +15,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useSubstituteCollectionBoard } from '@/hooks/useSubstituteShares';
+import { useSubstituteRosters } from '@/hooks/useSubstituteRosters';
 import { SubsDashboardProvider } from './SubsDashboardProvider';
 import { SubBoardScreenContent, ExpiredOrErrorPanel } from './SubBoardScreen';
 
@@ -34,6 +35,7 @@ export const SubCollectionBoardScreen: React.FC<
     boardId,
     buildingId
   );
+  const rosterState = useSubstituteRosters(share?.sharedRosters);
   const [expired, setExpired] = useState(false);
 
   // Mirror SubBoardScreen: imperative 60s tick so an idle sub gets bounced
@@ -78,7 +80,7 @@ export const SubCollectionBoardScreen: React.FC<
   }
 
   return (
-    <SubsDashboardProvider share={share}>
+    <SubsDashboardProvider share={share} rosterState={rosterState}>
       <SubBoardScreenContent
         share={share}
         onBackToDirectory={onBackToDirectory}
