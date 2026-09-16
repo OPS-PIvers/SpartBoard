@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { WidgetData, SyntaxFramerConfig, SyntaxToken } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { Type, Calculator, AlignLeft, AlignCenter } from 'lucide-react';
 
 interface SyntaxFramerSettingsProps {
@@ -79,6 +80,9 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
     handleUpdate({ mode, tokens: retokenize(inputText, mode) });
   };
 
+  const MODE_OPTIONS: ('text' | 'math')[] = ['text', 'math'];
+  const ALIGNMENT_OPTIONS: ('left' | 'center')[] = ['left', 'center'];
+
   return (
     <div className="space-y-6">
       <div>
@@ -112,10 +116,16 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
         </SettingsLabel>
         <div
           className="flex gap-2 mb-4"
-          role="group"
+          role="radiogroup"
           aria-labelledby={syntaxFramerModeLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, MODE_OPTIONS, handleModeChange)
+          }
         >
           <button
+            role="radio"
+            aria-checked={config.mode === 'text'}
+            tabIndex={config.mode === 'text' ? 0 : -1}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
               config.mode === 'text'
                 ? 'bg-blue-50 border-blue-200 text-blue-700'
@@ -127,6 +137,9 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
             Text
           </button>
           <button
+            role="radio"
+            aria-checked={config.mode === 'math'}
+            tabIndex={config.mode === 'math' ? 0 : -1}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
               config.mode === 'math'
                 ? 'bg-blue-50 border-blue-200 text-blue-700'
@@ -150,10 +163,18 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
         </SettingsLabel>
         <div
           className="flex gap-2 mb-4"
-          role="group"
+          role="radiogroup"
           aria-labelledby={syntaxFramerAlignmentLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, ALIGNMENT_OPTIONS, (alignment) =>
+              handleUpdate({ alignment })
+            )
+          }
         >
           <button
+            role="radio"
+            aria-checked={config.alignment === 'left'}
+            tabIndex={config.alignment === 'left' ? 0 : -1}
             className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
               config.alignment === 'left'
                 ? 'bg-slate-100 border-slate-300 text-slate-900'
@@ -164,6 +185,9 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
             <AlignLeft className="w-4 h-4" />
           </button>
           <button
+            role="radio"
+            aria-checked={config.alignment === 'center'}
+            tabIndex={config.alignment === 'center' ? 0 : -1}
             className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
               config.alignment === 'center'
                 ? 'bg-slate-100 border-slate-300 text-slate-900'
