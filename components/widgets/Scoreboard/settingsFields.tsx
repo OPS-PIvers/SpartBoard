@@ -12,6 +12,7 @@ import { Plus, Trash2, Users, RefreshCw, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { useTranslation } from 'react-i18next';
 
 const TeamNameInput: React.FC<{
   value: string;
@@ -46,9 +47,11 @@ const TeamNameInput: React.FC<{
   );
 };
 
-export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
+export const ScoreboardSettings: React.FC<{
+  widget: WidgetData;
+  showLayout?: boolean;
+}> = ({ widget, showLayout = true }) => {
+  const { t } = useTranslation();
   const { updateWidget, updateDashboard, activeDashboard, addToast } =
     useDashboard();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -70,7 +73,7 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
   const importFromRandom = () => {
     // We already check this in the onClick, but keeping it here for safety
     if (!randomWidget) {
-      addToast('No Randomizer widget found!', 'error');
+      addToast(t('widgetSettings.scoreboard.noRandomizer'), 'error');
       return;
     }
 
@@ -87,7 +90,7 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
       const groups = lastResult as RandomGroup[];
       const newTeams: ScoreboardTeam[] = groups.map((g, i) => {
         // If the random group has an ID, use it to lookup shared name
-        let name = `Group ${i + 1}`;
+        let name = t('widgetSettings.scoreboard.groupName', { count: i + 1 });
         let linkedGroupId: string | undefined = undefined;
 
         if (g.id) {
@@ -113,16 +116,23 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
       updateWidget(widget.id, {
         config: { ...config, teams: newTeams },
       });
-      addToast(`Imported ${newTeams.length} groups!`, 'success');
+      addToast(
+        t('widgetSettings.scoreboard.importedGroups', {
+          count: newTeams.length,
+        }),
+        'success'
+      );
     } else {
-      addToast('Randomizer needs to have generated groups first.', 'info');
+      addToast(t('widgetSettings.scoreboard.generateGroupsFirst'), 'info');
     }
   };
 
   const addTeam = () => {
     const newTeam: ScoreboardTeam = {
       id: crypto.randomUUID(),
-      name: `Team ${teams.length + 1}`,
+      name: t('widgetSettings.scoreboard.teamName', {
+        count: teams.length + 1,
+      }),
       score: 0,
       color: TEAM_COLORS[teams.length % TEAM_COLORS.length],
     };
@@ -173,59 +183,61 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
       },
     });
     setShowResetConfirm(false);
-    addToast('All scores reset to 0', 'info');
+    addToast(t('widgetSettings.scoreboard.scoresReset'), 'info');
   };
 
   const layoutLabelId = `scoreboard-layout-label-${widget.id}`;
 
   return (
     <div className="space-y-6">
-      <div>
-        <SettingsLabel as="span" id={layoutLabelId}>
-          Layout
-        </SettingsLabel>
-        <div
-          className="flex items-center bg-slate-200/80 rounded-lg p-0.5"
-          role="radiogroup"
-          aria-labelledby={layoutLabelId}
-        >
-          <button
-            type="button"
-            role="radio"
-            aria-checked={layout === 'cards'}
-            onClick={() => setLayout('cards')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-              layout === 'cards'
-                ? 'bg-white text-slate-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
+      {showLayout && (
+        <div>
+          <SettingsLabel as="span" id={layoutLabelId}>
+            {t('widgetSettings.scoreboard.layout')}
+          </SettingsLabel>
+          <div
+            className="flex items-center bg-slate-200/80 rounded-lg p-0.5"
+            role="radiogroup"
+            aria-labelledby={layoutLabelId}
           >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            Cards
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={layout === 'rows'}
-            onClick={() => setLayout('rows')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-              layout === 'rows'
-                ? 'bg-white text-slate-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <List className="w-3.5 h-3.5" />
-            List
-          </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={layout === 'cards'}
+              onClick={() => setLayout('cards')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                layout === 'cards'
+                  ? 'bg-white text-slate-700 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              {t('widgetSettings.scoreboard.cards')}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={layout === 'rows'}
+              onClick={() => setLayout('rows')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                layout === 'rows'
+                  ? 'bg-white text-slate-700 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              {t('widgetSettings.scoreboard.rows')}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 text-indigo-900">
             <Users className="w-4 h-4" />
             <span className="text-xs font-black uppercase tracking-wider">
-              Import from Randomizer
+              {t('widgetSettings.scoreboard.importRandomizer')}
             </span>
           </div>
           <Button
@@ -235,38 +247,46 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
             disabled={!randomWidget}
             data-testid="import-groups-btn"
             title={
-              !randomWidget ? 'Add a Randomizer widget first' : 'Import Groups'
+              !randomWidget
+                ? t('widgetSettings.scoreboard.addRandomizerFirst')
+                : t('widgetSettings.scoreboard.importGroups')
             }
             icon={<RefreshCw className="w-3 h-3" />}
           >
-            Import Groups
+            {t('widgetSettings.scoreboard.importGroups')}
           </Button>
         </div>
         {!randomWidget && (
           <div className="text-xxs text-indigo-400 font-medium">
-            Tip: Add a Randomizer widget and create groups to import them here.
+            {t('widgetSettings.scoreboard.importTip')}
           </div>
         )}
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between items-center h-6">
-          <SettingsLabel className="mb-0">Teams ({teams.length})</SettingsLabel>
+          <SettingsLabel className="mb-0">
+            {t('widgetSettings.scoreboard.teamsCount', {
+              count: teams.length,
+            })}
+          </SettingsLabel>
 
           {showResetConfirm ? (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
-              <span className="text-xxs font-bold text-slate-500">Sure?</span>
+              <span className="text-xxs font-bold text-slate-500">
+                {t('widgetSettings.scoreboard.confirmReset')}
+              </span>
               <button
                 onClick={handleReset}
                 className="text-xxs font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors"
               >
-                Yes
+                {t('widgetSettings.scoreboard.yes')}
               </button>
               <button
                 onClick={() => setShowResetConfirm(false)}
                 className="text-xxs font-bold text-slate-500 hover:text-slate-700 px-1"
               >
-                No
+                {t('widgetSettings.scoreboard.no')}
               </button>
             </div>
           ) : (
@@ -274,7 +294,7 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
               onClick={() => setShowResetConfirm(true)}
               className="text-xxs font-bold text-red-500 hover:text-red-600 underline"
             >
-              Reset Scores
+              {t('widgetSettings.scoreboard.resetScores')}
             </button>
           )}
         </div>
@@ -292,7 +312,7 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
                 value={team.name}
                 onUpdate={(val) => updateTeamName(team.id, val)}
                 className="flex-1 text-xs font-bold text-slate-700 bg-transparent outline-none"
-                placeholder="Team Name"
+                placeholder={t('widgetSettings.scoreboard.teamNamePlaceholder')}
               />
               <div className="text-xs font-mono text-slate-400 w-8 text-right">
                 {team.score}
@@ -313,7 +333,7 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
           variant="ghost"
           icon={<Plus className="w-4 h-4" />}
         >
-          Add Team
+          {t('widgetSettings.scoreboard.addTeam')}
         </Button>
       </div>
     </div>

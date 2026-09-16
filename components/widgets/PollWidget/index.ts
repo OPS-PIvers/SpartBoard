@@ -1,2 +1,2 @@
 export * from './Widget';
-export * from './Settings';
+export * from './settingsFields';

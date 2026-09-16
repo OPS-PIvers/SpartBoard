@@ -172,7 +172,15 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       shapeFill: false,
     },
   },
-  qr: { w: 200, h: 250, config: { showUrl: false } satisfies QRConfig },
+  qr: {
+    w: 200,
+    h: 250,
+    config: {
+      url: '',
+      showUrl: false,
+      syncWithTextWidget: false,
+    } satisfies QRConfig,
+  },
   embed: {
     w: 480,
     h: 350,
@@ -182,11 +190,20 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     w: 300,
     h: 250,
     config: {
-      question: 'Vote now!',
-      options: [
-        { id: 'opt-1', label: 'Option A', votes: 0 },
-        { id: 'opt-2', label: 'Option B', votes: 0 },
+      questions: [
+        {
+          id: 'q-1',
+          question: 'Vote now!',
+          options: [
+            { id: 'opt-1', label: 'Option A', votes: 0 },
+            { id: 'opt-2', label: 'Option B', votes: 0 },
+          ],
+        },
       ],
+      currentQuestionIndex: 0,
+      joinCode: null,
+      activePollSessionId: null,
+      lastPollSessionId: null,
     },
   },
   'activity-wall': {
@@ -212,7 +229,13 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   scoreboard: {
     w: 320,
     h: 200,
-    config: { scoreA: 0, scoreB: 0, teamA: 'Team 1', teamB: 'Team 2' },
+    config: {
+      teams: [
+        { id: 'team-a', name: 'Team A', score: 0, color: 'bg-blue-500' },
+        { id: 'team-b', name: 'Team B', score: 0, color: 'bg-red-500' },
+      ],
+      layout: 'cards',
+    },
   },
   expectations: {
     w: 320,
@@ -259,6 +282,12 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       events: [],
       isBuildingSyncEnabled: true,
       daysVisible: 5,
+      personalCalendarIds: [],
+      fontFamily: 'global',
+      fontColor: '#334155',
+      textSizePreset: 'medium',
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     },
   },
   lunchCount: {
