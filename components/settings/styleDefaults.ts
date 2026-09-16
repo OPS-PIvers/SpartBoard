@@ -11,7 +11,7 @@ export type StyleDefaultsState = {
   keys: string[];
   /** True when this widget's appearance differs from what a new widget of its type gets. */
   differs: boolean;
-  /** Only keys that differ from the building baseline, so later admin changes still reach new widgets. */
+  /** Keys that differ from the building baseline; keys this widget never set keep their saved value. */
   toSave: Values;
   /** Config patch returning this widget to the effective default (undefined clears a key). */
   resetPatch: Values;
@@ -53,7 +53,8 @@ export function computeStyleDefaults(
   let differs = false;
   for (const key of keys) {
     const value = mine[key] ?? baseline[key];
-    if (value !== undefined && !same(value, baseline[key])) toSave[key] = value;
+    const kept = mine[key] === undefined ? saved?.[key] : value;
+    if (kept !== undefined && !same(kept, baseline[key])) toSave[key] = kept;
     if (!same(value, effective[key])) differs = true;
     resetPatch[key] = effective[key];
   }

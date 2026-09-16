@@ -47,6 +47,16 @@ describe('computeStyleDefaults', () => {
     });
   });
 
+  it('keeps a saved value for a key this widget never set', () => {
+    const state = computeStyleDefaults(
+      { bgColor: '#dcfce7' },
+      widgetDefaults,
+      undefined,
+      { fontColor: '#ffffff' }
+    );
+    expect(state.toSave).toEqual({ bgColor: '#dcfce7', fontColor: '#ffffff' });
+  });
+
   it('treats an unset key as the baseline value', () => {
     const state = computeStyleDefaults(
       { fontFamily: undefined },
