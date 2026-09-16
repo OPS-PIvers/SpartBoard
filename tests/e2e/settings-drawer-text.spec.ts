@@ -55,7 +55,7 @@ test.describe('Note settings drawer at 1280x800', () => {
     // Style tab: fontColor is a universal style field driven by `styleKeys`.
     await drawer.getByRole('tab', { name: 'Style' }).click();
     await drawer.getByRole('radio', { name: 'Select font color Blue' }).click();
-    await expect(editable).toHaveCSS('color', 'rgb(45, 63, 137)');
+    await expect(editable).toHaveCSS('color', 'rgb(37, 99, 235)');
 
     // Close, reopen: the applied content and style persist.
     await drawer.locator('[data-testid="settings-drawer-close"]').click();
