@@ -20,6 +20,9 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: () => true,
     featurePermissions: [],
+    selectedBuildings: [],
+    savedWidgetConfigs: {},
+    saveWidgetDefault: vi.fn(),
     dockPosition: 'bottom',
     settingsDrawerWidth: 400,
     updateUserPreference: vi.fn(),

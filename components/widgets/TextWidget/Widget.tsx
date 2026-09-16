@@ -13,6 +13,7 @@ import { sanitizeHtml } from '@/utils/security';
 import { getFontClass } from '@/utils/styles';
 import { useDialog } from '@/context/useDialog';
 import { Z_INDEX } from '@/config/zIndex';
+import { useSettingsDrawerEnabled } from '@/hooks/useSettingsDrawerEnabled';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { FormattingToolbar } from './FormattingToolbar';
@@ -37,6 +38,8 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const isSelected = useIsWidgetSelected(widget.id);
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const globalStyle = useGlobalStyle();
+  // Drawer users set note color and vertical alignment in the Style tab (D27).
+  const drawerOwnsNoteStyle = useSettingsDrawerEnabled();
   const { showPrompt } = useDialog();
   const config = widget.config as TextConfig;
   const {
@@ -346,26 +349,27 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <FormattingToolbar
                   editorRef={editorRef}
                   configFontSize={resolvedFontSize}
-                  verticalAlign={verticalAlign}
-                  onVerticalAlignChange={(value) =>
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        verticalAlign: value,
-                      } as TextConfig,
-                    })
-                  }
                   suppressInputRef={suppressInputRef}
                   onContentChange={saveEditorContent}
-                  bgColor={bgColor}
-                  onBgColorChange={(color) =>
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        bgColor: color,
-                      } as TextConfig,
-                    })
-                  }
+                  {...(drawerOwnsNoteStyle
+                    ? {}
+                    : {
+                        verticalAlign,
+                        onVerticalAlignChange: (
+                          value: TextConfig['verticalAlign']
+                        ) =>
+                          updateWidget(widget.id, {
+                            config: {
+                              ...config,
+                              verticalAlign: value,
+                            } as TextConfig,
+                          }),
+                        bgColor,
+                        onBgColorChange: (color: string) =>
+                          updateWidget(widget.id, {
+                            config: { ...config, bgColor: color } as TextConfig,
+                          }),
+                      })}
                 />
               </div>,
               document.body

@@ -1335,6 +1335,12 @@
       "rosterStudentCount_other": "{{count}} students",
       "partner": {
         "add": "Add {{name}} widget"
+      },
+      "defaults": {
+        "matches": "Matches your default for new {{name}} widgets.",
+        "differs": "Differs from your default for new {{name}} widgets.",
+        "save": "Save as my default",
+        "reset": "Reset to my default"
       }
     },
     "lunchCount": {
@@ -1370,7 +1376,13 @@
       "rosterPlaceholder": "Enter one student per line..."
     },
     "text": {
-      "templates": "Templates"
+      "templates": "Templates",
+      "note": "Note",
+      "noteColor": "Note color",
+      "verticalAlign": "Vertical alignment",
+      "alignTop": "Top",
+      "alignMiddle": "Middle",
+      "alignBottom": "Bottom"
     },
     "embed": {
       "flaggedNotice": "This site is currently flagged as non-embeddable. A \"New Tab\" button will be shown to users instead.",

@@ -16,6 +16,8 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { WIDGET_SETTINGS_SCHEMAS } from '@/components/widgets/WidgetRegistry';
 import { getTitle } from '@/utils/widgetHelpers';
+import { getAdminBuildingConfig } from '@/utils/adminBuildingConfig';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { normalizeFlipped } from '@/utils/migration';
 import type { WidgetData, WidgetType } from '@/types';
 import { SettingsDrawer } from './SettingsDrawer';
@@ -148,6 +150,9 @@ export const SettingsDrawerHost: React.FC = () => {
     settingsDrawerWidth,
     updateUserPreference,
     isAdmin,
+    selectedBuildings,
+    savedWidgetConfigs,
+    saveWidgetDefault,
   } = useAuth();
   const enabled = canAccessFeature('settings-drawer');
   const toolLabel = useToolLabel();
@@ -408,6 +413,34 @@ export const SettingsDrawerHost: React.FC = () => {
     [isSheet, updateUserPreference]
   );
 
+  const openType = open ? widget.type : null;
+  const savedDefault = openType ? savedWidgetConfigs[openType] : undefined;
+  const styleDefaults = useMemo(
+    () =>
+      openType
+        ? {
+            widgetDefaults: WIDGET_DEFAULTS[openType]?.config as
+              | Record<string, unknown>
+              | undefined,
+            buildingConfig: getAdminBuildingConfig(
+              openType,
+              featurePermissions,
+              selectedBuildings
+            ),
+            saved: savedDefault as Record<string, unknown> | undefined,
+            onSave: (config: Record<string, unknown>) =>
+              saveWidgetDefault(openType, config),
+          }
+        : undefined,
+    [
+      openType,
+      featurePermissions,
+      selectedBuildings,
+      savedDefault,
+      saveWidgetDefault,
+    ]
+  );
+
   if (!open) return null;
 
   return (
@@ -435,6 +468,7 @@ export const SettingsDrawerHost: React.FC = () => {
         canAccessFeature={canAccessFeature}
         canAccessWidget={canAccessWidget}
         toolLabel={toolLabel}
+        styleDefaults={styleDefaults}
         headingRef={headingRef}
       />
     </>

@@ -99,7 +99,8 @@ export type SliderField<K extends string> = FieldBase<K> & {
 
 export type ColorField<K extends string> = FieldBase<K> & {
   type: 'color';
-  presets?: ReadonlyArray<string>;
+  /** Bare hexes, or named presets so swatches get readable accessible names. */
+  presets?: ReadonlyArray<string | { name: string; hex: string }>;
   allowTransparent?: boolean;
 };
 

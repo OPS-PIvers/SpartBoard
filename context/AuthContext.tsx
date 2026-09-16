@@ -14,6 +14,7 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth';
 import {
+  FieldPath,
   doc,
   getDoc,
   getDocs,
@@ -2455,6 +2456,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  // Explicit "Save as my default" (D28): replaces the type's entry so keys dropped from it stop applying.
+  const saveWidgetDefault = useCallback(
+    (type: WidgetType, config: Partial<WidgetConfig>) => {
+      const filtered = pickAppearanceKeys(config);
+      if (widgetConfigTimeoutRef.current) {
+        clearTimeout(widgetConfigTimeoutRef.current);
+      }
+      setSavedWidgetConfigs((prev) => {
+        const next = { ...prev };
+        if (Object.keys(filtered).length > 0) next[type] = filtered;
+        else delete next[type];
+        return next;
+      });
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      const path = new FieldPath('savedWidgetConfigs', type);
+      setDoc(
+        doc(db, 'users', user.uid, 'userProfile', 'profile'),
+        { savedWidgetConfigs: { [type]: filtered } },
+        { mergeFields: [path] }
+      ).catch((error) => {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving widget default:', error);
+        }
+      });
+    },
+    [user]
+  );
+
   // Explicit "save as preset" libraries (Stations sets, Hotspot Image items).
   // Account-wide on purpose, which is why they are kept apart from the
   // appearance defaults above rather than filtered through the allowlist.
@@ -3143,6 +3173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,
+        saveWidgetDefault,
         savedWidgetPresets,
         saveWidgetPreset,
         customMaterials,

@@ -526,6 +526,23 @@ describe('FormattingToolbar', () => {
     expect(mockOnBgColorChange).toHaveBeenCalledWith('#fef9c3');
   });
 
+  it('drops note background and vertical alignment when the drawer owns them', () => {
+    const {
+      verticalAlign: _va,
+      onVerticalAlignChange: _onVa,
+      bgColor: _bg,
+      onBgColorChange: _onBg,
+      ...selectionOnly
+    } = defaultProps;
+    render(<FormattingToolbar {...selectionOnly} />);
+    fireEvent.click(screen.getByTitle('Colors'));
+    expect(screen.getAllByLabelText(/^Font Color: /)).toHaveLength(5);
+    expect(screen.queryByLabelText('Background: Yellow')).toBeNull();
+    fireEvent.click(screen.getByTitle('Alignment & Layout'));
+    expect(screen.getByTitle('Align Left')).toBeInTheDocument();
+    expect(screen.queryByTitle('Align Top')).toBeNull();
+  });
+
   it('wraps the selected blocks in a <ul> when the bulleted-list button is clicked', () => {
     // The toolbar's list buttons used to call
     // `execCommand('insertUnorderedList')`, which Chrome only applies

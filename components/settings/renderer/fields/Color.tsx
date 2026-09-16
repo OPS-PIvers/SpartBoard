@@ -5,14 +5,13 @@ import { ColorPresetPicker } from '@/components/common/ColorPresetPicker';
 import {
   FONT_COLOR_PRESETS,
   TEXT_COLOR_SWATCHES,
-  WINDOW_BACKGROUND_PRESETS,
   ColorPreset,
 } from '@/config/widgetAppearance';
 import { resolveLabel } from '../resolveLabel';
 
 const TRANSPARENT = 'transparent';
 
-// Thin wrapper over the shared generic color picker; presets/allowTransparent come from the field.
+// Thin wrapper over the shared generic color picker; non-font colors must pass explicit `presets`.
 export const Color: React.FC<FieldProps<ColorField<string>>> = ({
   field,
   value,
@@ -26,12 +25,12 @@ export const Color: React.FC<FieldProps<ColorField<string>>> = ({
   const label = resolveLabel(ctx.t, ctx.widget.type, field.label);
   const presets: readonly ColorPreset[] =
     field.presets && field.presets.length > 0
-      ? field.presets.map((hex) => ({ name: hex, hex }))
-      : ctx.surface !== 'drawer'
-        ? TEXT_COLOR_SWATCHES
-        : field.key === 'bgColor'
-          ? WINDOW_BACKGROUND_PRESETS
-          : FONT_COLOR_PRESETS;
+      ? field.presets.map((preset) =>
+          typeof preset === 'string' ? { name: preset, hex: preset } : preset
+        )
+      : ctx.surface === 'drawer'
+        ? FONT_COLOR_PRESETS
+        : TEXT_COLOR_SWATCHES;
   const current = typeof value === 'string' ? value : undefined;
   const isTransparent = current === TRANSPARENT;
   const fallback = presets[0]?.hex ?? '#000000';
