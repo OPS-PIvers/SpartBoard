@@ -3,8 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { QuizConfig, QuizData, QuizResponse, QuizSession } from '@/types';
 
-// Hook stub set mirrors QuizResults.unlock.test.tsx — only the surface
-// QuizResults reaches during render + Students-tab interaction.
+// Hook stubs mirror QuizResults.unlock.test.tsx.
 const addToast = vi.fn();
 const updateWidget = vi.fn();
 const addWidget = vi.fn();
@@ -54,9 +53,7 @@ vi.mock('@/utils/quizDriveService', async (importOriginal) => {
 
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
 
-// A Drive-sync/arrayUnion race can write the same question id twice into
-// `quiz.questions` (see utils/quizMaxPoints.ts) — the Students tab's
-// denominator must dedupe the same way the gradebook denominator does.
+// Duplicate question id, as written by the Drive-sync/arrayUnion race.
 function makeQuizWithDuplicateQuestion(): QuizData {
   const q1 = {
     id: 'q1',
