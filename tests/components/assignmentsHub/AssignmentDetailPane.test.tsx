@@ -173,6 +173,27 @@ describe('AssignmentDetailPane — D3 edit-in-place', () => {
     expect(screen.getByText('Removed — work retained')).toBeInTheDocument();
   });
 
+  it('excludes a removed-but-submitted student from the status-count summary', () => {
+    (
+      useAssignmentRosterStatus as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      statusByUid: new Map([['uid-1', 'submitted']]),
+      totalQuestions: 5,
+      loading: false,
+    });
+    render(
+      <AssignmentDetailPane
+        row={makeRow({
+          targetStudents: [],
+          removedStudentRefs: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+        })}
+      />
+    );
+    const submittedChip = screen.getByText('Submitted');
+    const wrapper = submittedChip.parentElement;
+    expect(wrapper).toHaveTextContent('Submitted0');
+  });
+
   it('keeps header controls and offers an Add students action when the roster is empty (F2)', () => {
     render(
       <AssignmentDetailPane

@@ -388,7 +388,7 @@ export const AssignmentDetailPane: React.FC<{
       manual: 0,
     };
     for (const r of rosterRows) {
-      if (r.skipped) continue;
+      if (r.skipped || r.removed) continue;
       if (r.manual) c.manual += 1;
       else c[r.status ?? 'not-started'] += 1;
     }
