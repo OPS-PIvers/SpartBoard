@@ -17,6 +17,7 @@ beforeEach(() => {
   captureOfflineGrant.mockReset().mockResolvedValue(true);
   authValue = {
     user: { uid: 'u1', email: 't@example.com' },
+    googleAccessToken: 'live-token',
     offlineGrantMissing: true,
     captureOfflineGrant,
   };
@@ -30,6 +31,14 @@ describe('DriveOfflineGrantCard', () => {
 
   it('stays hidden when the grant is already stored', () => {
     authValue.offlineGrantMissing = false;
+    render(<DriveOfflineGrantCard />);
+    expect(screen.queryByText('Stay connected to Drive')).toBeNull();
+  });
+
+  // Both banners are fixed to the same corner, and offlineGrantMissing survives
+  // a later disconnect — so without this guard they stack on top of each other.
+  it('stays hidden while Drive is disconnected', () => {
+    authValue.googleAccessToken = null;
     render(<DriveOfflineGrantCard />);
     expect(screen.queryByText('Stay connected to Drive')).toBeNull();
   });

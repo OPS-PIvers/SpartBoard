@@ -25,7 +25,8 @@ const readStoredDismissUntil = (): number => {
  * asks once, from a real click so the consent popup is never blocker-suppressed.
  */
 export const DriveOfflineGrantCard: React.FC = () => {
-  const { user, offlineGrantMissing, captureOfflineGrant } = useAuth();
+  const { user, googleAccessToken, offlineGrantMissing, captureOfflineGrant } =
+    useAuth();
   const [dismissedUntil, setDismissedUntil] = useState(readStoredDismissUntil);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -56,7 +57,15 @@ export const DriveOfflineGrantCard: React.FC = () => {
     }
   };
 
-  if (!user || !offlineGrantMissing || dismissedUntil > Date.now()) return null;
+  // Stand down while disconnected: DriveDisconnectBanner owns that state and
+  // occupies this exact position, so both showing would overlap.
+  if (
+    !user ||
+    !googleAccessToken ||
+    !offlineGrantMissing ||
+    dismissedUntil > Date.now()
+  )
+    return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
