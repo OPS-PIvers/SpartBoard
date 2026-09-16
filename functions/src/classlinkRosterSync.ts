@@ -379,14 +379,19 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
     },
 
     readRosterFile: async (accessToken, fileId) => {
-      const [body, driveVersion] = await Promise.all([
-        axios.get<unknown>(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, {
+      // Version BEFORE content, never in parallel. A teacher saving between
+      // the two must make the pre-write check fail: reading the version second
+      // would record their new version against our stale content, and the
+      // check would then wave the overwrite through.
+      const driveVersion = await driveGetVersion(accessToken, fileId);
+      const body = await axios.get<unknown>(
+        `${DRIVE_API}/files/${encodeURIComponent(fileId)}`,
+        {
           params: { alt: 'media' },
           headers: { Authorization: `Bearer ${accessToken}` },
           timeout: API_TIMEOUT_MS,
-        }),
-        driveGetVersion(accessToken, fileId),
-      ]);
+        }
+      );
       return { content: parseRosterFileBody(body.data), driveVersion };
     },
 
