@@ -40,6 +40,7 @@
     "boardList": "All boards",
     "manageAllBoards": "Manage all boards",
     "renameBoard": "Rename board",
+    "dragToReorder": "Drag to reorder (Alt+Arrow keys)",
     "movedTo": "Moved to “{{name}}”",
     "pinned": "Pinned"
   },
@@ -2080,7 +2081,8 @@
     "title": "Switch Collection",
     "root": "No Collection",
     "renameCollection": "Rename collection",
-    "renameFailed": "Failed to rename Collection"
+    "renameFailed": "Failed to rename Collection",
+    "reorderFailed": "Failed to save the new Collection order"
   },
   "boardsModal": {
     "title": "Boards & Collections",
@@ -2114,6 +2116,8 @@
     "dragToMove": "Drag to move",
     "select": "Select",
     "deselect": "Deselect",
+    "editBoard": "Edit board",
+    "editCollection": "Edit Collection",
     "colorSaveFailed": "Failed to save color",
     "collectionMoved": "Collection moved",
     "collectionMoveFailed": "Failed to move Collection",

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { updateDoc } from 'firebase/firestore';
+import { updateDoc, writeBatch } from 'firebase/firestore';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
 import {
@@ -219,6 +219,9 @@ function makePiiWidget(id: string): WidgetData {
   };
 }
 
+const bumpSeatCount = (config: WidgetConfig): WidgetConfig =>
+  ({ ...config, seatCount: 30 }) as unknown as WidgetConfig;
+
 function makeDashboard(id: string, widgets: WidgetData[]): Dashboard {
   return {
     id,
@@ -269,7 +272,7 @@ describe('DashboardContext plural saveDashboards PII backup', () => {
     vi.useRealTimers();
   });
 
-  it('backs up an admin board containing PII to Drive before reordering scrubs it from Firestore', async () => {
+  it('backs up an admin board containing PII to Drive before a plural save scrubs it from Firestore', async () => {
     const stateRef = setup();
     const dash1 = makeDashboard('dash-1', []);
     const dash2 = makeDashboard('dash-2', [makePiiWidget('w-pii')]);
@@ -278,7 +281,10 @@ describe('DashboardContext plural saveDashboards PII backup', () => {
     uploadFileMock.mockClear();
 
     await act(async () => {
-      await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
+      await stateRef.current?.updateWidgetConfigsAcrossBoards(
+        'seating-chart',
+        bumpSeatCount
+      );
     });
 
     // The admin path never calls exportDashboard (that's non-admin only) —
@@ -337,7 +343,10 @@ describe('DashboardContext PII backup with no live Drive connection', () => {
     saveDashboardsMock.mockClear();
 
     await act(async () => {
-      await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
+      await stateRef.current?.updateWidgetConfigsAcrossBoards(
+        'seating-chart',
+        bumpSeatCount
+      );
     });
 
     // No Drive backup was possible, so the PII-bearing board must never be
@@ -353,7 +362,7 @@ describe('DashboardContext PII backup with no live Drive connection', () => {
       stateRef.current?.toasts.filter((t) => t.type === 'error') ?? [];
     expect(
       errorToasts.some((t) =>
-        t.message.includes('Failed to save the new board order')
+        t.message.includes('syncing it to other boards failed')
       )
     ).toBe(true);
 
@@ -375,7 +384,27 @@ describe('DashboardContext PII backup with no live Drive connection', () => {
   });
 });
 
-describe('DashboardContext reorderDashboards rollback', () => {
+type MockBatch = {
+  update: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  set: ReturnType<typeof vi.fn>;
+  commit: ReturnType<typeof vi.fn>;
+};
+
+const mockNextBatch = (commit: () => Promise<void>): MockBatch => {
+  const batch: MockBatch = {
+    update: vi.fn(),
+    delete: vi.fn(),
+    set: vi.fn(),
+    commit: vi.fn(commit),
+  };
+  vi.mocked(writeBatch).mockReturnValueOnce(
+    batch as unknown as ReturnType<typeof writeBatch>
+  );
+  return batch;
+};
+
+describe('DashboardContext reorderDashboards', () => {
   beforeEach(() => {
     capturedSnapshotCb = null;
     saveDashboardMock.mockClear();
@@ -391,20 +420,69 @@ describe('DashboardContext reorderDashboards rollback', () => {
     vi.useRealTimers();
   });
 
+  it('writes only order + updatedAt, never the board document', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      { ...makeDashboard('dash-1', []), order: 0 },
+      { ...makeDashboard('dash-2', [makePiiWidget('w-pii')]), order: 1 },
+    ]);
+    const batch = mockNextBatch(() => Promise.resolve());
+
+    await act(async () => {
+      await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
+    });
+
+    expect(saveDashboardsMock).not.toHaveBeenCalled();
+    expect(uploadFileMock).not.toHaveBeenCalled();
+    expect(batch.update).toHaveBeenCalledTimes(2);
+    for (const call of batch.update.mock.calls) {
+      expect(Object.keys(call[1] as object).sort()).toEqual([
+        'order',
+        'updatedAt',
+      ]);
+    }
+    expect(stateRef.current?.dashboards.map((d) => d.id)).toEqual([
+      'dash-2',
+      'dash-1',
+    ]);
+  });
+
+  it('re-sequences a subset inside the slots it already holds', async () => {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      { ...makeDashboard('a', []), order: 0 },
+      { ...makeDashboard('b', []), order: 1 },
+      { ...makeDashboard('c', []), order: 2 },
+      { ...makeDashboard('d', []), order: 3 },
+    ]);
+    const batch = mockNextBatch(() => Promise.resolve());
+
+    await act(async () => {
+      await stateRef.current?.reorderDashboards(['d', 'b']);
+    });
+
+    expect(stateRef.current?.dashboards.map((d) => d.id)).toEqual([
+      'a',
+      'd',
+      'c',
+      'b',
+    ]);
+    // Boards outside the subset keep their order, so only the two swapped docs are written.
+    expect(batch.update).toHaveBeenCalledTimes(2);
+  });
+
   it('reverts the local order and toasts an error when the Firestore save fails', async () => {
     const stateRef = setup();
     const dash1 = { ...makeDashboard('dash-1', []), order: 0 };
     const dash2 = { ...makeDashboard('dash-2', []), order: 1 };
     await settleSnapshot(stateRef, [dash1, dash2]);
     const orderBefore = stateRef.current?.dashboards.map((d) => d.id);
-    saveDashboardsMock.mockRejectedValueOnce(new Error('offline'));
+    mockNextBatch(() => Promise.reject(new Error('offline')));
 
     await act(async () => {
       await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
     });
 
-    // Without a revert, the teacher would see an order that was never
-    // persisted — it would silently snap back only on the next reload.
     expect(stateRef.current?.dashboards.map((d) => d.id)).toEqual(orderBefore);
     const errorToast = stateRef.current?.toasts.find((t) => t.type === 'error');
     expect(errorToast?.message).toContain('Failed to save');
@@ -416,28 +494,24 @@ describe('DashboardContext reorderDashboards rollback', () => {
     const dash2 = { ...makeDashboard('dash-2', []), order: 1 };
     await settleSnapshot(stateRef, [dash1, dash2]);
 
-    // Hold the save pending so a concurrent snapshot can land mid-flight.
     let rejectSave: (err: Error) => void = () => undefined;
-    saveDashboardsMock.mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        rejectSave = reject;
-      })
+    mockNextBatch(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        })
     );
 
     const reorderPromise = act(async () => {
       await stateRef.current?.reorderDashboards(['dash-2', 'dash-1']);
     });
 
-    // A brand-new dashboard arrives via the live onSnapshot listener before
-    // the reorder's save has settled — e.g. created from another tab.
     const dash3 = { ...makeDashboard('dash-3', []), order: 2 };
     await pushSnapshot([dash1, dash2, dash3]);
 
     rejectSave(new Error('offline'));
     await reorderPromise;
 
-    // A stale full-array revert (setDashboards(previousDashboards), captured
-    // before dash-3 existed) would have wiped dash-3 out entirely.
     expect(stateRef.current?.dashboards.map((d) => d.id)).toContain('dash-3');
   });
 });

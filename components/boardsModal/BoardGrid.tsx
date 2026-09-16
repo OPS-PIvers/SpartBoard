@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Collection, Dashboard } from '@/types';
 import { BoardCard } from './BoardCard';
 import { CollectionCard } from './CollectionCard';
+import { boardsInView, siblingCollections } from './dropIndicator';
 
 interface BoardGridProps {
   selectedCollectionId: string | null;
@@ -15,6 +16,10 @@ interface BoardGridProps {
   onOpenBoard: (id: string) => void;
   onContextMenu: (
     e: React.MouseEvent,
+    target: { type: 'board' | 'collection'; id: string }
+  ) => void;
+  onOpenEditMenu: (
+    anchor: HTMLElement,
     target: { type: 'board' | 'collection'; id: string }
   ) => void;
   onDuplicateBoard: (id: string) => void;
@@ -38,6 +43,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   onToggleSelect,
   onOpenBoard,
   onContextMenu,
+  onOpenEditMenu,
   onDuplicateBoard,
   onDuplicateCollection,
   isBoardDuplicating,
@@ -48,10 +54,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   const { t } = useTranslation();
 
   const subCollections = useMemo(
-    () =>
-      collections
-        .filter((c) => c.parentCollectionId === selectedCollectionId)
-        .sort((a, b) => a.order - b.order),
+    () => siblingCollections(collections, selectedCollectionId),
     [collections, selectedCollectionId]
   );
 
@@ -60,12 +63,10 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   // which Collection each one lives in. Collection-scoped views still
   // filter strictly to Boards in that Collection.
   const isAllBoardsView = selectedCollectionId === null;
-  const boardsHere = useMemo(() => {
-    const list = isAllBoardsView
-      ? boards
-      : boards.filter((b) => (b.collectionId ?? null) === selectedCollectionId);
-    return list.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [boards, selectedCollectionId, isAllBoardsView]);
+  const boardsHere = useMemo(
+    () => boardsInView(boards, selectedCollectionId),
+    [boards, selectedCollectionId]
+  );
 
   // Lookup table for the per-card Collection badge. Only consulted in
   // "All Boards" view — Collection-scoped views don't need badges because
@@ -136,6 +137,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                       onContextMenu={(e) =>
                         onContextMenu(e, { type: 'collection', id: c.id })
                       }
+                      onEdit={(anchor) =>
+                        onOpenEditMenu(anchor, { type: 'collection', id: c.id })
+                      }
                       onDuplicate={() => onDuplicateCollection(c.id)}
                       onShare={() => onShareCollection(c)}
                     />
@@ -171,6 +175,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                       onToggleSelect={() => onToggleSelect(b.id)}
                       onContextMenu={(e) =>
                         onContextMenu(e, { type: 'board', id: b.id })
+                      }
+                      onEdit={(anchor) =>
+                        onOpenEditMenu(anchor, { type: 'board', id: b.id })
                       }
                       onDuplicate={() => onDuplicateBoard(b.id)}
                       onShare={() => onShareBoard(b)}

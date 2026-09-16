@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Collection, Dashboard } from '@/types';
+import { DropInsertionBar } from './DropInsertionBar';
+import { useDropMode } from './dropIndicator';
 
 interface CollectionTreeNodeProps {
   node: Collection;
@@ -27,14 +29,17 @@ export const CollectionTreeNode: React.FC<CollectionTreeNodeProps> = ({
   const isSelected = selectedCollectionId === node.id;
   const hasChildren = children.length > 0;
 
-  const dndId = `collection:${node.id}`;
+  // Distinct from the grid card ids ('collection:') for the same Collection.
+  const dndId = `tree:${node.id}`;
   const {
     attributes,
     listeners,
     setNodeRef: setDragRef,
     isDragging,
   } = useDraggable({ id: dndId });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dndId });
+  const { setNodeRef: setDropRef } = useDroppable({ id: dndId });
+  const dropMode = useDropMode(dndId);
+  const isOver = dropMode === 'into';
 
   // Combine drag + drop refs for this dual-purpose element.
   const setRef = (n: HTMLDivElement | null) => {
@@ -48,7 +53,7 @@ export const CollectionTreeNode: React.FC<CollectionTreeNodeProps> = ({
         ref={setRef}
         {...attributes}
         {...listeners}
-        className={`flex items-center gap-1 px-1 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+        className={`relative flex items-center gap-1 px-1 py-1 rounded-md text-sm cursor-pointer transition-colors ${
           isDragging ? 'opacity-50' : ''
         } ${
           isOver ? 'bg-brand-blue-lighter ring-2 ring-brand-blue-primary' : ''
@@ -60,6 +65,7 @@ export const CollectionTreeNode: React.FC<CollectionTreeNodeProps> = ({
         style={{ paddingLeft: `${0.25 + depth * 0.75}rem` }}
         onClick={() => onSelectCollection(node.id)}
       >
+        <DropInsertionBar mode={dropMode} orientation="vertical" />
         <button
           onClick={(e) => {
             e.stopPropagation();

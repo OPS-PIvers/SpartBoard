@@ -39,6 +39,7 @@
     "boardList": "Todos los tableros",
     "manageAllBoards": "Administrar todos los tableros",
     "renameBoard": "Cambiar nombre del tablero",
+    "dragToReorder": "Arrastra para reordenar (Alt+flechas)",
     "movedTo": "Movido a «{{name}}»",
     "pinned": "Fijado",
     "selectCollection": "Seleccionar colección"
@@ -1555,7 +1556,8 @@
     "title": "Cambiar colección",
     "root": "Sin colección",
     "renameCollection": "Cambiar nombre de la colección",
-    "renameFailed": "No se pudo cambiar el nombre de la Colección"
+    "renameFailed": "No se pudo cambiar el nombre de la Colección",
+    "reorderFailed": "No se pudo guardar el nuevo orden de las colecciones"
   },
   "boardsModal": {
     "title": "Tableros y Colecciones",
@@ -1589,6 +1591,8 @@
     "dragToMove": "Arrastra para mover",
     "select": "Seleccionar",
     "deselect": "Deseleccionar",
+    "editBoard": "Editar tablero",
+    "editCollection": "Editar colección",
     "colorSaveFailed": "No se pudo guardar el color",
     "collectionMoved": "Colección movida",
     "collectionMoveFailed": "No se pudo mover la Colección",

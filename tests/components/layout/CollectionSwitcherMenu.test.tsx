@@ -134,4 +134,64 @@ describe('CollectionSwitcherMenu', () => {
       window.removeEventListener('keydown', windowKeydownSpy);
     }
   });
+  it('reorders a Collection among its siblings with Alt+Arrow keys', () => {
+    const onReorder = vi.fn();
+    render(
+      <CollectionSwitcherMenu
+        collections={[
+          coll('a', null, 0, 'A'),
+          coll('b', 'a', 0, 'B'),
+          coll('c', 'a', 1, 'C'),
+          coll('d', null, 1, 'D'),
+        ]}
+        activeCollectionId={null}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onReorder={onReorder}
+      />
+    );
+    // The menu reads the focused row, so focus it before pressing keys.
+    const pressAlt = (name: string, key: string) => {
+      const item = screen.getByRole('menuitem', { name });
+      item.focus();
+      fireEvent.keyDown(item, { key, altKey: true });
+    };
+    pressAlt('A', 'ArrowDown');
+    expect(onReorder).toHaveBeenLastCalledWith(null, ['d', 'a']);
+
+    pressAlt('C', 'ArrowUp');
+    expect(onReorder).toHaveBeenLastCalledWith('a', ['c', 'b']);
+
+    // Already last among its siblings: no write.
+    onReorder.mockClear();
+    pressAlt('D', 'ArrowDown');
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it('only shows drag handles when reordering is enabled', () => {
+    const collections = [coll('a', null, 0, 'A'), coll('d', null, 1, 'D')];
+    const { rerender } = render(
+      <CollectionSwitcherMenu
+        collections={collections}
+        activeCollectionId={null}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryAllByRole('button', { name: /drag to reorder/i })
+    ).toHaveLength(0);
+    rerender(
+      <CollectionSwitcherMenu
+        collections={collections}
+        activeCollectionId={null}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onReorder={vi.fn()}
+      />
+    );
+    expect(
+      screen.getAllByRole('button', { name: /drag to reorder/i })
+    ).toHaveLength(2);
+  });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FC } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import { GripVertical, type LucideIcon } from 'lucide-react';
+import type { SortableListDragHandleProps } from '@/components/common/SortableList';
 
 export const RowActionButton: FC<{
   icon: LucideIcon;
@@ -18,6 +19,25 @@ export const RowActionButton: FC<{
     className="flex h-7 w-7 items-center justify-center rounded-md text-white/70 hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
   >
     <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+  </button>
+);
+
+/** Drag grip for reorderable menu rows; Alt+Arrow keys are the keyboard path. */
+export const RowDragHandle: FC<{
+  label: string;
+  handle: SortableListDragHandleProps;
+}> = ({ label, handle }) => (
+  <button
+    type="button"
+    {...handle.attributes}
+    {...handle.listeners}
+    tabIndex={-1}
+    aria-label={label}
+    title={label}
+    onClick={(e) => e.stopPropagation()}
+    className="flex h-7 w-6 touch-none items-center justify-center rounded-md text-white/50 hover:bg-white/15 hover:text-white cursor-grab active:cursor-grabbing focus-visible:outline-none"
+  >
+    <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
   </button>
 );
 

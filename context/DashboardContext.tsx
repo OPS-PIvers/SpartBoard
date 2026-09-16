@@ -91,6 +91,7 @@ import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
 import { logError } from '@/utils/logError';
+import { mergeSubsetOrder } from '@/utils/reorderIds';
 import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
@@ -4626,63 +4627,64 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, activeId, updateDashboardFields, addToast]
   );
 
+  // `ids` may be a subset (one Collection's boards); they re-sequence inside the slots they already hold.
   const reorderDashboards = useCallback(
     async (ids: string[]) => {
       if (!user) return;
 
-      const previousDashboards = dashboards;
-      const updatedDashboards: Dashboard[] = [];
-      ids.forEach((id, index) => {
-        const db = dashboards.find((d) => d.id === id);
-        if (db) {
-          updatedDashboards.push({ ...db, order: index });
-        }
-      });
+      const byOrder = (a: Dashboard, b: Dashboard) =>
+        (a.order ?? 0) - (b.order ?? 0);
+      const baseline = [...dashboards].sort(byOrder);
+      const nextIds = mergeSubsetOrder(
+        baseline.map((d) => d.id),
+        ids
+      );
+      const nextOrder = new Map(nextIds.map((id, index) => [id, index]));
+      const changed = baseline.filter((d) => d.order !== nextOrder.get(d.id));
+      if (changed.length === 0) return;
+      const previousOrder = new Map(changed.map((d) => [d.id, d.order]));
 
-      // Update local state
-      setDashboards((prev) => {
-        const next = [...prev];
-        updatedDashboards.forEach((updated) => {
-          const index = next.findIndex((d) => d.id === updated.id);
-          if (index >= 0) next[index] = updated;
-        });
-        return next.sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          if (a.isDefault && !b.isDefault) return -1;
-          if (!a.isDefault && b.isDefault) return 1;
-          return (b.createdAt || 0) - (a.createdAt || 0);
-        });
-      });
+      setDashboards((prev) =>
+        prev
+          .map((d) =>
+            nextOrder.has(d.id) ? { ...d, order: nextOrder.get(d.id) } : d
+          )
+          .sort(byOrder)
+      );
+      if (isAuthBypass) return;
 
-      // Save to Firestore
+      // Order-only updates: a whole-document save would rewrite every widget on every reordered board.
       try {
-        await saveDashboards(updatedDashboards);
+        for (let i = 0; i < changed.length; i += 400) {
+          const batch = writeBatch(db);
+          const now = Date.now();
+          for (const d of changed.slice(i, i + 400)) {
+            batch.update(doc(db, 'users', user.uid, 'dashboards', d.id), {
+              order: nextOrder.get(d.id),
+              updatedAt: now,
+            });
+          }
+          await batch.commit();
+        }
       } catch (err) {
-        console.error('Failed to save reordered dashboards:', err);
+        logError('DashboardContext.reorderDashboards', err, {
+          uid: user.uid,
+          count: changed.length,
+        });
         addToast('Failed to save the new board order', 'error');
-        // Revert only the `order` field via the functional form — the save can
-        // take a while, and a stale full-array revert would blow away any
-        // other update (onSnapshot, rename, delete) that landed meanwhile.
+        // Functional revert of `order` only, so updates that landed meanwhile survive.
         setDashboards((prev) =>
           prev
-            .map((d) => {
-              const original = previousDashboards.find((p) => p.id === d.id);
-              return original ? { ...d, order: original.order } : d;
-            })
-            .sort((a, b) => {
-              const orderA = a.order ?? 0;
-              const orderB = b.order ?? 0;
-              if (orderA !== orderB) return orderA - orderB;
-              if (a.isDefault && !b.isDefault) return -1;
-              if (!a.isDefault && b.isDefault) return 1;
-              return (b.createdAt || 0) - (a.createdAt || 0);
-            })
+            .map((d) =>
+              previousOrder.has(d.id)
+                ? { ...d, order: previousOrder.get(d.id) }
+                : d
+            )
+            .sort(byOrder)
         );
       }
     },
-    [user, dashboards, saveDashboards, addToast]
+    [user, dashboards, addToast]
   );
 
   // `options.silent` suppresses the success + error toast surfaced by the

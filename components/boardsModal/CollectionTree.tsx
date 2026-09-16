@@ -5,6 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import type { Collection, Dashboard } from '@/types';
 import { CollectionTreeNode } from './CollectionTreeNode';
 import { PinnedSection } from './PinnedSection';
+import { useDropMode } from './dropIndicator';
 
 interface CollectionTreeProps {
   collections: Collection[];
@@ -55,9 +56,10 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   const isRootSelected = selectedCollectionId === null;
 
   // Root drop zone — boards/collections dragged here move to root level.
-  const { setNodeRef: setRootDropRef, isOver: isOverRoot } = useDroppable({
+  const { setNodeRef: setRootDropRef } = useDroppable({
     id: 'collection:root',
   });
+  const isOverRoot = useDropMode('collection:root') === 'into';
 
   return (
     <div className="w-72 shrink-0 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar flex flex-col">

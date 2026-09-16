@@ -1,11 +1,13 @@
 import React from 'react';
-import { Star, Pin, Folder, Copy, Share2, Loader2 } from 'lucide-react';
-import { useDraggable } from '@dnd-kit/core';
+import { Star, Pin, Folder, Copy, Share2, Loader2, Pencil } from 'lucide-react';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import type { Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { hexToRgba, pickReadableForeground } from '@/utils/collectionColor';
 import { BoardThumbnail } from './BoardThumbnail';
+import { DropInsertionBar } from './DropInsertionBar';
+import { useDropMode } from './dropIndicator';
 
 interface BoardCardProps {
   board: Dashboard;
@@ -24,6 +26,8 @@ interface BoardCardProps {
   onClick: () => void;
   onToggleSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  /** Opens the board's action menu under the Edit button. */
+  onEdit: (anchor: HTMLElement) => void;
   onDuplicate: () => void;
   onShare: () => void;
 }
@@ -37,15 +41,27 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   onClick,
   onToggleSelect,
   onContextMenu,
+  onEdit,
   onDuplicate,
   onShare,
 }) => {
   const { unpinBoard, pinBoard } = useDashboard();
   const { t } = useTranslation();
 
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `board:${board.id}`,
-  });
+  const dndId = `board:${board.id}`;
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({ id: dndId });
+  // Droppable too, so other boards can be dropped before/after this one.
+  const { setNodeRef: setDropRef } = useDroppable({ id: dndId });
+  const setNodeRef = (node: HTMLDivElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
+  const dropMode = useDropMode(dndId);
 
   const widgetCount = board.widgets?.length ?? 0;
   const lastEdited = board.updatedAt
@@ -84,6 +100,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
         onContextMenu(e);
       }}
     >
+      <DropInsertionBar mode={dropMode} orientation="horizontal" />
       {/* Always-visible selection checkbox — click to toggle without
           opening the board. dnd-kit's drag listeners are on the parent
           div but the 15px activation threshold means a tap on this
@@ -137,11 +154,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       {/* Reserve right-side runway for the absolute-positioned action row
           below. Without this padding the metadata + collection badge run
           under the Share/Duplicate/Pin icons on narrower cards. */}
-      <div className="text-xxs text-slate-400 mb-1 pr-20">
+      <div className="text-xxs text-slate-400 mb-1 pr-24">
         {widgetCount} widgets · edited {lastEdited}
       </div>
       {collectionBadge && (
-        <div className="pr-20">
+        <div className="pr-24">
           {collectionBadge.color ? (
             <div
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xxs font-bold max-w-full"
@@ -163,11 +180,26 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       )}
 
       {/* Always-visible action row — touch-discoverable surface for the
-          actions teachers need at-a-glance (share, duplicate, pin).
-          Right-click context menu still lists these too. Each button stops
-          propagation on click + pointerdown so it doesn't trigger card-open
-          or dnd-kit drag-start. */}
+          actions teachers need at-a-glance (edit, share, duplicate, pin).
+          Each button stops propagation on click + pointerdown so it doesn't
+          trigger card-open or dnd-kit drag-start. */}
       <div className="absolute bottom-2 right-2 flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(e.currentTarget);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={t('boardsModal.editBoard', {
+            defaultValue: 'Edit board',
+          })}
+          title={t('boardsModal.editBoard', { defaultValue: 'Edit board' })}
+          aria-haspopup="menu"
+          className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
         {canShare && (
           <button
             type="button"
