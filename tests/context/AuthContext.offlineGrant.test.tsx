@@ -27,6 +27,15 @@ vi.mock('@/utils/googleOAuthRefresh', () => ({
   revokeBackendRefreshToken: vi.fn().mockResolvedValue(undefined),
 }));
 
+// The returning-user Drive probe builds a real GoogleDriveService whose unmocked
+// fetch 401s on CI, driving refreshGoogleToken — which mints tokens mid-test and
+// overwrites the very storage these assertions read.
+vi.mock('@/utils/googleDriveService', () => ({
+  GoogleDriveService: class {
+    hasExistingAppFolder = () => Promise.resolve(false);
+  },
+}));
+
 vi.mock('firebase/auth', async () => {
   const actual =
     await vi.importActual<typeof import('firebase/auth')>('firebase/auth');
