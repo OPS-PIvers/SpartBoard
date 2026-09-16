@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ScoreboardWidget } from './Widget';
-import { ScoreboardSettings } from './Settings';
+import { ScoreboardSettings } from './settingsFields';
 import { useDashboard } from '@/context/useDashboard';
 import {
   useGlobalStyle,

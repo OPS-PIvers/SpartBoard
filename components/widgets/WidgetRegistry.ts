@@ -246,6 +246,9 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
  * Note: This map is intentionally NOT exhaustive over all `WidgetType`s.
  * Several widget types deliberately have no flip-panel settings component:
  *
+ * - Every type registered in `WIDGET_SETTINGS_SCHEMAS`: its schema owns both
+ *   Settings and Style drawer content, so it must not also be registered in
+ *   either legacy component map below.
  * - `stickers`: All sticker configuration lives in the appearance panel
  *   (`StickerBookAppearanceSettings`, registered in
  *   `WIDGET_APPEARANCE_COMPONENTS`). The flip button is always rendered,
@@ -287,19 +290,18 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('./ExpectationsWidget/settings.schema').then((m) => m.default),
   random: () => import('./random/settings.schema').then((m) => m.default),
   url: () => import('./UrlWidget/settings.schema').then((m) => m.default),
+  qr: () => import('./QRWidget/settings.schema').then((m) => m.default),
+  scoreboard: () =>
+    import('./Scoreboard/settings.schema').then((m) => m.default),
+  calendar: () => import('./Calendar/settings.schema').then((m) => m.default),
+  poll: () => import('./PollWidget/settings.schema').then((m) => m.default),
+  instructionalRoutines: () =>
+    import('./InstructionalRoutines/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
-  qr: lazyNamed(() => import('./QRWidget'), 'QRSettings'),
-  scoreboard: lazyNamed(() => import('./Scoreboard'), 'ScoreboardSettings'),
-  calendar: lazyNamed(() => import('./Calendar/Settings'), 'CalendarSettings'),
-  poll: lazyNamed(() => import('./PollWidget'), 'PollSettings'),
-  instructionalRoutines: lazyNamed(
-    () => import('./InstructionalRoutines/Settings'),
-    'InstructionalRoutinesSettings'
-  ),
   materials: lazyNamed(() => import('./MaterialsWidget'), 'MaterialsSettings'),
   miniApp: MiniAppSettings,
   'seating-chart': lazyNamed(
@@ -426,14 +428,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     'BlendingBoardAppearanceSettings'
   ),
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleAppearanceSettings'),
-  calendar: lazyNamed(
-    () => import('./Calendar/Settings'),
-    'CalendarAppearanceSettings'
-  ),
-  instructionalRoutines: lazyNamed(
-    () => import('./InstructionalRoutines/Settings'),
-    'InstructionalRoutinesAppearanceSettings'
-  ),
   music: lazyNamed(
     () => import('./MusicWidget/index'),
     'MusicAppearanceSettings'

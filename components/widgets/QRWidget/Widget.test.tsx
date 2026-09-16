@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { QRWidget } from './Widget';
-import { QRSettings } from './Settings';
+import { QRSettingsFields as QRSettings } from './settingsFields';
 import { WidgetData, QRConfig, TextConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
@@ -329,8 +329,9 @@ describe('QRSettings', () => {
     const widget = createMockWidget({ syncWithTextWidget: false });
     render(<QRSettings widget={widget} />);
 
-    const toggles = screen.getAllByRole('switch');
-    fireEvent.click(toggles[1]);
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Sync with Text widget' })
+    );
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget-id', {
       config: expect.objectContaining({ syncWithTextWidget: true }) as unknown,
@@ -341,8 +342,7 @@ describe('QRSettings', () => {
     const widget = createMockWidget({ showUrl: false });
     render(<QRSettings widget={widget} />);
 
-    const toggles = screen.getAllByRole('switch');
-    fireEvent.click(toggles[0]);
+    fireEvent.click(screen.getByRole('switch', { name: 'Show URL' }));
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget-id', {
       config: expect.objectContaining({ showUrl: true }) as unknown,
