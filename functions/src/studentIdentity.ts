@@ -954,7 +954,9 @@ export const getPseudonymsForAssignmentV1 = onCall(
 // only opaque hashes and ids.
 
 const PIN_INDEX_SUBCOLLECTION = 'pin_index';
-const PIN_INDEX_MAX_ENTRIES = 200;
+/** Exported so the nightly sync caps its entries at the same value rather
+ *  than mirroring the literal and silently drifting from it. */
+export const PIN_INDEX_MAX_ENTRIES = 200;
 
 /**
  * Mirror of `encodeResponseKeySegment` in `useQuizSession.ts`. Duplicated

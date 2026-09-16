@@ -39,7 +39,10 @@ import {
   SyncStudent,
 } from './classlinkRosterReconcile';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
-import { reconcileRosterPinIndex } from './studentIdentity';
+import {
+  reconcileRosterPinIndex,
+  PIN_INDEX_MAX_ENTRIES,
+} from './studentIdentity';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
@@ -52,8 +55,6 @@ const ROSTER_PAGE_SIZE = 100;
 const MAX_ROSTERS_PER_RUN = 500;
 /** Stop early so a long run returns a summary instead of being killed at 540s. */
 const RUN_BUDGET_MS = 8 * 60 * 1000;
-/** Matches `PIN_INDEX_MAX_ENTRIES` in studentIdentity.ts. */
-const PIN_INDEX_MAX_ENTRIES = 200;
 /** OneRoster paging. 10 x 200 is far past any real class section. */
 const ONEROSTER_PAGE_LIMIT = 200;
 const ONEROSTER_MAX_PAGES = 10;
