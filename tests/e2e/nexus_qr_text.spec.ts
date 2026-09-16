@@ -97,26 +97,18 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
     timeout: 10000,
   });
 
-  // Find the checkbox for sync.
-  // The Toggle component uses role="switch" usually, or we can find by the label text and the input within it
-  await expect(page.getByText('Sync with Text Widget')).toBeVisible({
+  // Configure the Behavior control on the Settings tab by its accessible name.
+  await expect(page.getByText('Sync with Text widget')).toBeVisible({
     timeout: 10000,
   });
 
-  // Locate the switch associated with the text
-  const toggles = page.getByRole('switch');
-  const showUrlToggle = toggles.first();
-  const syncToggle = toggles.nth(1);
-
-  // Click the checkbox (toggle)
+  const syncToggle = page.getByRole('switch', {
+    name: 'Sync with Text widget',
+  });
   await syncToggle.click({ force: true });
   await expect(syncToggle).toBeChecked();
 
-  await showUrlToggle.click({ force: true });
-  await expect(showUrlToggle).toBeChecked();
-
-  // 6. Verify Sync
-  // Input should be disabled
+  // Verify Sync while the Content and Behavior groups are still mounted.
   const urlInput = page.locator(
     'input[type="text"][placeholder="https://..."]'
   );
@@ -125,7 +117,22 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
   // Input value should match text widget
   await expect(urlInput).toHaveValue('https://nexus.test/link');
 
-  // 7. Verify Widget Display
+  // Display controls live on the Style tab after schema migration. The
+  // fallback settings surface renders these tabs as buttons, while the drawer
+  // uses tab roles, so accept either without relying on DOM order.
+  const styleTab = page
+    .getByRole('tab', { name: 'Style', exact: true })
+    .or(page.getByRole('button', { name: 'Style', exact: true }))
+    .first();
+  await styleTab.focus();
+  await styleTab.press('Enter');
+
+  const showUrlToggle = page.getByRole('switch', { name: 'Show URL' });
+  await showUrlToggle.focus();
+  await showUrlToggle.press('Space');
+  await expect(showUrlToggle).toBeChecked();
+
+  // 6. Verify Widget Display
   // The widget content has changed, so we need to re-locate it or use a broader locator.
   // We can find it by the "DONE" button which is currently visible in the settings mode.
   // Or better, find the widget by the new synced text if it updated already in the background?
@@ -133,7 +140,8 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
   // The 'qrWidget' locator was based on 'https://google.com' which might be gone.
 
   // Close settings (using standard Close button)
-  await closeSettings.click();
+  await closeSettings.focus();
+  await closeSettings.press('Enter');
 
   // Find the widget by content on the dashboard (Settings input is gone now)
   // Use a looser check or poll for it
@@ -158,7 +166,7 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
     console.log('Linked badge not found or visible, skipping UI check.');
   }
 
-  // 8. Verify Repeater Functionality (Update Text -> Update QR)
+  // 7. Verify Repeater Functionality (Update Text -> Update QR)
   // Go back to text widget and change text
   await contentArea.click();
   await contentArea.fill('https://nexus.test/updated');

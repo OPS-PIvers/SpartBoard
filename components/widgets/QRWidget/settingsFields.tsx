@@ -61,6 +61,7 @@ export const QRTextSyncField: React.FC<{ ctx: CustomRenderCtx }> = ({
           onChange={(checked) =>
             ctx.updateConfig({ syncWithTextWidget: checked })
           }
+          label={ctx.t('widgetSettings.qr.syncWithTextWidget')}
           size="sm"
           activeColor="bg-indigo-600"
           showLabels={false}
@@ -113,6 +114,7 @@ export const QRSettingsFields: React.FC<{ widget: WidgetData }> = ({
       <Toggle
         checked={config.showUrl ?? false}
         onChange={(checked) => updateConfig({ showUrl: checked })}
+        label={t('widgetSettings.qr.showUrl')}
         showLabels={false}
       />
       <span id="qr-test-sync-label" className="sr-only">
