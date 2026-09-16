@@ -895,15 +895,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // one extra callable per reload, not a broken flow.
     }
 
+    // Claim the session BEFORE awaiting: a googleAccessToken change while the
+    // probe is in flight re-runs this effect, and a flag set afterwards would
+    // not yet be there to stop the second call.
+    try {
+      sessionStorage.setItem(OFFLINE_GRANT_PROBED_KEY, '1');
+    } catch {
+      // Non-fatal; see above.
+    }
+
     let cancelled = false;
     void (async () => {
       const outcome = await refreshAccessTokenViaBackend();
       if (cancelled) return;
-      try {
-        sessionStorage.setItem(OFFLINE_GRANT_PROBED_KEY, '1');
-      } catch {
-        // Non-fatal; see above.
-      }
       // Only `needs-consent` proves absence. A transient `error` must NOT
       // surface the card — prompting for consent on a network blip would train
       // teachers to dismiss a prompt that matters.
