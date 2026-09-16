@@ -385,6 +385,22 @@ async function getCachedAdminStatus(
   return isAdmin;
 }
 
+/**
+ * Caller admin status, gated on `email_verified`. An email/password account
+ * can self-report any address at sign-up, so `token.email` alone can't prove
+ * ownership — and `getCachedAdminStatus()` treats a matching `admins/{email}`
+ * doc as an admin bypass (elevated AI usage quota), so an unverified email
+ * must never reach it. Same rail as resolveOrgForUser.ts / isAdmin() /
+ * quizStimulusText.ts's chargeOcr email-verified gate.
+ */
+async function resolveCallerIsAdmin(
+  db: admin.firestore.Firestore,
+  token: { email?: string; email_verified?: boolean }
+): Promise<boolean> {
+  if (token.email_verified !== true || !token.email) return false;
+  return getCachedAdminStatus(db, token.email.toLowerCase());
+}
+
 // Test-only re-exports so the cache contract can be verified without
 // driving through the full `generateWithAI` pipeline (which would require
 // mocking `@google/genai`). The `__` prefix makes the test-only status
@@ -392,6 +408,7 @@ async function getCachedAdminStatus(
 export {
   getCachedAdminStatus as __getCachedAdminStatus,
   getGeminiModelConfig as __getGeminiModelConfig,
+  resolveCallerIsAdmin as __resolveCallerIsAdmin,
 };
 
 export const generateWithAI = onCall(
@@ -421,7 +438,7 @@ export const generateWithAI = onCall(
     const db = admin.firestore();
 
     // Check if user is an admin (cached for 5 minutes per warm instance).
-    const isAdmin = await getCachedAdminStatus(db, email.toLowerCase());
+    const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
 
     // W7: classify the caller as external (no org) for the daily-cap branch.
     // Resolved BEFORE the transaction (collectionGroup read must not be inside

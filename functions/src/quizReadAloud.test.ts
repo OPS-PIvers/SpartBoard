@@ -44,7 +44,10 @@ vi.mock('./quizMediaArchive', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 
+import * as admin from 'firebase-admin';
+import { isGlobalFeatureGranted } from './quizMediaArchive';
 import {
+  buildDefaultDeps,
   buildSsml,
   chunkText,
   enumerateParts,
@@ -727,5 +730,41 @@ describe('prepareQuizReadAloud', () => {
     );
     expect(res.status).toBe('preparing');
     expect(synthesize).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildDefaultDeps isFeatureGranted — caller identity verification
+// ---------------------------------------------------------------------------
+//
+// SECURITY: `isGlobalFeatureGranted` treats a matching `admins/{email}` doc
+// as an admin bypass (see quizMediaArchive.ts). An account's `email` field can
+// be unverified (e.g. self-reported at email/password sign-up), so passing it
+// through unchecked would let an attacker claim a real admin's address and
+// unlock quiz-read-aloud without ever proving ownership of that inbox. Same
+// rail as quizStimulusText.ts's buildDefaultExtractDeps / chargeOcr.
+describe('buildDefaultDeps isFeatureGranted', () => {
+  it('SECURITY: never passes an unverified account email to isGlobalFeatureGranted', async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      email: 'admin@school.org',
+      emailVerified: false,
+    });
+    vi.mocked(admin.auth).mockReturnValue({ getUser } as never);
+    await buildDefaultDeps().isFeatureGranted('t1');
+    const call = vi.mocked(isGlobalFeatureGranted).mock.calls[0];
+    expect(call[2]).toBeNull();
+    expect(call[3]).toBe('t1');
+  });
+
+  it('passes a verified account email through', async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      email: 'teacher@school.org',
+      emailVerified: true,
+    });
+    vi.mocked(admin.auth).mockReturnValue({ getUser } as never);
+    await buildDefaultDeps().isFeatureGranted('t1');
+    const call = vi.mocked(isGlobalFeatureGranted).mock.calls[0];
+    expect(call[2]).toBe('teacher@school.org');
+    expect(call[3]).toBe('t1');
   });
 });

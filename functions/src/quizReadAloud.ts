@@ -1420,7 +1420,11 @@ export function buildDefaultDeps(): ReadAloudDeps {
     isFeatureGranted: async (teacherUid) => {
       let email: string | null = null;
       try {
-        email = (await admin.auth().getUser(teacherUid)).email ?? null;
+        const user = await admin.auth().getUser(teacherUid);
+        // Same unverified-email rule as chargeOcr — see quizStimulusText.ts.
+        // isGlobalFeatureGranted() treats a matching `admins/{email}` doc as
+        // an admin bypass, so an unverified email must never reach it.
+        email = user.emailVerified ? (user.email ?? null) : null;
       } catch {
         email = null;
       }
