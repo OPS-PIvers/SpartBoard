@@ -66,9 +66,11 @@ const mockContext = (
     createNewDashboard: vi.fn().mockResolvedValue('new-id'),
     renameDashboard: vi.fn().mockResolvedValue(undefined),
     moveBoardToCollection: vi.fn().mockResolvedValue(undefined),
+    reorderDashboards: vi.fn().mockResolvedValue(undefined),
     addToast: vi.fn(),
     createCollection: vi.fn().mockResolvedValue('c-new'),
     renameCollection: vi.fn().mockResolvedValue(undefined),
+    reorderSiblings: vi.fn().mockResolvedValue(undefined),
   };
   useDashboardMock.mockReturnValue({
     dashboards,
@@ -78,6 +80,7 @@ const mockContext = (
     createNewDashboard: actions.createNewDashboard,
     renameDashboard: actions.renameDashboard,
     moveBoardToCollection: actions.moveBoardToCollection,
+    reorderDashboards: actions.reorderDashboards,
     addToast: actions.addToast,
     annotationActive: over.annotationActive ?? false,
     annotationState: { activeTool: over.annotationTool ?? 'select' },
@@ -85,6 +88,7 @@ const mockContext = (
       collections: over.collections ?? [],
       createCollection: actions.createCollection,
       renameCollection: actions.renameCollection,
+      reorderSiblings: actions.reorderSiblings,
     },
   });
   return actions;
@@ -250,6 +254,36 @@ describe('BoardNavFab', () => {
       expect(document.activeElement?.textContent?.trim()).toBe('A');
       await userEvent.keyboard('{ArrowDown}');
       expect(document.activeElement?.textContent?.trim()).toBe('B');
+    });
+
+    it('reorders the focused board with Alt+ArrowDown', async () => {
+      const actions = mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select board/i })
+      );
+      expect(document.activeElement?.textContent?.trim()).toBe('A');
+      await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+      expect(actions.reorderDashboards).toHaveBeenCalledWith(['d2', 'd1']);
+      // Focus stays on the row; the list itself didn't move focus.
+      expect(document.activeElement?.textContent?.trim()).toBe('A');
+    });
+
+    it('shows a drag handle only when the collection has 2+ boards', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A')],
+        collections: [collection('c1', 'Math')],
+      });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select board/i })
+      );
+      expect(
+        screen.queryByRole('button', { name: /drag to reorder/i })
+      ).not.toBeInTheDocument();
     });
 
     it('closes the menu and returns focus to the trigger on Escape', async () => {

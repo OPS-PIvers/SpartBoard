@@ -39,6 +39,7 @@
     "boardList": "Tous les tableaux",
     "manageAllBoards": "Gérer tous les tableaux",
     "renameBoard": "Renommer le tableau",
+    "dragToReorder": "Glisser pour réorganiser (Alt+flèches)",
     "movedTo": "Déplacé vers « {{name}} »",
     "pinned": "Épinglé",
     "selectCollection": "Sélectionner une collection"
@@ -1555,7 +1556,8 @@
     "title": "Changer de collection",
     "root": "Aucune collection",
     "renameCollection": "Renommer la collection",
-    "renameFailed": "Impossible de renommer la Collection"
+    "renameFailed": "Impossible de renommer la Collection",
+    "reorderFailed": "Impossible d'enregistrer le nouvel ordre des collections"
   },
   "boardsModal": {
     "title": "Tableaux et Collections",
@@ -1589,6 +1591,8 @@
     "dragToMove": "Glisser pour déplacer",
     "select": "Sélectionner",
     "deselect": "Désélectionner",
+    "editBoard": "Modifier le tableau",
+    "editCollection": "Modifier la collection",
     "colorSaveFailed": "Impossible d'enregistrer la couleur",
     "collectionMoved": "Collection déplacée",
     "collectionMoveFailed": "Impossible de déplacer la Collection",

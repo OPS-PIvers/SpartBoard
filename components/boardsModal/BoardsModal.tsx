@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { DndContext, DragOverlay } from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -20,7 +21,8 @@ import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollect
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { CollectionColorPicker } from './CollectionColorPicker';
-import { useBoardsModalDnd } from './useBoardsModalDnd';
+import { parseDndId, useBoardsModalDnd } from './useBoardsModalDnd';
+import { DropIndicatorContext, boardsInView } from './dropIndicator';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import type { Collection, Dashboard } from '@/types';
 
@@ -78,13 +80,30 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   // disabled-state re-render on each card.
   const boardDuplicateBusy = useBusyIdSet();
   const collectionDuplicateBusy = useBusyIdSet();
+
+  // Filter by search (substring on Board + Collection names)
+  const searchTerm = search.trim().toLowerCase();
+  const filteredCollections = searchTerm
+    ? collections.filter((c) => c.name.toLowerCase().includes(searchTerm))
+    : collections;
+  const filteredBoards = searchTerm
+    ? dashboards.filter((d) => d.name.toLowerCase().includes(searchTerm))
+    : dashboards;
+
   const {
     sensors,
+    collisionDetection,
     handleDragStart,
+    handleDragMove,
     handleDragEnd,
     handleDragCancel,
     activeDragId,
-  } = useBoardsModalDnd();
+    dropIndicator,
+  } = useBoardsModalDnd({
+    visibleBoardIds: boardsInView(filteredBoards, selectedCollectionId).map(
+      (b) => b.id
+    ),
+  });
 
   // Resolve the active drag id (e.g. 'board:abc' / 'collection:xyz') into
   // the underlying object for rendering inside <DragOverlay>. Returns null
@@ -92,7 +111,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   // deleted mid-drag — rare but possible).
   const dragPreview = (() => {
     if (!activeDragId) return null;
-    const [kind, id] = activeDragId.split(':');
+    const { kind, id } = parseDndId(activeDragId);
     if (kind === 'board') {
       const board = dashboards.find((d) => d.id === id);
       if (!board) return null;
@@ -213,6 +232,21 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     ) => {
       e.preventDefault();
       setContextMenu({ ...target, position: { x: e.clientX, y: e.clientY } });
+    },
+    []
+  );
+
+  // Edit button: same menu, anchored under the button that opened it.
+  const handleOpenEditMenu = useCallback(
+    (
+      anchor: HTMLElement,
+      target: { type: 'board' | 'collection'; id: string }
+    ) => {
+      const rect = anchor.getBoundingClientRect();
+      setContextMenu({
+        ...target,
+        position: { x: rect.left, y: rect.bottom + 4 },
+      });
     },
     []
   );
@@ -484,18 +518,6 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         null)
       : null);
 
-  // Filter by search (substring on Board + Collection names)
-  const filteredCollections = search.trim()
-    ? collections.filter((c) =>
-        c.name.toLowerCase().includes(search.trim().toLowerCase())
-      )
-    : collections;
-  const filteredBoards = search.trim()
-    ? dashboards.filter((d) =>
-        d.name.toLowerCase().includes(search.trim().toLowerCase())
-      )
-    : dashboards;
-
   return (
     <div
       className="fixed inset-0 z-modal bg-slate-50 flex flex-col overscroll-none"
@@ -534,43 +556,54 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={collisionDetection}
           onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="flex-1 overflow-hidden flex">
-            <CollectionTree
-              collections={filteredCollections}
-              boards={filteredBoards}
-              selectedCollectionId={selectedCollectionId}
-              onSelectCollection={setSelectedCollectionId}
-            />
-            <BoardGrid
-              selectedCollectionId={selectedCollectionId}
-              collections={filteredCollections}
-              boards={filteredBoards}
-              selectedIds={multi.selectedIds}
-              canShare={canShare}
-              onSelectCollection={setSelectedCollectionId}
-              onToggleSelect={multi.toggle}
-              onOpenBoard={handleOpenBoard}
-              onContextMenu={handleContextMenu}
-              onDuplicateBoard={(id) =>
-                void boardDuplicateBusy.run(id, () => duplicateDashboard(id))
-              }
-              onDuplicateCollection={(id) =>
-                void collectionDuplicateBusy.run(id, () =>
-                  duplicateCollection(id)
-                )
-              }
-              isBoardDuplicating={boardDuplicateBusy.isBusy}
-              isCollectionDuplicating={collectionDuplicateBusy.isBusy}
-              onShareBoard={(b) => setShareTarget(b)}
-              onShareCollection={(c) => setShareCollectionTarget(c)}
-            />
-          </div>
-          <DragOverlay dropAnimation={null}>{dragPreview}</DragOverlay>
+          <DropIndicatorContext.Provider value={dropIndicator}>
+            <div className="flex-1 overflow-hidden flex">
+              <CollectionTree
+                collections={filteredCollections}
+                boards={filteredBoards}
+                selectedCollectionId={selectedCollectionId}
+                onSelectCollection={setSelectedCollectionId}
+              />
+              <BoardGrid
+                selectedCollectionId={selectedCollectionId}
+                collections={filteredCollections}
+                boards={filteredBoards}
+                selectedIds={multi.selectedIds}
+                canShare={canShare}
+                onSelectCollection={setSelectedCollectionId}
+                onToggleSelect={multi.toggle}
+                onOpenBoard={handleOpenBoard}
+                onContextMenu={handleContextMenu}
+                onOpenEditMenu={handleOpenEditMenu}
+                onDuplicateBoard={(id) =>
+                  void boardDuplicateBusy.run(id, () => duplicateDashboard(id))
+                }
+                onDuplicateCollection={(id) =>
+                  void collectionDuplicateBusy.run(id, () =>
+                    duplicateCollection(id)
+                  )
+                }
+                isBoardDuplicating={boardDuplicateBusy.isBusy}
+                isCollectionDuplicating={collectionDuplicateBusy.isBusy}
+                onShareBoard={(b) => setShareTarget(b)}
+                onShareCollection={(c) => setShareCollectionTarget(c)}
+              />
+            </div>
+          </DropIndicatorContext.Provider>
+          {/* Centered on the pointer: the preview is smaller than the card it came from. */}
+          <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+            {dragPreview && (
+              <div className="flex h-full w-full items-center justify-center">
+                {dragPreview}
+              </div>
+            )}
+          </DragOverlay>
         </DndContext>
       </div>
 

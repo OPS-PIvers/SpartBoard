@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useCardMenu } from './useCardMenu';
 import {
   ExternalLink,
   Pencil,
@@ -38,16 +39,7 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   onDelete,
 }) => {
   const { t } = useTranslation();
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node))
-        onClose();
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  const { menuRef, style, onKeyDown } = useCardMenu(position, onClose);
 
   type Item = {
     label: string;
@@ -108,8 +100,9 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
     <div
       ref={menuRef}
       className="fixed z-popover bg-white rounded-xl shadow-xl border border-slate-200 py-1 min-w-[200px]"
-      style={{ top: position.y, left: position.x }}
+      style={style}
       role="menu"
+      onKeyDown={onKeyDown}
     >
       {items.map((item, i) => {
         const Icon = item.icon;
@@ -120,10 +113,10 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
               item.action();
               onClose();
             }}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors ${
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors focus-visible:outline-none ${
               item.danger
-                ? 'text-brand-red-primary hover:bg-brand-red-primary/10'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'text-brand-red-primary hover:bg-brand-red-primary/10 focus-visible:bg-brand-red-primary/10'
+                : 'text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100'
             }`}
             role="menuitem"
           >

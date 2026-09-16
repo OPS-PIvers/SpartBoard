@@ -39,6 +39,7 @@
     "boardList": "Alle Tafeln",
     "manageAllBoards": "Alle Tafeln verwalten",
     "renameBoard": "Tafel umbenennen",
+    "dragToReorder": "Zum Neuordnen ziehen (Alt+Pfeiltasten)",
     "movedTo": "Nach „{{name}}“ verschoben",
     "pinned": "Angeheftet",
     "selectCollection": "Sammlung auswählen"
@@ -1555,7 +1556,8 @@
     "title": "Sammlung wechseln",
     "root": "Keine Sammlung",
     "renameCollection": "Sammlung umbenennen",
-    "renameFailed": "Sammlung konnte nicht umbenannt werden"
+    "renameFailed": "Sammlung konnte nicht umbenannt werden",
+    "reorderFailed": "Neue Reihenfolge der Sammlungen konnte nicht gespeichert werden"
   },
   "boardsModal": {
     "title": "Tafeln & Sammlungen",
@@ -1589,6 +1591,8 @@
     "dragToMove": "Zum Verschieben ziehen",
     "select": "Auswählen",
     "deselect": "Abwählen",
+    "editBoard": "Tafel bearbeiten",
+    "editCollection": "Sammlung bearbeiten",
     "colorSaveFailed": "Farbe konnte nicht gespeichert werden",
     "collectionMoved": "Sammlung verschoben",
     "collectionMoveFailed": "Sammlung konnte nicht verschoben werden",

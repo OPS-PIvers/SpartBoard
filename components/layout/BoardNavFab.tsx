@@ -30,7 +30,16 @@ import { FAB_BASE } from './fabClasses';
 import { BoardBreadcrumb } from './BoardBreadcrumb';
 import { CollectionSwitcherMenu } from './CollectionSwitcherMenu';
 import { MoveBoardMenu } from './MoveBoardMenu';
-import { InlineNameInput, RowActionButton } from './boardNavMenuParts';
+import {
+  InlineNameInput,
+  RowActionButton,
+  RowDragHandle,
+} from './boardNavMenuParts';
+import {
+  SortableList,
+  type SortableListDragHandleProps,
+} from '@/components/common/SortableList';
+import { shiftId } from '@/utils/reorderIds';
 import {
   MENU_HEADER_CLASS,
   MENU_PANEL_CLASS,
@@ -39,6 +48,8 @@ import {
   refocusIfLost,
 } from './boardNavMenu';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
+
+const getBoardId = (d: Dashboard) => d.id;
 
 const boardItemSelector = (id: string) =>
   `[data-board-id="${id}"] [role="menuitem"]`;
@@ -53,10 +64,16 @@ export const BoardNavFab: FC = () => {
     createNewDashboard,
     renameDashboard,
     moveBoardToCollection,
+    reorderDashboards,
     addToast,
     annotationActive,
     annotationState,
-    collectionsApi: { collections, createCollection, renameCollection },
+    collectionsApi: {
+      collections,
+      createCollection,
+      renameCollection,
+      reorderSiblings,
+    },
   } = useDashboard();
   // A pen/shape tool is armed: ink, not this FAB, owns the pointer.
   const inkingOwnsPointer =
@@ -244,8 +261,27 @@ export const BoardNavFab: FC = () => {
     await handleMoveBoard(board, newId, name);
   };
 
+  const reorderBoards = (ids: string[]) => {
+    // reorderDashboards toasts and rolls back on failure.
+    reorderDashboards(ids).catch(() => undefined);
+  };
+
   const handleMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const active = document.activeElement;
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      // Alt+Arrow moves the focused in-collection board; pinned rows aren't reorderable.
+      const row = active?.closest<HTMLElement>('[data-reorderable-board-id]');
+      const id = row?.getAttribute('data-reorderable-board-id');
+      if (!id) return;
+      e.preventDefault();
+      const next = shiftId(
+        boardsInCollection.map((d) => d.id),
+        id,
+        e.key === 'ArrowUp' ? -1 : 1
+      );
+      if (next) reorderBoards(next);
+      return;
+    }
     // Row action buttons count as their row's slot for up/down navigation.
     const focusedIdx = itemRefs.current.findIndex(
       (el, i) =>
@@ -303,7 +339,8 @@ export const BoardNavFab: FC = () => {
     db: Dashboard,
     slot: number,
     leadingIcon: ReactNode,
-    keyPrefix = ''
+    keyPrefix = '',
+    dragHandle?: SortableListDragHandleProps
   ) => {
     const isActive = activeDashboard?.id === db.id;
     if (editingBoardId === db.id) {
@@ -335,6 +372,7 @@ export const BoardNavFab: FC = () => {
         key={`${keyPrefix}${db.id}`}
         data-menu-row
         data-board-id={db.id}
+        data-reorderable-board-id={dragHandle ? db.id : undefined}
         className={`group flex items-center transition-colors ${
           isActive
             ? 'bg-brand-blue-primary text-white'
@@ -368,6 +406,14 @@ export const BoardNavFab: FC = () => {
             })}
             onClick={() => setMovingBoardId(db.id)}
           />
+          {dragHandle && (
+            <RowDragHandle
+              label={t('boardNav.dragToReorder', {
+                defaultValue: 'Drag to reorder (Alt+Arrow keys)',
+              })}
+              handle={dragHandle}
+            />
+          )}
         </div>
       </div>
     );
@@ -416,6 +462,16 @@ export const BoardNavFab: FC = () => {
               addToast(
                 t('collectionSwitcher.renameFailed', {
                   defaultValue: 'Failed to rename Collection',
+                }),
+                'error'
+              )
+            );
+          }}
+          onReorder={(parentId, ids) => {
+            reorderSiblings(parentId, ids).catch(() =>
+              addToast(
+                t('collectionSwitcher.reorderFailed', {
+                  defaultValue: 'Failed to save the new Collection order',
                 }),
                 'error'
               )
@@ -498,17 +554,24 @@ export const BoardNavFab: FC = () => {
               {boardListLabel}
             </div>
           )}
-          {boardsInCollection.map((db, idx) =>
-            renderBoardRow(
-              db,
-              collectionSlotStart + idx,
-              db.isDefault ? (
-                <Star
-                  className={`w-3.5 h-3.5 flex-shrink-0 ${favoriteIconClass(db)}`}
-                />
-              ) : null
-            )
-          )}
+          <SortableList
+            items={boardsInCollection}
+            getId={getBoardId}
+            onReorder={(next) => reorderBoards(next.map(getBoardId))}
+            renderItem={(db, handle, idx) =>
+              renderBoardRow(
+                db,
+                collectionSlotStart + idx,
+                db.isDefault ? (
+                  <Star
+                    className={`w-3.5 h-3.5 flex-shrink-0 ${favoriteIconClass(db)}`}
+                  />
+                ) : null,
+                '',
+                boardsInCollection.length > 1 ? handle : undefined
+              )
+            }
+          />
           <div className="mt-1 border-t border-white/10 pt-1">
             {isCreatingBoard ? (
               <InlineNameInput

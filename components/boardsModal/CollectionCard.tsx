@@ -1,9 +1,11 @@
 import React from 'react';
-import { Folder, Copy, Share2, Loader2 } from 'lucide-react';
+import { Folder, Copy, Share2, Loader2, Pencil } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import type { Collection } from '@/types';
 import { hexToRgba, collectionTextColor } from '@/utils/collectionColor';
+import { DropInsertionBar } from './DropInsertionBar';
+import { useDropMode } from './dropIndicator';
 
 interface CollectionCardProps {
   collection: Collection;
@@ -18,6 +20,8 @@ interface CollectionCardProps {
   onClick: () => void;
   onToggleSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  /** Opens the Collection's action menu under the Edit button. */
+  onEdit: (anchor: HTMLElement) => void;
   onDuplicate: () => void;
   onShare: () => void;
 }
@@ -32,6 +36,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
   onClick,
   onToggleSelect,
   onContextMenu,
+  onEdit,
   onDuplicate,
   onShare,
 }) => {
@@ -44,7 +49,10 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
     setNodeRef: setDragRef,
     isDragging,
   } = useDraggable({ id: draggableId });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: draggableId });
+  const { setNodeRef: setDropRef } = useDroppable({ id: draggableId });
+  // Edges reorder; only the middle of the card files the dragged item inside.
+  const dropMode = useDropMode(draggableId);
+  const isOver = dropMode === 'into';
 
   // Combine drag + drop refs for this dual-purpose element.
   const setRef = (node: HTMLDivElement | null) => {
@@ -94,6 +102,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
         onContextMenu(e);
       }}
     >
+      <DropInsertionBar mode={dropMode} orientation="horizontal" />
       {/* Always-visible selection checkbox — click to toggle without
           navigating into the Collection. dnd-kit's drag listeners are on
           the parent div but the 15px activation threshold means a tap on
@@ -146,7 +155,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
         {collection.name}
       </div>
       <div
-        className={`text-xxs pr-14 ${textColor ? '' : 'text-slate-400'}`}
+        className={`text-xxs pr-20 ${textColor ? '' : 'text-slate-400'}`}
         style={textColor ? { color: textColor, opacity: 0.6 } : undefined}
       >
         {childCollectionsCount > 0 && `${childCollectionsCount} folders · `}
@@ -160,6 +169,26 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
           the default text-slate-300 washes out — bump to slate-500 inline
           so the icons stay legible against the color tint. */}
       <div className="absolute bottom-2 right-2 flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(e.currentTarget);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={t('boardsModal.editCollection', {
+            defaultValue: 'Edit Collection',
+          })}
+          title={t('boardsModal.editCollection', {
+            defaultValue: 'Edit Collection',
+          })}
+          aria-haspopup="menu"
+          className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition ${
+            collection.color ? 'text-slate-500' : 'text-slate-400'
+          }`}
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
         {canShare && (
           <button
             type="button"

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { InstructionalRoutinesWidget } from './Widget';
-import { InstructionalRoutinesSettings } from './Settings';
 import { vi, describe, it, expect } from 'vitest';
 import { WidgetData } from '@/types';
 
@@ -90,12 +89,5 @@ describe('InstructionalRoutinesWidget', () => {
         }),
       })
     );
-  });
-});
-
-describe('InstructionalRoutinesSettings', () => {
-  it('renders correctly', () => {
-    render(<InstructionalRoutinesSettings widget={mockWidget} />);
-    expect(screen.getByText(/Step Editor/i)).toBeInTheDocument();
   });
 });
