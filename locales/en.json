@@ -1305,7 +1305,8 @@
         "fontSize": "Font size",
         "textColor": "Text color",
         "titleColor": "Title color",
-        "scaleMultiplier": "Scale"
+        "scaleMultiplier": "Scale",
+        "layout": "Layout"
       },
       "dockedLeft": "Settings panel docked to the left of the board",
       "dockedRight": "Settings panel docked to the right of the board",
@@ -1382,7 +1383,10 @@
       "verticalAlign": "Vertical alignment",
       "alignTop": "Top",
       "alignMiddle": "Middle",
-      "alignBottom": "Bottom"
+      "alignBottom": "Bottom",
+      "style": {
+        "bgColor": "Note color"
+      }
     },
     "embed": {
       "flaggedNotice": "This site is currently flagged as non-embeddable. A \"New Tab\" button will be shown to users instead.",
@@ -2964,6 +2968,14 @@
       "noGrades": "No grades selected — standards and widgets show every grade.",
       "subjectsTaught": "Content areas taught",
       "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
+    },
+    "widgetDefaults": {
+      "title": "Widget defaults",
+      "description": "The look new widgets start with. Save one from a widget’s Style tab. Clearing a default does not change widgets already on your boards.",
+      "empty": "No widget defaults yet. Open a widget’s settings, go to Style, and choose Save as my default.",
+      "clearAll": "Clear",
+      "remove": "Remove {{setting}} from {{name}}",
+      "clearLabel": "Clear {{name}} default"
     }
   },
   "quizHandRaise": {

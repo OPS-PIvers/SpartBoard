@@ -1129,4 +1129,4 @@ Rulings D27–D31. Delivery, each PR to `dev-paul`:
 1. **Style controls** — D29, D30, D31, plus the Text toolbar paper cuts (5 font/highlight presets + custom; toolbar menus layer above the widget chrome bar). Merged in #3070.
 2. **Text drawer alignment** — note color and vertical alignment in the Text Style tab; flag-gated removal of both from the toolbar (D27). Shipped with item 3 in one PR.
 3. **Explicit defaults** — Style-tab footer and the flag-gated switch away from automatic saving (D28). Saving stores only keys that differ from the widget + building baseline, and replaces the type's stored entry; Reset applies defaults → building → my default. Read-only boards disable both actions.
-4. **Later** — a "My widget defaults" list in the Settings modal to review and reset defaults per widget type.
+4. **My widget defaults** — a Settings modal section (drawer users only) listing each widget type's saved appearance, with per-setting Remove and per-widget Clear. Clearing never changes widgets already on boards.
