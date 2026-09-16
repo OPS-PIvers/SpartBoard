@@ -33,6 +33,7 @@ export {
   __resetGenerateWithAICaches,
   __getCachedAdminStatus,
   __getGeminiModelConfig,
+  __resolveCallerIsAdmin,
 } from './aiGeneration';
 
 // ── External-content proxy + iframe embeddability check ────────────────────

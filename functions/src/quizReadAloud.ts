@@ -1420,7 +1420,9 @@ export function buildDefaultDeps(): ReadAloudDeps {
     isFeatureGranted: async (teacherUid) => {
       let email: string | null = null;
       try {
-        email = (await admin.auth().getUser(teacherUid)).email ?? null;
+        const user = await admin.auth().getUser(teacherUid);
+        // Unverified email must never reach the admins/{email} bypass lookup (same rail as quizStimulusText.ts's chargeOcr).
+        email = user.emailVerified ? (user.email ?? null) : null;
       } catch {
         email = null;
       }

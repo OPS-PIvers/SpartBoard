@@ -1470,6 +1470,13 @@ export const setAssignmentTargetsV1 = onCall(
     if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
+    // teacherEmail drives org/test-class resolution below, so it must be verified (same rail as isAdmin()).
+    if (request.auth.token.email_verified !== true) {
+      throw new HttpsError(
+        'permission-denied',
+        'Caller email must be verified.'
+      );
+    }
 
     const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
     const classlinkClientId = CLASSLINK_CLIENT_ID.value();

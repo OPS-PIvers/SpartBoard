@@ -44,10 +44,12 @@ import {
   refKey,
   resolveTargets,
   sanitizeOverride,
+  setAssignmentTargetsV1,
   uidForRef,
   type SetAssignmentTargetsInput,
   type TargetAuthorizationContext,
 } from './studentAssignmentTargets';
+import * as admin from 'firebase-admin';
 
 const HMAC = 'unit-test-hmac-secret';
 const TEACHER_UID = 'teacher-1';
@@ -1934,5 +1936,78 @@ describe('handleSetAssignmentTargets - read-aloud locale scope', () => {
       hook
     );
     expect(hook).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setAssignmentTargetsV1 onCall wrapper — caller identity verification
+// ---------------------------------------------------------------------------
+//
+// SECURITY: an email/password account can self-report ANY email address at
+// sign-up — the ID token still carries that email with `email_verified:
+// false`. `teacherEmail` (from `request.auth.token.email`) drives org
+// resolution (`normalizeEmailDomain` + `resolveOrgIdForDomain`) and the
+// `organizations/{orgId}/members/{teacherEmailLower}` roleId check inside
+// `isTestClassAuthority` — an authorization decision. Trusting it unverified
+// would let an attacker claim a real domain admin's org membership and reach
+// that org's test-class students. Same rail as migratePlcs.ts /
+// organizationUserActivity.ts / organizationInvites.ts / isAdmin().
+describe('setAssignmentTargetsV1 onCall wrapper — caller identity verification', () => {
+  type CallableHandler = (request: {
+    auth?: { uid: string; token: Record<string, unknown> };
+    data: unknown;
+  }) => Promise<unknown>;
+
+  const handler = setAssignmentTargetsV1 as unknown as CallableHandler;
+  const EMAIL = 'teacher@orono.k12.mn.us';
+
+  const payload = {
+    assignmentId: ASSIGNMENT_ID,
+    kind: 'quiz',
+    sessionId: ASSIGNMENT_ID,
+    add: [],
+    remove: [],
+    overridesBySourcedId: {},
+    window: {},
+  };
+
+  beforeEach(() => {
+    (admin.firestore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeDb(state)
+    );
+  });
+
+  it('SECURITY: rejects a self-reported teacher email that is not verified', async () => {
+    await expect(
+      handler({
+        auth: {
+          uid: TEACHER_UID,
+          token: { email: EMAIL, email_verified: false },
+        },
+        data: payload,
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    // The spoofed caller must never reach org/test-class resolution.
+    expect(state.writes).toHaveLength(0);
+  });
+
+  it('rejects a token with no email_verified claim at all', async () => {
+    await expect(
+      handler({
+        auth: { uid: TEACHER_UID, token: { email: EMAIL } },
+        data: payload,
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('allows a verified teacher email through past the identity gate', async () => {
+    const res = await handler({
+      auth: {
+        uid: TEACHER_UID,
+        token: { email: EMAIL, email_verified: true },
+      },
+      data: payload,
+    });
+    expect(res).toMatchObject({ written: 0 });
   });
 });
