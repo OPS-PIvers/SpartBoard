@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -25,7 +25,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { FlashcardCard, FlashcardSet } from '@/types';
-import { QUIZ_READ_ALOUD_LANGUAGES } from '@/config/quizReadAloud';
+import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { PasteImportDrawer } from './PasteImportDrawer';
 
 interface FlashcardEditorProps {
@@ -178,11 +178,6 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const languageOptions = useMemo(
-    () => QUIZ_READ_ALOUD_LANGUAGES.map(({ tag }) => tag),
-    []
   );
 
   const updateCard = (id: string, updates: Partial<FlashcardCard>): void => {
@@ -396,41 +391,16 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   placeholder="What this set covers"
                 />
               </label>
-              {(
-                [
-                  ['Term language', termLanguage, setTermLanguage],
-                  [
-                    'Definition language',
-                    definitionLanguage,
-                    setDefinitionLanguage,
-                  ],
-                ] as const
-              ).map(([label, value, setValue]) => (
-                <label key={label}>
-                  <span
-                    className="font-black uppercase tracking-widest text-slate-500"
-                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
-                  >
-                    {label}
-                  </span>
-                  <input
-                    list="flashcard-language-options"
-                    value={value}
-                    onChange={(event) => setValue(event.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
-                    style={{
-                      padding: 'min(8px, 2cqmin)',
-                      fontSize: 'min(13px, 4cqmin)',
-                    }}
-                    placeholder="en-US"
-                  />
-                </label>
-              ))}
-              <datalist id="flashcard-language-options">
-                {languageOptions.map((language) => (
-                  <option key={language} value={language} />
-                ))}
-              </datalist>
+              <FlashcardLanguageField
+                label="Term language"
+                value={termLanguage}
+                onChange={setTermLanguage}
+              />
+              <FlashcardLanguageField
+                label="Definition language"
+                value={definitionLanguage}
+                onChange={setDefinitionLanguage}
+              />
             </div>
 
             {(error != null || notice != null) && (
