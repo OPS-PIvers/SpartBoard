@@ -1402,6 +1402,12 @@
       "dateColor": "Date Color",
       "matchTime": "Match time"
     },
+    "flashcards": {
+      "presentShowFirst": "Show first",
+      "presentShuffle": "Shuffle cards",
+      "term": "Term",
+      "definition": "Definition"
+    },
     "common": {
       "group": {
         "content": "Content",
@@ -2519,7 +2525,12 @@
       "quiz": "Quiz",
       "videoActivity": "Video Activity",
       "guidedLearning": "Guided Learning",
-      "miniApp": "Mini App"
+      "miniApp": "Mini App",
+      "flashcards": "Flashcards"
+    },
+    "flashcardKind": {
+      "check": "Check",
+      "study": "Study"
     },
     "searchLabel": "Search assignments",
     "searchPlaceholder": "Search assignments…",
@@ -3163,6 +3174,150 @@
     "discardMessage": "You have unsaved changes. Are you sure you want to discard them?",
     "discardTitle": "Discard Changes",
     "discardConfirm": "Discard"
+  },
+  "flashcards": {
+    "public": {
+      "pageTitle": "{{title}} · Flashcards",
+      "cards_one": "{{count}} card",
+      "cards_other": "{{count}} cards",
+      "loading": "Loading flashcards…",
+      "unavailableTitle": "These flashcards aren't available",
+      "unavailableBody": "The link may be incorrect, or the teacher may have turned sharing off."
+    },
+    "modes": {
+      "label": "Study mode",
+      "flashcards": "Flashcards",
+      "write": "Write",
+      "test": "Test"
+    },
+    "player": {
+      "back": "Back to flashcard library",
+      "round": "Round {{round}}",
+      "mastered": "{{mastered}}/{{total}} mastered",
+      "masteryLabel": "{{mastered}} of {{total}} cards mastered",
+      "settings": "Study settings",
+      "emptyTitle": "No cards in this view",
+      "emptyBody": "Try showing all cards, including mastered cards, in Settings.",
+      "openSettings": "Open settings"
+    },
+    "settings": {
+      "title": "Study settings",
+      "close": "Close study settings",
+      "cards": "Cards",
+      "study": "Study",
+      "all": "All",
+      "favoritesOnly": "Favorites only",
+      "showFirst": "Show first",
+      "term": "Term",
+      "definition": "Definition",
+      "shuffle": "Shuffle",
+      "hideMastered": "Hide mastered cards",
+      "answers": "Answers",
+      "strict": "Strict mode",
+      "strictHelp": "Require exact spelling, accents, and articles.",
+      "test": "Test",
+      "multipleChoice": "Multiple choice",
+      "fillBlank": "Fill in the blank",
+      "mcNeedsFour": "Multiple choice needs at least 4 cards.",
+      "questions": "Questions",
+      "allCount": "All ({{count}})",
+      "reset": "Reset progress",
+      "lockedNote": "Your teacher set these options for this check."
+    },
+    "summary": {
+      "complete": "Round {{round}} complete",
+      "heading": "Nice work.",
+      "correct": "Got it",
+      "learning": "Still learning",
+      "next": "Next round",
+      "restart": "Restart all"
+    },
+    "cards": {
+      "term": "Term",
+      "definition": "Definition",
+      "flipToPrompt": "Showing answer. Flip to prompt.",
+      "flipToAnswer": "Showing prompt. Flip to answer.",
+      "flipHint": "Click or press Space to flip",
+      "favoriteAdd": "Add to favorites",
+      "favoriteRemove": "Remove from favorites",
+      "previous": "Previous card",
+      "next": "Next card",
+      "correct": "Got it",
+      "learning": "Still learning"
+    },
+    "write": {
+      "inputLabel": "Type the {{side}}",
+      "placeholder": "Type your answer",
+      "check": "Check",
+      "yours": "Yours:",
+      "correct": "Correct:",
+      "retypeHint": "Retype the correct answer to keep going.",
+      "retypeLabel": "Retype the correct answer",
+      "retypeError": "Not quite — copy the correct answer exactly.",
+      "continue": "Continue",
+      "override": "I was right",
+      "acceptedTitle": "Accepted",
+      "acceptedHint": "Close enough. Exact spelling:",
+      "flag": "I think this is right",
+      "flagged": "Flagged for your teacher"
+    },
+    "test": {
+      "complete": "Test complete",
+      "perfect": "Perfect score — every answer was correct.",
+      "missed_one": "{{count}} answer needs another look.",
+      "missed_other": "{{count}} answers need another look.",
+      "review": "Review missed answers",
+      "yourAnswer": "Your answer:",
+      "correctAnswer": "Correct answer:",
+      "retake": "Retake missed only",
+      "new": "New test",
+      "nav": "Test questions",
+      "goTo": "Go to question {{number}}",
+      "numberType": "{{number}}. {{type}}",
+      "submit": "Submit test"
+    },
+    "characters": {
+      "uppercase": "Use uppercase characters",
+      "lowercase": "Use lowercase characters",
+      "insert": "Insert {{character}}"
+    },
+    "check": {
+      "readyTitle": "Ready to submit",
+      "readyFlashcards": "Every card has reached your teacher's goal. Submit to finish this check.",
+      "readyWrite": "You've answered every card correctly. Submit to finish this check.",
+      "flagged_one": "{{count}} answer flagged for your teacher",
+      "flagged_other": "{{count}} answers flagged for your teacher",
+      "submit": "Submit",
+      "submitting": "Submitting…"
+    },
+    "assignment": {
+      "pageTitle": "{{title}} · Flashcards",
+      "loading": "Loading assignment…",
+      "unavailableTitle": "This assignment isn't available",
+      "unavailableBody": "Check the link, or ask your teacher whether you're assigned to it.",
+      "back": "Back to my assignments",
+      "check": "Check",
+      "study": "Study",
+      "opensTitle": "Not open yet",
+      "opensBody": "This assignment opens {{date}}.",
+      "closedBanner": "This assignment closed on {{date}}. You can keep studying, but your progress no longer goes to your teacher.",
+      "endedBanner": "Your teacher ended this assignment. You can keep studying, but your progress no longer goes to your teacher.",
+      "checkClosedTitle": "This check is closed",
+      "checkClosedBody": "It can't be submitted anymore. Ask your teacher if you need more time.",
+      "submitError": "Your check couldn't be submitted. Try again.",
+      "submittedTitle": "Submitted",
+      "submittedAt": "Submitted {{date}}",
+      "resultsHidden": "Your teacher will share your results later.",
+      "score": "Score",
+      "mastered": "You mastered every card.",
+      "rounds_one": "{{count}} round",
+      "rounds_other": "{{count}} rounds",
+      "studyTime": "{{minutes}} min studied",
+      "missedTitle": "Review missed cards",
+      "yourAnswer": "Your answer:",
+      "correctAnswer": "Correct answer:",
+      "allCorrect": "Every answer was correct."
+    }
   },
   "studentAssignment": {
     "excludedTitle": "This assignment is not for you",

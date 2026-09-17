@@ -139,6 +139,33 @@ export function getEarnedPoints(
 }
 
 /**
+ * Denominator for the live "per-question" running-accuracy scoreboard: total
+ * point value of every question the student has actually answered so far
+ * (not the whole quiz — that's `getResponseScore`'s job for completion mode).
+ *
+ * Dedupes via `selectRepresentativeAnswers`, the same guard `getEarnedPoints`
+ * applies to the numerator. Without it, an arrayUnion-race or Drive-sync
+ * duplicate answer for the same question counts its points twice here while
+ * `getEarnedPoints` still counts it once, deflating the live running score
+ * (e.g. a student who answered the only real question correctly shows 50%
+ * instead of 100% while the quiz is in progress). Same bug family as the
+ * `getResponseScore` fix above.
+ */
+export function getMaxAnsweredPoints(
+  r: QuizResponse,
+  questions: QuizQuestion[]
+): number {
+  const qMap = new Map(questions.map((q) => [q.id, q]));
+  const representative = selectRepresentativeAnswers(r.answers);
+  let total = 0;
+  for (const a of representative.values()) {
+    const q = qMap.get(a.questionId);
+    if (q) total += q.points ?? 1;
+  }
+  return total;
+}
+
+/**
  * Returns true when the session has speed bonus or streak multiplier enabled,
  * meaning scores can exceed 100% and should be shown as raw points instead.
  */

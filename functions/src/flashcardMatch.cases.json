@@ -1,0 +1,82 @@
+[
+  {
+    "name": "ignores case whitespace and trailing punctuation",
+    "response": "  BONJOUR! ",
+    "expected": "bonjour",
+    "language": "fr-FR",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "folds Russian yo for exact matching",
+    "response": "елка",
+    "expected": "ёлка",
+    "language": "ru-RU",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "accepts an alternate in strict mode",
+    "response": "automobile",
+    "expected": "car / automobile",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "makes a parenthetical optional in strict mode",
+    "response": "levantar",
+    "expected": "(se) levantar",
+    "language": "es-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "keeps an unspaced slash intact",
+    "response": "km/h",
+    "expected": "km/h",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "accepts accents in relaxed mode",
+    "response": "eleve",
+    "expected": "élève",
+    "language": "fr-FR",
+    "strict": false,
+    "result": "accepted"
+  },
+  {
+    "name": "accepts a missing article in relaxed mode",
+    "response": "casa",
+    "expected": "la casa",
+    "language": "es-US",
+    "strict": false,
+    "result": "accepted"
+  },
+  {
+    "name": "accepts a transposition in a medium word",
+    "response": "frined",
+    "expected": "friend",
+    "language": "en-US",
+    "strict": false,
+    "result": "accepted"
+  },
+  {
+    "name": "does not tolerate typos in a short word",
+    "response": "cot",
+    "expected": "cat",
+    "language": "en-US",
+    "strict": false,
+    "result": "wrong"
+  },
+  {
+    "name": "does not relax accents in strict mode",
+    "response": "nino",
+    "expected": "niño",
+    "language": "es-US",
+    "strict": true,
+    "result": "wrong"
+  }
+]

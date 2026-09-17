@@ -419,6 +419,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                     onChange={onTargetingChange}
                     kind="mini-app"
                     showDueAt
+                    cqScaled
                   />
                 </>
               )}

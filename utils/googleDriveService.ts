@@ -776,7 +776,9 @@ export class GoogleDriveService {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to download file from Drive');
+      throw new Error(
+        `Failed to download file from Drive (${response.status} ${response.statusText || 'Unknown error'})`
+      );
     }
 
     return response.blob();

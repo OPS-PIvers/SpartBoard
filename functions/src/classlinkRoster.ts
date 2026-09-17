@@ -48,6 +48,13 @@ export const getClassLinkRosterV1 = onCall(
         'User must have an email associated with their account.'
       );
     }
+    // userEmail drives the ClassLink roster lookup below, so it must be verified (same rail as isAdmin()).
+    if (request.auth.token.email_verified !== true) {
+      throw new HttpsError(
+        'permission-denied',
+        'Caller email must be verified.'
+      );
+    }
 
     const clientId = CLASSLINK_CLIENT_ID.value();
     const clientSecret = CLASSLINK_CLIENT_SECRET.value();

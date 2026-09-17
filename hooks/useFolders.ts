@@ -35,6 +35,8 @@ export const folderCollectionName = (widget: LibraryFolderWidget): string => {
       return 'guided_learning_folders';
     case 'miniapp':
       return 'miniapp_folders';
+    case 'flashcards':
+      return 'flashcard_folders';
   }
 };
 
@@ -55,6 +57,8 @@ const itemCollectionName = (widget: LibraryFolderWidget): string => {
       return 'guided_learning';
     case 'miniapp':
       return 'miniapps';
+    case 'flashcards':
+      return 'flashcard_sets';
   }
 };
 

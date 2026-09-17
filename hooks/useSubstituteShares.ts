@@ -425,6 +425,9 @@ export function useSubstituteCollectionBoard(
           buildingId: parent.buildingId,
           expiresAt: parent.expiresAt,
           initialState: widgets,
+          ...(parent.sharedRosters
+            ? { sharedRosters: parent.sharedRosters }
+            : {}),
           originalAuthor: parent.hostUid,
           ...(parent.hostDisplayName
             ? { originalAuthorName: parent.hostDisplayName }

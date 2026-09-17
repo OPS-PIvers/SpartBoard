@@ -15,6 +15,7 @@ import {
   ShapeTool,
   Collection,
   CollectionSubstituteShareInput,
+  SubstituteShareRoster,
 } from '@/types';
 import type { RosterCreateMeta } from '@/hooks/useRosters';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
@@ -43,7 +44,7 @@ export interface SubstituteShareResult {
   shareId: string;
   /**
    * Null when no roster Drive sharing was requested (empty
-   * `rosterDriveFileIds` or empty `subEmails`). Otherwise carries the
+   * `sharedRosters` or empty `subEmails`). Otherwise carries the
    * counts plus the failed pairs (caller can show specifics).
    */
   driveGrants: {
@@ -68,14 +69,11 @@ export interface SubstituteShareInput {
   /** Optional @orono.k12.mn.us emails the host wants to grant Drive access to. */
   subEmails?: string[];
   /**
-   * Drive file ids that should be shared (read-only) with each `subEmails`
-   * entry — typically the active roster's JSON file. The handler iterates
-   * the cross-product, captures each returned permission id, and persists
-   * `driveGrants[]` back on the share doc for later revocation. Caller is
-   * responsible for resolving which files are relevant (usually the active
-   * roster's `driveFileId`).
+   * Rosters whose Drive files are shared (read-only) with each `subEmails`
+   * entry. The handler grants the cross-product, persists `driveGrants[]` for
+   * revocation, and stores this metadata so /subs can load the names.
    */
-  rosterDriveFileIds?: string[];
+  sharedRosters?: SubstituteShareRoster[];
 }
 
 export interface PendingShareImport {

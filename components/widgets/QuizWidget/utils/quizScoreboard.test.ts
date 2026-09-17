@@ -33,6 +33,7 @@ import {
   getResponseScore,
   getDisplayScore,
   getScoreSuffix,
+  getMaxAnsweredPoints,
   isGamificationActive,
   canScoreResponse,
   buildPinToNameMap,
@@ -474,6 +475,42 @@ describe('quizScoreboard', () => {
         ]);
         expect(getEarnedPoints(response, questions)).toBe(5);
       });
+    });
+  });
+
+  describe('getMaxAnsweredPoints', () => {
+    it('sums point values for each answered question', () => {
+      const questions = [
+        makeQuestion('q1', 'A', 5),
+        makeQuestion('q2', 'B', 10),
+      ];
+      const response = makeResponse('01', [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'q2', answer: 'wrong' },
+      ]);
+      expect(getMaxAnsweredPoints(response, questions)).toBe(15);
+    });
+
+    it('is not inflated when the answers array contains a duplicate questionId (arrayUnion race)', () => {
+      // Live per-question scoreboard mode divides getEarnedPoints (which
+      // dedupes via selectRepresentativeAnswers) by this denominator. Without
+      // the same dedup here, a raced duplicate answer for q1 counts its
+      // points twice, deflating the displayed running-accuracy percentage.
+      const questions = [makeQuestion('q1', 'A', 5)];
+      const response = makeResponse('01', [
+        { questionId: 'q1', answer: 'A', answeredAt: 100 },
+        { questionId: 'q1', answer: 'A', answeredAt: 101 }, // duplicate
+      ]);
+      expect(getMaxAnsweredPoints(response, questions)).toBe(5);
+    });
+
+    it('ignores answers for questions not in the loaded set', () => {
+      const questions = [makeQuestion('q1', 'A', 5)];
+      const response = makeResponse('01', [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'stale-q', answer: 'x' },
+      ]);
+      expect(getMaxAnsweredPoints(response, questions)).toBe(5);
     });
   });
 

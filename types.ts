@@ -61,7 +61,8 @@ export type WidgetType =
   | 'blooms-taxonomy'
   | 'blooms-detail'
   | 'need-do-put-then'
-  | 'stations';
+  | 'stations'
+  | 'flashcards';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -5133,7 +5134,12 @@ export interface StudentOverride {
  * grouped across assignments per-student (spec §A3 non-goal).
  */
 export interface StudentAssignmentPointer {
-  kind: 'quiz' | 'video-activity' | 'guided-learning' | 'mini-app';
+  kind:
+    | 'quiz'
+    | 'video-activity'
+    | 'guided-learning'
+    | 'mini-app'
+    | 'flashcards';
   sessionId: string;
   teacherUid: string;
   classId: string;
@@ -6833,8 +6839,8 @@ export interface GuidedLearningSession {
    *
    * NOTE: The GL session's own `mode` field is already in use (play-mode
    * — structured / guided / explore), so the assignment mode lives under
-   * `assignmentMode` here. The other three widgets (Quiz, Video Activity,
-   * Mini App) store it as `mode`.
+   * `assignmentMode` here. Quiz, Video Activity, and Mini App store it as
+   * `mode`.
    */
   assignmentMode?: AssignmentMode;
   /** Mirrors `GuidedLearningSet.schemaVersion` so the student player applies matching semantics. */
@@ -7026,6 +7032,190 @@ export interface StationsConfig {
   cardOpacity?: number;
 }
 
+// === Flashcards ===
+
+/** A single term/definition pair. The stable id keys future study progress. */
+export interface FlashcardCard {
+  id: string;
+  term: string;
+  definition: string;
+}
+
+/** A teacher-owned flashcard set stored inline in Firestore. */
+export interface FlashcardSet {
+  id: string;
+  title: string;
+  description?: string;
+  termLanguage: string;
+  definitionLanguage: string;
+  cards: FlashcardCard[];
+  folderId?: string | null;
+  publicShareId?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Public, read-only snapshot written when a teacher enables link sharing. */
+export interface PublicFlashcardSet {
+  teacherUid: string;
+  setId: string;
+  title: string;
+  description?: string;
+  termLanguage: string;
+  definitionLanguage: string;
+  cards: FlashcardCard[];
+  updatedAt: number;
+}
+
+export type FlashcardMode = 'flashcards' | 'write' | 'test';
+export type FlashcardSide = 'term' | 'definition';
+export type FlashcardTestType = 'mc' | 'fib';
+
+export interface FlashcardModeSettings {
+  showFirst: FlashcardSide;
+  shuffle: boolean;
+  favoritesOnly: boolean;
+  hideMastered: boolean;
+  strict: boolean;
+  testTypes: FlashcardTestType[];
+  testCount: number | 'all';
+}
+
+/** Compact per-card state shared by public practice and future assignments. */
+export interface FlashcardCardProgress {
+  s: 0 | 1 | 2 | 3 | 4;
+  due: number;
+  c: number;
+  w: number;
+}
+
+/** Study state shared by every progress adapter. */
+export interface FlashcardStudyState {
+  cards: Record<string, FlashcardCardProgress>;
+  starred: string[];
+  round: number;
+}
+
+export type FlashcardAssignmentKind = 'check' | 'study';
+export type FlashcardMasteryThreshold = 2 | 3 | 4;
+export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
+
+/** One graded item in a Check submission; `correct` is written by the server. */
+export interface FlashcardAnswerLogEntry {
+  cardId: string;
+  response: string;
+  type?: FlashcardTestType;
+  attempts?: number;
+  correct?: boolean;
+}
+
+/** A student's "I think this is right" flag on a Check answer. */
+export interface FlashcardFlag {
+  cardId: string;
+  response: string;
+  accepted?: boolean;
+}
+
+/** Resumable Check · Write state: first try per card plus whether it is finished. */
+export interface FlashcardCheckWriteEntry {
+  response: string;
+  attempts: number;
+  done: boolean;
+  flagged?: boolean;
+}
+
+/** `flashcard_sessions/{assignmentId}`: what assigned students load. */
+export interface FlashcardSession {
+  id: string;
+  teacherUid: string;
+  setId: string;
+  title: string;
+  kind: FlashcardAssignmentKind;
+  checkMode?: FlashcardMode;
+  lockedSettings?: FlashcardModeSettings;
+  masteryThreshold?: FlashcardMasteryThreshold;
+  termLanguage: string;
+  definitionLanguage: string;
+  cards: FlashcardCard[];
+  classIds: string[];
+  classId?: string;
+  periodNames?: string[];
+  rosterIds?: string[];
+  status: 'active' | 'ended';
+  openAt?: number | null;
+  dueAt?: number | null;
+  closeAt?: number | null;
+  scoreVisibility?: FlashcardScoreVisibility;
+  scorePublishedAt?: number;
+  individualTargeting?: boolean;
+  createdAt: number;
+  endedAt?: number;
+}
+
+/** `users/{uid}/flashcard_assignments/{assignmentId}`: the teacher's record (id == session id). */
+export interface FlashcardAssignment {
+  id: string;
+  sessionId: string;
+  setId: string;
+  setTitle: string;
+  teacherUid: string;
+  kind: FlashcardAssignmentKind;
+  checkMode?: FlashcardMode;
+  status: 'active' | 'ended';
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+  archivedAt?: number | null;
+  rosterIds?: string[];
+  classIds?: string[];
+  periodNames?: string[];
+  scoreVisibility?: FlashcardScoreVisibility;
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  excludedTargets?: StudentTargetRef[];
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  targetSkippedCount?: number;
+  removedStudentRefs?: StudentTargetRef[];
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+}
+
+/** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
+export interface FlashcardProgress extends FlashcardStudyState {
+  classId: string;
+  studyMs: number;
+  modesUsed: FlashcardMode[];
+  tests: Array<{
+    at: number;
+    types: FlashcardTestType[];
+    count: number;
+    score: number;
+  }>;
+  lastActiveAt: number;
+  checkLog?: Record<string, FlashcardCheckWriteEntry>;
+  // Server-written only (Check):
+  submittedAt?: number;
+  score?: number;
+  total?: number;
+  answerLog?: FlashcardAnswerLogEntry[];
+  flags?: FlashcardFlag[];
+}
+
+/** Per-board state only. Set content lives in the teacher's Firestore library. */
+export interface FlashcardsConfig {
+  view: 'library' | 'present' | 'results';
+  libraryTab?: 'library' | 'active' | 'archive';
+  /** Assignment whose teacher results are open in the `results` view. */
+  activeAssignmentId?: string;
+  presentSetId?: string;
+  presentShowFirst: FlashcardSide;
+  presentShuffle: boolean;
+  lastRosterIdsBySetId?: Record<string, string[]>;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | UrlWidgetConfig
@@ -7090,7 +7280,8 @@ export type WidgetConfig =
   | BloomsDetailConfig
   | NeedDoPutThenConfig
   | First5Config
-  | StationsConfig;
+  | StationsConfig
+  | FlashcardsConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -7219,7 +7410,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                             ? First5Config
                                                                                                                             : T extends 'stations'
                                                                                                                               ? StationsConfig
-                                                                                                                              : never;
+                                                                                                                              : T extends 'flashcards'
+                                                                                                                                ? FlashcardsConfig
+                                                                                                                                : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -7595,6 +7788,13 @@ export interface SubstituteShareDriveGrant {
   permissionId: string;
 }
 
+/** Non-PII roster metadata on a substitute share; names stay in the Drive file. */
+export interface SubstituteShareRoster {
+  id: string;
+  name: string;
+  driveFileId: string;
+}
+
 /**
  * Substitute-mode-only fields persisted on `/shared_boards/{shareId}` when
  * `intendedMode === 'substitute'`. The widgets field on the doc carries the
@@ -7612,6 +7812,8 @@ export interface SubstituteShareFields {
   subEmails?: string[];
   /** Phase 5: per-email/file Drive permission ids for revocation. */
   driveGrants?: SubstituteShareDriveGrant[];
+  /** Rosters the sub may load from Drive; the first is the active one. */
+  sharedRosters?: SubstituteShareRoster[];
 }
 
 /** Per-participant entry on a /shared_boards/{shareId} doc. */
@@ -8854,14 +9056,14 @@ export interface GuidedLearningAssignment {
 
 // === Library folders (Wave 3) ===
 //
-// Folder organization for the four library-style widgets (Quiz, Video
-// Activity, Guided Learning, MiniApp). Each widget has its OWN folders
+// Folder organization for the library-style widgets (Quiz, Video Activity,
+// Guided Learning, MiniApp, Flashcards). Each widget has its OWN folders
 // collection — folders are never shared across widgets.
 //
 // Storage shape: a flat per-widget collection at
 //   /users/{userId}/{widget}_folders/{folderId}
 // where `{widget}` is one of `quiz`, `video_activity`, `guided_learning`,
-// `miniapp`. Nested folders are modeled via `parentId` (string id of
+// `miniapp`, `flashcards`. Nested folders are modeled via `parentId` (string id of
 // the parent, or `null` for root) rather than nested subcollection paths.
 //
 // Why flat-collection-with-`parentId` instead of nested paths:
@@ -8883,7 +9085,8 @@ export type LibraryFolderWidget =
   | 'question_bank'
   | 'video_activity'
   | 'guided_learning'
-  | 'miniapp';
+  | 'miniapp'
+  | 'flashcards';
 
 /**
  * A folder record stored at
@@ -8982,6 +9185,8 @@ export interface SharedCollection {
    * Swept by `useReconcileExpiredSubShares` / `expireSubShares` on expiry.
    */
   driveGrants?: SubstituteShareDriveGrant[];
+  /** Substitute-only: mirrors `SubstituteShareFields.sharedRosters`. */
+  sharedRosters?: SubstituteShareRoster[];
 }
 
 /**
@@ -9005,7 +9210,8 @@ export interface CollectionSubstituteShareInput {
   expiresAt: number;
   buildingId: string;
   subEmails?: string[];
-  rosterDriveFileIds?: string[];
+  /** Rosters whose Drive files are granted to `subEmails` (active roster first). */
+  sharedRosters?: SubstituteShareRoster[];
 }
 
 /**

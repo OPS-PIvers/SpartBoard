@@ -714,6 +714,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for real-time (CRDT) PLC note editing — every member
+    // reads it to decide which editor path to mount; admins flip it.
+    match /admin_settings/plc_note_collab {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via
@@ -1011,7 +1018,7 @@ service cloud.firestore {
       // Host or admin: full update, but intendedMode is locked to its create value and
       // any plcId change requires current membership of the target PLC (admins bypass).
       // Substitute addendum: all lifecycle fields (buildingId, initialState, expiresAt,
-      // subEmails, driveGrants) are pinned to create-time values so the frozen,
+      // subEmails, driveGrants, sharedRosters) are pinned to create-time values so the frozen,
       // time-boxed snapshot can't drift. Admin-overridable.
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
@@ -1035,7 +1042,8 @@ service cloud.firestore {
             request.resource.data.get('initialState', null) == resource.data.get('initialState', null) &&
             request.resource.data.get('expiresAt', null) == resource.data.get('expiresAt', null) &&
             request.resource.data.get('subEmails', null) == resource.data.get('subEmails', null) &&
-            request.resource.data.get('driveGrants', null) == resource.data.get('driveGrants', null)
+            request.resource.data.get('driveGrants', null) == resource.data.get('driveGrants', null) &&
+            request.resource.data.get('sharedRosters', null) == resource.data.get('sharedRosters', null)
           )
         ) &&
         (
@@ -2827,7 +2835,7 @@ service cloud.firestore {
                'id', 'title', 'body', 'kind', 'meetingId', 'actionItems',
                'createdBy', 'createdAt',
                'lastEditedBy', 'lastEditedAt',
-               'version', 'deletedAt'
+               'version', 'deletedAt', 'yState'
              ])
           && request.resource.data.id == noteId
           && request.resource.data.createdBy == request.auth.uid
@@ -2847,6 +2855,10 @@ service cloud.firestore {
                !('actionItems' in request.resource.data)
                || (request.resource.data.actionItems is list
                     && request.resource.data.actionItems.size() <= 200)
+             )
+          && (
+               !('yState' in request.resource.data)
+               || request.resource.data.yState is string
              )
           // A fresh note may omit `version` (legacy/no-version) or start it at
           // an int (clients seed 0/1). The update branch enforces the +1 bump.
@@ -2869,7 +2881,7 @@ service cloud.firestore {
                'id', 'title', 'body', 'kind', 'meetingId', 'actionItems',
                'createdBy', 'createdAt',
                'lastEditedBy', 'lastEditedAt',
-               'version', 'deletedAt'
+               'version', 'deletedAt', 'yState'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
@@ -2892,6 +2904,10 @@ service cloud.firestore {
                || (request.resource.data.actionItems is list
                     && request.resource.data.actionItems.size() <= 200)
              )
+          && (
+               !('yState' in request.resource.data)
+               || request.resource.data.yState is string
+             )
           && plcSubDeletedAtOk()
           // Version precondition: new == old + 1, OR both absent (rollout).
           && (
@@ -2910,6 +2926,31 @@ service cloud.firestore {
         // denied.
         allow delete: if request.auth != null
           && plcCanEditContent(plcId);
+
+        // Yjs CRDT update log — one base64 update per doc, replayed on top of
+        // the note's compacted `yState`. Append-only for clients: an update is
+        // never rewritten, only deleted once compaction has folded it into the
+        // snapshot. Shape locked via hasOnly([...]); `uid` is the author so a
+        // member can't forge a teammate's update.
+        match /yUpdates/{updateId} {
+          allow read: if request.auth != null
+            && request.auth.uid in get(
+                 /databases/$(database)/documents/plcs/$(plcId)
+               ).data.memberUids;
+
+          allow create: if request.auth != null
+            && plcCanEditContent(plcId)
+            && request.resource.data.keys().hasOnly(['u', 'uid', 'at'])
+            && request.resource.data.u is string
+            && request.resource.data.u.size() <= 200000
+            && request.resource.data.uid == request.auth.uid
+            && plcSubTimeFieldOk('at');
+
+          allow update: if false;
+
+          allow delete: if request.auth != null
+            && plcCanEditContent(plcId);
+        }
       }
 
       // PLC shared Google Docs. Lightweight pointers — the doc content
@@ -4802,6 +4843,152 @@ service cloud.firestore {
     }
     match /users/{userId}/miniapp_folders/{folderId} {
       allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+    }
+
+    // === Flashcards (PR 1: teacher-owned authoring library) ===
+    match /users/{userId}/flashcard_sets/{setId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && notDeactivated();
+    }
+    match /users/{userId}/flashcard_folders/{folderId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && notDeactivated();
+    }
+    match /users/{userId}/flashcard_assignments/{assignmentId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && notDeactivated();
+    }
+
+    // Public Flashcards snapshots — single-document reads work without auth so
+    // Schoology/Google Sites embeds do not depend on partitioned auth storage.
+    // Listing is intentionally denied: a share id is the access capability.
+    match /public_flashcard_sets/{shareId} {
+      function validPublicFlashcardSnapshot() {
+        return request.resource.data.teacherUid == request.auth.uid
+               && request.resource.data.keys().hasOnly([
+                 'teacherUid', 'setId', 'title', 'description',
+                 'termLanguage', 'definitionLanguage', 'cards',
+                 'updatedAt'
+               ])
+               && request.resource.data.setId is string
+               && request.resource.data.title is string
+               && request.resource.data.title.size() > 0
+               && request.resource.data.description is string
+               && request.resource.data.termLanguage is string
+               && request.resource.data.definitionLanguage is string
+               && request.resource.data.cards is list
+               && request.resource.data.cards.size() > 0
+               && request.resource.data.cards.size() <= 500
+               && request.resource.data.updatedAt is int;
+      }
+
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null
+                    && !isStudentRoleUser()
+                    && notDeactivated()
+                    && validPublicFlashcardSnapshot();
+      allow update: if request.auth != null
+                    && !isStudentRoleUser()
+                    && notDeactivated()
+                    && resource.data.teacherUid == request.auth.uid
+                    && validPublicFlashcardSnapshot();
+      allow delete: if request.auth != null
+                    && !isStudentRoleUser()
+                    && notDeactivated()
+                    && resource.data.teacherUid == request.auth.uid;
+    }
+
+    // Flashcards assignments (PR 3). Students read their class's sessions (or one
+    // they hold a pointer for) and write only their own progress; score fields
+    // are written by submitFlashcardCheckV1.
+    match /flashcard_sessions/{sessionId} {
+      function fcTeacherSignedIn() {
+        return request.auth != null
+               && request.auth.token.firebase.sign_in_provider != 'anonymous'
+               && !isStudentRoleUser()
+               && notDeactivated();
+      }
+      function fcHasPointer() {
+        return exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId));
+      }
+
+      allow get: if request.auth != null && (
+        resource.data.teacherUid == request.auth.uid ||
+        (isStudentRoleUser() &&
+         (passesStudentClassGateList(resource.data.get('classIds', [])) || fcHasPointer()))
+      );
+      allow list: if request.auth != null
+                  && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                  && (resource.data.teacherUid == request.auth.uid || isStudentRoleUser());
+      allow create: if fcTeacherSignedIn()
+                    && request.resource.data.teacherUid == request.auth.uid
+                    && request.resource.data.kind in ['check', 'study']
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.classIds is list
+                    && request.resource.data.cards is list
+                    && request.resource.data.cards.size() > 0
+                    && request.resource.data.cards.size() <= 500;
+      allow update: if fcTeacherSignedIn()
+                    && resource.data.teacherUid == request.auth.uid
+                    && request.resource.data.teacherUid == resource.data.teacherUid
+                    && request.resource.data.kind == resource.data.kind
+                    && request.resource.data.status in ['active', 'ended'];
+      allow delete: if fcTeacherSignedIn() && resource.data.teacherUid == request.auth.uid;
+
+      match /progress/{studentUid} {
+        function fcSession() {
+          return get(/databases/$(database)/documents/flashcard_sessions/$(sessionId)).data;
+        }
+        function fcIsSessionTeacher() {
+          return request.auth != null && fcSession().teacherUid == request.auth.uid;
+        }
+        function fcWithinWindow() {
+          return (fcSession().get('closeAt', null) == null ||
+                  request.time.toMillis() < fcSession().closeAt + assignmentCloseGraceMs()) &&
+                 (fcSession().get('openAt', null) == null ||
+                  request.time.toMillis() >= fcSession().openAt - assignmentOpenGraceMs());
+        }
+        function fcValidProgress() {
+          let data = request.resource.data;
+          return data.keys().hasOnly([
+                   'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
+                   'tests', 'lastActiveAt', 'checkLog'
+                 ])
+                 && data.classId is string
+                 && data.cards is map
+                 && data.starred is list
+                 && data.round is int
+                 && data.studyMs is int
+                 && data.modesUsed is list
+                 && data.tests is list
+                 && data.tests.size() <= 50
+                 && data.lastActiveAt is int
+                 && (!('checkLog' in data) || data.checkLog is map);
+        }
+
+        allow get: if request.auth != null && (
+          fcIsSessionTeacher() ||
+          (studentUid == request.auth.uid && isStudentRoleUser())
+        );
+        allow list: if fcIsSessionTeacher();
+        allow create, update: if request.auth != null
+                              && studentUid == request.auth.uid
+                              && isStudentRoleUser()
+                              && fcSession().status == 'active'
+                              && (passesStudentClassGateList(fcSession().get('classIds', [])) ||
+                                  exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId)))
+                              && fcWithinWindow()
+                              && (resource == null || !('submittedAt' in resource.data))
+                              && fcValidProgress();
+        allow delete: if fcIsSessionTeacher() && notDeactivated();
+      }
     }
 
     // Default deny all other collections

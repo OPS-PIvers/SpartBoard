@@ -657,6 +657,14 @@ describe('shared_boards — substitute shares can never acquire a plcId', () => 
     );
   });
 
+  it('host cannot rewrite sharedRosters on a substitute share', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        sharedRosters: [{ id: 'r2', name: 'Other', driveFileId: 'file-2' }],
+      })
+    );
+  });
+
   it('host can still edit content on a substitute share', async () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {

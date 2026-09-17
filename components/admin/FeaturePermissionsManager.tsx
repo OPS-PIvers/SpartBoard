@@ -12,6 +12,7 @@ import {
 } from '@/types';
 import { useStorage } from '@/hooks/useStorage';
 import { TOOLS } from '@/config/tools';
+import { getWidgetDefaultAccessLevel } from '@/config/featureDefaults';
 import {
   getWidgetGradeLevels,
   ALL_GRADE_LEVELS,
@@ -192,7 +193,7 @@ export const FeaturePermissionsManager: React.FC = () => {
     return (
       permissions.get(widgetType) ?? {
         widgetType,
-        accessLevel: 'public',
+        accessLevel: getWidgetDefaultAccessLevel(widgetType),
         betaUsers: [],
         enabled: true,
       }
@@ -206,7 +207,7 @@ export const FeaturePermissionsManager: React.FC = () => {
     setPermissions((prev) => {
       const current = prev.get(widgetType) ?? {
         widgetType,
-        accessLevel: 'public' as const,
+        accessLevel: getWidgetDefaultAccessLevel(widgetType),
         betaUsers: [],
         enabled: true,
       };
@@ -334,7 +335,7 @@ export const FeaturePermissionsManager: React.FC = () => {
     return sorted.filter((tool) => {
       const perm = permissions.get(tool.type) ?? {
         widgetType: tool.type,
-        accessLevel: 'public' as AccessLevel,
+        accessLevel: getWidgetDefaultAccessLevel(tool.type),
         betaUsers: [] as string[],
         enabled: true,
       };
@@ -1038,7 +1039,7 @@ export const FeaturePermissionsManager: React.FC = () => {
                       } else {
                         data = {
                           widgetType: toolType,
-                          accessLevel: 'public',
+                          accessLevel: getWidgetDefaultAccessLevel(toolType),
                           betaUsers: [],
                           enabled: true,
                         };

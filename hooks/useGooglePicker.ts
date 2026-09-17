@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useAuth } from '@/context/useAuth';
+import { logError } from '@/utils/logError';
 
 /** Subset of file metadata returned by the Google Picker. */
 export interface PickedFile {
@@ -33,7 +34,13 @@ export interface OpenPickerOptions {
    * file grants this token per-file `drive.file` access — no broader scope.
    */
   token?: string;
+  /** Restrict the view to these Drive files (e.g. files shared with a sub). Ignores `mode`. */
+  fileIds?: string[];
+  title?: string;
 }
+
+// Not in @types/google.picker, but the runtime still fires it.
+const PICKER_ACTION_LOADED = 'loaded';
 
 /** Max time (ms) to wait for the gapi script to become available. */
 const GAPI_LOAD_TIMEOUT_MS = 15_000;
@@ -155,13 +162,19 @@ export const useGooglePicker = () => {
                   ? 'application/vnd.google-apps.spreadsheet'
                   : SUPPORTED_MIME_TYPES;
 
-            const docsView = new google.picker.DocsView(viewId)
-              // Enable folder navigation for docs AND sheets so teachers can
-              // browse into Drive subfolders (the app itself files quizzes under
-              // `SpartBoard/Quizzes/`); only the image picker stays flat.
-              .setIncludeFolders(mode !== 'images')
-              .setMimeTypes(mimeTypes)
-              .setMode(google.picker.DocsViewMode.LIST);
+            const fileIds = options?.fileIds ?? [];
+            const docsView =
+              fileIds.length > 0
+                ? new google.picker.DocsView(google.picker.ViewId.DOCS)
+                    .setFileIds(fileIds.join(','))
+                    .setMode(google.picker.DocsViewMode.LIST)
+                : new google.picker.DocsView(viewId)
+                    // Enable folder navigation for docs AND sheets so teachers can
+                    // browse into Drive subfolders (the app itself files quizzes under
+                    // `SpartBoard/Quizzes/`); only the image picker stays flat.
+                    .setIncludeFolders(mode !== 'images')
+                    .setMimeTypes(mimeTypes)
+                    .setMode(google.picker.DocsViewMode.LIST);
 
             // Only the dedicated Google API key is valid for Picker — the
             // Firebase API key isn't authorized for Picker API in GCP and
@@ -173,21 +186,26 @@ export const useGooglePicker = () => {
               | undefined;
 
             const title =
-              mode === 'images'
+              options?.title ??
+              (mode === 'images'
                 ? 'Select an image from Drive'
                 : mode === 'sheets'
                   ? 'Select a Google Sheet'
-                  : 'Select a file for AI context';
+                  : 'Select a file for AI context');
 
             const builder = new google.picker.PickerBuilder()
               .addView(docsView)
               .setOAuthToken(oauthToken)
-              .setMaxItems(1)
+              .setMaxItems(Math.max(1, fileIds.length))
               .setTitle(title)
               .setCallback((response: google.picker.ResponseObject) => {
                 const action = response[
                   google.picker.Response.ACTION
                 ] as google.picker.Action;
+
+                // The Picker also fires `loaded` before the user chooses;
+                // resolving there would drop the real pick that follows.
+                if (String(action) === PICKER_ACTION_LOADED) return;
 
                 if (action === google.picker.Action.PICKED) {
                   const docs = response[google.picker.Response.DOCUMENTS];
@@ -199,15 +217,29 @@ export const useGooglePicker = () => {
                       mimeType: doc[google.picker.Document.MIME_TYPE] ?? '',
                     });
                   } else {
+                    logError(
+                      'useGooglePicker.callback',
+                      new Error('Picker reported a pick with no documents')
+                    );
                     resolve(null);
                   }
                   pickerActiveRef.current = false;
                 } else {
                   // CANCEL, ERROR, or any unexpected action — always clean up
+                  if (action !== google.picker.Action.CANCEL) {
+                    logError(
+                      'useGooglePicker.callback',
+                      new Error(`Picker closed with action "${action}"`)
+                    );
+                  }
                   resolve(null);
                   pickerActiveRef.current = false;
                 }
               });
+
+            if (fileIds.length > 1) {
+              builder.enableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+            }
 
             if (apiKey) {
               builder.setDeveloperKey(apiKey);

@@ -44,6 +44,14 @@ describe('resolveNextTarget', () => {
     expect(resolveNextTarget('/activity-wall/gallery/share-1')).toBeNull();
     expect(resolveNextTarget('/activity-wall')).toBeNull();
   });
+
+  it('allows a Flashcards assignment page only', () => {
+    expect(resolveNextTarget('/flashcards/a/assignment-1')).toBe(
+      '/flashcards/a/assignment-1'
+    );
+    expect(resolveNextTarget('/flashcards/share-1')).toBeNull();
+    expect(resolveNextTarget('/flashcards/a/../admin')).toBeNull();
+  });
 });
 
 describe('shouldGateToSso', () => {

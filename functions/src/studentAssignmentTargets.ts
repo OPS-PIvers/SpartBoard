@@ -104,6 +104,7 @@ export const STUDENT_ASSIGNMENT_KINDS = [
   'video-activity',
   'guided-learning',
   'mini-app',
+  'flashcards',
 ] as const;
 
 export type AssignmentKind = (typeof STUDENT_ASSIGNMENT_KINDS)[number];
@@ -114,6 +115,7 @@ export const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'video-activity': 'video_activity_assignments',
   'guided-learning': 'guided_learning_assignments',
   'mini-app': 'miniapp_assignments',
+  flashcards: 'flashcard_assignments',
 };
 
 /** Top-level session collection per kind (1:1 with the assignment doc). */
@@ -122,6 +124,7 @@ export const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'video-activity': 'video_activity_sessions',
   'guided-learning': 'guided_learning_sessions',
   'mini-app': 'mini_app_sessions',
+  flashcards: 'flashcard_sessions',
 };
 
 export const STUDENT_ASSIGNMENTS_ROOT = 'student_assignments';
@@ -1469,6 +1472,13 @@ export const setAssignmentTargetsV1 = onCall(
     const teacherEmail = request.auth.token.email;
     if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
+    }
+    // teacherEmail drives org/test-class resolution below, so it must be verified (same rail as isAdmin()).
+    if (request.auth.token.email_verified !== true) {
+      throw new HttpsError(
+        'permission-denied',
+        'Caller email must be verified.'
+      );
     }
 
     const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();

@@ -33,7 +33,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
 import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
-import type { Dashboard } from '@/types';
+import type { Dashboard, SubstituteShareRoster } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
 
 // `SharedBoardImportMode` excludes 'substitute' on purpose (substitute shares
@@ -301,15 +301,18 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
         return;
       }
 
-      // Collect Drive file ids for the rosters the host wants to share with
-      // the sub. v1 = just the active roster; if the dashboard's randomizer
-      // pulls from a different one, the host can adjust later. Empty list
-      // is fine — the share still works, just without sub-readable names.
+      // v1 shares the active roster only — every roster-aware widget reads it.
       const activeRoster = rosters.find((r) => r.id === activeRosterId);
-      const rosterDriveFileIds: string[] = [];
-      if (subEmails.length > 0 && activeRoster?.driveFileId) {
-        rosterDriveFileIds.push(activeRoster.driveFileId);
-      }
+      const sharedRosters: SubstituteShareRoster[] =
+        subEmails.length > 0 && activeRoster?.driveFileId
+          ? [
+              {
+                id: activeRoster.id,
+                name: activeRoster.name,
+                driveFileId: activeRoster.driveFileId,
+              },
+            ]
+          : [];
 
       setCreating(true);
       try {
@@ -318,8 +321,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
           expiresAt: parsedExpiresAt,
           buildingId: subBuildingId,
           subEmails: subEmails.length > 0 ? subEmails : undefined,
-          rosterDriveFileIds:
-            rosterDriveFileIds.length > 0 ? rosterDriveFileIds : undefined,
+          sharedRosters: sharedRosters.length > 0 ? sharedRosters : undefined,
         });
         // Subs reach this board by browsing /subs filtered to their building —
         // they don't follow a /share/{shareId} link — so the success panel

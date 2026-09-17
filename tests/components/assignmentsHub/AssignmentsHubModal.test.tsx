@@ -7,6 +7,7 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
+import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
 
@@ -27,6 +28,9 @@ vi.mock('@/hooks/useGuidedLearningAssignments', () => ({
 }));
 vi.mock('@/hooks/useMiniAppAssignments', () => ({
   useMiniAppAssignments: vi.fn(),
+}));
+vi.mock('@/hooks/useFlashcardAssignments', () => ({
+  useFlashcardAssignments: vi.fn(),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', async () => {
   const actual = await vi.importActual<
@@ -63,9 +67,11 @@ const emptyReturn = { assignments: [], loading: false, error: null };
 function setupHooks({
   quizAssignments = [quizAssignment],
   vaAssignments = [vaAssignment],
+  flashcardAssignments = [],
 }: {
   quizAssignments?: unknown[];
   vaAssignments?: unknown[];
+  flashcardAssignments?: unknown[];
 } = {}) {
   (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { uid: 'teacher-1' },
@@ -90,6 +96,9 @@ function setupHooks({
   (
     useMiniAppAssignments as unknown as ReturnType<typeof vi.fn>
   ).mockReturnValue(emptyReturn);
+  (
+    useFlashcardAssignments as unknown as ReturnType<typeof vi.fn>
+  ).mockReturnValue({ ...emptyReturn, assignments: flashcardAssignments });
   (
     useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
   ).mockReturnValue({
@@ -118,6 +127,36 @@ describe('AssignmentsHubModal', () => {
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
     expect(screen.getByText('Individual')).toBeInTheDocument();
     expect(screen.getByText('2 skipped')).toBeInTheDocument();
+  });
+
+  it('lists flashcard assignments with a Check or Study badge', () => {
+    setupHooks({
+      flashcardAssignments: [
+        {
+          id: 'fc-1',
+          sessionId: 'fc-1',
+          setTitle: 'Spanish Food',
+          kind: 'check',
+          status: 'active',
+          createdAt: 120,
+          periodNames: ['Period 4'],
+        },
+        {
+          id: 'fc-2',
+          sessionId: 'fc-2',
+          setTitle: 'French Verbs',
+          kind: 'study',
+          status: 'ended',
+          createdAt: 110,
+        },
+      ],
+    });
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    expect(screen.getByText('Spanish Food')).toBeInTheDocument();
+    expect(screen.getByText('French Verbs')).toBeInTheDocument();
+    expect(screen.getByText('Check')).toBeInTheDocument();
+    expect(screen.getByText('Study')).toBeInTheDocument();
+    expect(screen.getByText('Period 4')).toBeInTheDocument();
   });
 
   it('filters by assignment kind and keeps the multi-select open', () => {

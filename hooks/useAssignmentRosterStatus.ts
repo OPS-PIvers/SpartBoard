@@ -31,6 +31,7 @@ const SESSIONS_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'video-activity': 'video_activity_sessions',
   'guided-learning': 'guided_learning_sessions',
   'mini-app': 'mini_app_sessions',
+  flashcards: 'flashcard_sessions',
 };
 
 const SUBCOLLECTION_BY_KIND: Record<AssignmentKind, string> = {
@@ -38,6 +39,7 @@ const SUBCOLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'video-activity': 'responses',
   'guided-learning': 'responses',
   'mini-app': 'submissions',
+  flashcards: 'progress',
 };
 
 export interface AssignmentRosterStatusResult {
@@ -109,6 +111,11 @@ export function useAssignmentRosterStatus(
             );
           } else if (kind === 'mini-app') {
             next.set(d.id, deriveSubmissionStudentStatus(true));
+          } else if (kind === 'flashcards') {
+            // Study progress stays in progress; a Check submits via submittedAt.
+            const submittedAt =
+              typeof data.submittedAt === 'number' ? data.submittedAt : null;
+            next.set(d.id, deriveCompletedAtStudentStatus(submittedAt, true));
           } else {
             const completedAt =
               typeof data.completedAt === 'number' ? data.completedAt : null;

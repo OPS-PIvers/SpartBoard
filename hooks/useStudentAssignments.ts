@@ -16,6 +16,7 @@ import {
 import {
   ClipboardList,
   Image as ImageIcon,
+  Layers3,
   PlayCircle,
   Puzzle,
   Sparkles,
@@ -34,13 +35,13 @@ import type { StudentAssignmentPointer, StudentOverride } from '@/types';
  * Subscribes to two channels per supported session kind:
  *   A. Active   — the existing flow ("status: active", or no status filter
  *                 for collections without one).
- *   B. Ended    — quiz / video-activity / mini-app, filtered to
+ *   B. Ended    — quiz / video-activity / mini-app / flashcards, filtered to
  *                 status === 'ended', ordered by endedAt desc, capped at 50
  *                 per shape so the Completed list bounds Firestore reads.
  *
  * Dual-query (classIds array + legacy classId field) is preserved for
- * quiz / video-activity / guided-learning / activity-wall. Mini-app is the
- * sole single-query kind.
+ * quiz / video-activity / guided-learning / activity-wall. Mini-app and
+ * flashcards are single-query kinds.
  *
  * The page applies the Active/Completed partition rule using the per-row
  * lazy completion check (see AssignmentListItem). This hook does not
@@ -57,7 +58,8 @@ export type SessionKind =
   | 'video-activity'
   | 'guided-learning'
   | 'mini-app'
-  | 'activity-wall';
+  | 'activity-wall'
+  | 'flashcards';
 
 export type AssignmentChannel = 'active' | 'ended';
 
@@ -97,6 +99,8 @@ export interface AssignmentSummary {
   publiclyShared?: boolean;
   /** Activity Wall only — short-link code for the gallery share, if any (P3-2). */
   latestShareCode?: string;
+  /** Flashcards only: whether the assignment collects a submission. */
+  flashcardKind?: 'check' | 'study';
 }
 
 export type LoadState = 'loading' | 'ready';
@@ -288,6 +292,29 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
     hrefFrom: (sessionId) => `/activity-wall/${encodeURIComponent(sessionId)}`,
     gradingStateFrom: () => 'not-graded',
   },
+  flashcards: {
+    collectionName: 'flashcard_sessions',
+    dualQuery: false,
+    classFilterShape: 'list',
+    activeFilter: { field: 'status', value: 'active' },
+    endedFilter: { field: 'status', value: 'ended' },
+    endedOrderBy: 'endedAt',
+    endedLimit: 50,
+    label: 'Flashcards',
+    icon: Layers3,
+    accent: 'from-rose-500 to-pink-600',
+    titleFrom: (data) =>
+      typeof data.title === 'string' && data.title.length > 0
+        ? data.title
+        : 'Flashcards',
+    hrefFrom: (sessionId) => `/flashcards/a/${encodeURIComponent(sessionId)}`,
+    gradingStateFrom: (data) =>
+      data.kind === 'check' &&
+      (data.scoreVisibility === 'score' ||
+        data.scoreVisibility === 'score-and-answers')
+        ? 'graded'
+        : 'not-graded',
+  },
 };
 
 export const SESSION_KINDS: readonly SessionKind[] = [
@@ -296,6 +323,7 @@ export const SESSION_KINDS: readonly SessionKind[] = [
   'guided-learning',
   'mini-app',
   'activity-wall',
+  'flashcards',
 ];
 
 // ---------------------------------------------------------------------------
@@ -361,6 +389,11 @@ function buildAssignmentSummary(
     latestShareCode:
       typeof record.latestShareCode === 'string'
         ? record.latestShareCode
+        : undefined,
+    flashcardKind:
+      kind === 'flashcards' &&
+      (record.kind === 'check' || record.kind === 'study')
+        ? record.kind
         : undefined,
   };
 }
@@ -761,7 +794,11 @@ export function useStudentAssignments({
       // narrow — using a single check that ORs both fields would, in theory,
       // drop a GL doc whose play-mode happened to spell 'view-only'.
       const modeField =
-        plan.kind === 'guided-learning' ? 'assignmentMode' : 'mode';
+        plan.kind === 'guided-learning'
+          ? 'assignmentMode'
+          : plan.kind === 'flashcards'
+            ? null
+            : 'mode';
       // Defensive fallback: the planner expands multi-value status filters into
       // single-value plans (each filtered server-side), so this branch is
       // normally inert. If a multi-value plan is ever issued it still
@@ -778,7 +815,10 @@ export function useStudentAssignments({
         key,
         snap.docs.flatMap((d) => {
           const data = d.data();
-          if ((data as Record<string, unknown>)[modeField] === 'view-only') {
+          if (
+            modeField !== null &&
+            (data as Record<string, unknown>)[modeField] === 'view-only'
+          ) {
             return [];
           }
           if (acceptStatus !== null) {

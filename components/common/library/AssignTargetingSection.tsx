@@ -86,7 +86,8 @@ export type AssignTargetingKind =
   | 'quiz'
   | 'video-activity'
   | 'guided-learning'
-  | 'mini-app';
+  | 'mini-app'
+  | 'flashcards';
 
 export interface AssignTargetingQuizContext {
   questions: OverrideEditorQuestion[];
@@ -120,7 +121,37 @@ export interface AssignTargetingSectionProps {
   canPickClasses?: boolean;
   /** False on a re-edit: standing roster accommodations must not apply retroactively. */
   useRosterDefaults?: boolean;
+  /**
+   * True only for the one consumer that mounts this component inline inside
+   * its own CSS-container-query front face (`MiniApp/Widget.tsx`'s non-portaled
+   * `MiniAppAssignModal`) rather than inside the shared portaled `AssignModal`.
+   * Switches this file's own text/icon sizing to `cqmin`-scaled inline styles;
+   * the imported `CollapsibleSection`/`AssignStudentPicker`/`OverrideEditorRow`
+   * are unaffected (out of scope — see the css-scaling journal).
+   */
+  cqScaled?: boolean;
 }
+
+/** `min(Xpx, Ycqmin)` font-size, only when `cqScaled` — else the caller's own Tailwind text class stands. */
+const scaledFont = (
+  cqScaled: boolean | undefined,
+  px: number,
+  cqmin: number
+): React.CSSProperties | undefined =>
+  cqScaled ? { fontSize: `min(${px}px, ${cqmin}cqmin)` } : undefined;
+
+/** `min(Xpx, Ycqmin)` square icon size, only when `cqScaled`. */
+const scaledIcon = (
+  cqScaled: boolean | undefined,
+  px: number,
+  cqmin: number
+): React.CSSProperties | undefined =>
+  cqScaled
+    ? {
+        width: `min(${px}px, ${cqmin}cqmin)`,
+        height: `min(${px}px, ${cqmin}cqmin)`,
+      }
+    : undefined;
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
 const msToLocalInputValue = (ms: number | undefined): string => {
@@ -163,13 +194,32 @@ const WindowField: React.FC<{
   className?: string;
   value: number | undefined;
   onChange: (ms: number | undefined) => void;
-}> = ({ id, label, className, value, onChange }) => (
+  cqScaled?: boolean;
+}> = ({ id, label, className, value, onChange, cqScaled }) => (
   <label className={`block ${className ?? ''}`} htmlFor={id}>
-    <span className="text-xs font-medium text-slate-500">{label}</span>
+    <span
+      className={
+        cqScaled
+          ? 'font-medium text-slate-500'
+          : 'text-xs font-medium text-slate-500'
+      }
+      style={scaledFont(cqScaled, 12, 4.5)}
+    >
+      {label}
+    </span>
     <input
       id={id}
       type="datetime-local"
-      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-800"
+      className={
+        cqScaled
+          ? 'w-full rounded-md border border-slate-300 px-2 py-1 text-slate-800'
+          : 'mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-800'
+      }
+      style={
+        cqScaled
+          ? { marginTop: 'min(4px, 1cqmin)', ...scaledFont(cqScaled, 14, 5.5) }
+          : undefined
+      }
       value={msToLocalInputValue(value)}
       onChange={(e) => onChange(localInputValueToMs(e.target.value))}
     />
@@ -222,6 +272,7 @@ const ClassStudentOverrideRow: React.FC<{
   questions: OverrideEditorQuestion[];
   rubrics: Rubric[];
   peers: OverrideEditorPeer[];
+  cqScaled?: boolean;
 }> = ({
   row,
   override,
@@ -234,17 +285,32 @@ const ClassStudentOverrideRow: React.FC<{
   questions,
   rubrics,
   peers,
+  cqScaled,
 }) => {
   const { t } = useTranslation();
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-2">
         {hasStanding && (
-          <span className="rounded-full bg-brand-blue-lighter px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-blue-dark">
+          <span
+            className={
+              cqScaled
+                ? 'rounded-full bg-brand-blue-lighter px-2 py-0.5 font-bold uppercase tracking-wider text-brand-blue-dark'
+                : 'rounded-full bg-brand-blue-lighter px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-blue-dark'
+            }
+            style={scaledFont(cqScaled, 10, 4)}
+          >
             {t('assignTargeting.standingBadge', 'Standing')}
           </span>
         )}
-        <label className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate-600">
+        <label
+          className={
+            cqScaled
+              ? 'ml-auto flex items-center gap-1.5 font-medium text-slate-600'
+              : 'ml-auto flex items-center gap-1.5 text-xs font-medium text-slate-600'
+          }
+          style={scaledFont(cqScaled, 12, 4.5)}
+        >
           <input
             type="checkbox"
             checked={skipped}
@@ -285,6 +351,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   allowModifications = true,
   canPickClasses = true,
   useRosterDefaults = true,
+  cqScaled = false,
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -490,12 +557,14 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           label={t('assignTargeting.opensAt', 'Opens')}
           value={value.openAt}
           onChange={(ms) => patch({ openAt: ms })}
+          cqScaled={cqScaled}
         />
         <WindowField
           id={closeAtId}
           label={t('assignTargeting.closesAt', 'Closes')}
           value={value.closeAt}
           onChange={(ms) => patch({ closeAt: ms })}
+          cqScaled={cqScaled}
         />
         {showDueAt && (
           <WindowField
@@ -504,6 +573,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             label={t('assignTargeting.dueAt', 'Due')}
             value={value.dueAt}
             onChange={(ms) => patch({ dueAt: ms })}
+            cqScaled={cqScaled}
           />
         )}
       </div>
@@ -536,9 +606,18 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       <button
         type="button"
         onClick={openModifications}
-        className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+        className={
+          cqScaled
+            ? 'flex items-center gap-1.5 font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+            : 'flex items-center gap-1.5 text-sm font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+        }
+        style={scaledFont(cqScaled, 14, 5.5)}
       >
-        <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
+        <SlidersHorizontal
+          className={cqScaled ? undefined : 'w-4 h-4'}
+          style={scaledIcon(cqScaled, 16, 4.5)}
+          aria-hidden="true"
+        />
         {t('assignTargeting.expandAffordance', 'Edit or add modifications')}
         {modificationsSummary && (
           <span className="font-medium text-slate-500">
@@ -550,7 +629,14 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   ) : (
     <div className="border-t border-slate-200/70 pt-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-bold text-brand-blue-dark">
+        <span
+          className={
+            cqScaled
+              ? 'font-bold text-brand-blue-dark'
+              : 'text-sm font-bold text-brand-blue-dark'
+          }
+          style={scaledFont(cqScaled, 14, 5.5)}
+        >
           {t('assignTargeting.modificationsLabel', 'Modifications')}
         </span>
         <div className="flex items-center gap-3">
@@ -558,7 +644,12 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             <button
               type="button"
               onClick={clearModifications}
-              className="text-xs font-medium text-slate-500 hover:text-brand-red-primary transition-colors"
+              className={
+                cqScaled
+                  ? 'font-medium text-slate-500 hover:text-brand-red-primary transition-colors'
+                  : 'text-xs font-medium text-slate-500 hover:text-brand-red-primary transition-colors'
+              }
+              style={scaledFont(cqScaled, 12, 4.5)}
             >
               {t(
                 'assignTargeting.clearModifications',
@@ -569,7 +660,12 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+            className={
+              cqScaled
+                ? 'font-medium text-slate-500 hover:text-slate-700 transition-colors'
+                : 'text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors'
+            }
+            style={scaledFont(cqScaled, 12, 4.5)}
           >
             {t('assignTargeting.collapse', 'Done')}
           </button>
@@ -582,7 +678,12 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             <div
               key={entry.locale}
               role="status"
-              className="flex items-center gap-2 text-xxs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
+              className={
+                cqScaled
+                  ? 'flex items-center gap-2 text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5'
+                  : 'flex items-center gap-2 text-xxs text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5'
+              }
+              style={scaledFont(cqScaled, 10, 4)}
             >
               <span className="flex-1">
                 {t('quizTranslation.assign.advisory.missing', {
@@ -610,7 +711,10 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       )}
 
       {unresolvableCount > 0 && (
-        <p className="text-xs text-slate-500">
+        <p
+          className={cqScaled ? 'text-slate-500' : 'text-xs text-slate-500'}
+          style={scaledFont(cqScaled, 12, 4.5)}
+        >
           {t(
             'assignTargeting.noSignInCount',
             '{{count}} students in these classes have no school sign-in and cannot be individually modified.',
@@ -620,7 +724,10 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       )}
 
       {classRows.length === 0 ? (
-        <p className="text-xs text-slate-500">
+        <p
+          className={cqScaled ? 'text-slate-500' : 'text-xs text-slate-500'}
+          style={scaledFont(cqScaled, 12, 4.5)}
+        >
           {anyClassChecked
             ? t(
                 'assignTargeting.noSignInStudents',
@@ -641,7 +748,12 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           {excludedInScope.length > 0 && (
             <p
               role="status"
-              className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xxs text-amber-700"
+              className={
+                cqScaled
+                  ? 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-amber-700'
+                  : 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xxs text-amber-700'
+              }
+              style={scaledFont(cqScaled, 10, 4)}
             >
               {t(
                 'assignTargeting.skipNotice',
@@ -653,7 +765,14 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             {visibleGroups.map((group) => (
               <div key={group.rosterName} className="space-y-2">
                 {multiClass && (
-                  <p className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+                  <p
+                    className={
+                      cqScaled
+                        ? 'font-bold uppercase tracking-wider text-slate-500'
+                        : 'text-xxs font-bold uppercase tracking-wider text-slate-500'
+                    }
+                    style={scaledFont(cqScaled, 10, 4)}
+                  >
                     {group.rosterName}
                   </p>
                 )}
@@ -684,6 +803,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
                           peer.defaultOverride ??
                           {},
                       }))}
+                    cqScaled={cqScaled}
                   />
                 ))}
               </div>
@@ -693,7 +813,12 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             <button
               type="button"
               onClick={() => setShowAll(!showAll)}
-              className="text-xs font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
+              className={
+                cqScaled
+                  ? 'font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+                  : 'text-xs font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
+              }
+              style={scaledFont(cqScaled, 12, 4.5)}
             >
               {showAll
                 ? t('assignTargeting.showFewer', 'Show fewer')
@@ -712,13 +837,25 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   const legacySection = (
     <div className="border-t border-slate-200/70 pt-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-bold text-brand-blue-dark">
+        <span
+          className={
+            cqScaled
+              ? 'font-bold text-brand-blue-dark'
+              : 'text-sm font-bold text-brand-blue-dark'
+          }
+          style={scaledFont(cqScaled, 14, 5.5)}
+        >
           {t('assignTargeting.sectionLabel', 'Individual students & overrides')}
         </span>
         <button
           type="button"
           onClick={collapse}
-          className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+          className={
+            cqScaled
+              ? 'font-medium text-slate-500 hover:text-slate-700 transition-colors'
+              : 'text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors'
+          }
+          style={scaledFont(cqScaled, 12, 4.5)}
         >
           {t('assignTargeting.revertToClass', 'Assign to whole class')}
         </button>
@@ -728,15 +865,27 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors"
+          className={
+            cqScaled
+              ? 'inline-flex items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 py-1.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors'
+              : 'inline-flex items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors'
+          }
+          style={scaledFont(cqScaled, 12, 4.5)}
         >
-          <Users className="w-3.5 h-3.5" aria-hidden="true" />
+          <Users
+            className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+            style={scaledIcon(cqScaled, 14, 3.5)}
+            aria-hidden="true"
+          />
           {value.targetStudents.length > 0
             ? t('assignTargeting.editStudents', 'Edit students')
             : t('assignTargeting.chooseStudents', 'Choose students')}
         </button>
         {value.targetStudents.length > 0 && (
-          <span className="text-xs text-slate-500">
+          <span
+            className={cqScaled ? 'text-slate-500' : 'text-xs text-slate-500'}
+            style={scaledFont(cqScaled, 12, 4.5)}
+          >
             {t('assignTargeting.selectedCount', '{{count}} selected', {
               count: value.targetStudents.length,
             })}
@@ -745,7 +894,10 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       </div>
 
       {selectedRows.length === 0 ? (
-        <p className="text-xs text-slate-500">
+        <p
+          className={cqScaled ? 'text-slate-500' : 'text-xs text-slate-500'}
+          style={scaledFont(cqScaled, 12, 4.5)}
+        >
           {t(
             'assignTargeting.noStudentsYet',
             'No students chosen yet — everyone in the class stays untargeted.'
@@ -778,7 +930,19 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => removeStudent(row.key)}
-                  className="mt-1 text-xs font-medium text-slate-400 hover:text-brand-red-primary transition-colors"
+                  className={
+                    cqScaled
+                      ? 'font-medium text-slate-400 hover:text-brand-red-primary transition-colors'
+                      : 'mt-1 text-xs font-medium text-slate-400 hover:text-brand-red-primary transition-colors'
+                  }
+                  style={
+                    cqScaled
+                      ? {
+                          marginTop: 'min(4px, 1cqmin)',
+                          ...scaledFont(cqScaled, 12, 4.5),
+                        }
+                      : undefined
+                  }
                   aria-label={t(
                     'assignTargeting.removeStudent',
                     'Remove {{name}}',

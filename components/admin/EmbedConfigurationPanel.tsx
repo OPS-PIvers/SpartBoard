@@ -119,6 +119,7 @@ export const EmbedConfigurationPanel: React.FC<
             </p>
           </div>
           <Toggle
+            label="Allow Website URL Mode"
             checked={!(currentBuildingConfig.hideUrlField ?? false)}
             onChange={(checked) =>
               handleUpdateBuilding({ hideUrlField: !checked })

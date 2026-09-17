@@ -33,6 +33,7 @@ export {
   __resetGenerateWithAICaches,
   __getCachedAdminStatus,
   __getGeminiModelConfig,
+  __resolveCallerIsAdmin,
 } from './aiGeneration';
 
 // ── External-content proxy + iframe embeddability check ────────────────────
@@ -92,7 +93,12 @@ export {
   cleanupVideoActivityAssignmentPointers,
   cleanupGuidedLearningAssignmentPointers,
   cleanupMiniAppAssignmentPointers,
+  cleanupFlashcardAssignmentPointers,
 } from './studentAssignmentCleanup';
+
+// ── Flashcards Check submission (server-graded; docs/plans/FLASHCARDS.md §7) ─
+export { submitFlashcardCheckV1 } from './flashcardCheck';
+export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {

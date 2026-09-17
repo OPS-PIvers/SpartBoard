@@ -445,6 +445,7 @@ import {
   __getCachedAdminStatus,
   __getGeminiModelConfig,
   __resetGenerateWithAICaches,
+  __resolveCallerIsAdmin,
 } from './index';
 import * as barrel from './index';
 import * as admin from 'firebase-admin';
@@ -2214,6 +2215,7 @@ describe('getPseudonymsForAssignmentV1', () => {
     uid: 'teacher-uid',
     token: {
       email: 'teacher@district.org',
+      email_verified: true,
       // studentRole intentionally absent (false) — teachers never carry it.
     },
   };
@@ -2682,7 +2684,7 @@ describe('getClassLinkRosterV1 chunked fan-out', () => {
       {
         auth: {
           uid: 'teacher-uid',
-          token: { email: 'teacher@school.org' },
+          token: { email: 'teacher@school.org', email_verified: true },
         },
       }
     );
@@ -2870,6 +2872,69 @@ describe('generateWithAI read caching', () => {
     expect(adminDocGet).toHaveBeenCalledTimes(511);
   });
 
+  // -------------------------------------------------------------------------
+  // resolveCallerIsAdmin — caller identity verification (generateWithAI)
+  // -------------------------------------------------------------------------
+  //
+  // SECURITY: an email/password account can self-report ANY email address at
+  // sign-up — the ID token still carries that email with `email_verified:
+  // false`. getCachedAdminStatus() treats a matching `admins/{email}` doc as
+  // an admin bypass (elevated AI usage quota, no rate limits). Trusting
+  // `token.email` unverified would let an attacker claim a real admin's
+  // address and unlock that bypass without ever proving ownership of the
+  // inbox. Same rail as resolveOrgForUser.ts / isAdmin() / migratePlcs.ts.
+  describe('resolveCallerIsAdmin', () => {
+    it('SECURITY: denies admin status for an unverified self-reported admin email', async () => {
+      const db = admin.firestore();
+      mockFirestoreState.admins.add('admin@school.org');
+
+      const isAdmin = await __resolveCallerIsAdmin(db, {
+        email: 'admin@school.org',
+        email_verified: false,
+      });
+
+      expect(isAdmin).toBe(false);
+      // Must short-circuit before ever consulting admins/{email}.
+      expect(adminDocGet).not.toHaveBeenCalled();
+    });
+
+    it('denies admin status when email_verified is absent from the token', async () => {
+      const db = admin.firestore();
+      mockFirestoreState.admins.add('admin@school.org');
+
+      const isAdmin = await __resolveCallerIsAdmin(db, {
+        email: 'admin@school.org',
+      });
+
+      expect(isAdmin).toBe(false);
+      expect(adminDocGet).not.toHaveBeenCalled();
+    });
+
+    it('grants admin status for a verified admin email', async () => {
+      const db = admin.firestore();
+      mockFirestoreState.admins.add('admin@school.org');
+
+      const isAdmin = await __resolveCallerIsAdmin(db, {
+        email: 'admin@school.org',
+        email_verified: true,
+      });
+
+      expect(isAdmin).toBe(true);
+      expect(adminDocGet).toHaveBeenCalledWith('admin@school.org');
+    });
+
+    it('denies admin status for a verified non-admin email', async () => {
+      const db = admin.firestore();
+
+      const isAdmin = await __resolveCallerIsAdmin(db, {
+        email: 'teacher@school.org',
+        email_verified: true,
+      });
+
+      expect(isAdmin).toBe(false);
+    });
+  });
+
   it('caches gemini-functions model config across warm-instance reads', async () => {
     const db = admin.firestore();
     geminiConfigDocGet.mockResolvedValueOnce({
@@ -3050,6 +3115,7 @@ describe('index barrel — deployed export set', () => {
     '__resetGenerateWithAICaches',
     '__getCachedAdminStatus',
     '__getGeminiModelConfig',
+    '__resolveCallerIsAdmin',
     // External-content proxy
     'fetchExternalProxy',
     'checkUrlCompatibility',
@@ -3082,6 +3148,10 @@ describe('index barrel — deployed export set', () => {
     'cleanupVideoActivityAssignmentPointers',
     'cleanupGuidedLearningAssignmentPointers',
     'cleanupMiniAppAssignmentPointers',
+    'cleanupFlashcardAssignmentPointers',
+    // Flashcards Check submission
+    'submitFlashcardCheckV1',
+    'resolveFlashcardFlagV1',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',

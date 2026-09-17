@@ -841,4 +841,95 @@ describe('DashboardContext per-widget merge', () => {
       expect(wA?.annotation).toEqual(remoteAnnotation);
     });
   });
+
+  it('REGRESSION: an unsaved config edit made via updateWidgets survives a stale snapshot echo', async () => {
+    const stateRef = setup();
+
+    // Versioned widget, matching a real board that has already synced once.
+    const widgetA: WidgetData = {
+      ...makeWidget('wA', 'original'),
+      version: 1,
+    };
+    const initialDashboard = makeDashboard([widgetA]);
+
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // A real, unsaved content edit via the bulk updater.
+    await act(async () => {
+      stateRef.current?.updateWidgets([
+        { id: 'wA', changes: { config: { text: 'edited-locally' } } },
+      ]);
+      await Promise.resolve();
+    });
+
+    // A snapshot echoes back the pre-edit, still-version-1 state.
+    await pushSnapshot([{ ...makeDashboard([widgetA]), updatedAt: 2000 }]);
+
+    await waitFor(() => {
+      const wA = stateRef.current?.activeDashboard?.widgets.find(
+        (w) => w.id === 'wA'
+      );
+      expect(wA?.config).toMatchObject({ text: 'edited-locally' });
+    });
+  });
+
+  it('REGRESSION: a same-content, reordered-nested-key config resubmit via updateWidget must not spuriously bump version and drop a later real remote edit', async () => {
+    const stateRef = setup();
+
+    // Nested `style` key order mimics a Firestore round-trip (alphabetized).
+    const widgetA: WidgetData = {
+      ...makeWidget('wA', 'original'),
+      config: {
+        text: 'original',
+        style: { color: 'red', size: 12 },
+      } as unknown as WidgetData['config'],
+      version: 1,
+    };
+    const initialDashboard = makeDashboard([widgetA]);
+
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+
+    // A settings panel resubmits the SAME style values, rebuilt in natural
+    // (non-alphabetized) key order — not a real content change.
+    await act(async () => {
+      stateRef.current?.updateWidget('wA', {
+        config: {
+          style: { size: 12, color: 'red' },
+        } as unknown as WidgetData['config'],
+      });
+      await Promise.resolve();
+    });
+
+    // Another device makes a genuine, real content edit.
+    await pushSnapshot([
+      {
+        ...makeDashboard([
+          {
+            ...widgetA,
+            config: {
+              text: 'remote-edit',
+              style: { color: 'red', size: 12 },
+            } as unknown as WidgetData['config'],
+            version: 2,
+          },
+        ]),
+        updatedAt: 2000,
+      },
+    ]);
+
+    await waitFor(() => {
+      const wA = stateRef.current?.activeDashboard?.widgets.find(
+        (w) => w.id === 'wA'
+      );
+      expect(wA?.config).toMatchObject({ text: 'remote-edit' });
+    });
+  });
 });

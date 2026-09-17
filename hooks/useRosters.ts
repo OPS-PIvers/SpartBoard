@@ -134,7 +134,7 @@ function parseRawStudent(raw: unknown): Student | null {
  * defaults; version 1 (legacy) is a bare `Student[]` array — see
  * `parseRosterFileBody` for the back-compat reader.
  */
-interface RosterFileContent {
+export interface RosterFileContent {
   students: Student[];
   groups: RosterGroup[];
   defaultOverridesByStudentId: Record<string, StudentOverride>;
@@ -276,7 +276,7 @@ function parseSyncSummary(raw: unknown): { lastSync?: RosterSyncSummary } {
   return { lastSync: { at: s.at, added: s.added, removed: s.removed } };
 }
 
-function parseRosterFileBody(parsed: unknown): RosterFileContent {
+export function parseRosterFileBody(parsed: unknown): RosterFileContent {
   if (Array.isArray(parsed)) {
     const students = parsed
       .map(parseRawStudent)

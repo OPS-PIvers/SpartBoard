@@ -118,6 +118,16 @@ const GuidedLearningStudentApp = lazy(() =>
     (module) => ({ default: module.GuidedLearningStudentApp })
   )
 );
+const FlashcardAssignmentPage = lazy(() =>
+  import('./components/flashcards/FlashcardAssignmentPage').then((module) => ({
+    default: module.FlashcardAssignmentPage,
+  }))
+);
+const PublicFlashcardsPage = lazy(() =>
+  import('./components/flashcards/PublicFlashcardsPage').then((module) => ({
+    default: module.PublicFlashcardsPage,
+  }))
+);
 const StudentLoginPage = lazy(() =>
   import('./components/student/StudentLoginPage').then((module) => ({
     default: module.StudentLoginPage,
@@ -515,6 +525,9 @@ const App: React.FC = () => {
     !isActivityWallGalleryRoute &&
     (pathname === '/activity-wall' || pathname.startsWith('/activity-wall/'));
   const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
+  const isFlashcardAssignmentRoute = pathname.startsWith('/flashcards/a/');
+  const isFlashcardsRoute =
+    !isFlashcardAssignmentRoute && pathname.startsWith('/flashcards/');
   const isInviteRoute = pathname.startsWith('/invite/');
   const isPlcInviteRoute = pathname.startsWith('/plc-invite/');
   const isStudentLoginRoute =
@@ -553,6 +566,32 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <ActivityWallGalleryView />
+      </Suspense>
+    );
+  }
+
+  // Assigned Flashcards need the SSO student token for progress and submit.
+  if (isFlashcardAssignmentRoute) {
+    return (
+      <DialogProvider>
+        <StudentAuthProvider>
+          <RequireStudentAuth>
+            <Suspense fallback={<FullPageLoader />}>
+              <FlashcardAssignmentPage />
+            </Suspense>
+          </RequireStudentAuth>
+        </StudentAuthProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // Public Flashcards snapshots are intentionally provider-free. A single
+  // unguessable document id grants read access, including inside LMS iframes.
+  if (isFlashcardsRoute) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PublicFlashcardsPage />
       </Suspense>
     );
   }

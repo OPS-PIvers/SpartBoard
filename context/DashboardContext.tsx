@@ -26,6 +26,7 @@ import {
   DrawingPage,
   UserProfile,
   SubstituteShareDriveGrant,
+  SubstituteShareRoster,
   ROOT_COLLECTION_KEY,
   Collection,
   CollectionSubstituteShareInput,
@@ -367,6 +368,18 @@ const getDashboardSaveState = (d: Dashboard) => ({
     ) as Record<MergedDashboardField, string>,
   },
 });
+
+// Only rosters with a landed Drive grant are loadable by the sub; share docs are immutable.
+function grantedRosters(
+  rosters: SubstituteShareRoster[] | undefined,
+  grants: SubstituteShareDriveGrant[]
+): SubstituteShareRoster[] | undefined {
+  const grantedFileIds = new Set(grants.map((g) => g.fileId));
+  const granted = (rosters ?? []).filter((r) =>
+    grantedFileIds.has(r.driveFileId)
+  );
+  return granted.length > 0 ? granted : undefined;
+}
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -1792,7 +1805,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // the revoke if other active shares still reference it.
       const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
-      const fileIds = input.rosterDriveFileIds ?? [];
+      const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
       const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
       // Track failed pairs so the caller can warn the host — without this,
       // a partial network failure would silently produce a share doc with
@@ -1855,6 +1868,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         buildingId: input.buildingId,
         subEmails: input.subEmails,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
+        sharedRosters: grantedRosters(input.sharedRosters, driveGrants),
         hostDisplayName: hostName,
       });
 
@@ -4136,7 +4150,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // refcounting skip a revoke that another active share still depends on.
       const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
-      const fileIds = input.rosterDriveFileIds ?? [];
+      const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
       const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
       const failedPairs: Array<{ email: string; fileId: string }> = [];
 
@@ -4193,6 +4207,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         hostUid: user.uid,
         hostDisplayName: user.displayName,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
+        sharedRosters: grantedRosters(input.sharedRosters, driveGrants),
       });
 
       // Surface partial Drive-grant failures so the host can retry / hand-share
@@ -5745,7 +5760,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               let newConfig = w.config;
               if (updates.config) {
                 newConfig = { ...w.config, ...updates.config };
-                if (JSON.stringify(w.config) !== JSON.stringify(newConfig)) {
+                // stableStringify: a nested value rebuilt in different key order (e.g. after a Firestore round-trip) must not read as a real change.
+                if (stableStringify(w.config) !== stableStringify(newConfig)) {
                   newVersion = (w.version ?? 1) + 1;
                 }
               }
@@ -5888,6 +5904,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const changes = updateMap.get(w.id);
               if (!changes) return w;
               const merged = { ...w, ...changes };
+              // Bump version so version-gated dirty checks (onSnapshot merge, autosave) see this config edit.
+              if (
+                'config' in changes &&
+                stableStringify(w.config) !== stableStringify(changes.config)
+              ) {
+                merged.version = (w.version ?? 1) + 1;
+              }
               const isResize = 'w' in changes || 'h' in changes;
               // Flip-only batches must not re-derive proportional bounds (plan §4.9).
               if (!isResize && !('x' in changes) && !('y' in changes))

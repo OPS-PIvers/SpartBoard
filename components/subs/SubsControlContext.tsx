@@ -6,6 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
+import type { SubRosterStatus } from '@/hooks/useSubstituteRosters';
 
 export interface SubsControlContextValue {
   /**
@@ -15,6 +16,9 @@ export interface SubsControlContextValue {
    * playback state, transient UI) is thrown away too.
    */
   resetWidgets: () => void;
+  rosterStatus: SubRosterStatus;
+  /** Opens the Google Picker on the shared roster files, then loads them. */
+  loadRosters: () => Promise<void>;
 }
 
 export const SubsControlContext = createContext<SubsControlContextValue | null>(

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { FEATURE_DEFAULTS } from './featureDefaults';
+import {
+  FEATURE_DEFAULTS,
+  getWidgetDefaultAccessLevel,
+} from './featureDefaults';
 
 describe('FEATURE_DEFAULTS', () => {
   it('declares an anonymous-join entry that is default-public', () => {
@@ -40,5 +43,15 @@ describe('FEATURE_DEFAULTS', () => {
     expect(entry.defaultEnabled).toBe(true);
     expect(entry.missingDocPublic).toBe(false);
     expect(entry.defaultMinTier).toBeUndefined();
+  });
+});
+
+describe('widget access defaults', () => {
+  it('keeps the flashcards rollout admin-only until a permission doc overrides it', () => {
+    expect(getWidgetDefaultAccessLevel('flashcards')).toBe('admin');
+  });
+
+  it('preserves the historical public default for other widgets', () => {
+    expect(getWidgetDefaultAccessLevel('clock')).toBe('public');
   });
 });
