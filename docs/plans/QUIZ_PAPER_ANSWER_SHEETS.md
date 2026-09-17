@@ -98,24 +98,39 @@ These shaped the decisions and are easy to re-derive wrongly later:
 `users/{teacherUid}/paper_batches/{batchId}` — PII-free. No student names, no PINs.
 
 ```ts
+interface PaperSeatAssignment {
+  rosterId: string;
+  studentId: string;
+}
+
 interface PaperBatch {
   id: string;
   quizId: string;
   rosterIds: string[];
   questionCount: number;
   choiceCount: number; // 2..5
-  /** Seat index -> roster student id. The only identity mapping, and it is opaque. */
-  seats: Record<number, string>;
+  /** Seat number -> roster row. The only identity mapping, and it is opaque. */
+  seats: Record<number, PaperSeatAssignment>;
   /** Seats printed without a student, for walk-ins. */
   spareSeats: number[];
-  /** Set once a bubbled key sheet has been confirmed. */
-  keyConfirmedAt?: number;
-  /** Pending review items; survives a closed tab (Q26). */
-  pendingReview?: PaperReviewItem[];
-  createdAt: number;
+  /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed. */
+  keySheetSeat?: number;
   pagesPerSheet: number;
+  createdAt: number;
 }
 ```
+
+Two corrections made while implementing Increment 1:
+
+- A seat stores `{ rosterId, studentId }`, not a bare student id. Import resolves an
+  unmatched student to `pin-{classPeriod}-{pin}`, and a student on two rosters has two
+  periods — a bare id could not say which.
+- Spares and the key sheet take real seat numbers too, so every printed sheet carries a
+  marker no other sheet carries, which is what makes Q23's idempotent re-import work.
+  What a seat _means_ stays the batch's job: `spareSeats` and `keySheetSeat` say so.
+
+`keyConfirmedAt` and `pendingReview` land with Increment 2, which is the only thing that
+writes them.
 
 Rules: owner-only read/write, mirroring `users/{uid}/rosters/{rosterId}` at `firestore.rules:496`. Deleted with the quiz.
 

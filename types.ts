@@ -4684,6 +4684,45 @@ export interface QuizResponse {
 }
 
 /**
+ * Which roster row a printed seat belongs to. Carries the roster id as well as
+ * the student id because import resolves an unmatched student to
+ * `pin-{classPeriod}-{pin}`, and a student on two rosters has two periods.
+ */
+export interface PaperSeatAssignment {
+  rosterId: string;
+  /** Opaque `Student.id`; the name lives only in the roster's Drive file. */
+  studentId: string;
+}
+
+/**
+ * A printed run of paper answer sheets, at
+ * `users/{teacherUid}/paper_batches/{batchId}`.
+ *
+ * Deliberately PII-free, like the roster doc it mirrors: seats hold opaque ids
+ * and names are resolved from the Drive roster at print and import time.
+ * See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §3.
+ */
+export interface PaperBatch {
+  id: string;
+  /** Quiz these sheets were printed for. Deleted with the quiz. */
+  quizId: string;
+  /** Rosters the seats were drawn from, for name resolution at import. */
+  rosterIds: string[];
+  questionCount: number;
+  /** Bubbles printed per row, 2..5. One count for the whole sheet (plan Q14). */
+  choiceCount: number;
+  /** Seat number -> roster row. The only identity mapping, and it is opaque. */
+  seats: Record<number, PaperSeatAssignment>;
+  /** Seats printed without a student, for walk-ins (plan Q15). */
+  spareSeats: number[];
+  /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed (plan Q16). */
+  keySheetSeat?: number;
+  /** Pages each student's sheet occupies. */
+  pagesPerSheet: number;
+  createdAt: number;
+}
+
+/**
  * Per-question manual grade record for written-response questions.
  * Stored under `QuizResponse.grading[questionId]`.
  */

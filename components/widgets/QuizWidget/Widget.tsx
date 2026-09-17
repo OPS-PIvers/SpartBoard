@@ -101,6 +101,12 @@ import {
 } from './utils/resolveDisplayName';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
+import { PaperPrintModal } from './components/PaperPrintModal';
+import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
+import {
+  deletePaperBatchesForQuiz,
+  savePaperBatch,
+} from '@/utils/paperBatchStore';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
@@ -406,6 +412,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Editor modal state — ephemeral, not persisted to Firestore.
   const [editingQuiz, setEditingQuiz] = useState<QuizData | null>(null);
   const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
+  // Paper answer sheets. `paperPrintIsNew` distinguishes the "Paper test" door
+  // (an unsaved stub the modal creates on print) from printing for a saved quiz.
+  const paperSheets = usePaperAnswerSheetsSettings();
+  const [paperPrintQuiz, setPaperPrintQuiz] = useState<QuizData | null>(null);
+  const [paperPrintIsNew, setPaperPrintIsNew] = useState(false);
   // Quiz whose own publish is in flight; its canonical bump is not a peer edit.
   const [savingQuizId, setSavingQuizId] = useState<string | null>(null);
 
@@ -1528,6 +1539,31 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setEditingMeta(null);
         }}
         onImport={() => setView('import')}
+        onPrintPaperSheets={
+          paperSheets.enabled
+            ? async (meta) => {
+                const data = await loadQuiz(meta);
+                if (!data) return;
+                setPaperPrintIsNew(false);
+                setPaperPrintQuiz(data);
+              }
+            : undefined
+        }
+        onNewPaperTest={
+          paperSheets.enabled
+            ? () => {
+                const now = Date.now();
+                setPaperPrintIsNew(true);
+                setPaperPrintQuiz({
+                  id: crypto.randomUUID(),
+                  title: '',
+                  questions: [],
+                  createdAt: now,
+                  updatedAt: now,
+                });
+              }
+            : undefined
+        }
         onEdit={async (meta) => {
           const data = await loadQuiz(meta);
           if (data) {
@@ -2050,6 +2086,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
           try {
             await deleteQuiz(meta.id, meta.driveFileId);
+            if (user?.uid) {
+              // Best-effort: the quiz is already gone, so a failure here leaves
+              // only an unreachable batch record, never a blocked delete.
+              await deletePaperBatchesForQuiz(user.uid, meta.id).catch(
+                (batchErr: unknown) => {
+                  console.warn('[QuizWidget] paper batch cleanup:', batchErr);
+                }
+              );
+            }
             addToast('Quiz deleted.', 'success');
           } catch (err) {
             addToast(
@@ -3075,6 +3120,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           );
         }}
       />
+      {paperPrintQuiz && user?.uid && (
+        <PaperPrintModal
+          quiz={paperPrintQuiz}
+          rosters={rosters}
+          onSaveBatch={(batch) => savePaperBatch(user.uid, batch)}
+          onCreateQuiz={
+            paperPrintIsNew
+              ? async (stub) => {
+                  await saveQuiz(stub);
+                }
+              : undefined
+          }
+          onClose={() => {
+            setPaperPrintQuiz(null);
+            setPaperPrintIsNew(false);
+          }}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
     </>
   );
 };

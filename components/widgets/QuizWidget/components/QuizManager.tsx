@@ -57,6 +57,7 @@ import {
   GraduationCap,
   Combine,
   Target,
+  Printer,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -258,6 +259,10 @@ interface QuizManagerProps {
   error: string | null;
   onNew: () => void;
   onImport: () => void;
+  /** Open the paper answer-sheet print flow. Absent when the feature is off. */
+  onPrintPaperSheets?: (quiz: QuizMetadata) => void;
+  /** Start a paper-only quiz stub. Absent when the feature is off. */
+  onNewPaperTest?: () => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /**
@@ -588,6 +593,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   error,
   onNew,
   onImport,
+  onPrintPaperSheets,
+  onNewPaperTest,
   onEdit,
   onPreview,
   onAssign,
@@ -1022,6 +1029,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: BarChart3,
         onClick: () => onResults(quiz),
       },
+      ...(onPrintPaperSheets
+        ? [
+            {
+              id: 'print-paper',
+              label: 'Print answer sheets',
+              icon: Printer,
+              onClick: () => onPrintPaperSheets(quiz),
+            },
+          ]
+        : []),
       {
         id: 'share',
         label: 'Share',
@@ -1911,7 +1928,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       : undefined;
   const secondaryActions =
     managerTab === 'library'
-      ? [{ label: 'Import', icon: FileUp, onClick: onImport }]
+      ? [
+          ...(onNewPaperTest
+            ? [{ label: 'Paper test', icon: Printer, onClick: onNewPaperTest }]
+            : []),
+          { label: 'Import', icon: FileUp, onClick: onImport },
+        ]
       : undefined;
 
   // ─── Toolbar for library tab ──────────────────────────────────────────────
