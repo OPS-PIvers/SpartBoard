@@ -156,6 +156,10 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     body: draftBody,
     actionItems: draftActionItems,
   });
+  // Which note the editor is actually showing when a save resolves.
+  const selectedIdRef = useRef(selectedId);
+
+  selectedIdRef.current = selectedId;
 
   draftRef.current = {
     title: draftTitle,
@@ -288,6 +292,10 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     const sent = draftRef.current;
     void updateNote(id, toSave, { expectedVersion })
       .then(() => {
+        // Selecting another note flushes this save, then re-baselines for the
+        // new note — applying a stale capture here would strand the visible
+        // draft as dirty forever and silently kill auto-pull.
+        if (selectedIdRef.current !== id) return;
         cleanBaselineRef.current = sent;
       })
       .catch((err: unknown) => {
