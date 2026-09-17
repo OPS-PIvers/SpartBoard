@@ -142,7 +142,10 @@ describe('FlashcardPlayer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Insert é' }), {
       shiftKey: true,
     });
-    expect(screen.getByPlaceholderText('Type your answer').value).toBe('É');
+    expect(screen.getByPlaceholderText('Type your answer')).toHaveProperty(
+      'value',
+      'É'
+    );
   });
 });
 
