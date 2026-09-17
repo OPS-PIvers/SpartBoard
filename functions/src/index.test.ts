@@ -2683,7 +2683,7 @@ describe('getClassLinkRosterV1 chunked fan-out', () => {
       {
         auth: {
           uid: 'teacher-uid',
-          token: { email: 'teacher@school.org' },
+          token: { email: 'teacher@school.org', email_verified: true },
         },
       }
     );
