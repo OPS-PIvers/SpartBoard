@@ -24,14 +24,32 @@ export const flattenCollections = (
   for (const bucket of childrenByParent.values()) {
     bucket.sort((a, b) => a.order - b.order);
   }
+  const knownIds = new Set(collections.map((c) => c.id));
   const out: { c: Collection; depth: number }[] = [];
+  const visited = new Set<string>();
   const walk = (parent: string | null, depth: number) => {
     for (const k of childrenByParent.get(parent) ?? []) {
+      if (visited.has(k.id)) continue;
+      visited.add(k.id);
       out.push({ c: k, depth });
       walk(k.id, depth + 1);
     }
   };
   walk(null, 0);
+  // Surface orphan collections (parent id not in our set, e.g. a partial
+  // deleteCollection failure) and their subtree at the root, instead of
+  // hiding them — mirrors FolderPickerPopover's flattenFolders.
+  for (const c of collections) {
+    if (
+      c.parentCollectionId != null &&
+      !knownIds.has(c.parentCollectionId) &&
+      !visited.has(c.id)
+    ) {
+      visited.add(c.id);
+      out.push({ c, depth: 0 });
+      walk(c.id, 1);
+    }
+  }
   return out;
 };
 
