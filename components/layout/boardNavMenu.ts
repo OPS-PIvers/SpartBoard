@@ -11,10 +11,19 @@ export const MENU_HEADER_CLASS =
 export const ROW_ACTIONS_CLASS =
   'flex shrink-0 items-center gap-0.5 pr-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100';
 
+/** One flattened row: the Collection, its nesting depth, and the parent id a
+ * consumer should group it under (differs from `c.parentCollectionId` only
+ * for a surfaced orphan root, whose real parent no longer exists). */
+export interface FlatCollection {
+  c: Collection;
+  depth: number;
+  effectiveParentId: string | null;
+}
+
 /** Tree-ordered flat list of Collections with their nesting depth. */
 export const flattenCollections = (
   collections: Collection[]
-): { c: Collection; depth: number }[] => {
+): FlatCollection[] => {
   const childrenByParent = new Map<string | null, Collection[]>();
   for (const c of collections) {
     const bucket = childrenByParent.get(c.parentCollectionId) ?? [];
@@ -25,13 +34,13 @@ export const flattenCollections = (
     bucket.sort((a, b) => a.order - b.order);
   }
   const knownIds = new Set(collections.map((c) => c.id));
-  const out: { c: Collection; depth: number }[] = [];
+  const out: FlatCollection[] = [];
   const visited = new Set<string>();
   const walk = (parent: string | null, depth: number) => {
     for (const k of childrenByParent.get(parent) ?? []) {
       if (visited.has(k.id)) continue;
       visited.add(k.id);
-      out.push({ c: k, depth });
+      out.push({ c: k, depth, effectiveParentId: parent });
       walk(k.id, depth + 1);
     }
   };
@@ -47,7 +56,7 @@ export const flattenCollections = (
     .sort((a, b) => a.order - b.order);
   for (const c of orphanRoots) {
     visited.add(c.id);
-    out.push({ c, depth: 0 });
+    out.push({ c, depth: 0, effectiveParentId: null });
     walk(c.id, 1);
   }
   return out;

@@ -69,8 +69,8 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
   );
   const childrenByParent = useMemo(() => {
     const m = new Map<string | null, Collection[]>();
-    for (const { c } of flat) {
-      m.set(c.parentCollectionId, [...(m.get(c.parentCollectionId) ?? []), c]);
+    for (const { c, effectiveParentId } of flat) {
+      m.set(effectiveParentId, [...(m.get(effectiveParentId) ?? []), c]);
     }
     return m;
   }, [flat]);
@@ -119,17 +119,17 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
       const id = active
         ?.closest<HTMLElement>('[data-collection-id]')
         ?.getAttribute('data-collection-id');
-      const node = flat.find(({ c }) => c.id === id)?.c;
-      if (!node) return;
+      const entry = flat.find(({ c }) => c.id === id);
+      if (!entry) return;
       e.preventDefault();
       const next = shiftId(
-        (childrenByParent.get(node.parentCollectionId) ?? []).map(
+        (childrenByParent.get(entry.effectiveParentId) ?? []).map(
           getCollectionId
         ),
-        node.id,
+        entry.c.id,
         e.key === 'ArrowUp' ? -1 : 1
       );
-      if (next) onReorder(node.parentCollectionId, next);
+      if (next) onReorder(entry.effectiveParentId, next);
       return;
     }
     switch (e.key) {

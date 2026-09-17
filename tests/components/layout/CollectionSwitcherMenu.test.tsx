@@ -168,6 +168,25 @@ describe('CollectionSwitcherMenu', () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
+  // Regression: flattenCollections() surfacing an orphan in its flat output
+  // is not enough — this menu re-groups by parent id for nested rendering,
+  // so a surfaced orphan whose real (dangling) parentCollectionId is used
+  // for that re-grouping never lands in a rendered bucket and stays
+  // invisible, defeating the whole fix (#3088 review).
+  it('renders an orphaned Collection (dangling parentCollectionId) at root', () => {
+    render(
+      <CollectionSwitcherMenu
+        collections={[coll('orphan', 'deleted-parent', 0, 'Orphan')]}
+        activeCollectionId={null}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole('menuitem', { name: 'Orphan' })
+    ).toBeInTheDocument();
+  });
+
   it('only shows drag handles when reordering is enabled', () => {
     const collections = [coll('a', null, 0, 'A'), coll('d', null, 1, 'D')];
     const { rerender } = render(
