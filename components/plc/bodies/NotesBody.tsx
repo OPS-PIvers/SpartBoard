@@ -37,6 +37,22 @@ interface NotesBodyProps {
 
 const SAVE_DEBOUNCE_MS = 500;
 
+// Editable fields only — createdBy/createdAt never change under the editor.
+function actionItemsSignature(items: PlcActionItem[]): string {
+  return items
+    .map((i) =>
+      [
+        i.id,
+        i.text,
+        i.done ? 1 : 0,
+        i.assigneeUid ?? '',
+        i.dueAt ?? '',
+        i.doneAt ?? '',
+      ].join(':')
+    )
+    .join('|');
+}
+
 function formatDate(ms: number): string {
   if (!ms) return '';
   try {
@@ -106,6 +122,53 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
   // State mirror of `pendingNoteIdRef` for render-time consumption.
   const [pendingNoteId, setPendingNoteId] = useState<string | null>(null);
 
+  // The content the draft last shared with canonical — set when we seed from
+  // the server and again when a save lands. A draft still equal to it holds no
+  // unsaved work and can absorb a teammate's edit; a diverged one must never be
+  // overwritten. Keyed off content rather than `pendingNoteId`, which goes null
+  // the moment a write is dispatched and so re-opened the re-seed guard while
+  // the write was still in flight — that clobber deleted whatever had been
+  // typed during the round-trip.
+  const cleanBaselineRef = useRef<{
+    title: string;
+    body: string;
+    actionItems: PlcActionItem[];
+  }>({ title: '', body: '', actionItems: [] });
+
+  const seedDraft = (content: {
+    title: string;
+    body: string;
+    actionItems?: PlcActionItem[];
+  }) => {
+    const actionItems = content.actionItems ?? [];
+    setDraftTitle(content.title);
+    setDraftBody(content.body);
+    setDraftActionItems(actionItems);
+    cleanBaselineRef.current = {
+      title: content.title,
+      body: content.body,
+      actionItems,
+    };
+  };
+
+  const draftRef = useRef({
+    title: draftTitle,
+    body: draftBody,
+    actionItems: draftActionItems,
+  });
+
+  draftRef.current = {
+    title: draftTitle,
+    body: draftBody,
+    actionItems: draftActionItems,
+  };
+
+  const draftIsClean =
+    draftTitle === cleanBaselineRef.current.title &&
+    draftBody === cleanBaselineRef.current.body &&
+    actionItemsSignature(draftActionItems) ===
+      actionItemsSignature(cleanBaselineRef.current.actionItems);
+
   // Auto-select the most-recent note once data lands.
   const [seededFromList, setSeededFromList] = useState(false);
   if (!seededFromList && !loading && notes.length > 0 && selectedId === null) {
@@ -113,9 +176,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     const first = notes[0];
     if (first) {
       setSelectedId(first.id);
-      setDraftTitle(first.title);
-      setDraftBody(first.body);
-      setDraftActionItems(first.actionItems ?? []);
+      seedDraft(first);
     }
   }
 
@@ -132,9 +193,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     const note = notes.find((n) => n.id === selectNoteId);
     if (note) {
       setSelectedId(note.id);
-      setDraftTitle(note.title);
-      setDraftBody(note.body);
-      setDraftActionItems(note.actionItems ?? []);
+      seedDraft(note);
       setBodyMode('edit');
     }
   }
@@ -162,23 +221,20 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
       lastEditedAt: selectedNote.lastEditedAt,
       version: selectedNote.version,
     });
-    setDraftTitle(selectedNote.title);
-    setDraftBody(selectedNote.body);
-    setDraftActionItems(selectedNote.actionItems ?? []);
+    seedDraft(selectedNote);
   } else if (
     selectedNote &&
     syncedSnapshot &&
     selectedNote.lastEditedAt > syncedSnapshot.lastEditedAt &&
-    pendingNoteId !== selectedNote.id
+    pendingNoteId !== selectedNote.id &&
+    draftIsClean
   ) {
     setSyncedSnapshot({
       id: selectedNote.id,
       lastEditedAt: selectedNote.lastEditedAt,
       version: selectedNote.version,
     });
-    setDraftTitle(selectedNote.title);
-    setDraftBody(selectedNote.body);
-    setDraftActionItems(selectedNote.actionItems ?? []);
+    seedDraft(selectedNote);
   }
 
   // Reload the canonical note into the draft, discarding the failed local
@@ -190,9 +246,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
       const canonical = notes.find((n) => n.id === noteId);
       if (!canonical) return;
       setSelectedId(noteId);
-      setDraftTitle(canonical.title);
-      setDraftBody(canonical.body);
-      setDraftActionItems(canonical.actionItems ?? []);
+      seedDraft(canonical);
       setSyncedSnapshot({
         id: noteId,
         lastEditedAt: canonical.lastEditedAt,
@@ -228,28 +282,36 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     ) {
       return;
     }
-    void updateNote(id, toSave, { expectedVersion }).catch((err: unknown) => {
-      if (err instanceof PlcNoteVersionConflictError) {
-        // A teammate's edit won the race. Surface the conflict toast (with a
-        // reload action) — the user's unsaved text stays in the editor until
-        // they choose to reload, so there is NO silent data loss.
-        addToast(
-          t('plcDashboard.notes.conflictMessage', {
-            defaultValue:
-              'A teammate edited this note while you were writing. Reload to see their changes — your unsaved text is kept below.',
-          }),
-          'warning',
-          {
-            label: t('plcDashboard.notes.conflictReload', {
-              defaultValue: 'Reload note',
+    // Snapshot what this write carries: on success THAT becomes the clean
+    // baseline, so anything typed during the round-trip still reads as dirty
+    // and survives.
+    const sent = draftRef.current;
+    void updateNote(id, toSave, { expectedVersion })
+      .then(() => {
+        cleanBaselineRef.current = sent;
+      })
+      .catch((err: unknown) => {
+        if (err instanceof PlcNoteVersionConflictError) {
+          // A teammate's edit won the race. Surface the conflict toast (with a
+          // reload action) — the user's unsaved text stays in the editor until
+          // they choose to reload, so there is NO silent data loss.
+          addToast(
+            t('plcDashboard.notes.conflictMessage', {
+              defaultValue:
+                'A teammate edited this note while you were writing. Reload to see their changes — your unsaved text is kept below.',
             }),
-            onClick: () => reloadRef.current(id),
-          }
-        );
-        return;
-      }
-      logError('NotesBody.updateNote', err, { plcId: plc.id, noteId: id });
-    });
+            'warning',
+            {
+              label: t('plcDashboard.notes.conflictReload', {
+                defaultValue: 'Reload note',
+              }),
+              onClick: () => reloadRef.current(id),
+            }
+          );
+          return;
+        }
+        logError('NotesBody.updateNote', err, { plcId: plc.id, noteId: id });
+      });
   }, [updateNote, plc.id, addToast, t]);
 
   const cancelPendingSave = useCallback(() => {
@@ -321,9 +383,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
           : '';
       const id = await createNote({ title, body, kind });
       setSelectedId(id);
-      setDraftTitle(title);
-      setDraftBody(body);
-      setDraftActionItems([]);
+      seedDraft({ title, body });
       setSyncedSnapshot(null);
       // Meeting notes open in preview so the structured template is legible at
       // a glance; freeform notes open in edit to start typing immediately.
@@ -381,9 +441,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
       });
       if (selectedId === note.id) {
         setSelectedId(null);
-        setDraftTitle('');
-        setDraftBody('');
-        setDraftActionItems([]);
+        seedDraft({ title: '', body: '' });
       }
     } catch (err) {
       logError('NotesBody.deleteNote', err, {
@@ -398,9 +456,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     const note = notes.find((n) => n.id === id);
     if (!note) return;
     setSelectedId(id);
-    setDraftTitle(note.title);
-    setDraftBody(note.body);
-    setDraftActionItems(note.actionItems ?? []);
+    seedDraft(note);
     setSyncedSnapshot({
       id,
       lastEditedAt: note.lastEditedAt,
