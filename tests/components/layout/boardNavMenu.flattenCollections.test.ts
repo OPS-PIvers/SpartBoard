@@ -37,4 +37,28 @@ describe('flattenCollections — orphaned subtree', () => {
     expect(names).toContain('Orphan Child');
     expect(names).toContain('Orphan Grandchild');
   });
+
+  it('sorts multiple orphans sharing the same missing parent by order, not array position', () => {
+    // Input array order is reversed relative to `order` to catch a fix that
+    // walks `collections` directly instead of sorting orphan roots first.
+    const collections: Collection[] = [
+      collection({
+        id: 'later',
+        name: 'Later Orphan',
+        parentCollectionId: 'deleted-parent',
+        order: 5,
+      }),
+      collection({
+        id: 'earlier',
+        name: 'Earlier Orphan',
+        parentCollectionId: 'deleted-parent',
+        order: 1,
+      }),
+    ];
+
+    const flat = flattenCollections(collections);
+    const names = flat.map(({ c }) => c.name);
+
+    expect(names).toEqual(['Earlier Orphan', 'Later Orphan']);
+  });
 });

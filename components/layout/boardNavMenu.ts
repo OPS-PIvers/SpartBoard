@@ -37,16 +37,18 @@ export const flattenCollections = (
   };
   walk(null, 0);
   // Surface orphans (parent missing, e.g. a partial delete) at root instead of hiding them.
-  for (const c of collections) {
-    if (
-      c.parentCollectionId != null &&
-      !knownIds.has(c.parentCollectionId) &&
-      !visited.has(c.id)
-    ) {
-      visited.add(c.id);
-      out.push({ c, depth: 0 });
-      walk(c.id, 1);
-    }
+  const orphanRoots = collections
+    .filter(
+      (c) =>
+        c.parentCollectionId != null &&
+        !knownIds.has(c.parentCollectionId) &&
+        !visited.has(c.id)
+    )
+    .sort((a, b) => a.order - b.order);
+  for (const c of orphanRoots) {
+    visited.add(c.id);
+    out.push({ c, depth: 0 });
+    walk(c.id, 1);
   }
   return out;
 };
