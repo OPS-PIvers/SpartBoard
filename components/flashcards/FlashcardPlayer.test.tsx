@@ -151,6 +151,21 @@ describe('FlashcardPlayer', () => {
       'É'
     );
   });
+
+  it('shows answer characters even when the set language is English', async () => {
+    const user = userEvent.setup();
+    render(
+      <FlashcardPlayer
+        cards={[{ id: 'nino', term: 'boy', definition: 'niño' }]}
+        termLanguage="en-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('player-detected')}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Write' }));
+    expect(screen.getByRole('button', { name: 'Insert ñ' })).toBeTruthy();
+  });
 });
 
 const lockedSettings = (

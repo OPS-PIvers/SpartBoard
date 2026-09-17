@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Check, Flag, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FlashcardCard, FlashcardSide } from '@/types';
@@ -6,6 +6,7 @@ import {
   matchFlashcardAnswer,
   type FlashcardMatch,
 } from '@/utils/flashcardMatch';
+import { getFlashcardAnswerCharacters } from '@/config/flashcardCharBars';
 import { CharacterBar, RoundSummary } from './PlayerPrimitives';
 import { cx, getFlashcardSides } from './playerUtils';
 
@@ -73,6 +74,14 @@ export const WriteMode: React.FC<WriteModeProps> = ({
   const card = queue[index];
   const answerLanguage =
     showFirst === 'term' ? definitionLanguage : termLanguage;
+  const characters = useMemo(
+    () =>
+      getFlashcardAnswerCharacters(
+        answerLanguage,
+        cards.map((item) => getFlashcardSides(item, showFirst).answer)
+      ),
+    [answerLanguage, cards, showFirst]
+  );
 
   const advance = (isCorrect: boolean, judged: string): void => {
     if (!card) return;
@@ -307,7 +316,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
           />
           <div style={{ marginTop: 'min(9px, 2cqmin)' }}>
             <CharacterBar
-              language={answerLanguage}
+              characters={characters}
               inputRef={inputRef}
               value={response}
               onChange={setResponse}

@@ -14,6 +14,7 @@ import type {
   FlashcardTestType,
 } from '@/types';
 import { matchFlashcardAnswer } from '@/utils/flashcardMatch';
+import { getFlashcardAnswerCharacters } from '@/config/flashcardCharBars';
 import { CharacterBar } from './PlayerPrimitives';
 import { cx, getFlashcardSides } from './playerUtils';
 
@@ -120,7 +121,7 @@ const buildQuestions = (
 interface FibAnswerProps {
   question: TestQuestion;
   value: string;
-  language: string;
+  characters: readonly string[];
   dark: boolean;
   disabled: boolean;
   onChange: (value: string) => void;
@@ -129,7 +130,7 @@ interface FibAnswerProps {
 const FibAnswer: React.FC<FibAnswerProps> = ({
   question,
   value,
-  language,
+  characters,
   dark,
   disabled,
   onChange,
@@ -164,7 +165,7 @@ const FibAnswer: React.FC<FibAnswerProps> = ({
       {!disabled && (
         <div style={{ marginTop: 'min(8px, 1.8cqmin)' }}>
           <CharacterBar
-            language={language}
+            characters={characters}
             inputRef={inputRef}
             value={value}
             onChange={onChange}
@@ -226,6 +227,14 @@ export const TestMode: React.FC<TestModeProps> = ({
   );
   const answerLanguage =
     showFirst === 'term' ? definitionLanguage : termLanguage;
+  const characters = useMemo(
+    () =>
+      getFlashcardAnswerCharacters(
+        answerLanguage,
+        cards.map((card) => getFlashcardSides(card, showFirst).answer)
+      ),
+    [answerLanguage, cards, showFirst]
+  );
   const allAnswered = questions.every(
     (question) => (answers[question.id] ?? '').trim().length > 0
   );
@@ -590,7 +599,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                   <FibAnswer
                     question={question}
                     value={answers[question.id] ?? ''}
-                    language={answerLanguage}
+                    characters={characters}
                     dark={dark}
                     disabled={false}
                     onChange={(value) =>

@@ -8,10 +8,7 @@ import {
   Send,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  getFlashcardCharBar,
-  uppercaseFlashcardCharacter,
-} from '@/config/flashcardCharBars';
+import { uppercaseFlashcardCharacter } from '@/config/flashcardCharBars';
 import { cx } from './playerUtils';
 
 interface RoundSummaryProps {
@@ -291,7 +288,7 @@ export const CheckSubmitPanel: React.FC<CheckSubmitPanelProps> = ({
 };
 
 interface CharacterBarProps {
-  language: string;
+  characters: readonly string[];
   inputRef: React.RefObject<HTMLInputElement | null>;
   value: string;
   onChange: (value: string) => void;
@@ -299,14 +296,13 @@ interface CharacterBarProps {
 }
 
 export const CharacterBar: React.FC<CharacterBarProps> = ({
-  language,
+  characters,
   inputRef,
   value,
   onChange,
   dark,
 }) => {
   const { t } = useTranslation();
-  const characters = getFlashcardCharBar(language);
   const [uppercase, setUppercase] = useState(false);
   if (characters.length === 0) return null;
 
