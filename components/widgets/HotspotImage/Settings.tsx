@@ -9,6 +9,7 @@ import {
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { Button } from '@/components/common/Button';
 import {
   Upload,
@@ -29,6 +30,15 @@ const ICON_OPTIONS: {
   { value: 'info', label: 'Info', icon: Info },
   { value: 'question', label: 'Question', icon: HelpCircle },
   { value: 'star', label: 'Star', icon: Star },
+];
+
+const POPOVER_THEME_OPTIONS: {
+  value: 'light' | 'dark' | 'glass';
+  label: string;
+}[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'glass', label: 'Glass' },
 ];
 
 export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
@@ -385,6 +395,14 @@ export const HotspotImageAppearanceSettings: React.FC<{
     );
   }
 
+  const selectPopoverTheme = (
+    theme: (typeof POPOVER_THEME_OPTIONS)[number]
+  ) => {
+    updateWidget(widget.id, {
+      config: { ...config, popoverTheme: theme.value },
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -393,33 +411,36 @@ export const HotspotImageAppearanceSettings: React.FC<{
         </SettingsLabel>
         <div
           className="flex gap-2"
-          role="group"
+          role="radiogroup"
           aria-labelledby={popoverThemeLabelId}
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(
+              e,
+              POPOVER_THEME_OPTIONS,
+              selectPopoverTheme
+            )
+          }
         >
-          {[
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-            { value: 'glass', label: 'Glass' },
-          ].map((theme) => (
-            <button
-              key={theme.value}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: {
-                    ...config,
-                    popoverTheme: theme.value as 'light' | 'dark' | 'glass',
-                  },
-                })
-              }
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all border ${
-                (config.popoverTheme ?? 'light') === theme.value
-                  ? 'bg-blue-50 border-blue-200 text-blue-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {theme.label}
-            </button>
-          ))}
+          {POPOVER_THEME_OPTIONS.map((theme) => {
+            const checked = (config.popoverTheme ?? 'light') === theme.value;
+            return (
+              <button
+                key={theme.value}
+                type="button"
+                role="radio"
+                aria-checked={checked}
+                tabIndex={checked ? 0 : -1}
+                onClick={() => selectPopoverTheme(theme)}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all border ${
+                  checked
+                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {theme.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
