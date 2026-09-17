@@ -144,11 +144,11 @@
   },
   "lint-staged": {
     "functions/**/*.{ts,tsx}": [
-      "pnpm -C functions exec eslint --fix",
+      "pnpm -C functions exec eslint --fix --max-warnings 0",
       "prettier --write"
     ],
     "*.{ts,tsx}": [
-      "eslint --fix --no-warn-ignored",
+      "eslint --fix --no-warn-ignored --max-warnings 0",
       "prettier --write"
     ],
     "*.{js,jsx,json,css,md}": [
