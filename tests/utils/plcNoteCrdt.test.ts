@@ -125,6 +125,32 @@ describe('large pastes', () => {
     expect(updates).toHaveLength(1);
   });
 
+  // Yjs encodes text as UTF-8 before base64, so a budget in UTF-16 units
+  // under-counts every non-Latin script. 64,000 CJK chars are one UTF-16 unit
+  // each but three UTF-8 bytes each, and used to encode to ~256,000 base64
+  // chars — over the cap, so the paste never reached a co-editor.
+  it.each([
+    ['Latin', 'x'],
+    ['Cyrillic', 'д'],
+    ['CJK', '漢'],
+    ['emoji', '🎉'],
+  ])(
+    'keeps every update publishable for a large %s paste',
+    (_label, character) => {
+      const doc = new Y.Doc();
+      const updates: string[] = [];
+      doc.on('update', (u: Uint8Array) => updates.push(encodeUpdate(u)));
+
+      const pasted = character.repeat(120_000);
+      applyTextEdit(noteBody(doc), pasted);
+
+      expect(noteBody(doc).toJSON()).toBe(pasted);
+      for (const payload of updates) {
+        expect(payload.length).toBeLessThanOrEqual(MAX_UPDATE_PAYLOAD_CHARS);
+      }
+    }
+  );
+
   it('does not tear a surrogate pair at a chunk boundary', () => {
     const doc = new Y.Doc();
     // Emoji are 2 UTF-16 units, so a 64k boundary lands mid-pair.
