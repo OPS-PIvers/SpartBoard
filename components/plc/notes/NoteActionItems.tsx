@@ -64,13 +64,14 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
   };
 
   return (
-    <div className="px-4 py-3 border-t border-slate-100">
-      <h4 className="text-xxs font-bold uppercase tracking-widest text-slate-500 mb-2">
+    <div className="flex flex-col min-h-0 px-4 py-3 border-t border-slate-100">
+      <h4 className="shrink-0 text-xxs font-bold uppercase tracking-widest text-slate-500 mb-2">
         {t('plcDashboard.notes.actionItems.title', {
           defaultValue: 'Action items',
         })}
       </h4>
-      <ul className="space-y-1.5">
+      {/* Scrolls once the list outgrows the editor pane so the add row stays reachable. */}
+      <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-1.5 -mx-1 px-1">
         {items.map((item) => {
           const overdue = !item.done && item.dueAt != null && item.dueAt < now;
           return (
@@ -168,7 +169,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
       </ul>
       {canEdit &&
         (items.length < MAX_ACTION_ITEMS ? (
-          <div className="flex items-center gap-2 mt-2">
+          <div className="shrink-0 flex items-center gap-2 mt-2">
             <input
               type="text"
               value={draft}
@@ -196,7 +197,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             </button>
           </div>
         ) : (
-          <p className="text-xxs text-slate-400 mt-2">
+          <p className="shrink-0 text-xxs text-slate-400 mt-2">
             {t('plcDashboard.notes.actionItems.limitReached', {
               defaultValue: 'Action item limit reached',
             })}

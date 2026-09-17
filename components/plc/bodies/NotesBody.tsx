@@ -581,7 +581,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
       <main className="bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden">
         {selectedNote ? (
           <>
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+            <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-slate-100">
               {isMeeting && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-blue-lighter/60 text-brand-blue-primary text-xxs font-bold uppercase tracking-wider shrink-0">
                   <CalendarClock className="w-3 h-3" />
@@ -671,10 +671,10 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
                 placeholder={t('plcDashboard.notes.bodyPlaceholder', {
                   defaultValue: 'Write your notes… (markdown supported)',
                 })}
-                className="flex-1 w-full p-4 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none text-sm text-slate-700 leading-relaxed font-mono"
+                className="flex-1 min-h-[8rem] w-full p-4 bg-transparent border-0 resize-none focus:ring-0 focus:outline-none text-sm text-slate-700 leading-relaxed font-mono"
               />
             ) : (
-              <div className="flex-1 w-full p-4 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 min-h-[8rem] w-full p-4 overflow-y-auto custom-scrollbar">
                 {draftBody.trim() ? (
                   <NotesMarkdown body={draftBody} />
                 ) : (
@@ -700,7 +700,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
                 );
               }}
             />
-            <div className="px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
+            <div className="shrink-0 px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
               {t('plcDashboard.notes.lastEdited', {
                 defaultValue: 'Last edited {{when}}',
                 when: formatDate(selectedNote.lastEditedAt),
