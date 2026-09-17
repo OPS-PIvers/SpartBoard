@@ -54,6 +54,13 @@ export interface UseFlashcardAssignmentsResult {
   reopenAssignment: (assignmentId: string) => Promise<void>;
   /** Deletes progress docs, then the session and assignment docs. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
+  /** Releases Check scores to students at the chosen level of detail. */
+  publishScores: (
+    assignmentId: string,
+    visibility: Exclude<FlashcardScoreVisibility, 'none'>
+  ) => Promise<void>;
+  /** Hides released Check scores again. */
+  unpublishScores: (assignmentId: string) => Promise<void>;
 }
 
 const nonEmptyStrings = (values: string[] | undefined): string[] =>
@@ -274,6 +281,49 @@ export const useFlashcardAssignments = (
     [userId]
   );
 
+  // Both docs carry the pair so the library card and the student route agree.
+  const writeScorePatch = useCallback(
+    async (assignmentId: string, patch: Record<string, unknown>) => {
+      if (!userId) throw new Error('Not authenticated');
+      const batch = writeBatch(db);
+      batch.update(
+        doc(
+          db,
+          'users',
+          userId,
+          FLASHCARD_ASSIGNMENTS_COLLECTION,
+          assignmentId
+        ),
+        { ...patch, updatedAt: Date.now() }
+      );
+      batch.update(doc(db, FLASHCARD_SESSIONS_COLLECTION, assignmentId), patch);
+      await batch.commit();
+    },
+    [userId]
+  );
+
+  const publishScores = useCallback<
+    UseFlashcardAssignmentsResult['publishScores']
+  >(
+    (assignmentId, visibility) =>
+      writeScorePatch(assignmentId, {
+        scoreVisibility: visibility,
+        scorePublishedAt: Date.now(),
+      }),
+    [writeScorePatch]
+  );
+
+  const unpublishScores = useCallback<
+    UseFlashcardAssignmentsResult['unpublishScores']
+  >(
+    (assignmentId) =>
+      writeScorePatch(assignmentId, {
+        scoreVisibility: 'none',
+        scorePublishedAt: deleteField(),
+      }),
+    [writeScorePatch]
+  );
+
   return {
     assignments,
     loading,
@@ -282,5 +332,7 @@ export const useFlashcardAssignments = (
     endAssignment,
     reopenAssignment,
     deleteAssignment,
+    publishScores,
+    unpublishScores,
   };
 };

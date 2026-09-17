@@ -3151,6 +3151,7 @@ describe('index barrel — deployed export set', () => {
     'cleanupFlashcardAssignmentPointers',
     // Flashcards Check submission
     'submitFlashcardCheckV1',
+    'resolveFlashcardFlagV1',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',

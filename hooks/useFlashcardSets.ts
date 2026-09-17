@@ -2,26 +2,64 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { FlashcardSet, PublicFlashcardSet } from '@/types';
 import { logError } from '@/utils/logError';
 
+/** Thrown when the set saved but its open Study assignments could not be rewritten. */
+export class FlashcardStudySyncError extends Error {
+  constructor() {
+    super('Open Study assignments still show the old cards.');
+    this.name = 'FlashcardStudySyncError';
+  }
+}
+
 interface UseFlashcardSetsResult {
   sets: FlashcardSet[];
   loading: boolean;
   error: string | null;
-  saveSet: (set: FlashcardSet) => Promise<void>;
+  /** Resolves with the number of open Study assignments rewritten with the new cards. */
+  saveSet: (set: FlashcardSet) => Promise<number>;
   deleteSet: (setId: string) => Promise<void>;
   publishSet: (set: FlashcardSet) => Promise<string>;
   revokeShare: (set: FlashcardSet) => Promise<void>;
 }
 
 const SETS_COLLECTION = 'flashcard_sets';
+
+// Study assignments stay live (docs/plans/FLASHCARDS.md Q46); Check stays frozen.
+const rewriteOpenStudySessions = async (
+  userId: string,
+  set: FlashcardSet
+): Promise<number> => {
+  const openStudy = query(
+    collection(db, 'flashcard_sessions'),
+    where('teacherUid', '==', userId),
+    where('setId', '==', set.id),
+    where('kind', '==', 'study'),
+    where('status', '==', 'active')
+  );
+  const snapshot = await getDocs(openStudy);
+  if (snapshot.empty) return 0;
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((sessionDoc) =>
+    batch.update(sessionDoc.ref, {
+      title: set.title,
+      termLanguage: set.termLanguage,
+      definitionLanguage: set.definitionLanguage,
+      cards: set.cards,
+    })
+  );
+  await batch.commit();
+  return snapshot.size;
+};
 
 const normalizeSet = (set: FlashcardSet): FlashcardSet => ({
   ...set,
@@ -97,7 +135,7 @@ export function useFlashcardSets(
   }, [userId]);
 
   const saveSet = useCallback(
-    async (set: FlashcardSet): Promise<void> => {
+    async (set: FlashcardSet): Promise<number> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
       const normalized = normalizeSet(set);
       const batch = writeBatch(db);
@@ -112,6 +150,15 @@ export function useFlashcardSets(
         );
       }
       await batch.commit();
+      try {
+        return await rewriteOpenStudySessions(userId, normalized);
+      } catch (syncError) {
+        logError('useFlashcardSets.rewriteOpenStudySessions', syncError, {
+          userId,
+          setId: normalized.id,
+        });
+        throw new FlashcardStudySyncError();
+      }
     },
     [userId]
   );

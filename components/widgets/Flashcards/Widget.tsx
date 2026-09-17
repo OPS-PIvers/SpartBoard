@@ -15,7 +15,10 @@ import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import { useFlashcardSets } from '@/hooks/useFlashcardSets';
+import {
+  FlashcardStudySyncError,
+  useFlashcardSets,
+} from '@/hooks/useFlashcardSets';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import {
   buildSetAssignmentTargetsPayload,
@@ -34,6 +37,11 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
 import { FlashcardEditor } from './FlashcardEditor';
 import { FlashcardLibrary } from './FlashcardLibrary';
+import { FlashcardResultsView } from './results';
+import {
+  FlashcardPublishScoresModal,
+  type PublishableFlashcardVisibility,
+} from './results/FlashcardPublishScoresModal';
 import { createFlashcardImportAdapter } from './adapters/flashcardImportAdapter';
 import {
   FlashcardPlayer,
@@ -102,6 +110,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     endAssignment,
     reopenAssignment,
     deleteAssignment,
+    publishScores,
+    unpublishScores,
   } = useFlashcardAssignments(user?.uid);
   const folders = useFolders(user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
@@ -109,6 +119,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const [importOpen, setImportOpen] = useState(false);
   const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
   const [assigningSet, setAssigningSet] = useState<FlashcardSet | null>(null);
+  const [publishTarget, setPublishTarget] =
+    useState<FlashcardAssignment | null>(null);
+  const openResults = useMemo(
+    () =>
+      config.view === 'results' && config.activeAssignmentId
+        ? (assignments.find((a) => a.id === config.activeAssignmentId) ?? null)
+        : null,
+    [assignments, config.activeAssignmentId, config.view]
+  );
   const presentSet = useMemo(
     () =>
       config.presentSetId
@@ -180,10 +199,23 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const handleSave = async (set: FlashcardSet): Promise<void> => {
     setSaving(true);
     try {
-      await flashcardSets.saveSet(set);
+      const rewritten = await flashcardSets.saveSet(set);
       setEditingSet(null);
-      addToast(`“${set.title}” saved.`, 'success');
+      addToast(
+        rewritten > 0
+          ? `“${set.title}” saved. ${rewritten} open Study assignment${rewritten === 1 ? '' : 's'} updated.`
+          : `“${set.title}” saved.`,
+        'success'
+      );
     } catch (error) {
+      if (error instanceof FlashcardStudySyncError) {
+        setEditingSet(null);
+        addToast(
+          `“${set.title}” saved, but open Study assignments still show the old cards.`,
+          'error'
+        );
+        return;
+      }
       addToast(
         error instanceof Error
           ? error.message
@@ -381,8 +413,38 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 
   const showLibrary = (): void => {
     updateWidget(widget.id, {
-      config: { ...config, view: 'library', presentSetId: undefined },
+      config: {
+        ...config,
+        view: 'library',
+        presentSetId: undefined,
+        activeAssignmentId: undefined,
+      },
     });
+  };
+
+  const showResults = (assignment: FlashcardAssignment): void => {
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        view: 'results',
+        activeAssignmentId: assignment.id,
+      },
+    });
+  };
+
+  const handleUnpublishScores = async (
+    assignment: FlashcardAssignment
+  ): Promise<void> => {
+    const confirmed = await showConfirm(
+      `Hide scores for “${assignment.setTitle}”? Students stop seeing their results.`,
+      { title: 'Hide scores', variant: 'warning', confirmLabel: 'Hide scores' }
+    );
+    if (!confirmed) return;
+    await runAssignmentAction(
+      () => unpublishScores(assignment.id),
+      'Scores hidden.',
+      'Scores could not be hidden.'
+    );
   };
 
   const showPresent = (set: FlashcardSet): void => {
@@ -411,7 +473,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             className="h-full w-full bg-transparent"
             data-flashcards-view={config.view ?? 'library'}
           >
-            {config.view === 'present' && presentSet ? (
+            {config.view === 'results' && openResults ? (
+              <FlashcardResultsView
+                key={openResults.id}
+                assignment={openResults}
+                onBack={showLibrary}
+                onPublishScores={publishScores}
+                onUnpublishScores={unpublishScores}
+              />
+            ) : config.view === 'present' && presentSet ? (
               <FlashcardPlayer
                 key={presentSet.id}
                 cards={presentSet.cards}
@@ -468,6 +538,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                     },
                   })
                 }
+                onAssignmentResults={showResults}
+                onAssignmentPublishScores={setPublishTarget}
+                onAssignmentUnpublishScores={(a) =>
+                  void handleUnpublishScores(a)
+                }
                 onAssignmentCopyLink={(a) => void copyAssignmentLink(a)}
                 onAssignmentEnd={(a) => void handleAssignmentEnd(a)}
                 onAssignmentReopen={(a) =>
@@ -502,6 +577,22 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         onRevoke={flashcardSets.revokeShare}
         onNotice={addToast}
       />
+
+      {publishTarget && (
+        <FlashcardPublishScoresModal
+          assignmentTitle={publishTarget.setTitle || 'Untitled set'}
+          currentVisibility={publishTarget.scoreVisibility}
+          onClose={() => setPublishTarget(null)}
+          onConfirm={async (visibility: PublishableFlashcardVisibility) => {
+            await runAssignmentAction(
+              () => publishScores(publishTarget.id, visibility),
+              'Scores published.',
+              'Scores could not be published.'
+            );
+            setPublishTarget(null);
+          }}
+        />
+      )}
 
       {assigningSet && (
         <FlashcardAssignModal

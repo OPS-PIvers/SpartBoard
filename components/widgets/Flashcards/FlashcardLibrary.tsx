@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import {
+  BarChart3,
   BookOpen,
   Copy,
+  EyeOff,
   FileUp,
   Layers,
   Loader2,
@@ -47,6 +49,9 @@ interface FlashcardLibraryProps {
   onShare: (set: FlashcardSet) => void;
   onAssign: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
+  onAssignmentResults: (assignment: FlashcardAssignment) => void;
+  onAssignmentPublishScores: (assignment: FlashcardAssignment) => void;
+  onAssignmentUnpublishScores: (assignment: FlashcardAssignment) => void;
   onAssignmentCopyLink: (assignment: FlashcardAssignment) => void;
   onAssignmentEnd: (assignment: FlashcardAssignment) => void;
   onAssignmentReopen: (assignment: FlashcardAssignment) => void;
@@ -103,6 +108,9 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onShare,
   onAssign,
   onDelete,
+  onAssignmentResults,
+  onAssignmentPublishScores,
+  onAssignmentUnpublishScores,
   onAssignmentCopyLink,
   onAssignmentEnd,
   onAssignmentReopen,
@@ -189,16 +197,40 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
           title={assignment.setTitle || 'Untitled set'}
           subtitle={assignmentSubtitle(assignment)}
           meta={assignmentMeta(assignment)}
-          primaryAction={
-            tab === 'archive'
-              ? undefined
-              : {
-                  label: 'Copy link',
-                  icon: Copy,
-                  onClick: () => onAssignmentCopyLink(assignment),
-                }
-          }
+          primaryAction={{
+            label: 'Results',
+            icon: BarChart3,
+            onClick: () => onAssignmentResults(assignment),
+          }}
           secondaryActions={[
+            ...(tab === 'archive'
+              ? []
+              : [
+                  {
+                    id: 'copy-link',
+                    label: 'Copy link',
+                    icon: Copy,
+                    onClick: () => onAssignmentCopyLink(assignment),
+                  },
+                ]),
+            ...(assignment.kind === 'check'
+              ? [
+                  assignment.scoreVisibility &&
+                  assignment.scoreVisibility !== 'none'
+                    ? {
+                        id: 'unpublish-scores',
+                        label: 'Hide scores',
+                        icon: EyeOff,
+                        onClick: () => onAssignmentUnpublishScores(assignment),
+                      }
+                    : {
+                        id: 'publish-scores',
+                        label: 'Publish scores',
+                        icon: Send,
+                        onClick: () => onAssignmentPublishScores(assignment),
+                      },
+                ]
+              : []),
             tab === 'archive'
               ? {
                   id: 'reopen',

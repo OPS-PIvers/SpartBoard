@@ -36,6 +36,9 @@ const renderLibrary = (
   props: Partial<React.ComponentProps<typeof FlashcardLibrary>> = {}
 ) => {
   const handlers = {
+    onAssignmentResults: vi.fn(),
+    onAssignmentPublishScores: vi.fn(),
+    onAssignmentUnpublishScores: vi.fn(),
     onAssignmentCopyLink: vi.fn(),
     onAssignmentEnd: vi.fn(),
     onAssignmentReopen: vi.fn(),
@@ -66,12 +69,37 @@ const renderLibrary = (
 };
 
 describe('FlashcardLibrary assignment tabs', () => {
+  it('offers Publish scores on a Check and never on a Study', () => {
+    const check = assignment({ kind: 'check', checkMode: 'write' });
+    const handlers = renderLibrary({ assignments: [check] });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish scores' }));
+    expect(handlers.onAssignmentPublishScores).toHaveBeenCalledWith(check);
+  });
+
+  it('switches a published Check to Hide scores', () => {
+    const published = assignment({
+      kind: 'check',
+      scoreVisibility: 'score',
+    });
+    const handlers = renderLibrary({ assignments: [published] });
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hide scores' }));
+    expect(handlers.onAssignmentUnpublishScores).toHaveBeenCalledWith(
+      published
+    );
+  });
+
   it('lists active assignments and ends one from the menu', () => {
     const handlers = renderLibrary();
     expect(screen.getByText('Spanish verbs')).toBeTruthy();
     expect(screen.getByText('Open')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Results' }));
+    expect(handlers.onAssignmentResults).toHaveBeenCalledWith(assignment());
+
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link' }));
     expect(handlers.onAssignmentCopyLink).toHaveBeenCalledWith(assignment());
 
     fireEvent.click(screen.getByRole('button', { name: /more/i }));
@@ -83,9 +111,9 @@ describe('FlashcardLibrary assignment tabs', () => {
     const ended = assignment({ status: 'ended', endedAt: 5 });
     const handlers = renderLibrary({ tab: 'archive', assignments: [ended] });
     expect(screen.getByText('Ended')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Copy link' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    expect(screen.queryByRole('menuitem', { name: 'Copy link' })).toBeNull();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Reopen' }));
     expect(handlers.onAssignmentReopen).toHaveBeenCalledWith(ended);
   });

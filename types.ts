@@ -7206,8 +7206,10 @@ export interface FlashcardProgress extends FlashcardStudyState {
 
 /** Per-board state only. Set content lives in the teacher's Firestore library. */
 export interface FlashcardsConfig {
-  view: 'library' | 'present';
+  view: 'library' | 'present' | 'results';
   libraryTab?: 'library' | 'active' | 'archive';
+  /** Assignment whose teacher results are open in the `results` view. */
+  activeAssignmentId?: string;
   presentSetId?: string;
   presentShowFirst: FlashcardSide;
   presentShuffle: boolean;

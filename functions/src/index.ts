@@ -98,6 +98,7 @@ export {
 
 // ── Flashcards Check submission (server-graded; docs/plans/FLASHCARDS.md §7) ─
 export { submitFlashcardCheckV1 } from './flashcardCheck';
+export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {
