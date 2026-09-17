@@ -7050,6 +7050,18 @@ export interface FlashcardSet {
   updatedAt: number;
 }
 
+/** Public, read-only snapshot written when a teacher enables link sharing. */
+export interface PublicFlashcardSet {
+  teacherUid: string;
+  setId: string;
+  title: string;
+  description?: string;
+  termLanguage: string;
+  definitionLanguage: string;
+  cards: FlashcardCard[];
+  updatedAt: number;
+}
+
 export type FlashcardMode = 'flashcards' | 'write' | 'test';
 export type FlashcardSide = 'term' | 'definition';
 export type FlashcardTestType = 'mc' | 'fib';
@@ -7062,6 +7074,21 @@ export interface FlashcardModeSettings {
   strict: boolean;
   testTypes: FlashcardTestType[];
   testCount: number | 'all';
+}
+
+/** Compact per-card state shared by public practice and future assignments. */
+export interface FlashcardCardProgress {
+  s: 0 | 1 | 2 | 3 | 4;
+  due: number;
+  c: number;
+  w: number;
+}
+
+/** Device-local study state. Assignment-only fields are added in PR 3. */
+export interface FlashcardStudyState {
+  cards: Record<string, FlashcardCardProgress>;
+  starred: string[];
+  round: number;
 }
 
 /** Per-board state only. Set content lives in the teacher's Firestore library. */

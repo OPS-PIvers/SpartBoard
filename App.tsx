@@ -118,6 +118,11 @@ const GuidedLearningStudentApp = lazy(() =>
     (module) => ({ default: module.GuidedLearningStudentApp })
   )
 );
+const PublicFlashcardsPage = lazy(() =>
+  import('./components/flashcards/PublicFlashcardsPage').then((module) => ({
+    default: module.PublicFlashcardsPage,
+  }))
+);
 const StudentLoginPage = lazy(() =>
   import('./components/student/StudentLoginPage').then((module) => ({
     default: module.StudentLoginPage,
@@ -515,6 +520,7 @@ const App: React.FC = () => {
     !isActivityWallGalleryRoute &&
     (pathname === '/activity-wall' || pathname.startsWith('/activity-wall/'));
   const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
+  const isFlashcardsRoute = pathname.startsWith('/flashcards/');
   const isInviteRoute = pathname.startsWith('/invite/');
   const isPlcInviteRoute = pathname.startsWith('/plc-invite/');
   const isStudentLoginRoute =
@@ -553,6 +559,16 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <ActivityWallGalleryView />
+      </Suspense>
+    );
+  }
+
+  // Public Flashcards snapshots are intentionally provider-free. A single
+  // unguessable document id grants read access, including inside LMS iframes.
+  if (isFlashcardsRoute) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PublicFlashcardsPage />
       </Suspense>
     );
   }

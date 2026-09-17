@@ -18,6 +18,11 @@ import { ImportWizard } from '@/components/common/library/importer';
 import { FlashcardEditor } from './FlashcardEditor';
 import { FlashcardLibrary } from './FlashcardLibrary';
 import { createFlashcardImportAdapter } from './adapters/flashcardImportAdapter';
+import {
+  FlashcardPlayer,
+  FlashcardShareModal,
+  MemoryFlashcardAdapter,
+} from '@/components/flashcards';
 
 const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
 
@@ -46,7 +51,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as FlashcardsConfig;
   const { user, ensureGoogleScope } = useAuth();
-  const { addToast } = useDashboard();
+  const { addToast, updateWidget } = useDashboard();
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const flashcardSets = useFlashcardSets(user?.uid);
@@ -54,6 +59,16 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
+  const presentSet = useMemo(
+    () =>
+      config.presentSetId
+        ? (flashcardSets.sets.find((set) => set.id === config.presentSetId) ??
+          null)
+        : null,
+    [config.presentSetId, flashcardSets.sets]
+  );
+  const presentAdapter = useMemo(() => new MemoryFlashcardAdapter(), []);
 
   const pickSheet = useCallback(async (): Promise<{ url: string } | null> => {
     const token = await ensureGoogleScope('drive.file', { interactive: true });
@@ -154,6 +169,18 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const showLibrary = (): void => {
+    updateWidget(widget.id, {
+      config: { ...config, view: 'library', presentSetId: undefined },
+    });
+  };
+
+  const showPresent = (set: FlashcardSet): void => {
+    updateWidget(widget.id, {
+      config: { ...config, view: 'present', presentSetId: set.id },
+    });
+  };
+
   if (!user) {
     return (
       <ScaledEmptyState
@@ -174,7 +201,32 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             className="h-full w-full bg-transparent"
             data-flashcards-view={config.view ?? 'library'}
           >
-            {editingSet ? (
+            {config.view === 'present' && presentSet ? (
+              <FlashcardPlayer
+                key={presentSet.id}
+                cards={presentSet.cards}
+                termLanguage={presentSet.termLanguage}
+                definitionLanguage={presentSet.definitionLanguage}
+                adapter={presentAdapter}
+                allowedModes={['flashcards']}
+                theme="present"
+                seed={`${widget.id}:${presentSet.id}`}
+                initialSettings={{
+                  showFirst: config.presentShowFirst ?? 'term',
+                  shuffle: config.presentShuffle ?? false,
+                }}
+                onSettingsChange={(settings) =>
+                  updateWidget(widget.id, {
+                    config: {
+                      ...config,
+                      presentShowFirst: settings.showFirst,
+                      presentShuffle: settings.shuffle,
+                    },
+                  })
+                }
+                onBack={showLibrary}
+              />
+            ) : editingSet ? (
               <FlashcardEditor
                 key={editingSet.id}
                 initialSet={editingSet}
@@ -191,6 +243,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onNew={() => setEditingSet(makeSet())}
                 onImport={() => setImportOpen(true)}
                 onEdit={setEditingSet}
+                onPresent={showPresent}
+                onShare={setSharingSet}
                 onDelete={(set) => void handleDelete(set)}
               />
             )}
@@ -206,6 +260,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           addToast(`“${title}” imported.`, 'success');
           setImportOpen(false);
         }}
+      />
+
+      <FlashcardShareModal
+        isOpen={sharingSet !== null}
+        set={sharingSet}
+        onClose={() => setSharingSet(null)}
+        onPublish={flashcardSets.publishSet}
+        onRevoke={flashcardSets.revokeShare}
+        onNotice={addToast}
       />
     </>
   );

@@ -4,8 +4,10 @@ import {
   FileUp,
   Layers,
   Loader2,
+  MonitorPlay,
   Pencil,
   Plus,
+  Share2,
   Trash2,
 } from 'lucide-react';
 import type { FlashcardSet } from '@/types';
@@ -31,6 +33,8 @@ interface FlashcardLibraryProps {
   onNew: () => void;
   onImport: () => void;
   onEdit: (set: FlashcardSet) => void;
+  onPresent: (set: FlashcardSet) => void;
+  onShare: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
 }
 
@@ -60,6 +64,8 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onNew,
   onImport,
   onEdit,
+  onPresent,
+  onShare,
   onDelete,
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -221,6 +227,20 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                   onClick: () => onEdit(set),
                 }}
                 secondaryActions={[
+                  {
+                    id: 'present',
+                    label: 'Present',
+                    icon: MonitorPlay,
+                    onClick: () => onPresent(set),
+                  },
+                  {
+                    id: 'share',
+                    label: set.publicShareId
+                      ? 'Manage public link'
+                      : 'Share link',
+                    icon: Share2,
+                    onClick: () => onShare(set),
+                  },
                   buildMoveToFolderAction({
                     onOpenPicker: () => setFolderTarget(set),
                   }),

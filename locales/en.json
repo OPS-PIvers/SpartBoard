@@ -3170,6 +3170,108 @@
     "discardTitle": "Discard Changes",
     "discardConfirm": "Discard"
   },
+  "flashcards": {
+    "public": {
+      "pageTitle": "{{title}} · Flashcards",
+      "cards_one": "{{count}} card",
+      "cards_other": "{{count}} cards",
+      "loading": "Loading flashcards…",
+      "unavailableTitle": "These flashcards aren't available",
+      "unavailableBody": "The link may be incorrect, or the teacher may have turned sharing off."
+    },
+    "modes": {
+      "label": "Study mode",
+      "flashcards": "Flashcards",
+      "write": "Write",
+      "test": "Test"
+    },
+    "player": {
+      "back": "Back to flashcard library",
+      "round": "Round {{round}}",
+      "mastered": "{{mastered}}/{{total}} mastered",
+      "masteryLabel": "{{mastered}} of {{total}} cards mastered",
+      "settings": "Study settings",
+      "emptyTitle": "No cards in this view",
+      "emptyBody": "Try showing all cards, including mastered cards, in Settings.",
+      "openSettings": "Open settings"
+    },
+    "settings": {
+      "title": "Study settings",
+      "close": "Close study settings",
+      "cards": "Cards",
+      "study": "Study",
+      "all": "All",
+      "favoritesOnly": "Favorites only",
+      "showFirst": "Show first",
+      "term": "Term",
+      "definition": "Definition",
+      "shuffle": "Shuffle",
+      "hideMastered": "Hide mastered cards",
+      "answers": "Answers",
+      "strict": "Strict mode",
+      "strictHelp": "Require exact spelling, accents, and articles.",
+      "test": "Test",
+      "multipleChoice": "Multiple choice",
+      "fillBlank": "Fill in the blank",
+      "mcNeedsFour": "Multiple choice needs at least 4 cards.",
+      "questions": "Questions",
+      "allCount": "All ({{count}})",
+      "reset": "Reset progress"
+    },
+    "summary": {
+      "complete": "Round {{round}} complete",
+      "heading": "Nice work.",
+      "correct": "Got it",
+      "learning": "Still learning",
+      "next": "Next round",
+      "restart": "Restart all"
+    },
+    "cards": {
+      "term": "Term",
+      "definition": "Definition",
+      "flipToPrompt": "Showing answer. Flip to prompt.",
+      "flipToAnswer": "Showing prompt. Flip to answer.",
+      "flipHint": "Click or press Space to flip",
+      "favoriteAdd": "Add to favorites",
+      "favoriteRemove": "Remove from favorites",
+      "previous": "Previous card",
+      "next": "Next card",
+      "correct": "Got it",
+      "learning": "Still learning"
+    },
+    "write": {
+      "inputLabel": "Type the {{side}}",
+      "placeholder": "Type your answer",
+      "check": "Check",
+      "yours": "Yours:",
+      "correct": "Correct:",
+      "retypeHint": "Retype the correct answer to keep going.",
+      "retypeLabel": "Retype the correct answer",
+      "retypeError": "Not quite — copy the correct answer exactly.",
+      "continue": "Continue",
+      "override": "I was right"
+    },
+    "test": {
+      "complete": "Test complete",
+      "perfect": "Perfect score — every answer was correct.",
+      "missed_one": "{{count}} answer needs another look.",
+      "missed_other": "{{count}} answers need another look.",
+      "review": "Review missed answers",
+      "yourAnswer": "Your answer:",
+      "correctAnswer": "Correct answer:",
+      "retake": "Retake missed only",
+      "new": "New test",
+      "nav": "Test questions",
+      "goTo": "Go to question {{number}}",
+      "numberType": "{{number}}. {{type}}",
+      "submit": "Submit test"
+    },
+    "characters": {
+      "uppercase": "Use uppercase characters",
+      "lowercase": "Use lowercase characters",
+      "insert": "Insert {{character}}"
+    }
+  },
   "studentAssignment": {
     "excludedTitle": "This assignment is not for you",
     "excludedBody": "Your teacher did not assign this to you. Check with them if you think this is a mistake."

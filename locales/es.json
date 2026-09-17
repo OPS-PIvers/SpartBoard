@@ -2631,6 +2631,108 @@
     "discardTitle": "Descartar cambios",
     "discardConfirm": "Descartar"
   },
+  "flashcards": {
+    "public": {
+      "pageTitle": "{{title}} · Tarjetas",
+      "cards_one": "{{count}} tarjeta",
+      "cards_other": "{{count}} tarjetas",
+      "loading": "Cargando tarjetas…",
+      "unavailableTitle": "Estas tarjetas no están disponibles",
+      "unavailableBody": "Es posible que el enlace sea incorrecto o que el docente haya desactivado el uso compartido."
+    },
+    "modes": {
+      "label": "Modo de estudio",
+      "flashcards": "Tarjetas",
+      "write": "Escribir",
+      "test": "Prueba"
+    },
+    "player": {
+      "back": "Volver a la biblioteca de tarjetas",
+      "round": "Ronda {{round}}",
+      "mastered": "{{mastered}}/{{total}} dominadas",
+      "masteryLabel": "{{mastered}} de {{total}} tarjetas dominadas",
+      "settings": "Configuración de estudio",
+      "emptyTitle": "No hay tarjetas en esta vista",
+      "emptyBody": "Prueba mostrar todas las tarjetas, incluidas las dominadas, en Configuración.",
+      "openSettings": "Abrir configuración"
+    },
+    "settings": {
+      "title": "Configuración de estudio",
+      "close": "Cerrar configuración de estudio",
+      "cards": "Tarjetas",
+      "study": "Estudiar",
+      "all": "Todas",
+      "favoritesOnly": "Solo favoritas",
+      "showFirst": "Mostrar primero",
+      "term": "Término",
+      "definition": "Definición",
+      "shuffle": "Mezclar",
+      "hideMastered": "Ocultar tarjetas dominadas",
+      "answers": "Respuestas",
+      "strict": "Modo estricto",
+      "strictHelp": "Exige ortografía, acentos y artículos exactos.",
+      "test": "Prueba",
+      "multipleChoice": "Opción múltiple",
+      "fillBlank": "Completar el espacio",
+      "mcNeedsFour": "La opción múltiple necesita al menos 4 tarjetas.",
+      "questions": "Preguntas",
+      "allCount": "Todas ({{count}})",
+      "reset": "Restablecer progreso"
+    },
+    "summary": {
+      "complete": "Ronda {{round}} completada",
+      "heading": "Buen trabajo.",
+      "correct": "Lo sé",
+      "learning": "Aún aprendiendo",
+      "next": "Siguiente ronda",
+      "restart": "Reiniciar todo"
+    },
+    "cards": {
+      "term": "Término",
+      "definition": "Definición",
+      "flipToPrompt": "Mostrando la respuesta. Volver a la pregunta.",
+      "flipToAnswer": "Mostrando la pregunta. Ver la respuesta.",
+      "flipHint": "Haz clic o presiona Espacio para voltear",
+      "favoriteAdd": "Agregar a favoritas",
+      "favoriteRemove": "Quitar de favoritas",
+      "previous": "Tarjeta anterior",
+      "next": "Tarjeta siguiente",
+      "correct": "Lo sé",
+      "learning": "Aún aprendiendo"
+    },
+    "write": {
+      "inputLabel": "Escribe la {{side}}",
+      "placeholder": "Escribe tu respuesta",
+      "check": "Comprobar",
+      "yours": "Tu respuesta:",
+      "correct": "Correcta:",
+      "retypeHint": "Vuelve a escribir la respuesta correcta para continuar.",
+      "retypeLabel": "Vuelve a escribir la respuesta correcta",
+      "retypeError": "Aún no; copia exactamente la respuesta correcta.",
+      "continue": "Continuar",
+      "override": "Yo tenía razón"
+    },
+    "test": {
+      "complete": "Prueba completada",
+      "perfect": "Puntuación perfecta: todas las respuestas fueron correctas.",
+      "missed_one": "{{count}} respuesta necesita otro repaso.",
+      "missed_other": "{{count}} respuestas necesitan otro repaso.",
+      "review": "Revisar respuestas incorrectas",
+      "yourAnswer": "Tu respuesta:",
+      "correctAnswer": "Respuesta correcta:",
+      "retake": "Repetir solo las incorrectas",
+      "new": "Nueva prueba",
+      "nav": "Preguntas de la prueba",
+      "goTo": "Ir a la pregunta {{number}}",
+      "numberType": "{{number}}. {{type}}",
+      "submit": "Enviar prueba"
+    },
+    "characters": {
+      "uppercase": "Usar mayúsculas",
+      "lowercase": "Usar minúsculas",
+      "insert": "Insertar {{character}}"
+    }
+  },
   "studentAssignment": {
     "excludedTitle": "Esta tarea no es para ti",
     "excludedBody": "Tu docente no te asignó esta tarea. Consúltale si crees que es un error."

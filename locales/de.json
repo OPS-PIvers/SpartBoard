@@ -2631,6 +2631,108 @@
     "discardTitle": "Änderungen verwerfen",
     "discardConfirm": "Verwerfen"
   },
+  "flashcards": {
+    "public": {
+      "pageTitle": "{{title}} · Lernkarten",
+      "cards_one": "{{count}} Karte",
+      "cards_other": "{{count}} Karten",
+      "loading": "Lernkarten werden geladen…",
+      "unavailableTitle": "Diese Lernkarten sind nicht verfügbar",
+      "unavailableBody": "Der Link ist möglicherweise falsch oder die Lehrkraft hat die Freigabe deaktiviert."
+    },
+    "modes": {
+      "label": "Lernmodus",
+      "flashcards": "Lernkarten",
+      "write": "Schreiben",
+      "test": "Test"
+    },
+    "player": {
+      "back": "Zurück zur Lernkartenbibliothek",
+      "round": "Runde {{round}}",
+      "mastered": "{{mastered}}/{{total}} gemeistert",
+      "masteryLabel": "{{mastered}} von {{total}} Karten gemeistert",
+      "settings": "Lerneinstellungen",
+      "emptyTitle": "Keine Karten in dieser Ansicht",
+      "emptyBody": "Zeige in den Einstellungen alle Karten einschließlich der gemeisterten an.",
+      "openSettings": "Einstellungen öffnen"
+    },
+    "settings": {
+      "title": "Lerneinstellungen",
+      "close": "Lerneinstellungen schließen",
+      "cards": "Karten",
+      "study": "Lernen",
+      "all": "Alle",
+      "favoritesOnly": "Nur Favoriten",
+      "showFirst": "Zuerst zeigen",
+      "term": "Begriff",
+      "definition": "Definition",
+      "shuffle": "Mischen",
+      "hideMastered": "Gemeisterte Karten ausblenden",
+      "answers": "Antworten",
+      "strict": "Strenger Modus",
+      "strictHelp": "Exakte Schreibweise, Akzente und Artikel verlangen.",
+      "test": "Test",
+      "multipleChoice": "Multiple Choice",
+      "fillBlank": "Lückentext",
+      "mcNeedsFour": "Multiple Choice benötigt mindestens 4 Karten.",
+      "questions": "Fragen",
+      "allCount": "Alle ({{count}})",
+      "reset": "Fortschritt zurücksetzen"
+    },
+    "summary": {
+      "complete": "Runde {{round}} abgeschlossen",
+      "heading": "Gut gemacht.",
+      "correct": "Gewusst",
+      "learning": "Noch lernen",
+      "next": "Nächste Runde",
+      "restart": "Alles neu starten"
+    },
+    "cards": {
+      "term": "Begriff",
+      "definition": "Definition",
+      "flipToPrompt": "Antwort wird gezeigt. Zur Frage umdrehen.",
+      "flipToAnswer": "Frage wird gezeigt. Zur Antwort umdrehen.",
+      "flipHint": "Klicken oder Leertaste drücken zum Umdrehen",
+      "favoriteAdd": "Zu Favoriten hinzufügen",
+      "favoriteRemove": "Aus Favoriten entfernen",
+      "previous": "Vorherige Karte",
+      "next": "Nächste Karte",
+      "correct": "Gewusst",
+      "learning": "Noch lernen"
+    },
+    "write": {
+      "inputLabel": "{{side}} eingeben",
+      "placeholder": "Antwort eingeben",
+      "check": "Prüfen",
+      "yours": "Deine Antwort:",
+      "correct": "Richtig:",
+      "retypeHint": "Gib die richtige Antwort erneut ein, um fortzufahren.",
+      "retypeLabel": "Richtige Antwort erneut eingeben",
+      "retypeError": "Noch nicht ganz – kopiere die richtige Antwort genau.",
+      "continue": "Weiter",
+      "override": "Meine Antwort war richtig"
+    },
+    "test": {
+      "complete": "Test abgeschlossen",
+      "perfect": "Perfekt – alle Antworten waren richtig.",
+      "missed_one": "{{count}} Antwort solltest du noch einmal ansehen.",
+      "missed_other": "{{count}} Antworten solltest du noch einmal ansehen.",
+      "review": "Falsche Antworten prüfen",
+      "yourAnswer": "Deine Antwort:",
+      "correctAnswer": "Richtige Antwort:",
+      "retake": "Nur falsche wiederholen",
+      "new": "Neuer Test",
+      "nav": "Testfragen",
+      "goTo": "Zu Frage {{number}}",
+      "numberType": "{{number}}. {{type}}",
+      "submit": "Test abgeben"
+    },
+    "characters": {
+      "uppercase": "Großbuchstaben verwenden",
+      "lowercase": "Kleinbuchstaben verwenden",
+      "insert": "{{character}} einfügen"
+    }
+  },
   "studentAssignment": {
     "excludedTitle": "Diese Aufgabe ist nicht für dich",
     "excludedBody": "Deine Lehrkraft hat dir diese Aufgabe nicht zugewiesen. Frage nach, wenn du glaubst, dass das ein Fehler ist."

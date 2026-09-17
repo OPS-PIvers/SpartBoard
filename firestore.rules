@@ -4825,6 +4825,46 @@ service cloud.firestore {
                          && notDeactivated();
     }
 
+    // Public Flashcards snapshots — single-document reads work without auth so
+    // Schoology/Google Sites embeds do not depend on partitioned auth storage.
+    // Listing is intentionally denied: a share id is the access capability.
+    match /public_flashcard_sets/{shareId} {
+      function validPublicFlashcardSnapshot() {
+        return request.resource.data.teacherUid == request.auth.uid
+               && request.resource.data.keys().hasOnly([
+                 'teacherUid', 'setId', 'title', 'description',
+                 'termLanguage', 'definitionLanguage', 'cards',
+                 'updatedAt'
+               ])
+               && request.resource.data.setId is string
+               && request.resource.data.title is string
+               && request.resource.data.title.size() > 0
+               && request.resource.data.description is string
+               && request.resource.data.termLanguage is string
+               && request.resource.data.definitionLanguage is string
+               && request.resource.data.cards is list
+               && request.resource.data.cards.size() > 0
+               && request.resource.data.cards.size() <= 500
+               && request.resource.data.updatedAt is int;
+      }
+
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null
+                    && !isStudentRoleUser()
+                    && notDeactivated()
+                    && validPublicFlashcardSnapshot();
+      allow update: if request.auth != null
+                    && !isStudentRoleUser()
+                    && notDeactivated()
+                    && resource.data.teacherUid == request.auth.uid
+                    && validPublicFlashcardSnapshot();
+      allow delete: if request.auth != null
+                    && !isStudentRoleUser()
+                    && notDeactivated()
+                    && resource.data.teacherUid == request.auth.uid;
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

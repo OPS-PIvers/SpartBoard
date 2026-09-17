@@ -2631,6 +2631,108 @@
     "discardTitle": "Abandonner les modifications",
     "discardConfirm": "Abandonner"
   },
+  "flashcards": {
+    "public": {
+      "pageTitle": "{{title}} · Cartes mémoire",
+      "cards_one": "{{count}} carte",
+      "cards_other": "{{count}} cartes",
+      "loading": "Chargement des cartes…",
+      "unavailableTitle": "Ces cartes ne sont pas disponibles",
+      "unavailableBody": "Le lien est peut-être incorrect ou l'enseignant a désactivé le partage."
+    },
+    "modes": {
+      "label": "Mode d'étude",
+      "flashcards": "Cartes",
+      "write": "Écrire",
+      "test": "Test"
+    },
+    "player": {
+      "back": "Retour à la bibliothèque de cartes",
+      "round": "Série {{round}}",
+      "mastered": "{{mastered}}/{{total}} maîtrisées",
+      "masteryLabel": "{{mastered}} cartes maîtrisées sur {{total}}",
+      "settings": "Paramètres d'étude",
+      "emptyTitle": "Aucune carte dans cette vue",
+      "emptyBody": "Affiche toutes les cartes, y compris celles maîtrisées, dans les paramètres.",
+      "openSettings": "Ouvrir les paramètres"
+    },
+    "settings": {
+      "title": "Paramètres d'étude",
+      "close": "Fermer les paramètres d'étude",
+      "cards": "Cartes",
+      "study": "Étudier",
+      "all": "Toutes",
+      "favoritesOnly": "Favoris seulement",
+      "showFirst": "Afficher d'abord",
+      "term": "Terme",
+      "definition": "Définition",
+      "shuffle": "Mélanger",
+      "hideMastered": "Masquer les cartes maîtrisées",
+      "answers": "Réponses",
+      "strict": "Mode strict",
+      "strictHelp": "Exiger l'orthographe, les accents et les articles exacts.",
+      "test": "Test",
+      "multipleChoice": "Choix multiple",
+      "fillBlank": "Texte à trous",
+      "mcNeedsFour": "Le choix multiple nécessite au moins 4 cartes.",
+      "questions": "Questions",
+      "allCount": "Toutes ({{count}})",
+      "reset": "Réinitialiser la progression"
+    },
+    "summary": {
+      "complete": "Série {{round}} terminée",
+      "heading": "Beau travail.",
+      "correct": "Je sais",
+      "learning": "À revoir",
+      "next": "Série suivante",
+      "restart": "Tout recommencer"
+    },
+    "cards": {
+      "term": "Terme",
+      "definition": "Définition",
+      "flipToPrompt": "Réponse affichée. Retourner vers la question.",
+      "flipToAnswer": "Question affichée. Retourner vers la réponse.",
+      "flipHint": "Cliquer ou appuyer sur Espace pour retourner",
+      "favoriteAdd": "Ajouter aux favoris",
+      "favoriteRemove": "Retirer des favoris",
+      "previous": "Carte précédente",
+      "next": "Carte suivante",
+      "correct": "Je sais",
+      "learning": "À revoir"
+    },
+    "write": {
+      "inputLabel": "Saisir la {{side}}",
+      "placeholder": "Saisis ta réponse",
+      "check": "Vérifier",
+      "yours": "Ta réponse :",
+      "correct": "Bonne réponse :",
+      "retypeHint": "Ressaisis la bonne réponse pour continuer.",
+      "retypeLabel": "Ressaisir la bonne réponse",
+      "retypeError": "Pas encore — recopie exactement la bonne réponse.",
+      "continue": "Continuer",
+      "override": "J'avais raison"
+    },
+    "test": {
+      "complete": "Test terminé",
+      "perfect": "Score parfait — toutes les réponses sont correctes.",
+      "missed_one": "{{count}} réponse est à revoir.",
+      "missed_other": "{{count}} réponses sont à revoir.",
+      "review": "Revoir les réponses incorrectes",
+      "yourAnswer": "Ta réponse :",
+      "correctAnswer": "Bonne réponse :",
+      "retake": "Reprendre seulement les erreurs",
+      "new": "Nouveau test",
+      "nav": "Questions du test",
+      "goTo": "Aller à la question {{number}}",
+      "numberType": "{{number}}. {{type}}",
+      "submit": "Envoyer le test"
+    },
+    "characters": {
+      "uppercase": "Utiliser les majuscules",
+      "lowercase": "Utiliser les minuscules",
+      "insert": "Insérer {{character}}"
+    }
+  },
   "studentAssignment": {
     "excludedTitle": "Ce devoir n'est pas pour toi",
     "excludedBody": "Ton enseignant ne t'a pas attribué ce devoir. Demande-lui si tu penses qu'il s'agit d'une erreur."
