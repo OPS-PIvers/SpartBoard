@@ -2828,7 +2828,7 @@ service cloud.firestore {
                'id', 'title', 'body', 'kind', 'meetingId', 'actionItems',
                'createdBy', 'createdAt',
                'lastEditedBy', 'lastEditedAt',
-               'version', 'deletedAt'
+               'version', 'deletedAt', 'yState'
              ])
           && request.resource.data.id == noteId
           && request.resource.data.createdBy == request.auth.uid
@@ -2848,6 +2848,10 @@ service cloud.firestore {
                !('actionItems' in request.resource.data)
                || (request.resource.data.actionItems is list
                     && request.resource.data.actionItems.size() <= 200)
+             )
+          && (
+               !('yState' in request.resource.data)
+               || request.resource.data.yState is string
              )
           // A fresh note may omit `version` (legacy/no-version) or start it at
           // an int (clients seed 0/1). The update branch enforces the +1 bump.
@@ -2870,7 +2874,7 @@ service cloud.firestore {
                'id', 'title', 'body', 'kind', 'meetingId', 'actionItems',
                'createdBy', 'createdAt',
                'lastEditedBy', 'lastEditedAt',
-               'version', 'deletedAt'
+               'version', 'deletedAt', 'yState'
              ])
           && request.resource.data.id == resource.data.id
           && request.resource.data.createdBy == resource.data.createdBy
@@ -2893,6 +2897,10 @@ service cloud.firestore {
                || (request.resource.data.actionItems is list
                     && request.resource.data.actionItems.size() <= 200)
              )
+          && (
+               !('yState' in request.resource.data)
+               || request.resource.data.yState is string
+             )
           && plcSubDeletedAtOk()
           // Version precondition: new == old + 1, OR both absent (rollout).
           && (
@@ -2911,6 +2919,31 @@ service cloud.firestore {
         // denied.
         allow delete: if request.auth != null
           && plcCanEditContent(plcId);
+
+        // Yjs CRDT update log — one base64 update per doc, replayed on top of
+        // the note's compacted `yState`. Append-only for clients: an update is
+        // never rewritten, only deleted once compaction has folded it into the
+        // snapshot. Shape locked via hasOnly([...]); `uid` is the author so a
+        // member can't forge a teammate's update.
+        match /yUpdates/{updateId} {
+          allow read: if request.auth != null
+            && request.auth.uid in get(
+                 /databases/$(database)/documents/plcs/$(plcId)
+               ).data.memberUids;
+
+          allow create: if request.auth != null
+            && plcCanEditContent(plcId)
+            && request.resource.data.keys().hasOnly(['u', 'uid', 'at'])
+            && request.resource.data.u is string
+            && request.resource.data.u.size() <= 200000
+            && request.resource.data.uid == request.auth.uid
+            && plcSubTimeFieldOk('at');
+
+          allow update: if false;
+
+          allow delete: if request.auth != null
+            && plcCanEditContent(plcId);
+        }
       }
 
       // PLC shared Google Docs. Lightweight pointers — the doc content
